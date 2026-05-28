@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+
+@layer base {
+  :root {
+    /* Warm parchment / off-white backgrounds */
+    --background: 40 30% 96%;
+    --foreground: 100 15% 12%;
+
+    /* Cards: slightly warmer than background */
+    --card: 38 28% 94%;
+    --card-foreground: 100 15% 12%;
+
+    /* Popovers: clean near-white */
+    --popover: 38 25% 97%;
+    --popover-foreground: 100 15% 12%;
+
+    /* Primary: deep botanical green */
+    --primary: 152 35% 22%;
+    --primary-foreground: 40 30% 96%;
+
+    /* Secondary: warm earthy neutral */
+    --secondary: 37 22% 88%;
+    --secondary-foreground: 100 15% 18%;
+
+    /* Muted: soft warm grey */
+    --muted: 38 18% 90%;
+    --muted-foreground: 100 8% 42%;
+
+    /* Accent: muted terracotta / amber */
+    --accent: 22 55% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive: muted red */
+    --destructive: 4 65% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders & inputs: warm, subtle */
+    --border: 38 18% 82%;
+    --input: 38 18% 82%;
+
+    /* Ring: botanical green */
+    --ring: 152 35% 28%;
+
+    /* Radius: softly rounded, not pill */
+    --radius: 0.5rem;
+
+    /* Charts: botanical & earthy palette */
+    --chart-1: 152 35% 30%;
+    --chart-2: 22 55% 58%;
+    --chart-3: 84 28% 42%;
+    --chart-4: 37 60% 55%;
+    --chart-5: 170 30% 38%;
+  }
+
+  .dark {
+    /* Deep forest / near-black background */
+    --background: 152 15% 8%;
+    --foreground: 40 25% 92%;
+
+    --card: 152 14% 11%;
+    --card-foreground: 40 25% 92%;
+
+    --popover: 152 14% 11%;
+    --popover-foreground: 40 25% 92%;
+
+    /* Primary: warm parchment */
+    --primary: 40 30% 88%;
+    --primary-foreground: 152 35% 14%;
+
+    /* Secondary: deep muted green-grey */
+    --secondary: 152 12% 18%;
+    --secondary-foreground: 40 25% 92%;
+
+    --muted: 152 10% 16%;
+    --muted-foreground: 100 8% 58%;
+
+    /* Accent: terracotta stays warm in dark */
+    --accent: 22 55% 54%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 4 60% 40%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 152 10% 20%;
+    --input: 152 10% 20%;
+    --ring: 40 25% 75%;
+
+    --chart-1: 152 45% 45%;
+    --chart-2: 22 60% 62%;
+    --chart-3: 84 35% 52%;
+    --chart-4: 37 65% 60%;
+    --chart-5: 170 38% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Montserrat', sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  /* Data-dense areas stay in clean sans-serif */
+  table, .font-mono {
+    font-family: 'Montserrat', sans-serif;
+  }
+}
+
