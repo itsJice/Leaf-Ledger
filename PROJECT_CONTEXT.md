@@ -24,3 +24,6 @@ Leaf & Ledger is a centralized catalog and project system for The Branch Design 
 - Selected bucket products plus recipe logic calculate quantities to order.
 - Purchase sheets and client quote numbers come from selected products and pricing settings.
 - AI mockups use project products and uploaded client-space photos to visualize the finished design.
+
+## Effort Metrics
+- 2026-05-29 instant-loading pass: Added/verified app bootstrap summaries, cached summary usage, paged Product Library loading, debounced catalog search, and global product filter metadata. Backend compile passed, frontend build passed, and local HTTP checks passed for bootstrap summary, product filter metadata, paged product search, and frontend routes: clients, projects, project detail, library, favorites, suppliers, invoice, and mockups.

@@ -53,8 +53,46 @@ interface Props {
 }
 
 const SIDEBAR_PROJECTS_CACHE_KEY = "leaf-ledger-sidebar-projects-cache-v1";
+const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
+const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
+const SUPPLIERS_CACHE_KEY = "leaf-ledger:suppliers-cache:v1";
+const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v1";
 
 type SidebarProject = { id: number; name: string; client_name?: string; updated_at?: string };
+type BootstrapSummary = {
+  clients?: Array<{ name: string; project_count?: number }>;
+  projects?: SidebarProject[];
+  suppliers?: unknown[];
+  stats?: Record<string, unknown> | null;
+};
+
+function writeJsonCache(key: string, value: unknown) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache writes should never block navigation.
+  }
+}
+
+function clientCountsFromProjects(rows: SidebarProject[]) {
+  const counts = new Map<string, number>();
+  rows.forEach((row) => {
+    const rawName = (row.client_name || "").trim();
+    const name = rawName || "Unassigned";
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function sortProjectsByUpdated(rows: SidebarProject[]) {
+  return [...rows].sort((a, b) => {
+    const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    return bTime - aTime;
+  });
+}
 
 export default function Layout({ children }: Props) {
   const navigate = useNavigate();
@@ -77,39 +115,74 @@ export default function Layout({ children }: Props) {
       return true;
     }
   });
+  const [clientsOpen, setClientsOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem("leaf-ledger-sidebar-clients-open") === "true";
+    } catch {
+      return false;
+    }
+  });
 
   const loadSidebarProjects = useCallback((mountedRef?: { current: boolean }) => {
     if (sidebarProjects.length === 0) setProjectsLoading(true);
-    apiClient.list_arrangements()
+    apiClient.request<BootstrapSummary>({
+      path: "/routes/bootstrap/summary",
+      method: "GET",
+      format: "json",
+    })
       .then((r) => {
-        if (!r.ok) throw new Error("Failed to load projects");
-        return r.json();
+        const summary = r.data || {};
+        const safeProjects = Array.isArray(summary.projects) ? summary.projects : [];
+        const safeClients = Array.isArray(summary.clients) ? summary.clients : [];
+        const sortedProjects = sortProjectsByUpdated(safeProjects);
+
+        writeJsonCache(SIDEBAR_PROJECTS_CACHE_KEY, sortedProjects.slice(0, 100));
+        writeJsonCache(CLIENTS_PAGE_CACHE_KEY, {
+          clientRows: safeClients,
+          projects: safeProjects,
+          cachedAt: Date.now(),
+        });
+        writeJsonCache(PROJECTS_LIST_CACHE_KEY, {
+          arrangements: safeProjects,
+          cachedAt: Date.now(),
+        });
+        if (Array.isArray(summary.suppliers)) {
+          writeJsonCache(SUPPLIERS_CACHE_KEY, summary.suppliers);
+        }
+        if (summary.stats) {
+          writeJsonCache(DASHBOARD_CACHE_KEY, {
+            stats: summary.stats,
+            recentProjects: sortedProjects.slice(0, 5),
+            cachedAt: Date.now(),
+          });
+        }
+
+        if (mountedRef && !mountedRef.current) return;
+        const clientCounts = safeClients.length > 0
+          ? safeClients
+              .map((client) => ({
+                name: client.name,
+                count: client.project_count || 0,
+              }))
+              .filter((client) => client.name)
+              .sort((a, b) => a.name.localeCompare(b.name))
+          : clientCountsFromProjects(safeProjects);
+        setProjectClients(clientCounts);
+        setSidebarProjects(sortedProjects);
       })
-      .then((rows: SidebarProject[]) => {
+      .catch(() => apiClient.list_arrangements()
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to load projects");
+          return r.json();
+        })
+        .then((rows: SidebarProject[]) => {
         if (mountedRef && !mountedRef.current) return;
         const safeRows = Array.isArray(rows) ? rows : [];
-        try {
-          window.localStorage.setItem(SIDEBAR_PROJECTS_CACHE_KEY, JSON.stringify(safeRows.slice(0, 100)));
-        } catch {}
-        const counts = new Map<string, number>();
-        safeRows.forEach((row) => {
-          const rawName = (row.client_name || "").trim();
-          const name = rawName || "Unassigned";
-          counts.set(name, (counts.get(name) || 0) + 1);
-        });
-        setProjectClients(
-          Array.from(counts.entries())
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        );
-        setSidebarProjects(
-          [...safeRows].sort((a, b) => {
-            const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-            const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-            return bTime - aTime;
-          })
-        );
-      })
+        const sortedRows = sortProjectsByUpdated(safeRows);
+        writeJsonCache(SIDEBAR_PROJECTS_CACHE_KEY, sortedRows.slice(0, 100));
+        setProjectClients(clientCountsFromProjects(safeRows));
+        setSidebarProjects(sortedRows);
+      }))
       .catch(() => {})
       .finally(() => {
         if (!mountedRef || mountedRef.current) setProjectsLoading(false);
@@ -133,6 +206,12 @@ export default function Layout({ children }: Props) {
     } catch {}
   }, [projectsOpen]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("leaf-ledger-sidebar-clients-open", String(clientsOpen));
+    } catch {}
+  }, [clientsOpen]);
+
   const handleSignOut = async () => {
     await stackClientApp.signOut();
     navigate(APP_BASE_PATH + "/auth/sign-in");
@@ -143,6 +222,7 @@ export default function Layout({ children }: Props) {
     return location.pathname.includes(path);
   };
   const activeProjectId = new URLSearchParams(location.search).get("id");
+  const activeClientName = new URLSearchParams(location.search).get("client");
 
   return (
     <div className="min-h-screen flex" style={{ fontFamily: "'Montserrat', sans-serif", backgroundColor: "#f7f4ef" }}>
@@ -203,18 +283,61 @@ export default function Layout({ children }: Props) {
                   Projects
                 </p>
                 <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={() => navigate("/clients")}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left w-full ${
-                      isActive("/clients")
-                        ? "bg-emerald-700/40 text-emerald-300"
-                        : "text-stone-400 hover:text-stone-200 hover:bg-white/5"
-                    }`}
-                  >
-                    <Users size={16} strokeWidth={1.8} />
-                    Clients
-                    {isActive("/clients") && <ChevronRight size={12} className="ml-auto opacity-60" />}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => navigate("/clients")}
+                      className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
+                        isActive("/clients")
+                          ? "bg-emerald-700/40 text-emerald-300"
+                          : "text-stone-400 hover:text-stone-200 hover:bg-white/5"
+                      }`}
+                    >
+                      <Users size={16} strokeWidth={1.8} />
+                      Clients
+                    </button>
+                    <button
+                      onClick={() => setClientsOpen((open) => !open)}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition-all hover:bg-white/5 hover:text-stone-200"
+                      title={clientsOpen ? "Hide client list" : "Show client list"}
+                      aria-label={clientsOpen ? "Hide client list" : "Show client list"}
+                    >
+                      {clientsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                  </div>
+                  {clientsOpen && (
+                    <div className="ml-5 mt-1 flex flex-col gap-0.5 border-l border-white/10 pl-2">
+                      {projectClients.slice(0, 12).map((client) => {
+                        const active = isActive("/clients") && activeClientName === client.name;
+                        return (
+                          <button
+                            key={client.name}
+                            onClick={() => navigate(`/clients?client=${encodeURIComponent(client.name)}`)}
+                            className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition-all ${
+                              active
+                                ? "bg-emerald-700/30 text-emerald-200"
+                                : "text-stone-400 hover:bg-white/5 hover:text-stone-200"
+                            }`}
+                            title={`${client.count} project${client.count === 1 ? "" : "s"}`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
+                            <span className="truncate">{client.name}</span>
+                          </button>
+                        );
+                      })}
+                      {projectsLoading ? (
+                        <div className="rounded-lg px-2 py-1.5 text-left text-xs text-stone-500">
+                          Loading clients...
+                        </div>
+                      ) : projectClients.length === 0 && (
+                        <button
+                          onClick={() => navigate("/clients")}
+                          className="rounded-lg px-2 py-1.5 text-left text-xs text-stone-500 hover:bg-white/5 hover:text-stone-300"
+                        >
+                          No clients yet
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => navigate("/projects")}
@@ -270,17 +393,6 @@ export default function Layout({ children }: Props) {
                       )}
                     </div>
                   )}
-                  {projectClients.slice(0, 8).map((client) => (
-                    <button
-                      key={client.name}
-                      onClick={() => navigate(`/clients?client=${encodeURIComponent(client.name)}`)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-stone-400 transition-all text-left w-full hover:text-stone-200 hover:bg-white/5"
-                      title={`${client.count} project${client.count === 1 ? "" : "s"}`}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
-                      <span className="truncate">{client.name}</span>
-                    </button>
-                  ))}
                 </div>
               </div>
             )}

@@ -1824,7 +1824,9 @@ export default function Suppliers() {
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Suppliers</h1>
           <p className="text-xs text-stone-500 mt-0.5">
-            {suppliers.length} supplier{suppliers.length !== 1 ? "s" : ""} · Click a row to sync its product catalog
+            {loading && suppliers.length === 0
+              ? "Checking suppliers..."
+              : `${suppliers.length} supplier${suppliers.length !== 1 ? "s" : ""} · Click a row to sync its product catalog`}
             {refreshing && <span className="ml-2 text-emerald-700">Refreshing…</span>}
           </p>
         </div>

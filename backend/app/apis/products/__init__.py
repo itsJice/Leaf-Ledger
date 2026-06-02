@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Response
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Any, Optional, List
 import asyncpg
 import os
 import uuid
@@ -122,7 +122,185 @@ class ProductOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class ProductListPage(BaseModel):
+    items: List[ProductOut]
+    total: int
+    limit: int
+    offset: int
+
+class FilterOption(BaseModel):
+    value: str
+    count: int
+    id: Optional[int] = None
+
+class ProductFilterMetadata(BaseModel):
+    generated_at: str
+    categories: List[FilterOption]
+    suppliers: List[FilterOption]
+    countries: List[FilterOption]
+    colors: List[FilterOption]
+    availability: List[FilterOption]
+
 # ---------- Endpoints ----------
+
+def _normalize_product_row(row) -> dict:
+    product = dict(row)
+    raw = product.get("raw_data") or {}
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            raw = {}
+        product["raw_data"] = raw
+    product["upc"] = product.get("upc") or raw.get("UPC")
+    if product.get("box_qty") is None:
+        try:
+            product["box_qty"] = int(str(raw.get("BoxQty", "")).strip())
+        except (TypeError, ValueError):
+            product["box_qty"] = None
+    return product
+
+def _product_filters(
+    user_id: Optional[str],
+    supplier_id: Optional[int],
+    category: Optional[str],
+    favorites_only: Optional[bool],
+    search: Optional[str],
+) -> tuple[list[str], list, int]:
+    conditions = ["p.is_active = TRUE"]
+    effective_user_id = user_id or "__no_user__"
+    params: list = [effective_user_id]
+    idx = 2
+    if supplier_id:
+        conditions.append(f"p.supplier_id = ${idx}")
+        params.append(supplier_id)
+        idx += 1
+    if category:
+        conditions.append(f"p.category = ${idx}")
+        params.append(category)
+        idx += 1
+    if favorites_only and user_id:
+        conditions.append("pf.id IS NOT NULL")
+    if search:
+        conditions.append(
+            f"""(
+                p.name ILIKE ${idx}
+                OR p.description ILIKE ${idx}
+                OR p.supplier_sku ILIKE ${idx}
+                OR p.raw_data::text ILIKE ${idx}
+            )"""
+        )
+        params.append(f"%{search}%")
+        idx += 1
+    return conditions, params, idx
+
+def _option_rows(rows) -> list[dict[str, Any]]:
+    options: list[dict[str, Any]] = []
+    for row in rows:
+        data = dict(row)
+        value = data.get("value")
+        if value is None or not str(value).strip():
+            continue
+        option = {"value": str(value).strip(), "count": int(data.get("count") or 0)}
+        if data.get("id") is not None:
+            option["id"] = data["id"]
+        options.append(option)
+    return options
+
+def _availability_bucket(value: Any) -> Optional[str]:
+    text = str(value or "").lower()
+    if not text:
+        return None
+    if "within 1" in text or "1-4 month" in text or "1 4 month" in text:
+        return "Within 1-4 months"
+    if "available today" in text or text.strip() in {"in_stock", "today"}:
+        return "Available today"
+    if "sold out" in text or "out of stock" in text or "unavailable" in text or text.strip() == "out_of_stock":
+        return "Sold out / unavailable"
+    if "eta" in text or "expected" in text or "future" in text:
+        return "Future ETA"
+    if "over 4" in text:
+        return "Over 4 months"
+    return None
+
+async def _build_product_filter_metadata(conn) -> dict[str, Any]:
+    category_rows = await conn.fetch("""
+        SELECT COALESCE(NULLIF(category, ''), 'other') AS value, COUNT(*)::int AS count
+        FROM products
+        WHERE is_active = TRUE
+        GROUP BY 1
+        ORDER BY count DESC, value ASC
+    """)
+    supplier_rows = await conn.fetch("""
+        SELECT s.id, s.name AS value, COUNT(p.id)::int AS count
+        FROM suppliers s
+        LEFT JOIN products p ON p.supplier_id = s.id AND p.is_active = TRUE
+        GROUP BY s.id, s.name
+        ORDER BY s.name ASC
+    """)
+    country_rows = await conn.fetch("""
+        SELECT COALESCE(
+            NULLIF(country_of_origin, ''),
+            NULLIF(raw_data->>'Country of Origin', ''),
+            NULLIF(raw_data->>'Country', '')
+        ) AS value,
+        COUNT(*)::int AS count
+        FROM products
+        WHERE is_active = TRUE
+        GROUP BY 1
+        ORDER BY count DESC, value ASC
+    """)
+    color_rows = await conn.fetch("""
+        SELECT COALESCE(
+            NULLIF(color, ''),
+            NULLIF(raw_data->>'ColorGrp', ''),
+            NULLIF(raw_data->>'Color', ''),
+            NULLIF(raw_data->>'Primary Color', '')
+        ) AS value,
+        COUNT(*)::int AS count
+        FROM products
+        WHERE is_active = TRUE
+        GROUP BY 1
+        ORDER BY count DESC, value ASC
+        LIMIT 300
+    """)
+    availability_rows = await conn.fetch("""
+        SELECT availability, availability_note, raw_data->>'Avail. Qty' AS raw_availability, raw_data->>'Avail. Qty: *' AS raw_availability_note
+        FROM products
+        WHERE is_active = TRUE
+    """)
+    availability_counts: dict[str, int] = {}
+    for row in availability_rows:
+        bucket = (
+            _availability_bucket(row["availability_note"])
+            or _availability_bucket(row["raw_availability_note"])
+            or _availability_bucket(row["raw_availability"])
+            or _availability_bucket(row["availability"])
+        )
+        if bucket:
+            availability_counts[bucket] = availability_counts.get(bucket, 0) + 1
+
+    availability_order = ["Available today", "Within 1-4 months", "Over 4 months", "Future ETA", "Sold out / unavailable"]
+    return {
+        "generated_at": datetime.utcnow().isoformat(),
+        "categories": _option_rows(category_rows),
+        "suppliers": _option_rows(supplier_rows),
+        "countries": _option_rows(country_rows),
+        "colors": _option_rows(color_rows),
+        "availability": [
+            {"value": label, "count": availability_counts[label]}
+            for label in availability_order
+            if availability_counts.get(label)
+        ],
+    }
+
+@router.get("/filter-metadata", response_model=ProductFilterMetadata)
+async def get_product_filter_metadata():
+    conn = await get_conn()
+    try:
+        return await _build_product_filter_metadata(conn)
+    finally:
+        await conn.close()
 
 @router.get("/list", response_model=List[ProductOut])
 async def list_products(
@@ -139,32 +317,7 @@ async def list_products(
 
     conn = await get_conn()
     try:
-        conditions = ["p.is_active = TRUE"]
-        # Use a dummy non-matching user_id when unauthenticated so LEFT JOIN still works
-        effective_user_id = user_id or "__no_user__"
-        params: list = [effective_user_id]
-        idx = 2
-        if supplier_id:
-            conditions.append(f"p.supplier_id = ${idx}")
-            params.append(supplier_id)
-            idx += 1
-        if category:
-            conditions.append(f"p.category = ${idx}")
-            params.append(category)
-            idx += 1
-        if favorites_only and user_id:
-            conditions.append("pf.id IS NOT NULL")
-        if search:
-            conditions.append(
-                f"""(
-                    p.name ILIKE ${idx}
-                    OR p.description ILIKE ${idx}
-                    OR p.supplier_sku ILIKE ${idx}
-                    OR p.raw_data::text ILIKE ${idx}
-                )"""
-            )
-            params.append(f"%{search}%")
-            idx += 1
+        conditions, params, _ = _product_filters(user_id, supplier_id, category, favorites_only, search)
         where = " AND ".join(conditions)
         rows = await conn.fetch(f"""
             SELECT p.*, s.name as supplier_name,
@@ -175,24 +328,53 @@ async def list_products(
             WHERE {where}
             ORDER BY is_favorited DESC, p.name ASC
         """, *params)
-        products = []
-        for row in rows:
-            product = dict(row)
-            raw = product.get("raw_data") or {}
-            if isinstance(raw, str):
-                try:
-                    raw = json.loads(raw)
-                except json.JSONDecodeError:
-                    raw = {}
-                product["raw_data"] = raw
-            product["upc"] = product.get("upc") or raw.get("UPC")
-            if product.get("box_qty") is None:
-                try:
-                    product["box_qty"] = int(str(raw.get("BoxQty", "")).strip())
-                except (TypeError, ValueError):
-                    product["box_qty"] = None
-            products.append(product)
-        return products
+        return [_normalize_product_row(row) for row in rows]
+    finally:
+        await conn.close()
+
+@router.get("/page", response_model=ProductListPage)
+async def page_products(
+    request: Request,
+    supplier_id: Optional[int] = None,
+    category: Optional[str] = None,
+    favorites_only: Optional[bool] = None,
+    search: Optional[str] = None,
+    limit: int = 96,
+    offset: int = 0,
+):
+    user_id: Optional[str] = extract_user_id(request)
+    if favorites_only and not user_id:
+        return {"items": [], "total": 0, "limit": limit, "offset": offset}
+
+    safe_limit = max(1, min(limit, 250))
+    safe_offset = max(0, offset)
+    conn = await get_conn()
+    try:
+        conditions, params, idx = _product_filters(user_id, supplier_id, category, favorites_only, search)
+        where = " AND ".join(conditions)
+        total = await conn.fetchval(f"""
+            SELECT COUNT(*)
+            FROM products p
+            LEFT JOIN product_favorites pf ON pf.product_id = p.id AND pf.user_id = $1
+            WHERE {where}
+        """, *params)
+        page_params = [*params, safe_limit, safe_offset]
+        rows = await conn.fetch(f"""
+            SELECT p.*, s.name as supplier_name,
+                   CASE WHEN pf.id IS NOT NULL THEN TRUE ELSE FALSE END as is_favorited
+            FROM products p
+            LEFT JOIN suppliers s ON s.id = p.supplier_id
+            LEFT JOIN product_favorites pf ON pf.product_id = p.id AND pf.user_id = $1
+            WHERE {where}
+            ORDER BY is_favorited DESC, p.name ASC
+            LIMIT ${idx} OFFSET ${idx + 1}
+        """, *page_params)
+        return {
+            "items": [_normalize_product_row(row) for row in rows],
+            "total": int(total or 0),
+            "limit": safe_limit,
+            "offset": safe_offset,
+        }
     finally:
         await conn.close()
 

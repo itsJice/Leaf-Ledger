@@ -71,6 +71,36 @@ type ClientGroup = {
 };
 
 const LOCAL_CLIENTS_KEY = "leaf-ledger-local-clients-v1";
+const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
+
+type ClientsPageCache = {
+  clientRows: ClientRecord[];
+  projects: ProjectSummary[];
+  cachedAt: number;
+};
+
+function readClientsPageCache(): ClientsPageCache | null {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(CLIENTS_PAGE_CACHE_KEY) || "null");
+    if (!parsed || !Array.isArray(parsed.clientRows) || !Array.isArray(parsed.projects)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeClientsPageCache(clientRows: ClientRecord[], projects: ProjectSummary[]) {
+  try {
+    window.localStorage.setItem(CLIENTS_PAGE_CACHE_KEY, JSON.stringify({ clientRows, projects, cachedAt: Date.now() }));
+  } catch {
+    // localStorage is only a speed cache; failures should not block the app.
+  }
+}
+
+function formatCacheStamp(ms?: number | null) {
+  if (!ms) return "";
+  return new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
 
 function normalizedClientName(name?: string | null) {
   const trimmed = (name || "").trim();
@@ -369,13 +399,17 @@ export default function Clients() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const focusedClient = searchParams.get("client") || "";
+  const localClientsOnLoad = useMemo(() => readLocalClients(), []);
+  const cachedPage = useMemo(() => readClientsPageCache(), []);
 
-  const [clientRows, setClientRows] = useState<ClientRecord[]>([]);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [clientRows, setClientRows] = useState<ClientRecord[]>(() => cachedPage?.clientRows?.length ? cachedPage.clientRows : localClientsOnLoad);
+  const [projects, setProjects] = useState<ProjectSummary[]>(() => cachedPage?.projects || []);
   const [projectDetails, setProjectDetails] = useState<Record<number, ProjectDetail>>({});
   const [expandedClient, setExpandedClient] = useState<string | null>(focusedClient || null);
-  const [loading, setLoading] = useState(true);
-  const [initialDataSettled, setInitialDataSettled] = useState(false);
+  const [loading, setLoading] = useState(() => !cachedPage && localClientsOnLoad.length === 0);
+  const [initialDataSettled, setInitialDataSettled] = useState(() => Boolean(cachedPage));
+  const [refreshingSummary, setRefreshingSummary] = useState(() => Boolean(cachedPage || localClientsOnLoad.length));
+  const [summaryCachedAt, setSummaryCachedAt] = useState<number | null>(() => cachedPage?.cachedAt || null);
   const [detailsLoadingClient, setDetailsLoadingClient] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [projectClientName, setProjectClientName] = useState<string | null>(null);
@@ -390,33 +424,42 @@ export default function Clients() {
   useEffect(() => {
     let mounted = true;
     const localClients = readLocalClients();
-    setClientRows(localClients);
-    setLoading(false);
+    if (!cachedPage && localClients.length) {
+      setClientRows(localClients);
+      setLoading(false);
+    }
+    setRefreshingSummary(Boolean(cachedPage || localClients.length));
 
-    const clientsPromise = apiClient.request<ClientRecord[]>({ path: "/routes/clients/list", method: "GET" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((clientData) => {
-        if (!mounted) return;
-        setClientRows(mergeClients(Array.isArray(clientData) ? clientData : [], localClients));
-      })
-      .catch(() => {});
+    const loadSummary = async () => {
+      const [clientResult, projectResult] = await Promise.allSettled([
+        apiClient.request<ClientRecord[]>({ path: "/routes/clients/list", method: "GET" }).then((r) => (r.ok ? r.json() : [])),
+        apiClient.list_arrangements().then((r) => (r.ok ? r.json() : [])),
+      ]);
 
-    const projectsPromise = apiClient.list_arrangements()
-      .then((r) => (r.ok ? r.json() : []))
-      .then((projectData) => {
-        if (!mounted) return;
-        setProjects(Array.isArray(projectData) ? projectData : []);
-      })
-      .catch(() => {
-        if (mounted) toast.error("Projects are still loading. Try again if they do not appear.");
-      });
+      const nextClients = clientResult.status === "fulfilled" && Array.isArray(clientResult.value)
+        ? mergeClients(clientResult.value, localClients)
+        : (cachedPage?.clientRows?.length ? cachedPage.clientRows : localClients);
+      const nextProjects = projectResult.status === "fulfilled" && Array.isArray(projectResult.value)
+        ? projectResult.value
+        : (cachedPage?.projects || []);
 
-    Promise.allSettled([clientsPromise, projectsPromise]).finally(() => {
-      if (mounted) setInitialDataSettled(true);
-    });
+      if (!mounted) return;
+      if (projectResult.status === "rejected" && nextProjects.length === 0) {
+        toast.error("Projects are still loading. Try again if they do not appear.");
+      }
+      setClientRows(nextClients);
+      setProjects(nextProjects);
+      writeClientsPageCache(nextClients, nextProjects);
+      setSummaryCachedAt(Date.now());
+      setInitialDataSettled(true);
+      setLoading(false);
+      setRefreshingSummary(false);
+    };
+
+    void loadSummary();
 
     return () => { mounted = false; };
-  }, []);
+  }, [cachedPage]);
 
   useEffect(() => {
     if (focusedClient) setExpandedClient(focusedClient);
@@ -469,7 +512,11 @@ export default function Clients() {
     if (!confirm(`Delete project "${project.name}"? This removes its scopes and saved products.`)) return;
     try {
       await apiClient.delete_arrangement({ arrangementId: project.id });
-      setProjects((current) => current.filter((row) => row.id !== project.id));
+      setProjects((current) => {
+        const next = current.filter((row) => row.id !== project.id);
+        writeClientsPageCache(clientRows, next);
+        return next;
+      });
       setProjectDetails((current) => {
         const next = { ...current };
         delete next[project.id];
@@ -488,11 +535,13 @@ export default function Clients() {
         path: `/routes/clients/delete/${encodeURIComponent(client.name)}?delete_projects=${deleteProjects ? "true" : "false"}`,
         method: "DELETE",
       });
-      setClientRows((current) => current.filter((row) => normalizedClientName(row.name) !== client.name));
-      setProjects((current) => deleteProjects
-        ? current.filter((project) => normalizedClientName(project.client_name) !== client.name)
-        : current.map((project) => normalizedClientName(project.client_name) === client.name ? { ...project, client_name: null } : project)
-      );
+      const nextClientRows = clientRows.filter((row) => normalizedClientName(row.name) !== client.name);
+      const nextProjects = deleteProjects
+        ? projects.filter((project) => normalizedClientName(project.client_name) !== client.name)
+        : projects.map((project) => normalizedClientName(project.client_name) === client.name ? { ...project, client_name: null } : project);
+      setClientRows(nextClientRows);
+      setProjects(nextProjects);
+      writeClientsPageCache(nextClientRows, nextProjects);
       if (focusedClient === client.name) showAllClients();
       setDeleteClientTarget(null);
       window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
@@ -519,7 +568,11 @@ export default function Clients() {
             {focusedClient ? focusedClient : "Clients"}
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">
-            {focusedClient ? "Projects and scope buckets for this client" : `${clients.length} client${clients.length === 1 ? "" : "s"} with saved projects`}
+            {focusedClient
+              ? "Projects and scope buckets for this client"
+              : initialDataSettled || clients.length > 0
+                ? `${clients.length} client${clients.length === 1 ? "" : "s"} with saved projects${refreshingSummary ? " · Refreshing..." : summaryCachedAt ? ` · Updated ${formatCacheStamp(summaryCachedAt)}` : ""}`
+                : "Checking clients..."}
           </p>
         </div>
         <button
@@ -537,7 +590,7 @@ export default function Clients() {
           <div className="flex items-center justify-center py-24">
             <div className="text-center">
               <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-              <p className="mt-3 text-sm text-stone-400">Loading clients...</p>
+              <p className="mt-3 text-sm text-stone-400">Checking clients...</p>
             </div>
           </div>
         ) : visibleClients.length === 0 ? (
@@ -681,7 +734,13 @@ export default function Clients() {
         <NewClientModal
           onClose={() => setShowNewClientModal(false)}
           onCreated={(client) => {
-            setClientRows((current) => mergeClients([client], current));
+            setClientRows((current) => {
+              const next = mergeClients([client], current);
+              writeClientsPageCache(next, projects);
+              return next;
+            });
+            setInitialDataSettled(true);
+            setSummaryCachedAt(Date.now());
             setSearchParams({ client: client.name });
             setExpandedClient(client.name);
           }}
@@ -693,7 +752,13 @@ export default function Clients() {
           onClose={() => setProjectClientName(null)}
           onCreated={(project) => {
             const summary = { ...project, container_count: project.containers?.length || 0 };
-            setProjects((current) => [summary, ...current.filter((row) => row.id !== project.id)]);
+            setProjects((current) => {
+              const next = [summary, ...current.filter((row) => row.id !== project.id)];
+              writeClientsPageCache(clientRows, next);
+              return next;
+            });
+            setInitialDataSettled(true);
+            setSummaryCachedAt(Date.now());
             setExpandedClient(projectClientName);
           }}
         />

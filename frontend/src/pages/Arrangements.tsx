@@ -95,8 +95,71 @@ type ArrangementSummary = {
   container_count: number;
 };
 
+const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
+
+type ProjectsListCache = {
+  arrangements: ArrangementSummary[];
+  cachedAt: number;
+};
+
+function readProjectsListCache(): ProjectsListCache | null {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PROJECTS_LIST_CACHE_KEY) || "null");
+    if (!parsed || !Array.isArray(parsed.arrangements)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeProjectsListCache(arrangements: ArrangementSummary[]) {
+  try {
+    window.localStorage.setItem(PROJECTS_LIST_CACHE_KEY, JSON.stringify({ arrangements, cachedAt: Date.now() }));
+  } catch {
+    // localStorage is only a speed cache; failures should not block the app.
+  }
+}
+
+function formatProjectsCacheStamp(ms?: number | null) {
+  if (!ms) return "";
+  return new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
 function notifyProjectsChanged() {
   window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+}
+
+function arrangementShellFromSummary(summary: ArrangementSummary): Arrangement {
+  return {
+    id: summary.id,
+    name: summary.name,
+    client_name: summary.client_name,
+    notes: "",
+    created_by: "",
+    created_at: summary.created_at,
+    updated_at: summary.updated_at,
+    rooms: [],
+    containers: [],
+    total_cost: summary.total_cost || 0,
+    total_with_markup: summary.total_cost || 0,
+  };
+}
+
+function arrangementRouteShell(id: number, clientName?: string): Arrangement {
+  const now = new Date().toISOString();
+  return {
+    id,
+    name: "Opening project...",
+    client_name: clientName,
+    notes: "",
+    created_by: "",
+    created_at: now,
+    updated_at: now,
+    rooms: [],
+    containers: [],
+    total_cost: 0,
+    total_with_markup: 0,
+  };
 }
 
 function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
@@ -192,16 +255,22 @@ function builderProductSearchText(product: LibraryProduct) {
 
 function BuilderProductPicker({
   products,
+  loadingCatalog = false,
   activePartLabel,
   selectedProductIds,
+  selectedProductItemIds,
   onAdd,
+  onRemove,
   onOpenProduct,
   onContinue,
 }: {
   products: LibraryProduct[];
+  loadingCatalog?: boolean;
   activePartLabel: string;
   selectedProductIds: Set<number>;
+  selectedProductItemIds: Map<number, number>;
   onAdd: (product: LibraryProduct) => void;
+  onRemove: (itemId: number) => void;
   onOpenProduct: (product: LibraryProduct) => void;
   onContinue: () => void;
 }) {
@@ -318,7 +387,15 @@ function BuilderProductPicker({
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-5">
-        {visible.length === 0 ? (
+        {loadingCatalog && products.length === 0 ? (
+          <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-stone-50 text-center">
+            <div>
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
+              <p className="mt-4 font-semibold text-stone-800">Loading catalog</p>
+              <p className="mt-1 text-sm text-stone-400">This only loads inside the product picker.</p>
+            </div>
+          </div>
+        ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center">
             <p className="font-semibold text-stone-800">No matching products</p>
             <p className="mt-1 text-sm text-stone-400">Try a broader word, SKU, color, or category.</p>
@@ -326,7 +403,8 @@ function BuilderProductPicker({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {visible.map(({ product, name }) => {
-              const added = selectedProductIds.has(product.id);
+              const selectedItemId = selectedProductItemIds.get(product.id);
+              const added = selectedItemId != null;
               const price = product.current_price != null ? formatCurrency(product.current_price) : "No price";
               return (
                 <div
@@ -354,7 +432,11 @@ function BuilderProductPicker({
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
-                      onAdd(product);
+                      if (added && selectedItemId != null) {
+                        onRemove(selectedItemId);
+                      } else {
+                        onAdd(product);
+                      }
                     }}
                     className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
                       added ? "bg-emerald-900 text-white" : "border border-stone-200 bg-white text-stone-800 hover:bg-stone-50"
@@ -498,8 +580,9 @@ export default function Arrangements() {
   const selectedId = searchParams.get("id") ? Number(searchParams.get("id")) : null;
   const clientFilter = searchParams.get("client") || "";
   const isClientPath = location.pathname.includes("/clients/project");
+  const cachedProjectsList = useMemo(() => readProjectsListCache(), []);
 
-  const [arrangements, setArrangements] = useState<ArrangementSummary[]>([]);
+  const [arrangements, setArrangements] = useState<ArrangementSummary[]>(() => cachedProjectsList?.arrangements || []);
   const [arrangement, setArrangement] = useState<Arrangement | null>(null);
   const [products, setProducts] = useState<LibraryProduct[]>([]);
   const [detailProduct, setDetailProduct] = useState<LibraryProduct | null>(null);
@@ -512,8 +595,14 @@ export default function Arrangements() {
   const [newScopeQuantity, setNewScopeQuantity] = useState("1");
   const [newScopeNotes, setNewScopeNotes] = useState("");
   const [selectedScopeType, setSelectedScopeType] = useState("Tree");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedProjectsList);
+  const [listSettled, setListSettled] = useState(() => Boolean(cachedProjectsList));
+  const [listRefreshing, setListRefreshing] = useState(() => Boolean(cachedProjectsList));
+  const [listCachedAt, setListCachedAt] = useState<number | null>(() => cachedProjectsList?.cachedAt || null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [projectHydrating, setProjectHydrating] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const [savingBucket, setSavingBucket] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -523,7 +612,7 @@ export default function Arrangements() {
   const [treeHeight, setTreeHeight] = useState("");
   const [treeCanopySize, setTreeCanopySize] = useState("");
   const [treeDensity, setTreeDensity] = useState("");
-  const [canvasView, setCanvasView] = useState<"product" | "mockup" | "space">("product");
+  const builderTopRef = useRef<HTMLDivElement>(null);
   const catalogRef = useRef<HTMLDivElement>(null);
   const scopeNameRef = useRef<HTMLInputElement>(null);
   const scopeQuantityRef = useRef<HTMLInputElement>(null);
@@ -545,6 +634,9 @@ export default function Arrangements() {
   const projectRooms = arrangement?.rooms || [];
   const roomContainers = activeRoomId ? (arrangement?.containers || []).filter((c) => c.room_id === activeRoomId) : [];
   const activeRoom = projectRooms.find((room) => room.id === activeRoomId) || null;
+  const projectRoomsLoading = Boolean(
+    selectedId && projectRooms.length === 0 && (projectHydrating || arrangement?.name === "Opening project...")
+  );
   const activeBucket = roomContainers.find((c) => c.id === activeBucketId) || null;
   const orderItems = activeBucket?.items || [];
   const orderSubtotal = orderItems.reduce((sum, item) => {
@@ -569,31 +661,56 @@ export default function Arrangements() {
     { label: "Custom", icon: Plus },
   ];
   const isTreeScopeType = selectedScopeType === "Tree" || selectedScopeType === "Christmas tree";
+  const goToBuilderStep = (step: typeof builderSteps[number]) => {
+    setBuilderStep(step);
+    window.requestAnimationFrame(() => {
+      const target = builderTopRef.current;
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  };
 
   const loadList = async () => {
-    setLoading(true);
+    if (arrangements.length === 0) setLoading(true);
+    else setListRefreshing(true);
     try {
       const response = await apiClient.list_arrangements();
       if (!response.ok) throw new Error("Failed to load projects");
       const data = await response.json();
-      setArrangements(Array.isArray(data) ? data : []);
+      const rows = Array.isArray(data) ? data : [];
+      setArrangements(rows);
+      writeProjectsListCache(rows);
+      setListCachedAt(Date.now());
+      setListSettled(true);
     } catch {
-      toast.error("Failed to load projects");
+      if (arrangements.length === 0) toast.error("Failed to load projects");
     } finally {
       setLoading(false);
+      setListRefreshing(false);
     }
   };
 
   const loadProducts = async () => {
+    if (productsLoaded || productsLoading) return;
+    setProductsLoading(true);
     try {
-      const data = await apiClient.list_products({ favorites_only: false }).then((r) => r.json());
-      setProducts(data);
+      const response = await apiClient.list_products({ favorites_only: false });
+      if (!response.ok) throw new Error("Failed to load product library");
+      const data = await response.json();
+      setProducts(Array.isArray(data) ? data : []);
+      setProductsLoaded(true);
     } catch {
       toast.error("Failed to load product library");
+    } finally {
+      setProductsLoading(false);
     }
   };
 
   const loadDetail = async (id: number, options?: { silent?: boolean }) => {
+    setProjectHydrating(true);
     if (!options?.silent) setDetailLoading(true);
     try {
       let data: Arrangement | null = null;
@@ -644,6 +761,7 @@ export default function Arrangements() {
       }
       if (!options?.silent) toast.error("Project is taking too long to load. Try again.");
     } finally {
+      setProjectHydrating(false);
       if (!options?.silent) setDetailLoading(false);
     }
   };
@@ -651,8 +769,12 @@ export default function Arrangements() {
   useEffect(() => { loadList(); }, []);
   useEffect(() => {
     if (selectedId) {
-      loadDetail(selectedId);
-      if (products.length === 0) loadProducts();
+      const summary = arrangements.find((a) => a.id === selectedId);
+      setArrangement((current) => {
+        if (current?.id === selectedId) return current;
+        return summary ? arrangementShellFromSummary(summary) : arrangementRouteShell(selectedId, clientFilter);
+      });
+      void loadDetail(selectedId, { silent: true });
     } else {
       setArrangement(null);
       setActiveRoomId(null);
@@ -661,10 +783,14 @@ export default function Arrangements() {
   }, [selectedId]);
 
   useEffect(() => {
+    if (selectedId && arrangement?.id === selectedId && arrangement.name === "Opening project..." && arrangements.length > 0) {
+      const summary = arrangements.find((a) => a.id === selectedId);
+      if (summary) setArrangement(arrangementShellFromSummary(summary));
+    }
     if (selectedId && !arrangement && arrangements.length > 0 && !detailLoading) {
       void loadDetail(selectedId, { silent: true });
     }
-  }, [arrangements.length, selectedId, arrangement?.id, detailLoading]);
+  }, [arrangements.length, selectedId, arrangement?.id, arrangement?.name, detailLoading]);
 
   useEffect(() => {
     if (!activeBucket) {
@@ -673,6 +799,11 @@ export default function Arrangements() {
     }
     setActivePart((current) => current || { label: scopePlaceholders(activeBucket)[0] || "Products", index: 0 });
   }, [activeBucket?.id]);
+
+  const enterProductPicker = () => {
+    void loadProducts();
+    goToBuilderStep("products");
+  };
 
   const selectProject = (id: number) => setSearchParams(clientFilter ? { client: clientFilter, id: String(id) } : { id: String(id) });
   const clearSelection = () => {
@@ -689,38 +820,37 @@ export default function Arrangements() {
     setActiveBucketId(null);
     setActivePart(null);
     setCreatingBuiltProduct(false);
-    setBuilderStep("type");
+    goToBuilderStep("type");
   };
   const closeRoom = () => {
     setActiveRoomId(null);
     setActiveBucketId(null);
     setActivePart(null);
     setCreatingBuiltProduct(false);
-    setBuilderStep("type");
+    goToBuilderStep("type");
   };
   const openBucketCatalog = (bucketId: number, part?: { label: string; index: number }) => {
     setActiveBucketId(bucketId);
     setCreatingBuiltProduct(false);
     setActivePart(part || null);
-    setBuilderStep("products");
-    window.requestAnimationFrame(() => catalogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    enterProductPicker();
   };
   const openBuiltProduct = (bucket: Container) => {
     setActiveBucketId(bucket.id);
     setCreatingBuiltProduct(false);
     setActivePart({ label: scopePlaceholders(bucket)[0] || "Products", index: 0 });
-    setBuilderStep("products");
+    enterProductPicker();
   };
   const startNewBuiltProduct = () => {
     setActiveBucketId(null);
     setActivePart(null);
     setCreatingBuiltProduct(true);
-    setBuilderStep("type");
+    goToBuilderStep("type");
   };
   const goBackBuilderStep = () => {
     const currentIndex = builderSteps.indexOf(builderStep);
     if (currentIndex > 0) {
-      setBuilderStep(builderSteps[currentIndex - 1]);
+      goToBuilderStep(builderSteps[currentIndex - 1]);
       return;
     }
     backToBuiltProducts();
@@ -729,7 +859,7 @@ export default function Arrangements() {
     setActiveBucketId(null);
     setActivePart(null);
     setCreatingBuiltProduct(false);
-    setBuilderStep("type");
+    goToBuilderStep("type");
   };
 
   const addRoom = async () => {
@@ -772,7 +902,11 @@ export default function Arrangements() {
     if (!confirm("Delete this project?")) return;
     try {
       await apiClient.delete_arrangement({ arrangementId: id });
-      setArrangements((prev) => prev.filter((a) => a.id !== id));
+      setArrangements((prev) => {
+        const next = prev.filter((a) => a.id !== id);
+        writeProjectsListCache(next);
+        return next;
+      });
       if (selectedId === id) clearSelection();
       notifyProjectsChanged();
       toast.success("Project deleted");
@@ -819,7 +953,7 @@ export default function Arrangements() {
       setActiveBucketId(createdBucket?.id ?? null);
       if (createdBucket) {
         setActivePart({ label: scopePlaceholders(createdBucket)[0] || "Products", index: 0 });
-        setBuilderStep("products");
+        enterProductPicker();
       }
       setNewScopeName(selectedScopeType === "Custom" ? "" : selectedScopeType);
       setNewScopeQuantity("1");
@@ -843,7 +977,7 @@ export default function Arrangements() {
   const goToProductParts = async () => {
     if (activeBucket) {
       setActivePart((current) => current || { label: scopePlaceholders(activeBucket)[0] || "Products", index: 0 });
-      setBuilderStep("products");
+      enterProductPicker();
       return;
     }
     await addBucket();
@@ -942,11 +1076,34 @@ export default function Arrangements() {
 
   const removeItem = async (itemId: number) => {
     if (!arrangement) return;
+    const itemToRemove = arrangement.containers.flatMap((bucket) => bucket.items).find((item) => item.id === itemId);
+    if (!itemToRemove) return;
+
+    setArrangement((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        containers: current.containers.map((bucket) => {
+          const existsInBucket = bucket.items.some((item) => item.id === itemId);
+          if (!existsInBucket) return bucket;
+          const removedLineTotal = Number(itemToRemove.line_total) || (Number(itemToRemove.current_price) || 0) * (Number(itemToRemove.quantity) || 1);
+          return {
+            ...bucket,
+            items: bucket.items.filter((item) => item.id !== itemId),
+            subtotal: Math.max(0, (Number(bucket.subtotal) || 0) - removedLineTotal),
+          };
+        }),
+      };
+    });
+
+    if (itemId < 0) return;
+
     try {
       await apiClient.remove_item({ itemId });
       await loadDetail(arrangement.id, { silent: true });
       notifyProjectsChanged();
     } catch {
+      await loadDetail(arrangement.id, { silent: true });
       toast.error("Failed to remove item");
     }
   };
@@ -983,7 +1140,11 @@ export default function Arrangements() {
     try {
       await apiClient.update_arrangement({ arrangementId: arrangement.id }, { name: nameEdit.trim() });
       setArrangement((a) => a ? { ...a, name: nameEdit.trim() } : a);
-      setArrangements((prev) => prev.map((a) => a.id === arrangement.id ? { ...a, name: nameEdit.trim() } : a));
+      setArrangements((prev) => {
+        const next = prev.map((a) => a.id === arrangement.id ? { ...a, name: nameEdit.trim() } : a);
+        writeProjectsListCache(next);
+        return next;
+      });
       setEditingName(false);
       notifyProjectsChanged();
       toast.success("Project renamed");
@@ -1011,9 +1172,9 @@ export default function Arrangements() {
                 {clientFilter ? `${clientFilter} Projects` : "Projects"}
               </h1>
               <p className="mt-0.5 text-xs text-stone-500">
-                {loading
-                  ? "Loading projects..."
-                  : `${filteredArrangements.length} project${filteredArrangements.length !== 1 ? "s" : ""} · clients, jobs, and scopes`}
+                {!listSettled && filteredArrangements.length === 0
+                  ? "Checking projects..."
+                  : `${filteredArrangements.length} project${filteredArrangements.length !== 1 ? "s" : ""} · clients, jobs, and scopes${listRefreshing ? " · Refreshing..." : listCachedAt ? ` · Updated ${formatProjectsCacheStamp(listCachedAt)}` : ""}`}
               </p>
             </div>
             <button onClick={() => setShowNewModal(true)} className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
@@ -1021,11 +1182,11 @@ export default function Arrangements() {
             </button>
           </header>
           <div className="px-10 py-6">
-            {loading ? (
+            {loading && filteredArrangements.length === 0 ? (
               <div className="flex items-center justify-center py-24">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
               </div>
-            ) : filteredArrangements.length === 0 ? (
+            ) : listSettled && filteredArrangements.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "#e8f0e8" }}>
                   <Package size={28} className="text-emerald-600" strokeWidth={1.5} />
@@ -1059,10 +1220,6 @@ export default function Arrangements() {
             )}
           </div>
         </>
-      ) : detailLoading && !arrangement ? (
-        <div className="flex items-center justify-center py-40">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-        </div>
       ) : arrangement ? (
         <>
           <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "#f7f4ef" }}>
@@ -1164,7 +1321,24 @@ export default function Arrangements() {
                 </div>
               </div>
 
-              {projectRooms.length === 0 ? (
+              {projectRoomsLoading ? (
+                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3" aria-live="polite" aria-label="Loading design packages">
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+                      <div className="mb-4 h-3 w-28 animate-pulse rounded bg-stone-100" />
+                      <div className="h-6 w-44 animate-pulse rounded bg-stone-100" />
+                      <div className="mt-2 h-4 w-60 max-w-full animate-pulse rounded bg-stone-100" />
+                      <div className="mt-5 grid grid-cols-3 gap-2">
+                        <div className="h-16 animate-pulse rounded-xl bg-stone-50" />
+                        <div className="h-16 animate-pulse rounded-xl bg-stone-50" />
+                        <div className="h-16 animate-pulse rounded-xl bg-stone-50" />
+                      </div>
+                      <div className="mt-4 h-10 animate-pulse rounded-xl bg-stone-100" />
+                    </div>
+                  ))}
+                  <p className="sr-only">Loading design packages</p>
+                </div>
+              ) : projectRooms.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
                   <Grid3X3 className="mb-3 text-emerald-700" size={28} />
                   <p className="font-semibold text-stone-800">No rooms or design packages yet</p>
@@ -1283,7 +1457,7 @@ export default function Arrangements() {
               )}
             </div>
           ) : (
-          <div className="px-6 py-5">
+          <div ref={builderTopRef} className="px-6 py-5">
             <div className="mb-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-5 py-3">
                 <div className="flex items-center gap-3">
@@ -1326,7 +1500,7 @@ export default function Arrangements() {
                   {builderSteps.map((step, index) => (
                     <button
                       key={step}
-                      onClick={() => setBuilderStep(step)}
+                      onClick={() => goToBuilderStep(step)}
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${builderStep === step ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500 hover:bg-stone-200"}`}
                     >
                       {index + 1}. {step === "type" ? "Select type" : step === "products" ? "Choose parts" : step === "mockup" ? "Mockup" : step === "review" ? "Review" : "Order"}
@@ -1347,77 +1521,6 @@ export default function Arrangements() {
                       <p className="font-semibold text-stone-800">Create a scope to start building</p>
                       <p className="mt-1 text-sm text-stone-400">Examples: Fiddle Fig, Wreath, Sitting Arrangement.</p>
                     </div>
-                  </div>
-                ) : builderStep === "review" || builderStep === "po" ? (
-                  <div className="relative flex h-full min-h-[620px] items-center justify-center">
-                    <div className="absolute left-8 top-8 rounded-2xl border border-stone-200 bg-white/90 px-4 py-3 shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{scopeQuantity(activeBucket)}x {scopeTitle(activeBucket)}</p>
-                      <p className="mt-1 text-sm text-stone-600">{partsComplete}/{activeParts.length || 0} parts selected</p>
-                    </div>
-                    <div className="absolute right-8 top-8 flex rounded-2xl border border-stone-200 bg-white/90 p-1 text-xs font-semibold text-stone-500 shadow-sm">
-                      {[
-                        ["product", "Product"],
-                        ["mockup", "AI mockup"],
-                        ["space", "In space"],
-                      ].map(([key, label]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setCanvasView(key as "product" | "mockup" | "space")}
-                          className={`rounded-xl px-3 py-1.5 ${canvasView === key ? "bg-stone-900 text-white" : "hover:bg-stone-100"}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {canvasView === "space" ? (
-                      <div className="relative flex h-[430px] w-[500px] items-center justify-center overflow-hidden rounded-[2rem] border border-stone-200 bg-gradient-to-br from-stone-100 via-white to-emerald-50 shadow-[0_25px_90px_rgba(68,64,60,0.08)]">
-                        <div className="absolute left-12 top-12 h-48 w-36 rounded-t-full border border-stone-200 bg-white/70" />
-                        <div className="absolute bottom-0 h-28 w-full bg-stone-200/60" />
-                        <div className="absolute bottom-16 right-16 h-20 w-32 rounded-2xl bg-stone-300/60" />
-                        <div className="absolute bottom-24 left-48 h-48 w-40 rounded-full border border-dashed border-emerald-800/25 bg-white/50" />
-                        <Leaf className="absolute bottom-36 left-52 text-emerald-900/35" size={125} strokeWidth={1.1} />
-                        <span className="absolute bottom-5 left-5 rounded-full bg-white/85 px-3 py-1 text-xs font-semibold text-stone-500 shadow-sm">Client space mockup placeholder</span>
-                      </div>
-                    ) : (
-                      <div className="relative flex h-[430px] w-[430px] items-center justify-center rounded-full bg-white/80 shadow-[0_25px_90px_rgba(68,64,60,0.08)]">
-                        {canvasView === "mockup" && (
-                          <span className="absolute left-6 top-6 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
-                            AI product mockup placeholder
-                          </span>
-                        )}
-                        <div className="absolute bottom-20 h-24 w-44 rounded-b-[70px] rounded-t-3xl border border-stone-200 bg-stone-100 shadow-inner" />
-                        <div className="absolute bottom-36 h-40 w-20 rounded-full border border-dashed border-emerald-800/30" />
-                        <div className="absolute bottom-48 h-52 w-72 rounded-full border border-dashed border-emerald-800/25" />
-                        <Leaf className="absolute bottom-48 text-emerald-900/35" size={180} strokeWidth={1.1} />
-                        <div className="absolute bottom-[88px] flex gap-1">
-                          {Array.from({ length: 7 }).map((_, index) => (
-                            <span key={index} className="h-7 w-7 rounded-full bg-stone-300/80 shadow-sm" />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {canvasView === "product" && scopePlaceholders(activeBucket).map((label, index) => {
-                      const primary = primarySelectedForPart(activeBucket, label, index);
-                      const positions = [
-                        "left-10 bottom-32",
-                        "left-16 top-44",
-                        "right-12 top-52",
-                        "right-16 bottom-36",
-                      ];
-                      return (
-                        <button
-                          key={`${label}-callout`}
-                          type="button"
-                          onClick={() => { setActivePart({ label, index }); setBuilderStep("products"); }}
-                          className={`absolute ${positions[index] || "left-10 top-10"} rounded-2xl border border-stone-200 bg-white/95 px-4 py-3 text-left shadow-sm transition hover:border-emerald-300 hover:shadow-md`}
-                        >
-                          <p className="text-xs text-stone-400">{label}</p>
-                          <p className="mt-1 max-w-[150px] truncate text-sm font-medium text-stone-800">{primary?.product_name || "Select product"}</p>
-                          {primary?.photo_url && <img src={primary.photo_url} alt={primary.product_name} className="mt-2 h-12 w-12 rounded-lg object-contain" />}
-                        </button>
-                      );
-                    })}
                   </div>
                 ) : (
                   <div className="mx-auto flex max-w-3xl flex-col gap-5">
@@ -1616,11 +1719,14 @@ export default function Arrangements() {
                   <div ref={catalogRef} className="min-h-0 flex-1">
                     <BuilderProductPicker
                       products={products}
+                      loadingCatalog={productsLoading}
                       activePartLabel={activePart ? activePart.label : "Products"}
                       selectedProductIds={new Set(itemsForPart(activeBucket, activePart?.label || "Products", activePart?.index || 0).map((item) => item.product_id))}
+                      selectedProductItemIds={new Map(itemsForPart(activeBucket, activePart?.label || "Products", activePart?.index || 0).map((item) => [item.product_id, item.id]))}
                       onAdd={addProductToActiveBucket}
+                      onRemove={removeItem}
                       onOpenProduct={setDetailProduct}
-                      onContinue={() => setBuilderStep("mockup")}
+                      onContinue={() => goToBuilderStep("mockup")}
                     />
                   </div>
                 )}
@@ -1665,8 +1771,8 @@ export default function Arrangements() {
                       </label>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <button onClick={() => setBuilderStep("review")} className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700">Skip mockup</button>
-                      <button onClick={() => setBuilderStep("review")} className="rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">Continue to review</button>
+                      <button onClick={() => goToBuilderStep("review")} className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700">Skip mockup</button>
+                      <button onClick={() => goToBuilderStep("review")} className="rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">Continue to review</button>
                     </div>
                   </div>
                 )}
@@ -1691,7 +1797,7 @@ export default function Arrangements() {
                           <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{label}</p>
                           <button
                             type="button"
-                            onClick={() => { setActivePart({ label, index }); setBuilderStep("products"); }}
+                            onClick={() => { setActivePart({ label, index }); enterProductPicker(); }}
                             className="text-xs font-semibold text-emerald-800 hover:text-emerald-900"
                           >
                             Edit product
@@ -1700,7 +1806,7 @@ export default function Arrangements() {
                         {itemsForPart(activeBucket, label, index).length === 0 ? (
                           <button
                             type="button"
-                            onClick={() => { setActivePart({ label, index }); setBuilderStep("products"); }}
+                            onClick={() => { setActivePart({ label, index }); enterProductPicker(); }}
                             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 py-4 text-sm font-semibold text-stone-500 hover:border-emerald-300 hover:bg-emerald-50/40"
                           >
                             <Plus size={16} />
@@ -1722,8 +1828,8 @@ export default function Arrangements() {
                       </div>
                     ))}
                     <div className="grid grid-cols-2 gap-3">
-                      <button onClick={() => setBuilderStep("mockup")} className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700">Back to mockup</button>
-                      <button onClick={() => setBuilderStep("po")} className="rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">Purchase order review</button>
+                      <button onClick={() => goToBuilderStep("mockup")} className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700">Back to mockup</button>
+                      <button onClick={() => goToBuilderStep("po")} className="rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">Purchase order review</button>
                     </div>
                   </div>
                 )}
@@ -1775,7 +1881,7 @@ export default function Arrangements() {
                       <div className="mt-3 flex justify-between border-t border-stone-100 pt-3 text-base"><span>Total</span><strong>{formatCurrency(orderSubtotal)}</strong></div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <button onClick={() => setBuilderStep("review")} className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700">Back to mockups</button>
+                      <button onClick={() => goToBuilderStep("review")} className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700">Back to mockups</button>
                       <button onClick={() => navigate(`/invoice?arrangement_id=${arrangement.id}`)} className="rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">Create purchase order</button>
                     </div>
                   </div>
@@ -1806,7 +1912,13 @@ export default function Arrangements() {
           initialClientName={clientFilter === "Unassigned" ? "" : clientFilter}
           onClose={() => setShowNewModal(false)}
           onCreated={(arr) => {
-            setArrangements((prev) => [{ ...arr, container_count: 0 }, ...prev]);
+            setArrangements((prev) => {
+              const next = [{ ...arr, container_count: 0 }, ...prev];
+              writeProjectsListCache(next);
+              return next;
+            });
+            setListSettled(true);
+            setListCachedAt(Date.now());
             notifyProjectsChanged();
           }}
         />
