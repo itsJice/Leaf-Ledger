@@ -16,17 +16,67 @@ import Layout from "components/Layout";
 import { apiClient } from "app";
 import { formatCurrency } from "utils/format";
 
+const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v1";
+
+type DashboardCache = {
+  stats?: {
+    total_products: number;
+    total_suppliers: number;
+    total_favorites: number;
+    total_arrangements: number;
+  };
+  recentProjects?: any[];
+  cachedAt?: number;
+};
+
+function readDashboardCache(): DashboardCache | null {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashboardCache(patch: DashboardCache) {
+  try {
+    const prev = readDashboardCache() || {};
+    localStorage.setItem(
+      DASHBOARD_CACHE_KEY,
+      JSON.stringify({ ...prev, ...patch, cachedAt: Date.now() })
+    );
+  } catch {
+    // Ignore storage issues.
+  }
+}
+
 export default function App() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ total_products: 0, total_suppliers: 0, total_favorites: 0, total_arrangements: 0 });
-  const [loading, setLoading] = useState(true);
+  const cached = readDashboardCache();
+  const [stats, setStats] = useState(
+    cached?.stats || {
+      total_products: 0,
+      total_suppliers: 0,
+      total_favorites: 0,
+      total_arrangements: 0,
+    }
+  );
+  const [loading, setLoading] = useState(!cached?.stats);
+  const [refreshing, setRefreshing] = useState(!!cached?.stats);
 
   useEffect(() => {
+    setRefreshing(true);
     apiClient.get_product_stats()
       .then(r => r.json())
-      .then(setStats)
+      .then((nextStats) => {
+        setStats(nextStats);
+        writeDashboardCache({ stats: nextStats });
+      })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
   }, []);
 
   const QUICK_STATS = [
@@ -84,6 +134,7 @@ export default function App() {
           </h1>
           <p className="text-xs text-stone-500 mt-0.5">
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            {refreshing && <span className="ml-2 text-emerald-700">Refreshing…</span>}
           </p>
         </div>
         <button
@@ -161,21 +212,34 @@ export default function App() {
 
 function RecentArrangements() {
   const navigate = useNavigate();
-  const [arrangements, setArrangements] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = readDashboardCache();
+  const [arrangements, setArrangements] = useState<any[]>(cached?.recentProjects || []);
+  const [loading, setLoading] = useState(!cached?.recentProjects);
+  const [refreshing, setRefreshing] = useState(!!cached?.recentProjects);
 
   useEffect(() => {
+    setRefreshing(true);
     apiClient.list_arrangements()
       .then(r => r.json())
-      .then((data) => setArrangements(data.slice(0, 5)))
+      .then((data) => {
+        const recentProjects = data.slice(0, 5);
+        setArrangements(recentProjects);
+        writeDashboardCache({ recentProjects });
+      })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
   }, []);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-stone-700" style={{ fontFamily: "Georgia, serif" }}>Recent projects</h2>
+        <div>
+          <h2 className="text-base font-semibold text-stone-700" style={{ fontFamily: "Georgia, serif" }}>Recent projects</h2>
+          {refreshing && <p className="text-xs text-emerald-700">Refreshing…</p>}
+        </div>
         <button onClick={() => navigate("/projects")} className="text-xs text-emerald-700 hover:underline font-medium">View all</button>
       </div>
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">

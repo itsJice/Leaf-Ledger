@@ -6,6 +6,8 @@ import { apiClient } from "app";
 import { formatCurrency } from "utils/format";
 import { toast } from "sonner";
 
+const INVOICE_PROJECTS_CACHE_KEY = "leaf-ledger:invoice-projects-cache:v1";
+
 type ArrangementSummary = { id: number; name: string; client_name?: string };
 type ContainerItem = {
   id: number; product_name: string; product_category: string;
@@ -19,29 +21,46 @@ type Arrangement = {
 };
 type MarkupSettings = { global_markup: number };
 
+function readInvoiceProjectsCache(): ArrangementSummary[] {
+  try {
+    const raw = localStorage.getItem(INVOICE_PROJECTS_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed?.arrangements) ? parsed.arrangements : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeInvoiceProjectsCache(arrangements: ArrangementSummary[]) {
+  try {
+    localStorage.setItem(
+      INVOICE_PROJECTS_CACHE_KEY,
+      JSON.stringify({ arrangements, cachedAt: Date.now() })
+    );
+  } catch {
+    // Ignore storage issues.
+  }
+}
+
 export default function Invoice() {
   const [searchParams, setSearchParams] = useSearchParams();
   const arrangementId = searchParams.get("arrangement_id") ? Number(searchParams.get("arrangement_id")) : null;
 
-  const [arrangements, setArrangements] = useState<ArrangementSummary[]>([]);
+  const [arrangements, setArrangements] = useState<ArrangementSummary[]>(readInvoiceProjectsCache);
   const [arrangement, setArrangement] = useState<Arrangement | null>(null);
   const [markup, setMarkup] = useState(30);
   const [loading, setLoading] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Auto-sync prices in background when invoice page opens
   useEffect(() => {
-    apiClient.list_arrangements().then((r) => r.json()).then(setArrangements).catch(() => {});
-    apiClient.get_markup_settings().then((r) => r.json()).then((d: MarkupSettings) => setMarkup(d.global_markup)).catch(() => {});
-    // Silently sync prices for suppliers not refreshed in 23+ hours
-    apiClient.sync_prices_bulk({ supplier_ids: null })
+    apiClient.list_arrangements()
       .then((r) => r.json())
-      .then((d: { message: string }) => {
-        if (!d.message.includes("0 supplier")) {
-          toast.info("🔄 Refreshing prices in background…", { duration: 3000 });
-        }
+      .then((data: ArrangementSummary[]) => {
+        setArrangements(data);
+        writeInvoiceProjectsCache(data);
       })
-      .catch(() => {}); // Silent fail — never block the UI
+      .catch(() => {});
+    apiClient.get_markup_settings().then((r) => r.json()).then((d: MarkupSettings) => setMarkup(d.global_markup)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -104,20 +123,6 @@ export default function Invoice() {
           </div>
         ) : (
           <>
-            {/* Stale price warning banner */}
-            {hasStale && (
-              <div className="flex items-start gap-3 max-w-3xl mx-auto mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 print:hidden">
-                <AlertTriangle size={15} className="text-amber-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-amber-800">Prices may be outdated</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    {staleItems.length} item{staleItems.length !== 1 ? "s" : ""} have prices that haven't been updated in {STALE_DAYS}+ days.
-                    Consider syncing your supplier catalogs before sending this invoice.
-                  </p>
-                </div>
-              </div>
-            )}
-
             <div ref={printRef} className="bg-white rounded-2xl border border-stone-200 max-w-3xl mx-auto p-10 print:shadow-none print:border-0 print:rounded-none print:max-w-none">
             {/* Invoice header */}
             <div className="flex items-start justify-between mb-8 pb-6 border-b border-stone-200">

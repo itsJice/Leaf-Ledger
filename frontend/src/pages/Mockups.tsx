@@ -21,8 +21,31 @@ const STYLES = [
   { value: "mood-board", label: "Mood Board", description: "Flat lay design layout" },
 ];
 
+const MOCKUPS_PROJECTS_CACHE_KEY = "leaf-ledger:mockups-projects-cache:v1";
+
+function readMockupsProjectsCache(): ArrangementSummary[] {
+  try {
+    const raw = localStorage.getItem(MOCKUPS_PROJECTS_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed?.arrangements) ? parsed.arrangements : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeMockupsProjectsCache(arrangements: ArrangementSummary[]) {
+  try {
+    localStorage.setItem(
+      MOCKUPS_PROJECTS_CACHE_KEY,
+      JSON.stringify({ arrangements, cachedAt: Date.now() })
+    );
+  } catch {
+    // Ignore storage issues.
+  }
+}
+
 export default function Mockups() {
-  const [arrangements, setArrangements] = useState<ArrangementSummary[]>([]);
+  const [arrangements, setArrangements] = useState<ArrangementSummary[]>(readMockupsProjectsCache);
   const [selectedArrangement, setSelectedArrangement] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("photo-realistic");
   const [mockups, setMockups] = useState<Mockup[]>([]);
@@ -30,7 +53,13 @@ export default function Mockups() {
   const [loadingMockups, setLoadingMockups] = useState(false);
 
   useEffect(() => {
-    apiClient.list_arrangements().then((r) => r.json()).then(setArrangements).catch(() => {});
+    apiClient.list_arrangements()
+      .then((r) => r.json())
+      .then((data: ArrangementSummary[]) => {
+        setArrangements(data);
+        writeMockupsProjectsCache(data);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

@@ -25,7 +25,7 @@ import { toast } from "sonner";
 
 const CATEGORIES = ["containers", "wood", "greenery", "florals", "trees"];
 const UNITS = ["stem", "pot", "flat", "bunch", "each"];
-const INITIAL_CARD_RENDER_LIMIT = 96;
+const INITIAL_CARD_RENDER_LIMIT = 48;
 const KNOWN_COLOR_WORDS = [
   "aqua", "beige", "black", "blue", "blush", "bronze", "brown", "burgundy", "camel",
   "charcoal", "cinnamon", "clear", "coffee", "copper", "coral", "cream", "crimson",
@@ -74,6 +74,7 @@ const AVAILABILITY_FILTERS = [
   "Future ETA",
 ] as const;
 const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
+const LIBRARY_METADATA_CACHE_KEY = "leaf-ledger:library-filter-metadata:v1";
 const LIBRARY_CACHE_RAW_KEYS = [
   "Description",
   "ColorGrp",
@@ -151,6 +152,25 @@ export type Product = {
 };
 
 type Supplier = { id: number; name: string; website_url?: string; categories: string[] };
+type ProductPage = {
+  items: Product[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+type FilterOption = {
+  id?: number;
+  value: string;
+  count?: number;
+};
+type LibraryFilterMetadata = {
+  generated_at?: string;
+  categories?: FilterOption[];
+  suppliers?: FilterOption[];
+  countries?: FilterOption[];
+  colors?: FilterOption[];
+  availability?: FilterOption[];
+};
 type ProjectSummary = {
   id: number;
   name: string;
@@ -200,26 +220,47 @@ function trimProductForCache(product: Product): Product {
   };
 }
 
-function readLibraryCache(): { suppliers: Supplier[]; products: Product[] } | null {
+function readLibraryCache(): { suppliers: Supplier[]; products: Product[]; productTotal?: number } | null {
   try {
     const raw = localStorage.getItem(LIBRARY_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed?.products) || !Array.isArray(parsed?.suppliers)) return null;
-    return { suppliers: parsed.suppliers, products: parsed.products };
+    return { suppliers: parsed.suppliers, products: parsed.products, productTotal: parsed.productTotal };
   } catch {
     return null;
   }
 }
 
-function writeLibraryCache(suppliers: Supplier[], products: Product[]) {
+function writeLibraryCache(suppliers: Supplier[], products: Product[], productTotal?: number) {
   try {
     const payload = {
       suppliers,
       products: products.map(trimProductForCache),
+      productTotal,
       cachedAt: Date.now(),
     };
     localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore cache quota/storage issues.
+  }
+}
+
+function readLibraryMetadataCache(): LibraryFilterMetadata | null {
+  try {
+    const raw = localStorage.getItem(LIBRARY_METADATA_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeLibraryMetadataCache(metadata: LibraryFilterMetadata) {
+  try {
+    localStorage.setItem(LIBRARY_METADATA_CACHE_KEY, JSON.stringify({ ...metadata, cachedAt: Date.now() }));
   } catch {
     // Ignore cache quota/storage issues.
   }
@@ -844,6 +885,19 @@ function decodeAllstateColorGroup(value: unknown): string[] {
   if (!normalized) return [];
   const tokens = normalized.split(/[^A-Z0-9]+/).filter(Boolean);
   return uniqStrings(tokens.flatMap((token) => ALLSTATE_COLOR_CODE_MAP[token] || []));
+}
+
+function metadataColorLabels(value: unknown): string[] {
+  if (looksLikeSupplierColorCode(value)) return decodeAllstateColorGroup(value);
+  const known = extractKnownColorWords(value);
+  if (known.length) return known;
+  return [];
+}
+
+function mergeOptionLists(...lists: Array<Array<string | undefined | null>>): string[] {
+  return uniqStrings(lists.flat().map((value) => (value ? String(value) : ""))).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true })
+  );
 }
 
 function productColorLabels(product: Product): string[] {
@@ -1726,8 +1780,17 @@ export function ProductView({
   onOpenProduct,
   hideSyncAll = false,
   hideFavoritesToggle = false,
+  hideCategoryTabs = false,
   emptyTitle = "No products found",
   emptyDescription,
+  totalProductCount,
+  filterMetadata,
+  isPagePartial = false,
+  pageLoading = false,
+  initialLoading = false,
+  onSearchChange,
+  onLoadMore,
+  canLoadMore = false,
 }: {
   products: Product[];
   animatingIds: Set<number>;
@@ -1739,8 +1802,17 @@ export function ProductView({
   onOpenProduct: (p: Product) => void;
   hideSyncAll?: boolean;
   hideFavoritesToggle?: boolean;
+  hideCategoryTabs?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  totalProductCount?: number;
+  filterMetadata?: LibraryFilterMetadata | null;
+  isPagePartial?: boolean;
+  pageLoading?: boolean;
+  initialLoading?: boolean;
+  onSearchChange?: (search: string) => void;
+  onLoadMore?: () => void;
+  canLoadMore?: boolean;
 }) {
   const [syncing, setSyncing] = useState(false);
 
@@ -1765,11 +1837,20 @@ export function ProductView({
   const [availabilityFilter, setAvailabilityFilter] = useState<string[]>([]);
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_CARD_RENDER_LIMIT);
+  const didNotifySearchMount = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setActiveSearch(searchInput), 200);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  useEffect(() => {
+    if (!didNotifySearchMount.current) {
+      didNotifySearchMount.current = true;
+      return;
+    }
+    onSearchChange?.(activeSearch);
+  }, [activeSearch, onSearchChange]);
 
   const productIndex = useMemo(() => products.map(buildProductSearchEntry), [products]);
 
@@ -1781,9 +1862,21 @@ export function ProductView({
     return counts;
   }, [productIndex]);
 
+  const metadataCategoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const option of filterMetadata?.categories || []) {
+      if (option.value) counts.set(option.value, option.count || 0);
+    }
+    return counts;
+  }, [filterMetadata]);
+
   const dynamicCategories = useMemo(
-    () => Array.from(categoryCounts.keys()).sort((a, b) => (categoryCounts.get(b) || 0) - (categoryCounts.get(a) || 0)),
-    [categoryCounts]
+    () => {
+      const metadataCategories = filterMetadata?.categories?.map((option) => option.value).filter(Boolean);
+      if (metadataCategories?.length) return metadataCategories;
+      return Array.from(categoryCounts.keys()).sort((a, b) => (categoryCounts.get(b) || 0) - (categoryCounts.get(a) || 0));
+    },
+    [categoryCounts, filterMetadata]
   );
 
   const normalizedSearch = useMemo(() => normalizeSearchText(activeSearch), [activeSearch]);
@@ -1831,17 +1924,23 @@ export function ProductView({
   );
 
   const supplierOptions = useMemo(
-    () => Array.from(new Set(optionBase
+    () => mergeOptionLists(
+      filterMetadata?.suppliers?.map((option) => option.value),
+      Array.from(new Set(optionBase
       .filter((entry) => matchesStructuredFilters(entry, { supplier: true }))
       .map((entry) => entry.supplierName)
-      .filter(Boolean))).sort(),
-    [optionBase, matchesStructuredFilters]
+      .filter(Boolean)))
+    ),
+    [optionBase, matchesStructuredFilters, filterMetadata]
   );
   const categoryOptions = useMemo(
-    () => Array.from(new Set(optionBase
+    () => mergeOptionLists(
+      filterMetadata?.categories?.map((option) => categoryLabel(option.value)),
+      Array.from(new Set(optionBase
       .filter((entry) => matchesStructuredFilters(entry, { category: true }))
-      .map((entry) => entry.categoryLabel))).sort(),
-    [optionBase, matchesStructuredFilters]
+      .map((entry) => entry.categoryLabel)))
+    ),
+    [optionBase, matchesStructuredFilters, filterMetadata]
   );
   const productTypeOptions = useMemo(
     () => Array.from(new Set(optionBase
@@ -1850,10 +1949,13 @@ export function ProductView({
     [optionBase, matchesStructuredFilters]
   );
   const colorOptions = useMemo(
-    () => Array.from(new Set(optionBase
+    () => mergeOptionLists(
+      filterMetadata?.colors?.flatMap((option) => metadataColorLabels(option.value)),
+      Array.from(new Set(optionBase
       .filter((entry) => matchesStructuredFilters(entry, { color: true }))
-      .flatMap((entry) => entry.colors))).sort(),
-    [optionBase, matchesStructuredFilters]
+      .flatMap((entry) => entry.colors)))
+    ),
+    [optionBase, matchesStructuredFilters, filterMetadata]
   );
   const sizeOptions = useMemo(
     () => Array.from(new Set(optionBase
@@ -1867,19 +1969,25 @@ export function ProductView({
     [optionBase, matchesStructuredFilters]
   );
   const countryOptions = useMemo(
-    () => Array.from(new Set(optionBase
+    () => mergeOptionLists(
+      filterMetadata?.countries?.map((option) => titleCase(option.value)),
+      Array.from(new Set(optionBase
       .filter((entry) => matchesStructuredFilters(entry, { country: true }))
       .map((entry) => entry.country)
-      .filter(Boolean))).sort(),
-    [optionBase, matchesStructuredFilters]
+      .filter(Boolean)))
+    ),
+    [optionBase, matchesStructuredFilters, filterMetadata]
   );
   const availabilityOptions = useMemo(
-    () => AVAILABILITY_FILTERS.filter((label) =>
-      optionBase
-        .filter((entry) => matchesStructuredFilters(entry, { availability: true }))
-        .some((entry) => entry.availability === label)
+    () => mergeOptionLists(
+      filterMetadata?.availability?.map((option) => option.value),
+      AVAILABILITY_FILTERS.filter((label) =>
+        optionBase
+          .filter((entry) => matchesStructuredFilters(entry, { availability: true }))
+          .some((entry) => entry.availability === label)
+      )
     ),
-    [optionBase, matchesStructuredFilters]
+    [optionBase, matchesStructuredFilters, filterMetadata]
   );
 
   const filtered = useMemo(() => baseFiltered.filter((entry) => {
@@ -1894,6 +2002,8 @@ export function ProductView({
   }), [filtered]);
   const sorted = useMemo(() => sortedEntries.map((entry) => entry.product), [sortedEntries]);
   const visibleProducts = sorted.slice(0, visibleLimit);
+  const shownResultCount = totalProductCount ?? sorted.length;
+  const countLabel = initialLoading ? "…" : (totalProductCount ?? products.length).toLocaleString();
 
   useEffect(() => {
     setVisibleLimit(INITIAL_CARD_RENDER_LIMIT);
@@ -1901,33 +2011,34 @@ export function ProductView({
 
   return (
     <div>
-      {/* Category tabs */}
-      <div className="flex items-center gap-1 mb-5 border-b border-stone-200 pb-0 overflow-x-auto">
-        <button
-          onClick={() => setActiveCategory("")}
-          className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-            activeCategory === ""
-              ? "border-emerald-600 text-emerald-700"
-              : "border-transparent text-stone-500 hover:text-stone-700"
-          }`}
-        >
-          All <span className="text-xs text-stone-400 ml-1">({products.length})</span>
-        </button>
-        {dynamicCategories.map((cat) => (
+      {!hideCategoryTabs && (
+        <div className="flex items-center gap-1 mb-5 border-b border-stone-200 pb-0 overflow-x-auto">
           <button
-            key={cat}
-            onClick={() => setActiveCategory(activeCategory === cat ? "" : cat)}
+            onClick={() => setActiveCategory("")}
             className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeCategory === cat
+              activeCategory === ""
                 ? "border-emerald-600 text-emerald-700"
                 : "border-transparent text-stone-500 hover:text-stone-700"
             }`}
           >
-            {categoryLabel(cat)}
-            <span className="text-xs text-stone-400 ml-1">({categoryCounts.get(cat) || 0})</span>
+            All <span className="text-xs text-stone-400 ml-1">({countLabel})</span>
           </button>
-        ))}
-      </div>
+          {dynamicCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(activeCategory === cat ? "" : cat)}
+              className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                activeCategory === cat
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-transparent text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              {categoryLabel(cat)}
+              <span className="text-xs text-stone-400 ml-1">({(metadataCategoryCounts.get(cat) ?? categoryCounts.get(cat) ?? 0).toLocaleString()})</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Search + favorites row */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
@@ -1941,7 +2052,12 @@ export function ProductView({
           />
         </div>
         <div className="text-sm font-medium text-stone-500 tabular-nums">
-          {sorted.length.toLocaleString()} {sorted.length === 1 ? "result" : "results"}
+          {initialLoading
+            ? "Loading products..."
+            : pageLoading
+              ? "Searching..."
+              : `${shownResultCount.toLocaleString()} ${shownResultCount === 1 ? "result" : "results"}`}
+          {isPagePartial && !pageLoading && <span className="ml-1 font-normal text-stone-400">({products.length.toLocaleString()} loaded)</span>}
         </div>
         {!hideFavoritesToggle && (
           <button
@@ -2040,7 +2156,15 @@ export function ProductView({
       </div>
 
       {/* Grid */}
-      {sorted.length === 0 ? (
+      {initialLoading ? (
+        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-stone-200 bg-white text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+          <p className="text-sm font-semibold text-stone-700">Loading product catalog</p>
+          <p className="mt-1 max-w-xs text-xs text-stone-400">
+            The page is ready. Product cards will appear here as soon as the first catalog page is loaded.
+          </p>
+        </div>
+      ) : sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "#e8f0e8" }}>
             <Leaf size={28} className="text-emerald-600" strokeWidth={1.5} />
@@ -2076,13 +2200,19 @@ export function ProductView({
               />
             ))}
           </div>
-          {visibleLimit < sorted.length && (
+          {(visibleLimit < sorted.length || canLoadMore) && (
             <div className="mt-5 flex justify-center">
               <button
-                onClick={() => setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT)}
+                onClick={() => {
+                  if (visibleLimit < sorted.length) setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT);
+                  else onLoadMore?.();
+                }}
+                disabled={pageLoading}
                 className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-600 hover:border-emerald-300 hover:text-emerald-700"
               >
-                Show more products ({Math.min(visibleLimit, sorted.length)} of {sorted.length})
+                {pageLoading
+                  ? "Loading..."
+                  : `Show more products (${Math.min(products.length, shownResultCount).toLocaleString()} of ${shownResultCount.toLocaleString()})`}
               </button>
             </div>
           )}
@@ -2095,8 +2225,13 @@ export function ProductView({
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Library() {
   const cachedLibrary = useMemo(() => readLibraryCache(), []);
+  const cachedMetadata = useMemo(() => readLibraryMetadataCache(), []);
   const [products, setProducts] = useState<Product[]>(applyLocalFavoriteState(cachedLibrary?.products || []));
   const [suppliers, setSuppliers] = useState<Supplier[]>(cachedLibrary?.suppliers || []);
+  const [productTotal, setProductTotal] = useState<number | undefined>(cachedLibrary?.productTotal);
+  const [filterMetadata, setFilterMetadata] = useState<LibraryFilterMetadata | null>(cachedMetadata);
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [pageOffset, setPageOffset] = useState(0);
   const [loading, setLoading] = useState(!cachedLibrary);
   const [refreshing, setRefreshing] = useState(false);
   const [view, setView] = useState<"vendor" | "product">("product");
@@ -2107,26 +2242,74 @@ export default function Library() {
   const [animatingIds, setAnimatingIds] = useState<Set<number>>(new Set());
   const [presetSupplierId, setPresetSupplierId] = useState<number | null>(null);
 
-  const load = async () => {
-    if (products.length === 0 && suppliers.length === 0) setLoading(true);
+  const productsRef = useRef(products);
+  const suppliersRef = useRef(suppliers);
+  const productTotalRef = useRef(productTotal);
+  const librarySearchRef = useRef(librarySearch);
+  const pageOffsetRef = useRef(pageOffset);
+
+  useEffect(() => { productsRef.current = products; }, [products]);
+  useEffect(() => { suppliersRef.current = suppliers; }, [suppliers]);
+  useEffect(() => { productTotalRef.current = productTotal; }, [productTotal]);
+  useEffect(() => { librarySearchRef.current = librarySearch; }, [librarySearch]);
+  useEffect(() => { pageOffsetRef.current = pageOffset; }, [pageOffset]);
+
+  const load = useCallback(async (opts?: { search?: string; append?: boolean }) => {
+    const currentProducts = productsRef.current;
+    const currentSuppliers = suppliersRef.current;
+    if (currentProducts.length === 0 && currentSuppliers.length === 0) setLoading(true);
     else setRefreshing(true);
     try {
-      const [ssRes, psRes] = await Promise.allSettled([
+      const search = opts?.search ?? librarySearchRef.current;
+      const offset = opts?.append ? pageOffsetRef.current + INITIAL_CARD_RENDER_LIMIT : 0;
+      const [ssRes, psRes, metaRes] = await Promise.allSettled([
         apiClient.list_suppliers().then((r) => r.json()),
-        apiClient.list_products({ favorites_only: false }).then((r) => r.json()),
+        apiClient.request<ProductPage>({
+          path: "/routes/products/page",
+          method: "GET",
+          query: {
+            favorites_only: false,
+            search: search || undefined,
+            limit: INITIAL_CARD_RENDER_LIMIT,
+            offset,
+          },
+        }).then((r) => r.json()),
+        apiClient.request<LibraryFilterMetadata>({
+          path: "/routes/products/filter-metadata",
+          method: "GET",
+        }).then((r) => r.json()),
       ]);
-      let nextSuppliers = suppliers;
-      let nextProducts = products;
+      let nextSuppliers = suppliersRef.current;
+      let nextProducts = productsRef.current;
+      let nextTotal = productTotalRef.current;
       if (ssRes.status === "fulfilled") {
         nextSuppliers = ssRes.value;
         setSuppliers(ssRes.value);
+        suppliersRef.current = ssRes.value;
       }
       if (psRes.status === "fulfilled") {
-        nextProducts = applyLocalFavoriteState(psRes.value);
+        const page = psRes.value;
+        const pageItems = applyLocalFavoriteState(page.items || []);
+        nextProducts = opts?.append
+          ? [
+              ...productsRef.current,
+              ...pageItems.filter((item) => !productsRef.current.some((existing) => existing.id === item.id)),
+            ]
+          : pageItems;
+        nextTotal = page.total;
         setProducts(nextProducts);
+        setProductTotal(page.total);
+        setPageOffset(offset);
+        productsRef.current = nextProducts;
+        productTotalRef.current = page.total;
+        pageOffsetRef.current = offset;
+      }
+      if (metaRes.status === "fulfilled") {
+        setFilterMetadata(metaRes.value);
+        writeLibraryMetadataCache(metaRes.value);
       }
       if (ssRes.status === "fulfilled" || psRes.status === "fulfilled") {
-        writeLibraryCache(nextSuppliers, nextProducts);
+        writeLibraryCache(nextSuppliers, nextProducts, nextTotal);
       } else {
         console.error("Products load failed:", (psRes as PromiseRejectedResult).reason);
         toast.error("Failed to load products — please sign in");
@@ -2137,9 +2320,19 @@ export default function Library() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const searchLibraryPage = useCallback((search: string) => {
+    setLibrarySearch(search);
+    librarySearchRef.current = search;
+    load({ search, append: false });
+  }, [load]);
+
+  const loadMoreProducts = useCallback(() => {
+    load({ append: true });
+  }, [load]);
 
   const toggleFavorite = async (id: number) => {
     setAnimatingIds((prev) => new Set(prev).add(id));
@@ -2151,7 +2344,7 @@ export default function Library() {
     setLocalFavorite(id, nextFavorited);
     setProducts((prev) => {
       const next = prev.map((p) => p.id === id ? { ...p, is_favorited: nextFavorited } : p);
-      writeLibraryCache(suppliers, next);
+      writeLibraryCache(suppliers, next, productTotal);
       return next;
     });
     try {
@@ -2179,16 +2372,12 @@ export default function Library() {
   };
 
   const syncAllPrices = async () => {
-    // Collect unique supplier IDs from all products
-    const supplierIds = [...new Set(products.map((p) => p.supplier_id))];
+    const supplierIds = suppliers.map((supplier) => supplier.id);
     if (supplierIds.length === 0) return;
     try {
       await apiClient.sync_prices_bulk({ supplier_ids: supplierIds });
       toast.success("Prices synced");
-      // Reload products to pick up fresh prices
-      const res = await apiClient.list_products({ favorites_only: false });
-      const updated = await res.json();
-      setProducts(updated);
+      await load({ search: librarySearch, append: false });
     } catch {
       toast.error("Price sync failed");
     }
@@ -2207,7 +2396,9 @@ export default function Library() {
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Product Library</h1>
           <p className="text-xs text-stone-500 mt-0.5">
-            {products.length} products across {suppliers.length} suppliers
+            {loading && products.length === 0 && suppliers.length === 0
+              ? "Checking product library..."
+              : `${(productTotal ?? products.length).toLocaleString()} products across ${suppliers.length} suppliers`}
             {refreshing && <span className="ml-2 text-emerald-700">Refreshing…</span>}
           </p>
         </div>
@@ -2237,11 +2428,13 @@ export default function Library() {
       </header>
 
       <div className="px-10 py-6">
-        {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : view === "vendor" ? (
+        {view === "vendor" ? (
+          loading && products.length === 0 && suppliers.length === 0 ? (
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-stone-200 bg-white text-center">
+              <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+              <p className="text-sm font-semibold text-stone-700">Loading vendor catalog</p>
+            </div>
+          ) : (
           <VendorView
             suppliers={suppliers}
             products={products}
@@ -2252,6 +2445,7 @@ export default function Library() {
             onPriceUpdated={updateProductPrice}
             onOpenProduct={setDetailProduct}
           />
+          )
         ) : (
           <ProductView
             products={products}
@@ -2262,6 +2456,15 @@ export default function Library() {
             onPriceUpdated={updateProductPrice}
             onSyncAll={syncAllPrices}
             onOpenProduct={setDetailProduct}
+            hideCategoryTabs
+            totalProductCount={productTotal}
+            filterMetadata={filterMetadata}
+            isPagePartial={(productTotal ?? products.length) > products.length}
+            pageLoading={refreshing}
+            initialLoading={loading && products.length === 0}
+            onSearchChange={searchLibraryPage}
+            onLoadMore={loadMoreProducts}
+            canLoadMore={(productTotal ?? products.length) > products.length}
           />
         )}
       </div>
