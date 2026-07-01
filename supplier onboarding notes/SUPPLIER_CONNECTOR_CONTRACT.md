@@ -1,5 +1,7 @@
 # Supplier Connector Contract
 
+This contract defines the stable normalized product shape that file imports and optional supplier-specific extractors must produce.
+
 ## Goal
 
 Every supplier can format data differently, but Leaf & Ledger should receive one predictable product shape. Supplier-specific details should be preserved in structured raw data, not thrown away.

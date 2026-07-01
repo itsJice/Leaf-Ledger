@@ -1,91 +1,84 @@
-# Getting Started with leaf-ledger
+# Getting Started
 
-Follow these steps to get your exported app running locally.
+This guide sets up Leaf & Ledger for local development and runs the same checks used to verify repository changes.
 
 ## Prerequisites
 
-- [ ] Python 3.11 installed
-- [ ] Node.js 18+ installed
-- [ ] `uv` package manager installed (`pip install uv`)
-- [ ] `yarn` package manager enabled (`corepack enable`)
+- Python 3.11
+- Node.js 18 or newer
+- [`uv`](https://docs.astral.sh/uv/)
+- npm
+- Access to a PostgreSQL database for database-backed workflows
 
-## Step 1: Database Setup
+## 1. Configure the backend
 
-Your database connection strings are configured in `backend/.env.dev` (development) and `backend/.env.prod` (production).
+```bash
+cd backend
+uv sync --all-groups
+```
 
-- [ ] **Option A:** If you transferred database ownership, it's already set up ✅
-- [ ] **Option B:** If you haven't transferred the database yet:
-  - Visit your Riff app settings
-  - Click "Transfer Database Ownership"
-  - Follow the claim link to claim your database
-  - Connection strings in `.env.dev` and `.env.prod` will continue to work
+Create local environment files from your team-approved configuration. Common settings include a PostgreSQL connection string and optional image-generation credentials. Environment files are ignored by Git; never commit them.
 
-## Step 2: Install Dependencies
+Start the API:
 
-- [ ] Install backend dependencies:
-  ```bash
-  cd backend
-  uv sync
-  ```
+```bash
+./run.sh
+```
 
-- [ ] Install frontend dependencies:
-  ```bash
-  cd frontend
-  yarn install
-  ```
+The development server listens on `http://localhost:8000` by default.
 
-## Step 3: Set Up Schedules (if applicable)
+## 2. Configure the frontend
 
-See `SCHEDULES.md` for a list of scheduled jobs that were configured in Riff.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-- [ ] Choose a scheduler (cron, systemd timers, GitHub Actions, etc.)
-- [ ] For each schedule in SCHEDULES.md, create a cron job or scheduled task that calls the endpoint
-- [ ] Example cron entry:
-  ```bash
-  0 9 * * * curl -X POST http://localhost:8000/api/send-daily-report
-  ```
+The Vite development server normally opens at `http://localhost:5173`.
 
-## Step 4: Run the App
+## 3. Verify the installation
 
-- [ ] Start backend (in one terminal):
-  ```bash
-  cd backend
-  ./run.sh
-  ```
+Backend tests:
 
-- [ ] Start frontend (in another terminal):
-  ```bash
-  cd frontend
-  ./run.sh
-  ```
+```bash
+cd backend
+uv run pytest -q tests
+```
 
-- [ ] Visit http://localhost:5173
+Frontend checks:
 
-## Step 5: Verify Everything Works
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
+```
 
-- [ ] App loads in browser
-- [ ] You can log in (if using authentication)
-- [ ] Database queries work
-- [ ] API endpoints respond correctly
+## 4. Exercise the main workflow
 
-## What Doesn't Work?
+With a configured database:
 
-These Riff platform features are not available in the exported code:
+1. Open Suppliers and create or select a supplier.
+2. Upload a small catalog file and review its parsed rows.
+3. Commit valid rows and confirm they appear in Product Library.
+4. Search and filter the imported products.
+5. Create a client and project, then add a product to a project bucket.
+6. Confirm candidate and selected products remain distinct in pricing logic.
 
-- ❌ Riff secrets management (use .env files instead)
-- ❌ Riff integrations
-- ❌ Automatic schedule execution (set up manually with cron)
-- ❌ Riff workspace features (preview, logs, database explorer)
+Use synthetic or approved sample data in development. Do not place customer records, supplier credentials, or downloaded production catalogs in the repository.
 
-## Need Help?
+## Optional integrations
 
-- **Database issues?** Make sure you claimed ownership in Riff
-- **Schedules?** See SCHEDULES.md for all configured jobs
-- **Technical details?** See README.md for architecture overview
+- Mockup generation requires an image-generation provider key.
+- Portal extraction may require Playwright, SeleniumBase, or supplier-specific credentials.
+- Scheduled operations require an external scheduler; see [Schedules](SCHEDULES.md).
 
-## Next Steps
+These integrations are optional for the core build and unit-test checks.
 
-- [ ] Set up schedules in your production environment
-- [ ] Deploy to your hosting platform (Vercel, Railway, fly.io, etc.)
-- [ ] Set up CI/CD if needed
-- [ ] Configure production environment variables
+## Troubleshooting
+
+- If authentication is unavailable, confirm the frontend environment configuration.
+- If database routes fail, verify the connection string and database access.
+- If the frontend build warns about missing optional provider configuration, confirm that the affected workflow is intentionally disabled locally.
+- If a supplier portal changes, prefer a new structured export before repairing browser automation.

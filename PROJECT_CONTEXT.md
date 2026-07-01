@@ -1,7 +1,9 @@
 # Leaf & Ledger Project Context
 
+This document defines the product model and invariants that should remain true as Leaf & Ledger's implementation evolves.
+
 ## North Star
-Leaf & Ledger is a centralized catalog and project system for The Branch Design Group. It replaces years of spreadsheet recipes, supplier browsing, image folders, pricing math, and mockup prep with one searchable product library and job workflow.
+Leaf & Ledger is a centralized catalog and project system for a design operations team. It replaces years of spreadsheet recipes, supplier browsing, image folders, pricing math, and mockup preparation with one searchable product library and job workflow.
 
 ## Product Boundary
 Leaf & Ledger is the catalog system of record, not primarily a scraping product.

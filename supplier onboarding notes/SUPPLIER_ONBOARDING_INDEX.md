@@ -1,5 +1,7 @@
 # Supplier Onboarding Notes Index
 
+This index routes maintainers to source-first onboarding guidance, supplier case records, and legacy fallback extraction notes.
+
 ## Purpose
 
 This folder is the permanent learning log for supplier onboarding. Every new supplier should get its own note file so catalog acquisition, import, review, and Product Library use get faster and cleaner over time.

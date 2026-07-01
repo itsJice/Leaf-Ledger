@@ -1,5 +1,7 @@
 # Supermoss Onboarding Notes
 
+This file tracks source availability, normalization concerns, and onboarding status for this supplier.
+
 ## Status
 
 - Wave: 3
@@ -10,4 +12,3 @@
 
 - Use [SUPPLIER_ONBOARDING_CHECKLIST.md](SUPPLIER_ONBOARDING_CHECKLIST.md).
 - Capture package size, weight/volume, color, material type, and case/pack quantities.
-
