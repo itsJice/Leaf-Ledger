@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Yarn PnP artifacts (project uses npm)
+.yarn/
+.pnp.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
