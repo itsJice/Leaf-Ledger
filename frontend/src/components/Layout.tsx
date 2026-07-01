@@ -16,7 +16,6 @@ import {
   Users,
 } from "lucide-react";
 import { useUser } from "@stackframe/react";
-import { stackClientApp } from "app/auth";
 import { APP_BASE_PATH, apiClient } from "app";
 
 const NAV_GROUPS = [
@@ -213,7 +212,7 @@ export default function Layout({ children }: Props) {
   }, [clientsOpen]);
 
   const handleSignOut = async () => {
-    await stackClientApp.signOut();
+    await user?.signOut();
     navigate(APP_BASE_PATH + "/auth/sign-in");
   };
 
@@ -242,7 +241,7 @@ export default function Layout({ children }: Props) {
               Leaf &amp; Ledger
             </span>
           </div>
-          <p className="text-xs text-stone-400 pl-7 leading-tight">The Branch Design Group</p>
+          <p className="text-xs text-stone-400 pl-7 leading-tight">Catalog &amp; project operations</p>
         </div>
 
         {/* Nav */}

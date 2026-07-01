@@ -12,6 +12,7 @@ import re
 import databutton as db
 from datetime import datetime
 from urllib.parse import unquote
+from app.libs.supplier_identity import resolve_scraper_key
 
 router = APIRouter(prefix="/scraper", tags=["scraper"])
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -23,27 +24,7 @@ async def get_conn():
 
 def _resolve_scraper_key(supplier_name: str, scraper_key: Optional[str]) -> str:
     """Prefer the configured scraper_key, with a name-based fallback for older rows."""
-    key = (scraper_key or "").lower().strip()
-    if key:
-        aliases = {
-            "accent": "accent_decor",
-            "select": "select_artificial",
-            "select_artificials": "select_artificial",
-            "vickerman": "vickerman",
-        }
-        return aliases.get(key, key)
-    name = (supplier_name or "").lower()
-    if "allstate" in name:
-        return "allstate"
-    if "accent" in name:
-        return "accent_decor"
-    if "regency" in name:
-        return "regency"
-    if "select artificial" in name or "select artificials" in name:
-        return "select_artificial"
-    if "vickerman" in name:
-        return "vickerman"
-    return ""
+    return resolve_scraper_key(supplier_name, scraper_key) or ""
 
 
 def _credential_validation_message(scraper_key: str, credential_status: Optional[str]) -> Optional[str]:

@@ -10,6 +10,19 @@ import CatalogWizard from "components/CatalogWizard";
 import { apiClient } from "app";
 import { toast } from "sonner";
 import type { ScrapeJobOut, ScrapedProductOut } from "types";
+import {
+  chooseSupplierJob as chooseSupplierJobShared,
+  estimateBackfillEta,
+  formatClock as formatClockShared,
+  formatDuration as formatDurationShared,
+  formatLastSynced,
+  isPreviewReadyJob as isPreviewReadyJobShared,
+  isProgressStale as isProgressStaleShared,
+  isResumableImportJob as isResumableImportJobShared,
+  progressKey as progressKeyShared,
+  scrapeJobTimestampMs as scrapeJobTimestampMsShared,
+  statusColor as statusColorShared,
+} from "../features/suppliers/jobStatus";
 
 type Supplier = {
   id: number;
@@ -19,6 +32,7 @@ type Supplier = {
   login_password?: string;
   has_credentials?: boolean;
   credential_status?: string | null;
+  scraper_key?: string | null;
   contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
@@ -28,22 +42,6 @@ type Supplier = {
   last_full_sync_at?: string | null;
   created_at: string;
 };
-function formatLastSynced(dateStr?: string | null): string {
-  if (!dateStr) return "Never synced";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "Never synced";
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 type ScrapeStatus = "idle" | "starting" | "running" | "done" | "failed";
 type DetailBackfillStatus = {
   status: "idle" | "running" | "done" | "failed";
@@ -224,32 +222,15 @@ async function fetchFreshJson<T>(url: string): Promise<T> {
 }
 
 function progressKey(auto?: DetailBackfillAutoRunStatus | null, batch?: DetailBackfillStatus | null) {
-  const activeBatch = auto?.current_batch || batch;
-  return [
-    auto?.status || "idle",
-    auto?.batches_run ?? 0,
-    auto?.remaining_pending ?? 0,
-    activeBatch?.status || "idle",
-    activeBatch?.done ?? 0,
-    activeBatch?.updated ?? 0,
-    activeBatch?.stored_images ?? 0,
-    activeBatch?.failed ?? 0,
-  ].join("|");
+  return progressKeyShared(auto, batch);
 }
 
 function formatClock(ts?: number | null) {
-  if (!ts) return "Not checked yet";
-  return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  return formatClockShared(ts);
 }
 
 function formatDuration(minutes?: number | null) {
-  if (!minutes || !Number.isFinite(minutes) || minutes <= 0) return "Calculating";
-  const rounded = Math.max(1, Math.round(minutes));
-  const hours = Math.floor(rounded / 60);
-  const mins = rounded % 60;
-  if (hours <= 0) return `${mins} min`;
-  if (mins === 0) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
+  return formatDurationShared(minutes);
 }
 
 function parseApiTimestampMs(value?: string | null) {
@@ -260,8 +241,7 @@ function parseApiTimestampMs(value?: string | null) {
 }
 
 function scrapeJobTimestampMs(job?: ScrapeJobOut | null) {
-  const timestamp = job?.completed_at || job?.started_at || job?.created_at;
-  return parseApiTimestampMs(timestamp);
+  return scrapeJobTimestampMsShared(job);
 }
 
 function estimateAllstateEta(
@@ -269,33 +249,7 @@ function estimateAllstateEta(
   batch?: DetailBackfillStatus | null,
   fallbackRemaining?: number,
 ) {
-  const activeBatch = auto?.current_batch || batch || null;
-  const now = Date.now();
-  const completedRunRemaining = typeof auto?.remaining_pending === "number"
-    ? auto.remaining_pending
-    : undefined;
-  const remaining = completedRunRemaining !== undefined && fallbackRemaining !== undefined
-    ? Math.min(completedRunRemaining, fallbackRemaining)
-    : completedRunRemaining ?? fallbackRemaining ?? 0;
-
-  let ratePerMinute = 0;
-  const runStartedAt = parseApiTimestampMs(auto?.started_at);
-  if (runStartedAt && auto) {
-    const processed = (auto.total_updated || 0) + (activeBatch?.updated || 0);
-    const elapsedMinutes = Math.max(1, (now - runStartedAt) / 60000);
-    ratePerMinute = processed / elapsedMinutes;
-  }
-  if ((!ratePerMinute || !Number.isFinite(ratePerMinute)) && activeBatch?.started_at && (activeBatch.done || 0) > 0) {
-    const batchStartedAt = parseApiTimestampMs(activeBatch.started_at);
-    if (batchStartedAt) {
-      const elapsedMinutes = Math.max(1, (now - batchStartedAt) / 60000);
-      ratePerMinute = (activeBatch.done || 0) / elapsedMinutes;
-    }
-  }
-
-  const minutesRemaining = ratePerMinute > 0 ? remaining / ratePerMinute : null;
-  const completionAt = minutesRemaining ? new Date(now + minutesRemaining * 60000) : null;
-  return { remaining, ratePerMinute, minutesRemaining, completionAt };
+  return estimateBackfillEta(auto, batch, fallbackRemaining);
 }
 
 function readinessTone(status: ReadinessStepStatus) {
@@ -313,15 +267,11 @@ function readinessDot(status: ReadinessStepStatus) {
 }
 
 function isProgressStale(auto?: DetailBackfillAutoRunStatus | null, lastProgressAt?: number | null) {
-  if (auto?.status !== "running" || !lastProgressAt) return false;
-  return Date.now() - lastProgressAt > 120000;
+  return isProgressStaleShared(auto, lastProgressAt);
 }
 
 function statusColor(status: string) {
-  if (status === "done") return "text-emerald-600";
-  if (status === "failed") return "text-red-500";
-  if (status === "running") return "text-amber-600";
-  return "text-stone-400";
+  return statusColorShared(status);
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -332,33 +282,15 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 function isPreviewReadyJob(job: ScrapeJobOut) {
-  const productsFound = job.products_found ?? 0;
-  const productsImported = job.products_imported ?? 0;
-  const hasUnimportedProducts = productsFound > productsImported;
-  return !!job.result_key && hasUnimportedProducts && (job.phase === "ready" || job.status === "done");
+  return isPreviewReadyJobShared(job);
 }
 
 function isResumableImportJob(job: ScrapeJobOut) {
-  const total = job.total_expected ?? job.products_found ?? 0;
-  const done = job.products_importing ?? 0;
-  return !!job.result_key && job.status === "failed" && done > 0 && total > done;
+  return isResumableImportJobShared(job);
 }
 
 function chooseSupplierJob(jobs: ScrapeJobOut[]) {
-  const latest = jobs[0];
-  if (!latest) return null;
-  if (latest.status === "running" || latest.phase === "importing" || isResumableImportJob(latest)) return latest;
-  if (latest.status === "failed" && !isResumableImportJob(latest)) return latest;
-  if (latest.phase === "done" && (latest.products_imported ?? 0) > 0) {
-    const readyJobs = jobs.filter((job) => isPreviewReadyJob(job) || isResumableImportJob(job));
-    if (readyJobs.length > 0) {
-      return readyJobs.reduce(
-        (best, next) => ((next.products_found ?? 0) > (best.products_found ?? 0) ? next : best),
-        readyJobs[0],
-      );
-    }
-  }
-  return latest;
+  return chooseSupplierJobShared(jobs);
 }
 
 // ── Supplier Form Modal ──────────────────────────────────────────────────────
@@ -1164,7 +1096,7 @@ function ScraperPanel({
           } else if (isPreviewReadyJob(selectedJob) || isResumableImportJob(selectedJob)) {
             try {
               const data: ScrapedProductOut[] = await apiClient
-                .preview_scraped_products({ jobId: selectedJob.id }, { limit: 50 })
+                .preview_scraped_products({ jobId: selectedJob.id, limit: 50 })
                 .then((r) => r.json());
               setPreview(data);
               setShowPreview(true);
@@ -1231,7 +1163,7 @@ function ScraperPanel({
     try {
       const body: Record<string, unknown> = { supplier_id: supplier.id };
       if (maxProducts && parseInt(maxProducts) > 0) body.max_products = parseInt(maxProducts);
-      const newJob: ScrapeJobOut = await apiClient.start_scrape(body as Parameters<typeof apiClient.start_scrape>[0]).then((r) => r.json());
+      const newJob: ScrapeJobOut = await apiClient.start_scrape(body as unknown as Parameters<typeof apiClient.start_scrape>[0]).then((r) => r.json());
       setJob(newJob); setStatus("running");
       pollRef.current = setInterval(() => pollJob(newJob.id), 2000);
       startTimer(new Date());
@@ -1243,7 +1175,7 @@ function ScraperPanel({
   const loadPreview = async () => {
     if (!job) return;
     try {
-      const data: ScrapedProductOut[] = await apiClient.preview_scraped_products({ jobId: job.id }, { limit: 50 }).then((r) => r.json());
+      const data: ScrapedProductOut[] = await apiClient.preview_scraped_products({ jobId: job.id, limit: 50 }).then((r) => r.json());
       setPreview(data); setShowPreview(true);
     } catch { toast.error("Could not load preview"); }
   };
@@ -2074,7 +2006,7 @@ function ScraperPanel({
               )}
               {retryableImages > 0 && !enrichmentRunning && (
                 <button
-                  onClick={retryFailedImages}
+                  onClick={() => retryFailedImages()}
                   disabled={detailBackfillRunning || detailBackfillAutoRunning}
                   className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 disabled:opacity-50 hover:bg-amber-100"
                 >
