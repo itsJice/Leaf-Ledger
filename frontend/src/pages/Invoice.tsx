@@ -68,7 +68,7 @@ export default function Invoice() {
     setLoading(true);
     apiClient.get_arrangement({ arrangementId })
       .then((r) => r.json())
-      .then(setArrangement)
+      .then((data) => setArrangement(data as unknown as Arrangement))
       .catch(() => toast.error("Failed to load arrangement"))
       .finally(() => setLoading(false));
   }, [arrangementId]);
@@ -128,7 +128,7 @@ export default function Invoice() {
             <div className="flex items-start justify-between mb-8 pb-6 border-b border-stone-200">
               <div>
                 <h2 className="text-2xl font-bold text-stone-800 mb-1" style={{ fontFamily: "Georgia, serif" }}>Invoice</h2>
-                <p className="text-sm text-stone-500">The Branch Design Group</p>
+                <p className="text-sm text-stone-500">Design Operations</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold text-stone-700">{arrangement.name}</p>

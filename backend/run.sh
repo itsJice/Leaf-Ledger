@@ -1,5 +1,3 @@
 #!/bin/bash
 
-source .venv/bin/activate
-
-uvicorn main:app --reload 
+.venv/bin/python -m uvicorn main:app --reload --reload-dir app
