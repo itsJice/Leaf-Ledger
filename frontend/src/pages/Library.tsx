@@ -139,10 +139,16 @@ export type Product = {
   availability?: string;
   availability_note?: string;
   upc?: string;
+  image_urls?: string[];
+  height_in?: number;
+  width_in?: number;
+  diameter_in?: number;
   length_in?: number;
   weight_lb?: number;
   material?: string;
+  finish?: string;
   color?: string;
+  style?: string;
   country_of_origin?: string;
   raw_data?: Record<string, any>;
   is_favorited: boolean;
@@ -724,11 +730,11 @@ function InlinePriceEditor({ p, onUpdated }: { p: Product; onUpdated: (price: nu
 }
 
 // ─── Image with proxy fallback ───────────────────────────────────────────────
-function ImagePending({ compact = false }: { compact?: boolean }) {
+function ImagePending({ compact = false, label = "Image pending" }: { compact?: boolean; label?: string }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-stone-100 text-stone-400">
       <Leaf size={compact ? 14 : 28} strokeWidth={1.2} />
-      {!compact && <span className="text-[11px] font-medium">Image pending</span>}
+      {!compact && <span className="text-[11px] font-medium">{label}</span>}
     </div>
   );
 }
@@ -969,8 +975,11 @@ function productTypeLabels(product: Product): string[] {
   const haystack = ` ${normalizeSearchText([
     displayProductName(product),
     raw.Description,
+    raw.name,
     product.description,
     raw.allstate_subcategory,
+    raw.Category,
+    raw.Style,
     categoryLabel(product.category),
   ].filter(Boolean).join(" "))} `;
   return PRODUCT_TYPE_RULES
@@ -983,8 +992,13 @@ function productSizeLabels(product: Product, cachedTypeLabels?: string[]): strin
   const sourceText = [
     displayProductName(product),
     raw.Description,
+    raw.name,
     product.description,
     raw.ProdLength,
+    raw.Height,
+    raw.Width,
+    raw.Diameter,
+    raw.Length,
     raw["Box LxWxH"],
     raw["Case LxWxH"],
   ].filter(Boolean).join(" ");
@@ -1047,6 +1061,24 @@ function buildProductSearchEntry(product: Product): ProductSearchEntry {
     sourceBasePrice(product),
     sourceUom(product),
     raw.Description,
+    raw.name,
+    raw.sku,
+    raw.price,
+    raw.Category,
+    raw.Material,
+    raw.Materials,
+    raw.Finish,
+    raw.Style,
+    raw["Unit of Measure"],
+    raw.Unit,
+    raw.Country,
+    raw.Color,
+    raw["Primary Color"],
+    raw.Height,
+    raw.Width,
+    raw.Diameter,
+    raw.Length,
+    raw.Availability,
     raw.ColorGrp,
     raw.Season,
     raw.Class,
@@ -1109,6 +1141,24 @@ function searchableVisibleText(product: Product): string {
     sourceBasePrice(product),
     sourceUom(product),
     raw.Description,
+    raw.name,
+    raw.sku,
+    raw.price,
+    raw.Category,
+    raw.Material,
+    raw.Materials,
+    raw.Finish,
+    raw.Style,
+    raw["Unit of Measure"],
+    raw.Unit,
+    raw.Country,
+    raw.Color,
+    raw["Primary Color"],
+    raw.Height,
+    raw.Width,
+    raw.Diameter,
+    raw.Length,
+    raw.Availability,
     raw.ColorGrp,
     raw.Season,
     raw.Class,
@@ -1150,6 +1200,7 @@ function searchableCodeText(product: Product): string {
     product.supplier_sku,
     product.upc,
     product.raw_data?.["Item No"],
+    product.raw_data?.sku,
     product.name,
   ]
     .filter(Boolean)
@@ -1159,13 +1210,13 @@ function searchableCodeText(product: Product): string {
 }
 
 function sourceBasePrice(product: Product): string {
-  const rawPrice = sourceValue(product, "BasePrice");
+  const rawPrice = sourceValue(product, "BasePrice", "price");
   if (rawPrice) return String(rawPrice);
   return product.current_price != null ? formatCurrency(product.current_price) : "—";
 }
 
 function sourceUom(product: Product): string {
-  const rawUom = sourceValue(product, "Uom", "UOM");
+  const rawUom = sourceValue(product, "Uom", "UOM", "Unit of Measure", "Unit");
   if (rawUom) return String(rawUom);
   return unitLabel(product.unit).toUpperCase();
 }
@@ -1179,10 +1230,33 @@ function sourceOrderContext(product: Product): Array<[string, unknown]> {
   ].filter(([, value]) => value !== undefined && value !== null && value !== "");
 }
 
-function imageStatus(product: Product): "stored" | "visible" | "pending" | "failed" {
+export function hasNoSupplierImage(product: Pick<Product, "raw_data">): boolean {
+  return product.raw_data?.image_status === "no_supplier_image";
+}
+
+export function hasSupplierPlaceholderImage(product: Pick<Product, "photo_url" | "raw_data">): boolean {
+  const photoUrl = String(product.photo_url || "").toLowerCase();
+  const sourcePhotoUrl = String(product.raw_data?.source_photo_url || "").toLowerCase();
+  return photoUrl.includes("price_update.gif") || sourcePhotoUrl.includes("price_update.gif");
+}
+
+export function productDisplayImageUrl(product: Pick<Product, "photo_url" | "image_urls" | "raw_data">): string | undefined {
+  if (hasNoSupplierImage(product) || hasSupplierPlaceholderImage(product)) return undefined;
+  const candidates = [
+    product.photo_url,
+    ...(Array.isArray(product.image_urls) ? product.image_urls : []),
+    product.raw_data?.source_photo_url,
+  ];
+  return candidates.map((value) => String(value || "").trim()).find(Boolean);
+}
+
+function imageStatus(product: Product): "stored" | "visible" | "pending" | "failed" | "no_supplier_image" | "placeholder" {
   const status = product.raw_data?.image_status;
-  if (status === "stored" && product.photo_url) return "stored";
-  if (product.photo_url) return "visible";
+  const displayImageUrl = productDisplayImageUrl(product);
+  if (status === "no_supplier_image") return "no_supplier_image";
+  if (hasSupplierPlaceholderImage(product)) return "placeholder";
+  if (status === "stored" && displayImageUrl) return "stored";
+  if (displayImageUrl) return "visible";
   if (status === "failed") return "failed";
   return "pending";
 }
@@ -1301,6 +1375,10 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
   const raw = product.raw_data || {};
   const displayName = displayProductName(product);
   const detailPending = detailStatus(product) !== "stored";
+  const status = imageStatus(product);
+  const isResolvedNoImage = status === "no_supplier_image";
+  const isSupplierPlaceholder = status === "placeholder";
+  const displayImageUrl = productDisplayImageUrl(product);
   const pricingRows: Array<[string, unknown]> = [
     ["Base Price", sourceBasePrice(product)],
     ["UOM", sourceUom(product)],
@@ -1311,18 +1389,21 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
     ["Price Updated", product.price_updated_at ? formatDate(product.price_updated_at) : "—"],
   ];
   const coreRows: Array<[string, unknown]> = [
-    ["Item Number", product.supplier_sku || raw["Item No"]],
+    ["Item Number", product.supplier_sku || raw["Item No"] || raw.sku],
     ["Name", displayName],
-    ["Description", raw.Description || product.description],
+    ["Description", raw.Description || raw.name || product.description],
     ["Supplier", product.supplier_name],
-    ["Category", raw.allstate_subcategory || categoryLabel(product.category)],
+    ["Category", raw.allstate_subcategory || raw.Category || categoryLabel(product.category)],
     ["UPC", product.upc || raw.UPC],
   ];
   const availabilityRows: Array<[string, unknown]> = [
-    ["Availability", product.availability_note || raw["Avail. Qty: *"] || raw["Avail. Qty"] || product.availability],
+    ["Availability", product.availability_note || raw["Avail. Qty: *"] || raw["Avail. Qty"] || raw.Availability || product.availability],
   ];
   const dimensionRows: Array<[string, unknown]> = [
-    ["Product Length", raw.ProdLength || product.length_in],
+    ["Product Length", raw.ProdLength || raw.Length || product.length_in],
+    ["Product Height", raw.Height || product.height_in],
+    ["Product Width", raw.Width || product.width_in],
+    ["Product Diameter", raw.Diameter || product.diameter_in],
     ["Product Weight", raw.ProdWeight || product.weight_lb],
     ["Box Weight", raw.BoxWeight],
     ["Case Weight", raw.CsWeight],
@@ -1334,6 +1415,8 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
     ["Class", raw.Class],
     ["Color Group", productColorSummary(product)],
     ["Season", raw.Season],
+    ["Style", raw.Style || product.style],
+    ["Finish", raw.Finish || product.finish],
     ["Oversize", raw.Oversize],
     ["Poly Bag", raw.PolyBag],
     ["Fragile", raw.Fragile],
@@ -1341,8 +1424,8 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
     ["Catalog Page", raw.CatPage],
   ];
   const materialRows: Array<[string, unknown]> = [
-    ["Country of Origin", product.country_of_origin || raw["Country of Origin"]],
-    ["Material Breakdown", product.material || raw["Material Breakdown"]],
+    ["Country of Origin", product.country_of_origin || raw["Country of Origin"] || raw.Country],
+    ["Material Breakdown", product.material || raw["Material Breakdown"] || raw.Material || raw.Materials],
   ];
 
   return (
@@ -1362,14 +1445,28 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
           <div className="border-b border-stone-100 bg-stone-50 p-5 md:border-b-0 md:border-r">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Image</p>
             <div className="aspect-square overflow-hidden rounded-lg border border-stone-200 bg-white">
-              {product.photo_url ? <ProxiedImage src={product.photo_url} alt={displayName} /> : <ImagePending />}
+              {displayImageUrl && !isSupplierPlaceholder ? (
+                <ProxiedImage src={displayImageUrl} alt={displayName} />
+              ) : (
+                <ImagePending label={isResolvedNoImage ? "No supplier image" : isSupplierPlaceholder ? "Supplier placeholder" : "Image pending"} />
+              )}
             </div>
-            {imageStatus(product) === "pending" && (
+            {isResolvedNoImage && (
+              <div className="mt-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-600">
+                Supplier did not provide a product photo.
+              </div>
+            )}
+            {isSupplierPlaceholder && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                Supplier returned a placeholder image instead of a product photo.
+              </div>
+            )}
+            {status === "pending" && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
                 Image lookup in progress
               </div>
             )}
-            {imageStatus(product) === "failed" && (
+            {status === "failed" && (
               <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                 Image retry needed
               </div>
@@ -1426,8 +1523,11 @@ function ProductCard({
 }) {
   const stale = isPriceStale(p.price_updated_at);
   const status = imageStatus(p);
+  const isResolvedNoImage = status === "no_supplier_image";
+  const isSupplierPlaceholder = status === "placeholder";
+  const displayImageUrl = productDisplayImageUrl(p);
   const orderContext = sourceOrderContext(p);
-  const hasSourcePrice = !!sourceValue(p, "BasePrice", "Uom", "UOM");
+  const hasSourcePrice = !!sourceValue(p, "BasePrice", "price", "Uom", "UOM", "Unit of Measure", "Unit");
   const displayName = displayProductName(p);
   return (
     <div
@@ -1439,10 +1539,20 @@ function ProductCard({
     >
       {/* Image */}
       <div className="relative h-56 bg-stone-100 overflow-hidden">
-        {p.photo_url ? (
-          <ProxiedImage src={p.photo_url} alt={displayName} />
+        {displayImageUrl && !isSupplierPlaceholder ? (
+          <ProxiedImage src={displayImageUrl} alt={displayName} />
         ) : (
-          <ImagePending />
+          <ImagePending label={isResolvedNoImage ? "No supplier image" : isSupplierPlaceholder ? "Supplier placeholder" : "Image pending"} />
+        )}
+        {isResolvedNoImage && (
+          <div className="absolute top-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-stone-600 shadow-sm ring-1 ring-stone-200">
+            No supplier image
+          </div>
+        )}
+        {isSupplierPlaceholder && (
+          <div className="absolute top-2 left-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm ring-1 ring-amber-200">
+            Supplier placeholder
+          </div>
         )}
         {status === "pending" && (
           <div className="absolute top-2 left-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 shadow-sm ring-1 ring-amber-200">
@@ -1673,17 +1783,20 @@ function VendorView({
               <div className="flex items-center gap-3">
                 {vendorProducts.length > 0 && (
                   <div className="flex -space-x-1">
-                    {vendorProducts.slice(0, 4).map((p) => (
-                      <div key={p.id} className="w-7 h-7 rounded-full border-2 border-white bg-stone-100 overflow-hidden flex-shrink-0">
-                        {p.photo_url ? (
-                          <img src={p.photo_url} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Leaf size={10} className="text-stone-300" />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    {vendorProducts.slice(0, 4).map((p) => {
+                      const displayImageUrl = productDisplayImageUrl(p);
+                      return (
+                        <div key={p.id} className="w-7 h-7 rounded-full border-2 border-white bg-stone-100 overflow-hidden flex-shrink-0">
+                          {displayImageUrl ? (
+                            <img src={displayImageUrl} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Leaf size={10} className="text-stone-300" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     {vendorProducts.length > 4 && (
                       <div className="w-7 h-7 rounded-full border-2 border-white bg-stone-200 flex items-center justify-center">
                         <span className="text-xs text-stone-500">+{vendorProducts.length - 4}</span>
@@ -1789,6 +1902,7 @@ export function ProductView({
   pageLoading = false,
   initialLoading = false,
   onSearchChange,
+  onSupplierFilterChange,
   onLoadMore,
   canLoadMore = false,
 }: {
@@ -1811,6 +1925,7 @@ export function ProductView({
   pageLoading?: boolean;
   initialLoading?: boolean;
   onSearchChange?: (search: string) => void;
+  onSupplierFilterChange?: (suppliers: string[]) => void;
   onLoadMore?: () => void;
   canLoadMore?: boolean;
 }) {
@@ -1851,6 +1966,10 @@ export function ProductView({
     }
     onSearchChange?.(activeSearch);
   }, [activeSearch, onSearchChange]);
+
+  useEffect(() => {
+    onSupplierFilterChange?.(supplierFilter);
+  }, [supplierFilter, onSupplierFilterChange]);
 
   const productIndex = useMemo(() => products.map(buildProductSearchEntry), [products]);
 
@@ -2156,12 +2275,12 @@ export function ProductView({
       </div>
 
       {/* Grid */}
-      {initialLoading ? (
+      {initialLoading || (pageLoading && sorted.length === 0) ? (
         <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-stone-200 bg-white text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          <p className="text-sm font-semibold text-stone-700">Loading product catalog</p>
+          <p className="text-sm font-semibold text-stone-700">{initialLoading ? "Loading product catalog" : "Loading filtered products"}</p>
           <p className="mt-1 max-w-xs text-xs text-stone-400">
-            The page is ready. Product cards will appear here as soon as the first catalog page is loaded.
+            Product cards will appear here as soon as the matching catalog page is loaded.
           </p>
         </div>
       ) : sorted.length === 0 ? (
@@ -2231,6 +2350,7 @@ export default function Library() {
   const [productTotal, setProductTotal] = useState<number | undefined>(cachedLibrary?.productTotal);
   const [filterMetadata, setFilterMetadata] = useState<LibraryFilterMetadata | null>(cachedMetadata);
   const [librarySearch, setLibrarySearch] = useState("");
+  const [serverSupplierFilter, setServerSupplierFilter] = useState<string[]>([]);
   const [pageOffset, setPageOffset] = useState(0);
   const [loading, setLoading] = useState(!cachedLibrary);
   const [refreshing, setRefreshing] = useState(false);
@@ -2246,21 +2366,29 @@ export default function Library() {
   const suppliersRef = useRef(suppliers);
   const productTotalRef = useRef(productTotal);
   const librarySearchRef = useRef(librarySearch);
+  const serverSupplierFilterRef = useRef(serverSupplierFilter);
   const pageOffsetRef = useRef(pageOffset);
+  const loadRequestIdRef = useRef(0);
 
   useEffect(() => { productsRef.current = products; }, [products]);
   useEffect(() => { suppliersRef.current = suppliers; }, [suppliers]);
   useEffect(() => { productTotalRef.current = productTotal; }, [productTotal]);
   useEffect(() => { librarySearchRef.current = librarySearch; }, [librarySearch]);
+  useEffect(() => { serverSupplierFilterRef.current = serverSupplierFilter; }, [serverSupplierFilter]);
   useEffect(() => { pageOffsetRef.current = pageOffset; }, [pageOffset]);
 
-  const load = useCallback(async (opts?: { search?: string; append?: boolean }) => {
+  const load = useCallback(async (opts?: { search?: string; supplierFilter?: string[]; append?: boolean }) => {
+    const requestId = ++loadRequestIdRef.current;
     const currentProducts = productsRef.current;
     const currentSuppliers = suppliersRef.current;
     if (currentProducts.length === 0 && currentSuppliers.length === 0) setLoading(true);
     else setRefreshing(true);
     try {
       const search = opts?.search ?? librarySearchRef.current;
+      const supplierFilter = opts?.supplierFilter ?? serverSupplierFilterRef.current;
+      const supplierIds = supplierFilter
+        .map((supplierName) => suppliersRef.current.find((supplier) => supplier.name === supplierName)?.id)
+        .filter((id): id is number => typeof id === "number");
       const offset = opts?.append ? pageOffsetRef.current + INITIAL_CARD_RENDER_LIMIT : 0;
       const [ssRes, psRes, metaRes] = await Promise.allSettled([
         apiClient.list_suppliers().then((r) => r.json()),
@@ -2270,6 +2398,7 @@ export default function Library() {
           query: {
             favorites_only: false,
             search: search || undefined,
+            supplier_ids: supplierIds.length > 0 ? supplierIds.join(",") : undefined,
             limit: INITIAL_CARD_RENDER_LIMIT,
             offset,
           },
@@ -2279,6 +2408,7 @@ export default function Library() {
           method: "GET",
         }).then((r) => r.json()),
       ]);
+      if (requestId !== loadRequestIdRef.current) return;
       let nextSuppliers = suppliersRef.current;
       let nextProducts = productsRef.current;
       let nextTotal = productTotalRef.current;
@@ -2315,10 +2445,12 @@ export default function Library() {
         toast.error("Failed to load products — please sign in");
       }
     } catch {
-      toast.error("Failed to load library");
+      if (requestId === loadRequestIdRef.current) toast.error("Failed to load library");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
@@ -2327,11 +2459,23 @@ export default function Library() {
   const searchLibraryPage = useCallback((search: string) => {
     setLibrarySearch(search);
     librarySearchRef.current = search;
-    load({ search, append: false });
+    load({ search, supplierFilter: serverSupplierFilterRef.current, append: false });
+  }, [load]);
+
+  const filterLibraryBySupplier = useCallback((supplierFilter: string[]) => {
+    setServerSupplierFilter(supplierFilter);
+    serverSupplierFilterRef.current = supplierFilter;
+    setProducts([]);
+    productsRef.current = [];
+    setProductTotal(undefined);
+    productTotalRef.current = undefined;
+    setPageOffset(0);
+    pageOffsetRef.current = 0;
+    load({ search: librarySearchRef.current, supplierFilter, append: false });
   }, [load]);
 
   const loadMoreProducts = useCallback(() => {
-    load({ append: true });
+    load({ supplierFilter: serverSupplierFilterRef.current, append: true });
   }, [load]);
 
   const toggleFavorite = async (id: number) => {
@@ -2388,6 +2532,11 @@ export default function Library() {
     setEditProduct(supplierId ? { supplier_id: supplierId } : null);
     setShowModal(true);
   };
+  const libraryScopeLabel = serverSupplierFilter.length === 1
+    ? `from ${serverSupplierFilter[0]}`
+    : serverSupplierFilter.length > 1
+      ? `from ${serverSupplierFilter.length} suppliers`
+      : `across ${suppliers.length} suppliers`;
 
   return (
     <Layout>
@@ -2398,7 +2547,7 @@ export default function Library() {
           <p className="text-xs text-stone-500 mt-0.5">
             {loading && products.length === 0 && suppliers.length === 0
               ? "Checking product library..."
-              : `${(productTotal ?? products.length).toLocaleString()} products across ${suppliers.length} suppliers`}
+              : `${(productTotal ?? products.length).toLocaleString()} products ${libraryScopeLabel}`}
             {refreshing && <span className="ml-2 text-emerald-700">Refreshing…</span>}
           </p>
         </div>
@@ -2463,6 +2612,7 @@ export default function Library() {
             pageLoading={refreshing}
             initialLoading={loading && products.length === 0}
             onSearchChange={searchLibraryPage}
+            onSupplierFilterChange={filterLibraryBySupplier}
             onLoadMore={loadMoreProducts}
             canLoadMore={(productTotal ?? products.length) > products.length}
           />

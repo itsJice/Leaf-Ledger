@@ -1,0 +1,49 @@
+name: Catalog Extraction
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Supplier config path under catalog-extraction/"
+        required: true
+        default: "suppliers/american_best.example.json"
+      limit:
+        description: "Optional product limit for smoke runs"
+        required: false
+        default: "25"
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: catalog-extraction
+    env:
+      SUPPLIER_USERNAME: ${{ secrets.SUPPLIER_USERNAME }}
+      SUPPLIER_PASSWORD: ${{ secrets.SUPPLIER_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          sbase install chromedriver
+
+      - name: Run supplier extraction
+        run: |
+          python scripts/run_supplier.py --config "${{ inputs.config }}" --limit "${{ inputs.limit }}"
+
+      - name: Upload catalog export artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catalog-extraction-output
+          path: catalog-extraction/outputs/

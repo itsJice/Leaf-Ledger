@@ -173,30 +173,20 @@ function withClientTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
 
 function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[]) {
   const groups = new Map<string, ClientGroup>();
-
-  clientRows.forEach((client) => {
-    const name = normalizedClientName(client.name);
-    groups.set(name.toLowerCase(), {
-      id: client.id,
-      name,
-      email: client.email,
-      phone: client.phone,
-      notes: client.notes,
-      source: client.source,
-      projects: [],
-      projectCount: client.project_count || 0,
-      bucketCount: client.bucket_count || 0,
-      selectedCost: client.selected_cost || 0,
-      updatedAt: client.updated_at || client.last_project_at,
-    });
-  });
+  const projectStats = new Map<string, {
+    name: string;
+    projects: ProjectSummary[];
+    projectCount: number;
+    bucketCount: number;
+    selectedCost: number;
+    updatedAt?: string | null;
+  }>();
 
   projects.forEach((project) => {
     const name = normalizedClientName(project.client_name);
     const key = name.toLowerCase();
-    const existing = groups.get(key) || {
+    const existing = projectStats.get(key) || {
       name,
-      source: "from_projects" as const,
       projects: [],
       projectCount: 0,
       bucketCount: 0,
@@ -205,15 +195,46 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
     };
 
     existing.projects.push(project);
-    if (!clientRows.some((client) => normalizedClientName(client.name).toLowerCase() === key)) {
-      existing.projectCount += 1;
-      existing.bucketCount += project.container_count || 0;
-      existing.selectedCost += project.total_cost || 0;
-    }
+    existing.projectCount += 1;
+    existing.bucketCount += project.container_count || 0;
+    existing.selectedCost += project.total_cost || 0;
     if (!existing.updatedAt || new Date(project.updated_at).getTime() > new Date(existing.updatedAt).getTime()) {
       existing.updatedAt = project.updated_at;
     }
-    groups.set(key, existing);
+    projectStats.set(key, existing);
+  });
+
+  clientRows.forEach((client) => {
+    const name = normalizedClientName(client.name);
+    const key = name.toLowerCase();
+    const stats = projectStats.get(key);
+    const updatedAt = stats?.updatedAt || client.updated_at || client.last_project_at;
+    groups.set(name.toLowerCase(), {
+      id: client.id,
+      name,
+      email: client.email,
+      phone: client.phone,
+      notes: client.notes,
+      source: client.source,
+      projects: stats?.projects || [],
+      projectCount: stats ? stats.projectCount : client.project_count || 0,
+      bucketCount: stats ? stats.bucketCount : client.bucket_count || 0,
+      selectedCost: stats ? stats.selectedCost : client.selected_cost || 0,
+      updatedAt,
+    });
+  });
+
+  projectStats.forEach((stats, key) => {
+    if (groups.has(key)) return;
+    groups.set(key, {
+      name: stats.name,
+      source: "from_projects" as const,
+      projects: stats.projects,
+      projectCount: stats.projectCount,
+      bucketCount: stats.bucketCount,
+      selectedCost: stats.selectedCost,
+      updatedAt: stats.updatedAt,
+    });
   });
 
   return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));

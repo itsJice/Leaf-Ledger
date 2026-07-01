@@ -2,7 +2,13 @@
 
 ## Purpose
 
-This folder is the permanent learning log for supplier onboarding. Allstate is the reference supplier. Every new supplier should get its own note file so the scraper process gets faster and cleaner over time.
+This folder is the permanent learning log for supplier onboarding. Every new supplier should get its own note file so catalog acquisition, import, review, and Product Library use get faster and cleaner over time.
+
+Current product direction: Leaf & Ledger is the catalog system of record. It should receive supplier data from supplier exports, PDFs, external scrape exports, or cleaned spreadsheets before we consider building/using portal scraping. See [../CATALOG_DATA_STRATEGY.md](../CATALOG_DATA_STRATEGY.md).
+
+Use [SUPPLIER_ONBOARDING_CHECKLIST.md](SUPPLIER_ONBOARDING_CHECKLIST.md) for the source-first onboarding process. Use [SUPPLIER_CONNECTOR_CONTRACT.md](SUPPLIER_CONNECTOR_CONTRACT.md) for the import shape that every source must produce.
+
+Legacy scraper plans and queue-worker notes remain useful for fallback portal extraction, but they are not the default path for every supplier.
 
 ## Canonical Supplier List
 
@@ -11,9 +17,9 @@ Duplicate names should be merged into one clean supplier record before onboardin
 | Wave | Type | Supplier | Notes file | Status |
 | --- | --- | --- | --- | --- |
 | 0 | Reference | Allstate | [ALLSTATE_ONBOARDING_NOTES.md](ALLSTATE_ONBOARDING_NOTES.md) | Reference complete |
-| 1 | Product-heavy florals/decor | Accent Decor | [ACCENT_DECOR_ONBOARDING_NOTES.md](ACCENT_DECOR_ONBOARDING_NOTES.md) | Next |
-| 1 | Product-heavy florals/decor | Vickerman | [VICKERMAN_ONBOARDING_NOTES.md](VICKERMAN_ONBOARDING_NOTES.md) | Not started |
-| 1 | Product-heavy florals/decor | Regency | [REGENCY_ONBOARDING_NOTES.md](REGENCY_ONBOARDING_NOTES.md) | Not started |
+| 1 | Product-heavy florals/decor | Accent Decor | [ACCENT_DECOR_ONBOARDING_NOTES.md](ACCENT_DECOR_ONBOARDING_NOTES.md) | Ready: 2,338 products imported |
+| 1 | Product-heavy florals/decor | Vickerman | [VICKERMAN_ONBOARDING_NOTES.md](VICKERMAN_ONBOARDING_NOTES.md) | Checkpointed full catalog in progress |
+| 1 | Product-heavy florals/decor | Regency | [REGENCY_ONBOARDING_NOTES.md](REGENCY_ONBOARDING_NOTES.md) | Expanded test import ready |
 | 1 | Product-heavy florals/decor | Winward Silks | [WINWARD_SILKS_ONBOARDING_NOTES.md](WINWARD_SILKS_ONBOARDING_NOTES.md) | Not started |
 | 1 | Product-heavy florals/decor | Select Artificial | [SELECT_ARTIFICIAL_ONBOARDING_NOTES.md](SELECT_ARTIFICIAL_ONBOARDING_NOTES.md) | Not started |
 | 1 | Product-heavy florals/decor | Amazing Green | [AMAZING_GREEN_ONBOARDING_NOTES.md](AMAZING_GREEN_ONBOARDING_NOTES.md) | Not started |
@@ -46,14 +52,26 @@ Duplicate names should be merged into one clean supplier record before onboardin
 
 ## Standard Order
 
-1. Clean supplier record.
-2. Add credentials safely in the app, never in GitHub.
-3. Map login and catalog structure.
-4. Cache categories.
-5. Run one small selected-category test.
-6. Preview.
-7. Import.
-8. Backfill images/details.
-9. Verify Product Library display and search.
-10. Update that supplier note with what worked and what failed.
+1. Create the supplier intake packet.
+2. Ask supplier for a full catalog export, price book, item master, feed, or API access.
+3. Check whether PDFs/catalog downloads or existing supplier files can cover the catalog.
+4. If no file exists, decide whether to use external scraping, contractor extraction, or portal extraction.
+5. Clean supplier record.
+6. Add credentials safely in the app only if portal extraction is required.
+7. Convert the source into the standard import format.
+8. Run one small import test.
+9. Preview rows, duplicates, missing fields, images, and pricing.
+10. Import.
+11. Backfill images/details when needed.
+12. Verify Product Library display and search.
+13. Verify Builder/project use.
+14. Update that supplier note with source type, what worked, what failed, and next season's refresh path.
 
+## Reference Recon Packets
+
+- Regency: [REGENCY_RECON_REPORT.md](REGENCY_RECON_REPORT.md)
+- Vickerman: [VICKERMAN_RECON_REPORT.md](VICKERMAN_RECON_REPORT.md)
+
+## Engine Build Plans
+
+- Queue/worker crawl engine fallback: [SUPPLIER_CRAWL_QUEUE_WORKER_PLAN.md](SUPPLIER_CRAWL_QUEUE_WORKER_PLAN.md)

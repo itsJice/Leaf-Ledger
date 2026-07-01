@@ -14,6 +14,47 @@ async def get_conn():
 
 STYLES = ["photo-realistic", "illustrated", "mood-board"]
 
+
+async def visual_reference_context(conn, arrangement_id: int) -> str:
+    try:
+        exists = await conn.fetchval("SELECT to_regclass('public.visual_reference_assets') IS NOT NULL")
+        if not exists:
+            return ""
+        rows = await conn.fetch("""
+            WITH project_terms AS (
+                SELECT DISTINCT
+                    UPPER(NULLIF(TRIM(p.supplier_sku), '')) AS sku,
+                    LOWER(COALESCE(p.name, '') || ' ' || COALESCE(p.description, '') || ' ' || COALESCE(ci.part_label, '')) AS text_blob
+                FROM container_items ci
+                JOIN arrangement_containers ac ON ac.id = ci.container_id
+                JOIN products p ON p.id = ci.product_id
+                WHERE ac.arrangement_id = $1
+            )
+            SELECT DISTINCT v.item_code, v.file_name
+            FROM visual_reference_assets v
+            JOIN project_terms t ON (
+                v.item_code = t.sku
+                OR LOWER(v.file_name) LIKE '%' || SPLIT_PART(t.text_blob, ' ', 1) || '%'
+            )
+            WHERE v.item_code IS NOT NULL
+            ORDER BY v.item_code, v.file_name
+            LIMIT 8
+        """, arrangement_id)
+        if not rows:
+            rows = await conn.fetch("""
+                SELECT item_code, file_name
+                FROM visual_reference_assets
+                WHERE item_code IS NOT NULL
+                ORDER BY updated_at DESC
+                LIMIT 6
+            """)
+        refs = [f"{row['item_code']} ({row['file_name']})" for row in rows]
+        if not refs:
+            return ""
+        return " Historical TBDG visual references available for style language: " + "; ".join(refs) + ". Use these as product-realism cues, not as literal file names in the image."
+    except Exception:
+        return ""
+
 class MockupCreate(BaseModel):
     arrangement_id: int
     style: str
@@ -62,6 +103,7 @@ async def generate_mockup(body: MockupCreate, user: AuthorizedUser):
         """, body.arrangement_id)
 
         plant_list = ", ".join([f"{r['quantity']}x {r['name']}" for r in items]) or "assorted plants"
+        reference_context = await visual_reference_context(conn, body.arrangement_id)
 
         style_desc = {
             "photo-realistic": "photo-realistic professional interior plant arrangement photograph",
@@ -74,6 +116,7 @@ async def generate_mockup(body: MockupCreate, user: AuthorizedUser):
             f"Arrangement name: {arr['name']}. "
             "Beautiful composition, professional plant styling, warm botanical aesthetic, "
             "deep greens and earth tones, editorial quality."
+            f"{reference_context}"
         )
 
         # Insert pending record
