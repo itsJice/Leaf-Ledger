@@ -213,7 +213,15 @@ async def get_admin_dashboard():
                 s.last_price_synced_at,
                 COALESCE(s.sync_frequency_hours, 168) AS sync_frequency_hours,
                 COUNT(p.id) FILTER (WHERE p.is_active)                   AS product_count,
-                COUNT(p.id) FILTER (WHERE p.is_active AND p.photo_url IS NULL) AS missing_images,
+                COUNT(p.id) FILTER (
+                    WHERE p.is_active
+                      AND COALESCE(p.raw_data->>'image_status', '') != 'no_supplier_image'
+                      AND COALESCE(
+                        NULLIF(p.photo_url, ''),
+                        NULLIF(p.image_urls[1], ''),
+                        NULLIF(p.raw_data->>'source_photo_url', '')
+                      ) IS NULL
+                ) AS missing_images,
                 COUNT(p.id) FILTER (WHERE p.is_active AND p.current_price IS NULL) AS missing_prices,
                 -- Last sync log for this supplier
                 (
@@ -302,7 +310,17 @@ async def get_admin_dashboard():
                  WHERE last_full_sync_at >= now() - interval '7 days'
                     OR last_price_synced_at >= now() - interval '7 days') AS suppliers_synced_this_week,
                 (SELECT COUNT(*) FROM products WHERE is_active) AS total_products,
-                (SELECT COUNT(*) FROM products WHERE is_active AND photo_url IS NULL) AS products_missing_images,
+                (
+                    SELECT COUNT(*)
+                    FROM products
+                    WHERE is_active
+                      AND COALESCE(raw_data->>'image_status', '') != 'no_supplier_image'
+                      AND COALESCE(
+                        NULLIF(photo_url, ''),
+                        NULLIF(image_urls[1], ''),
+                        NULLIF(raw_data->>'source_photo_url', '')
+                      ) IS NULL
+                ) AS products_missing_images,
                 (SELECT COUNT(*) FROM products WHERE is_active AND current_price IS NULL) AS products_missing_prices,
                 (SELECT COUNT(*) FROM product_price_history WHERE changed_at >= now() - interval '7 days') AS price_changes_this_week,
                 (SELECT COUNT(*) FROM scrape_sync_logs WHERE status = 'error' AND started_at >= now() - interval '7 days') AS failed_syncs_this_week

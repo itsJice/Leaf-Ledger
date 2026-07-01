@@ -332,6 +332,17 @@ export interface DiscoverCatalogResponse {
   total_products: number;
   /** From Cache */
   from_cache: boolean;
+  /**
+   * Section Listing Total
+   * Accent Decor category appearances before dedupe.
+   * @default 0
+   */
+  section_listing_total?: number;
+  /**
+   * Catalog Summary
+   * Live supplier count metadata when available.
+   */
+  catalog_summary?: Record<string, any> | null;
 }
 
 /** HTTPValidationError */

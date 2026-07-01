@@ -1,6 +1,8 @@
 # Schedules
 
-The following scheduled jobs were configured in Riff. You'll need to recreate these using cron or a similar scheduler.
+This document records environment-owned recurring jobs that are not started automatically by the application repository.
+
+The following schedule existed in the original hosted environment and must be recreated with an approved scheduler when the corresponding endpoint is enabled.
 
 ## Weekly Price Sync — All Suppliers
 - **Cron:** `{'type': 'cron', 'timezone': 'Etc/UTC', 'cronExpression': '0 2 * * 1'}`

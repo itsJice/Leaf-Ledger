@@ -118,6 +118,147 @@ async def ensure_project_schema(conn):
 async def project_rooms_table_exists(conn) -> bool:
     return bool(await conn.fetchval("SELECT to_regclass('public.project_rooms') IS NOT NULL"))
 
+async def project_room_exists(conn, arrangement_id: int, room_id: Optional[int]) -> bool:
+    if room_id is None or not await project_rooms_table_exists(conn):
+        return False
+    try:
+        return bool(await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM project_rooms WHERE id = $1 AND arrangement_id = $2)",
+            room_id,
+            arrangement_id,
+        ))
+    except asyncpg.PostgresError:
+        return False
+
+async def migrate_fallback_rooms_to_project_rooms(conn, arrangement_id: int):
+    """Move legacy room/package placeholders into the durable room table.
+
+    Older local databases stored design packages as arrangement_containers with
+    LL_ROOM labels. Once project_rooms exists, those rows need to be converted
+    or the UI appears to forget every package.
+    """
+    if not await project_rooms_table_exists(conn):
+        return
+    try:
+        container_columns = await arrangement_container_columns(conn)
+        fallback_rooms = await conn.fetch(
+            """
+            SELECT id, label, sort_order, created_at
+            FROM arrangement_containers
+            WHERE arrangement_id = $1
+              AND label LIKE $2
+            ORDER BY sort_order, id
+            """,
+            arrangement_id,
+            f"{ROOM_LABEL_PREFIX}%",
+        )
+        if not fallback_rooms:
+            return
+
+        fallback_scopes = await conn.fetch(
+            """
+            SELECT id, label
+            FROM arrangement_containers
+            WHERE arrangement_id = $1
+              AND label LIKE $2
+            """,
+            arrangement_id,
+            f"{SCOPE_LABEL_PREFIX}%",
+        )
+
+        for fallback in fallback_rooms:
+            parsed_room = parse_room_label(fallback["label"])
+            if not parsed_room:
+                continue
+
+            room_id = await conn.fetchval(
+                """
+                SELECT id
+                FROM project_rooms
+                WHERE arrangement_id = $1
+                  AND name = $2
+                  AND COALESCE(notes, '') = COALESCE($3, '')
+                ORDER BY sort_order, id
+                LIMIT 1
+                """,
+                arrangement_id,
+                parsed_room["name"],
+                parsed_room.get("notes"),
+            )
+            if not room_id:
+                room_id = await conn.fetchval(
+                    """
+                    INSERT INTO project_rooms (arrangement_id, name, notes, sort_order, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, COALESCE($5, NOW()), NOW())
+                    RETURNING id
+                    """,
+                    arrangement_id,
+                    parsed_room["name"],
+                    parsed_room.get("notes"),
+                    fallback["sort_order"],
+                    fallback["created_at"],
+                )
+
+            if "room_id" in container_columns:
+                await conn.execute(
+                    """
+                    UPDATE arrangement_containers
+                    SET room_id = $1
+                    WHERE arrangement_id = $2
+                      AND room_id = $3
+                    """,
+                    room_id,
+                    arrangement_id,
+                    fallback["id"],
+                )
+
+            for scope in fallback_scopes:
+                parsed_scope = parse_scope_label(scope["label"])
+                if not parsed_scope or parsed_scope.get("room_id") != fallback["id"]:
+                    continue
+                await conn.execute(
+                    """
+                    UPDATE arrangement_containers
+                    SET label = $1
+                    WHERE id = $2
+                    """,
+                    encode_scope_label(
+                        parsed_scope.get("label"),
+                        room_id,
+                        parsed_scope.get("bucket_type"),
+                        parsed_scope.get("requested_quantity"),
+                        parsed_scope.get("scope_notes"),
+                    ),
+                    scope["id"],
+                )
+                if {"room_id", "bucket_type", "requested_quantity", "scope_notes"}.issubset(container_columns):
+                    await conn.execute(
+                        """
+                        UPDATE arrangement_containers
+                        SET room_id = $1,
+                            bucket_type = COALESCE($2, bucket_type),
+                            requested_quantity = COALESCE($3, requested_quantity),
+                            scope_notes = COALESCE($4, scope_notes)
+                        WHERE id = $5
+                        """,
+                        room_id,
+                        clean_optional_text(parsed_scope.get("bucket_type")),
+                        normalize_requested_quantity(parsed_scope.get("requested_quantity")),
+                        clean_optional_text(parsed_scope.get("scope_notes")),
+                        scope["id"],
+                    )
+
+            has_items = bool(await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM container_items WHERE container_id = $1)",
+                fallback["id"],
+            ))
+            if not has_items:
+                await conn.execute("DELETE FROM arrangement_containers WHERE id = $1", fallback["id"])
+    except asyncpg.PostgresError:
+        # If the app role cannot migrate, fetch_arrangement_full still reads the
+        # legacy labels below so packages remain visible and usable.
+        return
+
 async def has_item_status_column(conn) -> bool:
     return bool(await conn.fetchval("""
         SELECT EXISTS (
@@ -351,13 +492,16 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
     # Get markup
     global_markup = float(await conn.fetchval("SELECT markup_percentage FROM markup_settings WHERE category IS NULL") or 30.0)
 
+    rooms_table_exists = await project_rooms_table_exists(conn)
+    if rooms_table_exists:
+        await migrate_fallback_rooms_to_project_rooms(conn, arrangement_id)
+
     containers_rows = await conn.fetch(
         "SELECT ac.*, p.name as container_name FROM arrangement_containers ac "
         "LEFT JOIN products p ON p.id = ac.container_product_id "
         "WHERE ac.arrangement_id = $1 ORDER BY ac.sort_order",
         arrangement_id
     )
-    rooms_table_exists = await project_rooms_table_exists(conn)
     rooms_rows = []
     if rooms_table_exists:
         rooms_rows = await conn.fetch(
@@ -372,20 +516,26 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
 
     for cr in containers_rows:
         cr_data = dict(cr)
-        fallback_room = None if rooms_table_exists else parse_room_label(cr_data.get("label"))
+        fallback_room = parse_room_label(cr_data.get("label"))
         if fallback_room:
             created_at = cr_data.get("created_at") or dict(arr).get("created_at")
-            rooms.append({
-                "id": cr_data["id"],
-                "arrangement_id": arrangement_id,
-                "name": fallback_room["name"],
-                "notes": fallback_room.get("notes"),
-                "sort_order": cr_data["sort_order"],
-                "created_at": created_at,
-                "updated_at": created_at,
-            })
+            duplicate = any(
+                room.get("name") == fallback_room["name"]
+                and (room.get("notes") or "") == (fallback_room.get("notes") or "")
+                for room in rooms
+            )
+            if not duplicate:
+                rooms.append({
+                    "id": cr_data["id"],
+                    "arrangement_id": arrangement_id,
+                    "name": fallback_room["name"],
+                    "notes": fallback_room.get("notes"),
+                    "sort_order": cr_data["sort_order"],
+                    "created_at": created_at,
+                    "updated_at": created_at,
+                })
             continue
-        fallback_scope = None if rooms_table_exists else parse_scope_label(cr_data.get("label"))
+        fallback_scope = parse_scope_label(cr_data.get("label"))
         supports_parts = {"part_key", "part_label", "part_order"}.issubset(item_columns)
         supports_meta = await can_use_item_meta_table(conn)
         native_status = "ci.status" if supports_status else "NULL::text"
@@ -403,7 +553,9 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
         items_rows = await conn.fetch(f"""
             SELECT ci.id, ci.container_id, ci.product_id, ci.quantity, {item_status_select}, {part_select},
                    p.name as product_name, p.category as product_category,
-                   p.unit, p.current_price, p.supplier_sku, p.photo_url, s.name as supplier_name
+                   p.unit, p.current_price, p.supplier_sku,
+                   COALESCE(p.photo_url, p.image_urls[1], p.raw_data->>'source_photo_url') AS photo_url,
+                   s.name as supplier_name
             FROM container_items ci
             {meta_join}
             JOIN products p ON p.id = ci.product_id
@@ -441,16 +593,20 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
             })
 
         total_cost += subtotal
+        native_room_id = cr_data.get("room_id") if "room_id" in container_columns else None
+        native_bucket_type = cr_data.get("bucket_type") if "bucket_type" in container_columns else None
+        native_requested_quantity = cr_data.get("requested_quantity") if "requested_quantity" in container_columns else None
+        native_scope_notes = cr_data.get("scope_notes") if "scope_notes" in container_columns else None
         containers.append({
             "id": cr_data["id"],
             "arrangement_id": arrangement_id,
             "container_product_id": cr_data["container_product_id"],
             "container_name": cr_data["container_name"],
             "label": fallback_scope["label"] if fallback_scope else cr_data["label"],
-            "room_id": cr_data.get("room_id") if "room_id" in container_columns else (fallback_scope.get("room_id") if fallback_scope else None),
-            "bucket_type": cr_data.get("bucket_type") if "bucket_type" in container_columns else (fallback_scope.get("bucket_type") if fallback_scope else None),
-            "requested_quantity": normalize_requested_quantity(cr_data.get("requested_quantity") if "requested_quantity" in container_columns else (fallback_scope.get("requested_quantity") if fallback_scope else 1)),
-            "scope_notes": cr_data.get("scope_notes") if "scope_notes" in container_columns else (fallback_scope.get("scope_notes") if fallback_scope else None),
+            "room_id": native_room_id if native_room_id is not None else (fallback_scope.get("room_id") if fallback_scope else None),
+            "bucket_type": native_bucket_type or (fallback_scope.get("bucket_type") if fallback_scope else None),
+            "requested_quantity": normalize_requested_quantity(native_requested_quantity if native_requested_quantity is not None else (fallback_scope.get("requested_quantity") if fallback_scope else 1)),
+            "scope_notes": native_scope_notes or (fallback_scope.get("scope_notes") if fallback_scope else None),
             "sort_order": cr_data["sort_order"],
             "items": items,
             "subtotal": subtotal,
@@ -576,16 +732,21 @@ async def add_room(arrangement_id: int, body: RoomIn, request: Request):
         name = clean_optional_text(body.name)
         if not name:
             raise HTTPException(status_code=400, detail="Room name is required")
+        saved_in_project_rooms = False
         if await project_rooms_table_exists(conn):
-            max_order = await conn.fetchval(
-                "SELECT COALESCE(MAX(sort_order), -1) FROM project_rooms WHERE arrangement_id = $1",
-                arrangement_id
-            )
-            await conn.execute("""
-                INSERT INTO project_rooms (arrangement_id, name, notes, sort_order)
-                VALUES ($1, $2, $3, $4)
-            """, arrangement_id, name, clean_optional_text(body.notes), max_order + 1)
-        else:
+            try:
+                max_order = await conn.fetchval(
+                    "SELECT COALESCE(MAX(sort_order), -1) FROM project_rooms WHERE arrangement_id = $1",
+                    arrangement_id
+                )
+                await conn.execute("""
+                    INSERT INTO project_rooms (arrangement_id, name, notes, sort_order)
+                    VALUES ($1, $2, $3, $4)
+                """, arrangement_id, name, clean_optional_text(body.notes), max_order + 1)
+                saved_in_project_rooms = True
+            except asyncpg.PostgresError:
+                saved_in_project_rooms = False
+        if not saved_in_project_rooms:
             max_order = await conn.fetchval(
                 "SELECT COALESCE(MAX(sort_order), -1) FROM arrangement_containers WHERE arrangement_id = $1",
                 arrangement_id
@@ -599,17 +760,50 @@ async def add_room(arrangement_id: int, body: RoomIn, request: Request):
     finally:
         await conn.close()
 
+@router.put("/room/update/{room_id}", response_model=ArrangementOut)
+async def update_room(room_id: int, body: RoomIn, request: Request):
+    user_id = get_request_user_id(request)
+    conn = await get_conn()
+    try:
+        await ensure_project_schema(conn)
+        name = clean_optional_text(body.name)
+        if not name:
+            raise HTTPException(status_code=400, detail="Room/design package name is required")
+        notes = clean_optional_text(body.notes)
+        row = None
+        if await project_rooms_table_exists(conn):
+            row = await conn.fetchrow("SELECT arrangement_id FROM project_rooms WHERE id = $1", room_id)
+            if row:
+                await conn.execute("""
+                    UPDATE project_rooms
+                    SET name = $1, notes = $2
+                    WHERE id = $3
+                """, name, notes, room_id)
+        if not row:
+            row = await conn.fetchrow("SELECT arrangement_id, label FROM arrangement_containers WHERE id = $1", room_id)
+            if not row or not parse_room_label(row["label"]):
+                raise HTTPException(status_code=404, detail="Room/design package not found")
+            await conn.execute("""
+                UPDATE arrangement_containers
+                SET label = $1
+                WHERE id = $2
+            """, encode_room_label(name, notes), room_id)
+        await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", row["arrangement_id"])
+        return await fetch_arrangement_full(conn, row["arrangement_id"], user_id)
+    finally:
+        await conn.close()
+
 @router.delete("/room/delete/{room_id}")
 async def delete_room(room_id: int, request: Request):
     conn = await get_conn()
     try:
         await ensure_project_schema(conn)
+        row = None
         if await project_rooms_table_exists(conn):
             row = await conn.fetchrow("SELECT arrangement_id FROM project_rooms WHERE id = $1", room_id)
-            if not row:
-                raise HTTPException(status_code=404, detail="Room not found")
-            await conn.execute("DELETE FROM project_rooms WHERE id = $1", room_id)
-        else:
+            if row:
+                await conn.execute("DELETE FROM project_rooms WHERE id = $1", room_id)
+        if not row:
             row = await conn.fetchrow("SELECT arrangement_id, label FROM arrangement_containers WHERE id = $1", room_id)
             if not row or not parse_room_label(row["label"]):
                 raise HTTPException(status_code=404, detail="Room not found")
@@ -659,24 +853,36 @@ async def add_container(arrangement_id: int, body: ContainerIn, request: Request
         supports_status = await has_item_status_column(conn)
         item_columns = await container_item_columns(conn)
         container_columns = await arrangement_container_columns(conn)
+        native_room_id = body.room_id if await project_room_exists(conn, arrangement_id, body.room_id) else None
+        needs_fallback_scope = body.room_id is not None and native_room_id is None
         max_order = await conn.fetchval(
             "SELECT COALESCE(MAX(sort_order), -1) FROM arrangement_containers WHERE arrangement_id = $1",
             arrangement_id
         )
         if {"bucket_type", "requested_quantity", "scope_notes", "room_id"}.issubset(container_columns):
+            label_value = (
+                encode_scope_label(body.label, body.room_id, body.bucket_type, body.requested_quantity, body.scope_notes)
+                if needs_fallback_scope
+                else clean_optional_text(body.label)
+            )
             container = await conn.fetchrow("""
                 INSERT INTO arrangement_containers
                     (arrangement_id, container_product_id, label, room_id, bucket_type, requested_quantity, scope_notes, sort_order)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
-            """, arrangement_id, body.container_product_id, clean_optional_text(body.label), body.room_id,
+            """, arrangement_id, body.container_product_id, label_value, native_room_id,
                 clean_optional_text(body.bucket_type), normalize_requested_quantity(body.requested_quantity),
                 clean_optional_text(body.scope_notes), max_order + 1)
         elif {"bucket_type", "requested_quantity", "scope_notes"}.issubset(container_columns):
+            label_value = (
+                encode_scope_label(body.label, body.room_id, body.bucket_type, body.requested_quantity, body.scope_notes)
+                if body.room_id is not None
+                else clean_optional_text(body.label)
+            )
             container = await conn.fetchrow("""
                 INSERT INTO arrangement_containers
                     (arrangement_id, container_product_id, label, bucket_type, requested_quantity, scope_notes, sort_order)
                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
-            """, arrangement_id, body.container_product_id, clean_optional_text(body.label), clean_optional_text(body.bucket_type),
+            """, arrangement_id, body.container_product_id, label_value, clean_optional_text(body.bucket_type),
                 normalize_requested_quantity(body.requested_quantity), clean_optional_text(body.scope_notes), max_order + 1)
         else:
             fallback_label = (
@@ -719,15 +925,28 @@ async def update_container(container_id: int, body: ContainerUpdate, request: Re
     try:
         await ensure_project_schema(conn)
         container_columns = await arrangement_container_columns(conn)
+        room_id_select = "room_id" if "room_id" in container_columns else "NULL::integer AS room_id"
         existing = await conn.fetchrow(
-            "SELECT arrangement_id, label FROM arrangement_containers WHERE id = $1", container_id
+            f"SELECT arrangement_id, label, {room_id_select} FROM arrangement_containers WHERE id = $1",
+            container_id
         )
         if not existing:
             raise HTTPException(status_code=404, detail="Container not found")
+        existing_data = dict(existing)
         requested_quantity = None
         if body.requested_quantity is not None:
             requested_quantity = normalize_requested_quantity(body.requested_quantity)
         if {"bucket_type", "requested_quantity", "scope_notes"}.issubset(container_columns):
+            parsed_scope = parse_scope_label(existing_data["label"])
+            label_value = clean_optional_text(body.label)
+            if parsed_scope and existing_data.get("room_id") is None:
+                label_value = encode_scope_label(
+                    clean_optional_text(body.label) or parsed_scope.get("label"),
+                    parsed_scope.get("room_id"),
+                    clean_optional_text(body.bucket_type) or parsed_scope.get("bucket_type"),
+                    requested_quantity if requested_quantity is not None else parsed_scope.get("requested_quantity"),
+                    clean_optional_text(body.scope_notes) or parsed_scope.get("scope_notes"),
+                )
             await conn.execute("""
                 UPDATE arrangement_containers SET
                     label = COALESCE($1, label),
@@ -735,10 +954,10 @@ async def update_container(container_id: int, body: ContainerUpdate, request: Re
                     requested_quantity = COALESCE($3, requested_quantity),
                     scope_notes = COALESCE($4, scope_notes)
                 WHERE id = $5
-            """, clean_optional_text(body.label), clean_optional_text(body.bucket_type), requested_quantity,
+            """, label_value, clean_optional_text(body.bucket_type), requested_quantity,
                 clean_optional_text(body.scope_notes), container_id)
         else:
-            parsed_scope = parse_scope_label(existing["label"])
+            parsed_scope = parse_scope_label(existing_data["label"])
             if parsed_scope:
                 fallback_label = encode_scope_label(
                     clean_optional_text(body.label) or parsed_scope.get("label"),
@@ -754,8 +973,8 @@ async def update_container(container_id: int, body: ContainerUpdate, request: Re
                     label = COALESCE($1, label)
                 WHERE id = $2
             """, fallback_label, container_id)
-        await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", existing["arrangement_id"])
-        return await fetch_arrangement_full(conn, existing["arrangement_id"], user_id)
+        await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", existing_data["arrangement_id"])
+        return await fetch_arrangement_full(conn, existing_data["arrangement_id"], user_id)
     finally:
         await conn.close()
 

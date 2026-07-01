@@ -14,7 +14,7 @@
  * 5. Cancel in edit mode → reverts to last saved selection
  * 6. "Re-discover live" forces a fresh crawl (force_refresh=true)
  */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   X, Loader2, RefreshCw, CheckSquare, Square, ChevronDown,
   ChevronRight, CheckCircle2, Minus, AlertTriangle, BookOpen, Pencil,
@@ -44,6 +44,17 @@ interface Props {
   onSaved: () => void;
 }
 
+async function readCatalogError(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") return body.detail;
+    if (typeof body?.message === "string") return body.message;
+  } catch {
+    // Fall through to a status-based message when the response body is not JSON.
+  }
+  return `Catalog discovery failed with status ${res.status}.`;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function sectionCheckState(
@@ -61,6 +72,7 @@ function sectionCheckState(
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function CatalogWizard({ supplierId, supplierName, onClose, onSaved }: Props) {
+  const onSavedRef = useRef(onSaved);
   const [sections, setSections] = useState<SectionState[]>([]);
   // `savedSelected` = what's persisted in DB; `selected` = current working set in edit mode
   const [savedSelected, setSavedSelected] = useState<Set<string>>(new Set());
@@ -72,6 +84,11 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
   const [liveRefreshing, setLiveRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [sectionListingTotal, setSectionListingTotal] = useState(0);
+
+  useEffect(() => {
+    onSavedRef.current = onSaved;
+  }, [onSaved]);
 
   // ── Load catalog (cache-first) ──────────────────────────────────────────────
   const loadCatalog = useCallback(async (forceRefresh = false) => {
@@ -84,9 +101,17 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
 
     try {
       // 1. Discover categories (cache-first, or live if force_refresh)
-      const res = await apiClient.discover_catalog(
-        { supplierId, force_refresh: forceRefresh },
+      const res = await fetch(
+        `/api/suppliers/${supplierId}/discover-catalog?force_refresh=${forceRefresh ? "true" : "false"}`,
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        },
       );
+      if (!res.ok) {
+        throw new Error(await readCatalogError(res));
+      }
       const data: DiscoverCatalogResponse = await res.json();
 
       const sectionStates: SectionState[] = (data.sections || []).map((sec: CatalogSection) => ({
@@ -102,6 +127,7 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
       setSections(sectionStates);
       setFromCache(data.from_cache);
       setTotalProducts(data.total_products || 0);
+      setSectionListingTotal(data.section_listing_total || 0);
 
       // 2. Load existing selections and pre-check them
       const filtersRes = await apiClient.get_catalog_filters({ supplierId });
@@ -114,11 +140,12 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
       setSelected(savedCats.size > 0 ? savedCats : allCats);
       // Always open in view mode (not edit) so user sees what was saved
       setEditMode(false);
+      onSavedRef.current();
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load catalog";
       setLoadError(msg);
-      toast.error("Could not load catalog — check supplier credentials.");
+      toast.error(msg || "Could not load catalog — check supplier credentials.");
     } finally {
       setLoading(false);
       setLiveRefreshing(false);
@@ -240,6 +267,17 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
     .flatMap((s) => s.subcategories)
     .filter((s) => selected.has(s.ddcode))
     .reduce((acc, s) => acc + (s.item_count || 0), 0);
+  const selectedSummary = allCategoriesSelected && totalProducts > 0
+    ? {
+        value: totalProducts,
+        label: "unique products",
+        prefix: "",
+      }
+    : {
+        value: selectedProducts,
+        label: "category listings before dedupe",
+        prefix: "~",
+      };
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -308,7 +346,7 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
               <p className="text-xs text-stone-400 mt-1">
                 {liveRefreshing
                   ? "Logging into supplier site — this takes 1–3 minutes"
-                  : "Checking for cached category index…"}
+                  : "Checking cached categories and live totals…"}
               </p>
             </div>
           </div>
@@ -321,7 +359,10 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
             <div className="text-center">
               <p className="text-sm font-semibold text-stone-700">Could not load catalog</p>
               <p className="text-xs text-stone-500 mt-1 max-w-xs">
-                Make sure login credentials are saved for this supplier, then try again.
+                {loadError}
+              </p>
+              <p className="text-[11px] text-stone-400 mt-2 max-w-xs">
+                Update the supplier credentials, then try live discovery again.
               </p>
             </div>
             <button
@@ -342,7 +383,7 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
               <div className="flex items-center gap-1.5">
                 {fromCache ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-                    <CheckCircle2 size={9} /> Instant — from cache
+                    <CheckCircle2 size={9} /> Cached categories
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
@@ -357,7 +398,14 @@ export default function CatalogWizard({ supplierId, supplierName, onClose, onSav
               </div>
               {selectedCount > 0 && (
                 <div className="text-xs text-stone-500">
-                  ~<span className="font-semibold text-stone-800">{selectedProducts.toLocaleString()}</span> products
+                  {selectedSummary.prefix}
+                  <span className="font-semibold text-stone-800">{selectedSummary.value.toLocaleString()}</span>{" "}
+                  {selectedSummary.label}
+                  {allCategoriesSelected && sectionListingTotal > totalProducts && (
+                    <span className="text-stone-400">
+                      {" "}({sectionListingTotal.toLocaleString()} section listings)
+                    </span>
+                  )}
                 </div>
               )}
               {/* Select all / Clear all — only in edit mode */}

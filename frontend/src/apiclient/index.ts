@@ -29,7 +29,8 @@ const constructClient = () => {
     baseApiParams,
     customFetch: (url, options) => {
       // Remove /routes/ segment from path
-      const normalizedUrl = url.replace(API_PATH + "/routes", API_PATH);
+      const rawUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+      const normalizedUrl = rawUrl.replace(API_PATH + "/routes", API_PATH);
       return fetch(normalizedUrl, options);
     },
     securityWorker: async () => {
