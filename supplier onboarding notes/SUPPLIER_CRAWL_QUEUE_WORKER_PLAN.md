@@ -1,5 +1,7 @@
 # Supplier Crawl Queue And Worker Plan
 
+This architecture note preserves a fallback design for queued portal extraction while keeping file-based catalog intake as the default product path.
+
 ## Current Status
 
 This is a fallback architecture note, not the default product roadmap.

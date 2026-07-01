@@ -1,5 +1,7 @@
 # Leaf & Ledger Supplier + Builder Roadmap
 
+This roadmap separates current direction from future supplier, project-builder, purchasing, pricing, and user-experience work.
+
 ## Purpose
 
 Leaf & Ledger is replacing a long-running spreadsheet workflow with one centralized system for supplier catalogs, product selection, project planning, recipe-based purchasing, client quotes, invoices, and mockups.

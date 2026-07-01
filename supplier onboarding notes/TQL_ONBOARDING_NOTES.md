@@ -1,5 +1,7 @@
 # TQL Onboarding Notes
 
+This file tracks source availability, normalization concerns, and onboarding status for this supplier.
+
 ## Status
 
 - Wave: 4
@@ -11,4 +13,3 @@
 - This may not be a product catalog supplier.
 - Treat as logistics/freight workflow until proven otherwise.
 - Do not force it into product-library scraping unless it has catalog-like data.
-

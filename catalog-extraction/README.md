@@ -1,8 +1,8 @@
 # Catalog Extraction Workspace
 
-This folder is the external extraction workspace for Leaf & Ledger supplier catalog data.
+This folder is the optional external extraction workspace for producing validated Leaf & Ledger supplier catalog files.
 
-It is intentionally portable. It can stay here while we prototype, or it can become its own Codex/GitHub project once we are ready to run supplier scrapes separately from the Leaf & Ledger app.
+It is intentionally portable and can be separated from the application when extraction needs an independent runtime or access boundary.
 
 Leaf & Ledger should not become a universal scraping product. Scrapers here produce clean CSV/JSON exports. The app imports those exports through the standard catalog intake flow.
 
@@ -13,6 +13,8 @@ Leaf & Ledger should not become a universal scraping product. Scrapers here prod
 - Extract supplier product fields.
 - Save organized exports under `outputs/`.
 - Make one export per supplier per season.
+
+See [Extraction Design Notes](EXTRACTION_DESIGN_NOTES.md) for the operating boundary and handoff standard.
 
 ## What Leaf & Ledger Owns
 

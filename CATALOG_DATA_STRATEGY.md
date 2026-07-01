@@ -1,8 +1,10 @@
 # Leaf & Ledger Catalog Data Strategy
 
+This document records the source-first catalog strategy and the boundary between Leaf & Ledger's stable import responsibilities and optional extraction tooling.
+
 ## Decision
 
-Leaf & Ledger is not primarily a scraping product. Leaf & Ledger is the catalog system of record for The Branch Design Group.
+Leaf & Ledger is not primarily a scraping product. It is the catalog system of record for a design operations team.
 
 Its job is to receive supplier product data, standardize it, organize it, and make it useful inside product search, favorites, projects, recipes, quotes, invoices, and mockups.
 

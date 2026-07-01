@@ -1,5 +1,7 @@
 # Supplier Onboarding Acceleration Plan
 
+This plan explains how to shorten supplier onboarding by prioritizing usable source data, shared validation, and explicit readiness over custom automation.
+
 ## Current Status
 
 This plan has been updated for the new product boundary:

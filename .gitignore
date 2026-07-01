@@ -88,6 +88,10 @@ catalog-extraction/downloaded_files/
 catalog-extraction/outputs/
 catalog-extraction/recordings/
 
+# Local SeleniumBase recorder prototypes (generated before adapter extraction)
+catalog-extraction/*_discovery*.py
+catalog-extraction/Vickerman*.py
+
 # Package manager locks (optional - uncomment if you want to ignore)
 # package-lock.json
 # yarn.lock
