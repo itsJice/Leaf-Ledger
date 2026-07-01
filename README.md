@@ -2,6 +2,19 @@
 
 This is a full-stack application exported from Riff.
 
+## Product Direction
+
+Leaf & Ledger is the catalog system of record for supplier products and project workflows. It receives supplier data from files, exports, PDFs, external scrape outputs, or cleaned spreadsheets, then standardizes and uses that data in the Product Library, projects, quotes, invoices, and mockups.
+
+Scraping is not the default app function. Scrapers or external extraction tools should produce organized CSV/XLSX/JSON exports that Leaf & Ledger imports.
+
+See:
+
+- [`CATALOG_DATA_STRATEGY.md`](CATALOG_DATA_STRATEGY.md)
+- [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md)
+- [`SUPPLIER_BUILDER_ROADMAP.md`](SUPPLIER_BUILDER_ROADMAP.md)
+- [`supplier onboarding notes/SUPPLIER_CONNECTOR_CONTRACT.md`](supplier%20onboarding%20notes/SUPPLIER_CONNECTOR_CONTRACT.md)
+
 ## Architecture
 
 - **Frontend**: React + TypeScript + Vite

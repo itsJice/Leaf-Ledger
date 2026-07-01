@@ -111,10 +111,16 @@ class ProductOut(BaseModel):
     availability: Optional[str] = None
     availability_note: Optional[str] = None
     upc: Optional[str] = None
+    image_urls: Optional[List[str]] = None
+    height_in: Optional[float] = None
+    width_in: Optional[float] = None
+    diameter_in: Optional[float] = None
     length_in: Optional[float] = None
     weight_lb: Optional[float] = None
     material: Optional[str] = None
+    finish: Optional[str] = None
     color: Optional[str] = None
+    style: Optional[str] = None
     country_of_origin: Optional[str] = None
     raw_data: Optional[dict] = None
     is_active: bool
@@ -163,6 +169,7 @@ def _normalize_product_row(row) -> dict:
 def _product_filters(
     user_id: Optional[str],
     supplier_id: Optional[int],
+    supplier_ids: Optional[str],
     category: Optional[str],
     favorites_only: Optional[bool],
     search: Optional[str],
@@ -175,12 +182,31 @@ def _product_filters(
         conditions.append(f"p.supplier_id = ${idx}")
         params.append(supplier_id)
         idx += 1
+    elif supplier_ids:
+        parsed_supplier_ids = [
+            int(value)
+            for value in str(supplier_ids).split(",")
+            if value.strip().isdigit()
+        ]
+        if parsed_supplier_ids:
+            conditions.append(f"p.supplier_id = ANY(${idx}::int[])")
+            params.append(parsed_supplier_ids)
+            idx += 1
     if category:
-        conditions.append(f"p.category = ${idx}")
+        conditions.append(
+            f"""(
+                p.category = ${idx}
+                OR EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text(COALESCE(p.raw_data->'category_tags', '[]'::jsonb)) AS category_tag(value)
+                    WHERE category_tag.value = ${idx}
+                )
+            )"""
+        )
         params.append(category)
         idx += 1
     if favorites_only and user_id:
-        conditions.append("pf.id IS NOT NULL")
+        conditions.append("EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $1)")
     if search:
         conditions.append(
             f"""(
@@ -213,7 +239,7 @@ def _availability_bucket(value: Any) -> Optional[str]:
         return None
     if "within 1" in text or "1-4 month" in text or "1 4 month" in text:
         return "Within 1-4 months"
-    if "available today" in text or text.strip() in {"in_stock", "today"}:
+    if "available today" in text or "in stock" in text or "instock" in text or text.strip() in {"in_stock", "today", "available"}:
         return "Available today"
     if "sold out" in text or "out of stock" in text or "unavailable" in text or text.strip() == "out_of_stock":
         return "Sold out / unavailable"
@@ -225,10 +251,21 @@ def _availability_bucket(value: Any) -> Optional[str]:
 
 async def _build_product_filter_metadata(conn) -> dict[str, Any]:
     category_rows = await conn.fetch("""
-        SELECT COALESCE(NULLIF(category, ''), 'other') AS value, COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE
-        GROUP BY 1
+        SELECT value, COUNT(DISTINCT id)::int AS count
+        FROM (
+            SELECT id, COALESCE(NULLIF(category, ''), 'other') AS value
+            FROM products
+            WHERE is_active = TRUE
+
+            UNION ALL
+
+            SELECT p.id, category_tag.value
+            FROM products p
+            CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.raw_data->'category_tags', '[]'::jsonb)) AS category_tag(value)
+            WHERE p.is_active = TRUE
+              AND NULLIF(BTRIM(category_tag.value), '') IS NOT NULL
+        ) AS category_options
+        GROUP BY value
         ORDER BY count DESC, value ASC
     """)
     supplier_rows = await conn.fetch("""
@@ -265,7 +302,11 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
         LIMIT 300
     """)
     availability_rows = await conn.fetch("""
-        SELECT availability, availability_note, raw_data->>'Avail. Qty' AS raw_availability, raw_data->>'Avail. Qty: *' AS raw_availability_note
+        SELECT availability,
+               availability_note,
+               raw_data->>'Avail. Qty' AS raw_availability,
+               raw_data->>'Avail. Qty: *' AS raw_availability_note,
+               raw_data->>'Availability' AS raw_supplier_availability
         FROM products
         WHERE is_active = TRUE
     """)
@@ -275,6 +316,7 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
             _availability_bucket(row["availability_note"])
             or _availability_bucket(row["raw_availability_note"])
             or _availability_bucket(row["raw_availability"])
+            or _availability_bucket(row["raw_supplier_availability"])
             or _availability_bucket(row["availability"])
         )
         if bucket:
@@ -306,6 +348,7 @@ async def get_product_filter_metadata():
 async def list_products(
     request: Request,
     supplier_id: Optional[int] = None,
+    supplier_ids: Optional[str] = None,
     category: Optional[str] = None,
     favorites_only: Optional[bool] = None,
     search: Optional[str] = None,
@@ -317,14 +360,13 @@ async def list_products(
 
     conn = await get_conn()
     try:
-        conditions, params, _ = _product_filters(user_id, supplier_id, category, favorites_only, search)
+        conditions, params, _ = _product_filters(user_id, supplier_id, supplier_ids, category, favorites_only, search)
         where = " AND ".join(conditions)
         rows = await conn.fetch(f"""
             SELECT p.*, s.name as supplier_name,
-                   CASE WHEN pf.id IS NOT NULL THEN TRUE ELSE FALSE END as is_favorited
+                   EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $1) as is_favorited
             FROM products p
             LEFT JOIN suppliers s ON s.id = p.supplier_id
-            LEFT JOIN product_favorites pf ON pf.product_id = p.id AND pf.user_id = $1
             WHERE {where}
             ORDER BY is_favorited DESC, p.name ASC
         """, *params)
@@ -336,6 +378,7 @@ async def list_products(
 async def page_products(
     request: Request,
     supplier_id: Optional[int] = None,
+    supplier_ids: Optional[str] = None,
     category: Optional[str] = None,
     favorites_only: Optional[bool] = None,
     search: Optional[str] = None,
@@ -346,25 +389,24 @@ async def page_products(
     if favorites_only and not user_id:
         return {"items": [], "total": 0, "limit": limit, "offset": offset}
 
-    safe_limit = max(1, min(limit, 250))
+    safe_limit = max(1, min(limit, 2000))
     safe_offset = max(0, offset)
     conn = await get_conn()
     try:
-        conditions, params, idx = _product_filters(user_id, supplier_id, category, favorites_only, search)
+        conditions, params, idx = _product_filters(user_id, supplier_id, supplier_ids, category, favorites_only, search)
         where = " AND ".join(conditions)
         total = await conn.fetchval(f"""
             SELECT COUNT(*)
             FROM products p
-            LEFT JOIN product_favorites pf ON pf.product_id = p.id AND pf.user_id = $1
             WHERE {where}
+              AND ($1::text IS NULL OR TRUE)
         """, *params)
         page_params = [*params, safe_limit, safe_offset]
         rows = await conn.fetch(f"""
             SELECT p.*, s.name as supplier_name,
-                   CASE WHEN pf.id IS NOT NULL THEN TRUE ELSE FALSE END as is_favorited
+                   EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $1) as is_favorited
             FROM products p
             LEFT JOIN suppliers s ON s.id = p.supplier_id
-            LEFT JOIN product_favorites pf ON pf.product_id = p.id AND pf.user_id = $1
             WHERE {where}
             ORDER BY is_favorited DESC, p.name ASC
             LIMIT ${idx} OFFSET ${idx + 1}

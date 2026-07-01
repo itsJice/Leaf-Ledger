@@ -40,6 +40,7 @@ dist/
 build/
 *.egg
 .venv/
+.venv-recorder/
 venv/
 ENV/
 env/
@@ -80,6 +81,12 @@ temp/
 # Local app runtime/storage
 .local_databutton_storage/
 backend/.local_databutton_storage/
+backend/storage/
+
+# Catalog extraction runtime artifacts
+catalog-extraction/downloaded_files/
+catalog-extraction/outputs/
+catalog-extraction/recordings/
 
 # Package manager locks (optional - uncomment if you want to ignore)
 # package-lock.json
