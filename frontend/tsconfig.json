@@ -36,6 +36,7 @@
   },
   "include": ["env.d.ts", "src"],
   "exclude": [
+    "src/internal-components/DevTools.tsx",
     "src/brain/Brain.ts",
     "src/brain/BrainRoute.ts",
     "src/brain/data-contracts.ts",

@@ -151,13 +151,13 @@ export type Product = {
   style?: string;
   country_of_origin?: string;
   raw_data?: Record<string, any>;
-  is_favorited: boolean;
-  is_active: boolean;
+  is_favorited?: boolean;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 };
 
-type Supplier = { id: number; name: string; website_url?: string; categories: string[] };
+type Supplier = { id: number; name: string; website_url?: string; categories?: string[] };
 type ProductPage = {
   items: Product[];
   total: number;
@@ -181,18 +181,18 @@ type ProjectSummary = {
   id: number;
   name: string;
   client_name?: string;
-  container_count: number;
+  container_count?: number;
 };
 type ProjectBucket = {
   id: number;
   label?: string;
-  sort_order: number;
+  sort_order?: number;
 };
 type ProjectDetail = {
   id: number;
   name: string;
   client_name?: string;
-  containers: ProjectBucket[];
+  containers?: ProjectBucket[];
 };
 type ProductSearchEntry = {
   product: Product;
@@ -489,7 +489,8 @@ function AddToProjectModal({
   useEffect(() => {
     apiClient.list_arrangements()
       .then((r) => r.json())
-      .then((rows: ProjectSummary[]) => {
+      .then((value) => {
+        const rows = value as unknown as ProjectSummary[];
         setProjects(rows);
         if (rows[0]) setSelectedProjectId(rows[0].id);
       })
@@ -505,9 +506,10 @@ function AddToProjectModal({
     }
     apiClient.get_arrangement({ arrangementId: selectedProjectId })
       .then((r) => r.json())
-      .then((detail: ProjectDetail) => {
+      .then((value) => {
+        const detail = value as unknown as ProjectDetail;
         setProject(detail);
-        setSelectedBucketId(detail.containers[0]?.id ?? null);
+        setSelectedBucketId(detail.containers?.[0]?.id ?? null);
       })
       .catch(() => toast.error("Could not load project buckets"));
   }, [selectedProjectId]);
@@ -520,9 +522,10 @@ function AddToProjectModal({
         { arrangementId: selectedProjectId },
         { label: newBucketName.trim(), items: [] }
       );
-      const detail = await res.json();
+      const detail = await res.json() as unknown as ProjectDetail;
       setProject(detail);
-      const created = detail.containers[detail.containers.length - 1];
+      const buckets = detail.containers || [];
+      const created = buckets[buckets.length - 1];
       setSelectedBucketId(created?.id ?? null);
       setNewBucketName("");
       notifyProjectsChanged();
@@ -681,7 +684,7 @@ function InlinePriceEditor({ p, onUpdated }: { p: Product; onUpdated: (price: nu
     if (isNaN(price) || price < 0) { setEditing(false); return; }
     setSaving(true);
     try {
-      const res = await apiClient.sync_prices2({ productId: p.id }, { new_price: price });
+      const res = await apiClient.sync_prices2({ productId: p.id }, { current_price: price });
       const data = await res.json();
       onUpdated(price, data.updated_at || new Date().toISOString());
       setEditing(false);
@@ -1222,12 +1225,12 @@ function sourceUom(product: Product): string {
 }
 
 function sourceOrderContext(product: Product): Array<[string, unknown]> {
-  return [
+  return ([
     ["MinQty", product.moq ?? sourceValue(product, "MinQty")],
     ["BoxQty", product.box_qty ?? sourceValue(product, "BoxQty")],
     ["CaseQty", product.case_qty ?? sourceValue(product, "CaseQty")],
     ["SugRetail", sourceValue(product, "SugRetail")],
-  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+  ] as Array<[string, unknown]>).filter(([, value]) => value !== undefined && value !== null && value !== "");
 }
 
 export function hasNoSupplierImage(product: Pick<Product, "raw_data">): boolean {
@@ -2413,9 +2416,9 @@ export default function Library() {
       let nextProducts = productsRef.current;
       let nextTotal = productTotalRef.current;
       if (ssRes.status === "fulfilled") {
-        nextSuppliers = ssRes.value;
-        setSuppliers(ssRes.value);
-        suppliersRef.current = ssRes.value;
+        nextSuppliers = ssRes.value as unknown as Supplier[];
+        setSuppliers(nextSuppliers);
+        suppliersRef.current = nextSuppliers;
       }
       if (psRes.status === "fulfilled") {
         const page = psRes.value;

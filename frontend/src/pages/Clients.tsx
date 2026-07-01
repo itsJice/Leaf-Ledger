@@ -495,7 +495,7 @@ export default function Clients() {
       const details = await Promise.all(
         missing.map(async (project) => {
           const detail = await withClientTimeout(apiClient.get_arrangement({ arrangementId: project.id }).then((r) => r.json()));
-          return detail as ProjectDetail;
+          return detail as unknown as ProjectDetail;
         })
       );
 

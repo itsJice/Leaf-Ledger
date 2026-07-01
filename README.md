@@ -114,3 +114,5 @@ The codebase began as a platform-generated full-stack starter and was subsequent
 ## Data and security
 
 This repository does not include production credentials, customer records, supplier account data, or runtime catalog storage. Examples use placeholders. Before sharing logs or extraction artifacts, remove URLs, identifiers, prices, and other account-specific material.
+
+Public screenshots are intentionally deferred until the application can be loaded with a synthetic demo dataset; local operational records are not suitable presentation data.

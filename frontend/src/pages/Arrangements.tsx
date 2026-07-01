@@ -1891,7 +1891,7 @@ export function NewProjectModal({
         notes: payload.notes || undefined,
       });
       const arr = await res.json();
-      onCreated(arr);
+      onCreated(arr as unknown as Arrangement);
       notifyProjectsChanged();
       onClose();
       toast.success("Project created");
@@ -2103,7 +2103,7 @@ export default function Arrangements() {
 
   useEffect(() => {
     const sectionLabels = BUILD_TYPE_CONFIGS.filter((config) => config.section === selectedProductSection).map((config) => config.label);
-    if (selectedScopeType !== "Custom" && !sectionLabels.includes(selectedScopeType)) {
+    if (selectedScopeType !== "Custom" && !(sectionLabels as string[]).includes(selectedScopeType)) {
       const nextType = sectionLabels[0] || "Custom";
       setSelectedScopeType(nextType);
       setNewScopeName(nextType);
@@ -2279,7 +2279,7 @@ export default function Arrangements() {
         type: ContentType.Json,
       });
       if (!res.ok) throw new Error(await res.text().catch(() => "Failed to update build type"));
-      const updated = await res.json();
+      const updated = await res.json() as unknown as Arrangement;
       const updatedBucket = updated.containers.find((bucket) => bucket.id === activeBucket.id) || optimisticBucket;
       setArrangement(updated);
       setActivePart({ label: scopePlaceholders(updatedBucket)[0] || "Products", index: 0 });
@@ -2299,7 +2299,7 @@ export default function Arrangements() {
       const response = await apiClient.list_arrangements();
       if (!response.ok) throw new Error("Failed to load projects");
       const data = await response.json();
-      const rows = Array.isArray(data) ? data : [];
+      const rows = (Array.isArray(data) ? data : []) as unknown as ArrangementSummary[];
       setArrangements(rows);
       writeProjectsListCache(rows);
       setListCachedAt(Date.now());
@@ -2369,7 +2369,7 @@ export default function Arrangements() {
         const response = await apiClient.list_products({ favorites_only: false });
         if (!response.ok) throw new Error("Failed to load product library");
         const data = await response.json();
-        const products = Array.isArray(data) ? data : [];
+        const products = (Array.isArray(data) ? data : []) as unknown as LibraryProduct[];
         setProducts(products);
         setProductCatalogTotal(products.length);
         setProductsLoaded(true);
@@ -2412,7 +2412,7 @@ export default function Arrangements() {
           data = await withTimeout(
             apiClient.get_arrangement({ arrangementId: id }).then((r) => {
               if (!r.ok) throw new Error("Failed to load project");
-              return r.json();
+              return r.json() as Promise<Arrangement>;
             }),
             25000
           );
@@ -2576,7 +2576,7 @@ export default function Arrangements() {
         type: ContentType.Json,
       });
       if (!res.ok) throw new Error(await res.text().catch(() => "Failed to add room/design package"));
-      const updated = await res.json();
+      const updated = await res.json() as unknown as Arrangement;
       setArrangement(updated);
       const rooms = Array.isArray(updated?.rooms) ? updated.rooms : [];
       const createdRoom = rooms.find((room: ProjectRoom) => room.name.trim().toLowerCase() === name.toLowerCase());
@@ -2698,7 +2698,7 @@ export default function Arrangements() {
         const message = await res.text().catch(() => "");
         throw new Error(message || "Failed to add scope");
       }
-      const updated = await res.json();
+      const updated = await res.json() as unknown as Arrangement;
       if (!updated?.containers || !Array.isArray(updated.containers)) {
         throw new Error("Scope response was incomplete");
       }

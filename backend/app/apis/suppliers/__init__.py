@@ -11,6 +11,7 @@ import json
 import databutton as db
 from datetime import datetime
 from app.libs.catalog_importer import CatalogRow, parse_catalog_file
+from app.libs.supplier_identity import resolve_scraper_key
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
@@ -22,27 +23,7 @@ async def get_conn():
 
 def _infer_scraper_key(name: Optional[str], scraper_key: Optional[str] = None) -> Optional[str]:
     """Normalize the configured scraper key, falling back to supplier name."""
-    key = (scraper_key or "").strip().lower()
-    if key:
-        aliases = {
-            "accent": "accent_decor",
-            "select": "select_artificial",
-            "select_artificials": "select_artificial",
-            "vickerman": "vickerman",
-        }
-        return aliases.get(key, key)
-    lower = (name or "").lower()
-    if "allstate" in lower:
-        return "allstate"
-    if "accent" in lower:
-        return "accent_decor"
-    if "regency" in lower:
-        return "regency"
-    if "select artificial" in lower or "select artificials" in lower:
-        return "select_artificial"
-    if "vickerman" in lower:
-        return "vickerman"
-    return None
+    return resolve_scraper_key(name, scraper_key)
 
 
 def _json_list(value: Any) -> list:
