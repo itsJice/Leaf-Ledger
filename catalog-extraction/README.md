@@ -16,6 +16,8 @@ Leaf & Ledger should not become a universal scraping product. Scrapers here prod
 
 See [Extraction Design Notes](EXTRACTION_DESIGN_NOTES.md) for the operating boundary and handoff standard.
 
+See [Extraction Playbook](EXTRACTION_PLAYBOOK.md) for the proven supplier-onboarding recipe (recon order, HTTP-first extraction, checkpointing, coverage verification, export formatting) distilled from the Vickerman full-catalog pull.
+
 ## What Leaf & Ledger Owns
 
 - Importing files.
@@ -121,6 +123,18 @@ Missing values are okay. Leaf & Ledger should flag them for review instead of si
 Supplier configs live in `suppliers/`.
 
 The starter runner is selector-based. It is meant to prove and export a catalog, not to handle every site forever. If a supplier needs custom pagination, XHR/API calls, or special login, copy the config and add a supplier-specific script instead of making the generic runner too clever.
+
+A config can set `"runner"` to pick a supplier-specific runner; the default is `selector`.
+
+### Vickerman
+
+`suppliers/vickerman.json` uses the `vickerman` runner (`src/catalog_extraction/vickerman_runner.py`) because the site renders listings and product details client-side and paginates by AJAX clicks. Pricing only renders for logged-in reseller accounts — without credentials the export still includes SKU, name, description, stock, case qty, dimensions, and images, and `raw_json` flags `"pricing": "login required"`.
+
+```bash
+export VICKERMAN_USERNAME="your-portal-login"
+export VICKERMAN_PASSWORD="your-portal-password"
+python scripts/run_supplier.py --config suppliers/vickerman.json --limit 25
+```
 
 ## First Targets
 
