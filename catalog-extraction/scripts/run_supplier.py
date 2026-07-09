@@ -11,8 +11,21 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(ROOT / ".env")
+except ImportError:
+    pass
+
 from catalog_extraction.exporter import write_export
 from catalog_extraction.seleniumbase_runner import run_selector_extraction
+from catalog_extraction.vickerman_runner import run_vickerman_extraction
+
+RUNNERS = {
+    "selector": run_selector_extraction,
+    "vickerman": run_vickerman_extraction,
+}
 
 
 def main() -> int:
@@ -31,7 +44,8 @@ def main() -> int:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output_dir = Path(args.output_root) / config["supplier_key"] / run_id
 
-    result = run_selector_extraction(config, limit=args.limit, headed=args.headed)
+    runner = RUNNERS[config.get("runner", "selector")]
+    result = runner(config, limit=args.limit, headed=args.headed)
     result.report["run_id"] = run_id
     result.report["config_path"] = str(config_path)
 
