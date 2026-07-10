@@ -742,26 +742,35 @@ function ImagePending({ compact = false, label = "Image pending" }: { compact?: 
   );
 }
 
-function ProxiedImage({ src, alt }: { src: string; alt: string }) {
-  const [usedProxy, setUsedProxy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const normalizedSrc = src.startsWith("/routes/")
-    ? src.replace(/^\/routes\//, "/api/")
-    : src;
-  const isInternalProxy = normalizedSrc.startsWith("/api/products/image-proxy?");
-  const proxySrc = isInternalProxy ? normalizedSrc : `/api/products/image-proxy?url=${encodeURIComponent(normalizedSrc)}`;
-  if (failed) return <ImagePending />;
+function ProxiedImage({ src, fallbacks = [], alt }: { src: string; fallbacks?: string[]; alt: string }) {
+  // Build an ordered list of URLs to attempt. Internal stored-image proxy keys
+  // are tried as-is (they resolve in production); external URLs are tried
+  // directly, then via the image proxy (supplier hotlink guard). When the
+  // stored image is unavailable (e.g. blob not present), we fall through to the
+  // external source_photo_url / gallery URLs so the image still renders.
+  const attempts = useMemo(() => {
+    const out: string[] = [];
+    const push = (u: string) => { if (u && !out.includes(u)) out.push(u); };
+    for (const rawSrc of [src, ...fallbacks]) {
+      const s = (rawSrc || "").startsWith("/routes/") ? rawSrc.replace(/^\/routes\//, "/api/") : (rawSrc || "");
+      if (!s) continue;
+      if (s.startsWith("/api/products/image-proxy?")) push(s);
+      else if (/^https?:/i.test(s)) { push(s); push(`/api/products/image-proxy?url=${encodeURIComponent(s)}`); }
+      else push(s);
+    }
+    return out;
+  }, [src, fallbacks.join("|")]);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [attempts]);
+  if (idx >= attempts.length) return <ImagePending />;
   return (
     <img
-      src={usedProxy && !isInternalProxy ? proxySrc : normalizedSrc}
+      src={attempts[idx]}
       alt={alt}
       loading="lazy"
       decoding="async"
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-      onError={() => {
-        if (!usedProxy && !isInternalProxy) setUsedProxy(true);
-        else setFailed(true);
-      }}
+      onError={() => setIdx((i) => i + 1)}
     />
   );
 }
@@ -1253,6 +1262,19 @@ export function productDisplayImageUrl(product: Pick<Product, "photo_url" | "ima
   return candidates.map((value) => String(value || "").trim()).find(Boolean);
 }
 
+// All image URLs for a product, ordered: stored key first (resolves in prod),
+// then the external source + gallery URLs as fallbacks. Feeds ProxiedImage so a
+// missing stored image falls through to a working external one.
+export function productImageSources(product: Pick<Product, "photo_url" | "image_urls" | "raw_data">): string[] {
+  if (hasNoSupplierImage(product) || hasSupplierPlaceholderImage(product)) return [];
+  const urls = [
+    product.photo_url,
+    product.raw_data?.source_photo_url,
+    ...(Array.isArray(product.image_urls) ? product.image_urls : []),
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+  return Array.from(new Set(urls));
+}
+
 function imageStatus(product: Product): "stored" | "visible" | "pending" | "failed" | "no_supplier_image" | "placeholder" {
   const status = product.raw_data?.image_status;
   const displayImageUrl = productDisplayImageUrl(product);
@@ -1492,7 +1514,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
             </p>
             <div className="aspect-square overflow-hidden rounded-lg border border-stone-200 bg-white">
               {activeImageUrl && !isSupplierPlaceholder ? (
-                <ProxiedImage src={activeImageUrl} alt={displayName} />
+                <ProxiedImage src={activeImageUrl} fallbacks={galleryImages} alt={displayName} />
               ) : (
                 <ImagePending label={isResolvedNoImage ? "No supplier image" : isSupplierPlaceholder ? "Supplier placeholder" : "Image pending"} />
               )}
@@ -1608,7 +1630,7 @@ function ProductCard({
       {/* Image */}
       <div className="relative h-56 bg-stone-100 overflow-hidden">
         {displayImageUrl && !isSupplierPlaceholder ? (
-          <ProxiedImage src={displayImageUrl} alt={displayName} />
+          <ProxiedImage src={displayImageUrl} fallbacks={productImageSources(p)} alt={displayName} />
         ) : (
           <ImagePending label={isResolvedNoImage ? "No supplier image" : isSupplierPlaceholder ? "Supplier placeholder" : "Image pending"} />
         )}
