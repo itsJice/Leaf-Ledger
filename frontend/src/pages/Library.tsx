@@ -1374,6 +1374,17 @@ function MultiSelectFilter({
   );
 }
 
+// Keys already surfaced elsewhere in the modal or that are internal plumbing —
+// excluded from the catch-all "All Captured Attributes" list.
+const RAW_ATTRS_HIDE = new Set([
+  "image_urls", "source_photo_url", "needs_review_flag", "additional_image_urls",
+  "gallery_images_json", "image_count", "source_photo_url",
+]);
+
+function prettifyKey(key: string): string {
+  return key.replace(/[_\-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const raw = product.raw_data || {};
   const displayName = displayProductName(product);
@@ -1431,6 +1442,26 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
     ["Material Breakdown", product.material || raw["Material Breakdown"] || raw.Material || raw.Materials],
   ];
 
+  // Full gallery: every distinct image we captured for this product.
+  const galleryImages = useMemo(() => {
+    const urls = [
+      product.photo_url,
+      ...(Array.isArray(product.image_urls) ? product.image_urls : []),
+      raw.source_photo_url,
+    ].map((u) => String(u || "").trim()).filter(Boolean);
+    return Array.from(new Set(urls));
+  }, [product]);
+  const [activeImage, setActiveImage] = useState(0);
+  const activeImageUrl = galleryImages[activeImage] || galleryImages[0] || displayImageUrl;
+
+  // Catch-all: every non-empty captured field not already shown above, so
+  // nothing we scraped is ever hidden.
+  const attributeRows: Array<[string, unknown]> = Object.entries(raw)
+    .filter(([k, v]) => !RAW_ATTRS_HIDE.has(k) && v !== null && v !== undefined && String(v).trim() !== "")
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([k, v]) => [prettifyKey(k), v]);
+  const reviewNote = raw.needs_review ? String(raw.needs_review) : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl">
@@ -1446,14 +1477,30 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
         </div>
         <div className="grid gap-0 overflow-y-auto md:grid-cols-[340px_minmax(0,1fr)]" style={{ maxHeight: "calc(90vh - 82px)" }}>
           <div className="border-b border-stone-100 bg-stone-50 p-5 md:border-b-0 md:border-r">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Image</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
+              Images{galleryImages.length > 0 ? ` (${galleryImages.length})` : ""}
+            </p>
             <div className="aspect-square overflow-hidden rounded-lg border border-stone-200 bg-white">
-              {displayImageUrl && !isSupplierPlaceholder ? (
-                <ProxiedImage src={displayImageUrl} alt={displayName} />
+              {activeImageUrl && !isSupplierPlaceholder ? (
+                <ProxiedImage src={activeImageUrl} alt={displayName} />
               ) : (
                 <ImagePending label={isResolvedNoImage ? "No supplier image" : isSupplierPlaceholder ? "Supplier placeholder" : "Image pending"} />
               )}
             </div>
+            {galleryImages.length > 1 && !isSupplierPlaceholder && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {galleryImages.map((url, i) => (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setActiveImage(i)}
+                    className={`h-12 w-12 overflow-hidden rounded-md border ${i === activeImage ? "border-emerald-400 ring-2 ring-emerald-200" : "border-stone-200 hover:border-stone-300"}`}
+                  >
+                    <ProxiedImage src={url} alt={`${displayName} ${i + 1}`} />
+                  </button>
+                ))}
+              </div>
+            )}
             {isResolvedNoImage && (
               <div className="mt-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-600">
                 Supplier did not provide a product photo.
@@ -1501,6 +1548,14 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
             <ProductDetailSection title="Dimensions & Weights" rows={dimensionRows} />
             <ProductDetailSection title="Supplier Details" rows={supplierRows} />
             <ProductDetailSection title="Material & Origin" rows={materialRows} />
+            {reviewNote && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                Flagged for review: {reviewNote}
+              </div>
+            )}
+            {attributeRows.length > 0 && (
+              <ProductDetailSection title={`All Captured Attributes (${attributeRows.length})`} rows={attributeRows} />
+            )}
           </div>
         </div>
       </div>
