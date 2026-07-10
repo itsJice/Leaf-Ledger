@@ -1385,6 +1385,16 @@ function prettifyKey(key: string): string {
   return key.replace(/[_\-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Append a unit to bare numeric measurements ("360" -> "360 in"). Leaves empty
+// values and values that already carry a unit / are compound strings untouched.
+function withUnit(value: unknown, unit: string): unknown {
+  if (value === null || value === undefined) return value;
+  const s = String(value).trim();
+  if (!s || s === "0") return value;
+  if (/[a-zA-Z"'″×]/.test(s)) return s;
+  return `${s} ${unit}`;
+}
+
 export function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const raw = product.raw_data || {};
   const displayName = displayProductName(product);
@@ -1414,16 +1424,16 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
     ["Availability", product.availability_note || raw["Avail. Qty: *"] || raw["Avail. Qty"] || raw.Availability || product.availability],
   ];
   const dimensionRows: Array<[string, unknown]> = [
-    ["Product Length", raw.ProdLength || raw.Length || product.length_in],
-    ["Product Height", raw.Height || product.height_in],
-    ["Product Width", raw.Width || product.width_in],
-    ["Product Diameter", raw.Diameter || product.diameter_in],
-    ["Product Weight", raw.ProdWeight || product.weight_lb],
-    ["Box Weight", raw.BoxWeight],
-    ["Case Weight", raw.CsWeight],
+    ["Product Length", withUnit(raw.ProdLength || raw.Length || product.length_in, "in")],
+    ["Product Height", withUnit(raw.Height || product.height_in, "in")],
+    ["Product Width", withUnit(raw.Width || product.width_in, "in")],
+    ["Product Diameter", withUnit(raw.Diameter || product.diameter_in, "in")],
+    ["Product Weight", withUnit(raw.ProdWeight || product.weight_lb, "lb")],
+    ["Box Weight", withUnit(raw.BoxWeight, "lb")],
+    ["Case Weight", withUnit(raw.CsWeight, "lb")],
     ["Box LxWxH", raw["Box LxWxH"]],
     ["Case LxWxH", raw["Case LxWxH"]],
-    ["Case Cube", raw.CaseCube],
+    ["Case Cube", withUnit(raw.CaseCube, "ft³")],
   ];
   const supplierRows: Array<[string, unknown]> = [
     ["Class", raw.Class],
