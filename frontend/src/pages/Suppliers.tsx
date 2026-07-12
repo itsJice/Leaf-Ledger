@@ -3,7 +3,7 @@ import {
   Plus, Pencil, Trash2, X, ExternalLink, Building2, RefreshCw,
   CheckCircle2, XCircle, Loader2, Eye, EyeOff, Download, AlertTriangle,
   KeyRound, ChevronDown, ChevronUp, Package, ArrowRight, RefreshCcw,
-  Circle, BookOpen, FileUp, Database,
+  Circle, BookOpen, FileUp, Database, Copy, Check,
 } from "lucide-react";
 import Layout from "components/Layout";
 import CatalogWizard from "components/CatalogWizard";
@@ -2684,11 +2684,54 @@ function SupplierCard({
   onProductsImported: () => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
-  const [syncedAt, setSyncedAt] = useState<string | null | undefined>(supplier.last_price_synced_at);
+  const [revealed, setRevealed] = useState(false);
+  const [creds, setCreds] = useState<{ login_username?: string | null; login_password?: string | null } | null>(null);
+  const [loadingCreds, setLoadingCreds] = useState(false);
+  const [copied, setCopied] = useState<"user" | "pass" | null>(null);
+
   const hasCredentials = !!(supplier.has_credentials || (supplier.login_username && supplier.login_password));
-  const credentialStatus = (supplier.credential_status || "").toLowerCase();
-  const credentialsFailed = credentialStatus === "failed" || credentialStatus === "error";
-  const credentialsUntested = credentialStatus === "untested";
+  const username = creds?.login_username ?? supplier.login_username ?? "";
+  const password = creds?.login_password ?? "";
+
+  const loadCreds = async () => {
+    if (creds || loadingCreds) return creds;
+    setLoadingCreds(true);
+    try {
+      const res = await fetch(`/api/suppliers/${supplier.id}/credentials`, { credentials: "include" });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      setCreds(data);
+      return data;
+    } catch {
+      toast.error("Couldn't load saved credentials");
+      return null;
+    } finally {
+      setLoadingCreds(false);
+    }
+  };
+
+  const toggleReveal = async () => {
+    if (!revealed) await loadCreds();
+    setRevealed((v) => !v);
+  };
+
+  const copy = async (text: string, which: "user" | "pass") => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(which);
+      setTimeout(() => setCopied((c) => (c === which ? null : c)), 1200);
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
+
+  const copyPassword = async () => {
+    const data = creds ?? (await loadCreds());
+    const pw = data?.login_password || "";
+    if (!pw) { toast.error("No password saved"); return; }
+    await copy(pw, "pass");
+  };
 
   return (
     <div className={`bg-white rounded-xl border transition-all ${
@@ -2714,15 +2757,10 @@ function SupplierCard({
                   <ExternalLink size={12} />
                 </a>
               )}
-              {/* Credentials badge */}
-              {credentialsFailed ? (
-                <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full"><AlertTriangle size={9} /> Credentials failed</span>
-              ) : credentialsUntested ? (
-                <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full"><AlertTriangle size={9} /> Credentials untested</span>
-              ) : hasCredentials ? (
-                <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full"><KeyRound size={9} /> Credentials saved</span>
+              {hasCredentials ? (
+                <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full"><KeyRound size={9} /> Login saved</span>
               ) : (
-                <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full"><AlertTriangle size={9} /> No credentials</span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-stone-500 bg-stone-50 border border-stone-200 px-1.5 py-0.5 rounded-full">No login</span>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-stone-400">
@@ -2743,8 +2781,13 @@ function SupplierCard({
             </div>
           </div>
 
-          {/* Price Sync */}
-          <PriceSyncButton supplier={{ ...supplier, last_price_synced_at: syncedAt }} onSynced={(ts) => setSyncedAt(ts)} />
+          {/* Visit supplier site */}
+          {supplier.login_url && (
+            <a href={supplier.login_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
+              <ExternalLink size={12} /> Visit
+            </a>
+          )}
 
           {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -2763,14 +2806,67 @@ function SupplierCard({
         </div>
       </div>
 
-      {/* Expandable scraper panel */}
+      {/* Expandable credentials reference */}
       {expanded && (
-        <div className="px-5 pb-5 border-t border-stone-100">
-          <ScraperPanel
-            supplier={supplier}
-            onProductsImported={onProductsImported}
-            onEditCredentials={onEdit}
-          />
+        <div className="px-5 pb-5 border-t border-stone-100 pt-4 space-y-3">
+          {/* Site link */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Supplier site / login</p>
+              {supplier.login_url ? (
+                <a href={supplier.login_url} target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-700 hover:underline break-all">{supplier.login_url}</a>
+              ) : (
+                <p className="text-sm text-stone-400">No link saved — add one via Edit.</p>
+              )}
+            </div>
+            {supplier.login_url && (
+              <a href={supplier.login_url} target="_blank" rel="noopener noreferrer" className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-stone-200 text-stone-600 hover:border-emerald-300 hover:text-emerald-700"><ExternalLink size={12} /> Open</a>
+            )}
+          </div>
+
+          {hasCredentials ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {/* Username */}
+              <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Username</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm text-stone-800 break-all">{username || "—"}</span>
+                  <button onClick={() => copy(username, "user")} disabled={!username} title="Copy username"
+                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300 disabled:opacity-40">
+                    {copied === "user" ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                  </button>
+                </div>
+              </div>
+              {/* Password */}
+              <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Password</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm text-stone-800 break-all">
+                    {loadingCreds ? "…" : revealed ? (password || "—") : "••••••••"}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button onClick={toggleReveal} title={revealed ? "Hide password" : "Show password"}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300">
+                      {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                    <button onClick={copyPassword} title="Copy password"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300">
+                      {copied === "pass" ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+              <p className="text-sm text-stone-500">No login credentials saved for this supplier.</p>
+              <button onClick={onEdit} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-stone-200 text-stone-600 hover:border-emerald-300 hover:text-emerald-700"><Pencil size={12} /> Add login</button>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-emerald-700"><Pencil size={11} /> Edit supplier &amp; credentials</button>
+          </div>
         </div>
       )}
     </div>
@@ -2849,7 +2945,7 @@ export default function Suppliers() {
           <p className="text-xs text-stone-500 mt-0.5">
             {loading && suppliers.length === 0
               ? "Checking suppliers..."
-              : `${suppliers.length} supplier${suppliers.length !== 1 ? "s" : ""} · Click a row to sync its product catalog`}
+              : `${suppliers.length} supplier${suppliers.length !== 1 ? "s" : ""} · Click a supplier for its site link & login`}
             {refreshing && <span className="ml-2 text-emerald-700">Refreshing…</span>}
           </p>
         </div>
@@ -2873,7 +2969,7 @@ export default function Suppliers() {
               <Building2 size={28} className="text-emerald-600" strokeWidth={1.5} />
             </div>
             <p className="text-base font-medium text-stone-600 mb-1">No suppliers yet</p>
-            <p className="text-sm text-stone-400 max-w-xs leading-relaxed mb-4">Add your first supplier to start syncing product catalogs.</p>
+            <p className="text-sm text-stone-400 max-w-xs leading-relaxed mb-4">Add your first supplier to keep its site link and login credentials handy.</p>
             <button onClick={openNew} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>Add First Supplier</button>
           </div>
         ) : (
