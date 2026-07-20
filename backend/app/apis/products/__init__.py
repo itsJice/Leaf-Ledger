@@ -243,7 +243,8 @@ def _product_filters(
         idx += 1
     color_list = _csv_list(colors)
     if color_list:
-        conditions.append(f"p.raw_data->>'color_family' = ANY(${idx}::text[])")
+        # match if the product's color_families overlaps any selected family
+        conditions.append(f"p.raw_data->'color_families' ?| ${idx}::text[]")
         params.append(color_list)
         idx += 1
     availability_list = _csv_list(availability)
@@ -339,10 +340,11 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
         ORDER BY count DESC, value ASC
     """)
     color_rows = await conn.fetch("""
-        SELECT raw_data->>'color_family' AS value, COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE AND raw_data->>'color_family' IS NOT NULL
-        GROUP BY 1
+        SELECT fam AS value, COUNT(*)::int AS count
+        FROM products p,
+             LATERAL jsonb_array_elements_text(p.raw_data->'color_families') AS fam
+        WHERE p.is_active = TRUE AND p.raw_data ? 'color_families'
+        GROUP BY fam
         ORDER BY count DESC, value ASC
     """)
     product_type_rows = await conn.fetch("""
