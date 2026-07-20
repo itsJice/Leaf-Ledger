@@ -16,6 +16,7 @@ import {
   Check,
   AlertTriangle,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import Layout from "components/Layout";
 import { apiClient } from "app";
@@ -2189,6 +2190,20 @@ export function ProductView({
     setVisibleLimit(INITIAL_CARD_RENDER_LIMIT);
   }, [activeCategory, activeSearch, favoritesOnly, categoryFilter, productTypeFilter, supplierFilter, colorFilter, sizeFilter, availabilityFilter, countryFilter]);
 
+  const hasActiveDropdownFilters =
+    categoryFilter.length > 0 || productTypeFilter.length > 0 || supplierFilter.length > 0 ||
+    colorFilter.length > 0 || availabilityFilter.length > 0;
+
+  const resetFilters = () => {
+    setCategoryFilter([]);
+    setProductTypeFilter([]);
+    setSupplierFilter([]);
+    setColorFilter([]);
+    setSizeFilter([]);
+    setAvailabilityFilter([]);
+    setCountryFilter([]);
+  };
+
   return (
     <div>
       {!hideCategoryTabs && (
@@ -2290,6 +2305,16 @@ export function ProductView({
         )}
       </div>
 
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-stone-400">Filters</span>
+        <button
+          onClick={resetFilters}
+          disabled={!hasActiveDropdownFilters}
+          className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-stone-200 disabled:hover:text-stone-500"
+        >
+          <RotateCcw size={12} /> Reset filters
+        </button>
+      </div>
       <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         <MultiSelectFilter
           label="All categories"
