@@ -2066,13 +2066,19 @@ export function ProductView({
     onSearchChange?.(activeSearch);
   }, [activeSearch, onSearchChange]);
 
-  const categoryValueByLabel = useMemo(() => {
+  // Kept in refs (not effect deps) so a fresh filterMetadata or callback
+  // reference does NOT re-fire the filter effect — that caused a reload loop.
+  const categoryValueByLabelRef = useRef<Record<string, string>>({});
+  useEffect(() => {
     const map: Record<string, string> = {};
     for (const option of filterMetadata?.categories || []) {
       if (option.value) map[categoryLabel(option.value)] = option.value;
     }
-    return map;
+    categoryValueByLabelRef.current = map;
   }, [filterMetadata]);
+
+  const onServerFiltersChangeRef = useRef(onServerFiltersChange);
+  useEffect(() => { onServerFiltersChangeRef.current = onServerFiltersChange; }, [onServerFiltersChange]);
 
   const didNotifyFiltersMount = useRef(false);
   useEffect(() => {
@@ -2080,14 +2086,14 @@ export function ProductView({
       didNotifyFiltersMount.current = true;
       return;
     }
-    onServerFiltersChange?.({
+    onServerFiltersChangeRef.current?.({
       suppliers: supplierFilter,
-      categories: categoryFilter.map((label) => categoryValueByLabel[label] ?? label),
+      categories: categoryFilter.map((label) => categoryValueByLabelRef.current[label] ?? label),
       productTypes: productTypeFilter,
       colors: colorFilter,
       availability: availabilityFilter,
     });
-  }, [supplierFilter, categoryFilter, productTypeFilter, colorFilter, availabilityFilter, categoryValueByLabel, onServerFiltersChange]);
+  }, [supplierFilter, categoryFilter, productTypeFilter, colorFilter, availabilityFilter]);
 
   const productIndex = useMemo(() => products.map(buildProductSearchEntry), [products]);
 
