@@ -20,7 +20,7 @@ from typing import Any, Optional
 from openpyxl import load_workbook
 
 from .catalog_importer import normalize_category, normalize_unit, parse_price, safe_int
-from .taxonomy import color_family, product_type_family
+from .taxonomy import color_families, color_family, product_type_family
 
 
 def _norm_key(key: Any) -> str:
@@ -238,11 +238,13 @@ def normalize_row(row: dict[str, Any]) -> ProductIntake:
     if p.needs_review:
         raw["needs_review"] = p.needs_review
         raw["needs_review_flag"] = True
-    # normalized filter families (clean, grouped dropdown values)
-    cf = color_family(p.color)
+    # normalized filter families (clean, grouped dropdown values). Colors are a
+    # LIST so combos surface under each color + Multi-color.
+    cfs = color_families(p.color)
     tf = product_type_family(p.style)
-    if cf:
-        raw["color_family"] = cf
+    if cfs:
+        raw["color_families"] = cfs
+        raw["color_family"] = cfs[0]
     if tf:
         raw["type_family"] = tf
     p.raw_data = raw

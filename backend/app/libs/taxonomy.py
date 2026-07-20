@@ -21,9 +21,11 @@ _COLOR_CODES = {
     "bu": "Burgundy", "te": "Blue", "la": "Purple",
 }
 
+_MULTI_KEYWORDS = ["multi", "assorted", "rainbow", "variegated", "two-tone", "two tone", "color changing", "ombre", "harlequin"]
+
 # (family, keywords) in priority order — first substring hit wins
 _COLOR_KEYWORDS: list[tuple[str, list[str]]] = [
-    ("Multi-color", ["multi", "assorted", "rainbow", "variegated", "two-tone", "two tone", "color changing", "ombre", "harlequin"]),
+    ("Multi-color", _MULTI_KEYWORDS),
     ("Green", ["green", "olive", "chartreuse", "sage", "moss", "fern", "forest", "emerald", "mint", "lime", "hunter", "kelly", "celadon", "avocado", "pistachio"]),
     ("White", ["white", "snow", "eggshell", "pearl", "frost"]),
     ("Cream/Ivory", ["cream", "ivory", "ecru", "bone", "vanilla", "almond"]),
@@ -57,26 +59,51 @@ def _color_from_keywords(text: str) -> Optional[str]:
     return None
 
 
-def color_family(value: Optional[str]) -> Optional[str]:
+def color_families(value: Optional[str]) -> list[str]:
+    """Every color family a value belongs to. A combo lists each specific color
+    AND 'Multi-color' — e.g. 'RED/GREEN' -> ['Red', 'Green', 'Multi-color'] — so
+    a two-tone item shows up under each of its colors and under Multi-color."""
     if not value:
-        return None
+        return []
     text = str(value).strip().lower()
     if not text:
-        return None
+        return []
     if text in _COLOR_CODES:
-        return _COLOR_CODES[text]
-    # combos like "RED/GREEN" or "RE/GR" -> Multi-color when 2+ families
-    if "/" in text:
-        families = set()
-        for part in re.split(r"[/]+", text):
+        return [_COLOR_CODES[text]]
+
+    families: list[str] = []
+
+    def add(fam: Optional[str]) -> None:
+        if fam and fam not in families:
+            families.append(fam)
+
+    has_multi_kw = any(kw in text for kw in _MULTI_KEYWORDS)
+
+    # decompose combos on separators (RED/GREEN, GR/BR, red & green)
+    specific: list[str] = []
+    if re.search(r"[/,&+]", text):
+        for part in re.split(r"[/,&+]+", text):
             fam = _color_from_keywords(part.strip())
-            if fam:
-                families.add(fam)
-        if len(families) >= 2:
-            return "Multi-color"
-        if len(families) == 1:
-            return next(iter(families))
-    return _color_from_keywords(text) or "Other"
+            if fam and fam != "Multi-color":
+                specific.append(fam)
+
+    if specific:
+        for fam in specific:
+            add(fam)
+        if len(set(specific)) >= 2 or has_multi_kw:
+            add("Multi-color")
+        return families
+
+    if has_multi_kw:
+        return ["Multi-color"]
+    whole = _color_from_keywords(text)
+    return [whole] if whole else ["Other"]
+
+
+def color_family(value: Optional[str]) -> Optional[str]:
+    """Primary (first) color family — for display only."""
+    families = color_families(value)
+    return families[0] if families else None
 
 
 # ── Product types ─────────────────────────────────────────────────────────────
