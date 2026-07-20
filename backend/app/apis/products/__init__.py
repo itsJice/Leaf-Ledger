@@ -238,12 +238,12 @@ def _product_filters(
         idx += 1
     product_type_list = _csv_list(product_types)
     if product_type_list:
-        conditions.append(f"{PRODUCT_TYPE_SQL} = ANY(${idx}::text[])")
+        conditions.append(f"p.raw_data->>'type_family' = ANY(${idx}::text[])")
         params.append(product_type_list)
         idx += 1
     color_list = _csv_list(colors)
     if color_list:
-        conditions.append(f"p.color = ANY(${idx}::text[])")
+        conditions.append(f"p.raw_data->>'color_family' = ANY(${idx}::text[])")
         params.append(color_list)
         idx += 1
     availability_list = _csv_list(availability)
@@ -265,6 +265,11 @@ def _product_filters(
         params.append(f"%{search}%")
         idx += 1
     return conditions, params, idx
+
+def _others_last(options: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep 'Other' at the bottom of a grouped option list."""
+    return [o for o in options if o.get("value") != "Other"] + [o for o in options if o.get("value") == "Other"]
+
 
 def _option_rows(rows) -> list[dict[str, Any]]:
     options: list[dict[str, Any]] = []
@@ -334,27 +339,18 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
         ORDER BY count DESC, value ASC
     """)
     color_rows = await conn.fetch("""
-        SELECT COALESCE(
-            NULLIF(color, ''),
-            NULLIF(raw_data->>'ColorGrp', ''),
-            NULLIF(raw_data->>'Color', ''),
-            NULLIF(raw_data->>'Primary Color', '')
-        ) AS value,
-        COUNT(*)::int AS count
+        SELECT raw_data->>'color_family' AS value, COUNT(*)::int AS count
         FROM products
-        WHERE is_active = TRUE
+        WHERE is_active = TRUE AND raw_data->>'color_family' IS NOT NULL
         GROUP BY 1
         ORDER BY count DESC, value ASC
-        LIMIT 300
     """)
     product_type_rows = await conn.fetch("""
-        SELECT COALESCE(NULLIF(style, ''), raw_data->>'product_type') AS value,
-               COUNT(*)::int AS count
+        SELECT raw_data->>'type_family' AS value, COUNT(*)::int AS count
         FROM products
-        WHERE is_active = TRUE
+        WHERE is_active = TRUE AND raw_data->>'type_family' IS NOT NULL
         GROUP BY 1
         ORDER BY count DESC, value ASC
-        LIMIT 300
     """)
     availability_rows = await conn.fetch(f"""
         SELECT ({_availability_bucket_sql('availability')}) AS value, COUNT(*)::int AS count
@@ -368,9 +364,9 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
         "generated_at": datetime.utcnow().isoformat(),
         "categories": _option_rows(category_rows),
         "suppliers": _option_rows(supplier_rows),
-        "product_types": _option_rows(product_type_rows),
+        "product_types": _others_last(_option_rows(product_type_rows)),
         "countries": _option_rows(country_rows),
-        "colors": _option_rows(color_rows),
+        "colors": _others_last(_option_rows(color_rows)),
         "availability": [
             {"value": label, "count": availability_counts[label]}
             for label in availability_order
