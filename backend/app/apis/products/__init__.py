@@ -143,6 +143,7 @@ class ProductFilterMetadata(BaseModel):
     generated_at: str
     categories: List[FilterOption]
     suppliers: List[FilterOption]
+    product_types: List[FilterOption] = []
     countries: List[FilterOption]
     colors: List[FilterOption]
     availability: List[FilterOption]
@@ -166,6 +167,30 @@ def _normalize_product_row(row) -> dict:
             product["box_qty"] = None
     return product
 
+def _csv_list(value: Optional[str]) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in str(value).split(",") if item.strip()]
+
+
+def _availability_bucket_sql(col: str) -> str:
+    """Bucket a raw availability value (numeric qty or status text) into
+    'In stock' / 'Out of stock'. Same expression used for filtering + options."""
+    return f"""CASE
+        WHEN {col} ~ '^[0-9]+(\\.[0-9]+)?$'
+            THEN CASE WHEN {col}::numeric > 0 THEN 'In stock' ELSE 'Out of stock' END
+        WHEN lower(coalesce({col}, '')) IN ('in_stock', 'available', 'in stock', 'today', 'yes')
+            THEN 'In stock'
+        WHEN lower(coalesce({col}, '')) IN ('out_of_stock', 'sold out', 'unavailable', 'no')
+            THEN 'Out of stock'
+        ELSE NULL
+    END"""
+
+
+# style column carries the supplier "product type"
+PRODUCT_TYPE_SQL = "COALESCE(NULLIF(p.style, ''), p.raw_data->>'product_type')"
+
+
 def _product_filters(
     user_id: Optional[str],
     supplier_id: Optional[int],
@@ -173,6 +198,10 @@ def _product_filters(
     category: Optional[str],
     favorites_only: Optional[bool],
     search: Optional[str],
+    categories: Optional[str] = None,
+    product_types: Optional[str] = None,
+    colors: Optional[str] = None,
+    availability: Optional[str] = None,
 ) -> tuple[list[str], list, int]:
     conditions = ["p.is_active = TRUE"]
     effective_user_id = user_id or "__no_user__"
@@ -192,18 +221,35 @@ def _product_filters(
             conditions.append(f"p.supplier_id = ANY(${idx}::int[])")
             params.append(parsed_supplier_ids)
             idx += 1
-    if category:
+    # categories: multi param, or the legacy single `category`
+    category_list = _csv_list(categories) or ([category] if category else [])
+    if category_list:
         conditions.append(
             f"""(
-                p.category = ${idx}
+                p.category = ANY(${idx}::text[])
                 OR EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements_text(COALESCE(p.raw_data->'category_tags', '[]'::jsonb)) AS category_tag(value)
-                    WHERE category_tag.value = ${idx}
+                    WHERE category_tag.value = ANY(${idx}::text[])
                 )
             )"""
         )
-        params.append(category)
+        params.append(category_list)
+        idx += 1
+    product_type_list = _csv_list(product_types)
+    if product_type_list:
+        conditions.append(f"{PRODUCT_TYPE_SQL} = ANY(${idx}::text[])")
+        params.append(product_type_list)
+        idx += 1
+    color_list = _csv_list(colors)
+    if color_list:
+        conditions.append(f"p.color = ANY(${idx}::text[])")
+        params.append(color_list)
+        idx += 1
+    availability_list = _csv_list(availability)
+    if availability_list:
+        conditions.append(f"({_availability_bucket_sql('p.availability')}) = ANY(${idx}::text[])")
+        params.append(availability_list)
         idx += 1
     if favorites_only and user_id:
         conditions.append("EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $1)")
@@ -301,32 +347,28 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
         ORDER BY count DESC, value ASC
         LIMIT 300
     """)
-    availability_rows = await conn.fetch("""
-        SELECT availability,
-               availability_note,
-               raw_data->>'Avail. Qty' AS raw_availability,
-               raw_data->>'Avail. Qty: *' AS raw_availability_note,
-               raw_data->>'Availability' AS raw_supplier_availability
+    product_type_rows = await conn.fetch("""
+        SELECT COALESCE(NULLIF(style, ''), raw_data->>'product_type') AS value,
+               COUNT(*)::int AS count
         FROM products
         WHERE is_active = TRUE
+        GROUP BY 1
+        ORDER BY count DESC, value ASC
+        LIMIT 300
     """)
-    availability_counts: dict[str, int] = {}
-    for row in availability_rows:
-        bucket = (
-            _availability_bucket(row["availability_note"])
-            or _availability_bucket(row["raw_availability_note"])
-            or _availability_bucket(row["raw_availability"])
-            or _availability_bucket(row["raw_supplier_availability"])
-            or _availability_bucket(row["availability"])
-        )
-        if bucket:
-            availability_counts[bucket] = availability_counts.get(bucket, 0) + 1
-
-    availability_order = ["Available today", "Within 1-4 months", "Over 4 months", "Future ETA", "Sold out / unavailable"]
+    availability_rows = await conn.fetch(f"""
+        SELECT ({_availability_bucket_sql('availability')}) AS value, COUNT(*)::int AS count
+        FROM products
+        WHERE is_active = TRUE
+        GROUP BY 1
+    """)
+    availability_counts = {row["value"]: row["count"] for row in availability_rows if row["value"]}
+    availability_order = ["In stock", "Out of stock"]
     return {
         "generated_at": datetime.utcnow().isoformat(),
         "categories": _option_rows(category_rows),
         "suppliers": _option_rows(supplier_rows),
+        "product_types": _option_rows(product_type_rows),
         "countries": _option_rows(country_rows),
         "colors": _option_rows(color_rows),
         "availability": [
@@ -350,6 +392,10 @@ async def list_products(
     supplier_id: Optional[int] = None,
     supplier_ids: Optional[str] = None,
     category: Optional[str] = None,
+    categories: Optional[str] = None,
+    product_types: Optional[str] = None,
+    colors: Optional[str] = None,
+    availability: Optional[str] = None,
     favorites_only: Optional[bool] = None,
     search: Optional[str] = None,
 ):
@@ -360,7 +406,10 @@ async def list_products(
 
     conn = await get_conn()
     try:
-        conditions, params, _ = _product_filters(user_id, supplier_id, supplier_ids, category, favorites_only, search)
+        conditions, params, _ = _product_filters(
+            user_id, supplier_id, supplier_ids, category, favorites_only, search,
+            categories=categories, product_types=product_types, colors=colors, availability=availability,
+        )
         where = " AND ".join(conditions)
         rows = await conn.fetch(f"""
             SELECT p.*, s.name as supplier_name,
@@ -380,6 +429,10 @@ async def page_products(
     supplier_id: Optional[int] = None,
     supplier_ids: Optional[str] = None,
     category: Optional[str] = None,
+    categories: Optional[str] = None,
+    product_types: Optional[str] = None,
+    colors: Optional[str] = None,
+    availability: Optional[str] = None,
     favorites_only: Optional[bool] = None,
     search: Optional[str] = None,
     limit: int = 96,
@@ -393,7 +446,10 @@ async def page_products(
     safe_offset = max(0, offset)
     conn = await get_conn()
     try:
-        conditions, params, idx = _product_filters(user_id, supplier_id, supplier_ids, category, favorites_only, search)
+        conditions, params, idx = _product_filters(
+            user_id, supplier_id, supplier_ids, category, favorites_only, search,
+            categories=categories, product_types=product_types, colors=colors, availability=availability,
+        )
         where = " AND ".join(conditions)
         total = await conn.fetchval(f"""
             SELECT COUNT(*)

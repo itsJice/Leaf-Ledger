@@ -173,9 +173,17 @@ type LibraryFilterMetadata = {
   generated_at?: string;
   categories?: FilterOption[];
   suppliers?: FilterOption[];
+  product_types?: FilterOption[];
   countries?: FilterOption[];
   colors?: FilterOption[];
   availability?: FilterOption[];
+};
+type ServerFilterSelection = {
+  suppliers: string[];
+  categories: string[];
+  productTypes: string[];
+  colors: string[];
+  availability: string[];
 };
 type ProjectSummary = {
   id: number;
@@ -1992,7 +2000,7 @@ export function ProductView({
   pageLoading = false,
   initialLoading = false,
   onSearchChange,
-  onSupplierFilterChange,
+  onServerFiltersChange,
   onLoadMore,
   canLoadMore = false,
 }: {
@@ -2015,7 +2023,7 @@ export function ProductView({
   pageLoading?: boolean;
   initialLoading?: boolean;
   onSearchChange?: (search: string) => void;
-  onSupplierFilterChange?: (suppliers: string[]) => void;
+  onServerFiltersChange?: (filters: ServerFilterSelection) => void;
   onLoadMore?: () => void;
   canLoadMore?: boolean;
 }) {
@@ -2057,9 +2065,28 @@ export function ProductView({
     onSearchChange?.(activeSearch);
   }, [activeSearch, onSearchChange]);
 
+  const categoryValueByLabel = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const option of filterMetadata?.categories || []) {
+      if (option.value) map[categoryLabel(option.value)] = option.value;
+    }
+    return map;
+  }, [filterMetadata]);
+
+  const didNotifyFiltersMount = useRef(false);
   useEffect(() => {
-    onSupplierFilterChange?.(supplierFilter);
-  }, [supplierFilter, onSupplierFilterChange]);
+    if (!didNotifyFiltersMount.current) {
+      didNotifyFiltersMount.current = true;
+      return;
+    }
+    onServerFiltersChange?.({
+      suppliers: supplierFilter,
+      categories: categoryFilter.map((label) => categoryValueByLabel[label] ?? label),
+      productTypes: productTypeFilter,
+      colors: colorFilter,
+      availability: availabilityFilter,
+    });
+  }, [supplierFilter, categoryFilter, productTypeFilter, colorFilter, availabilityFilter, categoryValueByLabel, onServerFiltersChange]);
 
   const productIndex = useMemo(() => products.map(buildProductSearchEntry), [products]);
 
@@ -2132,77 +2159,21 @@ export function ProductView({
     [baseFiltered, matchesTextFilters]
   );
 
-  const supplierOptions = useMemo(
-    () => mergeOptionLists(
-      filterMetadata?.suppliers?.map((option) => option.value),
-      Array.from(new Set(optionBase
-      .filter((entry) => matchesStructuredFilters(entry, { supplier: true }))
-      .map((entry) => entry.supplierName)
-      .filter(Boolean)))
-    ),
-    [optionBase, matchesStructuredFilters, filterMetadata]
-  );
-  const categoryOptions = useMemo(
-    () => mergeOptionLists(
-      filterMetadata?.categories?.map((option) => categoryLabel(option.value)),
-      Array.from(new Set(optionBase
-      .filter((entry) => matchesStructuredFilters(entry, { category: true }))
-      .map((entry) => entry.categoryLabel)))
-    ),
-    [optionBase, matchesStructuredFilters, filterMetadata]
-  );
-  const productTypeOptions = useMemo(
-    () => Array.from(new Set(optionBase
-      .filter((entry) => matchesStructuredFilters(entry, { productType: true }))
-      .flatMap((entry) => entry.productTypes))).sort(),
-    [optionBase, matchesStructuredFilters]
-  );
-  const colorOptions = useMemo(
-    () => mergeOptionLists(
-      filterMetadata?.colors?.flatMap((option) => metadataColorLabels(option.value)),
-      Array.from(new Set(optionBase
-      .filter((entry) => matchesStructuredFilters(entry, { color: true }))
-      .flatMap((entry) => entry.colors)))
-    ),
-    [optionBase, matchesStructuredFilters, filterMetadata]
-  );
-  const sizeOptions = useMemo(
-    () => Array.from(new Set(optionBase
-      .filter((entry) => matchesStructuredFilters(entry, { size: true }))
-      .flatMap((entry) => entry.sizes))).sort((a, b) => {
-      const aNum = parseFloat(a);
-      const bNum = parseFloat(b);
-      if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aNum !== bNum) return aNum - bNum;
-      return a.localeCompare(b, undefined, { numeric: true });
-    }),
-    [optionBase, matchesStructuredFilters]
-  );
-  const countryOptions = useMemo(
-    () => mergeOptionLists(
-      filterMetadata?.countries?.map((option) => titleCase(option.value)),
-      Array.from(new Set(optionBase
-      .filter((entry) => matchesStructuredFilters(entry, { country: true }))
-      .map((entry) => entry.country)
-      .filter(Boolean)))
-    ),
-    [optionBase, matchesStructuredFilters, filterMetadata]
-  );
-  const availabilityOptions = useMemo(
-    () => mergeOptionLists(
-      filterMetadata?.availability?.map((option) => option.value),
-      AVAILABILITY_FILTERS.filter((label) =>
-        optionBase
-          .filter((entry) => matchesStructuredFilters(entry, { availability: true }))
-          .some((entry) => entry.availability === label)
-      )
-    ),
-    [optionBase, matchesStructuredFilters, filterMetadata]
-  );
+  // Options come straight from server metadata (full catalog, not just the
+  // loaded page). Sizes & countries are omitted — no reliable data yet.
+  const supplierOptions = useMemo(() => (filterMetadata?.suppliers || []).map((o) => o.value).filter(Boolean), [filterMetadata]);
+  const categoryOptions = useMemo(() => (filterMetadata?.categories || []).map((o) => categoryLabel(o.value)).filter(Boolean), [filterMetadata]);
+  const productTypeOptions = useMemo(() => (filterMetadata?.product_types || []).map((o) => o.value).filter(Boolean), [filterMetadata]);
+  const colorOptions = useMemo(() => (filterMetadata?.colors || []).map((o) => o.value).filter(Boolean), [filterMetadata]);
+  const availabilityOptions = useMemo(() => (filterMetadata?.availability || []).map((o) => o.value).filter(Boolean), [filterMetadata]);
 
-  const filtered = useMemo(() => baseFiltered.filter((entry) => {
-    if (!matchesStructuredFilters(entry)) return false;
-    return matchesTextFilters(entry);
-  }), [baseFiltered, matchesStructuredFilters, matchesTextFilters]);
+  // The server already applied search + all dropdown filters, so the loaded
+  // products are the result set. The client only narrows by the favorites
+  // toggle + active category tab (handled in baseFiltered).
+  const filtered = baseFiltered;
+  void matchesStructuredFilters;
+  void matchesTextFilters;
+  void optionBase;
 
   const sortedEntries = useMemo(() => [...filtered].sort((a, b) => {
     if (a.isFavorited && !b.isFavorited) return -1;
@@ -2319,7 +2290,7 @@ export function ProductView({
         )}
       </div>
 
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-7">
+      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         <MultiSelectFilter
           label="All categories"
           options={categoryOptions}
@@ -2345,22 +2316,10 @@ export function ProductView({
           onChange={setColorFilter}
         />
         <MultiSelectFilter
-          label="All sizes"
-          options={sizeOptions}
-          selected={sizeFilter}
-          onChange={setSizeFilter}
-        />
-        <MultiSelectFilter
           label="All availability"
           options={availabilityOptions}
           selected={availabilityFilter}
           onChange={setAvailabilityFilter}
-        />
-        <MultiSelectFilter
-          label="All countries"
-          options={countryOptions}
-          selected={countryFilter}
-          onChange={setCountryFilter}
         />
       </div>
 
@@ -2441,6 +2400,7 @@ export default function Library() {
   const [filterMetadata, setFilterMetadata] = useState<LibraryFilterMetadata | null>(cachedMetadata);
   const [librarySearch, setLibrarySearch] = useState("");
   const [serverSupplierFilter, setServerSupplierFilter] = useState<string[]>([]);
+  const [serverFilters, setServerFilters] = useState<{ categories: string[]; productTypes: string[]; colors: string[]; availability: string[] }>({ categories: [], productTypes: [], colors: [], availability: [] });
   const [pageOffset, setPageOffset] = useState(0);
   const [loading, setLoading] = useState(!cachedLibrary);
   const [refreshing, setRefreshing] = useState(false);
@@ -2457,6 +2417,7 @@ export default function Library() {
   const productTotalRef = useRef(productTotal);
   const librarySearchRef = useRef(librarySearch);
   const serverSupplierFilterRef = useRef(serverSupplierFilter);
+  const serverFiltersRef = useRef(serverFilters);
   const pageOffsetRef = useRef(pageOffset);
   const loadRequestIdRef = useRef(0);
 
@@ -2465,6 +2426,7 @@ export default function Library() {
   useEffect(() => { productTotalRef.current = productTotal; }, [productTotal]);
   useEffect(() => { librarySearchRef.current = librarySearch; }, [librarySearch]);
   useEffect(() => { serverSupplierFilterRef.current = serverSupplierFilter; }, [serverSupplierFilter]);
+  useEffect(() => { serverFiltersRef.current = serverFilters; }, [serverFilters]);
   useEffect(() => { pageOffsetRef.current = pageOffset; }, [pageOffset]);
 
   const load = useCallback(async (opts?: { search?: string; supplierFilter?: string[]; append?: boolean }) => {
@@ -2489,6 +2451,10 @@ export default function Library() {
             favorites_only: false,
             search: search || undefined,
             supplier_ids: supplierIds.length > 0 ? supplierIds.join(",") : undefined,
+            categories: serverFiltersRef.current.categories.length ? serverFiltersRef.current.categories.join(",") : undefined,
+            product_types: serverFiltersRef.current.productTypes.length ? serverFiltersRef.current.productTypes.join(",") : undefined,
+            colors: serverFiltersRef.current.colors.length ? serverFiltersRef.current.colors.join(",") : undefined,
+            availability: serverFiltersRef.current.availability.length ? serverFiltersRef.current.availability.join(",") : undefined,
             limit: INITIAL_CARD_RENDER_LIMIT,
             offset,
           },
@@ -2552,16 +2518,19 @@ export default function Library() {
     load({ search, supplierFilter: serverSupplierFilterRef.current, append: false });
   }, [load]);
 
-  const filterLibraryBySupplier = useCallback((supplierFilter: string[]) => {
-    setServerSupplierFilter(supplierFilter);
-    serverSupplierFilterRef.current = supplierFilter;
+  const applyServerFilters = useCallback((f: ServerFilterSelection) => {
+    setServerSupplierFilter(f.suppliers);
+    serverSupplierFilterRef.current = f.suppliers;
+    const next = { categories: f.categories, productTypes: f.productTypes, colors: f.colors, availability: f.availability };
+    setServerFilters(next);
+    serverFiltersRef.current = next;
     setProducts([]);
     productsRef.current = [];
     setProductTotal(undefined);
     productTotalRef.current = undefined;
     setPageOffset(0);
     pageOffsetRef.current = 0;
-    load({ search: librarySearchRef.current, supplierFilter, append: false });
+    load({ search: librarySearchRef.current, supplierFilter: f.suppliers, append: false });
   }, [load]);
 
   const loadMoreProducts = useCallback(() => {
@@ -2702,7 +2671,7 @@ export default function Library() {
             pageLoading={refreshing}
             initialLoading={loading && products.length === 0}
             onSearchChange={searchLibraryPage}
-            onSupplierFilterChange={filterLibraryBySupplier}
+            onServerFiltersChange={applyServerFilters}
             onLoadMore={loadMoreProducts}
             canLoadMore={(productTotal ?? products.length) > products.length}
           />
