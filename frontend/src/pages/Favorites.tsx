@@ -67,18 +67,23 @@ export default function Favorites() {
   const load = async () => {
     setRefreshing(true);
     try {
-      const data = await apiClient.list_products({ favorites_only: true }).then((r) => r.json());
-      const favoriteIds = readFavoriteIds();
-      const remoteProducts = (Array.isArray(data) ? data : []).filter((product) => product.is_favorited);
-      const localProducts = localFavoriteProducts();
-      const merged = new Map<number, Product>();
-      for (const product of remoteProducts) merged.set(product.id, product);
-      for (const product of localProducts) merged.set(product.id, { ...product, is_favorited: true });
-      const nextProducts = Array.from(merged.values()).filter((product) => product.is_favorited || favoriteIds.has(product.id));
+      const favoriteIds = Array.from(readFavoriteIds());
+      if (favoriteIds.length === 0) {
+        setProducts([]);
+        writeFavoritesCache([]);
+        return;
+      }
+      // Fetch full data for every favorited id, so items favorited anywhere
+      // (Catalog Search, Product Library) show up — not just cached ones.
+      const res = await fetch(`/api/products/by-ids?ids=${favoriteIds.join(",")}`, { credentials: "include" });
+      const data = await res.json();
+      const nextProducts = (Array.isArray(data) ? data : []).map((product: Product) => ({ ...product, is_favorited: true }));
       setProducts(nextProducts);
       writeFavoritesCache(nextProducts);
     } catch {
-      toast.error("Failed to load favorites");
+      const local = localFavoriteProducts();
+      if (local.length) setProducts(local);
+      else toast.error("Failed to load favorites");
     } finally {
       setLoading(false);
       setRefreshing(false);

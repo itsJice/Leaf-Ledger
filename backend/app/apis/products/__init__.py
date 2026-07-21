@@ -690,6 +690,27 @@ async def get_product_detail(request: Request, product_id: int):
         await conn.close()
 
 
+@router.get("/by-ids", response_model=List[ProductOut])
+async def get_products_by_ids(request: Request, ids: Optional[str] = None):
+    """Full product records for a set of ids — powers the Favorites view so a
+    product favorited anywhere (Catalog Search, Library) can be shown."""
+    user_id: Optional[str] = extract_user_id(request)
+    id_list = [int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()]
+    if not id_list:
+        return []
+    conn = await get_conn()
+    try:
+        rows = await conn.fetch("""
+            SELECT p.*, s.name as supplier_name,
+                   EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $2) as is_favorited
+            FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
+            WHERE p.id = ANY($1::int[])
+        """, id_list, user_id or "__no_user__")
+        return [_normalize_product_row(row) for row in rows]
+    finally:
+        await conn.close()
+
+
 @router.post("/create", response_model=ProductOut)
 async def create_product(body: ProductCreate, user: AuthorizedUser):
     conn = await get_conn()
