@@ -19,26 +19,27 @@ _COLOR_CODES = {
     "si": "Silver", "be": "Beige/Natural", "or": "Orange", "pu": "Purple",
     "gy": "Gray", "mx": "Multi-color", "tt": "Multi-color", "na": "Beige/Natural",
     "bu": "Burgundy", "te": "Blue", "la": "Purple",
+    "ww": "White", "cw": "White", "lv": "Purple", "ru": "Orange", "tu": "Blue",
 }
 
 _MULTI_KEYWORDS = ["multi", "assorted", "rainbow", "variegated", "two-tone", "two tone", "color changing", "ombre", "harlequin"]
 
 # (family, keywords) in priority order — first substring hit wins
 _COLOR_KEYWORDS: list[tuple[str, list[str]]] = [
-    ("Multi-color", _MULTI_KEYWORDS),
-    ("Green", ["green", "olive", "chartreuse", "sage", "moss", "fern", "forest", "emerald", "mint", "lime", "hunter", "kelly", "celadon", "avocado", "pistachio"]),
+    ("Multi-color", _MULTI_KEYWORDS + ["autumn", "fall mix", "harvest mix"]),
+    ("Green", ["green", "olive", "chartreuse", "sage", "moss", "fern", "forest", "emerald", "mint", "lime", "hunter", "kelly", "celadon", "avocado", "pistachio", "jade", "seafoam", "juniper", "basil"]),
     ("White", ["white", "snow", "eggshell", "pearl", "frost"]),
-    ("Cream/Ivory", ["cream", "ivory", "ecru", "bone", "vanilla", "almond"]),
+    ("Cream/Ivory", ["cream", "ivory", "ecru", "bone", "vanilla", "almond", "candlelight", "buttercream"]),
     ("Burgundy", ["burgundy", "wine", "maroon", "merlot", "cranberry", "oxblood"]),
-    ("Red", ["red", "crimson", "scarlet", "cardinal", "cherry", "ruby"]),
-    ("Pink", ["pink", "blush", "fuchsia", "magenta", "rose"]),
+    ("Red", ["red", "crimson", "scarlet", "cardinal", "cherry", "ruby", "pomegranate", "brick", "tomato", "poppy"]),
+    ("Pink", ["pink", "blush", "fuchsia", "magenta", "rose", "cerise", "american beauty", "beauty", "raspberry", "carnation"]),
     ("Coral/Peach", ["coral", "peach", "salmon", "apricot"]),
-    ("Orange", ["orange", "rust", "terracotta", "terra cotta", "pumpkin", "tangerine", "amber"]),
-    ("Yellow", ["yellow", "mustard", "lemon", "goldenrod"]),
-    ("Gold", ["gold", "champagne"]),
-    ("Blue", ["blue", "navy", "teal", "turquoise", "aqua", "cobalt", "denim", "sky", "indigo", "periwinkle", "cerulean"]),
-    ("Purple", ["purple", "lavender", "lilac", "plum", "violet", "eggplant", "mauve", "orchid", "amethyst", "grape"]),
-    ("Brown", ["brown", "chocolate", "coffee", "espresso", "mocha", "walnut", "chestnut", "cocoa", "hazelnut", "tobacco"]),
+    ("Orange", ["orange", "rust", "terracotta", "terra cotta", "pumpkin", "tangerine", "amber", "spice", "harvest", "persimmon", "clay"]),
+    ("Yellow", ["yellow", "mustard", "lemon", "goldenrod", "buttercup", "canary", "citron"]),
+    ("Gold", ["gold", "champagne", "antique gold"]),
+    ("Blue", ["blue", "navy", "teal", "turquoise", "aqua", "cobalt", "denim", "sky", "indigo", "periwinkle", "cerulean", "sapphire", "peacock", "cornflower", "azure"]),
+    ("Purple", ["purple", "lavender", "lilac", "plum", "violet", "eggplant", "aubergine", "mauve", "orchid", "amethyst", "grape", "wisteria", "heather"]),
+    ("Brown", ["brown", "chocolate", "coffee", "espresso", "mocha", "walnut", "chestnut", "cocoa", "hazelnut", "tobacco", "cinnamon", "caramel", "toffee"]),
     ("Beige/Natural", ["beige", "natural", "khaki", "sand", "wheat", "camel", "taupe", "straw", "nude", "kraft", "burlap", "linen", "tan"]),
     ("Silver", ["silver", "platinum", "chrome", "nickel", "metallic"]),
     ("Gray", ["gray", "grey", "charcoal", "slate", "ash", "smoke", "graphite", "pewter"]),
@@ -97,7 +98,8 @@ def color_families(value: Optional[str]) -> list[str]:
     if has_multi_kw:
         return ["Multi-color"]
     whole = _color_from_keywords(text)
-    return [whole] if whole else ["Other"]
+    # No "Other": genuine non-colors (SKU codes, "Unlit") get no color family.
+    return [whole] if whole else []
 
 
 def color_family(value: Optional[str]) -> Optional[str]:

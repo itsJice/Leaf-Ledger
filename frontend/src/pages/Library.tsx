@@ -2382,18 +2382,12 @@ export function ProductView({
           <RotateCcw size={12} /> Reset filters
         </button>
       </div>
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <MultiSelectFilter
           label="All categories"
           options={categoryOptions}
           selected={categoryFilter}
           onChange={setCategoryFilter}
-        />
-        <MultiSelectFilter
-          label="All product types"
-          options={productTypeOptions}
-          selected={productTypeFilter}
-          onChange={setProductTypeFilter}
         />
         <MultiSelectFilter
           label="All suppliers"
@@ -2406,12 +2400,6 @@ export function ProductView({
           options={colorOptions}
           selected={colorFilter}
           onChange={setColorFilter}
-        />
-        <MultiSelectFilter
-          label="All availability"
-          options={availabilityOptions}
-          selected={availabilityFilter}
-          onChange={setAvailabilityFilter}
         />
       </div>
 
