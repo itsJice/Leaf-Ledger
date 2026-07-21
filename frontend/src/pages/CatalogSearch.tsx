@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart } from "lucide-react";
 import Layout from "components/Layout";
-import { ProductDetailModal, MultiSelectFilter } from "./Library";
+import { ProductDetailModal } from "./Library";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
 
 // Phase 3 — versatile catalog search. Purpose-built search over the whole
@@ -67,7 +67,9 @@ function proxied(url?: string | null): string | undefined {
 
 export default function CatalogSearch() {
   const [metadata, setMetadata] = useState<FilterMetadata>({});
+  const [facets, setFacets] = useState<FilterMetadata>({});
   const [sel, setSel] = useState<Selection>(EMPTY);
+  const [favOnly, setFavOnly] = useState(false);
   const [priceMin, setPriceMin] = useState<number | "">("");
   const [priceMax, setPriceMax] = useState<number | "">("");
   const [search, setSearch] = useState("");
@@ -113,13 +115,10 @@ export default function CatalogSearch() {
       if (sel.sizes.length) p.set("sizes", sel.sizes.join(","));
       if (sel.finishes.length) p.set("finishes", sel.finishes.join(","));
       if (sel.product_types.length) p.set("product_types", sel.product_types.join(","));
-      if (sel.suppliers.length) {
-        const ids = sel.suppliers
-          .map((name) => metadata.suppliers?.find((o) => o.value === name)?.id)
-          .filter((x): x is number => x != null);
-        if (ids.length) p.set("supplier_ids", ids.join(","));
-      }
+      if (sel.suppliers.length) p.set("supplier_ids", sel.suppliers.join(","));
       if (sel.availability.length) p.set("availability", sel.availability.join(","));
+      // Favorites are client-side ids; -1 forces an empty set when nothing saved.
+      if (favOnly) p.set("ids", Array.from(readFavoriteIds()).join(",") || "-1");
       if (priceMin !== "") p.set("price_min", String(priceMin));
       if (priceMax !== "") p.set("price_max", String(priceMax));
       if (debouncedSearch) p.set("search", debouncedSearch);
@@ -127,7 +126,7 @@ export default function CatalogSearch() {
       p.set("offset", String(nextOffset));
       return p.toString();
     },
-    [sel, priceMin, priceMax, debouncedSearch, metadata]
+    [sel, favOnly, priceMin, priceMax, debouncedSearch]
   );
 
   const load = useCallback(
@@ -142,6 +141,7 @@ export default function CatalogSearch() {
           setItems((prev) => (append ? [...prev, ...rows] : rows));
           setTotal(data?.total ?? 0);
           setOffset(nextOffset);
+          if (!append && data?.facets) setFacets(data.facets);
         })
         .catch(() => {
           if (s === seq.current) { setItems([]); setTotal(0); }
@@ -151,8 +151,9 @@ export default function CatalogSearch() {
     [buildParams]
   );
 
-  // reload from top whenever filters/search change
-  useEffect(() => { load(0, false); }, [sel, priceMin, priceMax, debouncedSearch, load]);
+  // reload from top whenever filters/search change (favIds so un-hearting an
+  // item refreshes the list while "favorites only" is on)
+  useEffect(() => { load(0, false); }, [sel, favOnly, favIds, priceMin, priceMax, debouncedSearch, load]);
 
   const toggle = (group: keyof Selection, value: string) =>
     setSel((prev) => {
@@ -162,10 +163,10 @@ export default function CatalogSearch() {
 
   const activeCount = useMemo(
     () => Object.values(sel).reduce((n, arr) => n + arr.length, 0)
-      + (debouncedSearch ? 1 : 0) + (priceMin !== "" ? 1 : 0) + (priceMax !== "" ? 1 : 0),
-    [sel, debouncedSearch, priceMin, priceMax]
+      + (debouncedSearch ? 1 : 0) + (priceMin !== "" ? 1 : 0) + (priceMax !== "" ? 1 : 0) + (favOnly ? 1 : 0),
+    [sel, debouncedSearch, priceMin, priceMax, favOnly]
   );
-  const resetAll = () => { setSel(EMPTY); setSearch(""); setPriceMin(""); setPriceMax(""); };
+  const resetAll = () => { setSel(EMPTY); setSearch(""); setPriceMin(""); setPriceMax(""); setFavOnly(false); };
 
   // Infinite scroll + prefetch: auto-load the next page ~800px before the
   // bottom, so the next batch is ready before you reach it.
@@ -220,13 +221,15 @@ export default function CatalogSearch() {
     setSearch(residual);
   };
 
-  const FACETS: { key: keyof Selection; label: string; options?: FacetOption[]; useId?: boolean }[] = [
-    { key: "colors", label: "Color", options: metadata.colors },
-    { key: "sizes", label: 'Size (in)', options: metadata.sizes },
-    { key: "finishes", label: "Finish", options: metadata.finishes },
-    { key: "product_types", label: "Product type", options: metadata.product_types },
-    { key: "availability", label: "Availability", options: metadata.availability },
-    { key: "suppliers", label: "Supplier", options: metadata.suppliers, useId: true },
+  // Dynamic facet groups — options come from the current search's `facets`, so
+  // the sidebar reflects whatever was searched (e.g. ornament sizes/finishes).
+  const FACETS: { key: keyof Selection; label: string; options?: FacetOption[]; useId?: boolean; suffix?: string }[] = [
+    { key: "categories", label: "Category", options: facets.categories },
+    { key: "colors", label: "Color", options: facets.colors },
+    { key: "sizes", label: "Size", options: facets.sizes, suffix: '"' },
+    { key: "finishes", label: "Finish", options: facets.finishes },
+    { key: "availability", label: "Availability", options: facets.availability },
+    { key: "suppliers", label: "Supplier", options: facets.suppliers, useId: true },
   ];
 
   return (
@@ -278,6 +281,17 @@ export default function CatalogSearch() {
             )}
           </div>
           <div className="flex flex-col gap-5">
+            {/* Show favorites only */}
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm hover:border-rose-300">
+              <input
+                type="checkbox" checked={favOnly}
+                onChange={(e) => setFavOnly(e.target.checked)}
+                className="accent-rose-500"
+              />
+              <Heart size={14} fill={favOnly ? "#c2410c" : "none"} style={{ color: favOnly ? "#c2410c" : "#a8a29e" }} />
+              <span className={`flex-1 ${favOnly ? "font-medium text-rose-700" : "text-stone-600"}`}>Show favorites only</span>
+            </label>
+
             {/* Price range */}
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-600">Price ($)</p>
@@ -295,24 +309,22 @@ export default function CatalogSearch() {
                 />
               </div>
             </div>
-            <MultiSelectFilter
-              label="All categories"
-              options={(metadata.categories || []).map((o) => o.value)}
-              selected={sel.categories}
-              onChange={(v) => setSel((s) => ({ ...s, categories: v }))}
-            />
-            <MultiSelectFilter
-              label="All colors"
-              options={(metadata.colors || []).map((o) => o.value)}
-              selected={sel.colors}
-              onChange={(v) => setSel((s) => ({ ...s, colors: v }))}
-            />
-            <MultiSelectFilter
-              label="All suppliers"
-              options={(metadata.suppliers || []).map((o) => o.value)}
-              selected={sel.suppliers}
-              onChange={(v) => setSel((s) => ({ ...s, suppliers: v }))}
-            />
+
+            {/* Dynamic facets — recomputed from the current search results */}
+            {FACETS.map((f) => (
+              <FacetGroup
+                key={f.key}
+                label={f.label}
+                options={f.options || []}
+                selected={sel[f.key]}
+                suffix={f.suffix}
+                useId={f.useId}
+                onToggle={(v) => toggle(f.key, v)}
+              />
+            ))}
+            {FACETS.every((f) => !(f.options || []).length) && (
+              <p className="text-xs italic text-stone-400">No filters for this search yet.</p>
+            )}
           </div>
         </aside>
 
@@ -368,10 +380,16 @@ function FacetGroup(p: {
   selected: string[];
   onToggle: (v: string) => void;
   useId?: boolean;
+  suffix?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (!p.options.length) return null;
-  const shown = expanded ? p.options : p.options.slice(0, 8);
+  // Keep checked options visible even when collapsed, so a selection never hides.
+  const selectedFirst = [
+    ...p.options.filter((o) => p.selected.includes(p.useId && o.id != null ? String(o.id) : o.value)),
+    ...p.options.filter((o) => !p.selected.includes(p.useId && o.id != null ? String(o.id) : o.value)),
+  ];
+  const shown = expanded ? selectedFirst : selectedFirst.slice(0, 8);
   return (
     <div>
       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-600">{p.label}</p>
@@ -382,7 +400,7 @@ function FacetGroup(p: {
           return (
             <label key={val} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-stone-100">
               <input type="checkbox" checked={on} onChange={() => p.onToggle(val)} className="accent-emerald-700" />
-              <span className={`flex-1 truncate ${on ? "font-medium text-emerald-900" : "text-stone-600"}`}>{o.value}</span>
+              <span className={`flex-1 truncate ${on ? "font-medium text-emerald-900" : "text-stone-600"}`}>{o.value}{p.suffix || ""}</span>
               {o.count != null && <span className="text-xs text-stone-400">{o.count.toLocaleString()}</span>}
             </label>
           );
