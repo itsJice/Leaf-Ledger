@@ -601,6 +601,7 @@ async def _load_search_index(conn):
             "image": image, "class": norm.get("class"), "color": color, "finish": finish,
             "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
             "product_type": r["product_type"], "color_families": cf,
+            "category": raw.get("category_group"),
             "avail": _avail_bucket_py(r["availability"]),
             "blob": blob,
         })
@@ -611,6 +612,7 @@ async def _load_search_index(conn):
 @router.get("/search")
 async def search_products(
     colors: Optional[str] = None,
+    categories: Optional[str] = None,
     sizes: Optional[str] = None,
     finishes: Optional[str] = None,
     product_types: Optional[str] = None,
@@ -637,12 +639,14 @@ async def search_products(
 
     col = set(_csv_list(colors)); sz = set(_csv_list(sizes)); fin = set(_csv_list(finishes))
     pt = set(_csv_list(product_types)); avail = set(_csv_list(availability))
+    cat = set(_csv_list(categories))
     sup = {int(x) for x in _csv_list(supplier_ids) if x.isdigit()}
     terms = [w for w in (search or "").lower().split() if w]
 
     out = []
     for it in idx:
         if col and not (col & set(it["color_families"])): continue
+        if cat and it["category"] not in cat: continue
         if fin and it["finish"] not in fin: continue
         if sz and it["size_bucket"] not in sz: continue
         if pt and it["product_type"] not in pt: continue
@@ -664,6 +668,26 @@ async def search_products(
                                     "size_in": it["size"], "class": it["class"]}},
     } for it in page]
     return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+
+@router.get("/detail/{product_id}", response_model=ProductOut)
+async def get_product_detail(request: Request, product_id: int):
+    """Full product record for the detail modal — one row, fetched on demand so
+    the fast /search index can stay slim."""
+    user_id: Optional[str] = extract_user_id(request)
+    conn = await get_conn()
+    try:
+        row = await conn.fetchrow("""
+            SELECT p.*, s.name as supplier_name,
+                   EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $2) as is_favorited
+            FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
+            WHERE p.id = $1
+        """, product_id, user_id or "__no_user__")
+        if not row:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return _normalize_product_row(row)
+    finally:
+        await conn.close()
 
 
 @router.post("/create", response_model=ProductOut)
