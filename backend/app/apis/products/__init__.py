@@ -147,6 +147,8 @@ class ProductFilterMetadata(BaseModel):
     countries: List[FilterOption]
     colors: List[FilterOption]
     availability: List[FilterOption]
+    finishes: List[FilterOption] = []
+    sizes: List[FilterOption] = []
 
 # ---------- Endpoints ----------
 
@@ -159,6 +161,9 @@ def _normalize_product_row(row) -> dict:
         except json.JSONDecodeError:
             raw = {}
         product["raw_data"] = raw
+    # Surface the rich display category (constrained column stays a safe slug)
+    if raw.get("category_group"):
+        product["category"] = raw["category_group"]
     product["upc"] = product.get("upc") or raw.get("UPC")
     if product.get("box_qty") is None:
         try:
@@ -202,6 +207,12 @@ def _product_filters(
     product_types: Optional[str] = None,
     colors: Optional[str] = None,
     availability: Optional[str] = None,
+    finishes: Optional[str] = None,
+    sizes: Optional[str] = None,
+    size_min: Optional[float] = None,
+    size_max: Optional[float] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
 ) -> tuple[list[str], list, int]:
     conditions = ["p.is_active = TRUE"]
     effective_user_id = user_id or "__no_user__"
@@ -221,19 +232,10 @@ def _product_filters(
             conditions.append(f"p.supplier_id = ANY(${idx}::int[])")
             params.append(parsed_supplier_ids)
             idx += 1
-    # categories: multi param, or the legacy single `category`
+    # categories: match on the rich category_group (falls back to the column)
     category_list = _csv_list(categories) or ([category] if category else [])
     if category_list:
-        conditions.append(
-            f"""(
-                p.category = ANY(${idx}::text[])
-                OR EXISTS (
-                    SELECT 1
-                    FROM jsonb_array_elements_text(COALESCE(p.raw_data->'category_tags', '[]'::jsonb)) AS category_tag(value)
-                    WHERE category_tag.value = ANY(${idx}::text[])
-                )
-            )"""
-        )
+        conditions.append(f"COALESCE(p.raw_data->>'category_group', p.category) = ANY(${idx}::text[])")
         params.append(category_list)
         idx += 1
     product_type_list = _csv_list(product_types)
@@ -246,6 +248,40 @@ def _product_filters(
         # match if the product's color_families overlaps any selected family
         conditions.append(f"p.raw_data->'color_families' ?| ${idx}::text[]")
         params.append(color_list)
+        idx += 1
+    # normalized facets (Phase 3): finish + size range from the normalization layer.
+    # Reads raw_data->'normalized' (works today); swaps to indexed norm_* columns
+    # once migrations/001_normalized_columns.sql is run by the DB owner.
+    finish_list = _csv_list(finishes)
+    if finish_list:
+        conditions.append(f"p.raw_data->'normalized'->>'finish' = ANY(${idx}::text[])")
+        params.append(finish_list)
+        idx += 1
+    # discrete size buckets (match filter-metadata's rounded 0.5" buckets)
+    size_list = _csv_list(sizes)
+    if size_list:
+        conditions.append(
+            "trim(trailing '.' from trim(trailing '0' from "
+            f"(round((NULLIF(p.raw_data->'normalized'->>'size_in','')::numeric) * 2) / 2)::text)) "
+            f"= ANY(${idx}::text[])"
+        )
+        params.append(size_list)
+        idx += 1
+    if size_min is not None:
+        conditions.append(f"NULLIF(p.raw_data->'normalized'->>'size_in','')::numeric >= ${idx}")
+        params.append(size_min)
+        idx += 1
+    if size_max is not None:
+        conditions.append(f"NULLIF(p.raw_data->'normalized'->>'size_in','')::numeric <= ${idx}")
+        params.append(size_max)
+        idx += 1
+    if price_min is not None:
+        conditions.append(f"p.current_price >= ${idx}")
+        params.append(price_min)
+        idx += 1
+    if price_max is not None:
+        conditions.append(f"p.current_price <= ${idx}")
+        params.append(price_max)
         idx += 1
     availability_list = _csv_list(availability)
     if availability_list:
@@ -303,21 +339,11 @@ def _availability_bucket(value: Any) -> Optional[str]:
 
 async def _build_product_filter_metadata(conn) -> dict[str, Any]:
     category_rows = await conn.fetch("""
-        SELECT value, COUNT(DISTINCT id)::int AS count
-        FROM (
-            SELECT id, COALESCE(NULLIF(category, ''), 'other') AS value
-            FROM products
-            WHERE is_active = TRUE
-
-            UNION ALL
-
-            SELECT p.id, category_tag.value
-            FROM products p
-            CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.raw_data->'category_tags', '[]'::jsonb)) AS category_tag(value)
-            WHERE p.is_active = TRUE
-              AND NULLIF(BTRIM(category_tag.value), '') IS NOT NULL
-        ) AS category_options
-        GROUP BY value
+        SELECT COALESCE(NULLIF(raw_data->>'category_group', ''), NULLIF(category, ''), 'Home Décor') AS value,
+               COUNT(*)::int AS count
+        FROM products
+        WHERE is_active = TRUE
+        GROUP BY 1
         ORDER BY count DESC, value ASC
     """)
     supplier_rows = await conn.fetch("""
@@ -362,6 +388,25 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
     """)
     availability_counts = {row["value"]: row["count"] for row in availability_rows if row["value"]}
     availability_order = ["In stock", "Out of stock"]
+    # Phase 3 normalized facets: finish + size (from the normalization layer)
+    finish_rows = await conn.fetch("""
+        SELECT raw_data->'normalized'->>'finish' AS value, COUNT(*)::int AS count
+        FROM products
+        WHERE is_active = TRUE AND NULLIF(raw_data->'normalized'->>'finish','') IS NOT NULL
+        GROUP BY 1 ORDER BY count DESC, value ASC
+    """)
+    size_rows = await conn.fetch("""
+        SELECT trim(trailing '.' from trim(trailing '0' from value::text)) AS value,
+               COUNT(*)::int AS count
+        FROM (
+            SELECT round((NULLIF(raw_data->'normalized'->>'size_in','')::numeric) * 2) / 2 AS value
+            FROM products
+            WHERE is_active = TRUE
+              AND NULLIF(raw_data->'normalized'->>'size_in','') IS NOT NULL
+              AND (raw_data->'normalized'->>'size_in')::numeric BETWEEN 0.5 AND 40
+        ) t
+        GROUP BY value ORDER BY value ASC
+    """)
     return {
         "generated_at": datetime.utcnow().isoformat(),
         "categories": _option_rows(category_rows),
@@ -374,6 +419,8 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
             for label in availability_order
             if availability_counts.get(label)
         ],
+        "finishes": _option_rows(finish_rows),
+        "sizes": _option_rows(size_rows),
     }
 
 @router.get("/filter-metadata", response_model=ProductFilterMetadata)
@@ -394,6 +441,12 @@ async def list_products(
     product_types: Optional[str] = None,
     colors: Optional[str] = None,
     availability: Optional[str] = None,
+    finishes: Optional[str] = None,
+    sizes: Optional[str] = None,
+    size_min: Optional[float] = None,
+    size_max: Optional[float] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
     favorites_only: Optional[bool] = None,
     search: Optional[str] = None,
 ):
@@ -407,6 +460,8 @@ async def list_products(
         conditions, params, _ = _product_filters(
             user_id, supplier_id, supplier_ids, category, favorites_only, search,
             categories=categories, product_types=product_types, colors=colors, availability=availability,
+            finishes=finishes, sizes=sizes, size_min=size_min, size_max=size_max,
+            price_min=price_min, price_max=price_max,
         )
         where = " AND ".join(conditions)
         rows = await conn.fetch(f"""
@@ -431,6 +486,12 @@ async def page_products(
     product_types: Optional[str] = None,
     colors: Optional[str] = None,
     availability: Optional[str] = None,
+    finishes: Optional[str] = None,
+    sizes: Optional[str] = None,
+    size_min: Optional[float] = None,
+    size_max: Optional[float] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
     favorites_only: Optional[bool] = None,
     search: Optional[str] = None,
     limit: int = 96,
@@ -447,6 +508,8 @@ async def page_products(
         conditions, params, idx = _product_filters(
             user_id, supplier_id, supplier_ids, category, favorites_only, search,
             categories=categories, product_types=product_types, colors=colors, availability=availability,
+            finishes=finishes, sizes=sizes, size_min=size_min, size_max=size_max,
+            price_min=price_min, price_max=price_max,
         )
         where = " AND ".join(conditions)
         total = await conn.fetchval(f"""
@@ -473,6 +536,135 @@ async def page_products(
         }
     finally:
         await conn.close()
+
+# ─── Fast in-memory catalog search ────────────────────────────────────────────
+# Filtering the raw_data JSONB in SQL scans 88k rows per request (~2-8s). Since
+# the app DB role can't create indexes, we instead load a lightweight index of
+# the catalog into memory ONCE (cached with a TTL) and filter it in Python —
+# instant after the first load. Same pattern as the ornament matcher above.
+_SEARCH_CACHE: dict = {"ts": 0.0, "rows": None}
+_SEARCH_TTL = 3600  # 1 hour — catalog is static between imports
+
+
+def _avail_bucket_py(v) -> Optional[str]:
+    t = str(v or "").strip().lower()
+    if not t:
+        return None
+    if t.replace(".", "", 1).isdigit():
+        return "In stock" if float(t) > 0 else "Out of stock"
+    if t in ("in_stock", "available", "in stock", "today", "yes"):
+        return "In stock"
+    if t in ("out_of_stock", "sold out", "unavailable", "no"):
+        return "Out of stock"
+    return None
+
+
+async def _load_search_index(conn):
+    now = _time.time()
+    cached = _SEARCH_CACHE.get("rows")
+    if cached is not None and (now - _SEARCH_CACHE["ts"]) < _SEARCH_TTL:
+        return cached
+    # Pull the full record once; the raw_data JSON text drives full-breadth
+    # keyword search (parity with the old search over name/desc/sku/raw_data).
+    rows = await conn.fetch(f"""
+        SELECT p.id, p.name, s.name AS supplier_name, p.supplier_id, p.supplier_sku,
+               p.current_price, p.image_urls, p.availability, p.description,
+               {PRODUCT_TYPE_SQL} AS product_type,
+               p.raw_data
+        FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
+        WHERE p.is_active = TRUE
+    """)
+    idx = []
+    for r in rows:
+        raw_text = r["raw_data"]  # asyncpg returns jsonb as its JSON text
+        if not isinstance(raw_text, str):
+            raw_text = json.dumps(raw_text) if raw_text else ""
+        try:
+            raw = json.loads(raw_text) if raw_text else {}
+        except json.JSONDecodeError:
+            raw = {}
+        norm = raw.get("normalized") or {}
+        cf = [c for c in (raw.get("color_families") or []) if isinstance(c, str)]
+        imgs = r["image_urls"] or []
+        image = imgs[0] if isinstance(imgs, (list, tuple)) and imgs else None
+        size = norm.get("size_in")
+        try: size = float(size) if size is not None else None
+        except (TypeError, ValueError): size = None
+        color, finish = norm.get("color"), norm.get("finish")
+        # full-breadth keyword blob: name + sku + description + all raw fields
+        blob = " ".join(filter(None, [r["name"], r["supplier_sku"], r["description"],
+                                      r["supplier_name"], raw_text])).lower()
+        idx.append({
+            "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
+            "supplier_id": r["supplier_id"], "supplier_sku": r["supplier_sku"],
+            "price": float(r["current_price"]) if r["current_price"] is not None else None,
+            "image": image, "class": norm.get("class"), "color": color, "finish": finish,
+            "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
+            "product_type": r["product_type"], "color_families": cf,
+            "avail": _avail_bucket_py(r["availability"]),
+            "blob": blob,
+        })
+    _SEARCH_CACHE.update(ts=now, rows=idx)
+    return idx
+
+
+@router.get("/search")
+async def search_products(
+    colors: Optional[str] = None,
+    sizes: Optional[str] = None,
+    finishes: Optional[str] = None,
+    product_types: Optional[str] = None,
+    supplier_ids: Optional[str] = None,
+    availability: Optional[str] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
+    search: Optional[str] = None,
+    limit: int = 48,
+    offset: int = 0,
+):
+    """Fast faceted search served from the in-memory catalog index."""
+    # Only touch the database when the cache is cold — a warm request opens no
+    # connection at all, so it isn't paying the ~1s Neon handshake to Europe.
+    cached = _SEARCH_CACHE.get("rows")
+    if cached is not None and (_time.time() - _SEARCH_CACHE["ts"]) < _SEARCH_TTL:
+        idx = cached
+    else:
+        conn = await get_conn()
+        try:
+            idx = await _load_search_index(conn)
+        finally:
+            await conn.close()
+
+    col = set(_csv_list(colors)); sz = set(_csv_list(sizes)); fin = set(_csv_list(finishes))
+    pt = set(_csv_list(product_types)); avail = set(_csv_list(availability))
+    sup = {int(x) for x in _csv_list(supplier_ids) if x.isdigit()}
+    terms = [w for w in (search or "").lower().split() if w]
+
+    out = []
+    for it in idx:
+        if col and not (col & set(it["color_families"])): continue
+        if fin and it["finish"] not in fin: continue
+        if sz and it["size_bucket"] not in sz: continue
+        if pt and it["product_type"] not in pt: continue
+        if avail and it["avail"] not in avail: continue
+        if sup and it["supplier_id"] not in sup: continue
+        if price_min is not None and (it["price"] is None or it["price"] < price_min): continue
+        if price_max is not None and (it["price"] is None or it["price"] > price_max): continue
+        if terms and not all(t in it["blob"] for t in terms): continue
+        out.append(it)
+
+    out.sort(key=lambda x: (x["name"] or "").lower())
+    total = len(out)
+    page = out[max(0, offset): max(0, offset) + max(1, min(limit, 500))]
+    items = [{
+        "id": it["id"], "name": it["name"], "supplier_name": it["supplier_name"],
+        "supplier_sku": it["supplier_sku"], "current_price": it["price"],
+        "image_urls": [it["image"]] if it["image"] else [],
+        "raw_data": {"normalized": {"color": it["color"], "finish": it["finish"],
+                                    "size_in": it["size"], "class": it["class"]}},
+    } for it in page]
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
 
 @router.post("/create", response_model=ProductOut)
 async def create_product(body: ProductCreate, user: AuthorizedUser):
@@ -631,3 +823,198 @@ async def get_product_stats(request: Request):
         }
     finally:
         await conn.close()
+
+
+# ─── Ornament catalog matcher ───────────────────────────────────────────────
+# Turns an Ornament-Calculator recipe (sizes + quantities, optional color) into
+# REAL orderable products across the whole catalog — any supplier, and any
+# future supplier we upload — since it matches by size/color instead of relying
+# on Vickerman-style composable SKUs (which only Vickerman has). Sizes are read
+# from dimension columns or parsed from the product name (mm/cm converted to in).
+import time as _time
+import re as _re
+
+_BALL_CACHE: dict = {"ts": 0.0, "rows": None}
+_BALL_TTL = 600  # seconds; short so freshly-uploaded catalogs appear
+_SIZE_RE = _re.compile(r'(\d+(?:\.\d+)?)\s*(mm|cm|"|inch\b|inches\b|in\b)', _re.I)
+# names that contain "ball" but are not round ball ornaments
+_BALL_EXCLUDE = ("spray", "garland", "lamp", "wreath", "spike", "pick",
+                 "boxwood", "topiary", "stem", "bush", "tree", "candle")
+
+
+def _parse_size_in(name, diameter_in, width_in, height_in):
+    for v in (diameter_in, width_in, height_in):
+        try:
+            if v is not None and float(v) > 0:
+                return round(float(v), 2)
+        except (TypeError, ValueError):
+            pass
+    if name:
+        m = _SIZE_RE.search(name)
+        if m:
+            val = float(m.group(1))
+            unit = m.group(2).lower()
+            if unit == "mm":
+                return round(val / 25.4, 2)
+            if unit == "cm":
+                return round(val / 2.54, 2)
+            return round(val, 2)
+    return None
+
+
+async def _load_ball_index(conn):
+    now = _time.time()
+    cached = _BALL_CACHE.get("rows")
+    if cached is not None and (now - _BALL_CACHE["ts"]) < _BALL_TTL:
+        return cached
+    exclude_sql = " ".join(f"AND p.name NOT ILIKE '%{w}%'" for w in _BALL_EXCLUDE)
+    # Fast name/type filter in WHERE (indexed-friendly text scan); the normalized
+    # profile (learned SKU grammar + parsing) is read only for matched rows, to
+    # enrich color/finish/size. Filtering on the JSONB class would force a slow
+    # full-catalog scan (no index available on the app DB role).
+    rows = await conn.fetch(f"""
+        SELECT p.id, s.name AS supplier, p.name, p.supplier_sku, p.color, p.finish,
+               p.current_price, p.diameter_in, p.width_in, p.height_in,
+               p.image_urls, p.case_qty, p.uom, {PRODUCT_TYPE_SQL} AS product_type,
+               p.raw_data->'normalized' AS norm
+        FROM products p JOIN suppliers s ON s.id = p.supplier_id
+        WHERE p.is_active = TRUE
+          AND (p.name ILIKE '%ball%' OR {PRODUCT_TYPE_SQL} ILIKE '%ball ornament%')
+          {exclude_sql}
+    """)
+    index = []
+    for r in rows:
+        norm = r["norm"]
+        if isinstance(norm, str):
+            try:
+                norm = json.loads(norm)
+            except json.JSONDecodeError:
+                norm = None
+        norm = norm or {}
+        # size: prefer normalized (may derive from SKU/columns), else live parse
+        size = norm.get("size_in")
+        if size is None:
+            size = _parse_size_in(r["name"], r["diameter_in"], r["width_in"], r["height_in"])
+        try:
+            size = float(size) if size is not None else None
+        except (TypeError, ValueError):
+            size = None
+        if size is None or size <= 0 or size > 40:
+            continue
+        imgs = r["image_urls"] or []
+        image = imgs[0] if isinstance(imgs, (list, tuple)) and imgs else None
+        # canonical color/finish fold in the learned SKU grammar — recover
+        # attributes the product name never stated.
+        norm_color = norm.get("color") or r["color"]
+        norm_finish = norm.get("finish") or r["finish"]
+        index.append({
+            "id": r["id"],
+            "supplier": r["supplier"],
+            "name": r["name"],
+            "sku": r["supplier_sku"],
+            "color": norm_color,
+            "finish": norm_finish,
+            "price": float(r["current_price"]) if r["current_price"] is not None else None,
+            "size": size,
+            "image": image,
+            "case_qty": r["case_qty"],
+            "canonical_key": norm.get("canonical_key"),
+            # search text now includes decoded color+finish, so SKU-only colors match
+            "search": " ".join(filter(None, [
+                r["name"], r["color"], norm_color, norm_finish,
+            ])).lower(),
+        })
+    _BALL_CACHE.update(ts=now, rows=index)
+    return index
+
+
+class OrnamentMatchLine(BaseModel):
+    size: float
+    quantity: Optional[int] = None
+    color: Optional[str] = None
+    finish: Optional[str] = None
+
+
+class OrnamentMatchRequest(BaseModel):
+    lines: List[OrnamentMatchLine]
+    suppliers: Optional[List[str]] = None  # optional supplier-name allowlist
+    per_line: int = 6                       # max matches returned per line
+
+
+@router.post("/ornament-match")
+async def ornament_match(body: OrnamentMatchRequest):
+    """For each recipe line (size + optional color), return real ball-ornament
+    products from the catalog, ranked by size closeness then color match."""
+    conn = await get_conn()
+    try:
+        index = await _load_ball_index(conn)
+    finally:
+        await conn.close()
+
+    supplier_allow = set(s.lower() for s in body.suppliers) if body.suppliers else None
+    results = []
+    for line in body.lines:
+        want_size = float(line.size)
+        # tolerance scales with size; small balls need tighter absolute tolerance
+        tol = max(0.35, want_size * 0.15)
+        color = (line.color or "").strip().lower()
+        color_words = [w for w in _re.split(r"[^a-z]+", color) if len(w) > 2]
+        finish = (line.finish or "").strip().lower()
+
+        scored = []
+        for item in index:
+            if supplier_allow and item["supplier"].lower() not in supplier_allow:
+                continue
+            dsize = abs(item["size"] - want_size)
+            if dsize > tol:
+                continue
+            score = 100.0 - dsize * 10.0
+            color_hit = bool(color_words) and all(w in item["search"] for w in color_words)
+            if color_hit:
+                score += 25.0
+            finish_hit = bool(finish) and finish in item["search"]
+            if finish_hit:
+                score += 15.0
+            if item["price"] is not None:
+                score += 2.0
+            if item["image"]:
+                score += 1.0
+            scored.append((score, dsize, item, color_hit, finish_hit))
+
+        scored.sort(key=lambda x: (-x[0], x[1]))
+        qty = line.quantity or 0
+        matches = []
+        for score, dsize, item, color_hit, finish_hit in scored[: max(1, body.per_line)]:
+            case_qty = item["case_qty"] or 1
+            try:
+                case_qty = int(case_qty) or 1
+            except (TypeError, ValueError):
+                case_qty = 1
+            packs_needed = (qty + case_qty - 1) // case_qty if qty else None
+            matches.append({
+                "product_id": item["id"],
+                "supplier": item["supplier"],
+                "name": item["name"],
+                "sku": item["sku"],
+                "price": item["price"],
+                "image": item["image"],
+                "size_in": item["size"],
+                "color": item["color"],
+                "finish": item["finish"],
+                "case_qty": case_qty,
+                "packs_needed": packs_needed,
+                "color_match": color_hit,
+                "finish_match": finish_hit,
+                "canonical_key": item.get("canonical_key"),
+                "size_delta": round(dsize, 2),
+            })
+        results.append({
+            "size": want_size,
+            "quantity": qty,
+            "color": line.color,
+            "finish": line.finish,
+            "match_count": len(scored),
+            "matches": matches,
+        })
+
+    return {"lines": results, "catalog_size": len(index)}
