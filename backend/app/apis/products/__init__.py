@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Response
 from pydantic import BaseModel
 from typing import Any, Optional, List
+from collections import Counter
 import asyncpg
 import os
 import uuid
@@ -618,13 +619,24 @@ async def search_products(
     product_types: Optional[str] = None,
     supplier_ids: Optional[str] = None,
     availability: Optional[str] = None,
+    ids: Optional[str] = None,
     price_min: Optional[float] = None,
     price_max: Optional[float] = None,
     search: Optional[str] = None,
     limit: int = 48,
     offset: int = 0,
 ):
-    """Fast faceted search served from the in-memory catalog index."""
+    """Fast faceted search served from the in-memory catalog index.
+
+    Alongside the page of results it returns `facets` — the values still
+    available *within the current query* (search + price + favorites + the other
+    filters), each with a live count. Every facet is computed with drill-down: a
+    facet is counted ignoring its OWN selection, so picking one Color doesn't
+    collapse the Color list — you can still add a second. This is what makes the
+    sidebar responsive to whatever was searched (e.g. "ornaments" surfaces the
+    ornament sizes/colors/finishes actually present). Facets are only built on a
+    fresh load (offset == 0); infinite-scroll pages skip the extra pass.
+    """
     # Only touch the database when the cache is cold — a warm request opens no
     # connection at all, so it isn't paying the ~1s Neon handshake to Europe.
     cached = _SEARCH_CACHE.get("rows")
@@ -641,21 +653,63 @@ async def search_products(
     pt = set(_csv_list(product_types)); avail = set(_csv_list(availability))
     cat = set(_csv_list(categories))
     sup = {int(x) for x in _csv_list(supplier_ids) if x.isdigit()}
+    id_filter = {int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()} if ids is not None else None
     terms = [w for w in (search or "").lower().split() if w]
 
-    out = []
+    # Base set: the always-on filters (favorites ids, price, keyword). Facets and
+    # results are both derived from here, so the sidebar reflects the search.
+    base = []
     for it in idx:
-        if col and not (col & set(it["color_families"])): continue
-        if cat and it["category"] not in cat: continue
-        if fin and it["finish"] not in fin: continue
-        if sz and it["size_bucket"] not in sz: continue
-        if pt and it["product_type"] not in pt: continue
-        if avail and it["avail"] not in avail: continue
-        if sup and it["supplier_id"] not in sup: continue
+        if id_filter is not None and it["id"] not in id_filter: continue
         if price_min is not None and (it["price"] is None or it["price"] < price_min): continue
         if price_max is not None and (it["price"] is None or it["price"] > price_max): continue
         if terms and not all(t in it["blob"] for t in terms): continue
-        out.append(it)
+        base.append(it)
+
+    # Faceted dimensions: (key, current selection, value-extractor). An item
+    # "passes" a dimension when its selection is empty OR intersects the item's
+    # values (colors are multi-valued; the rest single).
+    def _one(v):
+        return [v] if v else []
+    dim_defs = [
+        ("categories",   cat,   lambda it: _one(it["category"])),
+        ("colors",       col,   lambda it: it["color_families"]),
+        ("sizes",        sz,    lambda it: _one(it["size_bucket"])),
+        ("finishes",     fin,   lambda it: _one(it["finish"])),
+        ("availability", avail, lambda it: _one(it["avail"])),
+        ("suppliers",    sup,   lambda it: [it["supplier_id"]] if it["supplier_id"] is not None else []),
+        ("product_types", pt,   lambda it: _one(it["product_type"])),
+    ]
+    build_facets = offset <= 0
+    counters = {key: Counter() for key, _, _ in dim_defs} if build_facets else None
+    sup_names: dict = {}
+
+    out = []
+    for it in base:
+        vals = [get(it) for _, _, get in dim_defs]
+        fails = []
+        for j, (_, selset, _get) in enumerate(dim_defs):
+            if selset and not (selset & set(vals[j])):
+                fails.append(j)
+                if len(fails) > 1:
+                    break
+        nfail = len(fails)
+        if nfail == 0:
+            out.append(it)
+        if not build_facets:
+            continue
+        # Count each facet over items that pass every OTHER facet (drill-down):
+        # nfail==0 counts everywhere; nfail==1 counts only its single failing dim.
+        if nfail == 0:
+            for (key, _s, _g), v in zip(dim_defs, vals):
+                for x in v:
+                    counters[key][x] += 1
+        elif nfail == 1:
+            key = dim_defs[fails[0]][0]
+            for x in vals[fails[0]]:
+                counters[key][x] += 1
+        if it["supplier_id"] is not None:
+            sup_names[it["supplier_id"]] = it["supplier_name"]
 
     out.sort(key=lambda x: (x["name"] or "").lower())
     total = len(out)
@@ -667,7 +721,31 @@ async def search_products(
         "raw_data": {"normalized": {"color": it["color"], "finish": it["finish"],
                                     "size_in": it["size"], "class": it["class"]}},
     } for it in page]
-    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+    resp = {"items": items, "total": total, "limit": limit, "offset": offset}
+    if build_facets:
+        def _by_count(c):
+            return [{"value": v, "count": n} for v, n in sorted(c.items(), key=lambda kv: (-kv[1], str(kv[0]).lower()))[:80]]
+        # sizes read as numbers so 10" sorts after 9", not after 1"
+        def _by_size(c):
+            def num(v):
+                try: return float(v)
+                except (TypeError, ValueError): return 1e9
+            items_ = [(v, n) for v, n in c.items() if num(v) > 0]  # drop the 0" noise bucket
+            return [{"value": v, "count": n} for v, n in sorted(items_, key=lambda kv: num(kv[0]))[:80]]
+        resp["facets"] = {
+            "categories": _by_count(counters["categories"]),
+            "colors": _by_count(counters["colors"]),
+            "sizes": _by_size(counters["sizes"]),
+            "finishes": _by_count(counters["finishes"]),
+            "availability": _by_count(counters["availability"]),
+            "product_types": _by_count(counters["product_types"]),
+            "suppliers": [
+                {"value": sup_names.get(sid, str(sid)), "id": sid, "count": n}
+                for sid, n in counters["suppliers"].most_common(80)
+            ],
+        }
+    return resp
 
 
 @router.get("/detail/{product_id}", response_model=ProductOut)
