@@ -800,9 +800,11 @@ function sourceValue(product: Product, ...keys: string[]): unknown {
 }
 
 function displayProductName(product: Product): string {
+  // `name` holds the concise product name; `description` is marketing copy.
+  // (Some legacy rows only had the readable name in raw.Description.)
   const raw = product.raw_data || {};
-  const preferred = raw.Description || product.description || product.name;
-  return String(preferred || product.name || "").trim();
+  const preferred = product.name || raw.Description || product.description;
+  return String(preferred || "").trim();
 }
 
 function normalizeSearchText(value: unknown): string {
@@ -1702,8 +1704,13 @@ function ProductCard({
       </div>
       {/* Info */}
       <div className="p-4">
+        {p.supplier_name && (
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 truncate mb-0.5" title={p.supplier_name}>
+            {p.supplier_name}
+          </p>
+        )}
         <p className="font-semibold text-stone-800 text-sm leading-tight truncate mb-1">{displayName}</p>
-        <p className="text-xs text-stone-400 mb-2 truncate">{p.supplier_sku || p.supplier_name}</p>
+        {p.supplier_sku && <p className="text-xs text-stone-400 mb-2 truncate">{p.supplier_sku}</p>}
         <div>
           {hasSourcePrice ? (
             <>
