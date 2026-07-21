@@ -1342,7 +1342,7 @@ function ProductDetailRow({ label, value }: { label: string; value: unknown }) {
   );
 }
 
-function MultiSelectFilter({
+export function MultiSelectFilter({
   label,
   options,
   selected,
