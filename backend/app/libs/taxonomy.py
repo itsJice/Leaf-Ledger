@@ -166,10 +166,14 @@ _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
     ("Ribbon & Bows", ["ribbon", "bow ", " bow", "mesh roll", "deco mesh"]),
     ("Lighting", ["light set", "led", "string light", "fairy light", "lamp", "bulb", "lumin", "sconce", "chandelier", "novelty light", "starburst", "light sphere", "motif light"]),
     ("Candles & Lanterns", ["candle", "votive", "tealight", "tea light", "lantern", "luminary", "flameless"]),
+    # Textiles are checked before Botanicals/Florals/Greenery so a "Floral Accent
+    # Rug" or "Cotton Bath Towel" is filed by what it IS (a rug/towel), not by its
+    # printed motif. Still kept BELOW Ornaments/Ribbon/Candles so a "Curtain
+    # Ornament" or "Candle Runner" stays with its true family.
+    ("Rugs & Textiles", ["rug", "pillow", "cushion", "throw", "blanket", "bedding", "duvet", "sheet set", "curtain", "drape", "tapestry", "textile", "towel", "runner"]),
     ("Botanicals & Fillers", ["dried", "preserved", "moss", "berry", "berries", "pod", "pinecone", "pine cone", " cone", "branch", "twig", "filler", "botanical", "reindeer", "cotton", "wheat", "seedpod", "acorn", "nut", "bark", "curly willow", "grapevine"]),
     ("Florals", ["floral", "flower", "rose", "peony", "hydrangea", "poinsettia", "orchid", "tulip", "dahlia", "sunflower", "lily", "magnolia", "ranunculus", "bloom", "bouquet", "spray", "pick", "stem", "blossom", "petal", "silk flower"]),
     ("Greenery & Plants", ["greenery", "foliage", "fern", "grass", "ivy", "succulent", "palm", "boxwood", "eucalyptus", "cactus", "cacti", "leaf", "leaves", "bush", "shrub", "vine", "topiary", "air plant", "plant", "hosta", "philo", "monstera", "cedar", "pine ", "cypress", "juniper"]),
-    ("Rugs & Textiles", ["rug", "pillow", "cushion", "throw", "blanket", "bedding", "duvet", "sheet set", "curtain", "drape", "tapestry", "textile", "towel", "runner"]),
     ("Rocks & Stone", ["rock", "stone", "gravel", "pebble", "agate", "geode", "boulder", "aggregate", "marble chip", "river rock"]),
     ("Containers & Vases", ["container", "vase", " pot", "pots", "planter", "urn", "jardiniere", "jar", "canister", "compote", "trough", "bucket", "pail", "bin", "basket", "crock", "cachepot", "cache pot", "tin"]),
     ("Furniture & Storage", ["furniture", "table", "chair", "stool", "bench", "shelf", "shelving", "cabinet", "trellis", "storage", "organizer", "organization", "rack", "hook", "desk", "dresser", "ottoman", "console", "plant stand", "easel"]),
