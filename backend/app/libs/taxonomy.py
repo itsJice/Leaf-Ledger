@@ -10,6 +10,17 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+
+def _compile(keyword_families):
+    """Compile each family's keywords into a word-boundary regex (optional
+    trailing s/es), so 'led' matches the word LED but not 'styled', and 'bow'
+    doesn't match 'bowl'. Longer keywords are tried first within a family."""
+    compiled = []
+    for family, keywords in keyword_families:
+        alternation = "|".join(re.escape(k) for k in sorted(keywords, key=len, reverse=True))
+        compiled.append((family, re.compile(r"\b(?:" + alternation + r")(?:es|s)?\b")))
+    return compiled
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 
 # supplier 2-letter color codes (exact match)
@@ -49,11 +60,13 @@ _COLOR_KEYWORDS: list[tuple[str, list[str]]] = [
 ]
 
 
+_COLOR_PATTERNS = _compile(_COLOR_KEYWORDS)
+
+
 def _color_from_keywords(text: str) -> Optional[str]:
-    for family, keywords in _COLOR_KEYWORDS:
-        for keyword in keywords:
-            if keyword in text:
-                return family
+    for family, pattern in _COLOR_PATTERNS:
+        if pattern.search(text):
+            return family
     token = text.strip()
     if token in _COLOR_CODES:
         return _COLOR_CODES[token]
@@ -127,16 +140,18 @@ _TYPE_KEYWORDS: list[tuple[str, list[str]]] = [
 ]
 
 
+_TYPE_PATTERNS = _compile(_TYPE_KEYWORDS)
+
+
 def product_type_family(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
     text = str(value).strip().lower()
     if not text or text == "physical":  # generic placeholder, not a real type
         return None
-    for family, keywords in _TYPE_KEYWORDS:
-        for keyword in keywords:
-            if keyword in text:
-                return family
+    for family, pattern in _TYPE_PATTERNS:
+        if pattern.search(text):
+            return family
     return "Other"
 
 
@@ -162,6 +177,9 @@ _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
 ]
 
 
+_CATEGORY_PATTERNS = _compile(_CATEGORY_KEYWORDS)
+
+
 def category_family(*signals: Optional[str]) -> str:
     """Assign one real category from any available text signals (source category,
     subcategory, listed_under, product type, product name). Never returns 'Other'
@@ -169,11 +187,10 @@ def category_family(*signals: Optional[str]) -> str:
     text = " ".join(str(s) for s in signals if s).lower()
     if not text.strip():
         return "Home Décor"
-    for family, keywords in _CATEGORY_KEYWORDS:
-        for keyword in keywords:
-            if keyword in text:
-                # guard: tree accessories are not trees
-                if family == "Trees" and any(a in text for a in ("skirt", "collar", "stand", "storage bag")):
-                    continue
-                return family
+    for family, pattern in _CATEGORY_PATTERNS:
+        if pattern.search(text):
+            # guard: tree accessories are not trees
+            if family == "Trees" and any(a in text for a in ("skirt", "collar", "stand", "storage bag")):
+                continue
+            return family
     return "Home Décor"
