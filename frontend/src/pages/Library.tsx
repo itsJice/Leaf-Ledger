@@ -658,6 +658,22 @@ function AddToProjectModal({
 
 // ─── Category colour dots ─────────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
+  // rich display categories (from category_group)
+  "Florals": "#be185d",
+  "Greenery & Plants": "#15803d",
+  "Trees": "#166534",
+  "Wreaths & Garland": "#0f766e",
+  "Ornaments": "#b91c1c",
+  "Ribbon & Bows": "#c026d3",
+  "Botanicals & Fillers": "#a16207",
+  "Lighting": "#ca8a04",
+  "Candles & Lanterns": "#ea580c",
+  "Containers & Vases": "#9a3412",
+  "Home Décor": "#57534e",
+  "Rugs & Textiles": "#7c3aed",
+  "Furniture & Storage": "#78716c",
+  "Rocks & Stone": "#525252",
+  // legacy slugs (manual products)
   containers: "#a16207",
   wood: "#92400e",
   greenery: "#15803d",

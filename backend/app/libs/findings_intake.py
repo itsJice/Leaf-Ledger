@@ -20,7 +20,7 @@ from typing import Any, Optional
 from openpyxl import load_workbook
 
 from .catalog_importer import normalize_category, normalize_unit, parse_price, safe_int
-from .taxonomy import color_families, color_family, product_type_family
+from .taxonomy import category_family, color_families, color_family, product_type_family
 
 
 def _norm_key(key: Any) -> str:
@@ -194,8 +194,14 @@ def normalize_row(row: dict[str, Any]) -> ProductIntake:
     p.name = pick("name")
     p.description = pick("description")
     cat_raw = pick("category")
-    p.category = normalize_category(cat_raw)
     p.subcategory = pick("subcategory") or cat_raw
+    # column keeps a constraint-allowed slug; the rich display category lives in
+    # raw_data.category_group (computed below) and is surfaced by the API.
+    p.category = normalize_category(cat_raw)
+    category_group = category_family(
+        cat_raw, p.subcategory, _clean(norm.get("listed under")),
+        pick("style") or _clean(norm.get("product type")), p.name,
+    )
     p.uom = pick("uom")
     p.unit = normalize_unit(p.uom or pick("style"))
     p.current_price = parse_price(pick("current_price") or "")
@@ -247,6 +253,7 @@ def normalize_row(row: dict[str, Any]) -> ProductIntake:
         raw["color_family"] = cfs[0]
     if tf:
         raw["type_family"] = tf
+    raw["category_group"] = category_group
     p.raw_data = raw
     return p
 

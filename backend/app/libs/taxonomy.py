@@ -136,3 +136,42 @@ def product_type_family(value: Optional[str]) -> Optional[str]:
             if keyword in text:
                 return family
     return "Other"
+
+
+# ── Categories ────────────────────────────────────────────────────────────────
+# Every product gets a real category (no "Other"). Grouped by what the item IS,
+# using source category + subcategory + listed_under + product type + name.
+# Priority order matters — first keyword hit wins.
+_CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
+    ("Ornaments", ["ornament", "bauble", "finial drop", "tree topper", "topper"]),
+    ("Trees", ["christmas tree", "artificial tree", "alpine tree", "pencil tree", "tabletop tree", "potted tree", "spiral tree", "cedar tree", "pine tree"]),
+    ("Wreaths & Garland", ["wreath", "garland", "swag", "roping"]),
+    ("Ribbon & Bows", ["ribbon", "bow ", " bow", "mesh roll", "deco mesh"]),
+    ("Lighting", ["light set", "led", "string light", "fairy light", "lamp", "bulb", "lumin", "sconce", "chandelier", "novelty light", "starburst", "light sphere", "motif light"]),
+    ("Candles & Lanterns", ["candle", "votive", "tealight", "tea light", "lantern", "luminary", "flameless"]),
+    ("Botanicals & Fillers", ["dried", "preserved", "moss", "berry", "berries", "pod", "pinecone", "pine cone", " cone", "branch", "twig", "filler", "botanical", "reindeer", "cotton", "wheat", "seedpod", "acorn", "nut", "bark", "curly willow", "grapevine"]),
+    ("Florals", ["floral", "flower", "rose", "peony", "hydrangea", "poinsettia", "orchid", "tulip", "dahlia", "sunflower", "lily", "magnolia", "ranunculus", "bloom", "bouquet", "spray", "pick", "stem", "blossom", "petal", "silk flower"]),
+    ("Greenery & Plants", ["greenery", "foliage", "fern", "grass", "ivy", "succulent", "palm", "boxwood", "eucalyptus", "cactus", "cacti", "leaf", "leaves", "bush", "shrub", "vine", "topiary", "air plant", "plant", "hosta", "philo", "monstera", "cedar", "pine ", "cypress", "juniper"]),
+    ("Rugs & Textiles", ["rug", "pillow", "cushion", "throw", "blanket", "bedding", "duvet", "sheet set", "curtain", "drape", "tapestry", "textile", "towel", "runner"]),
+    ("Rocks & Stone", ["rock", "stone", "gravel", "pebble", "agate", "geode", "boulder", "aggregate", "marble chip", "river rock"]),
+    ("Containers & Vases", ["container", "vase", " pot", "pots", "planter", "urn", "jardiniere", "jar", "canister", "compote", "trough", "bucket", "pail", "bin", "basket", "crock", "cachepot", "cache pot", "tin"]),
+    ("Furniture & Storage", ["furniture", "table", "chair", "stool", "bench", "shelf", "shelving", "cabinet", "trellis", "storage", "organizer", "organization", "rack", "hook", "desk", "dresser", "ottoman", "console", "plant stand", "easel"]),
+    ("Home Décor", ["sculpture", "figurine", "statue", "mirror", "wall art", "wall d", "frame", "sign", "decor", "decorative", "clock", "bookend", "book", "box", "trunk", "orb", "sphere", "bowl", "plate", "tray", "platter", "dish", "charger", "pedestal", "riser", "candlestick", "candle holder", "vessel", "gift", "napkin", "coaster", "placemat", "figure", "ornamental", "accent"]),
+]
+
+
+def category_family(*signals: Optional[str]) -> str:
+    """Assign one real category from any available text signals (source category,
+    subcategory, listed_under, product type, product name). Never returns 'Other'
+    — a genuinely unmatched item falls back to 'Home Décor'."""
+    text = " ".join(str(s) for s in signals if s).lower()
+    if not text.strip():
+        return "Home Décor"
+    for family, keywords in _CATEGORY_KEYWORDS:
+        for keyword in keywords:
+            if keyword in text:
+                # guard: tree accessories are not trees
+                if family == "Trees" and any(a in text for a in ("skirt", "collar", "stand", "storage bag")):
+                    continue
+                return family
+    return "Home Décor"
