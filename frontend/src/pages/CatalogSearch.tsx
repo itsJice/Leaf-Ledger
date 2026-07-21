@@ -42,6 +42,24 @@ const EMPTY: Selection = { categories: [], colors: [], sizes: [], finishes: [], 
 
 const PAGE_SIZE = 48;
 
+// Map natural-language words → a Category filter value (matches our taxonomy).
+const CATEGORY_HINTS: [RegExp, string][] = [
+  [/\b(ornament|ornaments|bauble|baubles)\b/, "Ornaments"],
+  [/\b(tree|trees)\b/, "Trees"],
+  [/\b(wreath|wreaths|garland|garlands)\b/, "Wreaths & Garland"],
+  [/\b(ribbon|ribbons|bow|bows)\b/, "Ribbon & Bows"],
+  [/\b(light|lights|lighting|lamp|lamps|bulb|bulbs)\b/, "Lighting"],
+  [/\b(candle|candles|lantern|lanterns|votive)\b/, "Candles & Lanterns"],
+  [/\b(floral|florals|flower|flowers|stem|stems|spray|sprays|pick|picks|bouquet)\b/, "Florals"],
+  [/\b(greenery|plant|plants|fern|ferns|foliage|succulent|succulents|palm|ivy)\b/, "Greenery & Plants"],
+  [/\b(berry|berries|pod|pods|pinecone|pinecones|moss|dried|preserved|botanical|botanicals)\b/, "Botanicals & Fillers"],
+  [/\b(container|containers|vase|vases|pot|pots|planter|planters|urn|basket|baskets)\b/, "Containers & Vases"],
+  [/\b(rug|rugs|pillow|pillows|textile|textiles|throw|blanket)\b/, "Rugs & Textiles"],
+  [/\b(rock|rocks|stone|stones|gravel|pebble|pebbles|agate|geode)\b/, "Rocks & Stone"],
+  [/\b(furniture|table|tables|chair|chairs|shelf|shelves|cabinet)\b/, "Furniture & Storage"],
+  [/\b(decor|figurine|figurines|sculpture|sculptures|statue|statues|mirror|mirrors|sign|signs)\b/, "Home Décor"],
+];
+
 function proxied(url?: string | null): string | undefined {
   if (!url) return undefined;
   return `/api/products/image-proxy?url=${encodeURIComponent(url)}`;
@@ -181,16 +199,23 @@ export default function CatalogSearch() {
       add("sizes", String(v).replace(/\.0$/, ""));
     }
     text = text.replace(/(\d+(?:\.\d+)?)\s*(?:inch|inches|in\b|")/g, " ");
+    // categories: "ornaments", "tree", "wreath" … → the Category filter
+    for (const [re, catValue] of CATEGORY_HINTS) {
+      if (re.test(text) && (metadata.categories || []).some((o) => o.value === catValue)) {
+        add("categories", catValue);
+        text = text.replace(new RegExp(re.source, "g"), " ");
+      }
+    }
+    // colors: match any word of a family ("cream" → "Cream/Ivory", "gold" → "Gold")
     for (const o of metadata.colors || []) {
-      const w = o.value.toLowerCase();
-      if (text.includes(` ${w} `) || text.includes(` ${w}s `)) { add("colors", o.value); text = text.split(w).join(" "); }
+      const words = o.value.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2);
+      if (words.some((w) => text.includes(` ${w} `) || text.includes(` ${w}s `))) {
+        add("colors", o.value);
+        for (const w of words) text = text.split(w).join(" ");
+      }
     }
-    for (const o of metadata.finishes || []) {
-      const w = o.value.toLowerCase();
-      if (text.includes(w)) { add("finishes", o.value); text = text.split(w).join(" "); }
-    }
-    // drop generic type/filler words so the leftover doesn't over-constrain
-    const STOP = /\b(ornament|ornaments|orn|ball|balls|bulb|bulbs|the|and|with|for|an?|of|in|on|my|me|some|please|show|find|all|that|are|is)\b/g;
+    // drop generic filler words so the leftover keyword doesn't over-constrain
+    const STOP = /\b(the|and|with|for|an?|of|in|on|my|me|some|please|show|find|all|that|are|is|me)\b/g;
     const residual = text.replace(STOP, " ").replace(/\s+/g, " ").trim();
     setSearch(residual);
   };
@@ -226,7 +251,7 @@ export default function CatalogSearch() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") runSmartSearch(); }}
-              placeholder="Try: gold matte ornaments under $5"
+              placeholder="Try: green wreaths under $20"
               className="w-full rounded-lg border border-stone-300 py-2 pl-9 pr-8 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
             />
             {search && (
