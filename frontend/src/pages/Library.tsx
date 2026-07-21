@@ -2210,6 +2210,44 @@ export function ProductView({
     setCountryFilter([]);
   };
 
+  // ── Infinite scroll + prefetch ──────────────────────────────────────────────
+  // Reveal more cards as you scroll, and keep the NEXT server page loaded one
+  // step ahead so reaching the bottom feels instant instead of blocking.
+  const infiniteStateRef = useRef({ visibleLimit, sortedLen: sorted.length, canLoadMore, pageLoading });
+  infiniteStateRef.current = { visibleLimit, sortedLen: sorted.length, canLoadMore, pageLoading };
+  const onLoadMoreRef = useRef(onLoadMore);
+  useEffect(() => { onLoadMoreRef.current = onLoadMore; }, [onLoadMore]);
+  const scrollObserverRef = useRef<IntersectionObserver | null>(null);
+
+  const setInfiniteScrollSentinel = useCallback((node: HTMLDivElement | null) => {
+    if (scrollObserverRef.current) {
+      scrollObserverRef.current.disconnect();
+      scrollObserverRef.current = null;
+    }
+    if (!node) return;
+    scrollObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        const s = infiniteStateRef.current;
+        if (s.pageLoading) return;
+        if (s.visibleLimit < s.sortedLen) {
+          setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT);
+        } else if (s.canLoadMore) {
+          onLoadMoreRef.current?.();
+        }
+      },
+      { rootMargin: "800px 0px" }, // trigger ~800px early so the next batch is ready
+    );
+    scrollObserverRef.current.observe(node);
+  }, []);
+
+  // Keep ~one rendered page of buffer ahead by prefetching the next server page.
+  useEffect(() => {
+    if (!pageLoading && canLoadMore && sorted.length - visibleLimit < INITIAL_CARD_RENDER_LIMIT) {
+      onLoadMore?.();
+    }
+  }, [visibleLimit, sorted.length, canLoadMore, pageLoading, onLoadMore]);
+
   return (
     <div>
       {!hideCategoryTabs && (
@@ -2399,20 +2437,26 @@ export function ProductView({
               />
             ))}
           </div>
+          {/* Infinite-scroll sentinel — auto-loads the next batch as you approach it */}
+          <div ref={setInfiniteScrollSentinel} className="h-px w-full" aria-hidden />
           {(visibleLimit < sorted.length || canLoadMore) && (
             <div className="mt-5 flex justify-center">
-              <button
-                onClick={() => {
-                  if (visibleLimit < sorted.length) setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT);
-                  else onLoadMore?.();
-                }}
-                disabled={pageLoading}
-                className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-600 hover:border-emerald-300 hover:text-emerald-700"
-              >
-                {pageLoading
-                  ? "Loading..."
-                  : `Show more products (${Math.min(products.length, shownResultCount).toLocaleString()} of ${shownResultCount.toLocaleString()})`}
-              </button>
+              {pageLoading ? (
+                <div className="flex items-center gap-2 text-sm text-stone-400">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                  Loading more…
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (visibleLimit < sorted.length) setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT);
+                    else onLoadMore?.();
+                  }}
+                  className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-600 hover:border-emerald-300 hover:text-emerald-700"
+                >
+                  Show more products ({Math.min(products.length, shownResultCount).toLocaleString()} of {shownResultCount.toLocaleString()})
+                </button>
+              )}
             </div>
           )}
         </>
