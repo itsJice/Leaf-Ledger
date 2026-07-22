@@ -19,6 +19,11 @@ import {
   RotateCcw,
   ChevronLeft,
   ZoomIn,
+  ExternalLink,
+  Copy,
+  Eye,
+  EyeOff,
+  LogIn,
 } from "lucide-react";
 import Layout from "components/Layout";
 import { apiClient } from "app";
@@ -1520,8 +1525,126 @@ function ImageLightbox({ images, index, onIndex, onClose }: {
   );
 }
 
+// ── Supplier link + login helper ───────────────────────────────────────────
+interface SupplierLoginInfo { id: number; name?: string; login_url?: string; has_credentials?: boolean; login_username?: string }
+// Cache the supplier directory once per session so opening a product modal
+// doesn't refetch every time.
+let _supplierDirCache: Promise<Record<number, SupplierLoginInfo>> | null = null;
+function loadSupplierDirectory(): Promise<Record<number, SupplierLoginInfo>> {
+  if (!_supplierDirCache) {
+    _supplierDirCache = fetch("/api/suppliers/list", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: SupplierLoginInfo[]) => Object.fromEntries((rows || []).map((s) => [s.id, s])))
+      .catch(() => ({}));
+  }
+  return _supplierDirCache;
+}
+
+function CopyChip({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => navigator.clipboard?.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); })}
+      className="inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-[11px] font-medium text-stone-500 hover:border-emerald-300 hover:text-emerald-700"
+      title="Copy"
+    >
+      {copied ? <Check size={11} /> : <Copy size={11} />} {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+// Direct link to the product on the supplier's own site, plus a login helper.
+// True silent auto-login to third-party sites isn't possible from a web app
+// (cross-origin session cookies can't be set), so we open the vendor's login
+// page and surface the saved username/password to paste — one-click-ish, safe.
+function SupplierLinkBar({ supplierId, supplierName, productUrl }: { supplierId?: number; supplierName?: string; productUrl?: string }) {
+  const [info, setInfo] = useState<SupplierLoginInfo | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [creds, setCreds] = useState<{ login_username?: string; login_password?: string } | null>(null);
+  const [revealPw, setRevealPw] = useState(false);
+  const [loadingCreds, setLoadingCreds] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (supplierId != null) loadSupplierDirectory().then((dir) => { if (alive) setInfo(dir[supplierId] || null); });
+    return () => { alive = false; };
+  }, [supplierId]);
+
+  const loginUrl = info?.login_url;
+  const hasCreds = !!info?.has_credentials;
+  const label = supplierName || "supplier site";
+
+  const toggleLogin = () => {
+    if (supplierId != null && !creds && hasCreds) {
+      setLoadingCreds(true);
+      fetch(`/api/suppliers/${supplierId}/credentials`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null)).then(setCreds).catch(() => {}).finally(() => setLoadingCreds(false));
+    }
+    setShowLogin((v) => !v);
+  };
+
+  if (!productUrl && !loginUrl && !hasCreds) return null;
+  return (
+    <div className="border-b border-stone-100 bg-emerald-50/40 px-5 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {productUrl && (
+          <a href={productUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800">
+            <ExternalLink size={14} /> View on {label}
+          </a>
+        )}
+        {(loginUrl || hasCreds) && (
+          <button type="button" onClick={toggleLogin}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700">
+            <LogIn size={14} /> {showLogin ? "Hide login" : "Log in"}
+          </button>
+        )}
+      </div>
+      {showLogin && (
+        <div className="mt-3 rounded-lg border border-stone-200 bg-white p-3">
+          <p className="mb-2 text-xs leading-relaxed text-stone-500">
+            For security, sites can't be logged into automatically. Open the login page, paste your saved credentials,
+            then click <span className="font-medium">View on {label}</span> — the product opens in your logged-in session.
+          </p>
+          {loginUrl && (
+            <a href={loginUrl} target="_blank" rel="noopener noreferrer"
+              className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:border-emerald-300">
+              <ExternalLink size={12} /> Open {label} login
+            </a>
+          )}
+          {loadingCreds ? (
+            <p className="text-xs text-stone-400">Loading credentials…</p>
+          ) : hasCreds && creds ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-20 shrink-0 text-[11px] uppercase tracking-wide text-stone-400">Username</span>
+                <code className="flex-1 truncate rounded bg-stone-50 px-2 py-1 text-xs text-stone-700">{creds.login_username || "—"}</code>
+                {creds.login_username && <CopyChip value={creds.login_username} />}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-20 shrink-0 text-[11px] uppercase tracking-wide text-stone-400">Password</span>
+                <code className="flex-1 truncate rounded bg-stone-50 px-2 py-1 text-xs text-stone-700">
+                  {revealPw ? (creds.login_password || "—") : "•".repeat((creds.login_password || "").length || 8)}
+                </code>
+                <button type="button" onClick={() => setRevealPw((v) => !v)} className="rounded-md border border-stone-200 p-1 text-stone-400 hover:text-stone-700" title={revealPw ? "Hide" : "Show"}>
+                  {revealPw ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+                {creds.login_password && <CopyChip value={creds.login_password} />}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-stone-400">No saved credentials for this supplier — add them on the Suppliers page.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const raw = product.raw_data || {};
+  const productUrl = String(raw.product_url || raw.detail_url || raw.url || raw.source_url || "").trim() || undefined;
   const displayName = displayProductName(product);
   const detailPending = detailStatus(product) !== "stored";
   const status = imageStatus(product);
@@ -1612,6 +1735,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
             <X size={18} />
           </button>
         </div>
+        <SupplierLinkBar supplierId={product.supplier_id} supplierName={product.supplier_name} productUrl={productUrl} />
         <div className="grid gap-0 overflow-y-auto md:grid-cols-[340px_minmax(0,1fr)]" style={{ maxHeight: "calc(90vh - 82px)" }}>
           <div className="border-b border-stone-100 bg-stone-50 p-5 md:border-b-0 md:border-r">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
