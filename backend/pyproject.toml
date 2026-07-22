@@ -21,7 +21,7 @@ base = [
   "dotenv>=0.9.9",
 ]
 dev = ["asyncpg-stubs>=0.30.2", "pytest>=8.4.2"]
-app = ["openai", "beautifulsoup4 == 4.14.3", "requests", "playwright == 1.58.0", "openpyxl == 3.1.5", "pdfplumber == 0.11.8", "lxml == 6.1.0"]
+app = ["openai", "beautifulsoup4 == 4.14.3", "requests", "playwright == 1.58.0", "openpyxl == 3.1.5", "pdfplumber == 0.11.8", "lxml == 6.1.0", "python-docx == 1.2.0", "reportlab == 5.0.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
