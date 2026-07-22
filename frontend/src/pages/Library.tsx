@@ -24,11 +24,17 @@ import {
   Eye,
   EyeOff,
   LogIn,
+  ShoppingCart,
+  Minus,
 } from "lucide-react";
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { formatCurrency, formatDate, categoryLabel, unitLabel } from "utils/format";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
+import {
+  addToOrder, listOrders, createOrder, ensureActiveOrder, setActiveOrderId,
+  defaultOrderName, getActiveOrderId, type OrderSummary,
+} from "utils/orders";
 import { toast } from "sonner";
 
 const CATEGORIES = ["containers", "wood", "greenery", "florals", "trees"];
@@ -1642,6 +1648,86 @@ function SupplierLinkBar({ supplierId, supplierName, productUrl }: { supplierId?
   );
 }
 
+// Add this product (with a quantity) to a shared team order. The order picker
+// defaults to your active order and remembers your choice.
+function AddToOrderBar({ productId }: { productId: number }) {
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [selected, setSelected] = useState<number | "new">(getActiveOrderId() ?? "new");
+  const [qty, setQty] = useState(1);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    listOrders().then((list) => {
+      if (!alive) return;
+      setOrders(list);
+      setSelected((prev) => {
+        if (prev !== "new" && list.some((o) => o.id === prev)) return prev;
+        const active = getActiveOrderId();
+        if (active && list.some((o) => o.id === active)) return active;
+        return list.length ? list[0].id : "new";
+      });
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const add = async () => {
+    setBusy(true);
+    try {
+      let orderId: number;
+      let orderName: string;
+      if (selected === "new") {
+        const created = await createOrder(defaultOrderName());
+        orderId = created.id; orderName = created.name;
+        setOrders((o) => [created, ...o]);
+      } else {
+        orderId = selected;
+        orderName = orders.find((o) => o.id === orderId)?.name || "order";
+      }
+      const res = await addToOrder(orderId, productId, qty);
+      if (!res.ok) throw new Error();
+      setActiveOrderId(orderId);
+      setSelected(orderId);
+      toast.success(`Added ${qty} × to “${orderName}”`);
+    } catch {
+      toast.error("Couldn't add to order");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-5 py-2.5">
+      <span className="mr-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+        <ShoppingCart size={13} /> Add to order
+      </span>
+      <div className="flex items-center rounded-lg border border-stone-300">
+        <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-2 py-1 text-stone-500 hover:text-stone-800" aria-label="Decrease quantity"><Minus size={13} /></button>
+        <input
+          type="number" min={1} value={qty}
+          onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+          className="w-12 border-x border-stone-200 py-1 text-center text-sm outline-none"
+        />
+        <button type="button" onClick={() => setQty((q) => q + 1)} className="px-2 py-1 text-stone-500 hover:text-stone-800" aria-label="Increase quantity"><Plus size={13} /></button>
+      </div>
+      <select
+        value={String(selected)}
+        onChange={(e) => setSelected(e.target.value === "new" ? "new" : Number(e.target.value))}
+        className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm text-stone-700 outline-none focus:border-emerald-600"
+      >
+        {orders.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        <option value="new">＋ New order</option>
+      </select>
+      <button
+        type="button" onClick={add} disabled={busy}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900 disabled:opacity-50"
+      >
+        <Plus size={14} /> Add
+      </button>
+    </div>
+  );
+}
+
 export function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const raw = product.raw_data || {};
   const productUrl = String(raw.product_url || raw.detail_url || raw.url || raw.source_url || "").trim() || undefined;
@@ -1736,6 +1822,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
           </button>
         </div>
         <SupplierLinkBar supplierId={product.supplier_id} supplierName={product.supplier_name} productUrl={productUrl} />
+        <AddToOrderBar productId={product.id} />
         <div className="grid gap-0 overflow-y-auto md:grid-cols-[340px_minmax(0,1fr)]" style={{ maxHeight: "calc(90vh - 82px)" }}>
           <div className="border-b border-stone-100 bg-stone-50 p-5 md:border-b-0 md:border-r">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">

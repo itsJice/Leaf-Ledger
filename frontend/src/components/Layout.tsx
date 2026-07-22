@@ -14,6 +14,9 @@ import {
   Building2,
   Activity,
   Users,
+  Calculator,
+  Search,
+  ShoppingCart,
 } from "lucide-react";
 import { useUser } from "@stackframe/react";
 import { APP_BASE_PATH, apiClient } from "app";
@@ -28,13 +31,16 @@ const NAV_GROUPS = [
     items: [
       { path: "/suppliers", label: "Suppliers", icon: Building2 },
       { path: "/library", label: "Product Library", icon: Leaf },
+      { path: "/search", label: "Catalog Search", icon: Search },
       { path: "/favorites", label: "Favorites", icon: Heart },
+      { path: "/orders", label: "Purchase Orders", icon: ShoppingCart },
     ],
   },
   {
     label: "Design",
     items: [
       { path: "/mockups", label: "AI Mockups", icon: Sparkles },
+      { path: "/ornament-calculator", label: "Ornament Calculator", icon: Calculator },
       { path: "/invoice", label: "Invoices", icon: FileText },
     ],
   },
