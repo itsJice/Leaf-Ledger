@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart } from "lucide-react";
+import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart, LayoutGrid, List, Minus, Plus } from "lucide-react";
 import Layout from "components/Layout";
-import { ProductDetailModal } from "./Library";
+import { ProductDetailModal, ProxiedImage } from "./Library";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
 import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 
@@ -43,6 +43,19 @@ const EMPTY: Selection = { categories: [], colors: [], sizes: [], finishes: [], 
 
 const PAGE_SIZE = 48;
 
+// View + card-size preferences (persisted per browser).
+type ViewMode = "grid" | "list";
+type CardSize = 1 | 2 | 3 | 4; // 1 = smallest (most per row) … 4 = largest
+const GRID_COLS: Record<CardSize, string> = {
+  1: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8",
+  2: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6",
+  3: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+};
+const IMG_HEIGHT: Record<CardSize, string> = { 1: "h-24", 2: "h-32", 3: "h-40", 4: "h-56" };
+const VIEW_KEY = "leaf-ledger:catalog-view:v1";
+const SIZE_KEY = "leaf-ledger:catalog-size:v1";
+
 // Map natural-language words → a Category filter value (matches our taxonomy).
 const CATEGORY_HINTS: [RegExp, string][] = [
   [/\b(ornament|ornaments|bauble|baubles)\b/, "Ornaments"],
@@ -60,11 +73,6 @@ const CATEGORY_HINTS: [RegExp, string][] = [
   [/\b(furniture|table|tables|chair|chairs|shelf|shelves|cabinet)\b/, "Furniture & Storage"],
   [/\b(decor|figurine|figurines|sculpture|sculptures|statue|statues|mirror|mirrors|sign|signs)\b/, "Home Décor"],
 ];
-
-function proxied(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  return `/api/products/image-proxy?url=${encodeURIComponent(url)}`;
-}
 
 export default function CatalogSearch() {
   const [metadata, setMetadata] = useState<FilterMetadata>({});
@@ -93,6 +101,11 @@ export default function CatalogSearch() {
   const toggleFav = useCallback((id: number) => {
     setFavIds(setLocalFavorite(id, !readFavoriteIds().has(id)));
   }, []);
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_KEY) as ViewMode) || "grid");
+  const [cardSize, setCardSize] = useState<CardSize>(() => (Number(localStorage.getItem(SIZE_KEY)) as CardSize) || 3);
+  useEffect(() => { localStorage.setItem(VIEW_KEY, viewMode); }, [viewMode]);
+  useEffect(() => { localStorage.setItem(SIZE_KEY, String(cardSize)); }, [cardSize]);
 
   // metadata once
   useEffect(() => {
@@ -331,6 +344,44 @@ export default function CatalogSearch() {
 
         {/* Results */}
         <main className="flex-1 px-8 py-6">
+          {/* View + size toolbar */}
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-xs text-stone-400">
+              {total.toLocaleString()} result{total === 1 ? "" : "s"}
+            </p>
+            <div className="flex items-center gap-3">
+              {viewMode === "grid" && (
+                <div className="flex items-center gap-1">
+                  <span className="mr-1 text-xs text-stone-400">Size</span>
+                  <button
+                    onClick={() => setCardSize((s) => (Math.max(1, s - 1) as CardSize))}
+                    disabled={cardSize === 1}
+                    className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                    title="Smaller cards (more per row)"
+                  ><Minus size={14} /></button>
+                  <button
+                    onClick={() => setCardSize((s) => (Math.min(4, s + 1) as CardSize))}
+                    disabled={cardSize === 4}
+                    className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                    title="Bigger cards (fewer per row)"
+                  ><Plus size={14} /></button>
+                </div>
+              )}
+              <div className="flex items-center rounded-lg border border-stone-300">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`rounded-l-md p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                  title="Card view"
+                ><LayoutGrid size={15} /></button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`rounded-r-md p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                  title="List view"
+                ><List size={15} /></button>
+              </div>
+            </div>
+          </div>
+
           {loading && items.length === 0 ? (
             <div className="py-20 text-center text-sm text-stone-400">Searching…</div>
           ) : items.length === 0 ? (
@@ -343,8 +394,8 @@ export default function CatalogSearch() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} />)}
+              <div className={viewMode === "list" ? "flex flex-col gap-2" : `grid gap-4 ${GRID_COLS[cardSize]}`}>
+                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} view={viewMode} size={cardSize} />)}
               </div>
               <div ref={setSentinel} className="h-px w-full" aria-hidden />
               {items.length < total && (
@@ -416,17 +467,60 @@ function FacetGroup(p: {
   );
 }
 
-function ProductCard({ p, onOpen, isFav, onToggleFav }: {
+function CardImage({ imgs, alt, cls }: { imgs: string[]; alt: string; cls: string }) {
+  if (!imgs.length) {
+    return <div className="flex h-full w-full items-center justify-center"><Package className="text-stone-300" size={24} /></div>;
+  }
+  // ProxiedImage walks the candidate URLs (direct → proxy) and shows a clean
+  // placeholder only if every one fails — so a card is never a broken tile.
+  return <ProxiedImage src={imgs[0]} fallbacks={imgs.slice(1)} alt={alt} className={cls} />;
+}
+
+function ProductCard({ p, onOpen, isFav, onToggleFav, view, size }: {
   p: Product;
   onOpen: (id: number) => void;
   isFav: boolean;
   onToggleFav: (id: number) => void;
+  view: ViewMode;
+  size: CardSize;
 }) {
-  const [imgOk, setImgOk] = useState(true);
-  const img = proxied(p.image_urls?.[0]);
   const n = p.raw_data?.normalized || {};
   const tags = [n.size_in != null ? `${n.size_in}"` : null, n.color, n.finish].filter(Boolean) as string[];
   const metric = metricHintText(p.name);
+  const imgs = (p.image_urls || []).filter(Boolean) as string[];
+  const price = p.current_price != null ? `$${Number(p.current_price).toFixed(2)}` : "";
+
+  if (view === "list") {
+    return (
+      <div
+        onClick={() => onOpen(p.id)}
+        className="group relative flex cursor-pointer items-center gap-4 rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md"
+      >
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-50">
+          <CardImage imgs={imgs} alt={p.name} cls="max-h-full max-w-full object-contain" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-stone-800" title={p.name}>{p.name}</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-500">
+            <span className="truncate">{p.supplier_name || "—"}</span>
+            {p.supplier_sku && <span className="font-mono text-stone-400">{p.supplier_sku}</span>}
+            {metric && <span className="font-medium text-emerald-700" title={METRIC_CHEAT}>{metric}</span>}
+            {tags.map((t, i) => <span key={i} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">{t}</span>)}
+          </div>
+        </div>
+        <span className="shrink-0 text-sm font-semibold text-emerald-800">{price}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFav(p.id); }}
+          title={isFav ? "Remove favorite" : "Add to favorites"}
+          className="shrink-0"
+        >
+          <Heart size={16} fill={isFav ? "#c2410c" : "none"} style={{ color: isFav ? "#c2410c" : "#a8a29e" }} />
+        </button>
+      </div>
+    );
+  }
+
+  const compact = size === 1;
   return (
     <div
       onClick={() => onOpen(p.id)}
@@ -439,26 +533,20 @@ function ProductCard({ p, onOpen, isFav, onToggleFav }: {
       >
         <Heart size={14} fill={isFav ? "#c2410c" : "none"} style={{ color: isFav ? "#c2410c" : "#a8a29e" }} />
       </button>
-      <div className="flex h-40 items-center justify-center bg-stone-50">
-        {img && imgOk ? (
-          <img src={img} alt={p.name} className="h-full w-full object-contain" onError={() => setImgOk(false)} />
-        ) : (
-          <Package className="text-stone-300" size={28} />
-        )}
+      <div className={`flex ${IMG_HEIGHT[size]} items-center justify-center overflow-hidden bg-stone-50`}>
+        <CardImage imgs={imgs} alt={p.name} cls="h-full w-full object-contain" />
       </div>
-      <div className="p-3">
-        <p className="truncate text-sm font-medium text-stone-800" title={p.name}>{p.name}</p>
-        {metric && (
+      <div className={compact ? "p-2" : "p-3"}>
+        <p className={`truncate font-medium text-stone-800 ${compact ? "text-xs" : "text-sm"}`} title={p.name}>{p.name}</p>
+        {!compact && metric && (
           <p className="mt-0.5 truncate text-[11px] font-medium text-emerald-700" title={METRIC_CHEAT}>{metric}</p>
         )}
-        <div className="mt-1 flex items-center justify-between">
+        <div className="mt-1 flex items-center justify-between gap-1">
           <span className="truncate text-xs text-stone-500">{p.supplier_name || "—"}</span>
-          <span className="text-sm font-semibold text-emerald-800">
-            {p.current_price != null ? `$${Number(p.current_price).toFixed(2)}` : ""}
-          </span>
+          <span className={`shrink-0 font-semibold text-emerald-800 ${compact ? "text-xs" : "text-sm"}`}>{price}</span>
         </div>
-        <p className="mt-0.5 truncate font-mono text-[11px] text-stone-400">{p.supplier_sku || ""}</p>
-        {tags.length > 0 && (
+        {!compact && <p className="mt-0.5 truncate font-mono text-[11px] text-stone-400">{p.supplier_sku || ""}</p>}
+        {!compact && tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {tags.map((t, i) => (
               <span key={i} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">{t}</span>

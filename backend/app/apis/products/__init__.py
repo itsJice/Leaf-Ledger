@@ -4,8 +4,10 @@ from typing import Any, Optional, List
 from collections import Counter
 import asyncpg
 import os
+import re
 import uuid
 import json
+import hashlib
 import requests as http_requests
 import databutton as db
 from datetime import datetime
@@ -17,26 +19,39 @@ router = APIRouter(prefix="/products", tags=["products"])
 # ─── Image proxy ──────────────────────────────────────────────────────────────
 # Supplier sites block hotlinking via Referer checks.
 # We proxy images through the backend to serve them without that restriction.
+def _sniff_image_ct(data: bytes) -> Optional[str]:
+    """Content-type from magic bytes, or None if the bytes aren't a known image."""
+    if not data:
+        return None
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:4] == b"\x89PNG":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[:3] == b"GIF":
+        return "image/gif"
+    if data[:2] == b"BM":
+        return "image/bmp"
+    return None
+
+
 @router.get("/image-proxy")
 def image_proxy(url: Optional[str] = None, key: Optional[str] = None) -> Response:
-    """Serve a product image — either from Databutton storage (key=) or by proxying an external URL (url=)."""
-    # ── Serve from internal storage ────────────────────────────────────────────
+    """Serve a product image — from Databutton storage (key=) or by proxying an
+    external URL (url=). External fetches are validated (must be a real image,
+    not a 404/HTML page) and cached locally so each image is fetched once and a
+    dead URL fails cleanly with a 404 → the frontend then falls back to the next
+    candidate image or a placeholder instead of showing a broken tile."""
+    # ── Serve from internal storage (production stored images) ─────────────────
     if key:
         try:
             data = db.storage.binary.get(key)
             if not data:
                 raise HTTPException(status_code=404, detail="Image not in storage")
-            # Sniff content-type from magic bytes
-            ct = "image/jpeg"
-            if data[:4] == b"\x89PNG":
-                ct = "image/png"
-            elif data[:4] == b"RIFF" or data[:4] == b"WEBP":
-                ct = "image/webp"
-            elif data[:3] == b"GIF":
-                ct = "image/gif"
             return Response(
                 content=data,
-                media_type=ct,
+                media_type=_sniff_image_ct(data) or "image/jpeg",
                 headers={"Cache-Control": "public, max-age=604800"},  # 7 days
             )
         except HTTPException:
@@ -47,24 +62,51 @@ def image_proxy(url: Optional[str] = None, key: Optional[str] = None) -> Respons
     # ── Proxy external URL ────────────────────────────────────────────────────
     if not url or not url.startswith("http"):
         raise HTTPException(status_code=400, detail="Provide url= or key= parameter")
+
+    cache_key = f"imgcache/{hashlib.sha256(url.encode('utf-8')).hexdigest()}"
+    # Serve from cache if we've fetched this image before.
+    try:
+        cached = db.storage.binary.get(cache_key)
+        if cached:
+            return Response(
+                content=cached, media_type=_sniff_image_ct(cached) or "image/jpeg",
+                headers={"Cache-Control": "public, max-age=604800"},
+            )
+    except Exception:
+        pass  # cache miss / storage unavailable → fetch live
+
     try:
         domain = "/".join(url.split("/")[:3]) + "/"
         resp = http_requests.get(
             url,
             timeout=10,
+            allow_redirects=True,
             headers={
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36",
                 "Referer": domain,
             },
         )
-        content_type = resp.headers.get("content-type", "image/jpeg")
-        return Response(
-            content=resp.content,
-            media_type=content_type,
-            headers={"Cache-Control": "public, max-age=86400"},
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch image: {e}")
+    except Exception:
+        # Unreachable host → 404 so the frontend advances to the next candidate.
+        raise HTTPException(status_code=404, detail="Image source unreachable")
+
+    ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
+    sniffed = _sniff_image_ct(resp.content)
+    # Reject dead URLs that answer 200 with an HTML/error body (e.g. Allstate,
+    # Melrose) — without this they'd be served as a broken "image".
+    if resp.status_code != 200 or not (ct.startswith("image/") or sniffed):
+        raise HTTPException(status_code=404, detail="Not an image")
+
+    data = resp.content
+    try:
+        db.storage.binary.put(cache_key, data)  # lazily cache for next time
+    except Exception:
+        pass
+    return Response(
+        content=data,
+        media_type=ct if ct.startswith("image/") else (sniffed or "image/jpeg"),
+        headers={"Cache-Control": "public, max-age=604800"},
+    )
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -569,7 +611,7 @@ async def _load_search_index(conn):
     # keyword search (parity with the old search over name/desc/sku/raw_data).
     rows = await conn.fetch(f"""
         SELECT p.id, p.name, s.name AS supplier_name, p.supplier_id, p.supplier_sku,
-               p.current_price, p.image_urls, p.availability, p.description,
+               p.current_price, p.image_urls, p.photo_url, p.availability, p.description,
                {PRODUCT_TYPE_SQL} AS product_type,
                p.raw_data
         FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
@@ -586,8 +628,13 @@ async def _load_search_index(conn):
             raw = {}
         norm = raw.get("normalized") or {}
         cf = [c for c in (raw.get("color_families") or []) if isinstance(c, str)]
-        imgs = r["image_urls"] or []
-        image = imgs[0] if isinstance(imgs, (list, tuple)) and imgs else None
+        # All candidate images (deduped) so the card can fall back URL→URL when
+        # one 404s, instead of showing a broken/empty tile.
+        images: list[str] = []
+        for u in list(r["image_urls"] or []) + [r["photo_url"], raw.get("source_photo_url")]:
+            if u and u not in images:
+                images.append(u)
+        image = images[0] if images else None
         size = norm.get("size_in")
         try: size = float(size) if size is not None else None
         except (TypeError, ValueError): size = None
@@ -599,7 +646,7 @@ async def _load_search_index(conn):
             "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
             "supplier_id": r["supplier_id"], "supplier_sku": r["supplier_sku"],
             "price": float(r["current_price"]) if r["current_price"] is not None else None,
-            "image": image, "class": norm.get("class"), "color": color, "finish": finish,
+            "image": image, "images": images[:6], "class": norm.get("class"), "color": color, "finish": finish,
             "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
             "product_type": r["product_type"], "color_families": cf,
             "category": raw.get("category_group"),
@@ -608,6 +655,70 @@ async def _load_search_index(conn):
         })
     _SEARCH_CACHE.update(ts=now, rows=idx)
     return idx
+
+
+_VOCAB_CACHE: dict = {"ts": -1.0, "vocab": None}
+
+
+def _get_search_vocab(idx) -> set:
+    """≥4-letter words from product names — the vocabulary a misspelled query
+    word is matched back against. Rebuilt only when the search index reloads."""
+    if _VOCAB_CACHE["vocab"] is not None and _VOCAB_CACHE["ts"] == _SEARCH_CACHE["ts"]:
+        return _VOCAB_CACHE["vocab"]
+    vocab: set = set()
+    for it in idx:
+        for w in re.findall(r"[a-z]{4,}", (it["name"] or "").lower()):
+            vocab.add(w)
+    _VOCAB_CACHE.update(ts=_SEARCH_CACHE["ts"], vocab=vocab)
+    return vocab
+
+
+def _bounded_distance(a: str, b: str, maxd: int) -> Optional[int]:
+    """Damerau-Levenshtein (optimal string alignment) distance if ≤ maxd, else
+    None. Counts an adjacent transposition as one edit, so "ornamnet" is 1 away
+    from "ornament" — the most common real-world typo."""
+    la, lb = len(a), len(b)
+    if abs(la - lb) > maxd:
+        return None
+    prevprev = [0] * (lb + 1)
+    prev = list(range(lb + 1))
+    for i in range(1, la + 1):
+        cur = [i] + [0] * lb
+        row_best = i
+        ai = a[i - 1]
+        for j in range(1, lb + 1):
+            cost = 0 if ai == b[j - 1] else 1
+            v = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+            if i > 1 and j > 1 and ai == b[j - 2] and a[i - 2] == b[j - 1]:
+                v = min(v, prevprev[j - 2] + 1)  # adjacent transposition
+            cur[j] = v
+            if v < row_best:
+                row_best = v
+        if row_best > maxd:
+            return None
+        prevprev, prev = prev, cur
+    return prev[lb] if prev[lb] <= maxd else None
+
+
+def _fuzzy_variants(term: str, vocab: set, maxd: int) -> list:
+    """Closest vocabulary words to a misspelled term. Only the minimal-edit
+    group is returned — so "wreathe" corrects to "wreath" (1 edit) and does NOT
+    also pull in "weather" (2 edits). Same first letter + similar length keeps
+    the scan fast."""
+    first, lt = term[0], len(term)
+    best = maxd + 1
+    hits: list = []
+    for w in vocab:
+        if w[0] != first or abs(len(w) - lt) > maxd:
+            continue
+        d = _bounded_distance(term, w, maxd)
+        if d is None:
+            continue
+        if d < best:
+            best, hits = d, [w]
+        elif d == best:
+            hits.append(w)
+    return hits
 
 
 @router.get("/search")
@@ -656,14 +767,36 @@ async def search_products(
     id_filter = {int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()} if ids is not None else None
     terms = [w for w in (search or "").lower().split() if w]
 
+    # Typo tolerance: a query word not in the catalog vocabulary is expanded to
+    # near-spellings (edit distance 1, or 2 for long words) so "blossum" still
+    # finds "blossom". Correctly-spelled words skip this entirely (no slowdown),
+    # and exact matches rank ahead of fuzzy ones.
+    term_variants: list[tuple[str, set]] = []
+    if terms:
+        vocab = _get_search_vocab(idx)
+        for t in terms:
+            variants = {t}
+            if len(t) >= 4 and t not in vocab:
+                variants |= set(_fuzzy_variants(t, vocab, 2 if len(t) >= 7 else 1))
+            term_variants.append((t, variants))
+
     # Base set: the always-on filters (favorites ids, price, keyword). Facets and
     # results are both derived from here, so the sidebar reflects the search.
+    match_score: dict = {}
     base = []
     for it in idx:
         if id_filter is not None and it["id"] not in id_filter: continue
         if price_min is not None and (it["price"] is None or it["price"] < price_min): continue
         if price_max is not None and (it["price"] is None or it["price"] > price_max): continue
-        if terms and not all(t in it["blob"] for t in terms): continue
+        if term_variants:
+            blob = it["blob"]; exact = 0; ok = True
+            for t, variants in term_variants:
+                if t in blob:
+                    exact += 1
+                elif not any(v in blob for v in variants):
+                    ok = False; break
+            if not ok: continue
+            match_score[it["id"]] = exact
         base.append(it)
 
     # Faceted dimensions: (key, current selection, value-extractor). An item
@@ -711,13 +844,14 @@ async def search_products(
         if it["supplier_id"] is not None:
             sup_names[it["supplier_id"]] = it["supplier_name"]
 
-    out.sort(key=lambda x: (x["name"] or "").lower())
+    # Exact keyword matches first (fuzzy-only matches after), then by name.
+    out.sort(key=lambda x: (-match_score.get(x["id"], 0), (x["name"] or "").lower()))
     total = len(out)
     page = out[max(0, offset): max(0, offset) + max(1, min(limit, 500))]
     items = [{
         "id": it["id"], "name": it["name"], "supplier_name": it["supplier_name"],
         "supplier_sku": it["supplier_sku"], "current_price": it["price"],
-        "image_urls": [it["image"]] if it["image"] else [],
+        "image_urls": it.get("images") or ([it["image"]] if it["image"] else []),
         "raw_data": {"normalized": {"color": it["color"], "finish": it["finish"],
                                     "size_in": it["size"], "class": it["class"]}},
     } for it in page]
@@ -962,7 +1096,11 @@ _BALL_TTL = 600  # seconds; short so freshly-uploaded catalogs appear
 _SIZE_RE = _re.compile(r'(\d+(?:\.\d+)?)\s*(mm|cm|"|inch\b|inches\b|in\b)', _re.I)
 # names that contain "ball" but are not round ball ornaments
 _BALL_EXCLUDE = ("spray", "garland", "lamp", "wreath", "spike", "pick",
-                 "boxwood", "topiary", "stem", "bush", "tree", "candle")
+                 "boxwood", "topiary", "stem", "bush", "tree", "candle",
+                 "stick", "swag", "cluster", "wand", "on stem",
+                 # non-ornament items that merely contain "ball" as a substring
+                 "moss", "rope", "vase", "highball", "disco", "bud vase",
+                 "basket", "mesh", "nut", "pomander", "succulent", "topiaries")
 
 
 def _parse_size_in(name, diameter_in, width_in, height_in):
@@ -1007,6 +1145,11 @@ async def _load_ball_index(conn):
     """)
     index = []
     for r in rows:
+        # exclude non-loose-ball items (ball on a stick/pick/spray, etc.) even
+        # when they're classed as ball ornaments — applies to every row.
+        nm = (r["name"] or "").lower()
+        if any(w in nm for w in _BALL_EXCLUDE):
+            continue
         norm = r["norm"]
         if isinstance(norm, str):
             try:
@@ -1105,9 +1248,24 @@ async def ornament_match(body: OrnamentMatchRequest):
             scored.append((score, dsize, item, color_hit, finish_hit))
 
         scored.sort(key=lambda x: (-x[0], x[1]))
+        # When a color is requested, only count/show ornaments of that color, so
+        # the "in catalog" total reflects size + color (not just size).
+        eligible = [t for t in scored if t[3]] if color_words else scored  # t[3]=color_hit
+        # Vendor-diverse: surface the best match(es) from EVERY vendor that has a
+        # qualifying ornament, so all suppliers are represented instead of the
+        # largest one (Vickerman) crowding out the rest. Round-robin by vendor:
+        # round 0 = best per vendor (all vendors), later rounds add depth.
+        by_vendor: dict = {}
+        for tup in eligible:
+            by_vendor.setdefault(tup[2]["supplier"], []).append(tup)
+        chosen = []
+        for round_i in range(max(1, body.per_line)):
+            for lst in by_vendor.values():
+                if round_i < len(lst):
+                    chosen.append(lst[round_i])
         qty = line.quantity or 0
         matches = []
-        for score, dsize, item, color_hit, finish_hit in scored[: max(1, body.per_line)]:
+        for score, dsize, item, color_hit, finish_hit in chosen:
             case_qty = item["case_qty"] or 1
             try:
                 case_qty = int(case_qty) or 1
@@ -1136,7 +1294,7 @@ async def ornament_match(body: OrnamentMatchRequest):
             "quantity": qty,
             "color": line.color,
             "finish": line.finish,
-            "match_count": len(scored),
+            "match_count": len(eligible),
             "matches": matches,
         })
 
