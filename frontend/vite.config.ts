@@ -64,13 +64,19 @@ const isFirebaseConfigComplete = (
 const buildVariables = () => {
 	const appId = process.env.DATABUTTON_PROJECT_ID;
 
+	// The API always lives under /api on the same origin as the app, because the
+	// backend serves the built frontend itself. Defaulting here (rather than
+	// relying on a git-ignored .env) keeps a deployed build from compiling
+	// API_PATH to `undefined`, which silently sends every request to /undefined.
+	const apiPath = process.env.API_PATH || "/api";
+
 	const defines: Record<string, string> = {
-		__APP_ID__: JSON.stringify(appId),
-		__API_PATH__: JSON.stringify(process.env.API_PATH),
+		__APP_ID__: JSON.stringify(appId ?? ""),
+		__API_PATH__: JSON.stringify(apiPath),
 		__API_HOST__: JSON.stringify(""),
 		__API_PREFIX_PATH__: JSON.stringify(""),
-		__API_URL__: JSON.stringify("http://localhost:8000"),
-		__WS_API_URL__: JSON.stringify("ws://localhost:8000"),
+		__API_URL__: JSON.stringify(process.env.API_URL || apiPath),
+		__WS_API_URL__: JSON.stringify(process.env.WS_API_URL || ""),
 		__APP_BASE_PATH__: JSON.stringify("/"),
 		__APP_TITLE__: JSON.stringify("Databutton"),
 		__APP_FAVICON_LIGHT__: JSON.stringify("/favicon-light.svg"),

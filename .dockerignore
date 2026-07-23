@@ -1,0 +1,29 @@
+# Keep the build context small and secrets out of the image.
+
+# Secrets — these must never enter an image layer.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build artefacts (the image builds its own)
+frontend/dist
+frontend/node_modules
+**/__pycache__
+**/*.pyc
+backend/.venv
+.venv
+
+# Local data that has no business in a deployed image
+backend/.local_databutton_storage
+catalog-extraction
+christmas-schedule-2026
+linkedin-warm-intro
+*.xlsx
+*.csv
+
+# Repo/tooling noise
+.git
+.github
+.claude
+*.md
+!DEPLOYMENT.md
