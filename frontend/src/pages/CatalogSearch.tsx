@@ -3,6 +3,7 @@ import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart } from "lucide-
 import Layout from "components/Layout";
 import { ProductDetailModal } from "./Library";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
+import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 
 // Phase 3 — versatile catalog search. Purpose-built search over the whole
 // catalog, driven by the normalization layer's server-side facets (color, size,
@@ -425,6 +426,7 @@ function ProductCard({ p, onOpen, isFav, onToggleFav }: {
   const img = proxied(p.image_urls?.[0]);
   const n = p.raw_data?.normalized || {};
   const tags = [n.size_in != null ? `${n.size_in}"` : null, n.color, n.finish].filter(Boolean) as string[];
+  const metric = metricHintText(p.name);
   return (
     <div
       onClick={() => onOpen(p.id)}
@@ -446,6 +448,9 @@ function ProductCard({ p, onOpen, isFav, onToggleFav }: {
       </div>
       <div className="p-3">
         <p className="truncate text-sm font-medium text-stone-800" title={p.name}>{p.name}</p>
+        {metric && (
+          <p className="mt-0.5 truncate text-[11px] font-medium text-emerald-700" title={METRIC_CHEAT}>{metric}</p>
+        )}
         <div className="mt-1 flex items-center justify-between">
           <span className="truncate text-xs text-stone-500">{p.supplier_name || "—"}</span>
           <span className="text-sm font-semibold text-emerald-800">
