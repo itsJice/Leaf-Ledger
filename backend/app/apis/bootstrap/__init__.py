@@ -5,7 +5,7 @@ import asyncpg
 from fastapi import APIRouter, Request
 
 from app.apis.arrangements import ensure_project_schema, has_item_status_column
-from app.apis.clients import build_client_list, saved_clients_only
+from app.apis.clients import build_client_list
 from app.apis.user_context import get_request_user_id
 
 router = APIRouter(prefix="/bootstrap", tags=["bootstrap"])
@@ -24,10 +24,12 @@ async def get_bootstrap_summary(request: Request):
     try:
         conn = await get_conn()
     except Exception:
+        # Clients now live in the database, so if it's unreachable there is no
+        # local fallback list to show — report the outage honestly instead.
         return {
             "generated_at": generated_at,
             "status": "partial",
-            "clients": saved_clients_only(user_id),
+            "clients": [],
             "projects": [],
             "suppliers": [],
             "stats": None,
@@ -42,7 +44,7 @@ async def get_bootstrap_summary(request: Request):
             else "ci.quantity * p.current_price"
         )
 
-        clients = await build_client_list(conn, user_id)
+        clients = await build_client_list(conn)
         projects = await conn.fetch(f"""
             SELECT
                 a.id,
@@ -57,10 +59,9 @@ async def get_bootstrap_summary(request: Request):
             LEFT JOIN arrangement_containers ac ON ac.arrangement_id = a.id
             LEFT JOIN container_items ci ON ci.container_id = ac.id
             LEFT JOIN products p ON p.id = ci.product_id
-            WHERE a.created_by = $1
             GROUP BY a.id
             ORDER BY a.updated_at DESC
-        """, user_id)
+        """)
         suppliers = await conn.fetch("""
             SELECT
                 s.id,
@@ -95,9 +96,9 @@ async def get_bootstrap_summary(request: Request):
                 "SELECT COUNT(*) FROM product_favorites WHERE user_id = $1",
                 user_id,
             ),
+            # Projects are team-wide; favourites above stay per-person.
             "total_arrangements": await conn.fetchval(
-                "SELECT COUNT(*) FROM arrangements WHERE created_by = $1",
-                user_id,
+                "SELECT COUNT(*) FROM arrangements"
             ),
         }
 

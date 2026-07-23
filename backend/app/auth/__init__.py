@@ -1,8 +1,12 @@
-from .user import ApiKeyClaims, AuthorizedApiKey, AuthorizedUser, User
+from .supabase_auth import AuthUser, CurrentUser, OptionalUser, verify_token
+from .user import AuthorizedUser, User, get_authorized_user
 
 __all__ = [
-    "ApiKeyClaims",
-    "AuthorizedApiKey",
+    "AuthUser",
     "AuthorizedUser",
+    "CurrentUser",
+    "OptionalUser",
     "User",
+    "get_authorized_user",
+    "verify_token",
 ]

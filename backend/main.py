@@ -2,8 +2,9 @@ import os
 import pathlib
 import json
 import dotenv
-from fastapi import FastAPI, APIRouter, Depends
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 # Load environment files
 # First load shared .env file
@@ -17,7 +18,16 @@ dotenv.load_dotenv(env_file, override=True)
 
 print(f"Loaded environment: {environment}")
 
-from databutton_app.mw.auth_mw import AuthConfig, get_authorized_user
+from databutton_app.mw.auth_mw import AuthConfig
+from app.auth import get_authorized_user
+
+# Signing in is required for the whole API. The only way to turn it off is to
+# set AUTH_DISABLED=true AND be running the local dev environment — it is
+# deliberately impossible to disable auth in a deployed environment.
+AUTH_DISABLED = (
+    os.getenv("AUTH_DISABLED", "").lower() == "true"
+    and os.getenv("ENV", "dev") == "dev"
+)
 
 
 def get_router_config() -> dict:
@@ -30,7 +40,14 @@ def get_router_config() -> dict:
 
 
 def is_auth_disabled(router_config: dict, name: str) -> bool:
-    return router_config["routers"][name]["disableAuth"]
+    """Whether this router should be left unauthenticated.
+
+    `routers.json` is Databutton-generated scaffolding that marks every router
+    `disableAuth: true`. We ignore it: the team's catalog, pricing and client
+    data must never be readable without signing in. The one honoured escape
+    hatch is the local-dev-only AUTH_DISABLED flag above.
+    """
+    return AUTH_DISABLED
 
 
 def import_api_routers() -> APIRouter:
@@ -127,13 +144,50 @@ def parse_auth_configs() -> list[AuthConfig]:
     return auth_configs
 
 
+FRONTEND_DIST = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
+
+
+def mount_frontend(app: FastAPI) -> None:
+    """Serve the built React app from this same server.
+
+    Deploying one service instead of two keeps the frontend and the API on a
+    single origin, which is what the frontend's api client already expects in
+    production. In local dev the Vite server is used instead and `dist/` may
+    not exist, so this degrades to an API-only app.
+    """
+    dist = FRONTEND_DIST.resolve()
+    if not (dist / "index.html").is_file():
+        print(f"frontend build not found at {dist} — serving API only")
+        return
+
+    assets = dist / "assets"
+    if assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa(full_path: str):
+        # Unknown /api/* must 404 as an API call, not fall through to the SPA.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        # Serve a real file when one matches (favicon, images, etc), else the
+        # SPA shell so client-side routes like /library work on a hard refresh.
+        if full_path:
+            candidate = (dist / full_path).resolve()
+            if candidate.is_file() and candidate.is_relative_to(dist):
+                return FileResponse(candidate)
+        return FileResponse(dist / "index.html")
+
+    print(f"serving frontend from {dist}")
+
+
 def create_app() -> FastAPI:
     """Create the app. This is called by uvicorn with the factory option to construct the app object."""
     app = FastAPI()
 
-    @app.get("/", include_in_schema=False)
-    async def root():
-        return RedirectResponse("http://127.0.0.1:5174/suppliers")
+    @app.get("/health", include_in_schema=False)
+    async def health():
+        """Public liveness probe for the host — deliberately exposes nothing."""
+        return {"status": "ok", "auth": "disabled" if AUTH_DISABLED else "required"}
 
     app.include_router(import_api_routers())
 
@@ -150,6 +204,29 @@ def create_app() -> FastAPI:
     else:
         print(f"Found {len(auth_configs)} auth config(s)")
         app.state.auth_configs = auth_configs
+
+    @app.on_event("startup")
+    async def _warm_search_index():
+        # Preload the in-memory catalog search index in the background so the
+        # first real search is already fast. Never blocks startup.
+        import asyncio
+
+        async def _warm():
+            try:
+                from app.apis.products import get_conn, _load_search_index
+                conn = await get_conn()
+                try:
+                    await _load_search_index(conn)
+                    print("search index warmed")
+                finally:
+                    await conn.close()
+            except Exception as e:  # noqa: BLE001
+                print(f"search index warm-up skipped: {e}")
+
+        asyncio.create_task(_warm())
+
+    # Registered last: its catch-all route must not shadow the API routes.
+    mount_frontend(app)
 
     return app
 

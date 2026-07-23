@@ -18,7 +18,7 @@ import {
   Search,
   ShoppingCart,
 } from "lucide-react";
-import { useUser } from "@stackframe/react";
+import { useAuth } from "app/auth/AuthProvider";
 import { APP_BASE_PATH, apiClient } from "app";
 
 const NAV_GROUPS = [
@@ -102,7 +102,7 @@ function sortProjectsByUpdated(rows: SidebarProject[]) {
 export default function Layout({ children }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = useUser();
+  const { user, signOut } = useAuth();
   const [projectClients, setProjectClients] = useState<Array<{ name: string; count: number }>>([]);
   const [sidebarProjects, setSidebarProjects] = useState<SidebarProject[]>(() => {
     try {
@@ -218,8 +218,8 @@ export default function Layout({ children }: Props) {
   }, [clientsOpen]);
 
   const handleSignOut = async () => {
-    await user?.signOut();
-    navigate(APP_BASE_PATH + "/auth/sign-in");
+    await signOut();
+    navigate("/login", { replace: true });
   };
 
   const isActive = (path: string) => {
@@ -409,8 +409,8 @@ export default function Layout({ children }: Props) {
         <div className="px-2 pt-6 border-t border-stone-700">
           {user && (
             <div className="mb-3">
-              <p className="text-xs font-medium text-stone-300 truncate">{user.displayName || user.primaryEmail}</p>
-              <p className="text-xs text-stone-500 truncate">{user.primaryEmail}</p>
+              <p className="text-xs font-medium text-stone-300 truncate">{user.user_metadata?.full_name || user.email?.split("@")[0]}</p>
+              <p className="text-xs text-stone-500 truncate">{user.email}</p>
             </div>
           )}
           <button

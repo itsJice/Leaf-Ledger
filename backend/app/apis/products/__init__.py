@@ -1070,8 +1070,9 @@ async def get_product_stats(request: Request):
     try:
         total_products = await conn.fetchval("SELECT COUNT(*) FROM products WHERE is_active = TRUE")
         total_suppliers = await conn.fetchval("SELECT COUNT(*) FROM suppliers")
+        # Favourites are personal; projects are team-wide.
         total_favorites = await conn.fetchval("SELECT COUNT(*) FROM product_favorites WHERE user_id = $1", user_id)
-        total_arrangements = await conn.fetchval("SELECT COUNT(*) FROM arrangements WHERE created_by = $1", user_id)
+        total_arrangements = await conn.fetchval("SELECT COUNT(*) FROM arrangements")
         return {
             "total_products": total_products,
             "total_suppliers": total_suppliers,

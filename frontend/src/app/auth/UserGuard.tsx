@@ -1,16 +1,11 @@
-import { APP_BASE_PATH } from "@/constants";
-import {
-  type CurrentInternalServerUser,
-  type CurrentUser,
-  useStackApp,
-  useUser,
-} from "@stackframe/react";
+import type { User } from "@supabase/supabase-js";
 import type * as React from "react";
 import { createContext, useContext } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "./AuthProvider";
 
 type UserGuardContextType = {
-  user: CurrentUser | CurrentInternalServerUser;
+  user: User;
 };
 
 const UserGuardContext = createContext<UserGuardContextType | undefined>(
@@ -30,38 +25,36 @@ export const useUserGuardContext = () => {
   return context;
 };
 
-const writeToLocalStorage = (key: string, value: string) => {
-  if (typeof window !== "undefined" && window.localStorage) {
-    localStorage.setItem(key, value);
-  }
-};
-
+/**
+ * Blocks everything behind it until someone is signed in.
+ *
+ * While the session is still being restored we render a loader rather than
+ * redirecting — otherwise refreshing a page would bounce a signed-in user out
+ * to the login screen for a moment.
+ */
 export const UserGuard = (props: {
   children: React.ReactNode;
 }) => {
-  const app = useStackApp();
-  const user = useUser();
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-  const { pathname } = useLocation();
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#f7f6f2]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1f3d2b] border-t-transparent" />
+          <p className="text-sm text-[#1f3d2b]/70">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
-    const queryParams = new URLSearchParams(window.location.search);
-
-    // Don't set the next param if the user is logging out
-    // to avoid ending up in an infinite redirect loop
-    if (pathname !== app.urls.signOut) {
-      writeToLocalStorage("dtbn-login-next", pathname);
-      queryParams.set("next", pathname);
-    }
-
-    const queryString = queryParams.toString();
-
-    return (
-      <Navigate
-        to={`${app.urls.signIn.replace(APP_BASE_PATH, "/").replace("//", "/")}?${queryString}`}
-        replace={true}
-      />
-    );
+    // Remember where they were headed so we can return them there after login.
+    const next = `${location.pathname}${location.search}`;
+    const params =
+      next && next !== "/" ? `?next=${encodeURIComponent(next)}` : "";
+    return <Navigate to={`/login${params}`} replace />;
   }
 
   return (

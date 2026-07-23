@@ -625,7 +625,12 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
 
 @router.get("/list", response_model=List[ArrangementSummary])
 async def list_arrangements(request: Request):
-    user_id = get_request_user_id(request)
+    """Every project, for everyone.
+
+    Projects are TEAM-OWNED: `created_by` records who made one so it can be
+    shown as attribution, but it is deliberately NOT used to filter. The team
+    works on the same jobs, so filtering by creator would hide colleagues' work.
+    """
     conn = await get_conn()
     try:
         await ensure_project_schema(conn)
@@ -642,10 +647,9 @@ async def list_arrangements(request: Request):
             LEFT JOIN arrangement_containers ac ON ac.arrangement_id = a.id
             LEFT JOIN container_items ci ON ci.container_id = ac.id
             LEFT JOIN products p ON p.id = ci.product_id
-            WHERE a.created_by = $1
             GROUP BY a.id
             ORDER BY a.updated_at DESC
-        """, user_id)
+        """)
         return [dict(r) for r in rows]
     finally:
         await conn.close()
@@ -834,10 +838,11 @@ async def update_arrangement(arrangement_id: int, body: ArrangementUpdate, reque
 
 @router.delete("/delete/{arrangement_id}")
 async def delete_arrangement(arrangement_id: int, request: Request):
-    user_id = get_request_user_id(request)
+    # Team-owned: anyone signed in can delete a team project, not only its
+    # creator. Restricting by created_by would silently no-op for colleagues.
     conn = await get_conn()
     try:
-        await conn.execute("DELETE FROM arrangements WHERE id = $1 AND created_by = $2", arrangement_id, user_id)
+        await conn.execute("DELETE FROM arrangements WHERE id = $1", arrangement_id)
         return {"ok": True}
     finally:
         await conn.close()

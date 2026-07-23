@@ -4,9 +4,6 @@ import { RouteObject } from "react-router-dom";
 
 
 
-import { StackHandlerRoutes, LoginRedirect } from "app/auth";
-
-
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import App from "./pages/App.tsx";
 import Arrangements from "./pages/Arrangements.tsx";
@@ -23,8 +20,6 @@ import Suppliers from "./pages/Suppliers.tsx";
 
 export const userRoutes: RouteObject[] = [
 
-	{ path: "/auth/redirect", element: <LoginRedirect /> },
-	{ path: "/auth/*", element: <StackHandlerRoutes /> },
 	{ path: "/admin-dashboard", element: <AdminDashboard /> },
 	{ path: "/admindashboard", element: <AdminDashboard /> },
 	{ path: "/", element: <App /> },
