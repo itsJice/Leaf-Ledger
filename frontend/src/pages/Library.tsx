@@ -31,6 +31,7 @@ import Layout from "components/Layout";
 import { apiClient } from "app";
 import { formatCurrency, formatDate, categoryLabel, unitLabel } from "utils/format";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
+import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 import {
   addToOrder, listOrders, createOrder, ensureActiveOrder, setActiveOrderId,
   defaultOrderName, getActiveOrderId, type OrderSummary,
@@ -1816,6 +1817,11 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
             <p className="text-xs uppercase tracking-wide text-stone-400">{product.supplier_name}</p>
             <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{displayName}</h2>
             <p className="text-xs text-stone-500">{product.supplier_sku || raw["Item No"]}</p>
+            {metricHintText(`${displayName} ${product.name || ""}`) && (
+              <p className="mt-1 text-xs font-medium text-emerald-700" title={METRIC_CHEAT}>
+                Metric → imperial: {metricHintText(`${displayName} ${product.name || ""}`)}
+              </p>
+            )}
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700">
             <X size={18} />
@@ -2033,6 +2039,9 @@ function ProductCard({
           </p>
         )}
         <p className="font-semibold text-stone-800 text-sm leading-tight truncate mb-1">{displayName}</p>
+        {metricHintText(p.name) && (
+          <p className="text-[11px] font-medium text-emerald-700 mb-1 truncate" title={METRIC_CHEAT}>{metricHintText(p.name)}</p>
+        )}
         {p.supplier_sku && <p className="text-xs text-stone-400 mb-2 truncate">{p.supplier_sku}</p>}
         <div>
           {hasSourcePrice ? (
