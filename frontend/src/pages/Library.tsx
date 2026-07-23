@@ -781,7 +781,7 @@ function ImagePending({ compact = false, label = "Image pending" }: { compact?: 
   );
 }
 
-function ProxiedImage({ src, fallbacks = [], alt }: { src: string; fallbacks?: string[]; alt: string }) {
+export function ProxiedImage({ src, fallbacks = [], alt, className }: { src: string; fallbacks?: string[]; alt: string; className?: string }) {
   // Build an ordered list of URLs to attempt. Internal stored-image proxy keys
   // are tried as-is (they resolve in production); external URLs are tried
   // directly, then via the image proxy (supplier hotlink guard). When the
@@ -808,7 +808,7 @@ function ProxiedImage({ src, fallbacks = [], alt }: { src: string; fallbacks?: s
       alt={alt}
       loading="lazy"
       decoding="async"
-      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      className={className ?? "w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"}
       onError={() => setIdx((i) => i + 1)}
     />
   );
