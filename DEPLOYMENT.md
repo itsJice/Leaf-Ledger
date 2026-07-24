@@ -16,7 +16,7 @@ separate frontend host to configure.
 
 | Variable | Required | What it is |
 |---|---|---|
-| `DATABASE_URL` | ✅ | Supabase Postgres connection string. Use the **transaction pooler** (port `6543`) for the running app. |
+| `DATABASE_URL` | ✅ | Supabase Postgres connection string. Use the **session pooler** (port `5432`) — see the database notes below; the transaction pooler on `6543` breaks this app. |
 | `SUPABASE_URL` | ✅ | `https://shnenpalzbcinkfltqcb.supabase.co` — used to verify logins. |
 | `ENV` | ✅ | Set to `supabase` in production so `.env.supabase` conventions apply. |
 | `SUPABASE_JWT_SECRET` | ⬜ | Only needed if the project uses legacy HS256 signing. This project uses ES256, so **leave unset**. |
@@ -68,12 +68,30 @@ host's health check at it. It deliberately exposes nothing else.
 
 ## Database notes
 
-- The running app uses the **transaction pooler** (`:6543`). asyncpg already passes
-  `statement_cache_size=0`, which that pooler requires.
-- **For dumps, restores, or any bulk load, use the DIRECT connection**
-  (`db.<ref>.supabase.co:5432`). The pooler drops long `COPY` operations partway
-  through with an SSL error, leaving a half-migrated database. This has bitten us
-  once already.
+**Use the session pooler (`:5432`), not the transaction pooler (`:6543`).**
+Supabase's transaction pooler broke this app three separate ways in one afternoon:
+
+1. `pg_restore` died mid-`COPY` with an SSL error, leaving a half-migrated database
+   (tables and rows, but no indexes and only 6 of 25 constraints).
+2. The startup search-index query (~95k rows in one read) had its connection torn
+   down mid-operation.
+3. Cursors/prepared statements failed outright with asyncpg's pgbouncer error.
+
+The session pooler behaves like a real Postgres connection and handles all three.
+For dumps, restores and other bulk loads, prefer the **direct** connection
+(`db.<ref>.supabase.co:5432`), which is what finally completed the migration.
+
+### Memory
+
+The catalogue search is served from an in-memory index built at startup. It is
+loaded with a **server-side cursor**, not one big `fetch()` — streaming keeps peak
+memory near the finished index size (~264 MB for 95k products) instead of roughly
+double it, and it is what stopped the pooler tearing the connection down.
+
+The search blob holds the *values* out of `raw_data`, not its raw JSON text. That
+keeps every searchable term while cutting ~1.9 KB per product to ~0.5 KB — the
+difference between fitting in a 512 MB instance and being OOM-killed. If you ever
+add much more catalogue, re-measure before assuming it still fits.
 - Supabase's **Data API is disabled** and Row Level Security is off. That is safe
   *only because* nothing is exposed over HTTP — the browser never queries Postgres
   directly; the FastAPI server does. **If the Data API is ever enabled, RLS must be

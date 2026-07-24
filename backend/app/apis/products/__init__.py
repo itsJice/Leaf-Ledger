@@ -602,57 +602,99 @@ def _avail_bucket_py(v) -> Optional[str]:
     return None
 
 
+def _searchable_values(value, out: list) -> None:
+    """Collect the human-meaningful values out of a raw_data blob.
+
+    Keeping the raw JSON *text* in the search blob cost ~1.7 KB per product
+    (~179 MB across the catalogue) — most of it braces, quotes, key names and
+    image URLs that nobody searches for. Walking the values instead keeps every
+    searchable term (material, finish, collection, UPC …) for about a third of
+    the memory.
+    """
+    if isinstance(value, str):
+        # Long prose and URLs add weight without adding search terms.
+        if value and len(value) < 200 and not value.startswith("http"):
+            out.append(value)
+    elif isinstance(value, (int, float)):
+        out.append(str(value))
+    elif isinstance(value, dict):
+        for v in value.values():
+            _searchable_values(v, out)
+    elif isinstance(value, list):
+        for v in value:
+            _searchable_values(v, out)
+
+
+def _build_blob(*parts: str) -> str:
+    """Lowercased keyword blob with duplicate words removed."""
+    seen: set[str] = set()
+    words: list[str] = []
+    for word in " ".join(p for p in parts if p).lower().split():
+        if word not in seen:
+            seen.add(word)
+            words.append(word)
+    return " ".join(words)
+
+
 async def _load_search_index(conn):
     now = _time.time()
     cached = _SEARCH_CACHE.get("rows")
     if cached is not None and (now - _SEARCH_CACHE["ts"]) < _SEARCH_TTL:
         return cached
-    # Pull the full record once; the raw_data JSON text drives full-breadth
-    # keyword search (parity with the old search over name/desc/sku/raw_data).
-    rows = await conn.fetch(f"""
+
+    query = f"""
         SELECT p.id, p.name, s.name AS supplier_name, p.supplier_id, p.supplier_sku,
                p.current_price, p.image_urls, p.photo_url, p.availability, p.description,
                {PRODUCT_TYPE_SQL} AS product_type,
                p.raw_data
         FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
         WHERE p.is_active = TRUE
-    """)
+    """
+
     idx = []
-    for r in rows:
-        raw_text = r["raw_data"]  # asyncpg returns jsonb as its JSON text
-        if not isinstance(raw_text, str):
-            raw_text = json.dumps(raw_text) if raw_text else ""
-        try:
-            raw = json.loads(raw_text) if raw_text else {}
-        except json.JSONDecodeError:
-            raw = {}
-        norm = raw.get("normalized") or {}
-        cf = [c for c in (raw.get("color_families") or []) if isinstance(c, str)]
-        # All candidate images (deduped) so the card can fall back URL→URL when
-        # one 404s, instead of showing a broken/empty tile.
-        images: list[str] = []
-        for u in list(r["image_urls"] or []) + [r["photo_url"], raw.get("source_photo_url")]:
-            if u and u not in images:
-                images.append(u)
-        image = images[0] if images else None
-        size = norm.get("size_in")
-        try: size = float(size) if size is not None else None
-        except (TypeError, ValueError): size = None
-        color, finish = norm.get("color"), norm.get("finish")
-        # full-breadth keyword blob: name + sku + description + all raw fields
-        blob = " ".join(filter(None, [r["name"], r["supplier_sku"], r["description"],
-                                      r["supplier_name"], raw_text])).lower()
-        idx.append({
-            "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
-            "supplier_id": r["supplier_id"], "supplier_sku": r["supplier_sku"],
-            "price": float(r["current_price"]) if r["current_price"] is not None else None,
-            "image": image, "images": images[:6], "class": norm.get("class"), "color": color, "finish": finish,
-            "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
-            "product_type": r["product_type"], "color_families": cf,
-            "category": raw.get("category_group"),
-            "avail": _avail_bucket_py(r["availability"]),
-            "blob": blob,
-        })
+    # Streamed with a server-side cursor rather than one big fetch(). Pulling
+    # ~95k rows (each carrying its raw_data) in a single round trip both spiked
+    # peak memory to roughly double the finished index and got the connection
+    # torn down by Supabase's transaction pooler mid-read.
+    async with conn.transaction():
+        async for r in conn.cursor(query, prefetch=1000):
+            raw_text = r["raw_data"]  # asyncpg returns jsonb as its JSON text
+            try:
+                raw = json.loads(raw_text) if isinstance(raw_text, str) else (raw_text or {})
+            except json.JSONDecodeError:
+                raw = {}
+            if not isinstance(raw, dict):
+                raw = {}
+            norm = raw.get("normalized") or {}
+            cf = [c for c in (raw.get("color_families") or []) if isinstance(c, str)]
+            # All candidate images (deduped) so the card can fall back URL→URL when
+            # one 404s, instead of showing a broken/empty tile.
+            images: list[str] = []
+            for u in list(r["image_urls"] or []) + [r["photo_url"], raw.get("source_photo_url")]:
+                if u and u not in images:
+                    images.append(u)
+            image = images[0] if images else None
+            size = norm.get("size_in")
+            try: size = float(size) if size is not None else None
+            except (TypeError, ValueError): size = None
+            color, finish = norm.get("color"), norm.get("finish")
+            # full-breadth keyword blob: name + sku + description + every
+            # searchable value captured in raw_data (see _searchable_values).
+            raw_values: list[str] = []
+            _searchable_values(raw, raw_values)
+            blob = _build_blob(r["name"], r["supplier_sku"], r["description"],
+                               r["supplier_name"], " ".join(raw_values))
+            idx.append({
+                "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
+                "supplier_id": r["supplier_id"], "supplier_sku": r["supplier_sku"],
+                "price": float(r["current_price"]) if r["current_price"] is not None else None,
+                "image": image, "images": images[:6], "class": norm.get("class"), "color": color, "finish": finish,
+                "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
+                "product_type": r["product_type"], "color_families": cf,
+                "category": raw.get("category_group"),
+                "avail": _avail_bucket_py(r["availability"]),
+                "blob": blob,
+            })
     _SEARCH_CACHE.update(ts=now, rows=idx)
     return idx
 
