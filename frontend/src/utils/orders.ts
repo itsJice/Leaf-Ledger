@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 // Shared team purchase orders — client API + "active order" helper.
 // Orders themselves live on the backend (shared across the team); only the
 // pointer to which order you're currently adding to is per-browser.
@@ -69,12 +70,12 @@ export function defaultOrderName(): string {
 }
 
 export async function listOrders(): Promise<OrderSummary[]> {
-  const r = await fetch("/api/orders/list", { credentials: "include" });
+  const r = await apiFetch("/api/orders/list", { credentials: "include" });
   return r.ok ? r.json() : [];
 }
 
 export async function createOrder(name: string, created_by?: string): Promise<OrderSummary> {
-  const r = await fetch("/api/orders/create", {
+  const r = await apiFetch("/api/orders/create", {
     method: "POST", credentials: "include", headers: JSON_HEADERS,
     body: JSON.stringify({ name, created_by }),
   });
@@ -82,38 +83,38 @@ export async function createOrder(name: string, created_by?: string): Promise<Or
 }
 
 export async function getOrder(id: number): Promise<OrderDetail> {
-  const r = await fetch(`/api/orders/${id}`, { credentials: "include" });
+  const r = await apiFetch(`/api/orders/${id}`, { credentials: "include" });
   if (!r.ok) throw new Error("Order not found");
   return r.json();
 }
 
 export async function addToOrder(orderId: number, product_id: number, quantity: number, added_by?: string) {
-  return fetch(`/api/orders/${orderId}/items`, {
+  return apiFetch(`/api/orders/${orderId}/items`, {
     method: "POST", credentials: "include", headers: JSON_HEADERS,
     body: JSON.stringify({ product_id, quantity, added_by }),
   });
 }
 
 export async function updateItemQty(itemId: number, quantity: number) {
-  return fetch(`/api/orders/items/${itemId}`, {
+  return apiFetch(`/api/orders/items/${itemId}`, {
     method: "PATCH", credentials: "include", headers: JSON_HEADERS,
     body: JSON.stringify({ quantity }),
   });
 }
 
 export async function removeItem(itemId: number) {
-  return fetch(`/api/orders/items/${itemId}`, { method: "DELETE", credentials: "include" });
+  return apiFetch(`/api/orders/items/${itemId}`, { method: "DELETE", credentials: "include" });
 }
 
 export async function renameOrder(id: number, name: string) {
-  return fetch(`/api/orders/${id}`, {
+  return apiFetch(`/api/orders/${id}`, {
     method: "PATCH", credentials: "include", headers: JSON_HEADERS,
     body: JSON.stringify({ name }),
   });
 }
 
 export async function deleteOrder(id: number) {
-  return fetch(`/api/orders/${id}`, { method: "DELETE", credentials: "include" });
+  return apiFetch(`/api/orders/${id}`, { method: "DELETE", credentials: "include" });
 }
 
 // Resolve the order to add to: the remembered active one if it still exists,

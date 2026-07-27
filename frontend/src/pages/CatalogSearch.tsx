@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart, LayoutGrid, List, Minus, Plus } from "lucide-react";
 import Layout from "components/Layout";
@@ -91,7 +92,7 @@ export default function CatalogSearch() {
   const [detailProduct, setDetailProduct] = useState<any | null>(null);
 
   const openDetail = useCallback((id: number) => {
-    fetch(`/api/products/detail/${id}`)
+    apiFetch(`/api/products/detail/${id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setDetailProduct)
       .catch(() => {});
@@ -109,7 +110,7 @@ export default function CatalogSearch() {
 
   // metadata once
   useEffect(() => {
-    fetch("/api/products/filter-metadata")
+    apiFetch("/api/products/filter-metadata")
       .then((r) => r.json())
       .then(setMetadata)
       .catch(() => {});
@@ -147,7 +148,7 @@ export default function CatalogSearch() {
     (nextOffset: number, append: boolean) => {
       const s = ++seq.current;
       setLoading(true);
-      fetch(`/api/products/search?${buildParams(nextOffset)}`)
+      apiFetch(`/api/products/search?${buildParams(nextOffset)}`)
         .then((r) => r.json())
         .then((data) => {
           if (s !== seq.current) return;

@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 import React, { useEffect, useMemo, useState } from "react";
 import { Heart } from "lucide-react";
 import Layout from "components/Layout";
@@ -75,7 +76,7 @@ export default function Favorites() {
       }
       // Fetch full data for every favorited id, so items favorited anywhere
       // (Catalog Search, Product Library) show up — not just cached ones.
-      const res = await fetch(`/api/products/by-ids?ids=${favoriteIds.join(",")}`, { credentials: "include" });
+      const res = await apiFetch(`/api/products/by-ids?ids=${favoriteIds.join(",")}`, { credentials: "include" });
       const data = await res.json();
       const nextProducts = (Array.isArray(data) ? data : []).map((product: Product) => ({ ...product, is_favorited: true }));
       setProducts(nextProducts);

@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calculator,
@@ -82,7 +83,7 @@ async function fetchCatalogMatches(
   lines: { size: number; quantity: number; color: string | null; finish?: string | null }[],
   suppliers: string[] | null
 ): Promise<MatchLine[]> {
-  const res = await fetch("/api/products/ornament-match", {
+  const res = await apiFetch("/api/products/ornament-match", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // per_line = max matches per vendor; the backend guarantees every vendor's

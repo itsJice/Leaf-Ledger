@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ShoppingCart, Plus, Minus, Trash2, ExternalLink, Package, LogIn,
@@ -48,7 +49,7 @@ export default function Orders() {
 
   const openProduct = useCallback((id: number) => {
     setDetailId(id);
-    fetch(`/api/products/detail/${id}`).then((r) => (r.ok ? r.json() : Promise.reject()))
+    apiFetch(`/api/products/detail/${id}`).then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setDetailProduct).catch(() => {});
   }, []);
 

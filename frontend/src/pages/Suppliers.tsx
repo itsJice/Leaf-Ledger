@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   Plus, Pencil, Trash2, X, ExternalLink, Building2, RefreshCw,
@@ -289,7 +290,7 @@ function SupplierCard({
     if (creds || loadingCreds) return creds;
     setLoadingCreds(true);
     try {
-      const res = await fetch(`/api/suppliers/${supplier.id}/credentials`, { credentials: "include" });
+      const res = await apiFetch(`/api/suppliers/${supplier.id}/credentials`, { credentials: "include" });
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
       setCreds(data);
@@ -491,7 +492,7 @@ export default function Suppliers() {
       // Race against a 10-second timeout so the page never hangs forever
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch("/api/suppliers/list", {
+      const res = await apiFetch("/api/suppliers/list", {
         credentials: "include",
         signal: controller.signal,
       });

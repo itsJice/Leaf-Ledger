@@ -1,3 +1,4 @@
+import { apiFetch } from "utils/apiFetch";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   Search,
@@ -1539,7 +1540,7 @@ interface SupplierLoginInfo { id: number; name?: string; login_url?: string; has
 let _supplierDirCache: Promise<Record<number, SupplierLoginInfo>> | null = null;
 function loadSupplierDirectory(): Promise<Record<number, SupplierLoginInfo>> {
   if (!_supplierDirCache) {
-    _supplierDirCache = fetch("/api/suppliers/list", { credentials: "include" })
+    _supplierDirCache = apiFetch("/api/suppliers/list", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : []))
       .then((rows: SupplierLoginInfo[]) => Object.fromEntries((rows || []).map((s) => [s.id, s])))
       .catch(() => ({}));
@@ -1585,7 +1586,7 @@ function SupplierLinkBar({ supplierId, supplierName, productUrl }: { supplierId?
   const toggleLogin = () => {
     if (supplierId != null && !creds && hasCreds) {
       setLoadingCreds(true);
-      fetch(`/api/suppliers/${supplierId}/credentials`, { credentials: "include" })
+      apiFetch(`/api/suppliers/${supplierId}/credentials`, { credentials: "include" })
         .then((r) => (r.ok ? r.json() : null)).then(setCreds).catch(() => {}).finally(() => setLoadingCreds(false));
     }
     setShowLogin((v) => !v);
