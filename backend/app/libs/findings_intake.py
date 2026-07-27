@@ -85,7 +85,14 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "supplier_sku": ("supplier sku", "sku", "item no", "itemno", "item number", "item", "base sku"),
     "name": ("product name", "web name", "name", "title", "product title"),
     "description": ("description", "desc", "long description"),
-    "current_price": ("price", "current price", "account price", "dealer price", "unit price"),
+    "current_price": ("price", "current price", "account price", "dealer price", "unit price",
+                      "wholesale price"),
+    # retail / MSRP / RRP list price alongside the dealer price (for margin)
+    "list_price": ("list price", "retail price", "retail", "msrp", "rrp",
+                   "compare at price", "compare at", "original price", "was price"),
+    "list_price_label": ("list price label",),
+    "margin_pct_off_retail": ("margin pct off retail", "margin off retail", "margin pct", "margin"),
+    "price_tiers": ("price tiers", "tier prices", "quantity price", "qty price"),
     "category": ("category", "department"),
     "subcategory": ("subcategory", "sub category"),
     "uom": ("uom", "unit of measure"),
@@ -121,6 +128,10 @@ class ProductIntake:
     unit: str = "each"
     uom: Optional[str] = None
     current_price: Optional[float] = None
+    list_price: Optional[float] = None
+    list_price_label: Optional[str] = None
+    margin_pct_off_retail: Optional[float] = None
+    price_tiers: Optional[str] = None
     currency: Optional[str] = None
     moq: Optional[int] = None
     case_qty: Optional[int] = None
@@ -205,6 +216,14 @@ def normalize_row(row: dict[str, Any]) -> ProductIntake:
     p.uom = pick("uom")
     p.unit = normalize_unit(p.uom or pick("style"))
     p.current_price = parse_price(pick("current_price") or "")
+    p.list_price = parse_price(pick("list_price") or "")
+    p.list_price_label = pick("list_price_label")
+    p.price_tiers = pick("price_tiers")
+    # margin: use the supplied value, else derive from list vs dealer price
+    p.margin_pct_off_retail = _num(pick("margin_pct_off_retail"))
+    if (p.margin_pct_off_retail is None and p.list_price and p.current_price
+            and p.list_price > 0 and p.list_price >= p.current_price):
+        p.margin_pct_off_retail = round((p.list_price - p.current_price) / p.list_price * 100, 1)
     p.currency = pick("currency")
     p.moq = safe_int(pick("moq"))
     p.case_qty = safe_int(pick("case_qty"))

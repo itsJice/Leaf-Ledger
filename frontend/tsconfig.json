@@ -18,8 +18,6 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "brain": ["./src/brain/index.ts"], // Kept for backwards compatibility
-      "brain/*": ["./src/brain/*"], // Kept for backwards compatibility
       "types": ["./src/apiclient/data-contracts.ts"], // Kept for backwards compatibility
       "apiclient": ["./src/apiclient"],
       "apiclient/*": ["./src/apiclient/*"],
@@ -36,13 +34,7 @@
   },
   "include": ["env.d.ts", "src"],
   "exclude": [
-    "src/internal-components/DevTools.tsx",
-    "src/brain/Brain.ts",
-    "src/brain/BrainRoute.ts",
-    "src/brain/data-contracts.ts",
-    "src/brain/http-client.ts",
     "src/apiclient/Apiclient.ts",
-    "src/apiclient/ApiclientRoute.ts",
     "src/apiclient/data-contracts.ts",
     "src/apiclient/http-client.ts"
   ],
