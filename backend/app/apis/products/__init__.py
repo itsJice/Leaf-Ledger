@@ -588,6 +588,44 @@ async def page_products(
 _SEARCH_CACHE: dict = {"ts": 0.0, "rows": None}
 _SEARCH_TTL = 3600  # 1 hour — catalog is static between imports
 
+# The in-memory index takes ~30s to build (longer on a small CPU). Until it's
+# ready — on a fresh boot or right after a deploy — search falls back to the
+# database so the catalog is never empty. These coordinate a single background
+# build: concurrent builds would each hold the whole index in memory at once and
+# risk an out-of-memory kill, so only one ever runs.
+import asyncio as _asyncio
+
+_INDEX_BUILD_LOCK = _asyncio.Lock()
+_index_build_task = None  # the in-flight background build, if any
+
+
+def _index_ready() -> bool:
+    rows = _SEARCH_CACHE.get("rows")
+    return rows is not None and (_time.time() - _SEARCH_CACHE["ts"]) < _SEARCH_TTL
+
+
+def _ensure_index_building() -> None:
+    """Start the background index build if it isn't ready and none is running.
+
+    Non-blocking: it schedules the work and returns immediately so the caller can
+    serve from the database meanwhile. The lock inside _load_search_index keeps
+    this from ever building a second copy concurrently.
+    """
+    global _index_build_task
+    if _index_ready():
+        return
+    if _index_build_task is not None and not _index_build_task.done():
+        return
+
+    async def _bg():
+        conn = await get_conn()
+        try:
+            await _load_search_index(conn)
+        finally:
+            await conn.close()
+
+    _index_build_task = _asyncio.create_task(_bg())
+
 
 def _avail_bucket_py(v) -> Optional[str]:
     t = str(v or "").strip().lower()
@@ -637,10 +675,19 @@ def _build_blob(*parts: str) -> str:
 
 
 async def _load_search_index(conn):
+    if _index_ready():
+        return _SEARCH_CACHE["rows"]
+
+    # Single-flight: if another caller is already building, wait for it and use
+    # its result rather than building a second copy (which would double memory).
+    async with _INDEX_BUILD_LOCK:
+        if _index_ready():
+            return _SEARCH_CACHE["rows"]
+        return await _build_search_index(conn)
+
+
+async def _build_search_index(conn):
     now = _time.time()
-    cached = _SEARCH_CACHE.get("rows")
-    if cached is not None and (now - _SEARCH_CACHE["ts"]) < _SEARCH_TTL:
-        return cached
 
     query = f"""
         SELECT p.id, p.name, s.name AS supplier_name, p.supplier_id, p.supplier_sku,
@@ -763,6 +810,81 @@ def _fuzzy_variants(term: str, vocab: set, maxd: int) -> list:
     return hits
 
 
+async def _search_products_db(conn, *, search, price_min, price_max,
+                              supplier_ids, ids, limit, offset, build_facets):
+    """Warm-up fallback: answer a search straight from the database.
+
+    Used only while the in-memory index is still building. It covers the
+    column-backed filters (keyword, price, supplier, ids) so the catalog shows
+    real products immediately; the richer facet filters (colour/size/finish…)
+    live in the index and are simply not applied during this brief window, which
+    only ever widens results, never hides the catalog. `warming` lets the client
+    show a "still loading" hint if it wants. Once the index is ready every
+    request returns to the fast in-memory path automatically.
+    """
+    where = ["p.is_active = TRUE"]
+    args: list = []
+
+    for t in [w for w in (search or "").split() if w]:
+        args.append(f"%{t}%")
+        i = len(args)
+        where.append(f"(p.name ILIKE ${i} OR p.description ILIKE ${i} OR p.supplier_sku ILIKE ${i})")
+    if price_min is not None:
+        args.append(price_min); where.append(f"p.current_price >= ${len(args)}")
+    if price_max is not None:
+        args.append(price_max); where.append(f"p.current_price <= ${len(args)}")
+    sup = [int(x) for x in _csv_list(supplier_ids) if x.isdigit()]
+    if sup:
+        args.append(sup); where.append(f"p.supplier_id = ANY(${len(args)}::int[])")
+    id_list = [int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()] if ids is not None else None
+    if id_list is not None:
+        args.append(id_list); where.append(f"p.id = ANY(${len(args)}::int[])")
+
+    wsql = " AND ".join(where)
+    lim = max(1, min(limit, 500))
+    off = max(0, offset)
+
+    # One scan, not two: COUNT(*) OVER() rides along with the page so the total
+    # doesn't cost a second full-table scan during the warm-up window.
+    rows = await conn.fetch(f"""
+        SELECT p.id, p.name, s.name AS supplier_name, p.supplier_sku, p.current_price,
+               p.image_urls, p.photo_url, p.raw_data,
+               COUNT(*) OVER() AS _total
+        FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
+        WHERE {wsql}
+        ORDER BY p.name
+        LIMIT {lim} OFFSET {off}
+    """, *args)
+    total = rows[0]["_total"] if rows else 0
+
+    items = []
+    for r in rows:
+        raw = r["raw_data"]
+        if isinstance(raw, str):
+            try: raw = json.loads(raw)
+            except json.JSONDecodeError: raw = {}
+        raw = raw if isinstance(raw, dict) else {}
+        norm = raw.get("normalized") or {}
+        imgs: list[str] = []
+        for u in list(r["image_urls"] or []) + [r["photo_url"], raw.get("source_photo_url")]:
+            if u and u not in imgs:
+                imgs.append(u)
+        items.append({
+            "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
+            "supplier_sku": r["supplier_sku"],
+            "current_price": float(r["current_price"]) if r["current_price"] is not None else None,
+            "image_urls": imgs,
+            "raw_data": {"normalized": {"color": norm.get("color"), "finish": norm.get("finish"),
+                                        "size_in": norm.get("size_in"), "class": norm.get("class")}},
+        })
+
+    resp = {"items": items, "total": total or 0, "limit": limit, "offset": offset, "warming": True}
+    if build_facets:
+        resp["facets"] = {"categories": [], "colors": [], "sizes": [], "finishes": [],
+                          "availability": [], "product_types": [], "suppliers": []}
+    return resp
+
+
 @router.get("/search")
 async def search_products(
     colors: Optional[str] = None,
@@ -790,17 +912,22 @@ async def search_products(
     ornament sizes/colors/finishes actually present). Facets are only built on a
     fresh load (offset == 0); infinite-scroll pages skip the extra pass.
     """
-    # Only touch the database when the cache is cold — a warm request opens no
-    # connection at all, so it isn't paying the ~1s Neon handshake to Europe.
-    cached = _SEARCH_CACHE.get("rows")
-    if cached is not None and (_time.time() - _SEARCH_CACHE["ts"]) < _SEARCH_TTL:
-        idx = cached
-    else:
+    # A warm request opens no connection at all — it filters the in-memory index,
+    # so it isn't paying the DB round trip. Until that index is ready (fresh boot
+    # or just after a deploy) we answer from the database instead of blocking this
+    # request for the whole ~30s build, so the catalog is never empty.
+    if not _index_ready():
+        _ensure_index_building()
         conn = await get_conn()
         try:
-            idx = await _load_search_index(conn)
+            return await _search_products_db(
+                conn, search=search, price_min=price_min, price_max=price_max,
+                supplier_ids=supplier_ids, ids=ids, limit=limit, offset=offset,
+                build_facets=offset <= 0,
+            )
         finally:
             await conn.close()
+    idx = _SEARCH_CACHE["rows"]
 
     col = set(_csv_list(colors)); sz = set(_csv_list(sizes)); fin = set(_csv_list(finishes))
     pt = set(_csv_list(product_types)); avail = set(_csv_list(availability))
