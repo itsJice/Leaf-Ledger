@@ -6,19 +6,19 @@ from fastapi import FastAPI, APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-# Load environment files
-# First load shared .env file
-dotenv.load_dotenv(".env")
-
-# Then load environment-specific file (defaults to dev)
-# Environment-specific values will override shared values
-environment = os.getenv("ENV", "dev")
+# Load the environment-specific file. Defaults to `supabase` — our own database.
+# It used to default to `dev`, which pointed at the previous platform's Neon
+# database, so running the app with no ENV set silently read and wrote someone
+# else's data. In a deployed environment the host supplies these directly and
+# there is no file to load.
+environment = os.getenv("ENV", "supabase")
 env_file = f".env.{environment}"
-dotenv.load_dotenv(env_file, override=True)
+if os.path.exists(env_file):
+    dotenv.load_dotenv(env_file, override=True)
+    print(f"Loaded environment: {environment} ({env_file})")
+else:
+    print(f"No {env_file} — using environment variables as provided")
 
-print(f"Loaded environment: {environment}")
-
-from databutton_app.mw.auth_mw import AuthConfig
 from app.auth import get_authorized_user
 
 # Signing in is required for the whole API. The only way to turn it off is to
@@ -91,59 +91,6 @@ def import_api_routers() -> APIRouter:
     return routes
 
 
-def get_firebase_config() -> dict | None:
-    extensions = os.environ.get("DATABUTTON_EXTENSIONS", "[]")
-    extensions = json.loads(extensions)
-
-    for ext in extensions:
-        if ext["name"] == "firebase-auth":
-            return ext["config"]["firebaseConfig"]
-
-    return None
-
-
-def get_stack_auth_config() -> dict | None:
-    extensions = os.environ.get("DATABUTTON_EXTENSIONS", "[]")
-    extensions = json.loads(extensions)
-
-    for ext in extensions:
-        if ext["name"] == "stack-auth":
-            return ext["config"]
-
-    return None
-
-
-def parse_auth_configs() -> list[AuthConfig]:
-    """Parse auth configs from both firebase-auth and stack-auth extensions."""
-    auth_configs: list[AuthConfig] = []
-
-    # Add stack-auth config if extension is enabled
-    stack_auth_cfg = get_stack_auth_config()
-    if stack_auth_cfg:
-        project_id = stack_auth_cfg["projectId"]
-        auth_configs.append(
-            AuthConfig(
-                issuer=f"https://api.stack-auth.com/api/v1/projects/{project_id}",
-                jwks_url=stack_auth_cfg["jwksUrl"],
-                audience=project_id,
-            )
-        )
-
-    # Add firebase auth config if extension is enabled
-    firebase_cfg = get_firebase_config()
-    if firebase_cfg:
-        project_id = firebase_cfg["projectId"]
-        auth_configs.append(
-            AuthConfig(
-                issuer=f"https://securetoken.google.com/{project_id}",
-                jwks_url="https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
-                audience=project_id,
-            )
-        )
-
-    return auth_configs
-
-
 FRONTEND_DIST = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
 
 
@@ -195,15 +142,6 @@ def create_app() -> FastAPI:
         if hasattr(route, "methods"):
             for method in route.methods:
                 print(f"{method} {route.path}")
-
-    auth_configs = parse_auth_configs()
-
-    if len(auth_configs) == 0:
-        print("No auth extensions found")
-        app.state.auth_configs = None
-    else:
-        print(f"Found {len(auth_configs)} auth config(s)")
-        app.state.auth_configs = auth_configs
 
     @app.on_event("startup")
     async def _warm_search_index():

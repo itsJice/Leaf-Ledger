@@ -21,7 +21,6 @@ const initialState: ThemeProviderState = {
 export const ThemeProviderContext =
   createContext<ThemeProviderState>(initialState);
 
-declare const __APP_ID__: string;
 
 export function ThemeProvider({
   children,
