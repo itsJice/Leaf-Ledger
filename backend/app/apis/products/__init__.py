@@ -1175,7 +1175,11 @@ async def upload_product_photo_new(file: UploadFile = File(...)):
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     key = f"product-photos/temp-{uuid.uuid4().hex}.{ext}"
     db.storage.binary.put(key, contents)
-    return {"photo_url": f"https://static.riff.new/public/huge-complex-baritone-zbyo/{key}", "key": key}
+    # Serve it from our own image route, the same way upload-photo above does.
+    # This used to return a static.riff.new URL pointing at the old platform's
+    # CDN — a link that never resolved, because the bytes are written to our own
+    # storage one line up, not theirs.
+    return {"photo_url": f"/api/products/photo/{key.replace('/', '_')}", "key": key}
 
 @router.post("/favorite/{product_id}")
 async def toggle_favorite(product_id: int, request: Request):
