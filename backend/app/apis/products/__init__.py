@@ -27,6 +27,9 @@ def _sniff_image_ct(data: bytes) -> Optional[str]:
         return "image/jpeg"
     if data[:4] == b"\x89PNG":
         return "image/png"
+    # "RIFF" here is the Resource Interchange File Format container magic that
+    # every .webp starts with — nothing to do with the old Riff/Databutton
+    # branding. Do not rename it.
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
     if data[:3] == b"GIF":

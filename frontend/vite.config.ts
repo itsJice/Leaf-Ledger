@@ -78,7 +78,7 @@ const buildVariables = () => {
 		__API_URL__: JSON.stringify(process.env.API_URL || apiPath),
 		__WS_API_URL__: JSON.stringify(process.env.WS_API_URL || ""),
 		__APP_BASE_PATH__: JSON.stringify("/"),
-		__APP_TITLE__: JSON.stringify("Databutton"),
+		__APP_TITLE__: JSON.stringify("Leaf & Ledger"),
 		__APP_FAVICON_LIGHT__: JSON.stringify("/favicon-light.svg"),
 		__APP_FAVICON_DARK__: JSON.stringify("/favicon-dark.svg"),
 		__APP_DEPLOY_USERNAME__: JSON.stringify(""),

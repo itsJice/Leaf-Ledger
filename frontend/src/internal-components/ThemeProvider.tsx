@@ -26,7 +26,7 @@ declare const __APP_ID__: string;
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = `riff-${__APP_ID__}-ui-theme`,
+  storageKey = "leaf-ledger:ui-theme",
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(

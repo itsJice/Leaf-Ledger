@@ -1,8 +1,8 @@
 [project]
 name = "app"
 version = "2.0.0"
-description = "Riff App"
-authors = [{ name = "Databutton", email = "hi@databutton.com" }]
+description = "Leaf & Ledger — catalog and project operations for The Branch Design Group"
+authors = [{ name = "The Branch Design Group" }]
 
 requires-python = ">=3.11,<3.12"
 dependencies = []
