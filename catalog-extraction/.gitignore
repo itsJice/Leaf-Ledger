@@ -1,9 +1,0 @@
-.env
-.venv/
-.venv-recorder/
-outputs/
-recordings/
-latest_logs/
-__pycache__/
-latest_logs
-*.pyc
