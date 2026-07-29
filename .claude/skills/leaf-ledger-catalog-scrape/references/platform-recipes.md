@@ -157,6 +157,23 @@ Login persists in the **app section** (`/design/`, `/pro/`) even though the publ
 price, unit EA/BX/ST, desc, CFFileServlet image), paginated. Give image-heavy CF
 pages a longer wait + a retry-if-empty.
 
+### SoloVue B2B portal (Melrose) — `run_melrose_full.py`
+A vendor's public site may be only marketing while the real wholesale catalog is
+a **SoloVue** portal on a separate host (e.g. `melrose.solovue.com`) — ASP.NET +
+Vue SPA + JSON API. The login is a Vue form (`LogonEmail`/`LogonPassword` + a
+`logIn` button): **set the field values AND dispatch `input`/`change` events**
+(Vue won't register a plain `.value=`), then **click the button** (a native form
+submit does a GET that leaks creds into the URL — avoid it). Success sets
+`.ASPXAUTH` + `SwApi` cookies and seeds `UserToken`/`AccessToken` into the API
+URLs. Then, from the authed page context:
+`/api/soloweb/GetCategories/?UserToken=..&AccessToken=..` → all category ids;
+`/api/soloweb/GetProductList/?ProductCategoryId=<id>&PageNumber=N&ReturnAllImages=true&<tokens>`
+→ products, paginate on `IsMoreProducts`. Real quantity-tier wholesale prices.
+Field quirks: `Pnumber`=SKU (matches image filename), `Item`=product name,
+`Detail`=color, `Prices[]`=`{Price,UnitDescription,Quantity}` tiers,
+`OriginalPrice1Amount`=MSRP, `Images[]`. Do API calls via
+`sb.driver.execute_async_script(...)` (fetch with `credentials:'include'`).
+
 ### SPA with no obvious channel
 Load in the browser, capture network (see mysimplestore above), find the backend
 API. If truly nothing (abandoned template site, no store), report "no catalog."

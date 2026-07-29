@@ -22,12 +22,24 @@ scrapers into the app backend).
 ## The one rule that matters most
 
 **Full rich detail, every time.** Every pull must capture the **real buyer's
-price** (the authenticated dealer/wholesale price, not MSRP/index/"list"), **all
-images**, **full descriptions**, plus dimensions/weight/UPC/variants/stock when
-the supplier exposes them. A pull missing prices or images is *incomplete*. If a
-field is genuinely unobtainable (e.g. prices gated behind an account you don't
-have), **say so explicitly, flag it in `needs_review`, and propose the alternate
-source** — never silently ship a gap.
+price** (the authenticated dealer/wholesale price — what Leaf & Ledger pays),
+**all images**, **full descriptions**, plus dimensions/weight/UPC/variants/stock
+when the supplier exposes them. A pull missing prices or images is *incomplete*.
+If a field is genuinely unobtainable (e.g. prices gated behind an account you
+don't have), **say so explicitly, flag it in `needs_review`, and propose the
+alternate source** — never silently ship a gap.
+
+**Capture BOTH prices when available: dealer AND list.** The dealer/wholesale
+price alone hides the margin. Whenever the platform exposes a retail/list price —
+the public guest price, an MSRP/RRP, a "compare-at"/`list_price`, or a
+`rrp_without_tax` in a logged-in API — capture it too, in a separate `list_price`
+column, and compute `margin_pct_off_retail = (list - dealer) / list * 100`. This
+is standing policy (the user wants margin visibility). Two common shapes: (a) the
+guest sees a public/MSRP price and the login reveals the lower dealer price —
+capture the guest price as `list_price`, the logged-in price as `price`; (b) a
+single logged-in API returns both (e.g. BigCommerce `without_tax` = dealer,
+`rrp_without_tax` = retail list). If no list price exists anywhere (fully gated,
+"Call for pricing" with no RRP), leave `list_price` blank and note it.
 
 ## Workflow (HTTP-first, platform-first)
 
@@ -53,6 +65,19 @@ platform, the data channel and the recipe follow. Do this in order:
 4. **Smoke test on a few items first** (`--limit N` / a 1-category test) and
    verify SKU + **price** + image parse correctly *before* the full run. Assert
    any login is real by checking a value that should change (see login rule).
+
+   **Image-URL durability check (do this every scrape).** A URL that renders in
+   your logged-in browser is not proof. For 2–3 sample images, confirm the URL
+   returns `200` + `content-type: image/*` **in a clean session** — no cookies,
+   plain UA, `Referer: <origin>`. Classify what you captured:
+   - *Durable* (`/images/products/<sku>.jpg`, a CDN path) → safe to store.
+   - *Ephemeral / session-scoped* (`_cf_image/_cfimg-<random>.jpg`, signed or
+     tokenized URLs, anything with an expiry param) → **the stored URL will 404
+     later even though it works today.** Say so in the run report and flag the
+     supplier for image caching, because re-scraping is the only way back.
+   Record which kind it is in `run_report.json` (`image_url_kind`). Two suppliers
+   (Melrose wrong-path, Allstate ephemeral CF) shipped with dead images because
+   this wasn't checked — re-acquiring cost far more than verifying would have.
 
 5. **Full run, checkpointed.** Runners write resumable NDJSON so a crash resumes.
    Run long jobs (large catalogs, browser scrapes) in the background.

@@ -65,8 +65,14 @@ def fetch_price(session, url, retries=3):
             r = session.post(f"{BASE}/remote/v1/product-attributes/{pid}",
                              data={"action": "add", "product_id": pid},
                              headers={"X-Requested-With": "XMLHttpRequest"}, timeout=30)
-            price = (((r.json().get("data") or {}).get("price") or {}).get("without_tax") or {}).get("value", "")
-            return {"url": url, "ok": True, "product_id": pid, "price": price}
+            pobj = ((r.json().get("data") or {}).get("price") or {})
+            def _v(key):
+                return (pobj.get(key) or {}).get("value", "") if isinstance(pobj.get(key), dict) else ""
+            # without_tax = dealer/wholesale (what we pay); rrp_without_tax = retail list price
+            return {"url": url, "ok": True, "product_id": pid,
+                    "price": _v("without_tax"),
+                    "list_price": _v("rrp_without_tax") or _v("sale_price_without_tax"),
+                    "saved": _v("saved")}
         except (requests.RequestException, ValueError) as e:
             last = e
             time.sleep(1.5 + attempt * 2)
@@ -107,17 +113,28 @@ def stage_fetch(limit):
 
 
 def stage_merge():
-    prices = {}
+    prices, list_prices = {}, {}
     for line in PRICES.open(encoding="utf-8"):
         try:
             r = json.loads(line)
-            if r.get("ok") and r.get("price") not in ("", None):
-                prices[r["url"]] = r["price"]
         except json.JSONDecodeError:
-            pass
+            continue
+        if r.get("ok") and r.get("price") not in ("", None):
+            prices[r["url"]] = r["price"]
+        if r.get("ok") and r.get("list_price") not in ("", None):
+            list_prices[r["url"]] = r["list_price"]
     df = pd.read_excel(OUT / "products.xlsx")
-    df["price"] = df["product_url"].map(prices)
+    df["price"] = df["product_url"].map(prices)                 # dealer / wholesale (what we pay)
+    df["list_price"] = df["product_url"].map(list_prices)       # retail list price (RRP)
     df["source_price_label"] = df["price"].apply(lambda v: "dealer_login_price" if pd.notna(v) else "")
+    df["list_price_label"] = df["list_price"].apply(lambda v: "retail_rrp" if pd.notna(v) else "")
+    # margin the dealer gets off retail: (list - dealer) / list
+    def _margin(row):
+        d, l = row["price"], row["list_price"]
+        if pd.notna(d) and pd.notna(l) and l:
+            return round((l - d) / l * 100, 1)
+        return ""
+    df["margin_pct_off_retail"] = df.apply(_margin, axis=1)
     import shutil, tempfile
     tmp = Path(tempfile.mkdtemp())
     df.to_excel(tmp / "products.xlsx", index=False, sheet_name="products")
@@ -126,7 +143,8 @@ def stage_merge():
         shutil.move(str(tmp / n), str(OUT / n))
     shutil.rmtree(tmp, ignore_errors=True)
     filled = int(df["price"].notna().sum())
-    log(f"merge: {filled}/{len(df)} rows now priced -> {OUT / 'products.xlsx'}")
+    listed = int(df["list_price"].notna().sum())
+    log(f"merge: {filled}/{len(df)} priced, {listed}/{len(df)} with list price -> {OUT / 'products.xlsx'}")
 
 
 def main():

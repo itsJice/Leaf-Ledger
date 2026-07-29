@@ -3,9 +3,39 @@
   "configurations": [
     {
       "name": "frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev", "--", "--port", "5174", "--strictPort"],
-      "port": 5174
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "exec npm --prefix frontend run dev -- --port \"${PORT:-5174}\" --strictPort"
+      ],
+      "autoPort": true
+    },
+    {
+      "name": "backend-verify",
+      "runtimeExecutable": "/Users/justice/Documents/Claude Code/backend/.venv/bin/python",
+      "runtimeArgs": [
+        "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8199"
+      ],
+      "cwd": "/Users/justice/Documents/Claude Code/backend",
+      "port": 8199
+    },
+    {
+      "name": "scrape-progress",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd '/Users/justice/Documents/Claude Code/catalog-extraction' && exec .venv/bin/python scripts/progress_server.py --port \"${PORT:-8351}\""
+      ],
+      "autoPort": true
+    },
+    {
+      "name": "what2eat-mock",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd '/Users/justice/Documents/What 2 Eat (Claude)' && AI_SCAN_MOCK=1 exec .venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port \"${PORT:-8010}\""
+      ],
+      "autoPort": true
     }
   ]
 }

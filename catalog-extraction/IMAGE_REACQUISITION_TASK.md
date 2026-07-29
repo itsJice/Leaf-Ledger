@@ -77,3 +77,44 @@ list it — the app will show a clean "image unavailable → View on supplier" t
 - Don't change other product fields (name, price, description, category, normalized).
 - Don't deactivate or delete rows.
 - Don't touch the proxy / frontend / `ll_app.*` order tables — the main session owns those.
+
+---
+
+# RESULTS (completed)
+
+| Supplier | id | products | images fixed | still missing | where the image lives |
+|---|---|---|---|---|---|
+| Melrose International | 29 | 6,708 | **6,705** | 3 (catalog books, not products) | remote URL in `photo_url` / `image_urls` |
+| Allstate | 1 | 4,784 | **4,667** | 117 (absent from supplier site) | GitHub: itsJice/L-Limages (raw URLs) |
+| The Rock Warehouse | 25 | 684 | **6** | 678 (site defunct) | Wayback URL in `photo_url` |
+
+## Melrose — fixed at the URL level
+Original scrape built the wrong path (`/images/product/<sku>`). Real public SoloVue path is
+`/images/products/detail/desktop/<ImageName>` (no login needed). Written to `image_urls` +
+`photo_url`; `raw_data.image_source = melrose_solovue`. Verified: random sample all 200 image/jpeg.
+
+## Allstate — SOLVED: permanent GitHub-hosted URLs (no ingest needed)
+**The task doc's premise did not hold: Allstate has no stable image URL.** Verified:
+* Images are served *only* as ColdFusion temp files `/CFFileServlet/_cf_image/_cfimg<rand>.jpg`
+  that expire **within minutes** (measured). No cookie needed while alive.
+* Neither the piclist page, `Productitemdetail.cfm`, nor the public site exposes any durable path
+  (15 candidate stable paths probed → all 404). archive.org Save Page Now was tried and works but
+  anonymous rate limits made 4.7k captures a ~7-day job — abandoned.
+
+**Final fix:** the bytes were downloaded during a live scrape (4,668 valid JPEGs, 434 MB) and
+pushed to the public GitHub repo **itsJice/L-Limages**. Every product now points at
+`https://raw.githubusercontent.com/itsJice/L-Limages/main/allstate/<SKU>.jpg` — a permanent
+public https URL that behaves exactly like every other supplier's remote image.
+* `photo_url` + `image_urls` updated for 4,667 products; `raw_data.image_source = github_llimages`.
+* Verified: sampled URLs serve `200 image/jpeg`; `/api/products/page` hands them out; direct fetch OK.
+* Local backup remains at `catalog-extraction/outputs/allstate-full/images/` + `images_manifest.json`.
+* To re-host elsewhere later: push the same files and re-run
+  `scripts/point_allstate_to_github.py` with the new base URL.
+
+## Rock Warehouse — effectively unrecoverable
+Site is defunct (redirects to an Etsy shop); all product URLs 404. Wayback holds 709 images for the
+domain, but they are trade-show banners and index-page graphics — only **6** products have their own
+recorded image archived. Those 6 are committed as `web.archive.org/…im_/` URLs (verified 200 image/jpeg).
+The other 678 were **left empty on purpose**: the closest archived filenames belong to *different*
+products (e.g. `MEX 1143` would have inherited `MEX_1142`'s photo), and fabricating an image is worse
+than showing none. Recovering these needs images from the vendor directly, not the web.
