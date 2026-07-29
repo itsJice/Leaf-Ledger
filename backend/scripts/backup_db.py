@@ -38,7 +38,7 @@ async def main():
         out = Path(sys.argv[sys.argv.index("--out") + 1])
     if out is None:
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        out = Path.home() / "Documents" / "Leaf-Ledger-DB-Backup" / f"neon-{env}-{stamp}"
+        out = Path.home() / "Projects" / "leaf-and-ledger" / "db-backups" / f"neon-{env}-{stamp}"
     tables_dir = out / "tables"
     tables_dir.mkdir(parents=True, exist_ok=True)
 

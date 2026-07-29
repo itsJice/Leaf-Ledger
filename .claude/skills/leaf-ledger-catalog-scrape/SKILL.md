@@ -84,7 +84,7 @@ platform, the data channel and the recipe follow. Do this in order:
 
 6. **Export + deliver.** Export `products.xlsx` + `.csv` + `run_report.json` to
    `catalog-extraction/outputs/<supplier>-full/`, then **copy the .xlsx to the
-   deliverables folder** (currently `~/Documents/From Selenium To Leaf & Ledger/
+   deliverables folder** (currently `~/Projects/leaf-and-ledger/catalog-findings/
    THE FINDINGS/` — confirm with the user if unsure). Report row count, priced %,
    imaged %, and any `needs_review` gaps.
 

@@ -12,11 +12,11 @@
     },
     {
       "name": "backend-verify",
-      "runtimeExecutable": "/Users/justice/Documents/Claude Code/backend/.venv/bin/python",
+      "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8199"
+        "-c",
+        "cd backend && exec .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8199"
       ],
-      "cwd": "/Users/justice/Documents/Claude Code/backend",
       "port": 8199
     },
     {
@@ -24,7 +24,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-c",
-        "cd '/Users/justice/Documents/Claude Code/catalog-extraction' && exec .venv/bin/python scripts/progress_server.py --port \"${PORT:-8351}\""
+        "cd ../catalog-extraction && exec .venv/bin/python scripts/progress_server.py --port \"${PORT:-8351}\""
       ],
       "autoPort": true
     },
@@ -33,7 +33,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-c",
-        "cd '/Users/justice/Documents/What 2 Eat (Claude)' && AI_SCAN_MOCK=1 exec .venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port \"${PORT:-8010}\""
+        "cd ../../what-2-eat && AI_SCAN_MOCK=1 exec .venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port \"${PORT:-8010}\""
       ],
       "autoPort": true
     }

@@ -35,7 +35,11 @@ from openpyxl import load_workbook  # noqa: E402
 from app.libs.findings_intake import parse_findings_xlsx  # noqa: E402
 from load_findings import build_upsert, dual_price_columns_exist, _values  # noqa: E402
 
-FINDINGS = Path("/Users/justice/Documents/From Selenium To Leaf & Ledger/THE FINDINGS")
+# The catalog deliverables live beside this repo in the Leaf & Ledger project
+# group (../catalog-findings/THE FINDINGS). Override with LL_FINDINGS_DIR if you
+# keep them somewhere else.
+GROUP = BACKEND.parents[1]
+FINDINGS = Path(os.environ.get("LL_FINDINGS_DIR") or GROUP / "catalog-findings" / "THE FINDINGS")
 
 # Authoritative filename -> supplier_id for the established catalogs (avoids
 # duplicate suppliers from minor name spelling differences). New files not listed
@@ -136,7 +140,7 @@ async def main() -> int:
             gt = await c.fetchval("SELECT COUNT(*) FROM products")
             print(f"products in DB now: {gt}")
             import subprocess
-            norm = BACKEND.parent / "catalog-extraction" / "scripts" / "backfill_norm_to_db.py"
+            norm = GROUP / "catalog-extraction" / "scripts" / "backfill_norm_to_db.py"
             if norm.exists():
                 print("\n→ auto-normalizing newly-imported products…")
                 subprocess.run([sys.executable, str(norm), "--new-only"], check=False)
