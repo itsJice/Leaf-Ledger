@@ -15,9 +15,6 @@ backend/.venv
 
 # Local data that has no business in a deployed image
 backend/.local_databutton_storage
-catalog-extraction
-christmas-schedule-2026
-linkedin-warm-intro
 *.xlsx
 *.csv
 
