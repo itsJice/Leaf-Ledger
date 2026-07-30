@@ -89,6 +89,10 @@ export default function SidebarTabsEditor() {
       const to = Math.max(0, Math.min(order.length - 1, targetIndex));
       if (from === to) return;
       if (isPinnedPath(order[to])) return;
+      // Reordering is within-group: a tab moves inside its own section only.
+      // `resolveSidebarOrder` clamps items back to their home group anyway, so
+      // without this the row would visibly snap back after a cross-group drop.
+      if (navItemForPath(path)?.groupId !== navItemForPath(order[to])?.groupId) return;
       commit(move(order, from, to), hidden);
     },
     [commit, hidden, order]
@@ -197,10 +201,22 @@ export default function SidebarTabsEditor() {
           const isHidden = hidden.indexOf(path) !== -1;
           const pinned = item.pinned;
           const dragging = dragPath === path;
-          const canMoveUp = !pinned && index > 0 && !isPinnedPath(order[index - 1]);
-          const canMoveDown = !pinned && index < order.length - 1 && !isPinnedPath(order[index + 1]);
+          // Movement is bounded by the item's own group, so the arrows go dead
+          // at a section boundary instead of appearing to work and snapping back.
+          const prev = index > 0 ? navItemForPath(order[index - 1]) : undefined;
+          const next = index < order.length - 1 ? navItemForPath(order[index + 1]) : undefined;
+          const canMoveUp = !pinned && !!prev && !isPinnedPath(prev.path) && prev.groupId === item.groupId;
+          const canMoveDown = !pinned && !!next && !isPinnedPath(next.path) && next.groupId === item.groupId;
+          // The order is group-contiguous, so a change of groupId starts a section.
+          const startsGroup = index === 0 || prev?.groupId !== item.groupId;
 
           return (
+            <React.Fragment key={`${path}-group`}>
+            {startsGroup && item.groupLabel && (
+              <li className="pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                {item.groupLabel}
+              </li>
+            )}
             <li
               key={path}
               draggable={!pinned}
@@ -278,14 +294,15 @@ export default function SidebarTabsEditor() {
                 </button>
               </span>
             </li>
+            </React.Fragment>
           );
         })}
       </ul>
 
       <p className="mt-3 text-[11px] leading-relaxed text-stone-400">
-        A group heading appears above the first tab of each group, so headings follow your order. The
-        Clients &amp; Projects tree always stays with the Workspace group. New tabs added to Leaf &amp;
-        Ledger later appear automatically in their default spot.
+        Tabs reorder within their own group, so each heading stays in one place. The Clients &amp;
+        Projects tree always stays with the Workspace group. New tabs added to Leaf &amp; Ledger later
+        appear automatically in their default spot.
       </p>
     </div>
   );

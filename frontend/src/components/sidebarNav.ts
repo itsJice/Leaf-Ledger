@@ -186,7 +186,31 @@ export function resolveSidebarOrder(savedOrder?: string[] | null): string[] {
     result.push(path);
   });
 
-  return result;
+  return clampToGroups(result);
+}
+
+/**
+ * Reordering is *within-group*: a tab can be moved around inside its own
+ * section but never into another one.
+ *
+ * The saved order is a single flat path list, so a stale or hand-edited row can
+ * still interleave groups. Rather than honour that (which renders a group
+ * heading once per contiguous run, so an interleaved order shows the same
+ * heading twice), each item is placed back under its home group. Groups keep
+ * their canonical order; within a group, items follow the saved order.
+ */
+function clampToGroups(order: string[]): string[] {
+  const position = new Map(order.map((path, index) => [path, index]));
+  const out: string[] = [];
+
+  NAV_GROUPS.forEach((group) => {
+    group.items
+      .filter((item) => position.has(item.path))
+      .sort((a, b) => position.get(a.path)! - position.get(b.path)!)
+      .forEach((item) => out.push(item.path));
+  });
+
+  return out;
 }
 
 /** Drops unknown paths and refuses to hide a pinned item. */
