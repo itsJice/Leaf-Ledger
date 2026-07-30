@@ -2183,8 +2183,8 @@ function BuilderProductPicker({
                 onClick={() => setQuery(activeQuery === term.term ? "" : term.term)}
                 title={
                   term.catalog_verified === false
-                    ? `${term.recipes || 0} past builds — no catalog match for this wording`
-                    : `${term.recipes || 0} past builds`
+                    ? "Used in past builds — no catalog match for this wording"
+                    : "Used in past builds"
                 }
                 className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   activeQuery === term.term
@@ -2496,34 +2496,33 @@ function MeasuredScopeFields({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Build scope</p>
-          <p className="mt-1 text-xs text-stone-400">Measured from past builds. These guide the recommendation before products are chosen.</p>
+          <p className="mt-1 text-xs text-stone-400">Sizing and density guide the recommendation before products are chosen.</p>
         </div>
-        {recipeCount != null && recipeCount > 0 && (
-          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500 ring-1 ring-stone-200">
-            {recipeCount} past build{recipeCount === 1 ? "" : "s"}
-          </span>
-        )}
       </div>
-      {typeNotes && <p className="rounded-xl bg-white px-3 py-2 text-[11px] leading-relaxed text-stone-500 ring-1 ring-stone-200">{typeNotes}</p>}
 
-      {/* Builds we make often - each option prefills every field below it. */}
-      {commonBuilds.length > 0 && (
+      {/* Species drives every suggestion under it, so it is explicit at Step 1. */}
+      {fields.species && (
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-stone-500">Builds we make often</span>
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Species / style</span>
           <select
-            value={commonBuildPick}
-            onChange={(event) => onCommonBuild(event.target.value)}
+            value={species}
+            onChange={(event) => onSpeciesChange(event.target.value)}
             className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
           >
-            <option value="">Custom — set the fields yourself</option>
-            {commonBuilds.map((build) => (
-              <option key={build.name} value={build.name}>
-                {build.name}
-                {build.recipe_count ? ` · built ${build.recipe_count}x` : ""}
-                {build.typical_component_cost ? ` · ~${formatCurrency(build.typical_component_cost)} cost` : ""}
+            <option value="">Select a species or style...</option>
+            {speciesOptions.map((option) => (
+              <option key={option.name} value={option.name}>
+                {option.name}
               </option>
             ))}
           </select>
+          {activeSpecies && (
+            <span className="mt-1 block text-[11px] text-stone-400">
+              {specimenSpecies
+                ? "Specimen: about one stem — a single large potted plant, nothing to build up."
+                : "Built up from many stems, so density below is a real dial."}
+            </span>
+          )}
         </label>
       )}
 
@@ -2540,36 +2539,6 @@ function MeasuredScopeFields({
             <span className="mt-1 block text-[11px] text-stone-400">
               Height band {canopyTiers.band}
               {canopyTiers.height_display ? ` · read as ${canopyTiers.height_display}` : ""}
-              {canopyTiers.n ? ` · ${canopyTiers.n} past builds in this band` : ""}
-            </span>
-          )}
-        </label>
-      )}
-
-      {/* Species drives every suggestion under it, so it is explicit at Step 1. */}
-      {fields.species && (
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-stone-500">Species / style</span>
-          <select
-            value={species}
-            onChange={(event) => onSpeciesChange(event.target.value)}
-            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-          >
-            <option value="">Select a species or style...</option>
-            {speciesOptions.map((option) => (
-              <option key={option.name} value={option.name}>
-                {option.name}
-                {option.recipe_count ? ` · ${option.recipe_count} built` : " · no history yet"}
-                {option.density_applies === false ? " · single specimen" : ""}
-              </option>
-            ))}
-          </select>
-          {activeSpecies && (
-            <span className="mt-1 block text-[11px] text-stone-400">
-              {specimenSpecies
-                ? "Specimen: about one stem — a single large potted plant, nothing to build up."
-                : "Built up from many stems, so density below is a real dial."}
-              {activeSpecies.heights_ft?.length ? ` Built at ${activeSpecies.heights_ft.join(", ")} ft.` : ""}
             </span>
           )}
         </label>
@@ -2610,7 +2579,7 @@ function MeasuredScopeFields({
               </span>
               {canopyTiers.provisional && (
                 <span className="mt-1 block rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900 ring-1 ring-amber-100">
-                  Provisional: only {canopyTiers.n ?? 0} past build{canopyTiers.n === 1 ? "" : "s"} in this band, so these cut points will move as more land.
+                  Provisional: few past builds in this band, so these cut points will shift as more land.
                 </span>
               )}
             </>
@@ -2632,32 +2601,6 @@ function MeasuredScopeFields({
 
       {/* No historical build was anything but round (median depth:width 1.00), so
           this is capture-going-forward - and it sets the depth. */}
-      {fields.silhouette && (
-        <div>
-          <span className="mb-1 block text-xs font-semibold text-stone-500">Silhouette</span>
-          <div className="grid gap-1">
-            {silhouetteOptions.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => onSilhouette(option.key)}
-                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
-                  silhouette === option.key
-                    ? "border-stone-900 bg-white text-stone-950 shadow-sm"
-                    : "border-stone-200 bg-white/70 text-stone-500 hover:border-stone-300 hover:text-stone-800"
-                }`}
-              >
-                <span>
-                  <span className="font-semibold">{option.label}</span>
-                  {option.use ? <span className="ml-2 text-stone-400">{option.use}</span> : null}
-                </span>
-                <span className="shrink-0 text-[10px] font-semibold text-stone-400">depth {option.depth_ratio}x width</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {fields.depth && (
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-stone-500">Depth</span>
@@ -2721,10 +2664,9 @@ function MeasuredScopeFields({
               </span>
               {/* Sparse data is reported, never smoothed over. */}
               <span className="mt-1 block text-[11px] text-stone-400">
-                {`From ${densityInfo.n ?? 0} past build${densityInfo.n === 1 ? "" : "s"}`}
                 {densityInfo.observed_min != null && densityInfo.observed_max != null
-                  ? ` (observed ${densityInfo.observed_min}–${densityInfo.observed_max} pieces)`
-                  : ""}
+                  ? `Ranged ${densityInfo.observed_min}–${densityInfo.observed_max} pieces`
+                  : "Suggested range"}
                 {densityInfo.confidence ? ` · ${confidenceLabel(densityInfo.confidence)} confidence` : ""}
                 {densityInfo.source === "class" ? " · no history for this species, using its structural class" : ""}
               </span>
@@ -2733,6 +2675,32 @@ function MeasuredScopeFields({
               ))}
             </>
           )}
+        </div>
+      )}
+
+      {fields.silhouette && (
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Silhouette</span>
+          <div className="grid gap-1">
+            {silhouetteOptions.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onSilhouette(option.key)}
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                  silhouette === option.key
+                    ? "border-stone-900 bg-white text-stone-950 shadow-sm"
+                    : "border-stone-200 bg-white/70 text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                }`}
+              >
+                <span>
+                  <span className="font-semibold">{option.label}</span>
+                  {option.use ? <span className="ml-2 text-stone-400">{option.use}</span> : null}
+                </span>
+                <span className="shrink-0 text-[10px] font-semibold text-stone-400">depth {option.depth_ratio}x width</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
