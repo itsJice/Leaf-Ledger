@@ -87,7 +87,14 @@ async def ensure_project_schema(conn):
                     ALTER TABLE arrangement_containers
                     ADD COLUMN IF NOT EXISTS bucket_type TEXT,
                     ADD COLUMN IF NOT EXISTS requested_quantity INTEGER NOT NULL DEFAULT 1,
-                    ADD COLUMN IF NOT EXISTS scope_notes TEXT;
+                    ADD COLUMN IF NOT EXISTS scope_notes TEXT,
+                    -- Phase 0 normalization (migrations/004_normalize_containers.sql):
+                    -- a row here is a DESIGN, described by real columns rather than
+                    -- JSON packed into `label`. hero_image_url stays NULL until AI
+                    -- mockups fill it; the UI falls back to a build-type icon.
+                    ADD COLUMN IF NOT EXISTS build_type TEXT,
+                    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft',
+                    ADD COLUMN IF NOT EXISTS hero_image_url TEXT;
                 END IF;
                 IF to_regclass('public.project_rooms') IS NULL THEN
                     CREATE TABLE project_rooms (
@@ -216,35 +223,46 @@ async def migrate_fallback_rooms_to_project_rooms(conn, arrangement_id: int):
                 parsed_scope = parse_scope_label(scope["label"])
                 if not parsed_scope or parsed_scope.get("room_id") != fallback["id"]:
                     continue
-                await conn.execute(
-                    """
-                    UPDATE arrangement_containers
-                    SET label = $1
-                    WHERE id = $2
-                    """,
-                    encode_scope_label(
-                        parsed_scope.get("label"),
-                        room_id,
-                        parsed_scope.get("bucket_type"),
-                        parsed_scope.get("requested_quantity"),
-                        parsed_scope.get("scope_notes"),
-                    ),
-                    scope["id"],
-                )
                 if {"room_id", "bucket_type", "requested_quantity", "scope_notes"}.issubset(container_columns):
+                    # Fully normalize, exactly as migrations/004_normalize_containers.sql
+                    # does: real columns plus a clean human label. Leaving the LL_SCOPE
+                    # blob in `label` would keep re-creating the problem that migration
+                    # exists to fix. scope_notes may carry a LL_BUILD_INTELLIGENCE blob
+                    # and is copied through untouched.
                     await conn.execute(
                         """
                         UPDATE arrangement_containers
-                        SET room_id = $1,
-                            bucket_type = COALESCE($2, bucket_type),
-                            requested_quantity = COALESCE($3, requested_quantity),
-                            scope_notes = COALESCE($4, scope_notes)
-                        WHERE id = $5
+                        SET label = $1,
+                            room_id = $2,
+                            bucket_type = COALESCE($3, bucket_type),
+                            requested_quantity = COALESCE($4, requested_quantity),
+                            scope_notes = COALESCE(scope_notes, $5)
+                        WHERE id = $6
                         """,
+                        parsed_scope.get("label"),
                         room_id,
                         clean_optional_text(parsed_scope.get("bucket_type")),
                         normalize_requested_quantity(parsed_scope.get("requested_quantity")),
-                        clean_optional_text(parsed_scope.get("scope_notes")),
+                        parsed_scope.get("scope_notes"),
+                        scope["id"],
+                    )
+                    await sync_build_type(conn, scope["id"], None, container_columns)
+                else:
+                    # Legacy database without the real columns: keep the encoded form,
+                    # but re-point it at the new project_rooms id so the room resolves.
+                    await conn.execute(
+                        """
+                        UPDATE arrangement_containers
+                        SET label = $1
+                        WHERE id = $2
+                        """,
+                        encode_scope_label(
+                            parsed_scope.get("label"),
+                            room_id,
+                            parsed_scope.get("bucket_type"),
+                            parsed_scope.get("requested_quantity"),
+                            parsed_scope.get("scope_notes"),
+                        ),
                         scope["id"],
                     )
 
@@ -321,6 +339,10 @@ class ContainerIn(BaseModel):
     label: Optional[str] = None
     room_id: Optional[int] = None
     bucket_type: Optional[str] = None
+    # build_type is the normalized name for what bucket_type has always meant.
+    # bucket_type stays as the legacy alias; when only one is supplied the other
+    # is derived, so /api/designs and this endpoint never disagree.
+    build_type: Optional[str] = None
     requested_quantity: int = 1
     scope_notes: Optional[str] = None
     items: List[ContainerItemIn] = []
@@ -341,6 +363,7 @@ class RoomOut(BaseModel):
 class ContainerUpdate(BaseModel):
     label: Optional[str] = None
     bucket_type: Optional[str] = None
+    build_type: Optional[str] = None
     requested_quantity: Optional[int] = None
     scope_notes: Optional[str] = None
 
@@ -380,6 +403,9 @@ class ContainerOut(BaseModel):
     label: Optional[str]
     room_id: Optional[int] = None
     bucket_type: Optional[str] = None
+    build_type: Optional[str] = None
+    status: str = "draft"
+    hero_image_url: Optional[str] = None
     requested_quantity: int = 1
     scope_notes: Optional[str] = None
     sort_order: int
@@ -421,6 +447,25 @@ def clean_optional_text(value: Optional[str]) -> Optional[str]:
         return None
     value = value.strip()
     return value or None
+
+async def sync_build_type(conn, container_id: int, build_type: Optional[str], container_columns: set[str]):
+    """Keep build_type populated on every row this API writes.
+
+    /api/designs reads build_type, so a container created here must never land
+    with build_type NULL — otherwise the designs list silently drops it. When the
+    caller sends only the legacy bucket_type, build_type is derived from it.
+    """
+    if "build_type" not in container_columns or not container_id:
+        return
+    await conn.execute(
+        """
+        UPDATE arrangement_containers
+        SET build_type = COALESCE($1, build_type, bucket_type)
+        WHERE id = $2
+        """,
+        clean_optional_text(build_type),
+        container_id,
+    )
 
 def normalize_requested_quantity(value: Optional[int]) -> int:
     try:
@@ -593,10 +638,19 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
             })
 
         total_cost += subtotal
+        # READ ADAPTER. After migrations/004_normalize_containers.sql every design
+        # keeps its fields in real columns, so `native_*` wins. The `fallback_scope`
+        # branch decodes any row still carrying the old LL_SCOPE: JSON-in-label —
+        # a database that has not been migrated yet, or a row written by an older
+        # build — so the Arrangements page keeps working either way.
         native_room_id = cr_data.get("room_id") if "room_id" in container_columns else None
         native_bucket_type = cr_data.get("bucket_type") if "bucket_type" in container_columns else None
+        native_build_type = cr_data.get("build_type") if "build_type" in container_columns else None
+        native_container_status = cr_data.get("status") if "status" in container_columns else None
+        native_hero_image_url = cr_data.get("hero_image_url") if "hero_image_url" in container_columns else None
         native_requested_quantity = cr_data.get("requested_quantity") if "requested_quantity" in container_columns else None
         native_scope_notes = cr_data.get("scope_notes") if "scope_notes" in container_columns else None
+        resolved_bucket_type = native_bucket_type or (fallback_scope.get("bucket_type") if fallback_scope else None)
         containers.append({
             "id": cr_data["id"],
             "arrangement_id": arrangement_id,
@@ -604,7 +658,12 @@ async def fetch_arrangement_full(conn, arrangement_id: int, user_id: str) -> dic
             "container_name": cr_data["container_name"],
             "label": fallback_scope["label"] if fallback_scope else cr_data["label"],
             "room_id": native_room_id if native_room_id is not None else (fallback_scope.get("room_id") if fallback_scope else None),
-            "bucket_type": native_bucket_type or (fallback_scope.get("bucket_type") if fallback_scope else None),
+            "bucket_type": resolved_bucket_type,
+            # build_type is the normalized field; bucket_type is its legacy alias,
+            # so an un-migrated row still reports a usable build_type.
+            "build_type": native_build_type or resolved_bucket_type,
+            "status": native_container_status or "draft",
+            "hero_image_url": native_hero_image_url,
             "requested_quantity": normalize_requested_quantity(native_requested_quantity if native_requested_quantity is not None else (fallback_scope.get("requested_quantity") if fallback_scope else 1)),
             "scope_notes": native_scope_notes or (fallback_scope.get("scope_notes") if fallback_scope else None),
             "sort_order": cr_data["sort_order"],
@@ -695,6 +754,7 @@ async def create_arrangement(body: ArrangementCreate, request: Request):
                         (arrangement_id, container_product_id, label, sort_order)
                     VALUES ($1, $2, $3, $4) RETURNING id
                 """, arr_id, c.container_product_id, fallback_label, i)
+            await sync_build_type(conn, container["id"], c.build_type or c.bucket_type, container_columns)
             for item in c.items:
                 status = normalize_item_status(item.status)
                 if supports_status and {"part_key", "part_label", "part_order"}.issubset(item_columns):
@@ -900,6 +960,7 @@ async def add_container(arrangement_id: int, body: ContainerIn, request: Request
                     (arrangement_id, container_product_id, label, sort_order)
                 VALUES ($1, $2, $3, $4) RETURNING id
             """, arrangement_id, body.container_product_id, fallback_label, max_order + 1)
+        await sync_build_type(conn, container["id"], body.build_type or body.bucket_type, container_columns)
         for item in body.items:
             status = normalize_item_status(item.status)
             if supports_status and {"part_key", "part_label", "part_order"}.issubset(item_columns):
@@ -978,6 +1039,7 @@ async def update_container(container_id: int, body: ContainerUpdate, request: Re
                     label = COALESCE($1, label)
                 WHERE id = $2
             """, fallback_label, container_id)
+        await sync_build_type(conn, container_id, body.build_type or body.bucket_type, container_columns)
         await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", existing_data["arrangement_id"])
         return await fetch_arrangement_full(conn, existing_data["arrangement_id"], user_id)
     finally:

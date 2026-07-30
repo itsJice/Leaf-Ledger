@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard.tsx";
 import App from "./pages/App.tsx";
 import Arrangements from "./pages/Arrangements.tsx";
 import Clients from "./pages/Clients.tsx";
+import Designs from "./pages/Designs.tsx";
 import Favorites from "./pages/Favorites.tsx";
 import Invoice from "./pages/Invoice.tsx";
 import Library from "./pages/Library.tsx";
@@ -26,6 +27,10 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/arrangements", element: <Arrangements /> },
 	{ path: "/clients", element: <Clients /> },
 	{ path: "/clients/project", element: <Arrangements /> },
+	{ path: "/designs", element: <Designs /> },
+	// The builder renders standalone here (it detects this pathname). Routing to
+	// it directly — rather than nesting it inside Designs — keeps a single Layout.
+	{ path: "/designs/new", element: <Arrangements /> },
 	{ path: "/projects", element: <Arrangements /> },
 	{ path: "/favorites", element: <Favorites /> },
 	{ path: "/invoice", element: <Invoice /> },
