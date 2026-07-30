@@ -24,3 +24,6 @@ backend/.local_databutton_storage
 .claude
 *.md
 !DEPLOYMENT.md
+
+# Offline scheduling engine — never needed in the runtime image
+scheduler/

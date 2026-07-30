@@ -97,3 +97,7 @@ catalog-extraction/Vickerman*.py
 # yarn.lock
 # pnpm-lock.yaml
 # uv.lock
+
+# Scheduler engine (offline tool) — env only, code+caches ARE tracked
+scheduler/.venv/
+scheduler/__pycache__/
