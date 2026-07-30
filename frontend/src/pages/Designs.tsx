@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Arrangements from "./Arrangements";
 import {
   Check,
   ChevronDown,
@@ -232,7 +233,7 @@ export default function Designs() {
       </header>
 
       {isNew ? (
-        <NewDesignPlaceholder onBack={() => navigate("/designs")} />
+        <Arrangements embedded newDesign />
       ) : (
         <main className="px-10 py-6">
           {/* Filter chips (left) + search / sort / view controls (right) */}
@@ -577,28 +578,3 @@ function EmptyState({ activeCount, onReset, onNew }: {
   );
 }
 
-/**
- * Placeholder for `/designs/new`. The builder agent owns this route and will
- * replace this component; it exists so the toggle never lands on a blank page.
- */
-function NewDesignPlaceholder({ onBack }: { onBack: () => void }) {
-  return (
-    <main className="px-10 py-16">
-      <div className="mx-auto max-w-lg rounded-xl border border-dashed border-stone-300 bg-white/60 px-8 py-14 text-center">
-        <Sprout className="mx-auto mb-3 text-emerald-700/50" size={32} strokeWidth={1.5} />
-        <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
-          New Design
-        </h2>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-stone-500">
-          The design builder opens here. It's being wired up now.
-        </p>
-        <button
-          onClick={onBack}
-          className="mt-5 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-        >
-          Back to All Designs
-        </button>
-      </div>
-    </main>
-  );
-}

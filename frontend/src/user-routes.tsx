@@ -28,9 +28,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/clients", element: <Clients /> },
 	{ path: "/clients/project", element: <Arrangements /> },
 	{ path: "/designs", element: <Designs /> },
-	// The builder renders standalone here (it detects this pathname). Routing to
-	// it directly — rather than nesting it inside Designs — keeps a single Layout.
-	{ path: "/designs/new", element: <Arrangements /> },
+	// Both design routes render <Designs>; it keeps the header + All Designs /
+	// New Design toggle mounted and swaps only the body, so you can toggle back.
+	{ path: "/designs/new", element: <Designs /> },
 	{ path: "/projects", element: <Arrangements /> },
 	{ path: "/favorites", element: <Favorites /> },
 	{ path: "/invoice", element: <Invoice /> },

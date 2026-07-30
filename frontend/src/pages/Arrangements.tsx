@@ -2839,7 +2839,7 @@ export function NewProjectModal({
  * `<Arrangements newDesign />` or plainly as `<Arrangements />` - the pathname
  * is checked too, so both wiring styles land in the standalone builder.
  */
-export default function Arrangements({ newDesign, mode }: { newDesign?: boolean; mode?: string } = {}) {
+export default function Arrangements({ newDesign, mode, embedded }: { newDesign?: boolean; mode?: string; embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -4567,8 +4567,14 @@ export default function Arrangements({ newDesign, mode }: { newDesign?: boolean;
     </button>
   );
 
+  // `embedded` renders the builder inside a host page that already supplies
+  // <Layout> and its own header (the Designs tab), so the host's All Designs /
+  // New Design toggle stays put instead of being replaced by a second page.
+  // Nesting two <Layout>s would render the sidebar twice.
+  const Shell = embedded ? React.Fragment : Layout;
+
   return (
-    <Layout>
+    <Shell>
       {!selectedId && !standaloneNewDesign ? (
         <>
           <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
@@ -4637,6 +4643,9 @@ export default function Arrangements({ newDesign, mode }: { newDesign?: boolean;
       ) : arrangement || standaloneNewDesign ? (
         <>
           {!arrangement ? (
+            // Embedded in the Designs tab, the host already renders the header
+            // and the All Designs / New Design toggle — a second one would stack.
+            embedded ? null : (
             <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
               <button onClick={() => navigate("/clients")} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200" aria-label="Leave the new design builder">
                 <ArrowLeft size={16} />
@@ -4651,6 +4660,7 @@ export default function Arrangements({ newDesign, mode }: { newDesign?: boolean;
                 <p className="text-xs text-stone-400">Pick the client, project, and group beside the steps · nothing is saved until you continue past step 1.</p>
               </div>
             </header>
+            )
           ) : (
           <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
             <button onClick={activeRoomId ? (activeBucket || creatingBuiltProduct ? backToBuiltProducts : closeRoom) : clearSelection} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200">
@@ -6528,6 +6538,6 @@ export default function Arrangements({ newDesign, mode }: { newDesign?: boolean;
         />
       )}
       {detailProduct && <ProductDetailModal product={detailProduct} onClose={() => setDetailProduct(null)} />}
-    </Layout>
+    </Shell>
   );
 }
