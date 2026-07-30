@@ -16,6 +16,7 @@ import Mockups from "./pages/Mockups.tsx";
 import Orders from "./pages/Orders.tsx";
 import OrnamentCalculator from "./pages/OrnamentCalculator.tsx";
 import CatalogSearch from "./pages/CatalogSearch.tsx";
+import InstallSchedule from "./pages/InstallSchedule.tsx";
 import Settings from "./pages/Settings.tsx";
 import Suppliers from "./pages/Suppliers.tsx";
 
@@ -37,6 +38,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/library", element: <Library /> },
 	{ path: "/mockups", element: <Mockups /> },
 	{ path: "/orders", element: <Orders /> },
+	{ path: "/install-schedule", element: <InstallSchedule /> },
 	{ path: "/ornament-calculator", element: <OrnamentCalculator /> },
 	{ path: "/ornamentcalculator", element: <OrnamentCalculator /> },
 	{ path: "/search", element: <CatalogSearch /> },

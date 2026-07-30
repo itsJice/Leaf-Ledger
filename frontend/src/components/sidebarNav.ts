@@ -12,6 +12,7 @@ import {
   Shapes,
   ShoppingCart,
   Sparkles,
+  TreePine,
 } from "lucide-react";
 
 /**
@@ -64,6 +65,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/library", label: "Product Library", icon: Leaf },
       { path: "/suppliers", label: "Suppliers", icon: Building2 },
       { path: "/orders", label: "Purchase Orders", icon: ShoppingCart },
+      { path: "/install-schedule", label: "Install Schedule", icon: TreePine },
       { path: "/favorites", label: "Favorites", icon: Heart },
       { path: "/invoice", label: "Invoices", icon: FileText },
     ],
