@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,7 +6,11 @@ import {
   Circle,
   HelpCircle,
   Grid3X3,
+  LayoutGrid,
   Leaf,
+  List,
+  Maximize2,
+  Minimize2,
   Minus,
   Redo2,
   Package,
@@ -20,9 +24,16 @@ import {
   X,
 } from "lucide-react";
 import Layout from "components/Layout";
+import DesignDestinationPicker, {
+  EMPTY_DESIGN_DESTINATION,
+  destinationIsComplete,
+  type DesignDestination,
+  type DesignHierarchy,
+} from "components/DesignDestinationPicker";
 import { apiClient } from "app";
+import { apiFetch } from "utils/apiFetch";
 import { ContentType } from "../apiclient/http-client";
-import { formatCurrency, categoryLabel, unitLabel } from "utils/format";
+import { formatCurrency, unitLabel } from "utils/format";
 import { toast } from "sonner";
 import { ProductDetailModal, hasNoSupplierImage, hasSupplierPlaceholderImage, productDisplayImageUrl, type Product as LibraryProduct } from "./Library";
 
@@ -142,25 +153,336 @@ type BuildSuggestion = {
 };
 
 const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
-const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
 const BUILD_TEMPLATE_STORAGE_KEY = "leaf-ledger:build-templates:v1";
 const INTELLIGENCE_NOTE_PREFIX = "LL_BUILD_INTELLIGENCE:";
 const CUSTOM_SECTIONS_PREFIX = "LL_CUSTOM_SECTIONS:";
 
-type ProductPage = {
-  items: LibraryProduct[];
-  total: number;
-  limit: number;
-  offset: number;
+// ─── Builder intelligence (/api/builder) ─────────────────────────────────────
+// The measured numbers behind Step 1. Every value the builder now asks for is
+// backed by the 223 imported historical recipes: canopy tiers are defined per
+// height band, density is keyed to species x height and never pooled, and each
+// build type declares exactly which dimension fields it can use. See
+// app/docs/TREE_SCOPE_SPEC.md.
+
+const BUILDER_TYPES_CACHE_KEY = "leaf-ledger:builder-build-types:v1";
+// Builder-only view prefs. Deliberately NOT the Catalog Search keys - the two
+// panes are different sizes and the user tunes them independently.
+const BUILDER_CATALOG_VIEW_KEY = "leaf-ledger:builder-catalog-view:v1";
+const BUILDER_CATALOG_SIZE_KEY = "leaf-ledger:builder-catalog-size:v1";
+const BUILDER_CATALOG_WIDTH_KEY = "leaf-ledger:builder-catalog-width:v1";
+const BUILDER_CATALOG_EXPANDED_KEY = "leaf-ledger:builder-catalog-expanded:v1";
+
+type BuilderFieldKey = "height" | "width" | "canopy" | "silhouette" | "depth" | "species" | "density";
+
+const BUILDER_FIELD_KEYS: BuilderFieldKey[] = ["height", "width", "canopy", "silhouette", "depth", "species", "density"];
+
+type BuilderTypeSlot = { order: number; label: string; scope: string; scope_label?: string };
+
+type BuilderBuildType = {
+  key: string;
+  label: string;
+  aliases?: string[];
+  recipe_count?: number;
+  usable_recipe_count?: number;
+  has_history?: boolean;
+  slots?: BuilderTypeSlot[];
+  fields?: Partial<Record<BuilderFieldKey, boolean>>;
+  applies?: string[];
+  notes?: string | null;
+  seed_from?: string;
+  data_note?: string;
 };
 
-type LibraryProductCache = {
-  products: LibraryProduct[];
-  productTotal?: number;
+type BuilderSpecies = {
+  name: string;
+  structural_class: "built_up" | "specimen" | string;
+  density_applies?: boolean;
+  recipe_count?: number;
+  usable_recipe_count?: number;
+  heights_ft?: number[];
+  median_pieces?: number | null;
+  median_structural_pieces?: number | null;
 };
 
-const BUILDER_PRODUCT_PAGE_SIZE = 2000;
-const BUILDER_PRODUCT_CONCURRENT_PAGE_LIMIT = 8;
+type CanopyTier = {
+  key: string;
+  label: string;
+  min_in: number | null;
+  max_in: number | null;
+  range_label: string;
+};
+
+type SilhouetteOption = {
+  key: string;
+  label: string;
+  depth_ratio: number;
+  use?: string;
+  default?: boolean;
+};
+
+type CanopyTiersResponse = {
+  band?: string | null;
+  tiers?: CanopyTier[];
+  default_tier?: string | null;
+  default_width_in?: number | null;
+  provisional?: boolean;
+  n?: number;
+  silhouettes?: SilhouetteOption[];
+  height_display?: string | null;
+  height_in?: number | null;
+  spec_matches_measured?: boolean | null;
+};
+
+type DensityBand = {
+  key: string;
+  label: string;
+  pieces: number;
+  multiplier?: number;
+  percentile?: number;
+  basis?: string;
+};
+
+type DensityResponse = {
+  requested_species?: string | null;
+  species?: string | null;
+  structural_class?: string;
+  density_applies?: boolean;
+  height_display?: string | null;
+  baseline_pieces?: number | null;
+  n?: number;
+  observed_min?: number | null;
+  observed_max?: number | null;
+  confidence?: string;
+  source?: string;
+  bands?: DensityBand[];
+  default_band?: string | null;
+  notes?: string[];
+};
+
+type CommonBuild = {
+  name: string;
+  build_type?: string;
+  species?: string | null;
+  recipe_count?: number;
+  height_in?: number | null;
+  height_display?: string | null;
+  width_in?: number | null;
+  depth_in?: number | null;
+  canopy_tier?: string | null;
+  height_band?: string | null;
+  silhouette?: string | null;
+  pieces?: number | null;
+  structural_pieces?: number | null;
+  typical_component_cost?: number | null;
+  typical_retail?: number | null;
+};
+
+type ScopeFilterTerm = { term: string; recipes?: number; weight?: number; catalog_verified?: boolean | null };
+type ScopeFilterFacet = { value: string; weight?: number; source?: string };
+
+type ScopeFilterSlot = {
+  slot: string;
+  label: string;
+  filters?: { categories?: ScopeFilterFacet[]; product_types?: ScopeFilterFacet[]; colors?: ScopeFilterFacet[] };
+  exclude_categories?: string[];
+  search_terms?: ScopeFilterTerm[];
+  recipe_lines?: number;
+  ordering_note?: string;
+};
+
+// Falls back to the spec's table so the control still renders if the silhouette
+// list has not arrived (it ships inside the canopy-tiers response).
+const SILHOUETTE_FALLBACK: SilhouetteOption[] = [
+  { key: "full_round", label: "Full-round", depth_ratio: 1.0, use: "freestanding, viewed 360°", default: true },
+  { key: "corner", label: "Corner", depth_ratio: 0.66, use: "tucked into a corner" },
+  { key: "flat_back", label: "3-sided / flat-back", depth_ratio: 0.5, use: "flush against a wall" },
+];
+
+// Every field a type could declare. Used when the API is unreachable so Step 1
+// degrades to the pre-Phase-C behaviour (plain height/width/depth) rather than
+// showing canopy and density with nothing behind them.
+const BUILDER_FIELDS_FALLBACK: Record<BuilderFieldKey, boolean> = {
+  height: true, width: true, canopy: false, silhouette: false, depth: true, species: false, density: false,
+};
+
+let builderTypesMemo: BuilderBuildType[] | null = null;
+
+function cleanBuilderBuildTypes(value: unknown): BuilderBuildType[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => {
+      const item = row as Partial<BuilderBuildType>;
+      const label = String(item?.label || "").trim();
+      if (!label) return null;
+      return {
+        key: String(item.key || label),
+        label,
+        aliases: Array.isArray(item.aliases) ? item.aliases.map(String) : [],
+        recipe_count: Number(item.recipe_count) || 0,
+        usable_recipe_count: Number(item.usable_recipe_count) || 0,
+        has_history: Boolean(item.has_history),
+        slots: Array.isArray(item.slots)
+          ? item.slots
+              .map((slot, index) => ({
+                order: Number((slot as BuilderTypeSlot)?.order ?? index),
+                label: String((slot as BuilderTypeSlot)?.label || "").trim(),
+                scope: String((slot as BuilderTypeSlot)?.scope || ""),
+                scope_label: String((slot as BuilderTypeSlot)?.scope_label || ""),
+              }))
+              .filter((slot) => Boolean(slot.label))
+              .sort((a, b) => a.order - b.order)
+          : [],
+        fields: item.fields && typeof item.fields === "object" ? item.fields : undefined,
+        applies: Array.isArray(item.applies) ? item.applies.map(String) : [],
+        notes: item.notes ?? null,
+        seed_from: item.seed_from,
+        data_note: item.data_note,
+      } satisfies BuilderBuildType;
+    })
+    .filter(Boolean) as BuilderBuildType[];
+}
+
+function readBuilderBuildTypes(): BuilderBuildType[] {
+  if (builderTypesMemo) return builderTypesMemo;
+  if (typeof window === "undefined") return [];
+  try {
+    builderTypesMemo = cleanBuilderBuildTypes(JSON.parse(window.localStorage.getItem(BUILDER_TYPES_CACHE_KEY) || "null"));
+  } catch {
+    builderTypesMemo = [];
+  }
+  return builderTypesMemo;
+}
+
+function writeBuilderBuildTypes(types: BuilderBuildType[]) {
+  builderTypesMemo = types;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(BUILDER_TYPES_CACHE_KEY, JSON.stringify(types));
+  } catch {
+    // The cache only saves a round trip; the live fetch already succeeded.
+  }
+}
+
+/**
+ * The API build type behind a label, matched through its alias list.
+ *
+ * Deliberately consulted only where the existing config/template lookup comes
+ * up empty, so the four historical green types keep the exact slot labels and
+ * order they already save under (their API slots are identical anyway) and only
+ * the newly added types - Plant & Bush, Container Only, Topiary - are driven
+ * from the API template.
+ */
+function builderApiTypeFor(buildType: string, known?: BuilderBuildType[]): BuilderBuildType | null {
+  const normalized = normalizeLabel(buildType);
+  if (!normalized) return null;
+  // The module-level cache is the fallback so the synchronous slot lookup
+  // (designPartsForBuildType) can answer during the first render after a reload;
+  // callers inside the component pass the live state instead.
+  const types = known?.length ? known : readBuilderBuildTypes();
+  if (!types.length) return null;
+  const exact = types.find((type) =>
+    [type.label, ...(type.aliases || [])].some((value) => normalizeLabel(value) === normalized)
+  );
+  if (exact) return exact;
+  return (
+    types.find((type) =>
+      [type.label, ...(type.aliases || [])]
+        .map(normalizeLabel)
+        .some((value) => value.length > 3 && (normalized.includes(value) || value.includes(normalized)))
+    ) || null
+  );
+}
+
+function builderApiSlotsForBuildType(buildType: string): string[] | null {
+  const slots = builderApiTypeFor(buildType)?.slots || [];
+  return slots.length ? slots.map((slot) => slot.label) : null;
+}
+
+function builderFieldsForBuildType(buildType: string, known?: BuilderBuildType[]): Record<BuilderFieldKey, boolean> {
+  const declared = builderApiTypeFor(buildType, known)?.fields;
+  if (!declared) return { ...BUILDER_FIELDS_FALLBACK };
+  return BUILDER_FIELD_KEYS.reduce((next, key) => {
+    next[key] = Boolean(declared[key]);
+    return next;
+  }, {} as Record<BuilderFieldKey, boolean>);
+}
+
+// The scope slot a part label belongs to, so Choose Parts can ask the API for
+// that slot's smart filters. Mirrors the backend's `_resolve_slot` vocabulary.
+function scopeSlotForPartLabel(label: string): string | null {
+  const text = normalizeLabel(label);
+  if (!text) return null;
+  if (text.includes("container") || text.includes("planter") || text.includes("base") || text.includes("vessel")) return "container";
+  if (text.includes("top dressing") || text === "finish" || text.includes("finish/")) return "top_dressing";
+  if (text.includes("trunk") || text.includes("branches")) return "trunks";
+  if (text.includes("accent")) return "accent";
+  if (
+    text.includes("leaves") || text.includes("plant") || text.includes("greenery") || text.includes("focal") ||
+    text.includes("succulent") || text.includes("cactus") || text.includes("material")
+  ) {
+    return "plant_material";
+  }
+  return null;
+}
+
+function builderApiUrl(path: string, params?: Record<string, string | number | undefined | null>) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params || {})) {
+    if (value === undefined || value === null || value === "") continue;
+    query.set(key, String(value));
+  }
+  const suffix = query.toString();
+  return `/api/builder/${path}${suffix ? `?${suffix}` : ""}`;
+}
+
+async function fetchBuilderJson<T>(path: string, params?: Record<string, string | number | undefined | null>): Promise<T | null> {
+  try {
+    const response = await apiFetch(builderApiUrl(path, params));
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function silhouetteOption(key: string, options: SilhouetteOption[]) {
+  return options.find((option) => option.key === key) || options.find((option) => option.default) || options[0] || null;
+}
+
+function formatInches(value?: number | null) {
+  if (value == null || !Number.isFinite(value)) return "";
+  const rounded = Math.round(value * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}"`;
+}
+
+// The width a tier implies when the designer picks the tier instead of typing a
+// number: the middle of the tier's own range, so "Medium" lands mid-Medium.
+function widthForCanopyTier(tier: CanopyTier | null | undefined) {
+  if (!tier) return null;
+  if (tier.min_in != null && tier.max_in != null) return (tier.min_in + tier.max_in) / 2;
+  if (tier.max_in != null) return Math.max(1, tier.max_in - 3);
+  if (tier.min_in != null) return tier.min_in + 3;
+  return null;
+}
+
+function confidenceLabel(confidence?: string | null) {
+  const text = String(confidence || "").replace(/_/g, " ").trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+}
+
+// Terms a search would return nothing for are demoted, never dropped - the
+// shop's own vocabulary stays visible, it just sorts last so a pre-applied
+// filter always comes back with products. `null` means the catalog index was
+// cold and the term is simply unchecked.
+function sortedScopeTerms(terms: ScopeFilterTerm[]) {
+  return [...terms].sort((a, b) => {
+    const aUnverified = a.catalog_verified === false ? 1 : 0;
+    const bUnverified = b.catalog_verified === false ? 1 : 0;
+    if (aUnverified !== bUnverified) return aUnverified - bUnverified;
+    return (Number(b.weight) || 0) - (Number(a.weight) || 0);
+  });
+}
+
 
 const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = [
   {
@@ -207,37 +529,60 @@ const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = [
     section: "Green",
     name: "Tree",
     usedFor: ["Tree", "Tree / Plant", "Fiddle Fig"],
-    slots: ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
+    slots: ["Leaves", "Trunks & Branches", "Top Dressing", "Container"],
   },
   {
     id: "arrangement",
     section: "Green",
     name: "Arrangement",
     usedFor: ["Arrangement", "Orchid Arrangement", "Succulent Arrangement", "Foliage Arrangement"],
-    slots: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
+    slots: ["Accent Material", "Focal Material", "Finish/Top Dressing", "Container/Base"],
   },
   {
     id: "planter",
     section: "Green",
     name: "Planter",
     usedFor: ["Planter", "Container Garden", "Floor Container"],
-    slots: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
+    slots: ["Accent Plant", "Main Plant", "Finish/Top Dressing", "Container/Planter"],
   },
   {
     id: "drop-in",
     section: "Green",
     name: "Drop-in Arrangement",
     usedFor: ["Drop-in Arrangement", "Client Container"],
-    slots: ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
+    slots: ["Finish", "Accent Material", "Main Material", "Drop-in Base"],
   },
   {
     id: "succulent",
     section: "Green",
     name: "Succulent / Cactus",
     usedFor: ["Succulent Arrangement", "Cactus Arrangement"],
-    slots: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
+    slots: ["Accent Greenery", "Succulents/Cactus", "Finish/Top Dressing", "Container/Base"],
   },
 ];
+
+// The green build slots above used to read top-down (container first). They now read
+// bottom-up so the builder mirrors how the piece is physically assembled.
+// DISPLAY ORDER ONLY changed - no slot label string was renamed. Saved part data is
+// keyed by `partKey(label, displayIndex)`, so the pre-flip index for these labels is
+// recorded here and honoured when resolving already-saved items (see itemsForPart).
+const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
+  "green-tree": ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
+  arrangement: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
+  planter: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
+  "drop-in": ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
+  succulent: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
+};
+
+const FLIPPED_SLOT_COUNT = 4;
+
+// Labels whose display index moved when the green slots were flipped. No Christmas slot
+// or enhancer sub-part label appears here, so the legacy lookup can never cross over.
+const FLIPPED_SLOT_LABELS = new Set(
+  Object.values(LEGACY_TOP_DOWN_SLOT_ORDERS)
+    .flat()
+    .map((label) => label.trim().toLowerCase())
+);
 
 type ProjectsListCache = {
   arrangements: ArrangementSummary[];
@@ -251,70 +596,6 @@ function readProjectsListCache(): ProjectsListCache | null {
     return parsed;
   } catch {
     return null;
-  }
-}
-
-function readLibraryProductCache(): LibraryProductCache {
-  if (typeof window === "undefined") return { products: [] };
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(LIBRARY_CACHE_KEY) || "null");
-    return {
-      products: Array.isArray(parsed?.products) ? parsed.products : [],
-      productTotal: typeof parsed?.productTotal === "number" ? parsed.productTotal : undefined,
-    };
-  } catch {
-    return { products: [] };
-  }
-}
-
-function trimBuilderProductRawData(rawData: LibraryProduct["raw_data"]): LibraryProduct["raw_data"] {
-  if (!rawData || typeof rawData !== "object") return rawData;
-  const searchableKeys = [
-    "Description",
-    "Item",
-    "Unit",
-    "Country",
-    "Country of Origin",
-    "Height",
-    "Width",
-    "Diameter",
-    "Length",
-    "Availability",
-    "ColorGrp",
-    "Class",
-    "Season",
-    "UPC",
-    "Material Breakdown",
-    "Material_Breakdown",
-  ];
-  return searchableKeys.reduce<Record<string, unknown>>((next, key) => {
-    if (key in rawData) next[key] = rawData[key];
-    return next;
-  }, {});
-}
-
-function trimBuilderProductForCache(product: LibraryProduct): LibraryProduct {
-  return {
-    ...product,
-    raw_data: trimBuilderProductRawData(product.raw_data),
-  };
-}
-
-function writeLibraryProductCache(products: LibraryProduct[], productTotal?: number) {
-  if (typeof window === "undefined") return;
-  try {
-    const existing = JSON.parse(window.localStorage.getItem(LIBRARY_CACHE_KEY) || "null");
-    window.localStorage.setItem(
-      LIBRARY_CACHE_KEY,
-      JSON.stringify({
-        ...(existing && typeof existing === "object" ? existing : {}),
-        products: products.map(trimBuilderProductForCache),
-        productTotal,
-        cachedAt: Date.now(),
-      })
-    );
-  } catch {
-    // Cache writes are best-effort; the live catalog load still succeeds.
   }
 }
 
@@ -430,9 +711,120 @@ function displayScopeNotes(notes?: string | null) {
 function editableScopeNotes(notes?: string | null) {
   return displayScopeNotes(notes)
     .split("\n")
-    .filter((line) => !/^(tree type|tree source|tree lights|height|width \/ canopy|depth \/ density|enhancer package|garland package|garland light|garland size|garland length|garland diameter|wreath size):/i.test(line.trim()))
+    .filter((line) => !MANAGED_SCOPE_LINE_RE.test(line.trim()))
     .join("\n")
     .trim();
+}
+
+// Every scope-note key the builder owns, so a managed value is never duplicated
+// into the free-text notes. `width / canopy` and `depth / density` are the
+// pre-Phase-C keys: they are no longer written, but they are still stripped here
+// and still read below, so a design saved under them keeps its values.
+const MANAGED_SCOPE_LINE_RE = /^(tree type|tree source|tree lights|height|width \/ canopy|depth \/ density|width|depth|species|canopy|silhouette|density|enhancer package|garland package|garland light|garland size|garland length|garland diameter|wreath size):/i;
+
+/**
+ * Reading the Step 1 dimensions out of `scope_notes`.
+ *
+ * Phase C replaced the free-text "Width / canopy" and "Depth / density" boxes -
+ * words that appear in zero of 223 recipes - with `Width` / `Depth` plus the
+ * measured `Species`, `Canopy`, `Silhouette` and `Density`. Only the new keys
+ * are written, but every reader falls back to the old key, so a design saved
+ * before this change still shows its width and depth and round-trips without
+ * losing them. `LL_BUILD_INTELLIGENCE:` / `LL_CUSTOM_SECTIONS:` lines are never
+ * touched by any of this.
+ */
+function buildHeightFromNotes(notes?: string | null) {
+  return scopeNoteValue(notes, "Height");
+}
+
+function buildWidthFromNotes(notes?: string | null) {
+  return scopeNoteValue(notes, "Width") || scopeNoteValue(notes, "Width / canopy");
+}
+
+// The old "Depth / density" box was one field doing two jobs, and its own
+// placeholder invited words ("light, medium, dense") rather than a measurement.
+// So it only feeds Depth when it actually holds a number; otherwise it is read
+// as a fullness word by buildDensityBandFromNotes below and nothing is lost.
+function buildDepthFromNotes(notes?: string | null) {
+  const explicit = scopeNoteValue(notes, "Depth");
+  if (explicit) return explicit;
+  const legacy = scopeNoteValue(notes, "Depth / density");
+  return firstNumber(legacy) ? legacy : "";
+}
+
+function buildSpeciesFromNotes(notes?: string | null) {
+  return scopeNoteValue(notes, "Species");
+}
+
+// Stored as `Canopy: M (42-45")`, so take the leading tier key.
+function buildCanopyTierFromNotes(notes?: string | null) {
+  const value = scopeNoteValue(notes, "Canopy");
+  const match = value.match(/^(XS|S|M|L|XL)\b/i);
+  return match ? match[1].toUpperCase() : "";
+}
+
+function buildSilhouetteFromNotes(notes?: string | null) {
+  const value = normalizeLabel(scopeNoteValue(notes, "Silhouette"));
+  if (!value) return "";
+  if (value.includes("corner")) return "corner";
+  if (value.includes("flat") || value.includes("3-sid") || value.includes("3 sid") || value.includes("wall")) return "flat_back";
+  if (value.includes("round")) return "full_round";
+  return "";
+}
+
+// `Density: Full (12 pieces)`. The legacy "Depth / density" box occasionally held
+// a fullness word instead of a number, so it is read as a last resort.
+function buildDensityBandFromNotes(notes?: string | null) {
+  const value = normalizeLabel(scopeNoteValue(notes, "Density") || scopeNoteValue(notes, "Depth / density"));
+  if (!value) return "";
+  if (value.includes("super")) return "super_full";
+  if (value.includes("sparse")) return "sparse";
+  if (value.includes("full")) return "full";
+  if (value.includes("standard")) return "standard";
+  // The words the old box's own placeholder asked for.
+  if (value.includes("light") || value.includes("thin") || value.includes("slim")) return "sparse";
+  if (value.includes("medium")) return "standard";
+  if (value.includes("dense") || value.includes("heavy")) return "full";
+  return "";
+}
+
+type BuildScopeValues = {
+  height: string;
+  width: string;
+  depth: string;
+  species: string;
+  canopy: string;
+  canopyRange: string;
+  silhouette: string;
+  silhouetteLabel: string;
+  density: string;
+  densityLabel: string;
+  densityPieces: number | null;
+};
+
+/**
+ * The Step 1 lines to persist, filtered to the fields the type actually
+ * supports. Container Only carries no canopy/silhouette/density and Drop-in no
+ * canopy/silhouette, so those lines are never written for them.
+ */
+function buildScopeSetupLines(fields: Record<BuilderFieldKey, boolean>, values: BuildScopeValues) {
+  const lines: string[] = [];
+  const push = (field: BuilderFieldKey, line: string) => {
+    if (fields[field] && line.trim()) lines.push(line.trim());
+  };
+  push("height", values.height.trim() ? `Height: ${values.height.trim()}` : "");
+  push("species", values.species.trim() ? `Species: ${values.species.trim()}` : "");
+  push("canopy", values.canopy ? `Canopy: ${values.canopy}${values.canopyRange ? ` (${values.canopyRange})` : ""}` : "");
+  push("width", values.width.trim() ? `Width: ${values.width.trim()}` : "");
+  push("silhouette", values.silhouette ? `Silhouette: ${values.silhouetteLabel || values.silhouette}` : "");
+  push("depth", values.depth.trim() ? `Depth: ${values.depth.trim()}` : "");
+  push(
+    "density",
+    values.density
+      ? `Density: ${values.densityLabel || values.density}${values.densityPieces != null ? ` (${values.densityPieces} pieces)` : ""}`
+      : ""
+  );
+  return lines;
 }
 
 function scopeIntelligenceLine(notes?: string | null) {
@@ -514,7 +906,7 @@ function scopeNotesWithGarlandSetup(
 
 function wreathSizeFromNotes(notes?: string | null): WreathSize {
   const explicit = firstNumber(scopeNoteValue(notes, "Wreath size"));
-  const canopy = firstNumber(scopeNoteValue(notes, "Width / canopy"));
+  const canopy = firstNumber(buildWidthFromNotes(notes));
   const value = explicit || canopy || 24;
   if (value >= 48) return "48";
   if (value >= 36) return "36";
@@ -530,7 +922,7 @@ function scopeNotesWithWreathSetup(bucket: Container, size: WreathSize) {
   return [
     ...(bucket.scope_notes || "")
       .split("\n")
-      .filter((line) => !/^(wreath size|height|width \/ canopy|depth \/ density):/i.test(line.trim())),
+      .filter((line) => !/^(wreath size|height|width \/ canopy|depth \/ density|width|depth|canopy|silhouette|density|species):/i.test(line.trim())),
     ...wreathSetupLines(size),
   ].filter(Boolean).join("\n");
 }
@@ -546,6 +938,12 @@ function cleanEditableBuildTemplates(values: unknown, fallback = DEFAULT_EDITABL
       let slots = Array.isArray(template.slots) ? template.slots.map(String).map((item) => item.trim()).filter(Boolean) : [];
       if (id === "wreath" && slots.map(normalizeLabel).join("|") === "wreath base|greenery|ribbon|decor") {
         slots = ["Wreath Base", "Decor Package"];
+      }
+      // Green slots now read bottom-up. A stored copy that still holds the old top-down
+      // order verbatim is migrated; any order the user customised is left untouched.
+      const legacyOrder = LEGACY_TOP_DOWN_SLOT_ORDERS[id];
+      if (legacyOrder && slots.map(normalizeLabel).join("|") === legacyOrder.map(normalizeLabel).join("|")) {
+        slots = [...legacyOrder].reverse();
       }
       return {
         id,
@@ -667,7 +1065,7 @@ const BUILD_TYPE_CONFIGS = [
     icon: Leaf,
     aliases: ["Tree", "Tree / Plant", "Greenery Tree"],
     prefixes: ["TT", "TL", "GT"],
-    visibleParts: ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
+    visibleParts: ["Leaves", "Trunks & Branches", "Top Dressing", "Container"],
   },
   {
     section: "green",
@@ -676,7 +1074,7 @@ const BUILD_TYPE_CONFIGS = [
     icon: Leaf,
     aliases: ["Arrangement", "Orchid Arrangement", "Succulent Arrangement", "Greenery Arrangement", "Foliage Arrangement"],
     prefixes: ["OR", "SG", "WG", "FP"],
-    visibleParts: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
+    visibleParts: ["Accent Material", "Focal Material", "Finish/Top Dressing", "Container/Base"],
   },
   {
     section: "green",
@@ -685,7 +1083,7 @@ const BUILD_TYPE_CONFIGS = [
     icon: Grid3X3,
     aliases: ["Planter", "Container Garden", "Plant / Vase", "Container Arrangement"],
     prefixes: ["CG", "PV", "CT"],
-    visibleParts: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
+    visibleParts: ["Accent Plant", "Main Plant", "Finish/Top Dressing", "Container/Planter"],
   },
   {
     section: "green",
@@ -694,7 +1092,7 @@ const BUILD_TYPE_CONFIGS = [
     icon: Package,
     aliases: ["Drop-in Arrangement", "Drop in", "Drop-in", "Dropin Arrangement"],
     prefixes: ["DR", "DI"],
-    visibleParts: ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
+    visibleParts: ["Finish", "Accent Material", "Main Material", "Drop-in Base"],
   },
   {
     section: "christmas",
@@ -963,7 +1361,11 @@ function designPartsForBuildType(buildType: string) {
   if (templateSlots) return templateSlots;
   const config = buildTypeConfigFor(buildType);
   if (config) return [...config.visibleParts];
-  return null;
+  // Only the types the builder gained in Phase C - Plant & Bush, Container Only,
+  // Topiary - reach this line. The four historical green types resolve above,
+  // through their editable template, and keep the exact slot labels and display
+  // order their saved `part_key`s were written under.
+  return builderApiSlotsForBuildType(buildType);
 }
 
 function baseScopePlaceholders(bucket: Container) {
@@ -983,8 +1385,8 @@ function fallbackSectionsForBuildType(buildType: string) {
   const text = buildType.toLowerCase();
   if (text.includes("wreath")) return ["Wreath Base", "Decor Package"];
   if (text.includes("garland")) return ["Base Garland", "Greenery", "Ribbon", "Decor"];
-  if (text.includes("container") || text.includes("planter")) return ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"];
-  if (text.includes("arrangement")) return ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"];
+  if (text.includes("container") || text.includes("planter")) return ["Accent Plant", "Main Plant", "Finish/Top Dressing", "Container/Planter"];
+  if (text.includes("arrangement")) return ["Accent Material", "Focal Material", "Finish/Top Dressing", "Container/Base"];
   return ["Products", "Notes", "Pricing"];
 }
 
@@ -1040,8 +1442,8 @@ function christmasTreeDecorRule(heightValue?: string | null, widthValue?: string
 function christmasTreeDecorRuleForBucket(bucket?: Container | null) {
   if (!bucket) return null;
   const selectedTree = itemsForPart(bucket, "Tree", 0)[0];
-  const height = scopeNoteValue(bucket.scope_notes, "Height") || selectedTree?.product_name;
-  const width = scopeNoteValue(bucket.scope_notes, "Width / canopy") || selectedTree?.product_name;
+  const height = buildHeightFromNotes(bucket.scope_notes) || selectedTree?.product_name;
+  const width = buildWidthFromNotes(bucket.scope_notes) || selectedTree?.product_name;
   return christmasTreeDecorRule(height, width);
 }
 
@@ -1277,10 +1679,32 @@ function partKey(label: string, index: number) {
   return `${index}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "part"}`;
 }
 
+// Each flipped build type has exactly FLIPPED_SLOT_COUNT slots, so a label that moved
+// sits at (FLIPPED_SLOT_COUNT - 1 - newIndex) in any part_key saved before the flip.
+function legacySlotIndex(label: string, index: number) {
+  if (index < 0 || index >= FLIPPED_SLOT_COUNT) return null;
+  if (!FLIPPED_SLOT_LABELS.has(label.trim().toLowerCase())) return null;
+  return FLIPPED_SLOT_COUNT - 1 - index;
+}
+
+// Every part_key that should resolve to this slot: the current one first, plus the
+// pre-flip key so designs saved under the old top-down order keep their products.
+function partKeysForSlot(label: string, index: number) {
+  const legacyIndex = legacySlotIndex(label, index);
+  const keys = [partKey(label, index)];
+  if (legacyIndex !== null) keys.push(partKey(label, legacyIndex));
+  return keys;
+}
+
 function itemsForPart(bucket: Container | null | undefined, label: string, index: number) {
   if (!bucket) return [];
-  const key = partKey(label, index);
-  return bucket.items.filter((item) => (item.part_key || "") === key || (!item.part_key && index === 0));
+  const keys = partKeysForSlot(label, index);
+  // Untagged legacy items were always treated as belonging to the first slot, which for a
+  // flipped build type is now the last one - follow the pre-flip index, not the new one.
+  const untaggedIndex = legacySlotIndex(label, index) ?? index;
+  return bucket.items.filter((item) =>
+    item.part_key ? keys.includes(item.part_key) : untaggedIndex === 0
+  );
 }
 
 function primarySelectedForPart(bucket: Container, label: string, index: number) {
@@ -1518,151 +1942,185 @@ function builderProductName(product: LibraryProduct) {
   return String(product.raw_data?.Description || product.description || product.name || "").trim();
 }
 
-function builderProductSearchText(product: LibraryProduct) {
-  const raw = product.raw_data || {};
-  return [
-    builderProductName(product),
-    product.name,
-    product.description,
-    product.supplier_sku,
-    product.supplier_name,
-    product.category,
-    product.unit,
-    product.material,
-    product.finish,
-    product.style,
-    product.color,
-    product.country_of_origin,
-    product.availability,
-    product.height_in,
-    product.width_in,
-    product.diameter_in,
-    product.length_in,
-    raw.name,
-    raw.sku,
-    raw.price,
-    raw.Category,
-    raw.Color,
-    raw["Primary Color"],
-    raw.Material,
-    raw.Materials,
-    raw.Finish,
-    raw.Style,
-    raw["Unit of Measure"],
-    raw.Unit,
-    raw.Country,
-    raw["Country of Origin"],
-    raw.Height,
-    raw.Width,
-    raw.Diameter,
-    raw.Length,
-    raw.Availability,
-    raw.ColorGrp,
-    raw.Class,
-    raw.Season,
-    raw.UPC,
-    raw["Material Breakdown"],
-    raw.Material_Breakdown,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
+const BUILDER_CATALOG_PAGE_SIZE = 48;
 
+type BuilderCardSize = 1 | 2 | 3 | 4;
+
+// Same card/size vocabulary as Catalog Search, tuned one step tighter because
+// the builder's catalog lives in a pane rather than a full page.
+const BUILDER_GRID_COLS: Record<BuilderCardSize, string> = {
+  1: "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6",
+  2: "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5",
+  3: "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4",
+  4: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+};
+const BUILDER_IMG_HEIGHT: Record<BuilderCardSize, string> = { 1: "h-20", 2: "h-28", 3: "h-36", 4: "h-48" };
+
+type CatalogSelection = { categories: string[]; colors: string[]; product_types: string[] };
+const EMPTY_CATALOG_SELECTION: CatalogSelection = { categories: [], colors: [], product_types: [] };
+
+/**
+ * Choose Parts, on the same index the Catalog Search page uses.
+ *
+ * It talks to `/api/products/search` - the warm in-memory index that answers
+ * without touching the database - instead of paging the whole catalog into the
+ * browser first, so it is as responsive as `/search` and the user can page
+ * through everything rather than a preloaded slice.
+ *
+ * When a scope slot is active its measured vocabulary is pre-applied: choosing
+ * Container asks for Containers & Vases (so containers come first and dried
+ * botanicals never do), choosing Top Dressing asks for foam / moss / rocks.
+ * Every one of those is a removable chip - the API's contract is
+ * `mandatory: false`.
+ */
 function BuilderProductPicker({
-  products,
-  loadingCatalog = false,
   activePartLabel,
   initialQuery = "",
+  scopeFilters,
   selectedProductIds,
   selectedProductItemIds,
   onAdd,
   onRemove,
   onOpenProduct,
   onContinue,
-  onReloadCatalog,
-  catalogTotal,
+  expanded = false,
+  onToggleExpanded,
 }: {
-  products: LibraryProduct[];
-  loadingCatalog?: boolean;
   activePartLabel: string;
   initialQuery?: string;
+  scopeFilters?: ScopeFilterSlot | null;
   selectedProductIds: Set<number>;
   selectedProductItemIds: Map<number, number>;
   onAdd: (product: LibraryProduct) => void;
   onRemove: (itemId: number) => void;
   onOpenProduct: (product: LibraryProduct) => void;
   onContinue: () => void;
-  onReloadCatalog?: () => void;
-  catalogTotal?: number | null;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(25);
+  const [sel, setSel] = useState<CatalogSelection>(EMPTY_CATALOG_SELECTION);
+  const [items, setItems] = useState<LibraryProduct[]>([]);
+  const [facets, setFacets] = useState<{ categories?: { value: string; count?: number }[]; colors?: { value: string; count?: number }[] }>({});
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const seq = useRef(0);
   const suggestedQuery = initialQuery.trim();
-  const fullCatalogLoaded = !catalogTotal || products.length >= catalogTotal;
+
+  const [viewMode, setViewMode] = useState<"grid" | "list">(
+    () => (window.localStorage.getItem(BUILDER_CATALOG_VIEW_KEY) as "grid" | "list") || "grid"
+  );
+  const [cardSize, setCardSize] = useState<BuilderCardSize>(
+    () => (Number(window.localStorage.getItem(BUILDER_CATALOG_SIZE_KEY)) as BuilderCardSize) || 2
+  );
+  useEffect(() => { window.localStorage.setItem(BUILDER_CATALOG_VIEW_KEY, viewMode); }, [viewMode]);
+  useEffect(() => { window.localStorage.setItem(BUILDER_CATALOG_SIZE_KEY, String(cardSize)); }, [cardSize]);
+
+  // The slot's vocabulary, ranked so a pre-applied term always returns results:
+  // a term the catalog cannot match is demoted, never dropped.
+  const scopeTerms = useMemo(() => sortedScopeTerms(scopeFilters?.search_terms || []), [scopeFilters]);
+  const scopeCategories = useMemo(
+    () => (scopeFilters?.filters?.categories || []).map((row) => row.value),
+    [scopeFilters]
+  );
+  const scopeColors = useMemo(() => (scopeFilters?.filters?.colors || []).map((row) => row.value), [scopeFilters]);
+  const scopeProductTypes = useMemo(
+    () => (scopeFilters?.filters?.product_types || []).map((row) => row.value),
+    [scopeFilters]
+  );
+  const excludeCategories = scopeFilters?.exclude_categories || [];
+
+  // Pre-apply on slot change: the slot's categories, colors and product types,
+  // plus its single strongest catalog-verified term as the keyword. Only one
+  // term goes into the box because the search ANDs its words - stacking the whole
+  // vocabulary would match nothing.
+  useEffect(() => {
+    if (!scopeFilters) {
+      setSel(EMPTY_CATALOG_SELECTION);
+      setQuery(suggestedQuery);
+      setActiveQuery(suggestedQuery);
+      return;
+    }
+    setSel({ categories: scopeCategories, colors: scopeColors, product_types: scopeProductTypes });
+    const topTerm = scopeTerms.find((term) => term.catalog_verified !== false)?.term || "";
+    setQuery(topTerm);
+    setActiveQuery(topTerm);
+    // Deliberately keyed to the slot only. The derived arrays below are all
+    // computed from `scopeFilters`, so listing them would just re-apply the
+    // filters and overwrite whatever the designer removed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeFilters, activePartLabel]);
 
   useEffect(() => {
-    setQuery("");
-    setActiveQuery("");
-    setCategory("All");
-  }, [activePartLabel, initialQuery]);
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => setActiveQuery(query), 180);
+    const handle = window.setTimeout(() => setActiveQuery(query.trim()), 250);
     return () => window.clearTimeout(handle);
   }, [query]);
 
-  const indexed = useMemo(
-    () =>
-      products.map((product) => ({
-        product,
-        name: builderProductName(product),
-        search: builderProductSearchText(product),
-      })),
-    [products]
+  const load = useCallback(
+    (nextOffset: number, append: boolean) => {
+      const s = ++seq.current;
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (sel.categories.length) params.set("categories", sel.categories.join(","));
+      if (sel.colors.length) params.set("colors", sel.colors.join(","));
+      if (sel.product_types.length) params.set("product_types", sel.product_types.join(","));
+      if (activeQuery) params.set("search", activeQuery);
+      params.set("limit", String(BUILDER_CATALOG_PAGE_SIZE));
+      params.set("offset", String(nextOffset));
+      apiFetch(`/api/products/search?${params.toString()}`)
+        .then((response) => (response.ok ? response.json() : Promise.reject(new Error("search failed"))))
+        .then((data) => {
+          if (s !== seq.current) return;
+          const rows = (Array.isArray(data?.items) ? data.items : []) as LibraryProduct[];
+          setItems((prev) => (append ? [...prev, ...rows] : rows));
+          setTotal(Number(data?.total) || 0);
+          setOffset(nextOffset);
+          if (!append && data?.facets) setFacets(data.facets);
+        })
+        .catch(() => {
+          if (s !== seq.current) return;
+          if (!append) { setItems([]); setTotal(0); }
+        })
+        .finally(() => { if (s === seq.current) setLoading(false); });
+    },
+    [sel, activeQuery]
   );
 
-  const categories = useMemo(() => {
-    const values = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
-    return ["All", ...values.sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)))].slice(0, 12);
-  }, [products]);
+  useEffect(() => { load(0, false); }, [load]);
 
-  const { filtered, showingQueryFallback } = useMemo(() => {
-    const terms = activeQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const categoryMatches = indexed.filter(({ product }) => category === "All" || product.category === category);
-    const strictMatches = categoryMatches.filter(({ search }) => terms.every((term) => search.includes(term)));
-    const showingFallback = terms.length > 0 && strictMatches.length === 0 && categoryMatches.length > 0;
-    return {
-      filtered: showingFallback ? categoryMatches : strictMatches,
-      showingQueryFallback: showingFallback,
-    };
-  }, [indexed, activeQuery, category]);
+  const clearSmartFilters = () => {
+    setSel(EMPTY_CATALOG_SELECTION);
+    setQuery("");
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const currentPage = Math.min(page, totalPages);
-  const visible = useMemo(
-    () => filtered.slice((currentPage - 1) * perPage, currentPage * perPage),
-    [filtered, currentPage, perPage]
-  );
+  const removeChip = (group: keyof CatalogSelection, value: string) =>
+    setSel((prev) => ({ ...prev, [group]: prev[group].filter((item) => item !== value) }));
 
-  useEffect(() => {
-    setPage(1);
-  }, [activeQuery, category, perPage]);
+  const toggleFacet = (group: keyof CatalogSelection, value: string) =>
+    setSel((prev) => ({
+      ...prev,
+      [group]: prev[group].includes(value) ? prev[group].filter((item) => item !== value) : [...prev[group], value],
+    }));
+
+  const activeChipCount = sel.categories.length + sel.colors.length + sel.product_types.length + (activeQuery ? 1 : 0);
+  // A slot's excludes are enforced by asking for its own categories instead:
+  // Container asks for Containers & Vases, so dried botanicals cannot surface.
+  const excludesEnforced = excludeCategories.length > 0 && sel.categories.length > 0;
+  const visible = items;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="space-y-3 border-b border-stone-100 p-5">
+      <div className="space-y-3 border-b border-stone-100 p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-	          <input
-	            value={query}
-	            onChange={(event) => setQuery(event.target.value)}
-	            placeholder={suggestedQuery ? `Search full catalog, or try "${suggestedQuery}"` : "Search full catalog"}
-	            className="w-full rounded-xl border border-stone-200 py-2.5 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-	          />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={suggestedQuery ? `Search the catalog, or try "${suggestedQuery}"` : "Search the catalog"}
+            className="w-full rounded-xl border border-stone-200 py-2.5 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
           {query && (
             <button
               type="button"
@@ -1673,76 +2131,147 @@ function BuilderProductPicker({
             </button>
           )}
         </div>
-	        <div className="flex flex-wrap gap-2">
-	          {categories.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setCategory(value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                category === value ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-              }`}
-            >
-              {value === "All" ? "All" : categoryLabel(value)}
-            </button>
-	          ))}
-	        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {suggestedQuery && !activeQuery && (
-            <button
-              type="button"
-              onClick={() => setQuery(suggestedQuery)}
-              className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:border-emerald-200 hover:bg-emerald-100"
-            >
-              Use suggested search
-            </button>
-          )}
-          {(activeQuery || category !== "All") && (
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("");
-                setActiveQuery("");
-                setCategory("All");
-              }}
-              className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 transition hover:border-emerald-200 hover:text-emerald-800"
-            >
-              Show full catalog
-            </button>
-          )}
-          {!fullCatalogLoaded && onReloadCatalog && (
-            <button
-              type="button"
-              onClick={onReloadCatalog}
-              disabled={loadingCatalog}
-              className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:border-amber-300 disabled:opacity-50"
-            >
-              {loadingCatalog ? "Loading full catalog..." : "Load full catalog"}
-            </button>
-          )}
-        </div>
-	        <p className="text-xs text-stone-400">
-	          {showingQueryFallback ? "No exact matches for this search. Showing the full catalog so you can keep browsing. " : ""}
-	          Showing {visible.length} of {filtered.length.toLocaleString()} matches from {products.length.toLocaleString()} loaded catalog products{catalogTotal && catalogTotal > products.length ? ` (${catalogTotal.toLocaleString()} total)` : ""}. Add keeps you in this builder.
-	        </p>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-stone-500">
-            <span>View</span>
-            <select
-              value={perPage}
-              onChange={(event) => setPerPage(Number(event.target.value))}
-              className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300"
-            >
-              {[25, 50, 100].map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
-            </select>
-            <span>per page</span>
+
+        {/* Pre-applied smart filters. Removable, one by one or all at once. */}
+        {(sel.categories.length > 0 || sel.colors.length > 0 || sel.product_types.length > 0) && (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-2.5">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                {scopeFilters?.label || activePartLabel} filters
+                {scopeFilters?.recipe_lines ? ` · from ${scopeFilters.recipe_lines} past lines` : ""}
+              </span>
+              <button
+                type="button"
+                onClick={clearSmartFilters}
+                className="flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-stone-200 hover:text-stone-900"
+              >
+                <X size={11} /> Clear all
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(["categories", "product_types", "colors"] as (keyof CatalogSelection)[]).flatMap((group) =>
+                sel[group].map((value) => (
+                  <button
+                    key={`${group}-${value}`}
+                    type="button"
+                    onClick={() => removeChip(group, value)}
+                    title="Remove this filter"
+                    className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-900 ring-1 ring-emerald-200 hover:bg-emerald-100"
+                  >
+                    {value}
+                    <X size={11} className="text-emerald-600" />
+                  </button>
+                ))
+              )}
+            </div>
+            {excludesEnforced && (
+              <p className="mt-1.5 text-[10px] leading-relaxed text-emerald-900/70">
+                Held back for this slot: {excludeCategories.join(", ")}. Remove the category chip above to see them.
+              </p>
+            )}
           </div>
-          <div className="text-xs text-stone-500">
-            Page {currentPage} of {totalPages}
+        )}
+
+        {/* The slot's real vocabulary. Unverified terms sort last, so the first
+            suggestions always return products. */}
+        {scopeTerms.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {scopeTerms.slice(0, 10).map((term) => (
+              <button
+                key={term.term}
+                type="button"
+                onClick={() => setQuery(activeQuery === term.term ? "" : term.term)}
+                title={
+                  term.catalog_verified === false
+                    ? `${term.recipes || 0} past builds — no catalog match for this wording`
+                    : `${term.recipes || 0} past builds`
+                }
+                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  activeQuery === term.term
+                    ? "bg-stone-900 text-white"
+                    : term.catalog_verified === false
+                      ? "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                      : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                {term.term}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Facets from this very search, so the groups reflect what was searched. */}
+        {(facets.categories?.length || facets.colors?.length) && sel.categories.length === 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {(facets.categories || []).slice(0, 8).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggleFacet("categories", option.value)}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                  sel.categories.includes(option.value) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                {option.value}
+                {option.count != null ? ` ${option.count.toLocaleString()}` : ""}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-stone-400">
+            {loading && items.length === 0
+              ? "Searching..."
+              : `${items.length.toLocaleString()} of ${total.toLocaleString()} match${total === 1 ? "" : "es"}`}
+            {activeChipCount > 0 ? ` · ${activeChipCount} filter${activeChipCount === 1 ? "" : "s"}` : " · whole catalog"}
+          </p>
+          <div className="flex items-center gap-2">
+            {viewMode === "grid" && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCardSize((size) => (Math.max(1, size - 1) as BuilderCardSize))}
+                  disabled={cardSize === 1}
+                  title="Smaller cards (more per row)"
+                  className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                ><Minus size={13} /></button>
+                <button
+                  type="button"
+                  onClick={() => setCardSize((size) => (Math.min(4, size + 1) as BuilderCardSize))}
+                  disabled={cardSize === 4}
+                  title="Bigger cards (fewer per row)"
+                  className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                ><Plus size={13} /></button>
+              </div>
+            )}
+            <div className="flex items-center rounded-lg border border-stone-300">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                title="Card view"
+                className={`rounded-l-md p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+              ><LayoutGrid size={14} /></button>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                title="List view"
+                className={`rounded-r-md p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+              ><List size={14} /></button>
+            </div>
+            {onToggleExpanded && (
+              <button
+                type="button"
+                onClick={onToggleExpanded}
+                title={expanded ? "Shrink the catalog" : "Expand the catalog full width"}
+                className="rounded-lg border border-stone-300 p-1.5 text-stone-500 hover:text-stone-800"
+              >
+                {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+            )}
           </div>
         </div>
+
         <button
           type="button"
           onClick={onContinue}
@@ -1753,66 +2282,107 @@ function BuilderProductPicker({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-5">
-        {loadingCatalog && products.length === 0 ? (
-          <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-stone-50 text-center">
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        {loading && items.length === 0 ? (
+          <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-stone-50 text-center">
             <div>
               <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
-              <p className="mt-4 font-semibold text-stone-800">Loading catalog</p>
-              <p className="mt-1 text-sm text-stone-400">This only loads inside the product picker.</p>
+              <p className="mt-4 font-semibold text-stone-800">Searching the catalog</p>
             </div>
           </div>
         ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center">
             <p className="font-semibold text-stone-800">No matching products</p>
-            <p className="mt-1 text-sm text-stone-400">Try a broader word, SKU, color, or category.</p>
+            <p className="mt-1 text-sm text-stone-400">Try a broader word, or clear the pre-applied filters above.</p>
+            {activeChipCount > 0 && (
+              <button
+                type="button"
+                onClick={clearSmartFilters}
+                className="mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-900"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {visible.map(({ product, name }) => {
+          <div className={viewMode === "list" ? "flex flex-col gap-2" : `grid gap-3 ${BUILDER_GRID_COLS[cardSize]}`}>
+            {visible.map((product) => {
               const selectedItemId = selectedProductItemIds.get(product.id);
               const added = selectedItemId != null;
+              const name = builderProductName(product) || product.name;
               const price = product.current_price != null ? formatCurrency(product.current_price) : "No price";
               const displayImageUrl = productDisplayImageUrl(product);
+              const toggleAdd = (event: React.MouseEvent) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (added && selectedItemId != null) onRemove(selectedItemId);
+                else onAdd(product);
+              };
+
+              if (viewMode === "list") {
+                return (
+                  <div
+                    key={product.id}
+                    className={`flex items-center gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm transition-all ${
+                      added ? "border-emerald-700 ring-1 ring-emerald-100" : "border-stone-200 hover:border-stone-300"
+                    }`}
+                  >
+                    <button type="button" onClick={() => onOpenProduct(product)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-50">
+                        {displayImageUrl && !hasSupplierPlaceholderImage(product) ? (
+                          <img src={displayImageUrl} alt={name} className="h-full w-full object-contain" />
+                        ) : (
+                          <Package className="text-stone-300" size={18} />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-stone-900">{name}</span>
+                        <span className="block truncate text-xs text-stone-400">{product.supplier_sku || product.supplier_name}</span>
+                      </span>
+                      <span className="shrink-0 text-sm font-bold text-stone-900">{price}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleAdd}
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        added ? "bg-emerald-900 text-white" : "border border-stone-200 bg-white text-stone-800 hover:bg-stone-50"
+                      }`}
+                    >
+                      {added ? "Added" : "Add"}
+                    </button>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={product.id}
-                  className={`rounded-2xl border bg-white p-3 shadow-sm transition-all ${
+                  className={`rounded-2xl border bg-white p-2.5 shadow-sm transition-all ${
                     added ? "border-emerald-700 ring-1 ring-emerald-100" : "border-stone-200 hover:border-stone-300"
                   }`}
                 >
                   <button type="button" onClick={() => onOpenProduct(product)} className="block w-full text-left">
-                    <div className="mb-3 flex h-32 items-center justify-center rounded-xl bg-stone-50">
+                    <div className={`mb-2 flex ${BUILDER_IMG_HEIGHT[cardSize]} items-center justify-center rounded-xl bg-stone-50`}>
                       {displayImageUrl && !hasSupplierPlaceholderImage(product) ? (
                         <img src={displayImageUrl} alt={name} className="h-full w-full object-contain" />
                       ) : (
-                        <span className="text-xs font-semibold text-stone-400">
+                        <span className="px-2 text-center text-[10px] font-semibold text-stone-400">
                           {hasNoSupplierImage(product) ? "No supplier image" : hasSupplierPlaceholderImage(product) ? "Supplier placeholder" : "Image pending"}
                         </span>
                       )}
                     </div>
-                    <p className="line-clamp-2 min-h-[40px] text-sm font-semibold leading-snug text-stone-900">{name || product.name}</p>
-                    <p className="mt-1 truncate text-xs text-stone-400">{product.supplier_sku || product.supplier_name}</p>
-                    <p className="mt-2 text-sm font-bold text-stone-900">
-                      {price} <span className="text-xs font-medium text-stone-400">/ {unitLabel(product.unit)}</span>
-                    </p>
+                    <p className={`line-clamp-2 font-semibold leading-snug text-stone-900 ${cardSize === 1 ? "text-[11px]" : "text-sm"}`}>{name}</p>
+                    {cardSize > 1 && <p className="mt-1 truncate text-xs text-stone-400">{product.supplier_sku || product.supplier_name}</p>}
+                    <p className={`mt-1.5 font-bold text-stone-900 ${cardSize === 1 ? "text-xs" : "text-sm"}`}>{price}</p>
                   </button>
                   <button
                     type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      if (added && selectedItemId != null) {
-                        onRemove(selectedItemId);
-                      } else {
-                        onAdd(product);
-                      }
-                    }}
-                    className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
+                    onClick={toggleAdd}
+                    className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold ${
                       added ? "bg-emerald-900 text-white" : "border border-stone-200 bg-white text-stone-800 hover:bg-stone-50"
                     }`}
                   >
-                    {added ? <CheckCircle2 size={15} /> : <Plus size={15} />}
+                    {added ? <CheckCircle2 size={14} /> : <Plus size={14} />}
                     {added ? "Added" : "Add"}
                   </button>
                 </div>
@@ -1820,36 +2390,357 @@ function BuilderProductPicker({
             })}
           </div>
         )}
+
+        {items.length < total && (
+          <div className="mt-6 flex justify-center">
+            {loading ? (
+              <div className="flex items-center gap-2 text-sm text-stone-400">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                Loading more...
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => load(offset + BUILDER_CATALOG_PAGE_SIZE, true)}
+                className="rounded-lg border border-stone-300 px-5 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+              >
+                Load more ({(total - items.length).toLocaleString()} left)
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-stone-100 bg-white px-5 py-4">
-        <div className="flex items-center gap-4 text-xs text-stone-500">
-          <span>{categories.length - 1} filter groups</span>
-          <span className="flex items-center gap-1 font-semibold text-emerald-800">
-            <CheckCircle2 size={14} />
-            {selectedProductIds.size} saved to this part
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            disabled={currentPage <= 1}
-            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40"
-          >
-            Prev
-          </button>
-          <span className="min-w-16 text-center text-xs text-stone-500">{currentPage} / {totalPages}</span>
-          <button
-            type="button"
-            onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-            disabled={currentPage >= totalPages}
-            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
+      <div className="flex items-center justify-between gap-3 border-t border-stone-100 bg-white px-4 py-3 text-xs text-stone-500">
+        <span className="flex items-center gap-1 font-semibold text-emerald-800">
+          <CheckCircle2 size={14} />
+          {selectedProductIds.size} saved to this part
+        </span>
+        <span>{total.toLocaleString()} product{total === 1 ? "" : "s"} searchable</span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Step 1's measured fields.
+ *
+ * Replaces the old Height / "Width / canopy" / "Depth / density" text boxes.
+ * Every control here is fed by `/api/builder/*`, and only the fields the build
+ * type declares in its `fields` map are rendered - Container Only shows no
+ * canopy, silhouette or density at all, Drop-in no canopy or silhouette.
+ */
+function MeasuredScopeFields({
+  buildTypeLabel,
+  fields,
+  recipeCount,
+  typeNotes,
+  height,
+  onHeightChange,
+  species,
+  onSpeciesChange,
+  speciesOptions,
+  activeSpecies,
+  canopyTiers,
+  canopyTier,
+  onCanopyTier,
+  width,
+  onWidthChange,
+  silhouetteOptions,
+  silhouette,
+  onSilhouette,
+  depth,
+  onDepthChange,
+  densityInfo,
+  densityApplies,
+  densityBand,
+  onDensityBand,
+  commonBuilds,
+  commonBuildPick,
+  onCommonBuild,
+}: {
+  buildTypeLabel: string;
+  fields: Record<BuilderFieldKey, boolean>;
+  recipeCount?: number;
+  typeNotes?: string | null;
+  height: string;
+  onHeightChange: (value: string) => void;
+  species: string;
+  onSpeciesChange: (value: string) => void;
+  speciesOptions: BuilderSpecies[];
+  activeSpecies: BuilderSpecies | null;
+  canopyTiers: CanopyTiersResponse | null;
+  canopyTier: string;
+  onCanopyTier: (key: string) => void;
+  width: string;
+  onWidthChange: (value: string) => void;
+  silhouetteOptions: SilhouetteOption[];
+  silhouette: string;
+  onSilhouette: (key: string) => void;
+  depth: string;
+  onDepthChange: (value: string) => void;
+  densityInfo: DensityResponse | null;
+  densityApplies: boolean;
+  densityBand: string;
+  onDensityBand: (key: string) => void;
+  commonBuilds: CommonBuild[];
+  commonBuildPick: string;
+  onCommonBuild: (name: string) => void;
+}) {
+  const activeTier = canopyTiers?.tiers?.find((tier) => tier.key === canopyTier) || null;
+  const activeBand = densityInfo?.bands?.find((band) => band.key === densityBand) || null;
+  const specimenSpecies = activeSpecies?.density_applies === false || densityInfo?.density_applies === false;
+
+  return (
+    <div className="mt-5 space-y-4 rounded-2xl border border-stone-200 bg-stone-50/70 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Build scope</p>
+          <p className="mt-1 text-xs text-stone-400">Measured from past builds. These guide the recommendation before products are chosen.</p>
+        </div>
+        {recipeCount != null && recipeCount > 0 && (
+          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500 ring-1 ring-stone-200">
+            {recipeCount} past build{recipeCount === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+      {typeNotes && <p className="rounded-xl bg-white px-3 py-2 text-[11px] leading-relaxed text-stone-500 ring-1 ring-stone-200">{typeNotes}</p>}
+
+      {/* Builds we make often - each option prefills every field below it. */}
+      {commonBuilds.length > 0 && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Builds we make often</span>
+          <select
+            value={commonBuildPick}
+            onChange={(event) => onCommonBuild(event.target.value)}
+            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          >
+            <option value="">Custom — set the fields yourself</option>
+            {commonBuilds.map((build) => (
+              <option key={build.name} value={build.name}>
+                {build.name}
+                {build.recipe_count ? ` · built ${build.recipe_count}x` : ""}
+                {build.typical_component_cost ? ` · ~${formatCurrency(build.typical_component_cost)} cost` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {fields.height && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Height</span>
+          <input
+            value={height}
+            onChange={(event) => onHeightChange(event.target.value)}
+            placeholder={`e.g. 7' or 42"`}
+            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+          {canopyTiers?.band && (
+            <span className="mt-1 block text-[11px] text-stone-400">
+              Height band {canopyTiers.band}
+              {canopyTiers.height_display ? ` · read as ${canopyTiers.height_display}` : ""}
+              {canopyTiers.n ? ` · ${canopyTiers.n} past builds in this band` : ""}
+            </span>
+          )}
+        </label>
+      )}
+
+      {/* Species drives every suggestion under it, so it is explicit at Step 1. */}
+      {fields.species && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Species / style</span>
+          <select
+            value={species}
+            onChange={(event) => onSpeciesChange(event.target.value)}
+            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          >
+            <option value="">Select a species or style...</option>
+            {speciesOptions.map((option) => (
+              <option key={option.name} value={option.name}>
+                {option.name}
+                {option.recipe_count ? ` · ${option.recipe_count} built` : " · no history yet"}
+                {option.density_applies === false ? " · single specimen" : ""}
+              </option>
+            ))}
+          </select>
+          {activeSpecies && (
+            <span className="mt-1 block text-[11px] text-stone-400">
+              {specimenSpecies
+                ? "Specimen: about one stem — a single large potted plant, nothing to build up."
+                : "Built up from many stems, so density below is a real dial."}
+              {activeSpecies.heights_ft?.length ? ` Built at ${activeSpecies.heights_ft.join(", ")} ft.` : ""}
+            </span>
+          )}
+        </label>
+      )}
+
+      {/* Canopy tiers are defined inside the build's own height band, so
+          "Medium" means the same visual fullness at any height. */}
+      {fields.canopy && (
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Canopy</span>
+          {!canopyTiers?.tiers?.length ? (
+            <p className="rounded-lg border border-dashed border-stone-300 bg-white px-3 py-2 text-[11px] text-stone-400">
+              Enter a height first — canopy tiers are cut per height band, so 42&quot; is full on a 6&apos; tree and standard on a 9&apos;.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-5 gap-1">
+                {canopyTiers.tiers.map((tier) => (
+                  <button
+                    key={tier.key}
+                    type="button"
+                    onClick={() => onCanopyTier(tier.key)}
+                    title={`${tier.label} · ${tier.range_label}`}
+                    className={`rounded-lg border px-1 py-2 text-center transition-colors ${
+                      canopyTier === tier.key
+                        ? "border-stone-900 bg-white text-stone-950 shadow-sm"
+                        : "border-stone-200 bg-white/70 text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                    }`}
+                  >
+                    <span className="block text-xs font-semibold">{tier.key}</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight text-stone-400">{tier.range_label}</span>
+                  </button>
+                ))}
+              </div>
+              <span className="mt-1 block text-[11px] text-stone-400">
+                {activeTier ? `${activeTier.label} · ${activeTier.range_label} wide in the ${canopyTiers.band} band` : "Pick a tier"}
+                {canopyTiers.default_tier ? ` · most builds here are ${canopyTiers.default_tier}` : ""}
+              </span>
+              {canopyTiers.provisional && (
+                <span className="mt-1 block rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900 ring-1 ring-amber-100">
+                  Provisional: only {canopyTiers.n ?? 0} past build{canopyTiers.n === 1 ? "" : "s"} in this band, so these cut points will move as more land.
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {fields.width && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Width{fields.canopy ? " (canopy diameter)" : ""}</span>
+          <input
+            value={width}
+            onChange={(event) => onWidthChange(event.target.value)}
+            placeholder={`e.g. 42"`}
+            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+        </label>
+      )}
+
+      {/* No historical build was anything but round (median depth:width 1.00), so
+          this is capture-going-forward - and it sets the depth. */}
+      {fields.silhouette && (
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Silhouette</span>
+          <div className="grid gap-1">
+            {silhouetteOptions.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onSilhouette(option.key)}
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                  silhouette === option.key
+                    ? "border-stone-900 bg-white text-stone-950 shadow-sm"
+                    : "border-stone-200 bg-white/70 text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                }`}
+              >
+                <span>
+                  <span className="font-semibold">{option.label}</span>
+                  {option.use ? <span className="ml-2 text-stone-400">{option.use}</span> : null}
+                </span>
+                <span className="shrink-0 text-[10px] font-semibold text-stone-400">depth {option.depth_ratio}x width</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {fields.depth && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Depth</span>
+          <input
+            value={depth}
+            onChange={(event) => onDepthChange(event.target.value)}
+            placeholder={`e.g. 42"`}
+            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+          {fields.silhouette && (
+            <span className="mt-1 block text-[11px] text-stone-400">Computed from width x silhouette. Override it if the build says otherwise.</span>
+          )}
+        </label>
+      )}
+
+      {/* Density is f(species, height) and never pooled: at 7ft an Areca is 1
+          stem and a Eucalyptus 16. The piece count sits under each band. */}
+      {fields.density && (
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-stone-500">Density</span>
+          {!species.trim() ? (
+            <p className="rounded-lg border border-dashed border-stone-300 bg-white px-3 py-2 text-[11px] text-stone-400">
+              Pick a species first — piece counts are per species, not pooled. At 7&apos; an Areca is 1 stem and a Eucalyptus 16.
+            </p>
+          ) : !densityApplies ? (
+            <p className="rounded-lg border border-dashed border-stone-300 bg-white px-3 py-2 text-[11px] text-stone-500">
+              {specimenSpecies
+                ? `${densityInfo?.species || species} is a specimen — about one stem, so there is no density to set.`
+                : "Density does not apply to this build type."}
+            </p>
+          ) : !densityInfo?.bands?.length ? (
+            <p className="rounded-lg border border-dashed border-stone-300 bg-white px-3 py-2 text-[11px] text-stone-400">
+              No measured baseline for this species and height yet.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-4 gap-1">
+                {densityInfo.bands.map((band) => (
+                  <button
+                    key={band.key}
+                    type="button"
+                    onClick={() => onDensityBand(band.key)}
+                    className={`rounded-lg border px-1 py-2 text-center transition-colors ${
+                      densityBand === band.key
+                        ? "border-stone-900 bg-white text-stone-950 shadow-sm"
+                        : "border-stone-200 bg-white/70 text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                    }`}
+                  >
+                    <span className="block text-[11px] font-semibold leading-tight">{band.label}</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight text-stone-400">
+                      {band.pieces} piece{band.pieces === 1 ? "" : "s"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <span className="mt-1 block text-[11px] text-stone-400">
+                {densityInfo.species}
+                {densityInfo.height_display ? ` at ${densityInfo.height_display}` : ""}
+                {densityInfo.baseline_pieces != null ? ` · baseline ${densityInfo.baseline_pieces} pieces` : ""}
+                {activeBand ? ` · ${activeBand.label} = ${activeBand.pieces}` : ""}
+              </span>
+              {/* Sparse data is reported, never smoothed over. */}
+              <span className="mt-1 block text-[11px] text-stone-400">
+                {`From ${densityInfo.n ?? 0} past build${densityInfo.n === 1 ? "" : "s"}`}
+                {densityInfo.observed_min != null && densityInfo.observed_max != null
+                  ? ` (observed ${densityInfo.observed_min}–${densityInfo.observed_max} pieces)`
+                  : ""}
+                {densityInfo.confidence ? ` · ${confidenceLabel(densityInfo.confidence)} confidence` : ""}
+                {densityInfo.source === "class" ? " · no history for this species, using its structural class" : ""}
+              </span>
+              {(densityInfo.notes || []).map((note) => (
+                <span key={note} className="mt-1 block text-[11px] text-stone-400">{note}</span>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {!fields.canopy && !fields.silhouette && !fields.density && (
+        <p className="text-[11px] text-stone-400">
+          {buildTypeLabel} records height, width and depth only — canopy, silhouette and density do not apply to it.
+        </p>
+      )}
     </div>
   );
 }
@@ -1932,7 +2823,7 @@ export function NewProjectModal({
               onClick={() => void handleCreate()}
               disabled={saving}
               className="rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:opacity-90"
-              style={{ backgroundColor: "#2d5a33" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               {saving ? "Creating..." : "Create project"}
             </button>
@@ -1943,19 +2834,42 @@ export function NewProjectModal({
   );
 }
 
-export default function Arrangements() {
+/**
+ * Props are optional. The `/designs/new` route may render this page either as
+ * `<Arrangements newDesign />` or plainly as `<Arrangements />` - the pathname
+ * is checked too, so both wiring styles land in the standalone builder.
+ */
+export default function Arrangements({ newDesign, mode }: { newDesign?: boolean; mode?: string } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("id") ? Number(searchParams.get("id")) : null;
   const clientFilter = searchParams.get("client") || "";
   const isClientPath = location.pathname.includes("/clients/project");
+  const isNewDesignPath = /\/designs\/new\/?$/.test(location.pathname);
+  // Standalone "New Design" mode: open the builder immediately, no project picked yet.
+  // Reachable three ways so the route owner can wire it however they prefer:
+  // a `newDesign` / `mode="new-design"` prop, the /designs/new pathname, or ?newDesign=1.
+  const standaloneNewDesign = Boolean(newDesign)
+    || mode === "new-design"
+    || isNewDesignPath
+    || searchParams.get("newDesign") === "1";
   const cachedProjectsList = useMemo(() => readProjectsListCache(), []);
 
   const [arrangements, setArrangements] = useState<ArrangementSummary[]>(() => cachedProjectsList?.arrangements || []);
   const [arrangement, setArrangement] = useState<Arrangement | null>(null);
-  const [products, setProducts] = useState<LibraryProduct[]>([]);
   const [detailProduct, setDetailProduct] = useState<LibraryProduct | null>(null);
+
+  // The fast search index returns a lean row (id/name/sku/price/images), so the
+  // detail modal is filled from /detail like Catalog Search does. The lean row is
+  // shown immediately and replaced when the full record lands.
+  const openBuilderProductDetail = (product: LibraryProduct) => {
+    setDetailProduct(product);
+    void apiFetch(`/api/products/detail/${product.id}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((full) => { if (full) setDetailProduct(full as LibraryProduct); })
+      .catch(() => {});
+  };
   const [activeRoomId, setActiveRoomId] = useState<number | null>(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomNotes, setNewRoomNotes] = useState("");
@@ -1983,9 +2897,6 @@ export default function Arrangements() {
   const [listCachedAt, setListCachedAt] = useState<number | null>(() => cachedProjectsList?.cachedAt || null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [projectHydrating, setProjectHydrating] = useState(false);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [productsLoaded, setProductsLoaded] = useState(false);
-  const [productCatalogTotal, setProductCatalogTotal] = useState<number | null>(null);
   const [savingRoom, setSavingRoom] = useState(false);
   const [savingBucket, setSavingBucket] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -2005,6 +2916,42 @@ export default function Arrangements() {
   const [garlandLength, setGarlandLength] = useState("9");
   const [garlandDiameter, setGarlandDiameter] = useState<GarlandDiameter>("14");
   const [wreathSize, setWreathSize] = useState<WreathSize>("24");
+  // --- Phase C: measured Step 1 fields (see app/docs/TREE_SCOPE_SPEC.md) ---
+  // treeCanopySize / treeDensity stay behind, still holding the Christmas tree's
+  // diameter and profile. The green builds now use these instead.
+  const [buildSpecies, setBuildSpecies] = useState("");
+  const [buildWidth, setBuildWidth] = useState("");
+  const [buildDepth, setBuildDepth] = useState("");
+  const [buildCanopyTier, setBuildCanopyTier] = useState("");
+  const [buildSilhouette, setBuildSilhouette] = useState("full_round");
+  const [buildDensityBand, setBuildDensityBand] = useState("");
+  const [commonBuildPick, setCommonBuildPick] = useState("");
+  const [builderTypes, setBuilderTypes] = useState<BuilderBuildType[]>(() => readBuilderBuildTypes());
+  const [speciesOptions, setSpeciesOptions] = useState<BuilderSpecies[]>([]);
+  const [canopyTiers, setCanopyTiers] = useState<CanopyTiersResponse | null>(null);
+  const [densityInfo, setDensityInfo] = useState<DensityResponse | null>(null);
+  const [commonBuilds, setCommonBuilds] = useState<CommonBuild[]>([]);
+  const [scopeFilters, setScopeFilters] = useState<ScopeFilterSlot | null>(null);
+  // --- Phase D: catalog pane sizing ---
+  const [catalogWidth, setCatalogWidth] = useState<number>(() => {
+    const stored = Number(window.localStorage.getItem(BUILDER_CATALOG_WIDTH_KEY));
+    return Number.isFinite(stored) && stored >= 320 ? stored : 460;
+  });
+  const [catalogExpanded, setCatalogExpanded] = useState<boolean>(
+    () => window.localStorage.getItem(BUILDER_CATALOG_EXPANDED_KEY) === "1"
+  );
+  const [wideLayout, setWideLayout] = useState<boolean>(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+  );
+  const [resizingCatalog, setResizingCatalog] = useState(false);
+  const splitRef = useRef<HTMLDivElement>(null);
+  // --- Standalone "New Design" destination (client / project / group) ---
+  // Nothing here is persisted until the design is saved in materializeDestination().
+  const [designHierarchy, setDesignHierarchy] = useState<DesignHierarchy>({ clients: [], projects: [], groups: [] });
+  const [hierarchyLoading, setHierarchyLoading] = useState(false);
+  const [designDestination, setDesignDestination] = useState<DesignDestination>(EMPTY_DESIGN_DESTINATION);
+  const [destinationSaved, setDestinationSaved] = useState(false);
+  const loadedGroupProjectsRef = useRef<Set<number>>(new Set());
   const builderTopRef = useRef<HTMLDivElement>(null);
   const catalogRef = useRef<HTMLDivElement>(null);
   const previewPartsRef = useRef<HTMLDivElement>(null);
@@ -2043,8 +2990,22 @@ export default function Arrangements() {
     ? activeParts.filter((label, index) => partIsComplete(activeBucket, label, index)).length
     : 0;
   const builderSteps = ["type", "products", "mockup", "review", "po"] as const;
+  /**
+   * The Step 1 type list.
+   *
+   * Green types come from `/api/builder/build-types`, which already orders them
+   * by how much history backs each one, so the most-built product leads. That is
+   * what adds Plant & Bush, Container Only and Topiary. Counts are always read
+   * live - never hardcoded - because the recipe classifier is still being
+   * refined and the numbers move.
+   *
+   * A type that already exists in the builder keeps its existing label (the API's
+   * "Floral Arrangement" stays "Arrangement", "Drop-in" stays "Drop-in
+   * Arrangement"), so a saved `bucket_type` still resolves to the same slots and
+   * SKU code. Christmas is unmeasured and stays on the hardcoded configs.
+   */
   const productTypeOptions = useMemo(() => {
-    const canonical = BUILD_TYPE_CONFIGS
+    const configFallback = BUILD_TYPE_CONFIGS
       .filter((config) => config.section === selectedProductSection)
       .map((config) => ({
         label: config.label,
@@ -2052,8 +3013,31 @@ export default function Arrangements() {
         evidence_count: evidenceForConfig(config, buildTypes),
         prefixes: [...config.prefixes],
       }));
-    return [...canonical, { label: "Custom", icon: Plus, evidence_count: undefined, prefixes: [] }];
-  }, [buildTypes, selectedProductSection]);
+    const customOption = { label: "Custom", icon: Plus, evidence_count: undefined as number | undefined, prefixes: [] as string[] };
+
+    // The API only measures green work, and a failed/401 fetch must never blank
+    // out the picker - fall back to the hardcoded configs.
+    if (selectedProductSection !== "green" || builderTypes.length === 0) {
+      return [...configFallback, customOption];
+    }
+
+    const measured = builderTypes
+      .filter((type) => normalizeLabel(type.label) !== "custom")
+      .map((type) => {
+        const config = buildTypeConfigFor(type.label);
+        return {
+          label: config?.label || type.label,
+          icon: config?.icon || (type.slots?.length ? Leaf : Package),
+          evidence_count: Number(type.recipe_count) || 0,
+          prefixes: config ? [...config.prefixes] : [],
+        };
+      })
+      .filter((option, index, list) => list.findIndex((other) => other.label === option.label) === index);
+
+    // Any green config the API does not know about still has to be selectable.
+    const missing = configFallback.filter((option) => !measured.some((row) => row.label === option.label));
+    return [...measured, ...missing, customOption];
+  }, [buildTypes, builderTypes, selectedProductSection]);
   const historicalProductTypeCount = productTypeOptions.filter((option) => option.label !== "Custom").length;
   const filteredProductTypeOptions = useMemo(() => {
     const query = productTypeSearch.trim().toLowerCase();
@@ -2102,8 +3086,11 @@ export default function Arrangements() {
   }, [activePreviewKey]);
 
   useEffect(() => {
-    const sectionLabels = BUILD_TYPE_CONFIGS.filter((config) => config.section === selectedProductSection).map((config) => config.label);
-    if (selectedScopeType !== "Custom" && !(sectionLabels as string[]).includes(selectedScopeType)) {
+    // Driven by productTypeOptions, not BUILD_TYPE_CONFIGS, so a type that only
+    // exists in the API (Plant & Bush, Container Only, Topiary) is not bounced
+    // back to Tree the moment it is picked.
+    const sectionLabels = productTypeOptions.filter((option) => option.label !== "Custom").map((option) => option.label);
+    if (selectedScopeType !== "Custom" && !sectionLabels.includes(selectedScopeType)) {
       const nextType = sectionLabels[0] || "Custom";
       setSelectedScopeType(nextType);
       setNewScopeName(nextType);
@@ -2111,11 +3098,281 @@ export default function Arrangements() {
       setBuildSuggestion(null);
     }
     setProductTypeSearch("");
-  }, [selectedProductSection, selectedScopeType]);
+  }, [selectedProductSection, selectedScopeType, productTypeOptions]);
 
   useEffect(() => {
     if (!skuEdited) setFinishedSku(activeDraftSku);
   }, [activeDraftSku, skuEdited]);
+
+  // ─── Phase C: the measured Step 1 fields ───────────────────────────────────
+
+  // The build type's own declaration of which dimension fields it can use. A
+  // field a type cannot use is never rendered: Container Only has no canopy,
+  // silhouette or density, Drop-in no canopy or silhouette.
+  const activeBuilderType = useMemo(
+    () => builderApiTypeFor(selectedScopeType === "Custom" ? "Custom" : selectedBuildTypeLabel, builderTypes),
+    [builderTypes, selectedScopeType, selectedBuildTypeLabel]
+  );
+  const activeBuildFields = useMemo(
+    () => builderFieldsForBuildType(selectedScopeType === "Custom" ? "Custom" : selectedBuildTypeLabel, builderTypes),
+    [builderTypes, selectedScopeType, selectedBuildTypeLabel]
+  );
+  const usesMeasuredScopeFields = !["Christmas Tree", "Garland", "Wreath"].includes(selectedScopeType);
+  const silhouetteOptions = canopyTiers?.silhouettes?.length ? canopyTiers.silhouettes : SILHOUETTE_FALLBACK;
+  const activeSilhouette = silhouetteOption(buildSilhouette, silhouetteOptions);
+  const activeSpecies = useMemo(
+    () => speciesOptions.find((option) => normalizeLabel(option.name) === normalizeLabel(buildSpecies)) || null,
+    [speciesOptions, buildSpecies]
+  );
+  // Never prompt for density on a specimen species: an Areca Palm is ~1 stem at
+  // any height, one large potted plant with nothing to build up.
+  const densityApplies =
+    activeBuildFields.density &&
+    activeSpecies?.density_applies !== false &&
+    densityInfo?.density_applies !== false;
+  const activeCanopyTier = canopyTiers?.tiers?.find((tier) => tier.key === buildCanopyTier) || null;
+  const activeDensityBand = densityInfo?.bands?.find((band) => band.key === buildDensityBand) || null;
+
+  // One place that turns the current field values into scope-note lines, so the
+  // create path and the update path can never drift apart.
+  const measuredScopeLines = (buildTypeOverride?: string) =>
+    buildScopeSetupLines(buildTypeOverride ? builderFieldsForBuildType(buildTypeOverride, builderTypes) : activeBuildFields, {
+      height: treeHeight,
+      width: buildWidth,
+      depth: buildDepth,
+      species: buildSpecies,
+      canopy: buildCanopyTier,
+      canopyRange: activeCanopyTier?.range_label || "",
+      silhouette: buildSilhouette,
+      silhouetteLabel: activeSilhouette?.label || "",
+      density: densityApplies ? buildDensityBand : "",
+      densityLabel: activeDensityBand?.label || "",
+      densityPieces: activeDensityBand?.pieces ?? null,
+    });
+
+  // Silhouette sets depth from width (full-round 1.0, corner ~0.66, flat-back
+  // ~0.5). History is uniformly round - median depth:width 1.00 - so this is
+  // capture-going-forward and it computes the depth rather than asking for it.
+  const applySilhouette = (key: string, widthValue = buildWidth) => {
+    setBuildSilhouette(key);
+    const ratio = silhouetteOption(key, silhouetteOptions)?.depth_ratio ?? 1;
+    const widthIn = firstNumber(widthValue);
+    if (widthIn) setBuildDepth(formatInches(widthIn * ratio));
+  };
+
+  const applyCanopyTier = (key: string) => {
+    setBuildCanopyTier(key);
+    const tier = canopyTiers?.tiers?.find((row) => row.key === key) || null;
+    const width = key === canopyTiers?.default_tier && canopyTiers?.default_width_in != null
+      ? canopyTiers.default_width_in
+      : widthForCanopyTier(tier);
+    if (width == null) return;
+    setBuildWidth(formatInches(width));
+    const ratio = activeSilhouette?.depth_ratio ?? 1;
+    setBuildDepth(formatInches(width * ratio));
+  };
+
+  const applyWidth = (value: string) => {
+    setBuildWidth(value);
+    const widthIn = firstNumber(value);
+    if (!widthIn) return;
+    setBuildDepth(formatInches(widthIn * (activeSilhouette?.depth_ratio ?? 1)));
+    // Retier as the number is typed, so the tier always describes the width.
+    const tier = (canopyTiers?.tiers || []).find(
+      (row) => (row.min_in == null || widthIn >= row.min_in) && (row.max_in == null || widthIn < row.max_in)
+    );
+    if (tier) setBuildCanopyTier(tier.key);
+  };
+
+  const applyCommonBuild = (name: string) => {
+    setCommonBuildPick(name);
+    const pick = commonBuilds.find((build) => build.name === name);
+    if (!pick) return;
+    if (pick.height_display) setTreeHeight(pick.height_display);
+    if (pick.species) setBuildSpecies(pick.species);
+    if (pick.canopy_tier) setBuildCanopyTier(pick.canopy_tier);
+    if (pick.silhouette) setBuildSilhouette(pick.silhouette);
+    if (pick.width_in != null) setBuildWidth(formatInches(pick.width_in));
+    if (pick.depth_in != null) setBuildDepth(formatInches(pick.depth_in));
+    else if (pick.width_in != null) {
+      setBuildDepth(formatInches(pick.width_in * (silhouetteOption(pick.silhouette || "full_round", silhouetteOptions)?.depth_ratio ?? 1)));
+    }
+  };
+
+  const resetMeasuredScopeFields = () => {
+    setBuildSpecies("");
+    setBuildWidth("");
+    setBuildDepth("");
+    setBuildCanopyTier("");
+    setBuildSilhouette("full_round");
+    setBuildDensityBand("");
+    setCommonBuildPick("");
+    setCanopyTiers(null);
+    setDensityInfo(null);
+  };
+
+  // Build types + their slot templates, once. Cached to localStorage so the
+  // module-level slot lookup (designPartsForBuildType) can answer synchronously
+  // during the very first render after a reload.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchBuilderJson<{ build_types?: BuilderBuildType[] }>("build-types").then((data) => {
+      if (cancelled) return;
+      const cleaned = cleanBuilderBuildTypes(data?.build_types);
+      if (!cleaned.length) return;
+      writeBuilderBuildTypes(cleaned);
+      setBuilderTypes(cleaned);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Species for the selected type. Explicit at Step 1 because it drives every
+  // suggestion below it - density is f(species, height), never pooled.
+  useEffect(() => {
+    if (!usesMeasuredScopeFields || !activeBuildFields.species) {
+      setSpeciesOptions([]);
+      return;
+    }
+    let cancelled = false;
+    const buildType = activeBuilderType?.label;
+    void fetchBuilderJson<{ species?: BuilderSpecies[] }>("species", { build_type: buildType }).then((data) => {
+      if (cancelled) return;
+      setSpeciesOptions(Array.isArray(data?.species) ? data.species : []);
+    });
+    return () => { cancelled = true; };
+  }, [usesMeasuredScopeFields, activeBuildFields.species, activeBuilderType?.label]);
+
+  // Canopy tiers for the height that was typed. Tiers are defined per height
+  // band, so 42" reads "full" on a 6' tree and "standard" on a 9' one and
+  // "Medium" means the same visual fullness at every height.
+  useEffect(() => {
+    if (!usesMeasuredScopeFields || !activeBuildFields.canopy || !treeHeight.trim()) {
+      setCanopyTiers(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      void fetchBuilderJson<CanopyTiersResponse>("canopy-tiers", { height: treeHeight.trim() }).then((data) => {
+        if (!cancelled) setCanopyTiers(data);
+      });
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(handle); };
+  }, [usesMeasuredScopeFields, activeBuildFields.canopy, treeHeight]);
+
+  // Density for this species at this height. Species-keyed: at 7ft an Areca is
+  // 1 stem and a Eucalyptus 16, so a pooled number would be meaningless.
+  useEffect(() => {
+    if (!usesMeasuredScopeFields || !activeBuildFields.density || !buildSpecies.trim()) {
+      setDensityInfo(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      void fetchBuilderJson<DensityResponse>("density", {
+        species: buildSpecies.trim(),
+        height: treeHeight.trim() || undefined,
+        build_type: activeBuilderType?.label,
+      }).then((data) => {
+        if (!cancelled) setDensityInfo(data);
+      });
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(handle); };
+  }, [usesMeasuredScopeFields, activeBuildFields.density, buildSpecies, treeHeight, activeBuilderType?.label]);
+
+  // "Builds we make often" for this type + species.
+  useEffect(() => {
+    if (!usesMeasuredScopeFields || !activeBuilderType?.label) {
+      setCommonBuilds([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchBuilderJson<{ builds?: CommonBuild[] }>("common-builds", {
+      build_type: activeBuilderType.label,
+      species: buildSpecies.trim() || undefined,
+    }).then((data) => {
+      if (cancelled) return;
+      setCommonBuilds(Array.isArray(data?.builds) ? data.builds : []);
+    });
+    return () => { cancelled = true; };
+  }, [usesMeasuredScopeFields, activeBuilderType?.label, buildSpecies]);
+
+  // Keep the band selection honest when the species/height cell changes under it.
+  useEffect(() => {
+    if (!densityInfo?.bands?.length) return;
+    if (buildDensityBand && densityInfo.bands.some((band) => band.key === buildDensityBand)) return;
+    setBuildDensityBand(densityInfo.default_band || "standard");
+    // Runs when the species x height cell changes, not when the band does - the
+    // current band is only read to decide whether it survives the new cell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [densityInfo]);
+
+  useEffect(() => {
+    if (!canopyTiers?.tiers?.length || buildCanopyTier) return;
+    if (canopyTiers.default_tier) setBuildCanopyTier(canopyTiers.default_tier);
+  }, [canopyTiers, buildCanopyTier]);
+
+  // ─── Phase D: scope-aware smart filters ────────────────────────────────────
+  // The active slot's real vocabulary, so opening Container surfaces containers
+  // and opening Top Dressing surfaces foam / moss / rocks. Pre-applied but
+  // removable - the API's own contract says `mandatory: false`.
+  const activeScopeSlot = activePart ? scopeSlotForPartLabel(activePart.label) : null;
+  useEffect(() => {
+    if (!activeScopeSlot) {
+      setScopeFilters(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchBuilderJson<{ slots?: ScopeFilterSlot[] }>("scope-filters", {
+      slot: activeScopeSlot,
+      build_type: activeBucket?.bucket_type || undefined,
+    }).then((data) => {
+      if (cancelled) return;
+      setScopeFilters(data?.slots?.[0] || null);
+    });
+    return () => { cancelled = true; };
+  }, [activeScopeSlot, activeBucket?.bucket_type]);
+
+  // ─── Phase D: catalog pane size ────────────────────────────────────────────
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setWideLayout(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(BUILDER_CATALOG_WIDTH_KEY, String(Math.round(catalogWidth)));
+  }, [catalogWidth]);
+
+  useEffect(() => {
+    window.localStorage.setItem(BUILDER_CATALOG_EXPANDED_KEY, catalogExpanded ? "1" : "0");
+  }, [catalogExpanded]);
+
+  // Drag the divider between the scope tree and the catalog. Tracked on window
+  // so the pointer can leave the 6px handle mid-drag without the split sticking.
+  useEffect(() => {
+    if (!resizingCatalog) return;
+    const onMove = (event: PointerEvent) => {
+      const bounds = splitRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      const next = bounds.right - event.clientX;
+      setCatalogWidth(Math.min(Math.max(next, 340), Math.max(360, bounds.width - 280)));
+    };
+    const stop = () => setResizingCatalog(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, [resizingCatalog]);
+
+  const showScopeCanvas = !(catalogExpanded && builderStep === "products");
+  const builderGridStyle = wideLayout
+    ? { gridTemplateColumns: showScopeCanvas ? `minmax(0,1fr) 6px ${Math.round(catalogWidth)}px` : "minmax(0,1fr)" }
+    : undefined;
   const goToBuilderStep = (step: typeof builderSteps[number]) => {
     setBuilderStep(step);
     window.requestAnimationFrame(() => {
@@ -2189,16 +3446,32 @@ export default function Arrangements() {
 
   const syncBuilderSelectionFromBucket = (bucket: Container) => {
     const config = buildTypeConfigFor(`${bucket.bucket_type || ""} ${bucket.label || ""}`);
-    const nextType = config?.label || bucket.bucket_type || scopeTitle(bucket);
+    // A type the builder only gained in Phase C (Plant & Bush, Container Only,
+    // Topiary) has no hardcoded config, so it is resolved from the API list
+    // instead of falling through to "Custom".
+    const apiType = config ? null : builderApiTypeFor(bucket.bucket_type || scopeTitle(bucket), builderTypes);
+    const resolvedLabel = config?.label || apiType?.label || "";
+    const nextType = resolvedLabel || bucket.bucket_type || scopeTitle(bucket);
     setSelectedProductSection(config?.section || "green");
-    setSelectedScopeType(config ? config.label : "Custom");
+    setSelectedScopeType(resolvedLabel || "Custom");
     setNewScopeName(nextType);
     setPreviewType(nextType);
     setBuildSuggestion(parseScopeIntelligence(bucket.scope_notes));
     setSelectedChristmasTreeCode("");
-    setTreeHeight(scopeNoteValue(bucket.scope_notes, "Height"));
+    setTreeHeight(buildHeightFromNotes(bucket.scope_notes));
+    // The Christmas branch still owns these two, under the original keys.
     setTreeCanopySize(scopeNoteValue(bucket.scope_notes, "Width / canopy"));
     setTreeDensity(scopeNoteValue(bucket.scope_notes, "Depth / density"));
+    // Green builds read the Phase C keys, each falling back to the pre-Phase-C
+    // one, so a design saved before this change still loads with its width and
+    // depth intact and round-trips without losing them.
+    setBuildWidth(buildWidthFromNotes(bucket.scope_notes));
+    setBuildDepth(buildDepthFromNotes(bucket.scope_notes));
+    setBuildSpecies(buildSpeciesFromNotes(bucket.scope_notes));
+    setBuildCanopyTier(buildCanopyTierFromNotes(bucket.scope_notes));
+    setBuildSilhouette(buildSilhouetteFromNotes(bucket.scope_notes) || "full_round");
+    setBuildDensityBand(buildDensityBandFromNotes(bucket.scope_notes));
+    setCommonBuildPick("");
     setChristmasEnhancerPackage(christmasEnhancerPackageFromNotes(bucket.scope_notes));
     setGarlandPackage(garlandPackageFromNotes(bucket.scope_notes));
     setGarlandLength(garlandLengthFromNotes(bucket.scope_notes));
@@ -2248,9 +3521,18 @@ export default function Arrangements() {
       nextType === "Christmas Tree" ? `Enhancer package: ${christmasEnhancerPackage === "premium" ? "Premium" : "Regular"}` : "",
       ...(nextType === "Garland" ? garlandSetupLines(garlandPackage, garlandLength, garlandDiameter) : []),
       ...(nextType === "Wreath" ? wreathSetupLines(wreathSize) : []),
-      !["Garland", "Wreath"].includes(nextType) && treeHeight.trim() ? `Height: ${treeHeight.trim()}` : "",
-      !["Garland", "Wreath"].includes(nextType) && treeCanopySize.trim() ? `Width / canopy: ${treeCanopySize.trim()}` : "",
-      !["Garland", "Wreath"].includes(nextType) && treeDensity.trim() ? `Depth / density: ${treeDensity.trim()}` : "",
+      // Christmas trees keep the original three keys - the enhancer/ornament
+      // rules read "Width / canopy" as the diameter and "Depth / density" as the
+      // profile. Green builds write the measured Phase C fields instead.
+      ...(nextType === "Christmas Tree"
+        ? [
+            treeHeight.trim() ? `Height: ${treeHeight.trim()}` : "",
+            treeCanopySize.trim() ? `Width / canopy: ${treeCanopySize.trim()}` : "",
+            treeDensity.trim() ? `Depth / density: ${treeDensity.trim()}` : "",
+          ]
+        : !["Garland", "Wreath"].includes(nextType)
+          ? measuredScopeLines(nextType)
+          : []),
       suggestion ? `${INTELLIGENCE_NOTE_PREFIX}${JSON.stringify(suggestion)}` : scopeIntelligenceLine(activeBucket.scope_notes),
       customSections.length ? `${CUSTOM_SECTIONS_PREFIX}${JSON.stringify(customSections)}` : "",
     ].filter(Boolean).join("\n");
@@ -2312,81 +3594,10 @@ export default function Arrangements() {
     }
   };
 
-  const loadProducts = async () => {
-    if (productsLoading) return;
-    if (productsLoaded && (!productCatalogTotal || products.length >= productCatalogTotal)) return;
-    const cachedCatalog = readLibraryProductCache();
-    const cachedProducts = cachedCatalog.products;
-    if (cachedCatalog.productTotal) setProductCatalogTotal(cachedCatalog.productTotal);
-    if (cachedProducts.length > 0 && products.length === 0) {
-      setProducts(cachedProducts);
-    }
-    setProductsLoading(true);
-    try {
-      const fetchProductPage = async (offset: number) => {
-        const pageResponse = await apiClient.request<ProductPage>({
-          path: "/routes/products/page",
-          method: "GET",
-          query: {
-            favorites_only: false,
-            limit: BUILDER_PRODUCT_PAGE_SIZE,
-            offset,
-          },
-        });
-        if (!pageResponse.ok) throw new Error("Failed to load product library page");
-        return pageResponse.json();
-      };
-
-      const firstPage = await fetchProductPage(0);
-      const firstItems = Array.isArray(firstPage.items) ? firstPage.items : [];
-      const total = Number(firstPage.total) || firstItems.length;
-      const pageLimit = Number(firstPage.limit) || BUILDER_PRODUCT_PAGE_SIZE;
-      setProductCatalogTotal(total);
-      if (firstItems.length > cachedProducts.length || products.length === 0) {
-        setProducts(firstItems);
-      }
-
-      const offsets: number[] = [];
-      for (let offset = pageLimit; offset < total; offset += pageLimit) {
-        offsets.push(offset);
-      }
-
-      const allProducts: LibraryProduct[] = [...firstItems];
-      for (let index = 0; index < offsets.length; index += BUILDER_PRODUCT_CONCURRENT_PAGE_LIMIT) {
-        const batch = offsets.slice(index, index + BUILDER_PRODUCT_CONCURRENT_PAGE_LIMIT);
-        const pages = await Promise.all(batch.map((offset) => fetchProductPage(offset)));
-        for (const page of pages) {
-          if (Array.isArray(page.items)) allProducts.push(...page.items);
-        }
-      }
-
-      const uniqueProducts = allProducts.filter((product, index, list) => list.findIndex((item) => item.id === product.id) === index);
-      if (uniqueProducts.length > 0) {
-        setProducts(uniqueProducts);
-        setProductsLoaded(uniqueProducts.length >= total);
-        writeLibraryProductCache(uniqueProducts, total);
-      } else {
-        const response = await apiClient.list_products({ favorites_only: false });
-        if (!response.ok) throw new Error("Failed to load product library");
-        const data = await response.json();
-        const products = (Array.isArray(data) ? data : []) as unknown as LibraryProduct[];
-        setProducts(products);
-        setProductCatalogTotal(products.length);
-        setProductsLoaded(true);
-        writeLibraryProductCache(products, products.length);
-      }
-    } catch {
-      if (cachedProducts.length > 0) {
-        setProducts(cachedProducts);
-        setProductsLoaded(false);
-        if (!products.length) toast.error("Showing cached products while the full catalog loads. Try again in a moment.");
-      } else {
-        toast.error("Failed to load product library");
-      }
-    } finally {
-      setProductsLoading(false);
-    }
-  };
+  // Phase D: the builder no longer pages the whole catalog into the browser
+  // before the picker can open. Choose Parts queries /api/products/search - the
+  // same warm in-memory index the Catalog Search page uses - so it answers per
+  // keystroke instead of after a ~95k-row download.
 
   const loadBuildTypes = async () => {
     try {
@@ -2398,6 +3609,91 @@ export default function Arrangements() {
       }
     } catch {
       // The builder works with fallback product types before intelligence import runs.
+    }
+  };
+
+  // Loads the Client -> Project -> Group hierarchy for the standalone builder.
+  // Prefers the single-shot /designs/hierarchy endpoint and falls back to the
+  // three legacy endpoints when it is not deployed yet.
+  const loadDesignHierarchy = async () => {
+    setHierarchyLoading(true);
+    try {
+      try {
+        const res = await apiClient.request({ path: "/routes/designs/hierarchy", method: "GET" });
+        if (res.ok) {
+          const data = await res.json() as any;
+          if (data && Array.isArray(data.clients) && Array.isArray(data.projects)) {
+            loadedGroupProjectsRef.current = new Set(
+              (Array.isArray(data.groups) ? data.groups : []).map((group: any) => Number(group.project_id))
+            );
+            setDesignHierarchy({
+              clients: data.clients.map((client: any) => ({ id: client.id ?? null, name: String(client.name || "") })),
+              projects: data.projects.map((project: any) => ({
+                id: Number(project.id),
+                name: String(project.name || ""),
+                client_name: project.client_name || "",
+              })),
+              groups: (Array.isArray(data.groups) ? data.groups : []).map((group: any) => ({
+                id: Number(group.id),
+                name: String(group.name || ""),
+                project_id: Number(group.project_id),
+              })),
+            });
+            return;
+          }
+        }
+      } catch {
+        // Fall through to the legacy endpoints below.
+      }
+
+      const [clientResult, projectResult] = await Promise.allSettled([
+        apiClient.request<{ id?: number; name: string }[]>({ path: "/routes/clients/list", method: "GET" }).then((r) => (r.ok ? r.json() : [])),
+        apiClient.list_arrangements().then((r) => (r.ok ? r.json() : [])),
+      ]);
+      const clientRows = clientResult.status === "fulfilled" && Array.isArray(clientResult.value) ? clientResult.value : [];
+      const projectRows = (projectResult.status === "fulfilled" && Array.isArray(projectResult.value)
+        ? projectResult.value
+        : []) as unknown as ArrangementSummary[];
+      const namesFromProjects = projectRows
+        .map((project) => (project.client_name || "").trim())
+        .filter(Boolean)
+        .map((name) => ({ id: null, name }));
+      const mergedClients = [...clientRows.map((client) => ({ id: client.id ?? null, name: String(client.name || "") })), ...namesFromProjects]
+        .filter((client) => Boolean(client.name.trim()))
+        .filter((client, index, list) => list.findIndex((other) => other.name === client.name) === index);
+      setDesignHierarchy((current) => ({
+        clients: mergedClients,
+        projects: projectRows.map((project) => ({ id: project.id, name: project.name, client_name: project.client_name || "" })),
+        // Groups are not in the summary payload - they are lazily fetched per project.
+        groups: current.groups,
+      }));
+    } finally {
+      setHierarchyLoading(false);
+    }
+  };
+
+  // Lazily hydrate the group (project_rooms) list for one project when the
+  // /designs/hierarchy endpoint is unavailable or did not include it.
+  const ensureGroupsForProject = async (projectId: number) => {
+    if (loadedGroupProjectsRef.current.has(projectId)) return;
+    loadedGroupProjectsRef.current.add(projectId);
+    setHierarchyLoading(true);
+    try {
+      const res = await apiClient.get_arrangement({ arrangementId: projectId });
+      if (!res.ok) return;
+      const detail = await res.json() as unknown as Arrangement;
+      const rooms = Array.isArray(detail?.rooms) ? detail.rooms : [];
+      setDesignHierarchy((current) => ({
+        ...current,
+        groups: [
+          ...current.groups.filter((group) => group.project_id !== projectId),
+          ...rooms.map((room) => ({ id: room.id, name: room.name, project_id: projectId })),
+        ],
+      }));
+    } catch {
+      loadedGroupProjectsRef.current.delete(projectId);
+    } finally {
+      setHierarchyLoading(false);
     }
   };
 
@@ -2460,6 +3756,16 @@ export default function Arrangements() {
 
   useEffect(() => { loadList(); void loadBuildTypes(); }, []);
   useEffect(() => {
+    if (!standaloneNewDesign) return;
+    void loadDesignHierarchy();
+  }, [standaloneNewDesign]);
+  useEffect(() => {
+    if (!standaloneNewDesign) return;
+    if (destinationSaved) return;
+    if (designDestination.projectId === null) return;
+    void ensureGroupsForProject(designDestination.projectId);
+  }, [standaloneNewDesign, destinationSaved, designDestination.projectId]);
+  useEffect(() => {
     if (selectedId) {
       const summary = arrangements.find((a) => a.id === selectedId);
       setArrangement((current) => {
@@ -2500,7 +3806,6 @@ export default function Arrangements() {
   }, [selectedScopeType]);
 
   const enterProductPicker = () => {
-    void loadProducts();
     goToBuilderStep("products");
   };
 
@@ -2664,11 +3969,15 @@ export default function Arrangements() {
     }
   };
 
-  const addBucket = async () => {
+  const addBucket = async (options?: { arrangement?: Arrangement; roomId?: number | null }) => {
     const scopeName = (scopeNameRef.current?.value || newScopeName).trim();
     const quantityValue = scopeQuantityRef.current?.value || newScopeQuantity;
     const notesValue = scopeNotesRef.current?.value || newScopeNotes;
-    if (!arrangement || !scopeName) return;
+    // Overrides let the standalone builder create the scope against a project /
+    // room that was created moments ago, before React state has caught up.
+    const targetArrangement = options?.arrangement || arrangement;
+    const targetRoomId = options && "roomId" in options ? options.roomId ?? null : activeRoomId;
+    if (!targetArrangement || !scopeName) return;
     setSavingBucket(true);
     try {
       const suggestion = buildSuggestion || await requestBuildSuggestion();
@@ -2678,16 +3987,22 @@ export default function Arrangements() {
         selectedScopeType === "Christmas Tree" ? `Enhancer package: ${christmasEnhancerPackage === "premium" ? "Premium" : "Regular"}` : "",
         ...(selectedScopeType === "Garland" ? garlandSetupLines(garlandPackage, garlandLength, garlandDiameter) : []),
         ...(selectedScopeType === "Wreath" ? wreathSetupLines(wreathSize) : []),
-        !["Garland", "Wreath"].includes(selectedScopeType) && treeHeight.trim() ? `Height: ${treeHeight.trim()}` : "",
-        !["Garland", "Wreath"].includes(selectedScopeType) && treeCanopySize.trim() ? `Width / canopy: ${treeCanopySize.trim()}` : "",
-        !["Garland", "Wreath"].includes(selectedScopeType) && treeDensity.trim() ? `Depth / density: ${treeDensity.trim()}` : "",
+        ...(selectedScopeType === "Christmas Tree"
+          ? [
+              treeHeight.trim() ? `Height: ${treeHeight.trim()}` : "",
+              treeCanopySize.trim() ? `Width / canopy: ${treeCanopySize.trim()}` : "",
+              treeDensity.trim() ? `Depth / density: ${treeDensity.trim()}` : "",
+            ]
+          : usesMeasuredScopeFields
+            ? measuredScopeLines()
+            : []),
         suggestion ? `${INTELLIGENCE_NOTE_PREFIX}${JSON.stringify(suggestion)}` : "",
       ].filter(Boolean).join("\n");
       const res = await apiClient.add_container(
-        { arrangementId: arrangement.id },
+        { arrangementId: targetArrangement.id },
         {
           label: scopeName,
-          room_id: activeRoomId,
+          room_id: targetRoomId,
           bucket_type: selectedScopeType === "Custom" ? scopeName : selectedScopeType,
           requested_quantity: Math.max(1, Number(quantityValue) || 1),
           scope_notes: setupNotes || undefined,
@@ -2723,6 +4038,7 @@ export default function Arrangements() {
       setTreeHeight("");
       setTreeCanopySize("");
       setTreeDensity("");
+      resetMeasuredScopeFields();
       if (scopeNameRef.current) scopeNameRef.current.value = selectedScopeType === "Custom" ? "" : selectedScopeType;
       if (scopeQuantityRef.current) scopeQuantityRef.current.value = "1";
       if (scopeNotesRef.current) scopeNotesRef.current.value = "";
@@ -2736,12 +4052,120 @@ export default function Arrangements() {
     }
   };
 
+  /**
+   * The single write point for the standalone "New Design" flow.
+   *
+   * Everything the three dropdowns collected is kept in memory until this runs,
+   * so abandoning a build leaves no orphan client / project / room rows behind.
+   * Order: client -> project (arrangement) -> group (project_room). The design
+   * itself (arrangement_container) is created right after by addBucket().
+   */
+  const materializeDestination = async (): Promise<{ arrangement: Arrangement; roomId: number | null } | null> => {
+    const destination = designDestination;
+    const clientName = destination.clientName.trim();
+
+    if (destination.clientIsNew && clientName) {
+      try {
+        await apiClient.request({
+          path: "/routes/clients/create",
+          method: "POST",
+          body: { name: clientName },
+          type: ContentType.Json,
+        });
+      } catch {
+        // A missing client record is not fatal - the project still stores client_name.
+      }
+    }
+
+    let projectArrangement: Arrangement | null = null;
+    if (destination.projectIsNew) {
+      const projectName = destination.projectName.trim();
+      if (!projectName) {
+        toast.error("Name the new project first");
+        return null;
+      }
+      const res = await apiClient.create_arrangement({
+        name: projectName,
+        client_name: clientName || undefined,
+      });
+      if (!res.ok) {
+        toast.error("Could not create the project");
+        return null;
+      }
+      projectArrangement = await res.json() as unknown as Arrangement;
+    } else if (destination.projectId !== null) {
+      const res = await apiClient.get_arrangement({ arrangementId: destination.projectId });
+      if (!res.ok) {
+        toast.error("Could not open the selected project");
+        return null;
+      }
+      projectArrangement = await res.json() as unknown as Arrangement;
+    }
+    if (!projectArrangement) {
+      toast.error("Select a project first");
+      return null;
+    }
+
+    let roomId: number | null = destination.groupIsNew ? null : destination.groupId;
+    if (destination.groupIsNew) {
+      const groupName = destination.groupName.trim();
+      if (!groupName) {
+        toast.error("Name the new project group first");
+        return null;
+      }
+      const res = await apiClient.request<Arrangement>({
+        path: `/routes/arrangements/room/add/${projectArrangement.id}`,
+        method: "POST",
+        body: { name: groupName },
+        type: ContentType.Json,
+      });
+      if (!res.ok) {
+        toast.error("Could not create the project group");
+        return null;
+      }
+      projectArrangement = await res.json() as unknown as Arrangement;
+      const createdRoom = (projectArrangement.rooms || []).find(
+        (room) => room.name.trim().toLowerCase() === groupName.toLowerCase()
+      );
+      roomId = createdRoom?.id ?? null;
+      if (roomId === null) {
+        toast.error("Could not create the project group");
+        return null;
+      }
+    }
+
+    return { arrangement: projectArrangement, roomId };
+  };
+
   const goToProductParts = async () => {
     if (activeBucket) {
       const updatedBucket = await applySelectedTypeToActiveBucket();
       if (!updatedBucket) return;
       setActivePart({ label: scopePlaceholders(updatedBucket)[0] || "Products", index: 0 });
       enterProductPicker();
+      return;
+    }
+    if (standaloneNewDesign && !arrangement) {
+      if (!destinationIsComplete(designDestination)) {
+        toast.error("Choose a client, project, and project group first");
+        return;
+      }
+      setSavingBucket(true);
+      let created: { arrangement: Arrangement; roomId: number | null } | null = null;
+      try {
+        created = await materializeDestination();
+      } catch {
+        toast.error("Could not save the design destination");
+      } finally {
+        setSavingBucket(false);
+      }
+      if (!created) return;
+      setArrangement(created.arrangement);
+      setActiveRoomId(created.roomId);
+      setCreatingBuiltProduct(true);
+      setDestinationSaved(true);
+      notifyProjectsChanged();
+      await addBucket({ arrangement: created.arrangement, roomId: created.roomId });
       return;
     }
     await addBucket();
@@ -2933,6 +4357,7 @@ export default function Arrangements() {
     const bucketLabel = scopeTitle(activeBucket);
     const part = activePart || { label: scopePlaceholders(activeBucket)[0] || "Products", index: 0 };
     const key = partKey(part.label, part.index);
+    const matchingKeys = partKeysForSlot(part.label, part.index);
     const suggestedQty = suggestedQuantityForPart(activeBucket, part.label, part.index);
     const optimisticId = -Date.now();
     const displayImageUrl = productDisplayImageUrl(product);
@@ -2944,7 +4369,7 @@ export default function Arrangements() {
           if (bucket.id !== bucketId) return bucket;
           const existing = bucket.items.find((item) => {
             const existingKey = item.part_key || partKey(item.part_label || "", item.part_order || 0);
-            return item.product_id === product.id && existingKey === key;
+            return item.product_id === product.id && matchingKeys.includes(existingKey);
           });
           if (existing) {
             return {
@@ -3120,11 +4545,33 @@ export default function Arrangements() {
     }
   };
 
+  // Step 1's primary CTA is rendered twice (top and bottom of the "Select type" panel) so
+  // it is reachable without scrolling. Both instances come from this one definition, so
+  // they always share the same handler, label, and disabled/validation state.
+  const typeStepContinueDisabled =
+    savingBucket
+    || (!activeBucket && !newScopeName.trim())
+    || (standaloneNewDesign && !arrangement && !destinationIsComplete(designDestination));
+  const typeStepContinueLabel = savingBucket
+    ? "Saving..."
+    : standaloneNewDesign && !arrangement
+      ? "Save & continue →"
+      : "Next step →";
+  const renderTypeStepContinueButton = (spacingClassName: string) => (
+    <button
+      onClick={() => void goToProductParts()}
+      disabled={typeStepContinueDisabled}
+      className={`${spacingClassName} w-full rounded-lg bg-stone-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50`}
+    >
+      {typeStepContinueLabel}
+    </button>
+  );
+
   return (
     <Layout>
-      {!selectedId ? (
+      {!selectedId && !standaloneNewDesign ? (
         <>
-          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "#f7f4ef" }}>
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
             <div>
               <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
                 <button onClick={showAllProjects} className="hover:underline">All Projects</button>
@@ -3144,7 +4591,7 @@ export default function Arrangements() {
                   : `${filteredArrangements.length} project${filteredArrangements.length !== 1 ? "s" : ""} · clients, jobs, and scopes${listRefreshing ? " · Refreshing..." : listCachedAt ? ` · Updated ${formatProjectsCacheStamp(listCachedAt)}` : ""}`}
               </p>
             </div>
-            <button onClick={() => setShowNewModal(true)} className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
+            <button onClick={() => setShowNewModal(true)} className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
               <Plus size={15} strokeWidth={2.2} /> New Project
             </button>
           </header>
@@ -3155,18 +4602,18 @@ export default function Arrangements() {
               </div>
             ) : listSettled && filteredArrangements.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "#e8f0e8" }}>
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                   <Package size={28} className="text-emerald-600" strokeWidth={1.5} />
                 </div>
                 <p className="mb-1 text-base font-medium text-stone-600">No projects yet</p>
                 <p className="mb-4 max-w-xs text-sm leading-relaxed text-stone-400">Create a client project, then add scopes like Tree, Garland, or Bookshelf.</p>
-                <button onClick={() => setShowNewModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>Create First Project</button>
+                <button onClick={() => setShowNewModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>Create First Project</button>
               </div>
             ) : (
               <div className="grid gap-3">
                 {filteredArrangements.map((a) => (
                   <div key={a.id} onClick={() => selectProject(a.id)} className="group flex cursor-pointer items-center gap-4 rounded-xl border border-stone-200 bg-white px-6 py-4 transition-all hover:shadow-sm">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                       <Package size={18} className="text-emerald-700" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -3187,9 +4634,25 @@ export default function Arrangements() {
             )}
           </div>
         </>
-      ) : arrangement ? (
+      ) : arrangement || standaloneNewDesign ? (
         <>
-          <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "#f7f4ef" }}>
+          {!arrangement ? (
+            <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+              <button onClick={() => navigate("/clients")} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200" aria-label="Leave the new design builder">
+                <ArrowLeft size={16} />
+              </button>
+              <div className="flex-1">
+                <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                  <span>Designs</span>
+                  <span className="text-stone-300">/</span>
+                  <span className="text-stone-500">New design</span>
+                </div>
+                <h1 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>New Design</h1>
+                <p className="text-xs text-stone-400">Pick the client, project, and group beside the steps · nothing is saved until you continue past step 1.</p>
+              </div>
+            </header>
+          ) : (
+          <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
             <button onClick={activeRoomId ? (activeBucket || creatingBuiltProduct ? backToBuiltProducts : closeRoom) : clearSelection} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200">
               <ArrowLeft size={16} />
             </button>
@@ -3252,12 +4715,13 @@ export default function Arrangements() {
               <p className="text-sm font-bold text-stone-800">{formatCurrency(arrangement.total_with_markup)}</p>
               <p className="text-xs text-stone-400">quote estimate · selected base {formatCurrency(arrangement.total_cost)}</p>
             </div>
-            <button onClick={() => navigate(`/invoice?arrangement_id=${arrangement.id}`)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
+            <button onClick={() => navigate(`/invoice?arrangement_id=${arrangement.id}`)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
               View Invoice
             </button>
           </header>
+          )}
 
-          {!activeRoomId ? (
+          {!activeRoomId && !standaloneNewDesign ? (
             <div className="px-10 py-6">
               <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div className="mb-4">
@@ -3282,7 +4746,7 @@ export default function Arrangements() {
                     onClick={addRoom}
                     disabled={!newRoomName.trim() || savingRoom}
                     className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    style={{ backgroundColor: "#2d5a33" }}
+                    style={{ backgroundColor: "rgb(var(--ll-brand))" }}
                   >
                     {savingRoom ? "Adding..." : "Add package"}
                   </button>
@@ -3354,7 +4818,7 @@ export default function Arrangements() {
                             <p className="mt-1 font-semibold text-emerald-900">{formatCurrency(selectedTotal)}</p>
                           </div>
                         </div>
-                        <button onClick={() => openRoom(room.id)} className="w-full rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "#2d5a33" }}>
+                        <button onClick={() => openRoom(room.id)} className="w-full rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
                           Open package
                         </button>
                       </div>
@@ -3363,7 +4827,7 @@ export default function Arrangements() {
                 </div>
               )}
             </div>
-          ) : !activeBucket && !creatingBuiltProduct ? (
+          ) : !activeBucket && !creatingBuiltProduct && !standaloneNewDesign ? (
             <div className="px-10 py-6">
               <div className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 {editingRoom ? (
@@ -3480,7 +4944,7 @@ export default function Arrangements() {
                             );
                           })}
                         </div>
-                        <button onClick={() => openBuiltProduct(bucket)} className="w-full rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "#2d5a33" }}>
+                        <button onClick={() => openBuiltProduct(bucket)} className="w-full rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
                           Open builder
                         </button>
                       </div>
@@ -3516,6 +4980,24 @@ export default function Arrangements() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {standaloneNewDesign && (
+                  <>
+                    <DesignDestinationPicker
+                      hierarchy={designHierarchy}
+                      destination={designDestination}
+                      onChange={setDesignDestination}
+                      loading={hierarchyLoading}
+                      locked={destinationSaved}
+                    />
+                    {!destinationSaved && (
+                      <p className="text-[11px] text-stone-400">
+                        Client, project, and group are only created when you continue to step 2.
+                      </p>
+                    )}
+                  </>
+                )}
+                {(!standaloneNewDesign || destinationSaved) && (
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <span className="flex items-center gap-2 text-stone-500"><span className="h-2 w-2 rounded-full bg-emerald-700" /> Type: <strong className="text-stone-900">{activeBucket ? activeBucket.bucket_type || scopeTitle(activeBucket) : "No scope"}</strong></span>
                   <span className="text-stone-300">|</span>
@@ -3524,6 +5006,8 @@ export default function Arrangements() {
                   <span className="text-stone-500">Draft SKU: <strong className="text-stone-900">{activeDraftSku}</strong></span>
                   <span className="text-stone-300">|</span>
                   <span className="text-stone-500">Order: <strong className="text-emerald-800">{orderItems.length ? "ready" : "draft"}</strong></span>
+                </div>
+                )}
                 </div>
                 <div className="flex min-h-[34px] items-center gap-2">
                   <div
@@ -3555,7 +5039,7 @@ export default function Arrangements() {
                       }}
                       className={`transform-gpu whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.98] ${
                         builderStep === step
-                          ? "scale-[1.02] bg-stone-900 text-white shadow-[0_0_0_2px_#f4b400]"
+                          ? "scale-[1.02] bg-stone-900 text-white shadow-[0_0_0_2px_rgb(var(--ll-focus-gold))]"
                           : "scale-100 bg-stone-100 text-stone-500 shadow-none hover:bg-stone-200 hover:text-stone-700"
                       }`}
                     >
@@ -3566,8 +5050,15 @@ export default function Arrangements() {
               </div>
             </div>
 
-	            <div className="grid h-[720px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_460px]">
-	              <section className="relative h-full overflow-x-hidden overflow-y-auto border-r border-stone-100 bg-[radial-gradient(circle_at_1px_1px,#e7e5e4_1px,transparent_0)] [background-size:22px_22px] p-6 pb-28 md:p-8 md:pb-28 lg:px-10">
+	            <div
+	              ref={splitRef}
+	              style={builderGridStyle}
+	              className={`grid overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_460px] ${
+	                catalogExpanded && builderStep === "products" ? "h-[calc(100vh-190px)] min-h-[560px]" : "h-[720px]"
+	              } ${resizingCatalog ? "select-none" : ""}`}
+	            >
+	              {showScopeCanvas && (
+	              <section className="relative h-full overflow-x-hidden overflow-y-auto border-r border-stone-100 bg-[radial-gradient(circle_at_1px_1px,rgb(var(--ns-200))_1px,transparent_0)] [background-size:22px_22px] p-6 pb-28 md:p-8 md:pb-28 lg:px-10">
 	                {builderStep === "type" ? (
 	                  <div className="mx-auto flex h-full max-w-3xl items-center">
 	                    <div className="flex max-h-full w-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white/95 p-6 shadow-sm">
@@ -4240,6 +5731,24 @@ export default function Arrangements() {
                   <button type="button" className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-stone-100"><Plus size={14} /></button>
                 </div>
               </section>
+              )}
+
+              {/* Drag to trade width between the scope tree and the catalog. */}
+              {showScopeCanvas && wideLayout && (
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize the catalog pane"
+                  onPointerDown={(event) => { event.preventDefault(); setResizingCatalog(true); }}
+                  onDoubleClick={() => setCatalogWidth(460)}
+                  title="Drag to resize · double-click to reset"
+                  className={`group hidden h-full cursor-col-resize items-center justify-center lg:flex ${
+                    resizingCatalog ? "bg-emerald-300" : "bg-stone-100 hover:bg-emerald-200"
+                  }`}
+                >
+                  <span className="h-10 w-0.5 rounded-full bg-stone-300 group-hover:bg-emerald-600" />
+                </div>
+              )}
 
 	              <aside className="flex h-full min-h-0 flex-col overflow-y-auto bg-white">
                 <div className="border-b border-stone-100 px-5 py-4">
@@ -4261,6 +5770,7 @@ export default function Arrangements() {
 	                {builderStep === "type" && (
 	                  <div className="space-y-4 p-5">
 	                    <div>
+                        {renderTypeStepContinueButton("mb-4")}
                         <div className="mb-4 grid grid-cols-2 rounded-xl border border-stone-200 bg-stone-50 p-1">
                           {(["green", "christmas"] as BuilderSection[]).map((section) => (
                             <button
@@ -4584,41 +6094,42 @@ export default function Arrangements() {
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50/70 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Build dimensions</p>
-                          <p className="mt-1 text-xs text-stone-400">These guide the recommendation before products are chosen.</p>
-                          <div className="mt-4 grid gap-3">
-                            <label className="block">
-                              <span className="mb-1 block text-xs font-semibold text-stone-500">Height</span>
-                              <input
-                                value={treeHeight}
-                                onChange={(event) => setTreeHeight(event.target.value)}
-                                placeholder="e.g. 8 ft, 24 in, tabletop"
-                                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                              />
-                            </label>
-                            <label className="block">
-                              <span className="mb-1 block text-xs font-semibold text-stone-500">Width / canopy</span>
-                              <input
-                                value={treeCanopySize}
-                                onChange={(event) => setTreeCanopySize(event.target.value)}
-                                placeholder="e.g. full, narrow, 48 in"
-                                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                              />
-                            </label>
-                            <label className="block">
-                              <span className="mb-1 block text-xs font-semibold text-stone-500">Depth / density</span>
-                              <input
-                                value={treeDensity}
-                                onChange={(event) => setTreeDensity(event.target.value)}
-                                placeholder="e.g. light, medium, dense"
-                                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                              />
-                            </label>
-                          </div>
-                        </div>
+                        <MeasuredScopeFields
+                          buildTypeLabel={activeBuilderType?.label || selectedBuildTypeLabel}
+                          fields={activeBuildFields}
+                          recipeCount={activeBuilderType?.recipe_count}
+                          typeNotes={activeBuilderType?.notes}
+                          height={treeHeight}
+                          onHeightChange={setTreeHeight}
+                          species={buildSpecies}
+                          onSpeciesChange={setBuildSpecies}
+                          speciesOptions={speciesOptions}
+                          activeSpecies={activeSpecies}
+                          canopyTiers={canopyTiers}
+                          canopyTier={buildCanopyTier}
+                          onCanopyTier={applyCanopyTier}
+                          width={buildWidth}
+                          onWidthChange={applyWidth}
+                          silhouetteOptions={silhouetteOptions}
+                          silhouette={buildSilhouette}
+                          onSilhouette={applySilhouette}
+                          depth={buildDepth}
+                          onDepthChange={setBuildDepth}
+                          densityInfo={densityInfo}
+                          densityApplies={densityApplies}
+                          densityBand={buildDensityBand}
+                          onDensityBand={setBuildDensityBand}
+                          commonBuilds={commonBuilds}
+                          commonBuildPick={commonBuildPick}
+                          onCommonBuild={applyCommonBuild}
+                        />
                       )}
-                      <button onClick={() => void goToProductParts()} disabled={savingBucket || (!activeBucket && !newScopeName.trim())} className="mt-5 w-full rounded-lg bg-stone-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">Next step →</button>
+                      {standaloneNewDesign && !arrangement && !destinationIsComplete(designDestination) && (
+                        <p className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 px-3 py-2 text-xs font-medium text-amber-900">
+                          Pick a client, project, and project group above to continue.
+                        </p>
+                      )}
+                      {renderTypeStepContinueButton("mt-5")}
                     </div>
                   </div>
                 )}
@@ -4626,18 +6137,17 @@ export default function Arrangements() {
                 {builderStep === "products" && activeBucket && (
                   <div ref={catalogRef} className="min-h-0 flex-1">
                     <BuilderProductPicker
-                      products={products}
-                      loadingCatalog={productsLoading}
                       activePartLabel={activePart ? activePart.label : "Products"}
                       initialQuery={searchTermsForPart(activeBucket, activePart?.label || "Products", activePart?.index || 0)}
+                      scopeFilters={scopeFilters}
                       selectedProductIds={new Set(itemsForPart(activeBucket, activePart?.label || "Products", activePart?.index || 0).map((item) => item.product_id))}
                       selectedProductItemIds={new Map(itemsForPart(activeBucket, activePart?.label || "Products", activePart?.index || 0).map((item) => [item.product_id, item.id]))}
                       onAdd={addProductToActiveBucket}
                       onRemove={removeItem}
-                      onOpenProduct={setDetailProduct}
+                      onOpenProduct={openBuilderProductDetail}
                       onContinue={() => goToBuilderStep("mockup")}
-                      onReloadCatalog={() => void loadProducts()}
-                      catalogTotal={productCatalogTotal}
+                      expanded={catalogExpanded}
+                      onToggleExpanded={() => setCatalogExpanded((value) => !value)}
                     />
                   </div>
                 )}
@@ -4994,7 +6504,7 @@ export default function Arrangements() {
           <button
             onClick={clearSelection}
             className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-            style={{ backgroundColor: "#2d5a33" }}
+            style={{ backgroundColor: "rgb(var(--ll-brand))" }}
           >
             Back to projects
           </button>
