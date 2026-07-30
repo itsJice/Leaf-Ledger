@@ -96,15 +96,22 @@ HTML = r"""<!DOCTYPE html>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;font-family:'Montserrat',sans-serif;color:var(--ink);background:var(--page)}
 #app{display:flex;flex-direction:column;height:100%}
-header{background:var(--brand-deep);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:3px solid var(--brand-deepest)}
-header h1{font-family:Georgia,serif;letter-spacing:.04em;font-weight:600;font-size:17px;margin:0;white-space:nowrap}
-#datestrip{display:flex;gap:5px;flex-wrap:wrap;flex:1}
-.dchip{border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;font-family:'Montserrat',sans-serif;
-  background:rgba(255,255,255,.08);color:#d6e4da;font-weight:600;letter-spacing:.02em;transition:background .15s}
-.dchip:hover{background:rgba(255,255,255,.16)}
-.dchip.wknd{background:rgba(244,180,0,.18);color:#f7e6b0;border-color:rgba(244,180,0,.3)}
-.dchip.sel{background:#fff;color:var(--brand-deep);border-color:#fff}
-.dchip.dragover{outline:2px dashed var(--gold)}
+header{background:var(--page);color:var(--ink);padding:14px 24px 12px;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line)}
+header h1{display:flex;align-items:center;gap:8px;font-family:Georgia,serif;font-weight:600;
+  font-size:20px;margin:0;white-space:nowrap;color:var(--ink)}
+header h1 svg{color:var(--brand)}
+#headtitle p{margin:2px 0 0;font-size:12px;color:var(--mut)}
+#datestrip{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 100%;margin-top:12px}
+.dchip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;
+  font-family:'Montserrat',sans-serif;background:#fff;color:#57534e;font-weight:600;
+  letter-spacing:.01em;transition:all .15s}
+.dchip:hover{background:#fafaf9;border-color:#d6d3d1}
+.dchip.wknd{background:var(--warn-soft);color:var(--warn-ink);border-color:#fde3ad}
+.dchip.wknd:hover{background:#fdecc8}
+.dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand)}
+.dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
 #main{flex:1;display:flex;min-height:0}
 #side{width:460px;min-width:380px;overflow-y:auto;padding:14px;background:var(--page)}
 #map{flex:1}
@@ -161,15 +168,18 @@ dialog button{padding:7px 14px;border-radius:6px;border:1px solid var(--line);cu
   font-family:'Montserrat',sans-serif;font-weight:600;font-size:12.5px;background:#fff;color:var(--ink)}
 dialog .go{background:var(--brand);color:#fff;border:none}
 dialog .go:hover{background:var(--brand-hover)}
-#summarybar{font-size:11.5px;color:#d6e4da;white-space:nowrap;font-weight:500}
+#summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
 .edited{font-size:10px;color:#c2410c;font-weight:700;margin-left:6px;font-family:'Montserrat',sans-serif}
 .ic{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;display:inline-block}
 </style></head>
 <body><div id="app">
 <header>
-  <h1><svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:3px"><path d="M12 2 7 9h2.5L5 15h3l-3.5 5h15L16 15h3l-4.5-6H17L12 2Z"/><path d="M12 22v-2"/></svg> TBDG · 2026 Install Schedule</h1>
-  <div id="datestrip"></div>
+  <div id="headtitle">
+    <h1><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 7 9h2.5L5 15h3l-3.5 5h15L16 15h3l-4.5-6H17L12 2Z"/><path d="M12 22v-2"/></svg>TBDG · 2026 Install Schedule</h1>
+    <p>Crew routes, drive times &amp; approvals for every install day — drag a stop to reschedule it.</p>
+  </div>
   <div id="summarybar"></div>
+  <div id="datestrip"></div>
 </header>
 <div id="main">
   <div id="side"></div>
