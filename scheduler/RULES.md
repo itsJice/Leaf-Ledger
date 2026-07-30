@@ -101,9 +101,14 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
 
 ## 8. Process / tooling
 - Pipeline: `prep.py` (parse→zones→hours→geocode→matrix, all cached) →
-  `schedule.py` (rules + routing) → `validate.py` (27 assertions — run
-  after EVERY change) → `outputs.py`, `team_review.py`,
-  `make_updated_copy.py`, `build_review.py`.
+  `schedule.py` (rules + routing, orders stops for minimum real DRIVE
+  TIME) → `route_geometry.py` (fetches each day's real road-following
+  path + actual mileage from OSRM /route, cached by stop sequence) →
+  `validate.py` (27 assertions — run after EVERY change) →
+  `outputs.py`, `team_review.py`, `make_updated_copy.py`,
+  `build_review.py`. Re-run `route_geometry.py` before the output
+  scripts any time schedule.py changes the plan — cached, so unchanged
+  days don't refetch.
 - Deliverables: schedule workbook, Team Review workbook (all history
   columns side-by-side), annotated copy of the ORIGINAL file (uniform
   zoning + date/crew/order appended, everything else untouched),
@@ -134,3 +139,32 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
 - `build_review.py` auto-syncs review.html + map.html into
   `leaf-and-ledger/app/frontend/public/install-schedule/` on every
   regenerate — rebuild the frontend (or redeploy) to ship updates.
+
+## 11. Real road geometry, mileage & map robustness
+- `route_geometry.py` fetches each day's REAL road-following path + actual
+  mileage from OSRM's /route service (distinct from /table, which only
+  gives point-to-point durations, not the path or the distance). Cached by
+  stop sequence; `overview=simplified` + 5-decimal rounding keeps the
+  embedded payload small (~2k points across all days, not ~74k).
+- Stop ORDER is unaffected — schedule.py already orders every day for
+  minimum real DRIVE TIME (route_exact, exhaustive permutation, provably
+  optimal). Geometry/mileage is display + a live sanity-check, not a
+  re-optimization.
+- review.html: unedited days draw the precomputed geometry (offline-safe,
+  exact). The moment a day is edited (drag/drop), the old geometry is
+  stale — the client re-fetches live from OSRM (CORS is open on the public
+  server) and swaps in the real path once it resolves; a dashed straight
+  line is shown while pending/if the fetch fails. Never present a straight
+  line as if it were a real route.
+- MAP INIT BUG (found 2026-07-30, costly to debug): `L.map(...).fitBounds()`
+  depends on reading the container's real pixel size. In some embedding
+  contexts (confirmed: this project's automated browser-preview tool) the
+  container/viewport reports 0x0 at load time — even `window.innerWidth`
+  lies — and Leaflet computes a nonsensical zoom (e.g. 19, a random side
+  street) that nothing ever self-corrects, not even `invalidateSize()` or
+  a delay. FIX: don't use `fitBounds` for the initial view. Compute
+  center+zoom in Python from the real data bounds (self-adjusting) and
+  call `map.setView(center, zoom)` instead — it needs no container size at
+  all. Normal user zoom/pan still works fine afterward. Applied in
+  outputs.py's MAP_TEMPLATE; review.html's per-date `fitBounds` calls are
+  interaction-triggered (not first-paint) and were not affected.

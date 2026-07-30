@@ -56,6 +56,12 @@ for i, d in enumerate(sched["days"]):
         "stops": [s["row"] for s in d["stops"]],
         "win": d.get("window_min", 600), "lunchMin": d.get("lunch", 40),
         "half": d.get("half_rows", []), "joint": d.get("joint_with", ""),
+        # Real road-following path + actual mileage from route_geometry.py
+        # (OSRM /route -- distinct from the /table durations used to plan
+        # the stop order). Goes stale the moment the day is edited; the
+        # client re-fetches live in that case (see liveRoute() in the JS).
+        "geom": d.get("geometry"), "mi": d.get("distance_mi"),
+        "legMi": d.get("leg_mi"),
     })
 
 payload = json.dumps({
@@ -294,6 +300,76 @@ function applyMove(row, toId, record=true){
   days = days.filter(x=>x.stops.length>0 || x.id===toId);
 }
 
+// ---------- real road geometry & mileage ----------
+// Every day ships with its real road-following path + exact mileage,
+// precomputed offline by route_geometry.py (OSRM /route, not the /table
+// durations used to plan the stop order). The instant a day is edited
+// that geometry is for the OLD order, so we fetch a fresh one live
+// (OSRM's public server allows cross-origin requests) and fall back to
+// straight stop-to-stop segments while it's in flight or if it fails.
+const MI_PER_M = 1/1609.344;
+const liveRouteCache = new Map();
+const pendingFetches = new Set();
+
+function seqKeyFor(d){
+  return (d.anchored?['D']:[]).concat(d.stops).concat(d.anchored?['D']:[]).join(',');
+}
+function straightPts(d){
+  const pts=[];
+  if(d.anchored) pts.push([DATA.depot.lat,DATA.depot.lon]);
+  d.stops.forEach(r=>pts.push([C[r].lat,C[r].lon]));
+  if(d.anchored) pts.push([DATA.depot.lat,DATA.depot.lon]);
+  return pts;
+}
+async function fetchLiveRoute(d){
+  const coords=[];
+  if(d.anchored) coords.push([DATA.depot.lon,DATA.depot.lat]);
+  d.stops.forEach(r=>coords.push([C[r].lon,C[r].lat]));
+  if(d.anchored) coords.push([DATA.depot.lon,DATA.depot.lat]);
+  if(coords.length<2) return null;
+  const coordStr=coords.map(c=>c.join(',')).join(';');
+  try{
+    const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${coordStr}`+
+      `?overview=full&geometries=geojson&annotations=distance`);
+    const j=await res.json();
+    if(j.code!=='Ok') return null;
+    const route=j.routes[0];
+    return {
+      geom: route.geometry.coordinates.map(([lo,la])=>[la,lo]),
+      mi: route.distance*MI_PER_M,
+      legMi: route.legs.map(l=>l.distance*MI_PER_M),
+    };
+  }catch(e){ return null; }
+}
+/** {pts, mi, legMi, real, pending} for the day's CURRENT stop order. Uses
+ * the precomputed path when untouched; live-fetches (once, cached) after
+ * an edit and redraws when it lands. */
+function routeGeom(d){
+  if(!d.edited && d.geom && d.geom.length){
+    return {pts:d.geom, mi:d.mi, legMi:d.legMi||[], real:true, pending:false};
+  }
+  const key=seqKeyFor(d);
+  if(liveRouteCache.has(key)){
+    const r=liveRouteCache.get(key);
+    return r ? {pts:r.geom, mi:r.mi, legMi:r.legMi, real:true, pending:false}
+             : {pts:straightPts(d), mi:null, legMi:[], real:false, pending:false};
+  }
+  if(!pendingFetches.has(key)){
+    pendingFetches.add(key);
+    fetchLiveRoute(d).then(r=>{
+      liveRouteCache.set(key, r);
+      pendingFetches.delete(key);
+      render();
+    });
+  }
+  return {pts:straightPts(d), mi:null, legMi:[], real:false, pending:true};
+}
+function miTxt(mi, pending){
+  if(pending) return 'calculating…';
+  if(mi==null) return 'mileage n/a';
+  return mi.toFixed(1)+' mi';
+}
+
 // ---------- map ----------
 const map = L.map('map',{zoomSnap:.5});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -322,13 +398,16 @@ function drawDate(date){
   todays.forEach(d=>{
     const col = CREW_COLORS[d.crew]||'#555';
     const calc = dayCalc(d);
-    // route line
-    const pts=[];
-    if(d.anchored) pts.push([DATA.depot.lat,DATA.depot.lon]);
-    d.stops.forEach(r=>pts.push([C[r].lat,C[r].lon]));
-    if(d.anchored) pts.push([DATA.depot.lat,DATA.depot.lon]);
-    if(pts.length>1 && !isOverview(date))
-      layerGroup.addLayer(L.polyline(pts,{color:col,weight:3,opacity:.7,dashArray:d.anchored?null:'6 6'}));
+    // route line: real road-following path when we have one (solid),
+    // straight stop-to-stop fallback while a live fetch is pending or
+    // failed (dashed) — never an "as the crow flies" line presented as real
+    if(!isOverview(date)){
+      const rg = routeGeom(d);
+      if(rg.pts.length>1)
+        layerGroup.addLayer(L.polyline(rg.pts,{color:col,weight:rg.real?3.5:2.5,
+          opacity:.7,dashArray:rg.real?null:'6 6'})
+          .bindPopup(`${d.crew}<br><b>${miTxt(rg.mi,rg.pending)}</b>`));
+    }
     d.stops.forEach((r,i)=>{
       const c=C[r]; bounds.push([c.lat,c.lon]);
       const approx = !['street','manual','census'].includes(c.geo);
@@ -347,7 +426,7 @@ function drawDate(date){
       layerGroup.addLayer(mk);
     });
   });
-  if(bounds.length>1) map.fitBounds(bounds,{padding:[40,40]});
+  if(bounds.length>1){ map.invalidateSize(); map.fitBounds(bounds,{padding:[40,40]}); }
 }
 
 // ---------- UI ----------
@@ -410,12 +489,18 @@ function renderCards(){
     </div>`;
     card.querySelector('.okbtn').onclick=()=>{
       approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
-    // stops + legs
+    // stops + legs (mileage from the real road path — precomputed if the
+    // day is untouched, live-fetched once if it's been edited)
     const path=calc.path||[];
+    const rg=routeGeom(d);
+    const legMiTxt=(idx)=> rg.pending?' · …mi':(rg.legMi&&rg.legMi[idx]!=null?` · ${rg.legMi[idx].toFixed(1)} mi`:'');
+    let legIdx=0;
     d.stops.forEach((r,i)=>{
       const c=C[r];
-      if(d.anchored&&i===0&&path.length)
-        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(0,N[r])/60).toFixed(0)} min from depot</div>`);
+      if(d.anchored&&i===0&&path.length){
+        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(0,N[r])/60).toFixed(0)} min from depot${legMiTxt(legIdx)}</div>`);
+        legIdx++;
+      }
       const el=document.createElement('div');
       el.className='stop'; el.draggable=true; el.dataset.row=r;
       const approx=!['street','manual','census'].includes(c.geo);
@@ -431,15 +516,18 @@ function renderCards(){
       el.ondragstart=e=>e.dataTransfer.setData('row',r);
       card.appendChild(el);
       const nxt=d.stops[i+1];
-      if(nxt!==undefined)
-        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],N[nxt])/60).toFixed(0)} min</div>`);
-      else if(d.anchored)
-        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],0)/60).toFixed(0)} min back to depot</div>`);
+      if(nxt!==undefined){
+        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],N[nxt])/60).toFixed(0)} min${legMiTxt(legIdx)}</div>`);
+        legIdx++;
+      } else if(d.anchored){
+        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],0)/60).toFixed(0)} min back to depot${legMiTxt(legIdx)}</div>`);
+        legIdx++;
+      }
     });
     const pct=Math.min(100,calc.total/WIN*100);
     const barcol=calc.total>WIN?'#b91c1c':(pct>92?'#ca8a04':'#2d5a33');
     card.insertAdjacentHTML('beforeend',`<div class="cfoot">
-      <div class="tot"><span>Install ${calc.inst.toFixed(1)}h · Drive ${fmtH(calc.drive)}${(d.lunchMin??40)?` · Lunch ${((d.lunchMin??40)/60).toFixed(1)}h`:(d.win===480?` · ${IC.sun} day shift 9am-5pm`:` · ${IC.moon} night shift`)}</span>
+      <div class="tot"><span>Install ${calc.inst.toFixed(1)}h · Drive ${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})${(d.lunchMin??40)?` · Lunch ${((d.lunchMin??40)/60).toFixed(1)}h`:(d.win===480?` · ${IC.sun} day shift 9am-5pm`:` · ${IC.moon} night shift`)}</span>
       <b style="color:${barcol}">${fmtH(calc.total)} / ${(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0)}h</b></div>
       <div class="bar"><i style="width:${pct}%;background:${barcol}"></i></div>
       <div class="tot" style="margin-top:4px"><span>2025 these stops: ${real25?real25.toFixed(1)+'h':'—'} · storage: ${nstore}/${d.stops.length}</span></div>

@@ -282,12 +282,36 @@ def build_map(data):
         if d["depot_anchored"]:
             pts = [[depot["lat"], depot["lon"]]] + pts + [[depot["lat"], depot["lon"]]]
         if len(pts) >= 2:
+            # `geometry` is the real road-following path from route_geometry.py
+            # (OSRM /route, distinct from the /table durations used to plan
+            # the stop order); fall back to straight segments if it's missing.
             routes.append({"crew": d["crew"], "date": d["date"],
-                           "cat": d["category"], "pts": pts})
+                           "cat": d["category"], "pts": pts,
+                           "geom": d.get("geometry"), "mi": d.get("distance_mi")})
+
+    # Compute a starting center+zoom from the real data bounds (self-adjusts
+    # if the client roster changes next year). We deliberately do NOT rely on
+    # Leaflet's fitBounds()/container-size auto-fit: some embedding contexts
+    # (e.g. an iframe mid-attach) report the map container's pixel size as
+    # 0x0 at load time, which makes fitBounds compute a nonsensical zoom
+    # that nothing ever corrects. setView(center, zoom) needs no container
+    # size at all, so it's immune to that class of bug; users can still
+    # freely zoom/pan afterward.
+    import math
+    all_lat = [m["lat"] for m in markers] + [depot["lat"]]
+    all_lon = [m["lon"] for m in markers] + [depot["lon"]]
+    lat0, lat1 = min(all_lat), max(all_lat)
+    lon0, lon1 = min(all_lon), max(all_lon)
+    center = {"lat": (lat0 + lat1) / 2, "lon": (lon0 + lon1) / 2}
+    # standard Web Mercator "zoom to fit" formula, assuming a ~1000px-wide
+    # map viewport (a reasonable default for a full-page desktop map)
+    lon_span = max(lon1 - lon0, 0.01)
+    zoom = max(4, min(11, math.floor(math.log2(360 * 1000 / (256 * lon_span))) - 2))
 
     payload = json.dumps({
         "depot": {"lat": depot["lat"], "lon": depot["lon"]},
         "markers": markers, "routes": routes, "areaColors": AREA_COLORS,
+        "startCenter": center, "startZoom": zoom,
     })
     html = MAP_TEMPLATE.replace("__DATA__", payload)
     with open(MAP, "w") as f:
@@ -331,7 +355,8 @@ MAP_TEMPLATE = """<!DOCTYPE html>
 </div>
 <script>
 const DATA = __DATA__;
-const map = L.map('map');
+const map = L.map('map', {zoomAnimation:false}).setView(
+  [DATA.startCenter.lat, DATA.startCenter.lon], DATA.startZoom);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
 
@@ -356,7 +381,8 @@ DATA.markers.forEach(m=>{
       `<br>Install: ${m.hours??'?'} h`);
 });
 bounds.push([DATA.depot.lat,DATA.depot.lon]);
-map.fitBounds(bounds,{padding:[30,30]});
+// (view is already set from DATA.startCenter/startZoom above; fitBounds is
+// intentionally not used here, see the comment on that computation)
 
 // legend
 const areas = [...new Set(DATA.markers.map(m=>m.area))].sort();
@@ -374,8 +400,13 @@ function drawRoutes(){
   routeLayers.forEach(l=>map.removeLayer(l)); routeLayers=[];
   if(!document.getElementById('showRoutes').checked) return;
   DATA.routes.forEach((r,i)=>{
-    const pl = L.polyline(r.pts,{color:crewCol(r.crew),weight:2.5,
-      opacity:.55}).addTo(map).bindPopup(`${r.date} · ${r.crew}<br>${r.cat}`);
+    // real road-following path when available; straight segments as a
+    // fallback (e.g. OSRM couldn't be reached when this map was built)
+    const pts = r.geom || r.pts;
+    const miTxt = r.mi!=null ? `${r.mi.toFixed(1)} mi` : 'mileage unavailable';
+    const pl = L.polyline(pts,{color:crewCol(r.crew),weight:r.geom?3:2.5,
+      opacity:.6,dashArray:r.geom?null:'5 5'}).addTo(map)
+      .bindPopup(`${r.date} · ${r.crew}<br>${r.cat}<br><b>${miTxt}</b>`);
     routeLayers.push(pl);
   });
 }
@@ -388,7 +419,8 @@ DATA.routes.forEach(r=>{(byDate[r.date]=byDate[r.date]||[]).push(r)});
 document.getElementById('crewlist').innerHTML =
   '<b>Crew-days: '+DATA.routes.length+'</b><br>'+
   Object.keys(byDate).sort().map(d=>
-    `<div class="muted">${d}: ${byDate[d].map(r=>r.crew).join(', ')}</div>`).join('');
+    `<div class="muted">${d}: ${byDate[d].map(r=>
+      r.crew+(r.mi!=null?` (${r.mi.toFixed(0)}mi)`:'')).join(', ')}</div>`).join('');
 </script></body></html>"""
 
 
