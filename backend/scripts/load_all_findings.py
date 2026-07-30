@@ -113,7 +113,18 @@ async def resolve_supplier(c, path: Path, commit: bool) -> tuple[int | None, str
 
 async def main() -> int:
     commit = "--commit" in sys.argv
+    # --only <substr>: import just the matching file(s). Use when adding a single
+    # new catalog — a full re-import rewrites photo_url from the spreadsheet and
+    # would undo any image re-acquisition done since that file was exported.
+    only = None
+    if "--only" in sys.argv:
+        i = sys.argv.index("--only")
+        if i + 1 < len(sys.argv):
+            only = sys.argv[i + 1].lower()
     files = sorted(p for p in FINDINGS.glob("*.xlsx") if _is_catalog(p))
+    if only:
+        files = [p for p in files if only in p.name.lower()]
+        print(f"--only {only!r} → {len(files)} file(s): {[p.name for p in files]}\n")
     c = await asyncpg.connect(os.environ["DATABASE_URL"])
     ext = await dual_price_columns_exist(c)
     sql = build_upsert(ext)

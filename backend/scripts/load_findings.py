@@ -71,9 +71,33 @@ ON CONFLICT (supplier_id, supplier_sku) DO UPDATE SET
    diameter_in=EXCLUDED.diameter_in, weight_lb=EXCLUDED.weight_lb, material=EXCLUDED.material,
    color=EXCLUDED.color, finish=EXCLUDED.finish, style=EXCLUDED.style,
    country_of_origin=EXCLUDED.country_of_origin, supplier_product_id=EXCLUDED.supplier_product_id,
-   currency=EXCLUDED.currency, photo_url=EXCLUDED.photo_url,
-   image_urls=CASE WHEN array_length(EXCLUDED.image_urls,1) > 0 THEN EXCLUDED.image_urls ELSE products.image_urls END,
-   raw_data=EXCLUDED.raw_data,
+   currency=EXCLUDED.currency,
+   -- Images: never let a re-import undo image re-acquisition. Some suppliers
+   -- (Allstate, Melrose, Rock Warehouse) shipped spreadsheets whose image URLs
+   -- are now dead; the working images were re-acquired afterwards and stamped
+   -- with raw_data.image_reacquired_at. Re-importing the same spreadsheet used
+   -- to overwrite photo_url with the dead URL and drop the stamp along with it,
+   -- silently breaking thousands of product photos. So: a row that carries the
+   -- stamp keeps its images, and an empty incoming photo_url never clobbers a
+   -- good one.
+   photo_url=CASE
+        WHEN products.raw_data ? 'image_reacquired_at' THEN products.photo_url
+        WHEN COALESCE(EXCLUDED.photo_url, '') <> '' THEN EXCLUDED.photo_url
+        ELSE products.photo_url END,
+   image_urls=CASE
+        WHEN products.raw_data ? 'image_reacquired_at' THEN products.image_urls
+        WHEN array_length(EXCLUDED.image_urls,1) > 0 THEN EXCLUDED.image_urls
+        ELSE products.image_urls END,
+   -- raw_data is replaced wholesale with the fresh export, but the image
+   -- provenance keys are carried forward so the protection above still applies
+   -- on every future import.
+   raw_data=EXCLUDED.raw_data || CASE
+        WHEN products.raw_data ? 'image_reacquired_at'
+        THEN jsonb_strip_nulls(jsonb_build_object(
+                 'image_reacquired_at', products.raw_data->'image_reacquired_at',
+                 'image_source',        products.raw_data->'image_source',
+                 'local_image_file',    products.raw_data->'local_image_file'))
+        ELSE '{{}}'::jsonb END,
    {upd}is_active=TRUE, last_scraped_at=NOW(), updated_at=NOW()
 """
 
