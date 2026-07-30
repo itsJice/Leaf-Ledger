@@ -17,6 +17,7 @@ import {
   Sprout,
 } from "lucide-react";
 import Layout from "components/Layout";
+import { apiFetch } from "utils/apiFetch";
 import { formatCurrency } from "utils/format";
 
 const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v2";
@@ -66,7 +67,10 @@ function writeDashboardCache(patch: DashboardCache) {
 
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(path, { credentials: "include" });
+    // Must be apiFetch: every /api route authenticates off the Supabase token,
+    // which lives in the session rather than a cookie, so a plain fetch() 401s
+    // and the dashboard silently renders em-dashes.
+    const res = await apiFetch(path);
     if (!res.ok) return null;
     const ct = res.headers.get("content-type") || "";
     if (!ct.includes("application/json")) return null;

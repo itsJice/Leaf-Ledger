@@ -196,8 +196,10 @@ export default function Orders() {
                             <tr key={it.item_id} className="border-t border-stone-100 align-middle">
                               <td className="px-4 py-2">
                                 <div className="flex items-center gap-3">
-                                  <button onClick={() => openProduct(it.product_id)} className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-50">
-                                    {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={16} className="text-stone-300" />}
+                                  {/* Big enough to actually identify the product —
+                                      this is a design business, the picture is the point. */}
+                                  <button onClick={() => openProduct(it.product_id)} className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-50 transition-colors hover:border-emerald-300">
+                                    {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={26} className="text-stone-300" />}
                                   </button>
                                   <div className="min-w-0">
                                     <button onClick={() => openProduct(it.product_id)} className="block max-w-[22rem] truncate text-left font-medium text-stone-800 hover:text-emerald-700" title={it.name}>{it.name}</button>
