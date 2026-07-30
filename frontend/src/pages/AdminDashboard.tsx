@@ -154,8 +154,8 @@ function StatCard({
   label,
   value,
   sub,
-  accent = "bg-[#2d5a33]/10",
-  iconColor = "text-[#2d5a33]",
+  accent = "bg-brand/10",
+  iconColor = "text-brand",
 }: StatCardProps) {
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
@@ -287,7 +287,7 @@ function SupplierRow({
           disabled={toggling}
           title={s.scraper_enabled ? "Disable scraper" : "Enable scraper"}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-            s.scraper_enabled ? "bg-[#2d5a33]" : "bg-stone-200"
+            s.scraper_enabled ? "bg-brand" : "bg-stone-200"
           } ${toggling ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
         >
           <span
@@ -355,7 +355,7 @@ function CategoryIndexCard() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-[#2d5a33]" />
+          <BookOpen className="w-4 h-4 text-brand" />
           <span className="text-sm font-semibold text-stone-700">Category Index Cache</span>
           <span className="text-xs text-stone-400">
             Scrapers use this to skip re-discovery on fast syncs
@@ -643,7 +643,7 @@ function BackfillCard() {
               className={
                 isDone
                   ? "border-stone-300 text-stone-600 hover:bg-white text-xs"
-                  : "bg-[#2d5a33] hover:bg-[#24492a] text-white text-xs"
+                  : "bg-brand hover:bg-brand-hover text-white text-xs"
               }
             >
               {isRunning || starting ? (
@@ -709,7 +709,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-4" style={{ background: "#f7f4ef", minHeight: "100vh" }}>
+      <div className="p-8 space-y-4" style={{ background: "rgb(var(--ll-page))", minHeight: "100vh" }}>
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -738,11 +738,11 @@ export default function AdminDashboard() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen" style={{ background: "#f7f4ef" }}>
+      <div className="min-h-screen" style={{ background: "rgb(var(--ll-page))" }}>
         {/* ── Header ── */}
         <div className="px-8 pt-8 pb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#2d5a33]">Sync Operations</h1>
+            <h1 className="text-2xl font-serif font-semibold text-brand">Sync Operations</h1>
             <p className="text-sm text-stone-500 mt-0.5">
               Supplier health, catalog sync status, and price change log
             </p>

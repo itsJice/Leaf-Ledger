@@ -100,7 +100,7 @@ export default function Mockups() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "#f7f4ef" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>AI Mockups</h1>
           <p className="text-xs text-stone-500 mt-0.5">Generate visual renders of your arrangements</p>
@@ -155,7 +155,7 @@ export default function Mockups() {
               onClick={generate}
               disabled={generating || !selectedArrangement}
               className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "#2d5a33" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               {generating ? (
                 <><RefreshCw size={14} className="animate-spin" /> Generating...</>
@@ -186,14 +186,14 @@ export default function Mockups() {
             </div>
           ) : !selectedArrangement ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "#e8f0e8" }}>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                 <Sparkles size={22} className="text-emerald-600" strokeWidth={1.5} />
               </div>
               <p className="text-sm font-medium text-stone-500">Select an arrangement to view its mockups</p>
             </div>
           ) : mockups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "#e8f0e8" }}>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                 <Image size={22} className="text-emerald-600" strokeWidth={1.5} />
               </div>
               <p className="text-sm font-medium text-stone-600 mb-1">No mockups yet</p>

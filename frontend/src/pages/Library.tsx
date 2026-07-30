@@ -485,7 +485,7 @@ function ProductModal({
             onClick={handleSave}
             disabled={saving}
             className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 transition-colors hover:opacity-90"
-            style={{ backgroundColor: "#2d5a33" }}
+            style={{ backgroundColor: "rgb(var(--ll-brand))" }}
           >
             {saving ? "Saving..." : form.id ? "Update" : "Add Product"}
           </button>
@@ -661,7 +661,7 @@ function AddToProjectModal({
             onClick={addToBucket}
             disabled={saving || projects.length === 0}
             className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: "#2d5a33" }}
+            style={{ backgroundColor: "rgb(var(--ll-brand))" }}
           >
             {saving ? "Saving..." : "Save to bucket"}
           </button>
@@ -672,28 +672,32 @@ function AddToProjectModal({
 }
 
 // ─── Category colour dots ─────────────────────────────────────────────────────
+// Identity colours, not theme colours — a category keeps its hue in both modes.
+// They resolve through `--cat-*` in index.css only so the dark theme can lift
+// them off a near-black page; the light values are the originals unchanged.
 const CATEGORY_COLORS: Record<string, string> = {
   // rich display categories (from category_group)
-  "Florals": "#be185d",
-  "Greenery & Plants": "#15803d",
-  "Trees": "#166534",
-  "Wreaths & Garland": "#0f766e",
-  "Ornaments": "#b91c1c",
-  "Ribbon & Bows": "#c026d3",
-  "Botanicals & Fillers": "#a16207",
-  "Lighting": "#ca8a04",
-  "Candles & Lanterns": "#ea580c",
-  "Containers & Vases": "#9a3412",
-  "Home Décor": "#57534e",
-  "Rugs & Textiles": "#7c3aed",
-  "Furniture & Storage": "#78716c",
-  "Rocks & Stone": "#525252",
-  // legacy slugs (manual products)
-  containers: "#a16207",
-  wood: "#92400e",
-  greenery: "#15803d",
-  florals: "#be185d",
-  trees: "#166534",
+  "Florals": "rgb(var(--cat-florals))",
+  "Greenery & Plants": "rgb(var(--cat-greenery))",
+  "Trees": "rgb(var(--cat-trees))",
+  "Wreaths & Garland": "rgb(var(--cat-wreaths))",
+  "Ornaments": "rgb(var(--cat-ornaments))",
+  "Ribbon & Bows": "rgb(var(--cat-ribbon))",
+  "Botanicals & Fillers": "rgb(var(--cat-botanicals))",
+  "Lighting": "rgb(var(--cat-lighting))",
+  "Candles & Lanterns": "rgb(var(--cat-candles))",
+  "Containers & Vases": "rgb(var(--cat-containers))",
+  "Home Décor": "rgb(var(--cat-decor))",
+  "Rugs & Textiles": "rgb(var(--cat-textiles))",
+  "Furniture & Storage": "rgb(var(--cat-furniture))",
+  "Rocks & Stone": "rgb(var(--cat-stone))",
+  // legacy slugs (manual products). `containers` has always shared the
+  // botanicals ochre rather than the "Containers & Vases" rust.
+  containers: "rgb(var(--cat-botanicals))",
+  wood: "rgb(var(--cat-wood))",
+  greenery: "rgb(var(--cat-greenery))",
+  florals: "rgb(var(--cat-florals))",
+  trees: "rgb(var(--cat-trees))",
 };
 
 // ─── Stale price check ───────────────────────────────────────────────────────
@@ -2018,15 +2022,15 @@ function ProductCard({
           <Heart
             size={15}
             className="transition-colors"
-            style={{ color: p.is_favorited ? "#c2410c" : "#a8a29e" }}
-            fill={p.is_favorited ? "#c2410c" : "none"}
+            style={{ color: p.is_favorited ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }}
+            fill={p.is_favorited ? "rgb(var(--ll-fav))" : "none"}
           />
         </button>
         {/* Category badge */}
         <div className="absolute bottom-2 left-2">
           <span
             className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/80 backdrop-blur-sm"
-            style={{ color: CATEGORY_COLORS[p.category] || "#57534e" }}
+            style={{ color: CATEGORY_COLORS[p.category] || "rgb(var(--cat-decor))" }}
           >
             {categoryLabel(p.category)}
           </span>
@@ -2087,13 +2091,16 @@ function ProductCard({
 }
 
 // ─── Category pill config ────────────────────────────────────────────────────
+// A soft tinted chip with its own ink. Both halves resolve through `--badge-*`
+// in index.css: light mode keeps the original pastels, dark mode swaps in a deep
+// tint with bright ink so the row of pills doesn't glare off a dark page.
 const CAT_PILL: Record<string, { bg: string; text: string; label: string }> = {
-  greenery:   { bg: "#dcfce7", text: "#15803d", label: "Greenery" },
-  florals:    { bg: "#fce7f3", text: "#be185d", label: "Florals" },
-  trees:      { bg: "#d1fae5", text: "#065f46", label: "Trees" },
-  wood:       { bg: "#fef3c7", text: "#92400e", label: "Wood" },
-  containers: { bg: "#fef9c3", text: "#a16207", label: "Containers" },
-  other:      { bg: "#f1f5f9", text: "#475569", label: "Other" },
+  greenery:   { bg: "rgb(var(--badge-greenery-bg))",   text: "rgb(var(--badge-greenery-fg))",   label: "Greenery" },
+  florals:    { bg: "rgb(var(--badge-florals-bg))",    text: "rgb(var(--badge-florals-fg))",    label: "Florals" },
+  trees:      { bg: "rgb(var(--badge-trees-bg))",      text: "rgb(var(--badge-trees-fg))",      label: "Trees" },
+  wood:       { bg: "rgb(var(--badge-wood-bg))",       text: "rgb(var(--badge-wood-fg))",       label: "Wood" },
+  containers: { bg: "rgb(var(--badge-containers-bg))", text: "rgb(var(--badge-containers-fg))", label: "Containers" },
+  other:      { bg: "rgb(var(--badge-other-bg))",      text: "rgb(var(--badge-other-fg))",      label: "Other" },
 };
 
 // ─── Vendor View ─────────────────────────────────────────────────────────────
@@ -2150,7 +2157,10 @@ function VendorView({
                 onClick={() => setFilterCat(active ? "" : cat)}
                 className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
                 style={active
-                  ? { backgroundColor: cfg.text, color: "#fff", borderColor: cfg.text }
+                  // Selected: the pill's own ink becomes the fill. `--ll-on-bright`
+                  // is white in light mode and near-black in dark, where the inks
+                  // are the bright end of their ramps.
+                  ? { backgroundColor: cfg.text, color: "rgb(var(--ll-on-bright))", borderColor: cfg.text }
                   : { backgroundColor: cfg.bg, color: cfg.text, borderColor: "transparent" }
                 }
               >
@@ -2163,7 +2173,7 @@ function VendorView({
       <div className="space-y-4">
       {visibleSuppliers.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "#e8f0e8" }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
             <Store size={28} className="text-emerald-600" strokeWidth={1.5} />
           </div>
           <p className="text-base font-medium text-stone-600 mb-1">No suppliers yet</p>
@@ -2193,7 +2203,7 @@ function VendorView({
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: "#e8f0e8" }}
+                  style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}
                 >
                   <Store size={18} className="text-emerald-700" strokeWidth={1.5} />
                 </div>
@@ -2649,8 +2659,8 @@ export function ProductView({
           >
             <Heart
               size={13}
-              fill={favoritesOnly ? "#c2410c" : "none"}
-              style={{ color: favoritesOnly ? "#c2410c" : "#a8a29e" }}
+              fill={favoritesOnly ? "rgb(var(--ll-fav))" : "none"}
+              style={{ color: favoritesOnly ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }}
             />
             Favorites
           </button>
@@ -2731,7 +2741,7 @@ export function ProductView({
         </div>
       ) : sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "#e8f0e8" }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
             <Leaf size={28} className="text-emerald-600" strokeWidth={1.5} />
           </div>
           <p className="text-base font-medium text-stone-600 mb-1">{emptyTitle}</p>
@@ -2744,7 +2754,7 @@ export function ProductView({
             <button
               onClick={onAddProduct}
               className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90"
-              style={{ backgroundColor: "#2d5a33" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               Add First Product
             </button>
@@ -3003,7 +3013,7 @@ export default function Library() {
   return (
     <Layout>
       {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "#f7f4ef" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Product Library</h1>
           <p className="text-xs text-stone-500 mt-0.5">

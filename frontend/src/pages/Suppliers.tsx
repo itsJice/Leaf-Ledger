@@ -257,7 +257,7 @@ function SupplierModal({
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-100">
           <button onClick={onClose} className="text-sm text-stone-500 hover:text-stone-700 px-4 py-2">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
             {saving ? "Saving..." : form.id ? "Update Supplier" : "Add Supplier"}
           </button>
         </div>
@@ -336,7 +336,7 @@ function SupplierCard({
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#e8f0e8" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
             <Building2 size={18} className="text-emerald-700" strokeWidth={1.5} />
           </div>
 
@@ -532,7 +532,7 @@ export default function Suppliers() {
   return (
     <Layout>
       {/* Page header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "#f7f4ef" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Suppliers</h1>
           <p className="text-xs text-stone-500 mt-0.5">
@@ -545,7 +545,7 @@ export default function Suppliers() {
         <button
           onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-colors"
-          style={{ backgroundColor: "#2d5a33" }}
+          style={{ backgroundColor: "rgb(var(--ll-brand))" }}
         >
           <Plus size={15} strokeWidth={2.2} /> Add Supplier
         </button>
@@ -558,12 +558,12 @@ export default function Suppliers() {
           </div>
         ) : suppliers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "#e8f0e8" }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
               <Building2 size={28} className="text-emerald-600" strokeWidth={1.5} />
             </div>
             <p className="text-base font-medium text-stone-600 mb-1">No suppliers yet</p>
             <p className="text-sm text-stone-400 max-w-xs leading-relaxed mb-4">Add your first supplier to keep its site link and login credentials handy.</p>
-            <button onClick={openNew} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>Add First Supplier</button>
+            <button onClick={openNew} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>Add First Supplier</button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

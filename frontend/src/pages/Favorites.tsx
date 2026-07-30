@@ -122,7 +122,7 @@ export default function Favorites() {
     <Layout>
       <header
         className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4"
-        style={{ backgroundColor: "#f7f4ef" }}
+        style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
           <h1
@@ -143,7 +143,7 @@ export default function Favorites() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div
               className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-              style={{ backgroundColor: "#eef6ef" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}
             >
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
             </div>
@@ -156,7 +156,7 @@ export default function Favorites() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div
               className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-              style={{ backgroundColor: "#fef2f2" }}
+              style={{ backgroundColor: "rgb(var(--ll-danger-soft))" }}
             >
               <Heart size={28} className="text-rose-400" strokeWidth={1.5} />
             </div>

@@ -331,7 +331,7 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
               onClick={() => void createClient()}
               disabled={saving}
               className="rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:opacity-90"
-              style={{ backgroundColor: "#2d5a33" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               {saving ? "Creating..." : "Create client"}
             </button>
@@ -574,7 +574,7 @@ export default function Clients() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "#f7f4ef" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
             <button onClick={showAllClients} className="hover:underline">Clients</button>
@@ -599,7 +599,7 @@ export default function Clients() {
         <button
           onClick={() => setShowNewClientModal(true)}
           className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-          style={{ backgroundColor: "#2d5a33" }}
+          style={{ backgroundColor: "rgb(var(--ll-brand))" }}
         >
           <Plus size={15} strokeWidth={2.2} />
           New Client
@@ -616,12 +616,12 @@ export default function Clients() {
           </div>
         ) : visibleClients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "#e8f0e8" }}>
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
               <Users size={28} className="text-emerald-600" strokeWidth={1.5} />
             </div>
             <p className="mb-1 text-base font-medium text-stone-600">No clients yet</p>
             <p className="mb-4 max-w-xs text-sm leading-relaxed text-stone-400">Create a client first, then attach projects and scope buckets to that client.</p>
-            <button onClick={() => setShowNewClientModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
+            <button onClick={() => setShowNewClientModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
               Create First Client
             </button>
           </div>
@@ -634,7 +634,7 @@ export default function Clients() {
               return (
                 <section key={client.name} className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                   <button onClick={() => toggleClient(client)} className="flex w-full items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-stone-50">
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                       <Users size={19} className="text-emerald-700" strokeWidth={1.6} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -736,7 +736,7 @@ export default function Clients() {
                             <button
                               onClick={() => addProjectToClient(client.name)}
                               className="mt-3 rounded-lg px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
-                              style={{ backgroundColor: "#2d5a33" }}
+                              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
                             >
                               Add first project
                             </button>

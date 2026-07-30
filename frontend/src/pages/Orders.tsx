@@ -87,7 +87,7 @@ export default function Orders() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "#f7f4ef" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             <ShoppingCart size={18} className="text-emerald-700" /> Purchase Orders
@@ -254,7 +254,7 @@ export default function Orders() {
 function Empty() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "#eef6ef" }}>
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
         <ShoppingCart size={28} className="text-emerald-600" strokeWidth={1.5} />
       </div>
       <p className="mb-1 text-base font-medium text-stone-600">No order selected</p>

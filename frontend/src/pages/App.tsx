@@ -126,7 +126,7 @@ export default function App() {
       {/* Top bar */}
       <header
         className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200"
-        style={{ backgroundColor: "#f7f4ef" }}
+        style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
@@ -140,7 +140,7 @@ export default function App() {
         <button
           onClick={() => navigate("/projects")}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: "#2d5a33" }}
+          style={{ backgroundColor: "rgb(var(--ll-brand))" }}
         >
           <Plus size={15} strokeWidth={2.2} />
           New Project
@@ -152,7 +152,7 @@ export default function App() {
         <div className="grid grid-cols-4 gap-4 mb-10">
           {QUICK_STATS.map(({ label, value, icon: Icon }) => (
             <div key={label} className="bg-white rounded-xl border border-stone-200 px-5 py-4 flex items-center gap-4">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#e8f0e8" }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                 <Icon size={16} className="text-emerald-700" strokeWidth={1.8} />
               </div>
               <div>
@@ -178,7 +178,7 @@ export default function App() {
                 <div className="flex items-start justify-between">
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: accent === "amber" ? "#fef3e2" : "#e8f0e8" }}
+                    style={{ backgroundColor: accent === "amber" ? "rgb(var(--ll-warn-soft))" : "rgb(var(--ll-brand-soft))" }}
                   >
                     <Icon size={16} strokeWidth={1.8} className={accent === "amber" ? "text-amber-600" : "text-emerald-700"} />
                   </div>
@@ -192,8 +192,8 @@ export default function App() {
                   className="self-start mt-1 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors"
                   style={
                     accent === "amber"
-                      ? { color: "#92400e", borderColor: "#fcd34d", backgroundColor: "#fef3e2" }
-                      : { color: "#14532d", borderColor: "#6ee7b7", backgroundColor: "#e8f0e8" }
+                      ? { color: "rgb(var(--ll-warn-ink))", borderColor: "rgb(var(--ll-warn-line))", backgroundColor: "rgb(var(--ll-warn-soft))" }
+                      : { color: "rgb(var(--ll-ok-ink))", borderColor: "rgb(var(--ll-ok-line))", backgroundColor: "rgb(var(--ll-brand-soft))" }
                   }
                 >
                   {cta}
@@ -255,7 +255,7 @@ function RecentArrangements() {
           </div>
         ) : arrangements.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 text-center">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "#e8f0e8" }}>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
               <TrendingUp size={20} className="text-emerald-600" strokeWidth={1.5} />
             </div>
             <p className="text-sm font-medium text-stone-600 mb-1">No projects yet</p>
@@ -263,7 +263,7 @@ function RecentArrangements() {
             <button
               onClick={() => navigate("/projects")}
               className="mt-4 text-xs font-semibold px-4 py-2 rounded-md text-white"
-              style={{ backgroundColor: "#2d5a33" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               Create Project
             </button>

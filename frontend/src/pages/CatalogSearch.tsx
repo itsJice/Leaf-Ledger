@@ -251,7 +251,7 @@ export default function CatalogSearch() {
     <Layout>
       <header
         className="sticky top-0 z-10 border-b border-stone-200 px-10 py-4"
-        style={{ backgroundColor: "#f7f4ef" }}
+        style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -303,7 +303,7 @@ export default function CatalogSearch() {
                 onChange={(e) => setFavOnly(e.target.checked)}
                 className="accent-rose-500"
               />
-              <Heart size={14} fill={favOnly ? "#c2410c" : "none"} style={{ color: favOnly ? "#c2410c" : "#a8a29e" }} />
+              <Heart size={14} fill={favOnly ? "rgb(var(--ll-fav))" : "none"} style={{ color: favOnly ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
               <span className={`flex-1 ${favOnly ? "font-medium text-rose-700" : "text-stone-600"}`}>Show favorites only</span>
             </label>
 
@@ -515,7 +515,7 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, view, size }: {
           title={isFav ? "Remove favorite" : "Add to favorites"}
           className="shrink-0"
         >
-          <Heart size={16} fill={isFav ? "#c2410c" : "none"} style={{ color: isFav ? "#c2410c" : "#a8a29e" }} />
+          <Heart size={16} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
         </button>
       </div>
     );
@@ -532,7 +532,7 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, view, size }: {
         title={isFav ? "Remove favorite" : "Add to favorites"}
         className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/85 shadow-sm ring-1 ring-stone-200 backdrop-blur-sm hover:bg-white"
       >
-        <Heart size={14} fill={isFav ? "#c2410c" : "none"} style={{ color: isFav ? "#c2410c" : "#a8a29e" }} />
+        <Heart size={14} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
       </button>
       <div className={`flex ${IMG_HEIGHT[size]} items-center justify-center overflow-hidden bg-stone-50`}>
         <CardImage imgs={imgs} alt={p.name} cls="h-full w-full object-contain" />

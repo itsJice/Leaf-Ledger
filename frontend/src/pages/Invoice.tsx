@@ -77,7 +77,7 @@ export default function Invoice() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200 print:hidden" style={{ backgroundColor: "#f7f4ef" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200 print:hidden" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Invoice</h1>
           <p className="text-xs text-stone-500 mt-0.5">Generate print-ready invoice from any arrangement</p>
@@ -100,7 +100,7 @@ export default function Invoice() {
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-colors"
-              style={{ backgroundColor: "#2d5a33" }}
+              style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               <Printer size={14} /> Print / Export
             </button>
@@ -115,7 +115,7 @@ export default function Invoice() {
           </div>
         ) : !arrangement ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "#e8f0e8" }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
               <FileText size={28} className="text-emerald-600" strokeWidth={1.5} />
             </div>
             <p className="text-base font-medium text-stone-600 mb-1">No arrangement selected</p>

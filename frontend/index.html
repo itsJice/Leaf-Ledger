@@ -11,6 +11,46 @@
 
   <title>Leaf &amp; Ledger</title>
 
+  <!--
+    Pre-paint theme.
+
+    Runs before the stylesheet is applied and before any module loads, so the
+    first frame is already in the right mode — otherwise a dark-mode user gets a
+    flash of the cream light theme on every load.
+
+    Reads the same localStorage document as `utils/preferences`
+    (PREFERENCES_CACHE_KEY = "ll.preferences.v1", bare UserPreferences JSON), and
+    performs the same two DOM writes as `applyTheme` in `utils/theme`: the `dark`
+    class and `data-accent`. The accent list is duplicated from THEME_ACCENTS
+    because nothing can be imported this early; keep the two in step.
+  -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var accent = "emerald";
+      try {
+        var cached = JSON.parse(window.localStorage.getItem("ll.preferences.v1") || "{}");
+        var theme = (cached && cached.theme) || {};
+        if (["emerald", "teal", "sky", "indigo", "rose", "amber"].indexOf(theme.accent) >= 0) {
+          accent = theme.accent;
+        }
+        var mode = theme.mode === "light" || theme.mode === "dark" ? theme.mode : "system";
+        if (
+          mode === "dark" ||
+          (mode === "system" &&
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          root.classList.add("dark");
+        }
+      } catch (e) {
+        // No localStorage, corrupt cache, or no matchMedia — fall through to the
+        // light default rather than blocking the render.
+      }
+      root.setAttribute("data-accent", accent);
+    })();
+  </script>
+
   <load src="head.html" />
 </head>
 

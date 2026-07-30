@@ -53,22 +53,22 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f6f2] px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="font-serif text-3xl tracking-tight text-[#1f3d2b]">
+          <h1 className="font-serif text-3xl tracking-tight text-brand-deep">
             Leaf &amp; Ledger
           </h1>
-          <p className="mt-2 text-sm text-[#1f3d2b]/60">
+          <p className="mt-2 text-sm text-brand-deep/60">
             The Branch Design Group
           </p>
         </div>
 
-        <div className="rounded-lg border border-[#1f3d2b]/10 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-lg font-medium text-[#1f3d2b]">
+        <div className="rounded-lg border border-brand-deep/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-lg font-medium text-brand-deep">
             {resetMode ? "Reset your password" : "Sign in"}
           </h2>
-          <p className="mb-5 text-sm text-[#1f3d2b]/60">
+          <p className="mb-5 text-sm text-brand-deep/60">
             {resetMode
               ? "We'll email you a link to set a new password."
               : "Welcome back."}
@@ -85,7 +85,7 @@ export default function Login() {
             <div>
               <label
                 htmlFor="email"
-                className="mb-1 block text-sm font-medium text-[#1f3d2b]"
+                className="mb-1 block text-sm font-medium text-brand-deep"
               >
                 Email
               </label>
@@ -96,7 +96,7 @@ export default function Login() {
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded border border-[#1f3d2b]/20 px-3 py-2 text-[#1f3d2b] outline-none transition focus:border-[#1f3d2b] focus:ring-1 focus:ring-[#1f3d2b]"
+                className="w-full rounded border border-brand-deep/20 px-3 py-2 text-brand-deep outline-none transition focus:border-brand-deep focus:ring-1 focus:ring-brand-deep"
                 placeholder="you@company.com"
               />
             </div>
@@ -105,7 +105,7 @@ export default function Login() {
               <div>
                 <label
                   htmlFor="password"
-                  className="mb-1 block text-sm font-medium text-[#1f3d2b]"
+                  className="mb-1 block text-sm font-medium text-brand-deep"
                 >
                   Password
                 </label>
@@ -115,7 +115,7 @@ export default function Login() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded border border-[#1f3d2b]/20 px-3 py-2 text-[#1f3d2b] outline-none transition focus:border-[#1f3d2b] focus:ring-1 focus:ring-[#1f3d2b]"
+                  className="w-full rounded border border-brand-deep/20 px-3 py-2 text-brand-deep outline-none transition focus:border-brand-deep focus:ring-1 focus:ring-brand-deep"
                   placeholder="••••••••"
                 />
               </div>
@@ -135,7 +135,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={busy || !isSupabaseConfigured}
-              className="w-full rounded bg-[#1f3d2b] px-4 py-2.5 font-medium text-white transition hover:bg-[#162d20] disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded bg-brand-deep px-4 py-2.5 font-medium text-white transition hover:bg-brand-deepest disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy
                 ? "Please wait…"
@@ -152,13 +152,13 @@ export default function Login() {
               setError(null);
               setNotice(null);
             }}
-            className="mt-4 w-full text-center text-sm text-[#1f3d2b]/60 underline-offset-2 hover:text-[#1f3d2b] hover:underline"
+            className="mt-4 w-full text-center text-sm text-brand-deep/60 underline-offset-2 hover:text-brand-deep hover:underline"
           >
             {resetMode ? "Back to sign in" : "Forgot your password?"}
           </button>
         </div>
 
-        <p className="mt-6 text-center text-xs text-[#1f3d2b]/40">
+        <p className="mt-6 text-center text-xs text-brand-deep/40">
           Need an account? Ask your administrator to add you.
         </p>
       </div>

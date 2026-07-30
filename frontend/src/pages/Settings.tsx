@@ -1,22 +1,29 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Check,
   CheckCircle2,
   Database,
   DollarSign,
   Grid3X3,
   Image,
+  Monitor,
+  Moon,
+  Palette,
   Plus,
   RefreshCw,
   Save,
   Settings as SettingsIcon,
+  Sun,
   Tags,
   Trash2,
   Users,
 } from "lucide-react";
 import Layout from "components/Layout";
+import SidebarTabsEditor from "components/SidebarTabsEditor";
 import { apiClient } from "app";
 import { ContentType } from "../apiclient/http-client";
 import { categoryLabel } from "utils/format";
+import { THEME_ACCENTS, useTheme } from "utils/theme";
 import { toast } from "sonner";
 
 const CATEGORIES = ["plant", "container", "filler", "accent", "other"];
@@ -56,9 +63,31 @@ const TABS = [
   { id: "ai", label: "AI Reference Data", icon: Image },
   { id: "import", label: "Import Status", icon: Database },
   { id: "templates", label: "Build Templates", icon: Grid3X3 },
+  { id: "appearance", label: "Appearance", icon: Palette },
 ] as const;
 
 type SettingsTab = typeof TABS[number]["id"];
+
+const THEME_MODE_CHOICES = [
+  {
+    mode: "system" as const,
+    label: "System",
+    icon: Monitor,
+    helper: "Follow the light or dark setting on this device.",
+  },
+  {
+    mode: "light" as const,
+    label: "Light",
+    icon: Sun,
+    helper: "Warm cream pages with dark text.",
+  },
+  {
+    mode: "dark" as const,
+    label: "Dark",
+    icon: Moon,
+    helper: "Deep forest pages for low-light work.",
+  },
+];
 
 const PRICING_FIELDS: Array<{ key: PricingRuleKey; label: string; helper: string; example: string }> = [
   {
@@ -149,7 +178,7 @@ const DEFAULT_BUILD_TEMPLATES: BuildTemplate[] = [
     name: "Tree",
     summary: "Permanent green tree or plant build, designed from bottom to top.",
     usedFor: ["Tree", "Tree / Plant", "Fiddle Fig"],
-    slots: ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
+    slots: ["Leaves", "Trunks & Branches", "Top Dressing", "Container"],
   },
   {
     id: "arrangement",
@@ -157,7 +186,7 @@ const DEFAULT_BUILD_TEMPLATES: BuildTemplate[] = [
     name: "Arrangement",
     summary: "Smaller tabletop or vase-style design with a base, finish, focal material, and accents.",
     usedFor: ["Arrangement", "Orchid Arrangement", "Succulent Arrangement", "Foliage Arrangement"],
-    slots: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
+    slots: ["Accent Material", "Focal Material", "Finish/Top Dressing", "Container/Base"],
   },
   {
     id: "planter",
@@ -165,7 +194,7 @@ const DEFAULT_BUILD_TEMPLATES: BuildTemplate[] = [
     name: "Planter",
     summary: "Larger floor container build, usually not a tree but bigger than a tabletop arrangement.",
     usedFor: ["Planter", "Container Garden", "Floor Container"],
-    slots: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
+    slots: ["Accent Plant", "Main Plant", "Finish/Top Dressing", "Container/Planter"],
   },
   {
     id: "drop-in",
@@ -173,7 +202,7 @@ const DEFAULT_BUILD_TEMPLATES: BuildTemplate[] = [
     name: "Drop-in Arrangement",
     summary: "A build made to drop into a client-owned or separately purchased container.",
     usedFor: ["Drop-in Arrangement", "Client Container"],
-    slots: ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
+    slots: ["Finish", "Accent Material", "Main Material", "Drop-in Base"],
   },
   {
     id: "succulent",
@@ -181,9 +210,21 @@ const DEFAULT_BUILD_TEMPLATES: BuildTemplate[] = [
     name: "Succulent / Cactus",
     summary: "Succulent-focused arrangement pattern kept as an editable reference even when it rolls into Arrangement.",
     usedFor: ["Succulent Arrangement", "Cactus Arrangement"],
-    slots: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
+    slots: ["Accent Greenery", "Succulents/Cactus", "Finish/Top Dressing", "Container/Base"],
   },
 ];
+
+// The green templates above used to list their slots top-down (container first). They now
+// read bottom-up to match how a build is physically assembled. Only the ORDER changed - no
+// slot label was renamed. A stored copy that still holds the old order verbatim is migrated
+// in cleanTemplateList; any order the user customised is left untouched.
+const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
+  "green-tree": ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
+  arrangement: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
+  planter: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
+  "drop-in": ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
+  succulent: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
+};
 
 const PREVIEWABLE_VISUAL_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".psd"]);
 const SKU_FAMILY_LABELS: Record<string, string> = {
@@ -247,6 +288,10 @@ function cleanTemplateList(values: unknown, fallback = DEFAULT_BUILD_TEMPLATES):
       let slots = Array.isArray(template.slots) ? template.slots.map(String).map((item) => item.trim()).filter(Boolean) : [];
       if (id === "wreath" && slots.map((slot) => slot.toLowerCase()).join("|") === "wreath base|greenery|ribbon|decor") {
         slots = ["Wreath Base", "Decor Package"];
+      }
+      const legacyOrder = LEGACY_TOP_DOWN_SLOT_ORDERS[id];
+      if (legacyOrder && slots.map((slot) => slot.toLowerCase()).join("|") === legacyOrder.map((slot) => slot.toLowerCase()).join("|")) {
+        slots = [...legacyOrder].reverse();
       }
       return {
         id,
@@ -324,6 +369,7 @@ async function readJson<T>(response: any): Promise<T> {
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("markup");
+  const { mode, accent, setMode, setAccent } = useTheme();
   const [globalMarkup, setGlobalMarkup] = useState(30);
   const [categoryMarkups, setCategoryMarkups] = useState<CategoryMarkup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -629,7 +675,8 @@ export default function Settings() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "#f7f4ef" }}>
+      {/* `bg-background` (was a hardcoded #f7f4ef) so the sticky header follows the theme. */}
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-background px-10 py-4">
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Settings</h1>
           <p className="mt-0.5 text-xs text-stone-500">Manage pricing, SKU standards, imports, and intelligence data</p>
@@ -654,7 +701,9 @@ export default function Settings() {
           ))}
         </div>
 
-        {loading ? (
+        {/* Appearance is purely local preference state, so it must not wait on
+            the markup / pricing / import fetches. */}
+        {loading && activeTab !== "appearance" ? (
           <div className="flex items-center justify-center py-24">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
           </div>
@@ -1162,18 +1211,107 @@ export default function Settings() {
               </div>
             )}
 
-            <div className="mt-6 rounded-xl border border-stone-200 bg-white p-6">
-              <div className="mb-2 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
-                  <Users size={15} className="text-emerald-700" />
+            {activeTab === "appearance" && (
+              <div className="space-y-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-sm font-semibold text-stone-800">Theme</h2>
+                      <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
+                        Pick how Leaf &amp; Ledger looks on this account. The sidebar stays dark green in
+                        both themes; dark mode changes the page area behind it.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                      Saved to your account
+                    </span>
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    {THEME_MODE_CHOICES.map((choice) => {
+                      const ChoiceIcon = choice.icon;
+                      const selected = mode === choice.mode;
+                      return (
+                        <button
+                          key={choice.mode}
+                          type="button"
+                          onClick={() => setMode(choice.mode)}
+                          aria-pressed={selected}
+                          aria-label={`Use the ${choice.label.toLowerCase()} theme`}
+                          className={`rounded-xl border p-4 text-left transition-colors ${
+                            selected
+                              ? "border-emerald-300 bg-emerald-50/60"
+                              : "border-stone-100 bg-stone-50 hover:bg-stone-100"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${selected ? "bg-white text-emerald-700" : "bg-white text-stone-400"}`}>
+                              <ChoiceIcon size={14} />
+                            </span>
+                            <span className="text-sm font-semibold text-stone-800">{choice.label}</span>
+                            {selected && <Check size={14} className="ml-auto text-emerald-700" />}
+                          </span>
+                          <span className="mt-2 block text-[11px] leading-relaxed text-stone-500">{choice.helper}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <h2 className="text-sm font-semibold text-stone-800">Supplier Management</h2>
+
+                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                  <h2 className="text-sm font-semibold text-stone-800">Accent Colour</h2>
+                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
+                    Used for active tabs, buttons, and highlights across the app.
+                  </p>
+                  {(THEME_ACCENTS || []).length === 0 ? (
+                    <p className="mt-4 text-sm text-stone-400">No accent colours are available.</p>
+                  ) : (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {THEME_ACCENTS.map((option) => {
+                        const selected = accent === option.key;
+                        return (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => setAccent(option.key)}
+                            aria-pressed={selected}
+                            aria-label={`Use the ${option.label} accent`}
+                            title={option.label}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
+                              selected ? "border-emerald-300 bg-emerald-50/60" : "border-stone-100 bg-stone-50 hover:bg-stone-100"
+                            }`}
+                          >
+                            <span
+                              className="flex h-6 w-6 items-center justify-center rounded-full ring-1 ring-inset ring-black/10"
+                              style={{ backgroundColor: option.swatch }}
+                            >
+                              {selected && <Check size={12} className="text-white" />}
+                            </span>
+                            <span className="text-xs font-semibold text-stone-700">{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <SidebarTabsEditor />
               </div>
-              <p className="mb-4 text-xs text-stone-500">Manage supplier profiles, contacts, and credentials.</p>
-              <a href="/suppliers" className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
-                Manage Suppliers
-              </a>
-            </div>
+            )}
+
+            {activeTab !== "appearance" && (
+              <div className="mt-6 rounded-xl border border-stone-200 bg-white p-6">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
+                    <Users size={15} className="text-emerald-700" />
+                  </div>
+                  <h2 className="text-sm font-semibold text-stone-800">Supplier Management</h2>
+                </div>
+                <p className="mb-4 text-xs text-stone-500">Manage supplier profiles, contacts, and credentials.</p>
+                <a href="/suppliers" className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "#2d5a33" }}>
+                  Manage Suppliers
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

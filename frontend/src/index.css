@@ -4,10 +4,778 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME SYSTEM
+   ═══════════════════════════════════════════════════════════════════════════
+
+   The pages address colour almost entirely through two Tailwind palettes:
+   `stone-*` (~1,570 usages, the neutral ramp: surfaces and text) and
+   `emerald-*` (~540 usages, the accent ramp). Rather than hand-migrating
+   2,100 class usages to `dark:` variants, `tailwind.config.js` points both
+   palettes at the CSS variables declared here. Dark mode then becomes a
+   variable swap, and the accent is a palette swap — no page edits required.
+
+   ── Why each ramp is split into two channels ──────────────────────────────
+
+   Both Tailwind ramps run light → dark, and a step's *role* depends on which
+   utility uses it. `bg-stone-50` is a pale surface; `text-stone-800` is dark
+   ink on that surface. In dark mode the surface must go dark while the ink
+   goes light, so a single inverted ramp cannot serve both: inverting makes
+   `text-stone-800` dark-on-dark, and not inverting makes `bg-stone-50` a
+   blinding white slab.
+
+   So each ramp is declared twice and Tailwind wires them to different
+   utilities (see `tailwind.config.js`):
+
+     --nc-*  neutral CONTENT  → text / border / ring / divide / fill / stroke
+     --ns-*  neutral SURFACE  → background only
+     --ac-*  accent  CONTENT  → text / border / ring / divide / fill / stroke
+     --as-*  accent  SURFACE  → background only
+
+   In light mode all four channels are the stock Tailwind ramps, so light mode
+   is byte-identical to before this change.
+
+   In dark mode:
+
+   * The neutral CONTENT channel fully inverts — step 50 becomes the faintest
+     hairline and step 950 the brightest ink, preserving "higher step =
+     stronger" at every call site.
+   * The neutral SURFACE channel *folds*: the low steps (pale panels) become
+     dark panels, and the high steps stay dark, because `bg-stone-900
+     text-white` is a deliberately dark chip that must remain readable. It
+     lands as a raised grey chip rather than inverting into white-on-white.
+   * The accent CONTENT channel brightens rather than inverting — the low
+     steps (hairlines like `border-emerald-100`) drop into the deep end of the
+     palette, and the high steps (`text-emerald-700`, 109 usages) rise into
+     the 200-400 band so they read on a near-black page.
+   * The accent SURFACE channel keeps the solid-button steps (600-900)
+     *exactly where they are*, so `bg-emerald-700 text-white` buttons look the
+     same in both modes. Only the tint steps (50-500) fold downward. This is
+     the "accent must not naively invert" requirement: inverting it would turn
+     every primary button into pale mush.
+
+   ── The sidebar ───────────────────────────────────────────────────────────
+
+   The sidebar is dark green in BOTH modes (owner's decision), so its
+   `stone-*`/`emerald-*` usages are already "on dark" usages and must NOT
+   follow the dark-mode swap. The block near the bottom of this file re-points
+   all four channels back to their light values inside the sidebar, making it
+   pixel-identical in both modes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Accent palettes ───────────────────────────────────────────────────────
+   Source data only; nothing consumes `--p-*` directly. `applyTheme()` sets
+   `data-accent` on <html> and the whole ramp — buttons, active nav, focus
+   rings, tinted panels — moves together.
+
+   `--p-50 … --p-950` are the stock Tailwind ramps, so accent "emerald" is
+   exactly what the app rendered before.
+
+   `--p-brand*` is the separate, deliberately desaturated brand family that
+   the pages hard-coded as raw hex (#2d5a33 buttons, #1f3d2b ink, #e8f0e8
+   badges). Emerald's values are those exact hexes; the others are generated
+   at the same saturation/lightness around each palette's hue.
+   `--p-brand-d` / `--p-soft-d` are the dark-mode counterparts. */
+
+:root,
+:root[data-accent="emerald"] {
+  --p-50: 236 253 245;
+  --p-100: 209 250 229;
+  --p-200: 167 243 208;
+  --p-300: 110 231 183;
+  --p-400: 52 211 153;
+  --p-500: 16 185 129;
+  --p-600: 5 150 105;
+  --p-700: 4 120 87;
+  --p-800: 6 95 70;
+  --p-900: 6 78 59;
+  --p-950: 2 44 34;
+  --p-brand: 45 90 51;          /* #2d5a33 — primary solid */
+  --p-brand-hover: 36 73 42;    /* #24492a */
+  --p-brand-deep: 31 61 43;     /* #1f3d2b — deep brand / login */
+  --p-brand-deepest: 22 45 32;  /* #162d20 */
+  --p-brand-soft: 232 240 232;  /* #e8f0e8 — icon badges */
+  --p-brand-d: 53 105 60;
+  --p-soft-d: 18 41 31;
+}
+
+:root[data-accent="teal"] {
+  --p-50: 240 253 250;
+  --p-100: 204 251 241;
+  --p-200: 153 246 228;
+  --p-300: 94 234 212;
+  --p-400: 45 212 191;
+  --p-500: 20 184 166;
+  --p-600: 13 148 136;
+  --p-700: 15 118 110;
+  --p-800: 17 94 89;
+  --p-900: 19 78 74;
+  --p-950: 4 47 46;
+  --p-brand: 38 94 90;
+  --p-brand-hover: 30 77 73;
+  --p-brand-deep: 29 62 60;
+  --p-brand-deepest: 21 46 44;
+  --p-brand-soft: 228 241 240;
+  --p-brand-d: 46 112 107;
+  --p-soft-d: 18 43 41;
+}
+
+:root[data-accent="sky"] {
+  --p-50: 240 249 255;
+  --p-100: 224 242 254;
+  --p-200: 186 230 253;
+  --p-300: 125 211 252;
+  --p-400: 56 189 248;
+  --p-500: 14 165 233;
+  --p-600: 2 132 199;
+  --p-700: 3 105 161;
+  --p-800: 7 89 133;
+  --p-900: 12 74 110;
+  --p-950: 8 47 73;
+  --p-brand: 38 74 94;
+  --p-brand-hover: 30 60 77;
+  --p-brand-deep: 29 51 62;
+  --p-brand-deepest: 21 37 46;
+  --p-brand-soft: 228 236 241;
+  --p-brand-d: 46 89 112;
+  --p-soft-d: 18 34 43;
+}
+
+:root[data-accent="indigo"] {
+  --p-50: 238 242 255;
+  --p-100: 224 231 255;
+  --p-200: 199 210 254;
+  --p-300: 165 180 252;
+  --p-400: 129 140 248;
+  --p-500: 99 102 241;
+  --p-600: 79 70 229;
+  --p-700: 67 56 202;
+  --p-800: 55 48 163;
+  --p-900: 49 46 129;
+  --p-950: 30 27 75;
+  --p-brand: 43 38 94;
+  --p-brand-hover: 34 30 77;
+  --p-brand-deep: 32 29 62;
+  --p-brand-deepest: 22 21 46;
+  --p-brand-soft: 229 228 241;
+  --p-brand-d: 51 46 112;
+  --p-soft-d: 20 18 43;
+}
+
+:root[data-accent="rose"] {
+  --p-50: 255 241 242;
+  --p-100: 255 228 230;
+  --p-200: 254 205 211;
+  --p-300: 253 164 175;
+  --p-400: 251 113 133;
+  --p-500: 244 63 94;
+  --p-600: 225 29 72;
+  --p-700: 190 18 60;
+  --p-800: 159 18 57;
+  --p-900: 136 19 55;
+  --p-950: 76 5 25;
+  --p-brand: 94 38 52;
+  --p-brand-hover: 77 30 41;
+  --p-brand-deep: 62 29 37;
+  --p-brand-deepest: 46 21 27;
+  --p-brand-soft: 241 228 231;
+  --p-brand-d: 112 46 62;
+  --p-soft-d: 43 18 24;
+}
+
+:root[data-accent="amber"] {
+  --p-50: 255 251 235;
+  --p-100: 254 243 199;
+  --p-200: 253 230 138;
+  --p-300: 252 211 77;
+  --p-400: 251 191 36;
+  --p-500: 245 158 11;
+  --p-600: 217 119 6;
+  --p-700: 180 83 9;
+  --p-800: 146 64 14;
+  --p-900: 120 53 15;
+  --p-950: 69 26 3;
+  --p-brand: 94 63 38;
+  --p-brand-hover: 77 50 30;
+  --p-brand-deep: 62 44 29;
+  --p-brand-deepest: 46 31 21;
+  --p-brand-soft: 241 234 228;
+  --p-brand-d: 112 75 46;
+  --p-soft-d: 43 29 18;
+}
+
+/* ─── Neutral ramps (source data) ───────────────────────────────────────────
+   `--n-*` is stock Tailwind `stone`. `--ndc-*` / `--nds-*` are the authored
+   dark-mode content and surface ramps: warm greys with a faint forest cast,
+   so the content area belongs to the same family as the sidebar. */
+
+:root {
+  /* Tailwind stone — the light ramp for both channels. */
+  --n-50: 250 250 249;
+  --n-100: 245 245 244;
+  --n-200: 231 229 228;
+  --n-300: 214 211 209;
+  --n-400: 168 162 158;
+  --n-500: 120 113 108;
+  --n-600: 87 83 78;
+  --n-700: 68 64 60;
+  --n-800: 41 37 36;
+  --n-900: 28 25 23;
+  --n-950: 12 10 9;
+
+  /* Dark CONTENT — inverted: 50 is the faintest line, 950 the brightest ink.
+     Contrast against the dark page: 400 → 5.3:1, 500 → 7.3:1, 800 → 14.8:1. */
+  --ndc-50: 24 28 26;
+  --ndc-100: 32 38 35;
+  --ndc-200: 44 51 47;
+  --ndc-300: 62 70 65;
+  --ndc-400: 139 147 142;   /* the weakest ink in the app (265 usages) — kept at 4.5:1+ */
+  --ndc-500: 156 164 158;
+  --ndc-600: 184 190 185;
+  --ndc-700: 206 211 207;
+  --ndc-800: 226 230 226;
+  --ndc-900: 238 241 238;
+  --ndc-950: 248 250 248;
+
+  /* Dark SURFACE — folded.
+     50-100 are the "barely tinted panel" steps: in practice they are table
+     header rows and sub-panels *inside* a card, so they must sit slightly
+     RECESSED from `--ll-surface` (and 50 stays closer to it than 100, matching
+     stone-50 being closer to white than stone-100). They are still lighter than
+     the page, so the same classes also read as raised panels on the page.
+     800-950 are the "deliberately dark chip" steps (`bg-stone-900 text-white`),
+     lifted enough to read as raised while keeping white text at 8:1+. */
+  --nds-50: 27 32 29;
+  --nds-100: 23 28 25;
+  --nds-200: 38 44 41;
+  --nds-300: 47 54 50;
+  --nds-400: 56 64 59;
+  --nds-500: 64 72 67;
+  --nds-600: 72 80 75;
+  --nds-700: 80 88 83;
+  --nds-800: 58 66 61;
+  --nds-900: 69 77 72;
+  --nds-950: 80 89 83;
+}
+
+/* ─── Status ramps (source data) ────────────────────────────────────────────
+   `amber` (65 usages), `red` (53) and `rose` (12) carry warnings, errors and
+   favourites, almost always as a `bg-*-50` chip with `text-*-600/700` ink. They
+   are not user-swappable, but they need the same two-channel treatment as the
+   accent or dark mode fills up with glowing pastel chips. Stock Tailwind values,
+   so light mode does not move. */
+
+:root {
+  /* amb */
+  --amb-50: 255 251 235; --amb-100: 254 243 199; --amb-200: 253 230 138; --amb-300: 252 211 77;
+  --amb-400: 251 191 36; --amb-500: 245 158 11; --amb-600: 217 119 6; --amb-700: 180 83 9;
+  --amb-800: 146 64 14; --amb-900: 120 53 15; --amb-950: 69 26 3;
+  /* red */
+  --red-50: 254 242 242; --red-100: 254 226 226; --red-200: 254 202 202; --red-300: 252 165 165;
+  --red-400: 248 113 113; --red-500: 239 68 68; --red-600: 220 38 38; --red-700: 185 28 28;
+  --red-800: 153 27 27; --red-900: 127 29 29; --red-950: 69 10 10;
+  /* ros */
+  --ros-50: 255 241 242; --ros-100: 255 228 230; --ros-200: 254 205 211; --ros-300: 253 164 175;
+  --ros-400: 251 113 133; --ros-500: 244 63 94; --ros-600: 225 29 72; --ros-700: 190 18 60;
+  --ros-800: 159 18 57; --ros-900: 136 19 55; --ros-950: 76 5 25;
+}
+
+/* ─── Channel wiring: LIGHT ─────────────────────────────────────────────────
+   Both channels are the stock ramps, so nothing about light mode moves. */
+
+:root {
+  color-scheme: light;
+
+  --nc-50: var(--n-50);
+  --nc-100: var(--n-100);
+  --nc-200: var(--n-200);
+  --nc-300: var(--n-300);
+  --nc-400: var(--n-400);
+  --nc-500: var(--n-500);
+  --nc-600: var(--n-600);
+  --nc-700: var(--n-700);
+  --nc-800: var(--n-800);
+  --nc-900: var(--n-900);
+  --nc-950: var(--n-950);
+
+  --ns-50: var(--n-50);
+  --ns-100: var(--n-100);
+  --ns-200: var(--n-200);
+  --ns-300: var(--n-300);
+  --ns-400: var(--n-400);
+  --ns-500: var(--n-500);
+  --ns-600: var(--n-600);
+  --ns-700: var(--n-700);
+  --ns-800: var(--n-800);
+  --ns-900: var(--n-900);
+  --ns-950: var(--n-950);
+
+  --ac-50: var(--p-50);
+  --ac-100: var(--p-100);
+  --ac-200: var(--p-200);
+  --ac-300: var(--p-300);
+  --ac-400: var(--p-400);
+  --ac-500: var(--p-500);
+  --ac-600: var(--p-600);
+  --ac-700: var(--p-700);
+  --ac-800: var(--p-800);
+  --ac-900: var(--p-900);
+  --ac-950: var(--p-950);
+
+  --as-50: var(--p-50);
+  --as-100: var(--p-100);
+  --as-200: var(--p-200);
+  --as-300: var(--p-300);
+  --as-400: var(--p-400);
+  --as-500: var(--p-500);
+  --as-600: var(--p-600);
+  --as-700: var(--p-700);
+  --as-800: var(--p-800);
+  --as-900: var(--p-900);
+  --as-950: var(--p-950);
+
+  /* amb */
+  --amc-50: var(--amb-50); --amc-100: var(--amb-100); --amc-200: var(--amb-200); --amc-300: var(--amb-300);
+  --amc-400: var(--amb-400); --amc-500: var(--amb-500); --amc-600: var(--amb-600); --amc-700: var(--amb-700);
+  --amc-800: var(--amb-800); --amc-900: var(--amb-900); --amc-950: var(--amb-950);
+  --ams-50: var(--amb-50); --ams-100: var(--amb-100); --ams-200: var(--amb-200); --ams-300: var(--amb-300);
+  --ams-400: var(--amb-400); --ams-500: var(--amb-500); --ams-600: var(--amb-600); --ams-700: var(--amb-700);
+  --ams-800: var(--amb-800); --ams-900: var(--amb-900); --ams-950: var(--amb-950);
+  /* red */
+  --rdc-50: var(--red-50); --rdc-100: var(--red-100); --rdc-200: var(--red-200); --rdc-300: var(--red-300);
+  --rdc-400: var(--red-400); --rdc-500: var(--red-500); --rdc-600: var(--red-600); --rdc-700: var(--red-700);
+  --rdc-800: var(--red-800); --rdc-900: var(--red-900); --rdc-950: var(--red-950);
+  --rds-50: var(--red-50); --rds-100: var(--red-100); --rds-200: var(--red-200); --rds-300: var(--red-300);
+  --rds-400: var(--red-400); --rds-500: var(--red-500); --rds-600: var(--red-600); --rds-700: var(--red-700);
+  --rds-800: var(--red-800); --rds-900: var(--red-900); --rds-950: var(--red-950);
+  /* ros */
+  --rsc-50: var(--ros-50); --rsc-100: var(--ros-100); --rsc-200: var(--ros-200); --rsc-300: var(--ros-300);
+  --rsc-400: var(--ros-400); --rsc-500: var(--ros-500); --rsc-600: var(--ros-600); --rsc-700: var(--ros-700);
+  --rsc-800: var(--ros-800); --rsc-900: var(--ros-900); --rsc-950: var(--ros-950);
+  --rss-50: var(--ros-50); --rss-100: var(--ros-100); --rss-200: var(--ros-200); --rss-300: var(--ros-300);
+  --rss-400: var(--ros-400); --rss-500: var(--ros-500); --rss-600: var(--ros-600); --rss-700: var(--ros-700);
+  --rss-800: var(--ros-800); --rss-900: var(--ros-900); --rss-950: var(--ros-950);
+
+  /* ── Semantic tokens ──────────────────────────────────────────────────────
+     One per distinct meaning the pages used to spell as a raw hex. Light values
+     are the exact hexes that were inlined, so nothing about light mode moves.
+     Where a colour served two roles it is split, the same way the ramps are:
+     `--ll-brand-ink` is "brand as text", `--ll-brand` is "brand as a fill". */
+  --ll-page: 247 244 239;        /* #f7f4ef — warm cream page */
+  --ll-surface: 255 255 255;     /* card / raised surface */
+  --ll-brand: var(--p-brand);                  /* #2d5a33 — surface role */
+  --ll-brand-hover: var(--p-brand-hover);      /* #24492a */
+  --ll-brand-ink: var(--p-brand);              /* #2d5a33 — content role */
+  --ll-brand-deep: var(--p-brand-deep);        /* #1f3d2b — surface role */
+  --ll-brand-deepest: var(--p-brand-deepest);  /* #162d20 — surface role */
+  --ll-ink: var(--p-brand-deep);               /* #1f3d2b — content role */
+  --ll-brand-soft: var(--p-brand-soft);        /* #e8f0e8 — icon badges */
+  --ll-fav: 194 65 12;           /* #c2410c — "favourited" */
+  --ll-focus-gold: 244 180 0;    /* #f4b400 — selection ring */
+  /* Ink for text sitting on a saturated identity colour. In light mode those
+     fills are dark, so white; in dark mode they are the bright end of their
+     ramps, so near-black. */
+  --ll-on-bright: 255 255 255;
+
+  /* Status: soft = chip background, line = border, ink = text. */
+  --ll-ok: 21 128 61;            /* #15803d */
+  --ll-ok-strong: 22 101 52;     /* #166534 */
+  --ll-ok-line: 110 231 183;     /* #6ee7b7 */
+  --ll-ok-ink: 20 83 45;         /* #14532d */
+  --ll-warn: 202 138 4;          /* #ca8a04 */
+  --ll-warn-soft: 254 243 226;   /* #fef3e2 */
+  --ll-warn-line: 252 211 77;    /* #fcd34d */
+  --ll-warn-ink: 146 64 14;      /* #92400e */
+  --ll-danger-soft: 254 242 242; /* #fef2f2 */
+}
+
+/* ─── Channel wiring: DARK ──────────────────────────────────────────────────
+   `html.dark` (0,1,1) outranks `:root` (0,1,0), so ordering is not load-bearing. */
+
+html.dark {
+  color-scheme: dark;
+
+  --nc-50: var(--ndc-50);
+  --nc-100: var(--ndc-100);
+  --nc-200: var(--ndc-200);
+  --nc-300: var(--ndc-300);
+  --nc-400: var(--ndc-400);
+  --nc-500: var(--ndc-500);
+  --nc-600: var(--ndc-600);
+  --nc-700: var(--ndc-700);
+  --nc-800: var(--ndc-800);
+  --nc-900: var(--ndc-900);
+  --nc-950: var(--ndc-950);
+
+  --ns-50: var(--nds-50);
+  --ns-100: var(--nds-100);
+  --ns-200: var(--nds-200);
+  --ns-300: var(--nds-300);
+  --ns-400: var(--nds-400);
+  --ns-500: var(--nds-500);
+  --ns-600: var(--nds-600);
+  --ns-700: var(--nds-700);
+  --ns-800: var(--nds-800);
+  --ns-900: var(--nds-900);
+  --ns-950: var(--nds-950);
+
+  /* Accent CONTENT: low steps sink to hairlines, high steps rise to bright ink. */
+  --ac-50: var(--p-900);
+  --ac-100: var(--p-900);
+  --ac-200: var(--p-800);
+  --ac-300: var(--p-500);   /* focus rings — visible, not glaring */
+  --ac-400: var(--p-400);
+  --ac-500: var(--p-400);
+  --ac-600: var(--p-400);
+  --ac-700: var(--p-300);   /* text-emerald-700, the workhorse */
+  --ac-800: var(--p-300);
+  --ac-900: var(--p-200);
+  --ac-950: var(--p-100);
+
+  /* Accent SURFACE: tints fold down, solid-button steps 600-950 unchanged. */
+  --as-50: var(--p-soft-d);
+  --as-100: var(--p-950);
+  --as-200: var(--p-900);
+  --as-300: var(--p-800);
+  --as-400: var(--p-700);
+  --as-500: var(--p-600);
+  --as-600: var(--p-600);
+  --as-700: var(--p-700);
+  --as-800: var(--p-800);
+  --as-900: var(--p-900);
+  --as-950: var(--p-950);
+
+  /* amb */
+  --amc-50: var(--amb-900); --amc-100: var(--amb-900); --amc-200: var(--amb-800); --amc-300: var(--amb-500);
+  --amc-400: var(--amb-400); --amc-500: var(--amb-400); --amc-600: var(--amb-400); --amc-700: var(--amb-300);
+  --amc-800: var(--amb-300); --amc-900: var(--amb-200); --amc-950: var(--amb-100);
+  --ams-50: var(--amb-950); --ams-100: var(--amb-950); --ams-200: var(--amb-900); --ams-300: var(--amb-800);
+  --ams-400: var(--amb-700); --ams-500: var(--amb-600); --ams-600: var(--amb-600); --ams-700: var(--amb-700);
+  --ams-800: var(--amb-800); --ams-900: var(--amb-900); --ams-950: var(--amb-950);
+  /* red */
+  --rdc-50: var(--red-900); --rdc-100: var(--red-900); --rdc-200: var(--red-800); --rdc-300: var(--red-500);
+  --rdc-400: var(--red-400); --rdc-500: var(--red-400); --rdc-600: var(--red-400); --rdc-700: var(--red-300);
+  --rdc-800: var(--red-300); --rdc-900: var(--red-200); --rdc-950: var(--red-100);
+  --rds-50: var(--red-950); --rds-100: var(--red-950); --rds-200: var(--red-900); --rds-300: var(--red-800);
+  --rds-400: var(--red-700); --rds-500: var(--red-600); --rds-600: var(--red-600); --rds-700: var(--red-700);
+  --rds-800: var(--red-800); --rds-900: var(--red-900); --rds-950: var(--red-950);
+  /* ros */
+  --rsc-50: var(--ros-900); --rsc-100: var(--ros-900); --rsc-200: var(--ros-800); --rsc-300: var(--ros-500);
+  --rsc-400: var(--ros-400); --rsc-500: var(--ros-400); --rsc-600: var(--ros-400); --rsc-700: var(--ros-300);
+  --rsc-800: var(--ros-300); --rsc-900: var(--ros-200); --rsc-950: var(--ros-100);
+  --rss-50: var(--ros-950); --rss-100: var(--ros-950); --rss-200: var(--ros-900); --rss-300: var(--ros-800);
+  --rss-400: var(--ros-700); --rss-500: var(--ros-600); --rss-600: var(--ros-600); --rss-700: var(--ros-700);
+  --rss-800: var(--ros-800); --rss-900: var(--ros-900); --rss-950: var(--ros-950);
+
+  --ll-page: 16 19 18;
+  /* Its own value, deliberately NOT `--nds-100`: when the card and the
+     `bg-stone-100` panel resolve to the same colour, every chip and table header
+     inside a card disappears. */
+  --ll-surface: 33 40 36;
+  --ll-brand: var(--p-brand-d);
+  --ll-brand-hover: var(--p-brand);
+  --ll-brand-ink: 214 228 218;   /* pale mint — brand as text, on a dark page */
+  --ll-brand-deep: var(--p-brand-d);
+  --ll-brand-deepest: var(--p-brand);
+  --ll-ink: 214 228 218;
+  --ll-brand-soft: var(--p-soft-d);
+  --ll-fav: 251 146 60;
+  --ll-focus-gold: 250 204 21;
+  --ll-on-bright: 16 19 18;
+
+  --ll-ok: 74 222 128;
+  --ll-ok-strong: 52 211 153;
+  --ll-ok-line: 6 95 70;
+  --ll-ok-ink: 167 243 208;
+  --ll-warn: 250 204 21;
+  --ll-warn-soft: 48 36 12;
+  --ll-warn-line: 146 64 14;
+  --ll-warn-ink: 253 230 138;
+  --ll-danger-soft: 51 22 22;
+}
+
+/* ─── The sidebar stays dark in both modes ──────────────────────────────────
+   `[data-ll-chrome="dark"]` marks a region that is already dark-on-dark in
+   LIGHT mode — currently just the sidebar <aside> in Layout.tsx. Its palette
+   usages are therefore already "on dark" usages and must not follow the
+   dark-mode swap, so every channel is re-pointed back to its light value and
+   the region renders identically in both modes.
+
+   This matters most for the accent: the sidebar's active tab is
+   `bg-emerald-700/40 text-emerald-300` and its bullets are `text-emerald-200`.
+   Under the dark accent ramp `emerald-200` resolves to the deep end of the
+   palette (a hairline colour), which would vanish against the dark green. With
+   the revert, the active tab stays a bright pastel on dark green for every
+   accent in THEME_ACCENTS.
+
+   The neutral revert is defensive — the sidebar now uses `white/NN` for its
+   neutrals rather than `stone-*` — but it keeps the region correct if a
+   `stone-*` class reappears there. */
+
+html.dark [data-ll-chrome="dark"] {
+  color-scheme: dark;
+
+  --nc-50: var(--n-50);
+  --nc-100: var(--n-100);
+  --nc-200: var(--n-200);
+  --nc-300: var(--n-300);
+  --nc-400: var(--n-400);
+  --nc-500: var(--n-500);
+  --nc-600: var(--n-600);
+  --nc-700: var(--n-700);
+  --nc-800: var(--n-800);
+  --nc-900: var(--n-900);
+  --nc-950: var(--n-950);
+
+  --ns-50: var(--n-50);
+  --ns-100: var(--n-100);
+  --ns-200: var(--n-200);
+  --ns-300: var(--n-300);
+  --ns-400: var(--n-400);
+  --ns-500: var(--n-500);
+  --ns-600: var(--n-600);
+  --ns-700: var(--n-700);
+  --ns-800: var(--n-800);
+  --ns-900: var(--n-900);
+  --ns-950: var(--n-950);
+
+  --ac-50: var(--p-50);
+  --ac-100: var(--p-100);
+  --ac-200: var(--p-200);
+  --ac-300: var(--p-300);
+  --ac-400: var(--p-400);
+  --ac-500: var(--p-500);
+  --ac-600: var(--p-600);
+  --ac-700: var(--p-700);
+  --ac-800: var(--p-800);
+  --ac-900: var(--p-900);
+  --ac-950: var(--p-950);
+
+  --as-50: var(--p-50);
+  --as-100: var(--p-100);
+  --as-200: var(--p-200);
+  --as-300: var(--p-300);
+  --as-400: var(--p-400);
+  --as-500: var(--p-500);
+  --as-600: var(--p-600);
+  --as-700: var(--p-700);
+  --as-800: var(--p-800);
+  --as-900: var(--p-900);
+  --as-950: var(--p-950);
+}
+
+/* ─── `bg-white` in dark mode ───────────────────────────────────────────────
+   236 bare `bg-white` usages are card surfaces and must darken, but `white`
+   itself cannot be remapped: 82 `text-white` usages sit on accent buttons and
+   have to stay white. So only the *background* utility is redirected, matched
+   as an exact class token so `bg-white/5`-style overlays on dark chrome (the
+   sidebar, image scrims) keep their intent. */
+
+html.dark [class~="bg-white"],
+html.dark [class~="hover:bg-white"]:hover {
+  background-color: rgb(var(--ll-surface));
+}
+html.dark [class~="bg-white/95"] { background-color: rgb(var(--ll-surface) / 0.95); }
+html.dark [class~="bg-white/90"] { background-color: rgb(var(--ll-surface) / 0.9); }
+html.dark [class~="bg-white/85"] { background-color: rgb(var(--ll-surface) / 0.85); }
+html.dark [class~="bg-white/80"] { background-color: rgb(var(--ll-surface) / 0.8); }
+html.dark [class~="bg-white/70"] { background-color: rgb(var(--ll-surface) / 0.7); }
+html.dark [class~="bg-white/60"] { background-color: rgb(var(--ll-surface) / 0.6); }
+
+/* ─── Category / badge colours ──────────────────────────────────────────────
+   Library.tsx colour-codes catalogue categories. These are identity colours,
+   not theme colours, so they keep their hues — but the pale badge backgrounds
+   would glare on a dark page, so each has a dark counterpart. Consumed from TS
+   as `rgb(var(--cat-…))`. */
+
+:root {
+  --cat-florals: 190 24 93;
+  --cat-greenery: 21 128 61;
+  --cat-trees: 22 101 52;
+  --cat-wreaths: 15 118 110;
+  --cat-ornaments: 185 28 28;
+  --cat-ribbon: 192 38 211;
+  --cat-botanicals: 161 98 7;
+  --cat-lighting: 202 138 4;
+  --cat-candles: 234 88 12;
+  --cat-containers: 154 52 18;
+  --cat-decor: 87 83 78;
+  --cat-textiles: 124 58 237;
+  --cat-furniture: 120 113 108;
+  --cat-stone: 82 82 82;
+  --cat-wood: 146 64 14;
+
+  /* Badge pairs: soft background + its own ink. */
+  --badge-greenery-bg: 220 252 231;
+  --badge-greenery-fg: 21 128 61;
+  --badge-florals-bg: 252 231 243;
+  --badge-florals-fg: 190 24 93;
+  --badge-trees-bg: 209 250 229;
+  --badge-trees-fg: 6 95 70;
+  --badge-wood-bg: 254 243 199;
+  --badge-wood-fg: 146 64 14;
+  --badge-containers-bg: 254 249 195;
+  --badge-containers-fg: 161 98 7;
+  --badge-other-bg: 241 245 249;
+  --badge-other-fg: 71 85 105;
+}
+
+html.dark {
+  --cat-florals: 244 114 182;
+  --cat-greenery: 74 222 128;
+  --cat-trees: 52 211 153;
+  --cat-wreaths: 45 212 191;
+  --cat-ornaments: 248 113 113;
+  --cat-ribbon: 232 121 249;
+  --cat-botanicals: 234 179 8;
+  --cat-lighting: 250 204 21;
+  --cat-candles: 251 146 60;
+  --cat-containers: 251 113 36;
+  --cat-decor: 168 162 158;
+  --cat-textiles: 167 139 250;
+  --cat-furniture: 168 162 158;
+  --cat-stone: 163 163 163;
+  --cat-wood: 217 119 6;
+
+  --badge-greenery-bg: 20 45 30;
+  --badge-greenery-fg: 74 222 128;
+  --badge-florals-bg: 55 20 38;
+  --badge-florals-fg: 244 114 182;
+  --badge-trees-bg: 15 45 35;
+  --badge-trees-fg: 52 211 153;
+  --badge-wood-bg: 51 34 12;
+  --badge-wood-fg: 251 191 36;
+  --badge-containers-bg: 48 40 10;
+  --badge-containers-fg: 250 204 21;
+  --badge-other-bg: 34 38 44;
+  --badge-other-fg: 148 163 184;
+}
+/* ─── Printing ──────────────────────────────────────────────────────────────
+   Invoices print. Force the light ramps back so a dark-mode session does not
+   produce a black invoice. */
+
+@media print {
+  html.dark {
+    color-scheme: light;
+
+    --nc-50: var(--n-50);
+    --nc-100: var(--n-100);
+    --nc-200: var(--n-200);
+    --nc-300: var(--n-300);
+    --nc-400: var(--n-400);
+    --nc-500: var(--n-500);
+    --nc-600: var(--n-600);
+    --nc-700: var(--n-700);
+    --nc-800: var(--n-800);
+    --nc-900: var(--n-900);
+    --nc-950: var(--n-950);
+
+    --ns-50: var(--n-50);
+    --ns-100: var(--n-100);
+    --ns-200: var(--n-200);
+    --ns-300: var(--n-300);
+    --ns-400: var(--n-400);
+    --ns-500: var(--n-500);
+    --ns-600: var(--n-600);
+    --ns-700: var(--n-700);
+    --ns-800: var(--n-800);
+    --ns-900: var(--n-900);
+    --ns-950: var(--n-950);
+
+    --ac-50: var(--p-50);
+    --ac-100: var(--p-100);
+    --ac-200: var(--p-200);
+    --ac-300: var(--p-300);
+    --ac-400: var(--p-400);
+    --ac-500: var(--p-500);
+    --ac-600: var(--p-600);
+    --ac-700: var(--p-700);
+    --ac-800: var(--p-800);
+    --ac-900: var(--p-900);
+    --ac-950: var(--p-950);
+
+    --as-50: var(--p-50);
+    --as-100: var(--p-100);
+    --as-200: var(--p-200);
+    --as-300: var(--p-300);
+    --as-400: var(--p-400);
+    --as-500: var(--p-500);
+    --as-600: var(--p-600);
+    --as-700: var(--p-700);
+    --as-800: var(--p-800);
+    --as-900: var(--p-900);
+    --as-950: var(--p-950);
+
+    --amc-50: var(--amb-50); --amc-100: var(--amb-100); --amc-200: var(--amb-200); --amc-300: var(--amb-300);
+    --amc-400: var(--amb-400); --amc-500: var(--amb-500); --amc-600: var(--amb-600); --amc-700: var(--amb-700);
+    --amc-800: var(--amb-800); --amc-900: var(--amb-900); --amc-950: var(--amb-950);
+    --ams-50: var(--amb-50); --ams-100: var(--amb-100); --ams-200: var(--amb-200); --ams-300: var(--amb-300);
+    --ams-400: var(--amb-400); --ams-500: var(--amb-500); --ams-600: var(--amb-600); --ams-700: var(--amb-700);
+    --ams-800: var(--amb-800); --ams-900: var(--amb-900); --ams-950: var(--amb-950);
+    --rdc-50: var(--red-50); --rdc-100: var(--red-100); --rdc-200: var(--red-200); --rdc-300: var(--red-300);
+    --rdc-400: var(--red-400); --rdc-500: var(--red-500); --rdc-600: var(--red-600); --rdc-700: var(--red-700);
+    --rdc-800: var(--red-800); --rdc-900: var(--red-900); --rdc-950: var(--red-950);
+    --rds-50: var(--red-50); --rds-100: var(--red-100); --rds-200: var(--red-200); --rds-300: var(--red-300);
+    --rds-400: var(--red-400); --rds-500: var(--red-500); --rds-600: var(--red-600); --rds-700: var(--red-700);
+    --rds-800: var(--red-800); --rds-900: var(--red-900); --rds-950: var(--red-950);
+    --rsc-50: var(--ros-50); --rsc-100: var(--ros-100); --rsc-200: var(--ros-200); --rsc-300: var(--ros-300);
+    --rsc-400: var(--ros-400); --rsc-500: var(--ros-500); --rsc-600: var(--ros-600); --rsc-700: var(--ros-700);
+    --rsc-800: var(--ros-800); --rsc-900: var(--ros-900); --rsc-950: var(--ros-950);
+    --rss-50: var(--ros-50); --rss-100: var(--ros-100); --rss-200: var(--ros-200); --rss-300: var(--ros-300);
+    --rss-400: var(--ros-400); --rss-500: var(--ros-500); --rss-600: var(--ros-600); --rss-700: var(--ros-700);
+    --rss-800: var(--ros-800); --rss-900: var(--ros-900); --rss-950: var(--ros-950);
+
+    --ll-page: 255 255 255;
+    --ll-surface: 255 255 255;
+    --ll-ink: var(--p-brand-deep);
+    --ll-brand: var(--p-brand);
+    --ll-brand-hover: var(--p-brand-hover);
+    --ll-brand-ink: var(--p-brand);
+    --ll-brand-deep: var(--p-brand-deep);
+    --ll-brand-deepest: var(--p-brand-deepest);
+    --ll-brand-soft: var(--p-brand-soft);
+    --ll-fav: 194 65 12;
+    --ll-focus-gold: 244 180 0;
+    --ll-on-bright: 255 255 255;
+    --ll-ok: 21 128 61;
+    --ll-ok-strong: 22 101 52;
+    --ll-ok-line: 110 231 183;
+    --ll-ok-ink: 20 83 45;
+    --ll-warn: 202 138 4;
+    --ll-warn-soft: 254 243 226;
+    --ll-warn-line: 252 211 77;
+    --ll-warn-ink: 146 64 14;
+    --ll-danger-soft: 254 242 242;
+
+    /* Identity colours revert too, so a printed catalogue keeps its dots and
+       pills in the ink-friendly light values. */
+    --cat-florals: 190 24 93; --cat-greenery: 21 128 61; --cat-trees: 22 101 52;
+    --cat-wreaths: 15 118 110; --cat-ornaments: 185 28 28; --cat-ribbon: 192 38 211;
+    --cat-botanicals: 161 98 7; --cat-lighting: 202 138 4; --cat-candles: 234 88 12;
+    --cat-containers: 154 52 18; --cat-decor: 87 83 78; --cat-textiles: 124 58 237;
+    --cat-furniture: 120 113 108; --cat-stone: 82 82 82; --cat-wood: 146 64 14;
+    --badge-greenery-bg: 220 252 231; --badge-greenery-fg: 21 128 61;
+    --badge-florals-bg: 252 231 243; --badge-florals-fg: 190 24 93;
+    --badge-trees-bg: 209 250 229; --badge-trees-fg: 6 95 70;
+    --badge-wood-bg: 254 243 199; --badge-wood-fg: 146 64 14;
+    --badge-containers-bg: 254 249 195; --badge-containers-fg: 161 98 7;
+    --badge-other-bg: 241 245 249; --badge-other-fg: 71 85 105;
+  }
+  html.dark [class~="bg-white"] { background-color: #fff; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   shadcn semantic tokens (pre-existing)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   :root {
-    /* Warm parchment / off-white backgrounds */
-    --background: 40 30% 96%;
+    /* Warm parchment page. Kept numerically equal to `--ll-page` (#f7f4ef):
+       the app shell and the sticky page headers are `bg-background`, while the
+       page tokens are `--ll-page`, and any drift between the two shows up as a
+       two-tone seam under every header. */
+    --background: 37.5 33.3% 95.3%;
     --foreground: 100 15% 12%;
 
     /* Cards: slightly warmer than background */
@@ -57,11 +825,13 @@
   }
 
   .dark {
-    /* Deep forest / near-black background */
-    --background: 152 15% 8%;
+    /* Equal to `--ll-page` (rgb 16 19 18), same reason as above. */
+    --background: 160 8.6% 6.9%;
     --foreground: 40 25% 92%;
 
-    --card: 152 14% 11%;
+    /* Equal to `--ll-surface` (rgb 33 40 36), so a shadcn surface and a
+       `bg-white` card land on the same colour. */
+    --card: 146 9.6% 14.3%;
     --card-foreground: 40 25% 92%;
 
     --popover: 152 14% 11%;
@@ -132,8 +902,8 @@
   width: 20px;
   height: 20px;
   border-radius: 9999px;
-  background: #ffffff;
-  border: 2px solid #15803d;
+  background: rgb(var(--ll-surface));
+  border: 2px solid rgb(var(--ac-600));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   cursor: grab;
 }
@@ -142,8 +912,8 @@
   width: 20px;
   height: 20px;
   border-radius: 9999px;
-  background: #ffffff;
-  border: 2px solid #15803d;
+  background: rgb(var(--ll-surface));
+  border: 2px solid rgb(var(--ac-600));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   cursor: grab;
 }

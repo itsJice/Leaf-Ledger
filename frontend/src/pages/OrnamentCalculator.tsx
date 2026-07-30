@@ -99,10 +99,10 @@ const emptyQuantities = (): QtyMap =>
   ORNAMENT_OPTIONS.reduce((acc, o) => ({ ...acc, [o.size]: "" }), {} as QtyMap);
 
 function densityColor(density: number): string {
-  if (density >= 70) return "#166534";
-  if (density >= 40) return "#15803d";
-  if (density >= 15) return "#ca8a04";
-  return "#a8a29e";
+  if (density >= 70) return "rgb(var(--ll-ok-strong))";
+  if (density >= 40) return "rgb(var(--ll-ok))";
+  if (density >= 15) return "rgb(var(--ll-warn))";
+  return "rgb(var(--nc-400))";
 }
 function densityLabel(density: number): string {
   if (density >= 70) return "Full / dense";
@@ -354,7 +354,7 @@ export default function OrnamentCalculator() {
     <Layout>
       <header
         className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4"
-        style={{ backgroundColor: "#f7f4ef" }}
+        style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
           <h1
@@ -615,7 +615,7 @@ function CalculatorStep(p: CalcProps) {
             title="Drag to set coverage — scales the ornament counts"
             className="ornament-slider mt-4 w-full"
             style={{
-              background: `linear-gradient(to right, ${densityColor(p.coverageTarget)} ${p.coverageTarget}%, #e7e5e4 ${p.coverageTarget}%)`,
+              background: `linear-gradient(to right, ${densityColor(p.coverageTarget)} ${p.coverageTarget}%, rgb(var(--ns-200)) ${p.coverageTarget}%)`,
             }}
           />
           <div className="mt-2 flex items-center justify-between">
@@ -719,7 +719,7 @@ function ColorsStep(p: ColorsProps) {
                 <div className="flex items-center gap-2">
                   <span
                     className="h-5 w-5 rounded-full border border-stone-300"
-                    style={{ backgroundColor: color?.hex ?? "#e5e5e5" }}
+                    style={{ backgroundColor: color?.hex ?? "rgb(var(--ns-200))" }}
                   />
                   <h3 className="text-sm font-semibold text-stone-700">Color {idx + 1}</h3>
                 </div>
@@ -820,7 +820,7 @@ function ColorsStep(p: ColorsProps) {
               {p.recipeLines.map((ln) => {
                 const key = lineId(ln.size, ln.color, ln.finish);
                 const pick = p.picked[key];
-                const hex = COLORS.find((c) => c.name === ln.color)?.hex ?? "#e5e5e5";
+                const hex = COLORS.find((c) => c.name === ln.color)?.hex ?? "rgb(var(--ns-200))";
                 const active = p.activeLineKey === key;
                 return (
                   <div key={key} className={`px-4 py-3 ${active ? "bg-emerald-50/50" : ""}`}>
