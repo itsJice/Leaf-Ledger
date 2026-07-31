@@ -201,7 +201,21 @@ export default function CatalogSearch() {
 
   // Natural-language query → facets. "gold matte ornaments under $5" applies
   // Color=Gold, Finish=Matte, price<5, leaving the rest as the keyword.
+  // A product number is passed through untouched. Smart parsing would read
+  // "N590321-2" as a price range (min 590321, max 2) and "P2856-44" the same
+  // way, wrecking the query — so anything that looks like an item number skips
+  // parsing entirely. The backend already matches SKUs, including partials.
+  const looksLikeProductNumber = (raw: string) => {
+    const q = raw.trim();
+    if (q.length < 3 || /\s/.test(q)) return false;
+    return /\d/.test(q) && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(q);
+  };
+
   const runSmartSearch = () => {
+    if (looksLikeProductNumber(search)) {
+      setSearch(search.trim());
+      return;
+    }
     let text = ` ${search.toLowerCase()} `;
     const add = (group: keyof Selection, val: string) =>
       setSel((prev) => (prev[group].includes(val) ? prev : { ...prev, [group]: [...prev[group], val] }));
@@ -269,7 +283,7 @@ export default function CatalogSearch() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") runSmartSearch(); }}
-              placeholder="Try: green wreaths under $20"
+              placeholder="Item number, or: green wreaths under $20"
               className="w-full rounded-lg border border-stone-300 py-2 pl-9 pr-8 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
             />
             {search && (
@@ -277,7 +291,7 @@ export default function CatalogSearch() {
                 <X size={15} />
               </button>
             )}
-            <p className="absolute -bottom-4 left-1 text-[10px] text-stone-400">↵ Enter to auto-apply colors, finishes, size &amp; price</p>
+            <p className="absolute -bottom-4 left-1 text-[10px] text-stone-400">↵ Enter to auto-apply colors, size &amp; price · item numbers search as-is</p>
           </div>
         </div>
       </header>
