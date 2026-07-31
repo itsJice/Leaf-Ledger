@@ -53,7 +53,10 @@ header h1 svg{color:var(--brand)}
 .card.approved{border:2px solid var(--ok)}
 .card.overwin{border:2px solid var(--danger)}
 .card.dragover{outline:3px dashed var(--brand);outline-offset:-3px}
+.card.focused{box-shadow:0 0 0 2px var(--brand)}
 .chead{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line);background:linear-gradient(#fff,#fbfaf8)}
+.chead-crew{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:5px;padding:2px 5px;margin:-2px -5px}
+.chead-crew:hover{background:var(--brand-soft)}
 .cdot{width:13px;height:13px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.4)}
 .cname{font-family:Georgia,serif;letter-spacing:.03em;font-weight:600;font-size:15px;flex:1;color:var(--ink)}
 .cpeople{font-size:11.5px;color:var(--mut);white-space:nowrap;font-weight:500}
@@ -158,6 +161,7 @@ const N = DATA.node, D = DATA.durs, C = DATA.clients;
 // ---------- state ----------
 let days = DATA.days.map(d=>({...d, stops:[...d.stops]}));
 let approved = new Set(), moves = [], selDate = null;
+let focusDayId = null;   // click a crew header to zoom the map to just their day
 try{
   const s = JSON.parse(localStorage.getItem('tbdg2026review')||'{}');
   if(s.moves){ s.moves.forEach(m=>applyMove(m.row, m.to, false)); moves = s.moves; }
@@ -333,7 +337,14 @@ function fmtDDMMYY(iso){
 }
 function drawDate(date){
   layerGroup.clearLayers();
-  const todays = daysFor(date);
+  let todays = daysFor(date);
+  // A crew header was clicked: zoom to just that one crew-day instead of
+  // the whole date/pool (cleared back to the full view by picking a date
+  // tab again).
+  if(focusDayId){
+    const focused=todays.find(d=>d.id===focusDayId);
+    if(focused) todays=[focused];
+  }
   // Dallas nights: crews stay in DFW (no Antoine round-trip) — center on
   // the night's stops. Houston days include the depot in the frame.
   const bounds=[];
@@ -388,7 +399,7 @@ function renderStrip(){
     const b=document.createElement('button');
     b.className='dchip'+(wknd?' wknd':'')+(selDate===val?' sel':'');
     b.textContent=label; b.dataset.val=val;
-    b.onclick=()=>{selDate=val; render();};
+    b.onclick=()=>{selDate=val; focusDayId=null; render();};
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
     b.ondragleave=()=>b.classList.remove('dragover');
     b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
@@ -421,14 +432,23 @@ function buildDayCard(d){
   const calc=dayCalc(d);
   const card=document.createElement('div');
   const WIN=d.win||600;
-  card.className='card'+(approved.has(d.id)?' approved':'')+(calc.total>WIN?' overwin':'');
+  card.className='card'+(approved.has(d.id)?' approved':'')+(calc.total>WIN?' overwin':'')+
+    (focusDayId===d.id?' focused':'');
   card.dataset.dayid=d.id;
   card.innerHTML=`<div class="chead">
-    <span class="cdot" style="background:${col}"></span>
-    <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
+    <span class="chead-crew" title="Click to zoom the map to just ${d.crew}'s stops">
+      <span class="cdot" style="background:${col}"></span>
+      <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
+    </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>`;
+  card.querySelector('.chead-crew').onclick=()=>{
+    focusDayId=d.id;
+    document.querySelectorAll('.card.focused').forEach(c=>c.classList.remove('focused'));
+    card.classList.add('focused');
+    drawDate(selDate);
+  };
   card.querySelector('.okbtn').onclick=()=>{
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
   if(d.anchored){
