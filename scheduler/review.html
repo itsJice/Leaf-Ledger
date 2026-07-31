@@ -409,13 +409,10 @@ function renderCards(){
     const WIN=d.win||600;
     card.className='card'+(approved.has(d.id)?' approved':'')+(calc.total>WIN?' overwin':'');
     card.dataset.dayid=d.id;
-    const people=Math.max(5,...d.stops.map(r=>C[r].size25||C[r].people||5));
-    const real25=d.stops.reduce((a,r)=>a+(C[r].real25||0),0);
-    const nstore=d.stops.filter(r=>String(C[r].storage).toLowerCase().startsWith('y')).length;
     card.innerHTML=`<div class="chead">
       <span class="cdot" style="background:${col}"></span>
       <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
-      <span class="cpeople">${IC.users} ${people} people${d.joint?' · '+IC.link+' with '+d.joint:(d.stacked>1?' ×'+d.stacked+' crews':'')}</span>
+      <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
       <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
     </div>`;
     card.querySelector('.okbtn').onclick=()=>{
@@ -439,9 +436,10 @@ function renderCards(){
       el.innerHTML=`<span class="num" style="background:${col}">${i+1}</span>
         <div class="body"><div class="nm">${c.name}
           ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
-          ${String(c.storage).toLowerCase().startsWith('y')?`<span class="badge store">${IC.box} ${c.boxes||'Y'}</span>`:''}
           ${approx?'<span class="badge approx">approx pin</span>':''}</div>
-        <div class="sub">${c.zone} · 2026: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b> · 2025 real: ${c.real25!=null?c.real25.toFixed(1)+'h':'—'} · ${c.crew25||''}</div></div>
+        <div class="sub">${c.zone}</div>
+        <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
+        <div class="sub">Box count: <b>${c.boxes||'—'}</b></div></div>
         <button class="mv">move ▾</button>`;
       el.querySelector('.mv').onclick=()=>openMoveDlg(r,null);
       el.ondragstart=e=>e.dataTransfer.setData('row',r);
@@ -457,13 +455,17 @@ function renderCards(){
     });
     const pct=Math.min(100,calc.total/WIN*100);
     const barcol=calc.total>WIN?'#b91c1c':(pct>92?'#ca8a04':'#2d5a33');
+    const winH=(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0);
+    const shiftTxt=(d.lunchMin??40)?`incl. ${((d.lunchMin??40)/60).toFixed(1)}h lunch`:
+      (d.win===480?`${IC.sun} day shift 9am-5pm`:`${IC.moon} night shift`);
     card.insertAdjacentHTML('beforeend',`<div class="cfoot">
-      <div class="tot"><span>Install ${calc.inst.toFixed(1)}h · Drive ${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})${(d.lunchMin??40)?` · Lunch ${((d.lunchMin??40)/60).toFixed(1)}h`:(d.win===480?` · ${IC.sun} day shift 9am-5pm`:` · ${IC.moon} night shift`)}</span>
-      <b style="color:${barcol}">${fmtH(calc.total)} / ${(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0)}h</b></div>
+      <div class="tot"><span>Total day hours</span>
+      <b style="color:${barcol}">${fmtH(calc.total)} / ${winH}h</b></div>
       <div class="bar"><i style="width:${pct}%;background:${barcol}"></i></div>
-      <div class="tot" style="margin-top:4px"><span>2025 these stops: ${real25?real25.toFixed(1)+'h':'—'} · storage: ${nstore}/${d.stops.length}</span></div>
+      <div class="tot" style="margin-top:6px"><span>Total Install Time:</span><b>${calc.inst.toFixed(1)}h</b></div>
+      <div class="tot"><span>Total Drive Time:</span><b>${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</b></div>
+      <div class="tot"><span>Total Day Work Time (estimated):</span><b style="color:${barcol}">${fmtH(calc.total)} · ${shiftTxt}</b></div>
     </div>`);
-    if(d.note) card.insertAdjacentHTML('beforeend',`<div class="note">${d.note}</div>`);
     card.ondragover=e=>{e.preventDefault();card.classList.add('dragover');};
     card.ondragleave=()=>card.classList.remove('dragover');
     card.ondrop=e=>{e.preventDefault();card.classList.remove('dragover');
