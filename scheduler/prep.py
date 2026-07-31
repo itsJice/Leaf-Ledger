@@ -27,7 +27,8 @@ import requests
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 os.makedirs(CACHE, exist_ok=True)
-SRC = os.path.join(HERE, "2025 CHRISTMAS CLIENTS (ORIGINAL).xlsx")
+SRC = os.path.join(HERE, "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx")
+SHEET = "2026 Christmas"
 DEPOT = "2860 Antoine Dr, Houston, TX 77092"
 UA = {"User-Agent": "TBDG-christmas-scheduler/1.0 (justice@wenzdays.com)"}
 
@@ -287,32 +288,45 @@ def categorize(name):
 
 def parse():
     wb = openpyxl.load_workbook(SRC, data_only=True)
-    ws = wb["2025 Christmas"]
+    ws = wb[SHEET]
 
-    def g(r, c):
-        return ws.cell(r, c).value
+    # Header-name column lookup (NOT fixed indices) -- the sheet's column
+    # order has already shifted once between spreadsheet revisions, and a
+    # hardcoded index list silently misreads data on the next reshuffle.
+    col = {}
+    for cell in next(ws.iter_rows(min_row=1, max_row=1)):
+        if cell.value:
+            key = re.sub(r"\s+", " ", str(cell.value).strip())
+            col.setdefault(key, cell.column)
+
+    def h(r, header, *fallbacks):
+        for name in (header,) + fallbacks:
+            c = col.get(name)
+            if c:
+                return ws.cell(r, c).value
+        return None
 
     clients = []
     for r in range(2, ws.max_row + 1):
-        name = g(r, 1)
+        name = h(r, "TBDG CLIENT")
         if name is None or not str(name).strip():
             continue
         name = re.sub(r"\s+", " ", str(name).strip().splitlines()[0]).strip()
         if name.upper() in EXCLUDE:
             continue
 
-        city = (str(g(r, 3)).strip() if g(r, 3) else "")
-        st = (str(g(r, 4)).strip() if g(r, 4) else "TX")
-        zc = ZIP_OVERRIDE.get(name, clean_zip(g(r, 5)))
-        street = clean_street(g(r, 2), city, zc)
+        city = (str(h(r, "CITY")).strip() if h(r, "CITY") else "")
+        st = (str(h(r, "ST")).strip() if h(r, "ST") else "TX")
+        zc = ZIP_OVERRIDE.get(name, clean_zip(h(r, "ZIP")))
+        street = clean_street(h(r, "ADDRESS"), city, zc)
 
         # Messy city cell that actually holds the full address (e.g. Musser)
         if not street and "," in city:
             street = clean_street(city, "", zc)
             city = ""
 
-        est = g(r, 20)
-        real = g(r, 23)
+        est = h(r, "ESTIMATED TOTAL HOURS FOR INSTALL")
+        real = h(r, "2025 Real Hours For Install")
         try:
             est = float(est) if est is not None else None
         except (ValueError, TypeError):
@@ -332,11 +346,12 @@ def parse():
             except (ValueError, TypeError):
                 return None
 
-        prior_date = as_date(g(r, 22))
-        date_2024 = as_date(g(r, 21))
+        prior_date = as_date(h(r, "Install Date 2025"))
+        date_2024 = as_date(h(r, "2024 INSTALL DATE"))
 
-        # 2025 crew name (col 28) — first line; size from "(6)" or roster lines
-        crew_raw = str(g(r, 28)).strip() if g(r, 28) else ""
+        # 2025 crew name — first line; size from "(6)" or roster lines
+        crew_raw_v = h(r, "2025 Crew Name", "Crew Name")
+        crew_raw = str(crew_raw_v).strip() if crew_raw_v else ""
         crew_2025 = crew_raw.splitlines()[0].strip() if crew_raw else ""
         m_sz = re.search(r"\((\d+)\)", crew_2025)
         if m_sz:
@@ -346,17 +361,31 @@ def parse():
         else:
             crew_size_2025 = None
 
-        # staffing asks (cols 16-19)
-        staff = [x for x in (as_int(g(r, 16)), as_int(g(r, 17)),
-                             as_int(g(r, 18)), as_int(g(r, 19))) if x]
+        # staffing asks
+        staff = [x for x in (as_int(h(r, "# CREW LEADS NEEDED")),
+                             as_int(h(r, "# SPECIALTY LABOR (SCAFFOLDING EXTRA TALL LADDER)")),
+                             as_int(h(r, "# DESIGNER / ART DIRECTOR")),
+                             as_int(h(r, "# GENERAL INSTALLERS NEEDED"))) if x]
         people_needed = sum(staff) if staff else None
 
-        box = g(r, 13)
+        box = h(r, "BOX COUNT")
         area, zone = ZIP_ZONE.get(zc, ("UNKNOWN", "UNKNOWN"))
 
         box_sheet = box
         if name in STORAGE_BOX_COUNTS:
             box = STORAGE_BOX_COUNTS[name]
+
+        # 2026 Install Date column: a real date = client already deposited &
+        # reserved that date (hard pin); free text may flag "same day as X"
+        # groupings, "no install" (drop from 2026 entirely), or other notes.
+        raw_2026 = h(r, "2026 Install Date")
+        install_2026_confirmed = (raw_2026.date().isoformat()
+                                  if hasattr(raw_2026, "date") else "")
+        install_2026_note = ("" if raw_2026 is None or hasattr(raw_2026, "date")
+                             else str(raw_2026).strip())
+        install_2026_no_install = bool(re.search(
+            r"no\s*(?:2026\s*)?install\b", install_2026_note, re.I))
+
         rec = {
             "row": r,
             "name": name,
@@ -369,9 +398,9 @@ def parse():
             "box_count": box,
             "box_count_sheet": box_sheet,
             "box_verified": name in STORAGE_BOX_COUNTS,
-            "phone": str(g(r, 8)).strip() if g(r, 8) else "",
-            "email": str(g(r, 9)).strip() if g(r, 9) else "",
-            "storage": str(g(r, 12)).strip() if g(r, 12) else "",
+            "phone": str(h(r, "PHONE")).strip() if h(r, "PHONE") else "",
+            "email": str(h(r, "EMAIL")).strip() if h(r, "EMAIL") else "",
+            "storage": str(h(r, "TBDG STORAGE YES/NO")).strip() if h(r, "TBDG STORAGE YES/NO") else "",
             "date_2024": date_2024,
             "crew_2025": crew_2025,
             "crew_size_2025": crew_size_2025,
@@ -382,6 +411,9 @@ def parse():
             "business": classify(name),
             "category": categorize(name),
             "no_address": name in NO_ADDRESS or (not street and not zc),
+            "install_2026_confirmed": install_2026_confirmed,
+            "install_2026_note": install_2026_note,
+            "install_2026_no_install": install_2026_no_install,
         }
         clients.append(rec)
     return clients

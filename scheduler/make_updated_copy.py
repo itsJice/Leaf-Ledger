@@ -16,7 +16,8 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
-SRC = os.path.join(HERE, "2025 CHRISTMAS CLIENTS (ORIGINAL).xlsx")
+SRC = os.path.join(HERE, "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx")
+SHEET = "2026 Christmas"
 OUT = os.path.join(HERE, "2025 CHRISTMAS CLIENTS (2026 zoning + assignments).xlsx")
 
 clients = json.load(open(os.path.join(CACHE, "clients.json")))["clients"]
@@ -48,12 +49,14 @@ dropped_rows = {c["row"] for c in clients if c["name"] in dropped_names}
 
 shutil.copyfile(SRC, OUT)
 wb = openpyxl.load_workbook(OUT)      # keep formulas / all sheets / formatting
-ws = wb["2025 Christmas"]
+ws = wb[SHEET]
 
 AREA_COL, ZONE_COL = 6, 7
-BOX_COL = 13
-NEW = {"2026 Install Date": 44, "Crew": 45, "Order": 46,
-       "Storage Boxes (verified)": 47}
+BOX_COL = 14
+# "2026 Scheduled Date" (not "2026 Install Date" -- that header already
+# exists as col 9, the client-request/notes column this pipeline reads FROM).
+NEW = {"2026 Scheduled Date": 43, "Crew": 44, "Order": 45,
+       "Storage Boxes (verified)": 46}
 
 hdr_fill = PatternFill("solid", fgColor="0B5D3B")
 hdr_font = Font(bold=True, color="FFFFFF")
@@ -62,10 +65,10 @@ for title, col in NEW.items():
     cell.fill = hdr_fill
     cell.font = hdr_font
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-ws.column_dimensions["AR"].width = 16   # 2026 Install Date
-ws.column_dimensions["AS"].width = 22   # Crew
-ws.column_dimensions["AT"].width = 7    # Order
-ws.column_dimensions["AU"].width = 14   # Storage Boxes (verified)
+ws.column_dimensions["AQ"].width = 16   # 2026 Scheduled Date
+ws.column_dimensions["AR"].width = 22   # Crew
+ws.column_dimensions["AS"].width = 7    # Order
+ws.column_dimensions["AT"].width = 14   # Storage Boxes (verified)
 
 row_boxes = {c["row"]: c for c in clients if c.get("box_verified")}
 MISMATCH = PatternFill("solid", fgColor="FDEBD0")
@@ -80,16 +83,16 @@ for r in range(2, ws.max_row + 1):
     if r in row_assign:
         date_s, crew, order = row_assign[r]
         y, m, day = (int(x) for x in date_s.split("-"))
-        c = ws.cell(r, NEW["2026 Install Date"], datetime.date(y, m, day))
+        c = ws.cell(r, NEW["2026 Scheduled Date"], datetime.date(y, m, day))
         c.number_format = "ddd mm/dd/yyyy"
         ws.cell(r, NEW["Crew"], crew)
         ws.cell(r, NEW["Order"], order)
         updated_assign += 1
     if r not in row_assign:
         if r in dropped_rows:
-            ws.cell(r, NEW["2026 Install Date"], "NO INSTALL 2026")
+            ws.cell(r, NEW["2026 Scheduled Date"], "NO INSTALL 2026")
         elif r in noaddr_rows:
-            ws.cell(r, NEW["2026 Install Date"], "NEEDS ADDRESS")
+            ws.cell(r, NEW["2026 Scheduled Date"], "NEEDS ADDRESS")
     if r in row_boxes:
         c = row_boxes[r]
         cell = ws.cell(r, NEW["Storage Boxes (verified)"], c["box_count"])

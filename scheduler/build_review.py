@@ -235,8 +235,12 @@ function leg(a,b){ return D[a][b]||0; }
 function routeDay(d){
   const idx = d.stops.map(r=>N[r]).filter(i=>i!==undefined);
   if(!idx.length) return {order:[],drive:0};
-  if((d.half||[]).length && !d.edited){
-    // joint job leads the route; keep planned order
+  if(!d.edited){
+    // Unedited day: trust the server's planned order as-is. It's already
+    // exhaustively optimal (route_exact) and may carry a hard ordering
+    // requirement (e.g. a joint job's lead stop, or a client's "X must go
+    // first" note) that this client-side NN+2-opt has no way to know about.
+    // Only an edited day (stops changed via drag) needs a fresh recompute.
     let drive=0;
     const seq=(d.anchored?[0]:[]).concat(d.stops.map(r=>N[r])).concat(d.anchored?[0]:[]);
     for(let i=0;i<seq.length-1;i++) drive+=leg(seq[i],seq[i+1]);

@@ -365,8 +365,10 @@ def main():
     def names(nlist):
         return take(lambda c: c["name"] in set(nlist))
 
-    # ---- DROP: Woodlands CC Tournament (client: no interior install 2026) ----
-    dropped = names(DROP_CLIENTS)
+    # ---- DROP: manual list + anyone the "2026 Install Date" column marks
+    #      "No Install" / "No 2026 Install" (client note, not scheduled --
+    #      excluded from the map/schedule entirely). ----
+    dropped = names(DROP_CLIENTS) + take(lambda c: c.get("install_2026_no_install"))
 
     # ---- Rule 1: Mi Cocina / M Crowd — NIGHT SHIFTS 11pm-6am (7h incl drive),
     #      as few nights as possible, tight geographic groupings. ----
@@ -753,6 +755,39 @@ def main():
     royal = names([ROYAL]) + take(lambda c: c["category"] == "Country Club")  # +any stray
     keffer = names(["Keffer, Pam"])
     marek = names(["Marek Bros"])
+    sims_darcy = names(["Sims, Darcy"])           # confirmed 2026-12-02
+
+    # Rule (2026 Install Date column, client note "1/3, 2/3, 3/3 Same Day"):
+    # A Hug Away's 3 locations (daycare, Frazier residence, office) must be
+    # worked in one visit. All 3 fit comfortably inside the normal 10h cap
+    # (~7h26m total), so no exception needed here.
+    a_hug_away = names(["A Hug Away | Daycare \"A Creative Genius Academy Learning\"",
+                        "A Hug Away | Frazier, Marissa Residence",
+                        "A Hug Away | Office"])
+    if a_hug_away:
+        days.append(build_day(
+            D, "Crew 3", "2026-11-12", a_hug_away, by_idx, "Standard",
+            note="A Hug Away's 3 locations (daycare/residence/office) kept "
+                 "together per client note."))
+        consumed.add(("2026-11-12", "Crew 3"))
+
+    # Rule (2026 Install Date column, client note): Holly Lewis and Love
+    # That Smile must be worked the SAME day, with Love That Smile FIRST
+    # (Holly Lewis's boxes are stored there). Combined install alone is
+    # 10h45m -- already past the normal cap before any drive -- so this is
+    # an explicit exception (same generous window as Capital Bank), pinned
+    # first via start_row per the client's stated order requirement.
+    lewis_lts = names(["Lewis, Holly", "Love That Smile"])
+    if lewis_lts:
+        lts_row = next(c["row"] for c in lewis_lts if c["name"] == "Love That Smile")
+        days.append(build_day(
+            D, "Crew 1", "2026-11-13", lewis_lts, by_idx, "Standard",
+            window=960, start_row=lts_row,
+            note="Holly Lewis + Love That Smile kept on the same day per "
+                 "client note, Love That Smile FIRST (Holly's boxes are "
+                 "stored there). Combined install alone is 10h45m, so this "
+                 "intentionally runs well past the normal 10h cap."))
+        consumed.add(("2026-11-13", "Crew 1"))
 
     # Rule (user, 2026-07-31): Kerri Byler's 3 Bellville locations (house,
     # office, store) must all be worked in ONE visit rather than split
@@ -864,6 +899,8 @@ def main():
             "Royal Oaks per note (install Monday); Crew 1 present", fill=3)
     pin_day("Crew 3", "2026-11-18", keffer, "Standard",
             "Keffer, Pam — confirmed calendar appt Wed Nov 18, 9:15am", fill=3)
+    pin_day("Crew 2", "2026-12-02", sims_darcy, "Standard",
+            "Sims, Darcy — confirmed/deposited date via 2026 Install Date column", fill=2)
 
     # Rule (user, 2026-07-30): NOBODY on a Saturday unless their 2025
     # install was ALSO on a Saturday. Businesses were already weekend-

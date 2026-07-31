@@ -131,8 +131,11 @@ check(not sat_violations,
 # Coverage (distinct clients — joint stops appear on two crews' cards)
 placed = len({s["row"] for x in days for s in x["stops"]})
 ndrop = len(d.get("dropped", []))
-check(placed + ndrop == 123,
-      f"Coverage: {placed} distinct placed + {ndrop} dropped + 2 no-address = {placed + ndrop + 2}/125")
+nnoaddr = len(d.get("flagged_noaddr", []))
+total = len(d.get("all_clients", []))
+check(placed + ndrop + nnoaddr == total,
+      f"Coverage: {placed} distinct placed + {ndrop} dropped + {nnoaddr} "
+      f"no-address = {placed + ndrop + nnoaddr}/{total}")
 
 # Email-pinned dates landed correctly
 assign = {}
@@ -142,9 +145,32 @@ for x in days:
 pins = {"Keffer, Pam": "2026-11-18", "Marek Bros": "2026-11-30",
         "The Club at Carlton Woods | Nicklaus Clubhouse": "2026-11-27",
         "The Club at Carlton Woods | Fazio Clubhouse": "2026-12-01",
-        "Woodlands CC Players": "2026-11-25", "Woodlands CC Palmer": "2026-11-30"}
+        "Woodlands CC Players": "2026-11-25", "Woodlands CC Palmer": "2026-11-30",
+        "Sims, Darcy": "2026-12-02"}
 for nm, dt in pins.items():
     check(assign.get(nm) == dt, f"PIN {nm} -> {dt} (got {assign.get(nm)})")
+
+# Same-day groupings (2026 Install Date column notes)
+same_day_groups = [
+    ["A Hug Away | Daycare \"A Creative Genius Academy Learning\"",
+     "A Hug Away | Frazier, Marissa Residence", "A Hug Away | Office"],
+    ["Lewis, Holly", "Love That Smile"],
+    ["Byler, Kerri - House", "Byler, Kerri - Office",
+     "Byler, Kerri - Store Buck Ferguson"],
+]
+for grp in same_day_groups:
+    dts = {assign.get(nm) for nm in grp}
+    check(len(dts) == 1 and None not in dts,
+          f"SAME-DAY {grp} -> {dts}")
+
+# Dropped clients (2026 Install Date says "No Install")
+no_install = ["Gitu, Patrick", "Tenaris", "Valenzuela, Melinda"]
+dropped_names = {c["name"] for c in d.get("dropped", [])}
+missing = [nm for nm in no_install if nm not in dropped_names]
+check(not missing, f"DROP no-2026-install clients: missing from dropped: {missing}")
+still_scheduled = [nm for nm in no_install if nm in assign]
+check(not still_scheduled,
+      f"DROP no-2026-install clients: should NOT be scheduled: {still_scheduled}")
 
 print("=" * 70)
 for status, msg in ok + warn:
