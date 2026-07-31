@@ -7,6 +7,7 @@ non-negotiable rule, packs standard Houston clients into crew-days, routes
 each crew-day with real OSRM drive time, validates the 8am-8pm window, and
 writes the Excel workbook + interactive Leaflet map.
 """
+import datetime
 import json
 import os
 from collections import defaultdict
@@ -824,10 +825,38 @@ def main():
     pin_day("Niurka", "2026-11-18", keffer, "Standard",
             "Keffer, Pam — confirmed calendar appt Wed Nov 18, 9:15am", fill=3)
 
+    # Rule (user, 2026-07-30): NOBODY on a Saturday unless their 2025
+    # install was ALSO on a Saturday. Businesses were already weekend-
+    # excluded; this restricts residences too. Split the Saturday-history
+    # clients out and cluster them separately BEFORE the general geographic
+    # packing, so a Saturday-eligible client never gets welded into a bin
+    # with an ineligible neighbor (which would make the whole bin
+    # ineligible) -- and so ordinary weekday packing doesn't quietly count
+    # on Saturday capacity that no longer exists for most clients.
+    def prior_was_saturday(c):
+        d = c.get("prior_install_date", "")
+        if not d or len(d) < 10:
+            return False
+        try:
+            return datetime.date.fromisoformat(d[:10]).weekday() == 5  # Sat
+        except ValueError:
+            return False
+
+    sat_eligible = [c for c in standard
+                    if c["business"] == "Residence" and prior_was_saturday(c)]
+    for c in sat_eligible:
+        standard.remove(c)
+    print(f"  Saturday-eligible (2025 install was a Saturday): "
+          f"{[c['name'] for c in sat_eligible]}")
+
+    sat_bins = merge_singletons(D, pack_bins(D, sat_eligible, by_idx)) \
+        if sat_eligible else []
+
     bins = pack_bins(D, standard, by_idx)
     bins = merge_singletons(D, bins)
 
-    # classify bins: residence-only can go Saturday
+    # classify the (Saturday-ineligible) remainder: business vs residence
+    # is no longer a Saturday/weekday split -- both are weekday-only now.
     biz_bins, res_bins = [], []
     for b in bins:
         (res_bins if all(x["business"] == "Residence" for x in b) else biz_bins).append(b)
@@ -851,7 +880,6 @@ def main():
     pinned_dates = {dt for (dt, cr) in consumed}
     weekday_slots.sort(key=lambda s: (s[0] not in pinned_dates, s[0]))
 
-    # assign residence-only bins to Saturdays first, remainder to weekdays
     slot_load = defaultdict(float)
     assignments = []
 
@@ -866,9 +894,17 @@ def main():
         slot_load[slot] += sum(x["cal_hours"] for x in bin_stops)
         return slot
 
-    for b in sorted(res_bins, key=lambda b: -sum(x["cal_hours"] for x in b)):
+    # Saturday-eligible bins prefer a Saturday but fall back to a weekday
+    # if Saturday capacity runs out (eligibility is a ceiling, not a floor
+    # -- nobody is REQUIRED to work Saturday).
+    for b in sorted(sat_bins, key=lambda b: -sum(x["cal_hours"] for x in b)):
         pool = sat_slots if sat_slots else weekday_slots
         slot = place(b, pool)
+        if slot:
+            assignments.append((slot, b, "Standard"))
+    # Everyone else: weekday only, never Saturday.
+    for b in sorted(res_bins, key=lambda b: -sum(x["cal_hours"] for x in b)):
+        slot = place(b, weekday_slots)
         if slot:
             assignments.append((slot, b, "Standard"))
     for b in sorted(biz_bins, key=lambda b: -sum(x["cal_hours"] for x in b)):

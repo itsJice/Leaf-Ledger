@@ -106,6 +106,28 @@ light = [(x["date"], x["crew"], round(x["total_min"] / 60, 1))
 check(True, f"R11 Houston 7.5h-min: {len(light)} light day(s) "
       f"(isolated-area/rule exceptions): {light}")
 
+# Rule 12 (user, 2026-07-30): no one on a Saturday unless their 2025
+# install was ALSO a Saturday.
+import datetime as _dt
+def _was_sat(iso):
+    if not iso or len(iso) < 10:
+        return False
+    try:
+        return _dt.date.fromisoformat(iso[:10]).weekday() == 5
+    except ValueError:
+        return False
+sat_violations = []
+for x in days:
+    if x["dow"] != "Sat":
+        continue
+    for s in x["stops"]:
+        if not _was_sat(s.get("prior_install_date", "")):
+            sat_violations.append((x["date"], x["crew"], s["name"],
+                                   s.get("prior_install_date", "")))
+check(not sat_violations,
+      f"R12 Saturday clients all have 2025 Saturday history: "
+      f"{len(sat_violations)} violation(s): {sat_violations}")
+
 # Coverage (distinct clients — joint stops appear on two crews' cards)
 placed = len({s["row"] for x in days for s in x["stops"]})
 ndrop = len(d.get("dropped", []))

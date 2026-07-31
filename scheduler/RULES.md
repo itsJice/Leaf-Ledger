@@ -68,6 +68,19 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
   clubs-on-Mondays yields to Carlton Woods' emailed Fri/Tue dates).
 - Fill pinned/client dates first so those days run all 3 crews; empty days
   consolidate into a buffer block before Thanksgiving.
+- SATURDAYS ARE RESTRICTED (user rule, 2026-07-30): a client may be
+  scheduled on a Saturday ONLY IF their prior-year install was ALSO on a
+  Saturday (checked from prior_install_date's actual weekday, not
+  inferred). This is a ceiling, not a floor -- a Saturday-eligible client
+  can still land on a weekday (e.g. as filler for a pinned day) and that's
+  fine; the rule is only violated if an INELIGIBLE client ends up on a
+  Saturday. Implementation: split eligible residences out of the standard
+  pool and cluster them separately BEFORE the general geographic packing
+  (schedule.py) -- clustering them together with the general pool first
+  would weld an eligible client into a bin with ineligible neighbors and
+  make the whole bin ineligible. Businesses were already weekend-excluded
+  by the no-business-on-weekends rule, so this only ever affects
+  residences. validate.py R12 checks every Saturday stop's history.
 
 ## 6. DALLAS / Mi Cocina rules
 - Out-of-town trip: crews STAY in Dallas (no depot). ~25 restaurants.
