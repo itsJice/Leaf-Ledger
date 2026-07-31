@@ -390,7 +390,7 @@ document.getElementById('legend').innerHTML = areas.map(a=>
   `<div class="row"><span style="background:${DATA.areaColors[a]||'#888'}"></span>${a}</div>`).join('');
 
 // routes
-const CREW_COLORS = {"Alberto":"#c2410c","Lesly":"#0369a1","Niurka":"#2d5a33"};
+const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33"};
 function crewCol(crew){
   for(const k in CREW_COLORS) if(crew.includes(k)) return CREW_COLORS[k];
   return "#7d3c98";

@@ -213,9 +213,9 @@ const IC={
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
  home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'};
-const CREW_COLORS = {"Alberto":"#c2410c","Lesly":"#0369a1","Niurka":"#2d5a33",
-  "Alberto + Lesly (stacked)":"#7d3c98","Alberto + Lesly + Niurka (stacked)":"#b9770e"};
-const BASE_CREWS = ["Alberto","Lesly","Niurka"];
+const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
+  "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
+const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
 const LUNCH=40;
 const N = DATA.node, D = DATA.durs, C = DATA.clients;
 

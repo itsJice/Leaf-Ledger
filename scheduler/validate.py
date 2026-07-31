@@ -26,7 +26,7 @@ mc_count = len({s["row"] for x in mc_days for s in x["stops"]})
 check(mc_count == 25, f"R1 all 25 M Crowd placed (distinct): {mc_count}")
 check(all(not x["depot_anchored"] for x in mc_days), "R1 Dallas routed w/o Houston depot")
 
-# Rule 2: Alberto present on every club JOB. Joint days put the same stop
+# Rule 2: Crew 1 present on every club JOB. Joint days put the same stop
 # on multiple crews' cards, so check per-STOP crew coverage.
 stop_crews = {}
 for x in days:
@@ -36,8 +36,8 @@ club_days = [x for x in days if x["category"] == "Country Club"]
 club_rows = {s["row"]: s["name"] for x in club_days for s in x["stops"]
              if s["category"] == "Country Club"}
 noalb = [nm for r, nm in club_rows.items()
-         if not any("Alberto" in cr for cr in stop_crews[r])]
-check(not noalb, f"R2 Alberto on every club job: missing on {noalb}")
+         if not any("Crew 1" in cr for cr in stop_crews[r])]
+check(not noalb, f"R2 Crew 1 on every club job: missing on {noalb}")
 club_dates = sorted({x['date'] for x in club_days})
 check(True, f"R2 club dates (client-driven, not Mondays-only): {club_dates}")
 
@@ -51,11 +51,11 @@ check(len(bank_days) <= 2, f"R3 banks on <=2 crews: {len(bank_days)} crew-day(s)
 rot = [x for x in days if x["category"] == "Rotary House"]
 check(all(x["date"] == "2026-11-29" for x in rot), "R4 Rotary on Sun Nov 29")
 
-# Rule 5: Brenda covered by BOTH Alberto and Lesly (joint cards)
+# Rule 5: Brenda covered by BOTH Crew 1 and Crew 2 (joint cards)
 br_rows = [s["row"] for x in days for s in x["stops"] if s["name"] == "Ryan, Brenda"]
 br_crews = stop_crews.get(br_rows[0], set()) if br_rows else set()
-check(any("Alberto" in c for c in br_crews) and any("Lesly" in c for c in br_crews),
-      f"R5 Brenda covered by Alberto AND Lesly: {sorted(br_crews)}")
+check(any("Crew 1" in c for c in br_crews) and any("Crew 2" in c for c in br_crews),
+      f"R5 Brenda covered by Crew 1 AND Crew 2: {sorted(br_crews)}")
 
 # Rule 7: no businesses on weekends (Sat/Sun) except Rotary Sunday
 bad_weekend = []

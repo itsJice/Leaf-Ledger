@@ -8,7 +8,7 @@
     {
       "date": "2026-11-02",
       "dow": "Mon",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "M Crowd",
       "stops": [
         {
@@ -95,8 +95,8 @@
       "half_rows": [
         64
       ],
-      "joint_with": "Lesly",
-      "note": "JOINT: both crews open Lake Highlands together at 11pm (hours split with Lesly), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
+      "joint_with": "Crew 2",
+      "note": "JOINT: both crews open Lake Highlands together at 11pm (hours split with Crew 2), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
       "flags": [],
       "zones": [
         "Lakewood/Lake Highlands"
@@ -147,7 +147,7 @@
     {
       "date": "2026-11-02",
       "dow": "Mon",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "M Crowd",
       "stops": [
         {
@@ -234,8 +234,8 @@
       "half_rows": [
         64
       ],
-      "joint_with": "Alberto",
-      "note": "JOINT: both crews open Lake Highlands together at 11pm (hours split with Alberto), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
+      "joint_with": "Crew 1",
+      "note": "JOINT: both crews open Lake Highlands together at 11pm (hours split with Crew 1), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
       "flags": [],
       "zones": [
         "Lakewood/Lake Highlands",
@@ -319,7 +319,7 @@
     {
       "date": "2026-11-02",
       "dow": "Mon",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "M Crowd",
       "stops": [
         {
@@ -378,7 +378,7 @@
     {
       "date": "2026-11-02",
       "dow": "Mon",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "M Crowd",
       "stops": [
         {
@@ -499,7 +499,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip",
       "flags": [],
       "zones": [
         "Addison/Carrollton/Richardson",
@@ -588,7 +588,7 @@
     {
       "date": "2026-11-03",
       "dow": "Tue",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "M Crowd",
       "stops": [
         {
@@ -675,8 +675,8 @@
       "half_rows": [
         79
       ],
-      "joint_with": "Lesly",
-      "note": "JOINT: both crews open Highland Park Village together at 11pm (hours split with Lesly), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
+      "joint_with": "Crew 2",
+      "note": "JOINT: both crews open Highland Park Village together at 11pm (hours split with Crew 2), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
       "flags": [],
       "zones": [
         "Uptown/Park Cities"
@@ -747,7 +747,7 @@
     {
       "date": "2026-11-03",
       "dow": "Tue",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "M Crowd",
       "stops": [
         {
@@ -834,8 +834,8 @@
       "half_rows": [
         79
       ],
-      "joint_with": "Alberto",
-      "note": "JOINT: both crews open Highland Park Village together at 11pm (hours split with Alberto), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
+      "joint_with": "Crew 1",
+      "note": "JOINT: both crews open Highland Park Village together at 11pm (hours split with Crew 1), then each runs its own stops. Mi Cocina night 11pm-6am incl drive.",
       "flags": [],
       "zones": [
         "Uptown/Park Cities"
@@ -898,7 +898,7 @@
     {
       "date": "2026-11-03",
       "dow": "Tue",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "M Crowd",
       "stops": [
         {
@@ -1019,7 +1019,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip",
       "flags": [],
       "zones": [
         "Plano/Frisco",
@@ -1132,7 +1132,7 @@
     {
       "date": "2026-11-04",
       "dow": "Wed",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "M Crowd",
       "stops": [
         {
@@ -1218,7 +1218,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip",
       "flags": [],
       "zones": [
         "Allen/McKinney"
@@ -1289,7 +1289,7 @@
     {
       "date": "2026-11-04",
       "dow": "Wed",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "M Crowd",
       "stops": [
         {
@@ -1375,7 +1375,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip",
       "flags": [],
       "zones": [
         "Preston Hollow/NorthPark",
@@ -1455,7 +1455,7 @@
     {
       "date": "2026-11-04",
       "dow": "Wed",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "M Crowd",
       "stops": [
         {
@@ -1576,7 +1576,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip",
       "flags": [],
       "zones": [
         "Las Colinas/Irving",
@@ -1669,7 +1669,7 @@
     {
       "date": "2026-11-05",
       "dow": "Thu",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "M Crowd",
       "stops": [
         {
@@ -1755,7 +1755,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip LAST NIGHT kept light on purpose \u2014 buffer for pushed stops and loose ends.",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip LAST NIGHT kept light on purpose \u2014 buffer for pushed stops and loose ends.",
       "flags": [],
       "zones": [
         "Fort Worth"
@@ -1810,7 +1810,7 @@
     {
       "date": "2026-11-05",
       "dow": "Thu",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "M Crowd",
       "stops": [
         {
@@ -1896,7 +1896,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip LAST NIGHT kept light on purpose \u2014 buffer for pushed stops and loose ends.",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip LAST NIGHT kept light on purpose \u2014 buffer for pushed stops and loose ends.",
       "flags": [],
       "zones": [
         "Flower Mound/Southlake/Grapevine",
@@ -2000,7 +2000,7 @@
     {
       "date": "2026-11-05",
       "dow": "Thu",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "M Crowd",
       "stops": [
         {
@@ -2050,7 +2050,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Alberto + Lesly both on Dallas trip LAST NIGHT kept light on purpose \u2014 buffer for pushed stops and loose ends.",
+      "note": "Mi Cocina night shift 11pm-6am incl drive; 3 crews every night; Crew 1 + Crew 2 both on Dallas trip LAST NIGHT kept light on purpose \u2014 buffer for pushed stops and loose ends.",
       "flags": [
         "single-stop day"
       ],
@@ -2061,7 +2061,7 @@
     {
       "date": "2026-11-09",
       "dow": "Mon",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -2397,7 +2397,7 @@
     {
       "date": "2026-11-09",
       "dow": "Mon",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -2767,7 +2767,7 @@
     {
       "date": "2026-11-09",
       "dow": "Mon",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -3007,7 +3007,7 @@
     {
       "date": "2026-11-10",
       "dow": "Tue",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -3259,7 +3259,7 @@
     {
       "date": "2026-11-10",
       "dow": "Tue",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -3543,7 +3543,7 @@
     {
       "date": "2026-11-10",
       "dow": "Tue",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -3787,7 +3787,7 @@
     {
       "date": "2026-11-11",
       "dow": "Wed",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -3991,7 +3991,7 @@
     {
       "date": "2026-11-11",
       "dow": "Wed",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -4342,7 +4342,7 @@
     {
       "date": "2026-11-11",
       "dow": "Wed",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -4636,7 +4636,7 @@
     {
       "date": "2026-11-12",
       "dow": "Thu",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -4885,7 +4885,7 @@
     {
       "date": "2026-11-12",
       "dow": "Thu",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -5178,7 +5178,7 @@
     {
       "date": "2026-11-12",
       "dow": "Thu",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -5457,7 +5457,7 @@
     {
       "date": "2026-11-13",
       "dow": "Fri",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -5699,7 +5699,7 @@
     {
       "date": "2026-11-13",
       "dow": "Fri",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -5948,7 +5948,7 @@
     {
       "date": "2026-11-13",
       "dow": "Fri",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -6154,7 +6154,7 @@
     {
       "date": "2026-11-14",
       "dow": "Sat",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -6491,7 +6491,7 @@
     {
       "date": "2026-11-14",
       "dow": "Sat",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -6776,7 +6776,7 @@
     {
       "date": "2026-11-14",
       "dow": "Sat",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -7020,7 +7020,7 @@
     {
       "date": "2026-11-16",
       "dow": "Mon",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Country Club",
       "stops": [
         {
@@ -7143,7 +7143,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Royal Oaks per note (install Monday); Alberto present",
+      "note": "Royal Oaks per note (install Monday); Crew 1 present",
       "flags": [],
       "zones": [
         "Energy Corridor/Westchase",
@@ -7378,7 +7378,7 @@
     {
       "date": "2026-11-16",
       "dow": "Mon",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -7639,7 +7639,7 @@
     {
       "date": "2026-11-16",
       "dow": "Mon",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -7868,7 +7868,7 @@
     {
       "date": "2026-11-17",
       "dow": "Tue",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -8097,7 +8097,7 @@
     {
       "date": "2026-11-17",
       "dow": "Tue",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -8265,7 +8265,7 @@
     {
       "date": "2026-11-17",
       "dow": "Tue",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -8516,7 +8516,7 @@
     {
       "date": "2026-11-18",
       "dow": "Wed",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -8802,7 +8802,7 @@
     {
       "date": "2026-11-18",
       "dow": "Wed",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -9050,7 +9050,7 @@
     {
       "date": "2026-11-18",
       "dow": "Wed",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -9340,7 +9340,7 @@
     {
       "date": "2026-11-19",
       "dow": "Thu",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -9603,7 +9603,7 @@
     {
       "date": "2026-11-19",
       "dow": "Thu",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -9828,7 +9828,7 @@
     {
       "date": "2026-11-19",
       "dow": "Thu",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -9988,7 +9988,7 @@
     {
       "date": "2026-11-21",
       "dow": "Sat",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -10224,7 +10224,7 @@
     {
       "date": "2026-11-24",
       "dow": "Tue",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Brenda Ryan",
       "stops": [
         {
@@ -10314,8 +10314,8 @@
         5,
         103
       ],
-      "joint_with": "Lesly",
-      "note": "Brenda Ryan requires Alberto + Lesly together; +nearby residence (working jointly with Lesly's crew)",
+      "joint_with": "Crew 2",
+      "note": "Brenda Ryan requires Crew 1 + Crew 2 together; +nearby residence (working jointly with Crew 2's crew)",
       "flags": [],
       "zones": [
         "Missouri City/Sienna",
@@ -10465,7 +10465,7 @@
     {
       "date": "2026-11-24",
       "dow": "Tue",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Brenda Ryan",
       "stops": [
         {
@@ -10555,8 +10555,8 @@
         5,
         103
       ],
-      "joint_with": "Alberto",
-      "note": "Brenda Ryan requires Alberto + Lesly together; +nearby residence (working jointly with Alberto's crew)",
+      "joint_with": "Crew 1",
+      "note": "Brenda Ryan requires Crew 1 + Crew 2 together; +nearby residence (working jointly with Crew 1's crew)",
       "flags": [],
       "zones": [
         "Missouri City/Sienna",
@@ -10706,7 +10706,7 @@
     {
       "date": "2026-11-24",
       "dow": "Tue",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -10965,7 +10965,7 @@
     {
       "date": "2026-11-25",
       "dow": "Wed",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Country Club",
       "stops": [
         {
@@ -11088,7 +11088,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Woodlands CC Players per note (Wed Nov 25 \u2014 overrides clubs-Monday); Alberto present",
+      "note": "Woodlands CC Players per note (Wed Nov 25 \u2014 overrides clubs-Monday); Crew 1 present",
       "flags": [],
       "zones": [
         "The Woodlands"
@@ -11250,7 +11250,7 @@
     {
       "date": "2026-11-25",
       "dow": "Wed",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -11461,7 +11461,7 @@
     {
       "date": "2026-11-25",
       "dow": "Wed",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -11684,7 +11684,7 @@
     {
       "date": "2026-11-27",
       "dow": "Fri",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Country Club",
       "stops": [
         {
@@ -11772,7 +11772,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Carlton Woods Nicklaus+Outdoor per client: Fri-Sat Nov 27-28 + tweak Mon Nov 30; outdoor location TBD; overrides clubs-Monday; Alberto present",
+      "note": "Carlton Woods Nicklaus+Outdoor per client: Fri-Sat Nov 27-28 + tweak Mon Nov 30; outdoor location TBD; overrides clubs-Monday; Crew 1 present",
       "flags": [],
       "zones": [
         "The Woodlands"
@@ -11941,7 +11941,7 @@
     {
       "date": "2026-11-27",
       "dow": "Fri",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Capital Bank",
       "stops": [
         {
@@ -12099,7 +12099,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "8 banks split across 2 crews (won't fit 1). West cluster. Alberto freed for Carlton Woods.",
+      "note": "8 banks split across 2 crews (won't fit 1). West cluster. Crew 1 freed for Carlton Woods.",
       "flags": [],
       "zones": [
         "Katy/Fulshear",
@@ -12373,7 +12373,7 @@
     {
       "date": "2026-11-27",
       "dow": "Fri",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Capital Bank",
       "stops": [
         {
@@ -12780,7 +12780,7 @@
     {
       "date": "2026-11-29",
       "dow": "Sun",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Rotary House",
       "stops": [
         {
@@ -12969,7 +12969,7 @@
     {
       "date": "2026-11-30",
       "dow": "Mon",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Country Club",
       "stops": [
         {
@@ -13095,8 +13095,8 @@
         122,
         124
       ],
-      "joint_with": "Lesly",
-      "note": "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Alberto present (working jointly with Lesly's crew)",
+      "joint_with": "Crew 2",
+      "note": "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Crew 1 present (working jointly with Crew 2's crew)",
       "flags": [],
       "zones": [
         "The Woodlands"
@@ -13298,7 +13298,7 @@
     {
       "date": "2026-11-30",
       "dow": "Mon",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Country Club",
       "stops": [
         {
@@ -13424,8 +13424,8 @@
         122,
         124
       ],
-      "joint_with": "Alberto",
-      "note": "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Alberto present (working jointly with Alberto's crew)",
+      "joint_with": "Crew 1",
+      "note": "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Crew 1 present (working jointly with Crew 1's crew)",
       "flags": [],
       "zones": [
         "The Woodlands"
@@ -13627,7 +13627,7 @@
     {
       "date": "2026-11-30",
       "dow": "Mon",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -13960,7 +13960,7 @@
     {
       "date": "2026-12-01",
       "dow": "Tue",
-      "crew": "Alberto",
+      "crew": "Crew 1",
       "category": "Country Club",
       "stops": [
         {
@@ -14048,7 +14048,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Carlton Woods Fazio per client (Tue Dec 1); overrides clubs-Monday; Alberto present",
+      "note": "Carlton Woods Fazio per client (Tue Dec 1); overrides clubs-Monday; Crew 1 present",
       "flags": [],
       "zones": [
         "The Woodlands"
@@ -14225,7 +14225,7 @@
     {
       "date": "2026-12-01",
       "dow": "Tue",
-      "crew": "Lesly",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -14526,7 +14526,7 @@
     {
       "date": "2026-12-01",
       "dow": "Tue",
-      "crew": "Niurka",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {

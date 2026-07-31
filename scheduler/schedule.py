@@ -27,8 +27,8 @@ NIGHT_MIN = 390       # ...and MIN 6.5h of work on every night EXCEPT the
                       # last, which stays light as the buffer (user rule)
 NIGHT_MAX = 540       # absolute hard wall 8am; 6:30-8am is overrun buffer
 RADIUS_S = 1800       # every stop must be within 30 min drive of its day-group
-# Crews are named by their lead: Alberto, Lesly, Niurka
-CREWS = ["Alberto", "Lesly", "Niurka"]
+# Crews are named by their lead: Crew 1, Crew 2, Crew 3
+CREWS = ["Crew 1", "Crew 2", "Crew 3"]
 
 # 2026 November calendar (Thanksgiving = Thu Nov 26).
 DALLAS_DAYS = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"]
@@ -407,7 +407,7 @@ def main():
     corp = [c for c in dallas if "Corporate Office" in c["name"]]
     for c in corp:
         days.append(build_day(
-            D, "Niurka", DALLAS_DAYS[0], [c], by_idx, "M Crowd",
+            D, "Crew 3", DALLAS_DAYS[0], [c], by_idx, "M Crowd",
             depot_anchored=False, stacked_crews=1, window=480, lunch=0,
             allow_single=True,
             note="DAYTIME install — client requires business hours (9am-5pm). "
@@ -715,29 +715,29 @@ def main():
                                       stacked_crews=1, window=NIGHT, lunch=0,
                                       note="Mi Cocina night shift 11pm-6am incl "
                                            "drive; 3 crews every night; "
-                                           "Alberto + Lesly both on Dallas trip"
+                                           "Crew 1 + Crew 2 both on Dallas trip"
                                            + buff))
     used = sum(1 for n in plan if n)
     print(f"  Mi Cocina: 3 crews x {used} nights "
           f"({len(night_bins)} crew-nights)")
 
-    # ---- Rule 3: Capital Banks, Fri Nov 27. Split Lesly(west)+Niurka(east) so
+    # ---- Rule 3: Capital Banks, Fri Nov 27. Split Crew 2(west)+Crew 3(east) so
     #      ALBERTO is free to lead the client-requested Carlton Woods club. ----
     banks = take(lambda c: c["category"] == "Capital Bank")
     bs = sorted(banks, key=lambda c: c["lon"])
     half = len(bs) // 2
-    days.append(build_day(D, "Lesly", BANK_FRIDAY, bs[:half], by_idx, "Capital Bank",
-                          note="8 banks split across 2 crews (won't fit 1). West cluster. Alberto freed for Carlton Woods."))
-    days.append(build_day(D, "Niurka", BANK_FRIDAY, bs[half:], by_idx, "Capital Bank",
+    days.append(build_day(D, "Crew 2", BANK_FRIDAY, bs[:half], by_idx, "Capital Bank",
+                          note="8 banks split across 2 crews (won't fit 1). West cluster. Crew 1 freed for Carlton Woods."))
+    days.append(build_day(D, "Crew 3", BANK_FRIDAY, bs[half:], by_idx, "Capital Bank",
                           note="Banks split across 2 crews, same Friday. East cluster."))
-    consumed.update({(BANK_FRIDAY, "Lesly"), (BANK_FRIDAY, "Niurka"), (BANK_FRIDAY, "Alberto")})
+    consumed.update({(BANK_FRIDAY, "Crew 2"), (BANK_FRIDAY, "Crew 3"), (BANK_FRIDAY, "Crew 1")})
 
     # ---- Rule 4: Rotary House, Sunday Nov 29 ----
     rotary = take(lambda c: c["category"] == "Rotary House")
     if rotary:
-        days.append(build_day(D, "Niurka", ROTARY_SUNDAY, rotary, by_idx,
+        days.append(build_day(D, "Crew 3", ROTARY_SUNDAY, rotary, by_idx,
                               "Rotary House", note="Only allowed Sunday (business exception)"))
-        consumed.add((ROTARY_SUNDAY, "Niurka"))
+        consumed.add((ROTARY_SUNDAY, "Crew 3"))
 
     # ---- Claim pinned (email-dated) clients before the standard pool forms ----
     brenda = take(lambda c: c["category"] == "Brenda Ryan")
@@ -798,31 +798,31 @@ def main():
                                   note=note + f" (working jointly with {other}'s crew)"))
             consumed.add((date, cr))
 
-    # Rule 5: Brenda Ryan (Alberto + Lesly), Tue Nov 24 + 1 nearby residence
+    # Rule 5: Brenda Ryan (Crew 1 + Crew 2), Tue Nov 24 + 1 nearby residence
     if brenda:
         res_near = sorted([c for c in standard if c["business"] == "Residence"
                            and leg(D, brenda[0]["midx"], c["midx"]) <= RADIUS_S],
                           key=lambda c: leg(D, brenda[0]["midx"], c["midx"]))[:1]
         for c in res_near:
             standard.remove(c)
-        joint_convoy(["Alberto", "Lesly"], "2026-11-24", brenda + res_near,
+        joint_convoy(["Crew 1", "Crew 2"], "2026-11-24", brenda + res_near,
                      "Brenda Ryan",
-                     "Brenda Ryan requires Alberto + Lesly together; +nearby residence")
+                     "Brenda Ryan requires Crew 1 + Crew 2 together; +nearby residence")
 
     # --- Email-pinned clubs & appointments (client requests win over Mondays rule) ---
-    joint_convoy(["Alberto", "Lesly"], "2026-11-30", wcc30, "Country Club",
-                 "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Alberto present")
-    pin_day("Niurka", "2026-11-30", marek, "Standard",
+    joint_convoy(["Crew 1", "Crew 2"], "2026-11-30", wcc30, "Country Club",
+                 "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Crew 1 present")
+    pin_day("Crew 3", "2026-11-30", marek, "Standard",
             "Marek Bros — client requested install Mon Nov 30 (Lisa Walla)", fill=3)
-    pin_day("Alberto", "2026-11-25", players, "Country Club",
-            "Woodlands CC Players per note (Wed Nov 25 — overrides clubs-Monday); Alberto present", fill=3)
-    pin_day("Alberto", "2026-11-27", carlton, "Country Club",
-            "Carlton Woods Nicklaus+Outdoor per client: Fri-Sat Nov 27-28 + tweak Mon Nov 30; outdoor location TBD; overrides clubs-Monday; Alberto present")
-    pin_day("Alberto", "2026-12-01", fazio, "Country Club",
-            "Carlton Woods Fazio per client (Tue Dec 1); overrides clubs-Monday; Alberto present", fill=2)
-    pin_day("Alberto", "2026-11-16", royal, "Country Club",
-            "Royal Oaks per note (install Monday); Alberto present", fill=3)
-    pin_day("Niurka", "2026-11-18", keffer, "Standard",
+    pin_day("Crew 1", "2026-11-25", players, "Country Club",
+            "Woodlands CC Players per note (Wed Nov 25 — overrides clubs-Monday); Crew 1 present", fill=3)
+    pin_day("Crew 1", "2026-11-27", carlton, "Country Club",
+            "Carlton Woods Nicklaus+Outdoor per client: Fri-Sat Nov 27-28 + tweak Mon Nov 30; outdoor location TBD; overrides clubs-Monday; Crew 1 present")
+    pin_day("Crew 1", "2026-12-01", fazio, "Country Club",
+            "Carlton Woods Fazio per client (Tue Dec 1); overrides clubs-Monday; Crew 1 present", fill=2)
+    pin_day("Crew 1", "2026-11-16", royal, "Country Club",
+            "Royal Oaks per note (install Monday); Crew 1 present", fill=3)
+    pin_day("Crew 3", "2026-11-18", keffer, "Standard",
             "Keffer, Pam — confirmed calendar appt Wed Nov 18, 9:15am", fill=3)
 
     # Rule (user, 2026-07-30): NOBODY on a Saturday unless their 2025

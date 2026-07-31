@@ -61,9 +61,9 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
 - No businesses on weekends. Residences may take Saturdays. Rotary House is
   the ONLY Sunday (Sunday after Thanksgiving).
 - Capital Banks: all 8 on Black Friday; won't fit one crew — split 2 crews
-  by east/west. Schedule so Alberto stays free if a club falls that day.
-- Alberto must be on EVERY country-club job. Brenda Ryan requires Alberto
-  AND Lesly together (joint day).
+  by east/west. Schedule so Crew 1 stays free if a club falls that day.
+- Crew 1 must be on EVERY country-club job. Brenda Ryan requires Crew 1
+  AND Crew 2 together (joint day).
 - Client-requested dates from email ALWAYS override generic rules (e.g.
   clubs-on-Mondays yields to Carlton Woods' emailed Fri/Tue dates).
 - Fill pinned/client dates first so those days run all 3 crews; empty days
@@ -92,7 +92,7 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
   = overrun buffer only). No lunch modeled on nights.
 - A route under 6.5h is acceptable only if MAX-PACKED (adding even the
   smallest remaining restaurant would exceed 7.5h) or on the final night.
-- **3 crews every night.** Crews are named by lead: Alberto, Lesly, Niurka.
+- **3 crews every night.** Crews are named by lead: Crew 1, Crew 2, Crew 3.
 - Mega restaurants (>7h solo) get TWO crews jointly: both meet at the mega
   at 11pm (halve its hours), then split to their own nearby stops. Show as
   one card PER CREW with a joint badge — never a merged "stacked" card.
@@ -129,7 +129,7 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
   per-crew cards, drag-drop moves re-routed live from the OSRM matrix,
   approvals, Export JSON→ feed decisions back as pins).
 - Joint stops appear on two crews' cards; spreadsheets show merged
-  "Alberto + Lesly (joint)" labels; count DISTINCT clients for coverage.
+  "Crew 1 + Crew 2 (joint)" labels; count DISTINCT clients for coverage.
 - Serve preview via `.claude/launch.json` ("review", autoPort).
 
 ## 9. Box counts / truck loading

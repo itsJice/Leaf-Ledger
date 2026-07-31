@@ -25,11 +25,11 @@ HDR_FONT = Font(bold=True, color="FFFFFF", size=11)
 THIN = Side(style="thin", color="D5D8DC")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 CREW_FILL = {
-    "Alberto": "C0392B",            # red
-    "Lesly": "1F618D",              # blue
-    "Niurka": "1E8449",             # green
-    "Alberto + Lesly (stacked)": "7D3C98",
-    "Alberto + Lesly + Niurka (stacked)": "B9770E",
+    "Crew 1": "C0392B",            # red
+    "Crew 2": "1F618D",              # blue
+    "Crew 3": "1E8449",             # green
+    "Crew 1 + Crew 2 (stacked)": "7D3C98",
+    "Crew 1 + Crew 2 + Crew 3 (stacked)": "B9770E",
 }
 DATE_BANDS = ["FFFFFF", "F2F4F4"]  # alternate per date
 OVER_FILL = PatternFill("solid", fgColor="F5B7B1")
