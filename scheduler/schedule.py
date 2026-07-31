@@ -749,6 +749,41 @@ def main():
     keffer = names(["Keffer, Pam"])
     marek = names(["Marek Bros"])
 
+    # Rule (user, 2026-07-31): Kerri Byler's 3 Bellville locations (house,
+    # office, store) must all be worked in ONE visit rather than split
+    # across two trips. Bellville is ~70min each way from depot, so this
+    # trades 2 depot round-trips for 1 (net LESS total drive across the
+    # week) at the cost of a single long day (~11h40m). Explicit exception
+    # to the normal 10h cap, capped instead at the absolute 8am-8pm legal
+    # window -- same pattern as the M Crowd Corporate Office exception above.
+    kerri_byler = names(["Byler, Kerri - House", "Byler, Kerri - Office",
+                         "Byler, Kerri - Store Buck Ferguson"])
+    if kerri_byler:
+        days.append(build_day(
+            D, "Crew 2", "2026-11-17", kerri_byler, by_idx, "Standard",
+            window=WINDOW,
+            note="Kerri Byler's 3 Bellville locations (house/office/store) "
+                 "kept together per client request. Bellville is 70min each "
+                 "way from depot, so this runs a long ~11h40m day -- but it "
+                 "saves a full second round-trip vs. splitting across 2 days."))
+        consumed.add(("2026-11-17", "Crew 2"))
+
+    # Rule (user, 2026-07-31): Kathy Schultea was sitting alone on a light
+    # single-stop day. Pitcock, James is her only real neighbor (Clear
+    # Lake/Bay Area, ~19min away) but was ALSO a lone single-stop day
+    # elsewhere -- pairing them cuts one full depot round-trip AND a
+    # duplicate lunch (~2h net savings across the week), at the cost of a
+    # single ~10h53m day. Same absolute-window exception as Kerri Byler above.
+    schultea_pitcock = names(["Schultea, Kathy", "Pitcock, James"])
+    if schultea_pitcock:
+        days.append(build_day(
+            D, "Crew 1", "2026-11-11", schultea_pitcock, by_idx, "Standard",
+            window=WINDOW,
+            note="Kathy Schultea paired with her nearest neighbor, James "
+                 "Pitcock (~19min apart), so neither sits alone on a light "
+                 "day -- runs ~10h53m but saves a full depot round-trip."))
+        consumed.add(("2026-11-11", "Crew 1"))
+
     standard = take(lambda c: True)              # everything still unassigned
 
     def fill_nearby(seeds, n):
@@ -851,6 +886,18 @@ def main():
 
     sat_bins = merge_singletons(D, pack_bins(D, sat_eligible, by_idx)) \
         if sat_eligible else []
+
+    # Rule (user, 2026-07-31): a Saturday-eligible client with NO other
+    # Saturday-eligible client nearby gets nothing out of a lone Saturday
+    # slot -- send them back to the standard weekday pool, where they can
+    # pair with their REAL geographic neighbors instead of sitting alone
+    # (eligibility is a ceiling, not a floor -- see rule above).
+    sat_singles = [b for b in sat_bins if len(b) == 1]
+    sat_bins = [b for b in sat_bins if len(b) != 1]
+    for b in sat_singles:
+        standard.extend(b)
+        print(f"  Saturday-eligible, no eligible neighbor nearby -> back to "
+              f"weekday pool: {[c['name'] for c in b]}")
 
     bins = pack_bins(D, standard, by_idx)
     bins = merge_singletons(D, bins)
