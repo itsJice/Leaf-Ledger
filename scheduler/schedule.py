@@ -721,16 +721,21 @@ def main():
     print(f"  Mi Cocina: 3 crews x {used} nights "
           f"({len(night_bins)} crew-nights)")
 
-    # ---- Rule 3: Capital Banks, Fri Nov 27. Split Crew 2(west)+Crew 3(east) so
-    #      ALBERTO is free to lead the client-requested Carlton Woods club. ----
+    # ---- Rule 3: Capital Banks, Fri Nov 27 -- ALL 8 branches, ONE crew, ONE
+    #      day (user, 2026-07-31: "keep capital bank in one group, it can
+    #      break the rules"). Baytown (east) to Katy (west) spans the full
+    #      Houston metro, so this deliberately blows the normal 10h cap and
+    #      the absolute 8am-8pm legal window -- window set generously wide
+    #      on purpose; Crew 1 stays free for the client-requested Carlton
+    #      Woods club the same Friday. ----
     banks = take(lambda c: c["category"] == "Capital Bank")
-    bs = sorted(banks, key=lambda c: c["lon"])
-    half = len(bs) // 2
-    days.append(build_day(D, "Crew 2", BANK_FRIDAY, bs[:half], by_idx, "Capital Bank",
-                          note="8 banks split across 2 crews (won't fit 1). West cluster. Crew 1 freed for Carlton Woods."))
-    days.append(build_day(D, "Crew 3", BANK_FRIDAY, bs[half:], by_idx, "Capital Bank",
-                          note="Banks split across 2 crews, same Friday. East cluster."))
-    consumed.update({(BANK_FRIDAY, "Crew 2"), (BANK_FRIDAY, "Crew 3"), (BANK_FRIDAY, "Crew 1")})
+    days.append(build_day(D, "Crew 2", BANK_FRIDAY, banks, by_idx, "Capital Bank",
+                          window=960,
+                          note="All 8 banks in one crew, one day per client "
+                               "request -- spans the full Houston metro "
+                               "(Baytown to Katy), so this intentionally runs "
+                               "well past the normal 10h cap."))
+    consumed.update({(BANK_FRIDAY, "Crew 2"), (BANK_FRIDAY, "Crew 1")})
 
     # ---- Rule 4: Rotary House, Sunday Nov 29 ----
     rotary = take(lambda c: c["category"] == "Rotary House")
