@@ -964,10 +964,28 @@ def main():
                  if (dt, cr) not in consumed]
     # Fill dates that already have a pinned/special day FIRST, so a
     # client-pinned date runs all 3 crews instead of one lone crew while
-    # the others idle; leftover empty dates then consolidate into a clean
-    # buffer block before Thanksgiving.
+    # the others idle. Among the UNpinned dates WITHIN the normal season,
+    # fill the latest ones first too (user rule, 2026-07-31: prefer one
+    # clean open day at the FRONT of the season over a lone gap stranded
+    # mid-season) -- so if total demand falls short by a day, the
+    # shortfall lands on the earliest unpinned date. The true overflow
+    # tail (used only if November genuinely runs out of room) stays
+    # last-resort and chronological -- it should NOT get pulled forward
+    # just to keep an early date pristine.
+    OVERFLOW_TAIL = {"2026-12-03", "2026-12-04"}
     pinned_dates = {dt for (dt, cr) in consumed}
-    weekday_slots.sort(key=lambda s: (s[0] not in pinned_dates, s[0]))
+
+    def _ord(dt):
+        return datetime.date.fromisoformat(dt).toordinal()
+
+    def _tier(dt):
+        if dt in pinned_dates:
+            return 0
+        if dt in OVERFLOW_TAIL:
+            return 2
+        return 1
+    weekday_slots.sort(key=lambda s: (_tier(s[0]),
+                                      -_ord(s[0]) if _tier(s[0]) == 1 else _ord(s[0])))
 
     slot_load = defaultdict(float)
     assignments = []

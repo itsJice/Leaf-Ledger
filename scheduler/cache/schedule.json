@@ -2140,596 +2140,6 @@
       ]
     },
     {
-      "date": "2026-11-09",
-      "dow": "Mon",
-      "crew": "Crew 1",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 41,
-          "name": "Hampton Inn",
-          "street": "710 Crawford Street",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77002",
-          "area": "Central",
-          "zone": "Downtown/Midtown",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "847-372-3700",
-          "email": "Chris.Miller@Hilton.com",
-          "storage": "NO",
-          "date_2024": "2024-12-05",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 11,
-          "est_hours": 5.0,
-          "real_hours": null,
-          "prior_install_date": "2025-12-03",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 4.05,
-          "hours_basis": "est x0.81",
-          "lat": 29.7558649,
-          "lon": -95.358557,
-          "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
-          "geo_source": "street",
-          "midx": 39
-        },
-        {
-          "row": 32,
-          "name": "Crane Worldwide Logistics",
-          "street": "1500 Rankin Road",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77073",
-          "area": "North",
-          "zone": "Spring/Klein/North Belt",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "(832) 465-6020",
-          "email": "bryana.seaver@craneww.com",
-          "storage": "NO",
-          "date_2024": "",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 5,
-          "est_hours": 3.0,
-          "real_hours": 2.416666667,
-          "prior_install_date": "2025-12-02",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.42,
-          "hours_basis": "2025 real",
-          "lat": 29.965342,
-          "lon": -95.3785,
-          "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
-          "geo_source": "street",
-          "midx": 30
-        }
-      ],
-      "order_idx": [
-        39,
-        30
-      ],
-      "install_h": 6.47,
-      "drive_min": 65.1,
-      "lunch": 40,
-      "total_min": 493.3,
-      "legs": [
-        17.5,
-        21.7,
-        25.9
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "Downtown/Midtown",
-        "Spring/Klein/North Belt"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.78571,
-          -95.43766
-        ],
-        [
-          29.78087,
-          -95.43639
-        ],
-        [
-          29.77707,
-          -95.42891
-        ],
-        [
-          29.77665,
-          -95.38618
-        ],
-        [
-          29.77885,
-          -95.37573
-        ],
-        [
-          29.77642,
-          -95.36982
-        ],
-        [
-          29.76814,
-          -95.36342
-        ],
-        [
-          29.76853,
-          -95.35227
-        ],
-        [
-          29.76321,
-          -95.35153
-        ],
-        [
-          29.7557,
-          -95.35828
-        ],
-        [
-          29.76463,
-          -95.35087
-        ],
-        [
-          29.81488,
-          -95.35137
-        ],
-        [
-          29.82109,
-          -95.3558
-        ],
-        [
-          29.83034,
-          -95.35457
-        ],
-        [
-          29.94992,
-          -95.38403
-        ],
-        [
-          29.9653,
-          -95.3785
-        ],
-        [
-          29.96542,
-          -95.38032
-        ],
-        [
-          29.95749,
-          -95.38044
-        ],
-        [
-          29.95026,
-          -95.38426
-        ],
-        [
-          29.81466,
-          -95.35305
-        ],
-        [
-          29.81279,
-          -95.43071
-        ],
-        [
-          29.80676,
-          -95.45901
-        ],
-        [
-          29.80721,
-          -95.46767
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 43.81,
-      "leg_mi": [
-        10.14,
-        15.05,
-        18.62
-      ]
-    },
-    {
-      "date": "2026-11-09",
-      "dow": "Mon",
-      "crew": "Crew 2",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 85,
-          "name": "Mercedes Benz",
-          "street": "16917 I-45",
-          "city": "Conroe",
-          "st": "TX",
-          "zip": "77385",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": "31",
-          "box_count_sheet": "31",
-          "box_verified": false,
-          "phone": "(936) 235-2521",
-          "email": "ednac@mbotw.com",
-          "storage": "YES",
-          "date_2024": "2024-11-19",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 16,
-          "est_hours": 6.0,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 4.86,
-          "hours_basis": "est x0.81",
-          "lat": 30.2027206,
-          "lon": -95.4558347,
-          "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
-          "geo_source": "street",
-          "midx": 83
-        },
-        {
-          "row": 115,
-          "name": "Waterway Wealth Waterway",
-          "street": "21 Waterway Ave. # 500",
-          "city": "Woodlands",
-          "st": "TX",
-          "zip": "77380",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": 6,
-          "box_count_sheet": 6.0,
-          "box_verified": true,
-          "phone": "(281) 363-0000",
-          "email": "kristen@waterwaywealth.com",
-          "storage": "YES",
-          "date_2024": "2024-11-13",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 5,
-          "est_hours": 2.0,
-          "real_hours": 1.083333333,
-          "prior_install_date": "2025-11-13",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.08,
-          "hours_basis": "2025 real",
-          "lat": 30.1602263,
-          "lon": -95.4594662,
-          "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
-          "geo_source": "street",
-          "midx": 113
-        }
-      ],
-      "order_idx": [
-        83,
-        113
-      ],
-      "install_h": 5.94,
-      "drive_min": 97.2,
-      "lunch": 40,
-      "total_min": 493.6,
-      "legs": [
-        49.8,
-        5.8,
-        41.5
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "The Woodlands"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.86683,
-          -95.47273
-        ],
-        [
-          29.8708,
-          -95.42961
-        ],
-        [
-          29.8862,
-          -95.43149
-        ],
-        [
-          29.88922,
-          -95.41172
-        ],
-        [
-          29.93388,
-          -95.41182
-        ],
-        [
-          30.0106,
-          -95.4276
-        ],
-        [
-          30.08084,
-          -95.43685
-        ],
-        [
-          30.10757,
-          -95.43551
-        ],
-        [
-          30.16032,
-          -95.44986
-        ],
-        [
-          30.2379,
-          -95.45955
-        ],
-        [
-          30.20272,
-          -95.45583
-        ],
-        [
-          30.16164,
-          -95.45067
-        ],
-        [
-          30.16023,
-          -95.45914
-        ],
-        [
-          30.15463,
-          -95.44937
-        ],
-        [
-          30.10768,
-          -95.43582
-        ],
-        [
-          30.08011,
-          -95.43714
-        ],
-        [
-          30.00983,
-          -95.42782
-        ],
-        [
-          29.9339,
-          -95.41214
-        ],
-        [
-          29.87632,
-          -95.41223
-        ],
-        [
-          29.87068,
-          -95.41277
-        ],
-        [
-          29.87072,
-          -95.46114
-        ],
-        [
-          29.86692,
-          -95.4729
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 67.59,
-      "leg_mi": [
-        35.86,
-        3.45,
-        28.28
-      ]
-    },
-    {
-      "date": "2026-11-09",
-      "dow": "Mon",
-      "crew": "Crew 3",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 90,
-          "name": "Omni Hotel",
-          "street": "4 Riverway Dr, Houston, TX",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77056",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "",
-          "email": "",
-          "storage": "NO",
-          "date_2024": "2024-11-25",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 14,
-          "est_hours": 7.0,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 5.67,
-          "hours_basis": "est x0.81",
-          "lat": 29.7616902,
-          "lon": -95.462021,
-          "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
-          "geo_source": "street",
-          "midx": 88
-        }
-      ],
-      "order_idx": [
-        88
-      ],
-      "install_h": 5.67,
-      "drive_min": 18.2,
-      "lunch": 40,
-      "total_min": 398.4,
-      "legs": [
-        9.0,
-        9.2
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)",
-        "single-stop day"
-      ],
-      "zones": [
-        "Uptown/Galleria"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.81928,
-          -95.47371
-        ],
-        [
-          29.81935,
-          -95.46913
-        ],
-        [
-          29.8043,
-          -95.45258
-        ],
-        [
-          29.8007,
-          -95.45057
-        ],
-        [
-          29.79792,
-          -95.45053
-        ],
-        [
-          29.79049,
-          -95.45229
-        ],
-        [
-          29.78393,
-          -95.45214
-        ],
-        [
-          29.77911,
-          -95.45526
-        ],
-        [
-          29.77666,
-          -95.45601
-        ],
-        [
-          29.76581,
-          -95.45639
-        ],
-        [
-          29.76403,
-          -95.45939
-        ],
-        [
-          29.76346,
-          -95.46172
-        ],
-        [
-          29.76237,
-          -95.46115
-        ],
-        [
-          29.76162,
-          -95.46197
-        ],
-        [
-          29.76137,
-          -95.46336
-        ],
-        [
-          29.76223,
-          -95.46339
-        ],
-        [
-          29.76627,
-          -95.45551
-        ],
-        [
-          29.7734,
-          -95.45549
-        ],
-        [
-          29.77337,
-          -95.4565
-        ],
-        [
-          29.79623,
-          -95.45705
-        ],
-        [
-          29.79833,
-          -95.45568
-        ],
-        [
-          29.81189,
-          -95.47438
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 9.98,
-      "leg_mi": [
-        5.44,
-        4.54
-      ]
-    },
-    {
       "date": "2026-11-11",
       "dow": "Wed",
       "crew": "Crew 1",
@@ -8651,6 +8061,596 @@
       "leg_mi": [
         43.14,
         42.91
+      ]
+    },
+    {
+      "date": "2026-11-23",
+      "dow": "Mon",
+      "crew": "Crew 1",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 41,
+          "name": "Hampton Inn",
+          "street": "710 Crawford Street",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77002",
+          "area": "Central",
+          "zone": "Downtown/Midtown",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "847-372-3700",
+          "email": "Chris.Miller@Hilton.com",
+          "storage": "NO",
+          "date_2024": "2024-12-05",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 11,
+          "est_hours": 5.0,
+          "real_hours": null,
+          "prior_install_date": "2025-12-03",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 4.05,
+          "hours_basis": "est x0.81",
+          "lat": 29.7558649,
+          "lon": -95.358557,
+          "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
+          "geo_source": "street",
+          "midx": 39
+        },
+        {
+          "row": 32,
+          "name": "Crane Worldwide Logistics",
+          "street": "1500 Rankin Road",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77073",
+          "area": "North",
+          "zone": "Spring/Klein/North Belt",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "(832) 465-6020",
+          "email": "bryana.seaver@craneww.com",
+          "storage": "NO",
+          "date_2024": "",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": 5,
+          "est_hours": 3.0,
+          "real_hours": 2.416666667,
+          "prior_install_date": "2025-12-02",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.42,
+          "hours_basis": "2025 real",
+          "lat": 29.965342,
+          "lon": -95.3785,
+          "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
+          "geo_source": "street",
+          "midx": 30
+        }
+      ],
+      "order_idx": [
+        39,
+        30
+      ],
+      "install_h": 6.47,
+      "drive_min": 65.1,
+      "lunch": 40,
+      "total_min": 493.3,
+      "legs": [
+        17.5,
+        21.7,
+        25.9
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Downtown/Midtown",
+        "Spring/Klein/North Belt"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.78571,
+          -95.43766
+        ],
+        [
+          29.78087,
+          -95.43639
+        ],
+        [
+          29.77707,
+          -95.42891
+        ],
+        [
+          29.77665,
+          -95.38618
+        ],
+        [
+          29.77885,
+          -95.37573
+        ],
+        [
+          29.77642,
+          -95.36982
+        ],
+        [
+          29.76814,
+          -95.36342
+        ],
+        [
+          29.76853,
+          -95.35227
+        ],
+        [
+          29.76321,
+          -95.35153
+        ],
+        [
+          29.7557,
+          -95.35828
+        ],
+        [
+          29.76463,
+          -95.35087
+        ],
+        [
+          29.81488,
+          -95.35137
+        ],
+        [
+          29.82109,
+          -95.3558
+        ],
+        [
+          29.83034,
+          -95.35457
+        ],
+        [
+          29.94992,
+          -95.38403
+        ],
+        [
+          29.9653,
+          -95.3785
+        ],
+        [
+          29.96542,
+          -95.38032
+        ],
+        [
+          29.95749,
+          -95.38044
+        ],
+        [
+          29.95026,
+          -95.38426
+        ],
+        [
+          29.81466,
+          -95.35305
+        ],
+        [
+          29.81279,
+          -95.43071
+        ],
+        [
+          29.80676,
+          -95.45901
+        ],
+        [
+          29.80721,
+          -95.46767
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 43.81,
+      "leg_mi": [
+        10.14,
+        15.05,
+        18.62
+      ]
+    },
+    {
+      "date": "2026-11-23",
+      "dow": "Mon",
+      "crew": "Crew 2",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 85,
+          "name": "Mercedes Benz",
+          "street": "16917 I-45",
+          "city": "Conroe",
+          "st": "TX",
+          "zip": "77385",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": "31",
+          "box_count_sheet": "31",
+          "box_verified": false,
+          "phone": "(936) 235-2521",
+          "email": "ednac@mbotw.com",
+          "storage": "YES",
+          "date_2024": "2024-11-19",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 16,
+          "est_hours": 6.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 4.86,
+          "hours_basis": "est x0.81",
+          "lat": 30.2027206,
+          "lon": -95.4558347,
+          "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
+          "geo_source": "street",
+          "midx": 83
+        },
+        {
+          "row": 115,
+          "name": "Waterway Wealth Waterway",
+          "street": "21 Waterway Ave. # 500",
+          "city": "Woodlands",
+          "st": "TX",
+          "zip": "77380",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": 6,
+          "box_count_sheet": 6.0,
+          "box_verified": true,
+          "phone": "(281) 363-0000",
+          "email": "kristen@waterwaywealth.com",
+          "storage": "YES",
+          "date_2024": "2024-11-13",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": 5,
+          "est_hours": 2.0,
+          "real_hours": 1.083333333,
+          "prior_install_date": "2025-11-13",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.08,
+          "hours_basis": "2025 real",
+          "lat": 30.1602263,
+          "lon": -95.4594662,
+          "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_source": "street",
+          "midx": 113
+        }
+      ],
+      "order_idx": [
+        83,
+        113
+      ],
+      "install_h": 5.94,
+      "drive_min": 97.2,
+      "lunch": 40,
+      "total_min": 493.6,
+      "legs": [
+        49.8,
+        5.8,
+        41.5
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "The Woodlands"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.86683,
+          -95.47273
+        ],
+        [
+          29.8708,
+          -95.42961
+        ],
+        [
+          29.8862,
+          -95.43149
+        ],
+        [
+          29.88922,
+          -95.41172
+        ],
+        [
+          29.93388,
+          -95.41182
+        ],
+        [
+          30.0106,
+          -95.4276
+        ],
+        [
+          30.08084,
+          -95.43685
+        ],
+        [
+          30.10757,
+          -95.43551
+        ],
+        [
+          30.16032,
+          -95.44986
+        ],
+        [
+          30.2379,
+          -95.45955
+        ],
+        [
+          30.20272,
+          -95.45583
+        ],
+        [
+          30.16164,
+          -95.45067
+        ],
+        [
+          30.16023,
+          -95.45914
+        ],
+        [
+          30.15463,
+          -95.44937
+        ],
+        [
+          30.10768,
+          -95.43582
+        ],
+        [
+          30.08011,
+          -95.43714
+        ],
+        [
+          30.00983,
+          -95.42782
+        ],
+        [
+          29.9339,
+          -95.41214
+        ],
+        [
+          29.87632,
+          -95.41223
+        ],
+        [
+          29.87068,
+          -95.41277
+        ],
+        [
+          29.87072,
+          -95.46114
+        ],
+        [
+          29.86692,
+          -95.4729
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 67.59,
+      "leg_mi": [
+        35.86,
+        3.45,
+        28.28
+      ]
+    },
+    {
+      "date": "2026-11-23",
+      "dow": "Mon",
+      "crew": "Crew 3",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 90,
+          "name": "Omni Hotel",
+          "street": "4 Riverway Dr, Houston, TX",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77056",
+          "area": "West",
+          "zone": "Uptown/Galleria",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "",
+          "email": "",
+          "storage": "NO",
+          "date_2024": "2024-11-25",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 14,
+          "est_hours": 7.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 5.67,
+          "hours_basis": "est x0.81",
+          "lat": 29.7616902,
+          "lon": -95.462021,
+          "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
+          "geo_source": "street",
+          "midx": 88
+        }
+      ],
+      "order_idx": [
+        88
+      ],
+      "install_h": 5.67,
+      "drive_min": 18.2,
+      "lunch": 40,
+      "total_min": 398.4,
+      "legs": [
+        9.0,
+        9.2
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [
+        "light day (<7.5h)",
+        "single-stop day"
+      ],
+      "zones": [
+        "Uptown/Galleria"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.81928,
+          -95.47371
+        ],
+        [
+          29.81935,
+          -95.46913
+        ],
+        [
+          29.8043,
+          -95.45258
+        ],
+        [
+          29.8007,
+          -95.45057
+        ],
+        [
+          29.79792,
+          -95.45053
+        ],
+        [
+          29.79049,
+          -95.45229
+        ],
+        [
+          29.78393,
+          -95.45214
+        ],
+        [
+          29.77911,
+          -95.45526
+        ],
+        [
+          29.77666,
+          -95.45601
+        ],
+        [
+          29.76581,
+          -95.45639
+        ],
+        [
+          29.76403,
+          -95.45939
+        ],
+        [
+          29.76346,
+          -95.46172
+        ],
+        [
+          29.76237,
+          -95.46115
+        ],
+        [
+          29.76162,
+          -95.46197
+        ],
+        [
+          29.76137,
+          -95.46336
+        ],
+        [
+          29.76223,
+          -95.46339
+        ],
+        [
+          29.76627,
+          -95.45551
+        ],
+        [
+          29.7734,
+          -95.45549
+        ],
+        [
+          29.77337,
+          -95.4565
+        ],
+        [
+          29.79623,
+          -95.45705
+        ],
+        [
+          29.79833,
+          -95.45568
+        ],
+        [
+          29.81189,
+          -95.47438
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 9.98,
+      "leg_mi": [
+        5.44,
+        4.54
       ]
     },
     {

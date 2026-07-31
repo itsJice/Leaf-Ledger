@@ -159,6 +159,10 @@ header h1 svg{color:var(--brand)}
 .bar i{display:block;height:100%;border-radius:4px}
 .tot{display:flex;justify-content:space-between;color:var(--mut);font-weight:500}
 .note{font-size:11px;color:var(--brand);padding:8px 14px;font-style:italic;border-top:1px dashed var(--line)}
+.ovtitle{margin:0 0 10px;font-size:15px;font-family:Georgia,serif;letter-spacing:.03em;font-weight:600;color:var(--ink)}
+.ovdate{font-size:12px;font-weight:700;color:var(--brand-deep);letter-spacing:.03em;
+  margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid var(--brand-soft)}
+.ovdate:first-of-type{margin-top:0}
 #log{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;font-size:12px;box-shadow:0 1px 2px rgba(41,37,36,.05)}
 #log h3{margin:0 0 8px;font-size:14px;font-family:Georgia,serif;letter-spacing:.03em;font-weight:600}
 #log .ent{color:var(--mut);margin:3px 0}
@@ -396,6 +400,10 @@ function daysFor(sel){
   if(sel==='ALL-DAL') return days.filter(d=>d.cat==='M Crowd');
   return days.filter(d=>d.date===sel);
 }
+function fmtDDMMYY(iso){
+  const [y,m,dd]=iso.split('-');
+  return `${dd}/${m}/${y.slice(2)}`;
+}
 function drawDate(date){
   layerGroup.clearLayers();
   const todays = daysFor(date);
@@ -430,7 +438,11 @@ function drawDate(date){
         mk.bindTooltip(`${i+1}. ${c.name}`,{permanent:true,direction:'right',
           offset:[9,0],className:'name-label'});
       } else {
-        mk.bindTooltip(`${c.name} — ${d.date} ${d.crew}`);
+        const isHalf=(d.half||[]).includes(r);
+        const estH=isHalf?(c.h26/2).toFixed(1):c.h26;
+        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDDMMYY(d.date)} · ${d.crew}`+
+          `<br>Est. time: ${estH}h · Box count: ${c.boxes||'—'}`,
+          {direction:'top',offset:[0,-8]});
       }
       layerGroup.addLayer(mk);
     });
@@ -477,98 +489,106 @@ function fmtClock(mins){
   const ap=h>=12?'PM':'AM', h12=h%12===0?12:h%12;
   return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
 }
+function buildDayCard(d){
+  const col=CREW_COLORS[d.crew]||'#555';
+  const calc=dayCalc(d);
+  const card=document.createElement('div');
+  const WIN=d.win||600;
+  card.className='card'+(approved.has(d.id)?' approved':'')+(calc.total>WIN?' overwin':'');
+  card.dataset.dayid=d.id;
+  card.innerHTML=`<div class="chead">
+    <span class="cdot" style="background:${col}"></span>
+    <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
+    <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
+    <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
+  </div>`;
+  card.querySelector('.okbtn').onclick=()=>{
+    approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
+  if(d.anchored){
+    const finishMin=DEPART_MIN+calc.total;
+    card.insertAdjacentHTML('beforeend',`<div class="sched">
+      <span>${IC.clock} Arrive Depot <b>${fmtClock(ARRIVE_MIN)}</b></span>
+      <span>Depart <b>${fmtClock(DEPART_MIN)}</b></span>
+      <span>Est. Finish <b>${fmtClock(finishMin)}</b></span>
+    </div>`);
+  }
+  // stops + legs (mileage from the real road path — precomputed if the
+  // day is untouched, live-fetched once if it's been edited)
+  const path=calc.path||[];
+  const rg=routeGeom(d);
+  const legMiTxt=(idx)=> rg.pending?' · …mi':(rg.legMi&&rg.legMi[idx]!=null?` · ${rg.legMi[idx].toFixed(1)} mi`:'');
+  let legIdx=0;
+  d.stops.forEach((r,i)=>{
+    const c=C[r];
+    if(d.anchored&&i===0&&path.length){
+      card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(0,N[r])/60).toFixed(0)} min from depot${legMiTxt(legIdx)}</div>`);
+      legIdx++;
+    }
+    const el=document.createElement('div');
+    el.className='stop'; el.draggable=true; el.dataset.row=r;
+    const approx=!['street','manual','census'].includes(c.geo);
+    const isHalf=(d.half||[]).includes(r);
+    el.innerHTML=`<span class="num" style="background:${col}">${i+1}</span>
+      <div class="body"><div class="nm">${c.name}
+        ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
+        ${approx?'<span class="badge approx">approx pin</span>':''}</div>
+      <div class="sub">${c.zone}</div>
+      <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
+      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div></div>
+      <button class="mv">move ▾</button>`;
+    el.querySelector('.mv').onclick=()=>openMoveDlg(r,null);
+    el.ondragstart=e=>e.dataTransfer.setData('row',r);
+    card.appendChild(el);
+    const nxt=d.stops[i+1];
+    if(nxt!==undefined){
+      card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],N[nxt])/60).toFixed(0)} min${legMiTxt(legIdx)}</div>`);
+      legIdx++;
+    } else if(d.anchored){
+      card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],0)/60).toFixed(0)} min back to depot${legMiTxt(legIdx)}</div>`);
+      legIdx++;
+    }
+  });
+  const pct=Math.min(100,calc.total/WIN*100);
+  const barcol=calc.total>WIN?'#b91c1c':(pct>92?'#ca8a04':'#2d5a33');
+  const winH=(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0);
+  const shiftTxt=(d.lunchMin??40)?`incl. ${((d.lunchMin??40)/60).toFixed(1)}h lunch`:
+    (d.win===480?`${IC.sun} day shift 9am-5pm`:`${IC.moon} night shift`);
+  card.insertAdjacentHTML('beforeend',`<div class="cfoot">
+    <div class="tot"><span>Total day hours</span>
+    <b style="color:${barcol}">${fmtH(calc.total)} / ${winH}h</b></div>
+    <div class="bar"><i style="width:${pct}%;background:${barcol}"></i></div>
+    <div class="tot" style="margin-top:6px"><span>Total Install Time:</span><b>${calc.inst.toFixed(1)}h</b></div>
+    <div class="tot"><span>Total Drive Time:</span><b>${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</b></div>
+    <div class="tot"><span>Total Day Work Time (estimated):</span><b style="color:${barcol}">${fmtH(calc.total)} · ${shiftTxt}</b></div>
+  </div>`);
+  card.ondragover=e=>{e.preventDefault();card.classList.add('dragover');};
+  card.ondragleave=()=>card.classList.remove('dragover');
+  card.ondrop=e=>{e.preventDefault();card.classList.remove('dragover');
+    const row=+e.dataTransfer.getData('row');
+    if(row && !d.stops.includes(row)){ applyMove(row,d.id); render(); }};
+  return card;
+}
 function renderCards(){
   side.innerHTML='';
   if(isOverview(selDate)){
+    // Full detail, every crew-day in the pool, long-form list grouped by
+    // date (client request: same crew/stop detail as a single day, just
+    // stacked for the whole Houston or Dallas run).
     const pool=daysFor(selDate);
     const title=selDate==='ALL'?'Overview':(selDate==='ALL-HOU'?'Houston — all days':'Dallas — all nights (Mi Cocina)');
+    const hdr=document.createElement('h3'); hdr.className='ovtitle'; hdr.textContent=title;
+    side.appendChild(hdr);
     const dates=[...new Set(pool.map(d=>d.date))].sort();
-    const digest=document.createElement('div'); digest.id='log';
-    digest.innerHTML=`<h3>${title}</h3>`+dates.map(dt=>{
-      const ds=pool.filter(d=>d.date===dt);
-      return `<div class="ent"><b>${ds[0].dow} ${dt}</b> — ${ds.map(d=>d.crew+' ('+d.stops.length+')').join(' · ')}</div>`;
-    }).join('');
-    side.appendChild(digest); renderLog(); return;
-  }
-  days.filter(d=>d.date===selDate).forEach(d=>{
-    const col=CREW_COLORS[d.crew]||'#555';
-    const calc=dayCalc(d);
-    const card=document.createElement('div');
-    const WIN=d.win||600;
-    card.className='card'+(approved.has(d.id)?' approved':'')+(calc.total>WIN?' overwin':'');
-    card.dataset.dayid=d.id;
-    card.innerHTML=`<div class="chead">
-      <span class="cdot" style="background:${col}"></span>
-      <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
-      <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
-      <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
-    </div>`;
-    card.querySelector('.okbtn').onclick=()=>{
-      approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
-    if(d.anchored){
-      const finishMin=DEPART_MIN+calc.total;
-      card.insertAdjacentHTML('beforeend',`<div class="sched">
-        <span>${IC.clock} Arrive Depot <b>${fmtClock(ARRIVE_MIN)}</b></span>
-        <span>Depart <b>${fmtClock(DEPART_MIN)}</b></span>
-        <span>Est. Finish <b>${fmtClock(finishMin)}</b></span>
-      </div>`);
-    }
-    // stops + legs (mileage from the real road path — precomputed if the
-    // day is untouched, live-fetched once if it's been edited)
-    const path=calc.path||[];
-    const rg=routeGeom(d);
-    const legMiTxt=(idx)=> rg.pending?' · …mi':(rg.legMi&&rg.legMi[idx]!=null?` · ${rg.legMi[idx].toFixed(1)} mi`:'');
-    let legIdx=0;
-    d.stops.forEach((r,i)=>{
-      const c=C[r];
-      if(d.anchored&&i===0&&path.length){
-        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(0,N[r])/60).toFixed(0)} min from depot${legMiTxt(legIdx)}</div>`);
-        legIdx++;
-      }
-      const el=document.createElement('div');
-      el.className='stop'; el.draggable=true; el.dataset.row=r;
-      const approx=!['street','manual','census'].includes(c.geo);
-      const isHalf=(d.half||[]).includes(r);
-      el.innerHTML=`<span class="num" style="background:${col}">${i+1}</span>
-        <div class="body"><div class="nm">${c.name}
-          ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
-          ${approx?'<span class="badge approx">approx pin</span>':''}</div>
-        <div class="sub">${c.zone}</div>
-        <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
-        <div class="sub">Box count: <b>${c.boxes||'—'}</b></div></div>
-        <button class="mv">move ▾</button>`;
-      el.querySelector('.mv').onclick=()=>openMoveDlg(r,null);
-      el.ondragstart=e=>e.dataTransfer.setData('row',r);
-      card.appendChild(el);
-      const nxt=d.stops[i+1];
-      if(nxt!==undefined){
-        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],N[nxt])/60).toFixed(0)} min${legMiTxt(legIdx)}</div>`);
-        legIdx++;
-      } else if(d.anchored){
-        card.insertAdjacentHTML('beforeend',`<div class="leg">${IC.truck} ${(leg(N[r],0)/60).toFixed(0)} min back to depot${legMiTxt(legIdx)}</div>`);
-        legIdx++;
-      }
+    dates.forEach(dt=>{
+      const ds=pool.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
+      const dh=document.createElement('div'); dh.className='ovdate';
+      dh.textContent=`${ds[0].dow} ${dt}`;
+      side.appendChild(dh);
+      ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });
-    const pct=Math.min(100,calc.total/WIN*100);
-    const barcol=calc.total>WIN?'#b91c1c':(pct>92?'#ca8a04':'#2d5a33');
-    const winH=(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0);
-    const shiftTxt=(d.lunchMin??40)?`incl. ${((d.lunchMin??40)/60).toFixed(1)}h lunch`:
-      (d.win===480?`${IC.sun} day shift 9am-5pm`:`${IC.moon} night shift`);
-    card.insertAdjacentHTML('beforeend',`<div class="cfoot">
-      <div class="tot"><span>Total day hours</span>
-      <b style="color:${barcol}">${fmtH(calc.total)} / ${winH}h</b></div>
-      <div class="bar"><i style="width:${pct}%;background:${barcol}"></i></div>
-      <div class="tot" style="margin-top:6px"><span>Total Install Time:</span><b>${calc.inst.toFixed(1)}h</b></div>
-      <div class="tot"><span>Total Drive Time:</span><b>${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</b></div>
-      <div class="tot"><span>Total Day Work Time (estimated):</span><b style="color:${barcol}">${fmtH(calc.total)} · ${shiftTxt}</b></div>
-    </div>`);
-    card.ondragover=e=>{e.preventDefault();card.classList.add('dragover');};
-    card.ondragleave=()=>card.classList.remove('dragover');
-    card.ondrop=e=>{e.preventDefault();card.classList.remove('dragover');
-      const row=+e.dataTransfer.getData('row');
-      if(row && !d.stops.includes(row)){ applyMove(row,d.id); render(); }};
-    side.appendChild(card);
-  });
+    renderLog(); return;
+  }
+  days.filter(d=>d.date===selDate).forEach(d=>side.appendChild(buildDayCard(d)));
   renderLog();
 }
 function renderLog(){
