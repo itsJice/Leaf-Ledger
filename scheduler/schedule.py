@@ -964,14 +964,14 @@ def main():
                  if (dt, cr) not in consumed]
     # Fill dates that already have a pinned/special day FIRST, so a
     # client-pinned date runs all 3 crews instead of one lone crew while
-    # the others idle. Among the UNpinned dates WITHIN the normal season,
-    # fill the latest ones first too (user rule, 2026-07-31: prefer one
-    # clean open day at the FRONT of the season over a lone gap stranded
-    # mid-season) -- so if total demand falls short by a day, the
-    # shortfall lands on the earliest unpinned date. The true overflow
-    # tail (used only if November genuinely runs out of room) stays
-    # last-resort and chronological -- it should NOT get pulled forward
-    # just to keep an early date pristine.
+    # the others idle. Houston installs must START Monday Nov 9 (user
+    # rule, 2026-07-31) -- treated with the same top priority as a pinned
+    # date so it's always the very first date filled. Among the rest of
+    # the UNpinned dates, fill the latest ones first (prefer any leftover
+    # gap land later in the season, not stranded between two working
+    # days). The true overflow tail (used only if November genuinely
+    # runs out of room) stays last-resort and chronological.
+    FORCE_START = {"2026-11-09"}
     OVERFLOW_TAIL = {"2026-12-03", "2026-12-04"}
     pinned_dates = {dt for (dt, cr) in consumed}
 
@@ -979,7 +979,7 @@ def main():
         return datetime.date.fromisoformat(dt).toordinal()
 
     def _tier(dt):
-        if dt in pinned_dates:
+        if dt in pinned_dates or dt in FORCE_START:
             return 0
         if dt in OVERFLOW_TAIL:
             return 2

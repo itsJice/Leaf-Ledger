@@ -2140,312 +2140,9 @@
       ]
     },
     {
-      "date": "2026-11-11",
-      "dow": "Wed",
+      "date": "2026-11-09",
+      "dow": "Mon",
       "crew": "Crew 1",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 94,
-          "name": "Pitcock, James",
-          "street": "940 Plantation Dr",
-          "city": "League City",
-          "st": "TX",
-          "zip": "77573",
-          "area": "Southeast",
-          "zone": "Clear Lake/Bay Area",
-          "box_count": 29,
-          "box_count_sheet": "28",
-          "box_verified": true,
-          "phone": "832-419-5430",
-          "email": "pennierjohnson@earthlink.net",
-          "storage": "YES",
-          "date_2024": "2024-11-15",
-          "crew_2025": "Crew A (7)",
-          "crew_size_2025": 7,
-          "people_needed": 13,
-          "est_hours": 5.0,
-          "real_hours": 5.166666667,
-          "prior_install_date": "2025-11-17",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 5.17,
-          "hours_basis": "2025 real",
-          "lat": 29.5435391,
-          "lon": -95.0767192,
-          "geo_display": "940, Plantation Drive, League City, Galveston County, Texas, 77573, United States",
-          "geo_source": "street",
-          "midx": 92
-        },
-        {
-          "row": 102,
-          "name": "Schultea, Kathy",
-          "street": "2819 Acorn Wood Way",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77059",
-          "area": "Southeast",
-          "zone": "Clear Lake/Bay Area",
-          "box_count": 20.0,
-          "box_count_sheet": 20.0,
-          "box_verified": false,
-          "phone": "713-824-2905",
-          "email": "kschultea@rlks.net",
-          "storage": "YES",
-          "date_2024": "2024-11-08",
-          "crew_2025": "Crew A (7)",
-          "crew_size_2025": 7,
-          "people_needed": 10,
-          "est_hours": 4.0,
-          "real_hours": 3.083333333,
-          "prior_install_date": "2025-11-28",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.08,
-          "hours_basis": "2025 real",
-          "lat": 29.5887639,
-          "lon": -95.1233947,
-          "geo_display": "2819, Acorn Wood Way, Clear Lake, Houston, Harris County, Texas, 77059, United States",
-          "geo_source": "street",
-          "midx": 100
-        }
-      ],
-      "order_idx": [
-        92,
-        100
-      ],
-      "install_h": 8.25,
-      "drive_min": 116.3,
-      "lunch": 40,
-      "total_min": 651.3,
-      "legs": [
-        53.0,
-        19.0,
-        44.3
-      ],
-      "window_min": 720,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "Kathy Schultea paired with her nearest neighbor, James Pitcock (~19min apart), so neither sits alone on a light day -- runs ~10h53m but saves a full depot round-trip.",
-      "flags": [],
-      "zones": [
-        "Clear Lake/Bay Area"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.78571,
-          -95.43766
-        ],
-        [
-          29.78087,
-          -95.43639
-        ],
-        [
-          29.77707,
-          -95.42891
-        ],
-        [
-          29.77665,
-          -95.38618
-        ],
-        [
-          29.77889,
-          -95.37653
-        ],
-        [
-          29.77642,
-          -95.36982
-        ],
-        [
-          29.7692,
-          -95.3658
-        ],
-        [
-          29.76052,
-          -95.37441
-        ],
-        [
-          29.75076,
-          -95.37347
-        ],
-        [
-          29.69727,
-          -95.28928
-        ],
-        [
-          29.67227,
-          -95.2648
-        ],
-        [
-          29.64113,
-          -95.24371
-        ],
-        [
-          29.58338,
-          -95.18105
-        ],
-        [
-          29.52831,
-          -95.131
-        ],
-        [
-          29.54547,
-          -95.10633
-        ],
-        [
-          29.52498,
-          -95.08539
-        ],
-        [
-          29.5223,
-          -95.07787
-        ],
-        [
-          29.52941,
-          -95.07239
-        ],
-        [
-          29.54352,
-          -95.07681
-        ],
-        [
-          29.52948,
-          -95.07255
-        ],
-        [
-          29.52247,
-          -95.0782
-        ],
-        [
-          29.5287,
-          -95.08989
-        ],
-        [
-          29.54869,
-          -95.10879
-        ],
-        [
-          29.55415,
-          -95.11955
-        ],
-        [
-          29.56773,
-          -95.13235
-        ],
-        [
-          29.57392,
-          -95.12418
-        ],
-        [
-          29.58302,
-          -95.11899
-        ],
-        [
-          29.59062,
-          -95.11776
-        ],
-        [
-          29.58955,
-          -95.12032
-        ],
-        [
-          29.59215,
-          -95.12078
-        ],
-        [
-          29.59156,
-          -95.1228
-        ],
-        [
-          29.58873,
-          -95.12332
-        ],
-        [
-          29.59448,
-          -95.12967
-        ],
-        [
-          29.59599,
-          -95.13565
-        ],
-        [
-          29.57005,
-          -95.16865
-        ],
-        [
-          29.64173,
-          -95.24388
-        ],
-        [
-          29.67202,
-          -95.26415
-        ],
-        [
-          29.6959,
-          -95.2869
-        ],
-        [
-          29.75117,
-          -95.37365
-        ],
-        [
-          29.76091,
-          -95.37334
-        ],
-        [
-          29.76481,
-          -95.36753
-        ],
-        [
-          29.77,
-          -95.36509
-        ],
-        [
-          29.77697,
-          -95.36928
-        ],
-        [
-          29.77919,
-          -95.37665
-        ],
-        [
-          29.77678,
-          -95.38944
-        ],
-        [
-          29.77806,
-          -95.42967
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 76.87,
-      "leg_mi": [
-        37.08,
-        8.83,
-        30.96
-      ]
-    },
-    {
-      "date": "2026-11-11",
-      "dow": "Wed",
-      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -2832,9 +2529,9 @@
       ]
     },
     {
-      "date": "2026-11-11",
-      "dow": "Wed",
-      "crew": "Crew 3",
+      "date": "2026-11-09",
+      "dow": "Mon",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
@@ -3124,9 +2821,9 @@
       ]
     },
     {
-      "date": "2026-11-12",
-      "dow": "Thu",
-      "crew": "Crew 1",
+      "date": "2026-11-09",
+      "dow": "Mon",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
@@ -3386,8 +3083,311 @@
       ]
     },
     {
-      "date": "2026-11-12",
-      "dow": "Thu",
+      "date": "2026-11-11",
+      "dow": "Wed",
+      "crew": "Crew 1",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 94,
+          "name": "Pitcock, James",
+          "street": "940 Plantation Dr",
+          "city": "League City",
+          "st": "TX",
+          "zip": "77573",
+          "area": "Southeast",
+          "zone": "Clear Lake/Bay Area",
+          "box_count": 29,
+          "box_count_sheet": "28",
+          "box_verified": true,
+          "phone": "832-419-5430",
+          "email": "pennierjohnson@earthlink.net",
+          "storage": "YES",
+          "date_2024": "2024-11-15",
+          "crew_2025": "Crew A (7)",
+          "crew_size_2025": 7,
+          "people_needed": 13,
+          "est_hours": 5.0,
+          "real_hours": 5.166666667,
+          "prior_install_date": "2025-11-17",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 5.17,
+          "hours_basis": "2025 real",
+          "lat": 29.5435391,
+          "lon": -95.0767192,
+          "geo_display": "940, Plantation Drive, League City, Galveston County, Texas, 77573, United States",
+          "geo_source": "street",
+          "midx": 92
+        },
+        {
+          "row": 102,
+          "name": "Schultea, Kathy",
+          "street": "2819 Acorn Wood Way",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77059",
+          "area": "Southeast",
+          "zone": "Clear Lake/Bay Area",
+          "box_count": 20.0,
+          "box_count_sheet": 20.0,
+          "box_verified": false,
+          "phone": "713-824-2905",
+          "email": "kschultea@rlks.net",
+          "storage": "YES",
+          "date_2024": "2024-11-08",
+          "crew_2025": "Crew A (7)",
+          "crew_size_2025": 7,
+          "people_needed": 10,
+          "est_hours": 4.0,
+          "real_hours": 3.083333333,
+          "prior_install_date": "2025-11-28",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.08,
+          "hours_basis": "2025 real",
+          "lat": 29.5887639,
+          "lon": -95.1233947,
+          "geo_display": "2819, Acorn Wood Way, Clear Lake, Houston, Harris County, Texas, 77059, United States",
+          "geo_source": "street",
+          "midx": 100
+        }
+      ],
+      "order_idx": [
+        92,
+        100
+      ],
+      "install_h": 8.25,
+      "drive_min": 116.3,
+      "lunch": 40,
+      "total_min": 651.3,
+      "legs": [
+        53.0,
+        19.0,
+        44.3
+      ],
+      "window_min": 720,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "Kathy Schultea paired with her nearest neighbor, James Pitcock (~19min apart), so neither sits alone on a light day -- runs ~10h53m but saves a full depot round-trip.",
+      "flags": [],
+      "zones": [
+        "Clear Lake/Bay Area"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.78571,
+          -95.43766
+        ],
+        [
+          29.78087,
+          -95.43639
+        ],
+        [
+          29.77707,
+          -95.42891
+        ],
+        [
+          29.77665,
+          -95.38618
+        ],
+        [
+          29.77889,
+          -95.37653
+        ],
+        [
+          29.77642,
+          -95.36982
+        ],
+        [
+          29.7692,
+          -95.3658
+        ],
+        [
+          29.76052,
+          -95.37441
+        ],
+        [
+          29.75076,
+          -95.37347
+        ],
+        [
+          29.69727,
+          -95.28928
+        ],
+        [
+          29.67227,
+          -95.2648
+        ],
+        [
+          29.64113,
+          -95.24371
+        ],
+        [
+          29.58338,
+          -95.18105
+        ],
+        [
+          29.52831,
+          -95.131
+        ],
+        [
+          29.54547,
+          -95.10633
+        ],
+        [
+          29.52498,
+          -95.08539
+        ],
+        [
+          29.5223,
+          -95.07787
+        ],
+        [
+          29.52941,
+          -95.07239
+        ],
+        [
+          29.54352,
+          -95.07681
+        ],
+        [
+          29.52948,
+          -95.07255
+        ],
+        [
+          29.52247,
+          -95.0782
+        ],
+        [
+          29.5287,
+          -95.08989
+        ],
+        [
+          29.54869,
+          -95.10879
+        ],
+        [
+          29.55415,
+          -95.11955
+        ],
+        [
+          29.56773,
+          -95.13235
+        ],
+        [
+          29.57392,
+          -95.12418
+        ],
+        [
+          29.58302,
+          -95.11899
+        ],
+        [
+          29.59062,
+          -95.11776
+        ],
+        [
+          29.58955,
+          -95.12032
+        ],
+        [
+          29.59215,
+          -95.12078
+        ],
+        [
+          29.59156,
+          -95.1228
+        ],
+        [
+          29.58873,
+          -95.12332
+        ],
+        [
+          29.59448,
+          -95.12967
+        ],
+        [
+          29.59599,
+          -95.13565
+        ],
+        [
+          29.57005,
+          -95.16865
+        ],
+        [
+          29.64173,
+          -95.24388
+        ],
+        [
+          29.67202,
+          -95.26415
+        ],
+        [
+          29.6959,
+          -95.2869
+        ],
+        [
+          29.75117,
+          -95.37365
+        ],
+        [
+          29.76091,
+          -95.37334
+        ],
+        [
+          29.76481,
+          -95.36753
+        ],
+        [
+          29.77,
+          -95.36509
+        ],
+        [
+          29.77697,
+          -95.36928
+        ],
+        [
+          29.77919,
+          -95.37665
+        ],
+        [
+          29.77678,
+          -95.38944
+        ],
+        [
+          29.77806,
+          -95.42967
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 76.87,
+      "leg_mi": [
+        37.08,
+        8.83,
+        30.96
+      ]
+    },
+    {
+      "date": "2026-11-11",
+      "dow": "Wed",
       "crew": "Crew 2",
       "category": "Standard",
       "stops": [
@@ -3717,6 +3717,927 @@
         1.0,
         0.37,
         4.72
+      ]
+    },
+    {
+      "date": "2026-11-11",
+      "dow": "Wed",
+      "crew": "Crew 3",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 46,
+          "name": "Ingram, Donna",
+          "street": "8815 Sterling Gate Cir",
+          "city": "Spring",
+          "st": "TX",
+          "zip": "77379",
+          "area": "North",
+          "zone": "Spring/Klein/North Belt",
+          "box_count": 8,
+          "box_count_sheet": 8.0,
+          "box_verified": true,
+          "phone": "832-717-0216",
+          "email": "donna.ingram44@gmail.com",
+          "storage": "YES",
+          "date_2024": "2024-11-11",
+          "crew_2025": "Crew A",
+          "crew_size_2025": 6,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": 1.75,
+          "prior_install_date": "2025-11-13",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.75,
+          "hours_basis": "2025 real",
+          "lat": 30.006247,
+          "lon": -95.544254,
+          "geo_display": "8815, Sterling Gate Circle, Sterling Gate Estates, Champion Forest, Harris County, Texas, 77379, United States",
+          "geo_source": "street",
+          "midx": 44
+        },
+        {
+          "row": 9,
+          "name": "Beaver, Cindy",
+          "street": "28322 Meadow Forest",
+          "city": "Magnolia",
+          "st": "TX",
+          "zip": "77355",
+          "area": "North",
+          "zone": "Magnolia/Tomball",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "713-502-4605",
+          "email": "cindy.beaver@bcei.com",
+          "storage": "NO",
+          "date_2024": "2024-11-12",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 7,
+          "est_hours": 3.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.43,
+          "hours_basis": "est x0.81",
+          "lat": 30.1654988,
+          "lon": -95.7389553,
+          "geo_display": "28322, Meadow Forest, High Meadow Ranch, Montgomery County, Texas, 77355, United States",
+          "geo_source": "street",
+          "midx": 8
+        },
+        {
+          "row": 82,
+          "name": "Madden, Misty",
+          "street": "18810 E Josey Overlook Drive",
+          "city": "Cypress",
+          "st": "TX",
+          "zip": "77433",
+          "area": "Northwest",
+          "zone": "Cypress/Copperfield",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "",
+          "email": "See Pamela Hope",
+          "storage": "NO",
+          "date_2024": "2024-12-05",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": null,
+          "prior_install_date": "2025-12-04",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.62,
+          "hours_basis": "est x0.81",
+          "lat": 29.9404593,
+          "lon": -95.7367628,
+          "geo_display": "18810, East Josey Overlook Drive, Bridgeland, Cypress, Harris County, Texas, 77433, United States",
+          "geo_source": "street",
+          "midx": 80
+        }
+      ],
+      "order_idx": [
+        44,
+        8,
+        80
+      ],
+      "install_h": 5.8,
+      "drive_min": 140.9,
+      "lunch": 40,
+      "total_min": 528.9,
+      "legs": [
+        27.9,
+        34.5,
+        46.5,
+        32.0
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Cypress/Copperfield",
+        "Magnolia/Tomball",
+        "Spring/Klein/North Belt"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.82398,
+          -95.47311
+        ],
+        [
+          29.83848,
+          -95.48873
+        ],
+        [
+          29.86558,
+          -95.48677
+        ],
+        [
+          29.8756,
+          -95.49432
+        ],
+        [
+          29.91583,
+          -95.4958
+        ],
+        [
+          29.91991,
+          -95.49389
+        ],
+        [
+          29.96953,
+          -95.55988
+        ],
+        [
+          29.98805,
+          -95.57153
+        ],
+        [
+          29.99673,
+          -95.5703
+        ],
+        [
+          30.00711,
+          -95.54883
+        ],
+        [
+          30.00628,
+          -95.54413
+        ],
+        [
+          30.0073,
+          -95.54877
+        ],
+        [
+          29.99699,
+          -95.56974
+        ],
+        [
+          29.99678,
+          -95.57864
+        ],
+        [
+          30.00072,
+          -95.58194
+        ],
+        [
+          30.06498,
+          -95.6215
+        ],
+        [
+          30.0733,
+          -95.62953
+        ],
+        [
+          30.08516,
+          -95.63568
+        ],
+        [
+          30.09487,
+          -95.63578
+        ],
+        [
+          30.11459,
+          -95.64295
+        ],
+        [
+          30.16545,
+          -95.67315
+        ],
+        [
+          30.17916,
+          -95.69735
+        ],
+        [
+          30.17424,
+          -95.70048
+        ],
+        [
+          30.17519,
+          -95.70334
+        ],
+        [
+          30.1704,
+          -95.71463
+        ],
+        [
+          30.16565,
+          -95.72442
+        ],
+        [
+          30.16102,
+          -95.72844
+        ],
+        [
+          30.16967,
+          -95.73377
+        ],
+        [
+          30.16956,
+          -95.7382
+        ],
+        [
+          30.16559,
+          -95.73892
+        ],
+        [
+          30.16486,
+          -95.73521
+        ],
+        [
+          30.16574,
+          -95.7395
+        ],
+        [
+          30.16857,
+          -95.73922
+        ],
+        [
+          30.16967,
+          -95.73377
+        ],
+        [
+          30.16102,
+          -95.72844
+        ],
+        [
+          30.16565,
+          -95.72442
+        ],
+        [
+          30.1704,
+          -95.71463
+        ],
+        [
+          30.17519,
+          -95.70334
+        ],
+        [
+          30.17424,
+          -95.70048
+        ],
+        [
+          30.17916,
+          -95.69735
+        ],
+        [
+          30.16614,
+          -95.67477
+        ],
+        [
+          30.1149,
+          -95.64331
+        ],
+        [
+          30.09468,
+          -95.63594
+        ],
+        [
+          30.08507,
+          -95.63587
+        ],
+        [
+          30.07246,
+          -95.62929
+        ],
+        [
+          30.05863,
+          -95.61781
+        ],
+        [
+          30.05258,
+          -95.61613
+        ],
+        [
+          30.05011,
+          -95.68394
+        ],
+        [
+          30.05478,
+          -95.71413
+        ],
+        [
+          30.05321,
+          -95.74197
+        ],
+        [
+          30.04825,
+          -95.75238
+        ],
+        [
+          30.03425,
+          -95.76327
+        ],
+        [
+          30.01705,
+          -95.76886
+        ],
+        [
+          29.94741,
+          -95.7698
+        ],
+        [
+          29.94014,
+          -95.76651
+        ],
+        [
+          29.94149,
+          -95.75947
+        ],
+        [
+          29.93654,
+          -95.74869
+        ],
+        [
+          29.93706,
+          -95.74194
+        ],
+        [
+          29.94038,
+          -95.73673
+        ],
+        [
+          29.93708,
+          -95.7421
+        ],
+        [
+          29.93945,
+          -95.73109
+        ],
+        [
+          29.93719,
+          -95.72586
+        ],
+        [
+          29.94226,
+          -95.71796
+        ],
+        [
+          29.94052,
+          -95.71413
+        ],
+        [
+          29.94241,
+          -95.67853
+        ],
+        [
+          29.95274,
+          -95.67368
+        ],
+        [
+          29.92475,
+          -95.63334
+        ],
+        [
+          29.92164,
+          -95.6214
+        ],
+        [
+          29.90845,
+          -95.6102
+        ],
+        [
+          29.87987,
+          -95.56964
+        ],
+        [
+          29.86013,
+          -95.52578
+        ],
+        [
+          29.84136,
+          -95.49272
+        ],
+        [
+          29.82334,
+          -95.4736
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 92.34,
+      "leg_mi": [
+        17.25,
+        21.01,
+        32.73,
+        21.35
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "dow": "Thu",
+      "crew": "Crew 1",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 10,
+          "name": "Bergstrom, Debbie and Steve",
+          "street": "23 Eloquence Way",
+          "city": "Spring",
+          "st": "TX",
+          "zip": "77381",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "832-233-3277",
+          "email": "swbdlb@aol.com",
+          "storage": "NO",
+          "date_2024": "2024-11-14",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 6,
+          "people_needed": 9,
+          "est_hours": 4.0,
+          "real_hours": 3.666666667,
+          "prior_install_date": "2025-11-13",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.67,
+          "hours_basis": "2025 real",
+          "lat": 30.1916331,
+          "lon": -95.5558902,
+          "geo_display": "23, Eloquence Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_source": "street",
+          "midx": 9
+        },
+        {
+          "row": 19,
+          "name": "Cain, Andria",
+          "street": "14 Legato",
+          "city": "The Woodlands",
+          "st": "TX",
+          "zip": "77382",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": 17.0,
+          "box_count_sheet": 17.0,
+          "box_verified": false,
+          "phone": "832-326-4930",
+          "email": "andriacain0@gmail.com",
+          "storage": "YES",
+          "date_2024": "2024-11-21",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": 7,
+          "est_hours": 4.0,
+          "real_hours": 2.083333333,
+          "prior_install_date": "2025-11-19",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.08,
+          "hours_basis": "2025 real",
+          "lat": 30.1966395,
+          "lon": -95.5589033,
+          "geo_display": "14, Legato Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_source": "street",
+          "midx": 17
+        }
+      ],
+      "order_idx": [
+        9,
+        17
+      ],
+      "install_h": 5.75,
+      "drive_min": 107.8,
+      "lunch": 40,
+      "total_min": 492.8,
+      "legs": [
+        52.8,
+        3.2,
+        51.8
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "The Woodlands"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.82398,
+          -95.47311
+        ],
+        [
+          29.83848,
+          -95.48873
+        ],
+        [
+          29.86558,
+          -95.48677
+        ],
+        [
+          29.8756,
+          -95.49432
+        ],
+        [
+          29.91991,
+          -95.49389
+        ],
+        [
+          29.97004,
+          -95.56045
+        ],
+        [
+          30.01266,
+          -95.58975
+        ],
+        [
+          30.01439,
+          -95.58556
+        ],
+        [
+          30.02532,
+          -95.58576
+        ],
+        [
+          30.08579,
+          -95.59404
+        ],
+        [
+          30.12159,
+          -95.59225
+        ],
+        [
+          30.17616,
+          -95.60089
+        ],
+        [
+          30.19274,
+          -95.5902
+        ],
+        [
+          30.18632,
+          -95.58031
+        ],
+        [
+          30.18808,
+          -95.5689
+        ],
+        [
+          30.18375,
+          -95.56043
+        ],
+        [
+          30.18606,
+          -95.55205
+        ],
+        [
+          30.19171,
+          -95.55585
+        ],
+        [
+          30.1967,
+          -95.55897
+        ],
+        [
+          30.18662,
+          -95.56537
+        ],
+        [
+          30.18625,
+          -95.57952
+        ],
+        [
+          30.19291,
+          -95.5901
+        ],
+        [
+          30.17616,
+          -95.60089
+        ],
+        [
+          30.12158,
+          -95.59237
+        ],
+        [
+          30.04205,
+          -95.59111
+        ],
+        [
+          30.02606,
+          -95.58596
+        ],
+        [
+          30.01446,
+          -95.58567
+        ],
+        [
+          30.01313,
+          -95.59123
+        ],
+        [
+          29.96939,
+          -95.56012
+        ],
+        [
+          29.92003,
+          -95.49409
+        ],
+        [
+          29.87603,
+          -95.49454
+        ],
+        [
+          29.86543,
+          -95.4869
+        ],
+        [
+          29.83758,
+          -95.48899
+        ],
+        [
+          29.82334,
+          -95.4736
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 66.82,
+      "leg_mi": [
+        33.08,
+        0.97,
+        32.77
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "dow": "Thu",
+      "crew": "Crew 2",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 12,
+          "name": "Bourque, Stacey",
+          "street": "10 Grand Colonial",
+          "city": "Spring",
+          "st": "TX",
+          "zip": "77382",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": 29.0,
+          "box_count_sheet": 29.0,
+          "box_verified": false,
+          "phone": "281-362-8620",
+          "email": "staceyb222@hotmail.com",
+          "storage": "NO",
+          "date_2024": "2024-12-03",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": 14,
+          "est_hours": 6.0,
+          "real_hours": 5.5,
+          "prior_install_date": "2025-11-18",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 5.5,
+          "hours_basis": "2025 real",
+          "lat": 30.1968281,
+          "lon": -95.5506355,
+          "geo_display": "10, Grand Colonial Drive, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_source": "street",
+          "midx": 11
+        }
+      ],
+      "order_idx": [
+        11
+      ],
+      "install_h": 5.5,
+      "drive_min": 105.8,
+      "lunch": 40,
+      "total_min": 475.8,
+      "legs": [
+        52.6,
+        53.2
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [
+        "single-stop day"
+      ],
+      "zones": [
+        "The Woodlands"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.82398,
+          -95.47311
+        ],
+        [
+          29.83848,
+          -95.48873
+        ],
+        [
+          29.86558,
+          -95.48677
+        ],
+        [
+          29.8756,
+          -95.49432
+        ],
+        [
+          29.91991,
+          -95.49389
+        ],
+        [
+          29.97004,
+          -95.56045
+        ],
+        [
+          30.01266,
+          -95.58975
+        ],
+        [
+          30.01439,
+          -95.58556
+        ],
+        [
+          30.02532,
+          -95.58576
+        ],
+        [
+          30.08579,
+          -95.59404
+        ],
+        [
+          30.12159,
+          -95.59225
+        ],
+        [
+          30.17616,
+          -95.60089
+        ],
+        [
+          30.19274,
+          -95.5902
+        ],
+        [
+          30.18611,
+          -95.5796
+        ],
+        [
+          30.18643,
+          -95.56539
+        ],
+        [
+          30.19514,
+          -95.56116
+        ],
+        [
+          30.19691,
+          -95.55062
+        ],
+        [
+          30.19514,
+          -95.56116
+        ],
+        [
+          30.18662,
+          -95.56537
+        ],
+        [
+          30.18625,
+          -95.57952
+        ],
+        [
+          30.19291,
+          -95.5901
+        ],
+        [
+          30.17616,
+          -95.60089
+        ],
+        [
+          30.12158,
+          -95.59237
+        ],
+        [
+          30.04205,
+          -95.59111
+        ],
+        [
+          30.02606,
+          -95.58596
+        ],
+        [
+          30.01446,
+          -95.58567
+        ],
+        [
+          30.01313,
+          -95.59123
+        ],
+        [
+          29.96939,
+          -95.56012
+        ],
+        [
+          29.92003,
+          -95.49409
+        ],
+        [
+          29.87603,
+          -95.49454
+        ],
+        [
+          29.86543,
+          -95.4869
+        ],
+        [
+          29.83758,
+          -95.48899
+        ],
+        [
+          29.82334,
+          -95.4736
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 66.21,
+      "leg_mi": [
+        32.93,
+        33.27
       ]
     },
     {
@@ -4314,62 +5235,26 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 46,
-          "name": "Ingram, Donna",
-          "street": "8815 Sterling Gate Cir",
-          "city": "Spring",
+          "row": 87,
+          "name": "Musser, Kristy",
+          "street": "Kristy",
+          "city": "730 W Briarwood Dr, Brenham, TX",
           "st": "TX",
-          "zip": "77379",
-          "area": "North",
-          "zone": "Spring/Klein/North Belt",
-          "box_count": 8,
-          "box_count_sheet": 8.0,
-          "box_verified": true,
-          "phone": "832-717-0216",
-          "email": "donna.ingram44@gmail.com",
-          "storage": "YES",
-          "date_2024": "2024-11-11",
-          "crew_2025": "Crew A",
-          "crew_size_2025": 6,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": 1.75,
-          "prior_install_date": "2025-11-13",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.75,
-          "hours_basis": "2025 real",
-          "lat": 30.006247,
-          "lon": -95.544254,
-          "geo_display": "8815, Sterling Gate Circle, Sterling Gate Estates, Champion Forest, Harris County, Texas, 77379, United States",
-          "geo_source": "street",
-          "midx": 44
-        },
-        {
-          "row": 9,
-          "name": "Beaver, Cindy",
-          "street": "28322 Meadow Forest",
-          "city": "Magnolia",
-          "st": "TX",
-          "zip": "77355",
-          "area": "North",
-          "zone": "Magnolia/Tomball",
+          "zip": "77833",
+          "area": "Far West",
+          "zone": "Brenham/Chappell Hill",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "713-502-4605",
-          "email": "cindy.beaver@bcei.com",
+          "phone": "(281) 989-5741",
+          "email": "musser1992@gmail.com",
           "storage": "NO",
-          "date_2024": "2024-11-12",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 7,
-          "est_hours": 3.0,
-          "real_hours": null,
+          "date_2024": "",
+          "crew_2025": "Justice Crew",
+          "crew_size_2025": 7,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": 5.5,
           "prior_install_date": "",
           "business": "Residence",
           "category": "Standard",
@@ -4377,65 +5262,25 @@
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 2.43,
-          "hours_basis": "est x0.81",
-          "lat": 30.1654988,
-          "lon": -95.7389553,
-          "geo_display": "28322, Meadow Forest, High Meadow Ranch, Montgomery County, Texas, 77355, United States",
-          "geo_source": "street",
-          "midx": 8
-        },
-        {
-          "row": 82,
-          "name": "Madden, Misty",
-          "street": "18810 E Josey Overlook Drive",
-          "city": "Cypress",
-          "st": "TX",
-          "zip": "77433",
-          "area": "Northwest",
-          "zone": "Cypress/Copperfield",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "",
-          "email": "See Pamela Hope",
-          "storage": "NO",
-          "date_2024": "2024-12-05",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": null,
-          "prior_install_date": "2025-12-04",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.62,
-          "hours_basis": "est x0.81",
-          "lat": 29.9404593,
-          "lon": -95.7367628,
-          "geo_display": "18810, East Josey Overlook Drive, Bridgeland, Cypress, Harris County, Texas, 77433, United States",
-          "geo_source": "street",
-          "midx": 80
+          "cal_hours": 5.5,
+          "hours_basis": "2025 real",
+          "lat": 30.1668828,
+          "lon": -96.3977442,
+          "geo_display": "manual override",
+          "geo_source": "manual",
+          "midx": 85
         }
       ],
       "order_idx": [
-        44,
-        8,
-        80
+        85
       ],
-      "install_h": 5.8,
-      "drive_min": 140.9,
+      "install_h": 5.5,
+      "drive_min": 154.2,
       "lunch": 40,
-      "total_min": 528.9,
+      "total_min": 524.2,
       "legs": [
-        27.9,
-        34.5,
-        46.5,
-        32.0
+        77.3,
+        76.9
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -4443,11 +5288,11 @@
       "half_rows": [],
       "joint_with": "",
       "note": "",
-      "flags": [],
+      "flags": [
+        "single-stop day"
+      ],
       "zones": [
-        "Cypress/Copperfield",
-        "Magnolia/Tomball",
-        "Spring/Klein/North Belt"
+        "Brenham/Chappell Hill"
       ],
       "geometry": [
         [
@@ -4459,284 +5304,136 @@
           -95.47311
         ],
         [
-          29.83848,
-          -95.48873
+          29.84181,
+          -95.4928
         ],
         [
-          29.86558,
-          -95.48677
+          29.88006,
+          -95.56944
         ],
         [
-          29.8756,
-          -95.49432
+          29.9721,
+          -95.69492
         ],
         [
-          29.91583,
-          -95.4958
+          30.02402,
+          -95.83513
         ],
         [
-          29.91991,
-          -95.49389
+          30.03388,
+          -95.84507
         ],
         [
-          29.96953,
-          -95.55988
+          30.05674,
+          -95.88883
         ],
         [
-          29.98805,
-          -95.57153
+          30.06915,
+          -95.92225
         ],
         [
-          29.99673,
-          -95.5703
+          30.08118,
+          -95.99717
         ],
         [
-          30.00711,
-          -95.54883
+          30.09115,
+          -96.02927
         ],
         [
-          30.00628,
-          -95.54413
+          30.11243,
+          -96.05687
         ],
         [
-          30.0073,
-          -95.54877
+          30.13025,
+          -96.14068
         ],
         [
-          29.99699,
-          -95.56974
+          30.13102,
+          -96.22682
         ],
         [
-          29.99678,
-          -95.57864
+          30.13496,
+          -96.26475
         ],
         [
-          30.00072,
-          -95.58194
+          30.14157,
+          -96.284
         ],
         [
-          30.06498,
-          -95.6215
+          30.13733,
+          -96.34843
         ],
         [
-          30.0733,
-          -95.62953
+          30.14344,
+          -96.36331
         ],
         [
-          30.08516,
-          -95.63568
+          30.17007,
+          -96.38133
         ],
         [
-          30.09487,
-          -95.63578
+          30.16678,
+          -96.39772
         ],
         [
-          30.11459,
-          -95.64295
+          30.15103,
+          -96.39052
         ],
         [
-          30.16545,
-          -95.67315
+          30.13727,
+          -96.34936
         ],
         [
-          30.17916,
-          -95.69735
+          30.14133,
+          -96.28393
         ],
         [
-          30.17424,
-          -95.70048
+          30.13478,
+          -96.26492
         ],
         [
-          30.17519,
-          -95.70334
+          30.13081,
+          -96.22695
         ],
         [
-          30.1704,
-          -95.71463
+          30.12973,
+          -96.13913
         ],
         [
-          30.16565,
-          -95.72442
+          30.11156,
+          -96.0552
         ],
         [
-          30.16102,
-          -95.72844
+          30.09159,
+          -96.0314
         ],
         [
-          30.16967,
-          -95.73377
+          30.08141,
+          -95.99949
         ],
         [
-          30.16956,
-          -95.7382
+          30.06881,
+          -95.92166
         ],
         [
-          30.16559,
-          -95.73892
+          30.05659,
+          -95.88878
         ],
         [
-          30.16486,
-          -95.73521
+          30.03377,
+          -95.84515
         ],
         [
-          30.16574,
-          -95.7395
+          30.02391,
+          -95.83522
         ],
         [
-          30.16857,
-          -95.73922
-        ],
-        [
-          30.16967,
-          -95.73377
-        ],
-        [
-          30.16102,
-          -95.72844
-        ],
-        [
-          30.16565,
-          -95.72442
-        ],
-        [
-          30.1704,
-          -95.71463
-        ],
-        [
-          30.17519,
-          -95.70334
-        ],
-        [
-          30.17424,
-          -95.70048
-        ],
-        [
-          30.17916,
-          -95.69735
-        ],
-        [
-          30.16614,
-          -95.67477
-        ],
-        [
-          30.1149,
-          -95.64331
-        ],
-        [
-          30.09468,
-          -95.63594
-        ],
-        [
-          30.08507,
-          -95.63587
-        ],
-        [
-          30.07246,
-          -95.62929
-        ],
-        [
-          30.05863,
-          -95.61781
-        ],
-        [
-          30.05258,
-          -95.61613
-        ],
-        [
-          30.05011,
-          -95.68394
-        ],
-        [
-          30.05478,
-          -95.71413
-        ],
-        [
-          30.05321,
-          -95.74197
-        ],
-        [
-          30.04825,
-          -95.75238
-        ],
-        [
-          30.03425,
-          -95.76327
-        ],
-        [
-          30.01705,
-          -95.76886
-        ],
-        [
-          29.94741,
-          -95.7698
-        ],
-        [
-          29.94014,
-          -95.76651
-        ],
-        [
-          29.94149,
-          -95.75947
-        ],
-        [
-          29.93654,
-          -95.74869
-        ],
-        [
-          29.93706,
-          -95.74194
-        ],
-        [
-          29.94038,
-          -95.73673
-        ],
-        [
-          29.93708,
-          -95.7421
-        ],
-        [
-          29.93945,
-          -95.73109
-        ],
-        [
-          29.93719,
-          -95.72586
-        ],
-        [
-          29.94226,
-          -95.71796
-        ],
-        [
-          29.94052,
-          -95.71413
-        ],
-        [
-          29.94241,
-          -95.67853
-        ],
-        [
-          29.95274,
-          -95.67368
-        ],
-        [
-          29.92475,
-          -95.63334
-        ],
-        [
-          29.92164,
-          -95.6214
-        ],
-        [
-          29.90845,
-          -95.6102
+          29.97204,
+          -95.69534
         ],
         [
           29.87987,
           -95.56964
-        ],
-        [
-          29.86013,
-          -95.52578
         ],
         [
           29.84136,
@@ -4751,12 +5448,10 @@
           -95.47379
         ]
       ],
-      "distance_mi": 92.34,
+      "distance_mi": 128.26,
       "leg_mi": [
-        17.25,
-        21.01,
-        32.73,
-        21.35
+        64.27,
+        63.99
       ]
     },
     {
@@ -4766,90 +5461,90 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 10,
-          "name": "Bergstrom, Debbie and Steve",
-          "street": "23 Eloquence Way",
-          "city": "Spring",
+          "row": 28,
+          "name": "Casperson, Erik",
+          "street": "2114 Golden Pond Dr",
+          "city": "Kingwood",
           "st": "TX",
-          "zip": "77381",
-          "area": "North",
-          "zone": "The Woodlands",
+          "zip": "77345",
+          "area": "Northeast",
+          "zone": "Kingwood/Humble/Porter",
+          "box_count": 20.0,
+          "box_count_sheet": 20.0,
+          "box_verified": false,
+          "phone": "832-967-8618",
+          "email": "Ecasperson@childrenshomecare.net",
+          "storage": "NO",
+          "date_2024": "2024-11-14",
+          "crew_2025": "Crew A (5)",
+          "crew_size_2025": 5,
+          "people_needed": 8,
+          "est_hours": 4.0,
+          "real_hours": 3.5,
+          "prior_install_date": "2025-11-14",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.5,
+          "hours_basis": "2025 real",
+          "lat": 30.04752,
+          "lon": -95.1643306,
+          "geo_display": "2114, Golden Pond Drive, Fosters Mill, Houston, Harris County, Texas, 77345, United States",
+          "geo_source": "street",
+          "midx": 26
+        },
+        {
+          "row": 7,
+          "name": "Allums, Jennifer",
+          "street": "5907 Royal Point Ct.",
+          "city": "Kingwood",
+          "st": "TX",
+          "zip": "77345",
+          "area": "Northeast",
+          "zone": "Kingwood/Humble/Porter",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "832-233-3277",
-          "email": "swbdlb@aol.com",
+          "phone": "713-805-5559",
+          "email": "jennifer@crostex.com",
           "storage": "NO",
           "date_2024": "2024-11-14",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 6,
-          "people_needed": 9,
-          "est_hours": 4.0,
-          "real_hours": 3.666666667,
-          "prior_install_date": "2025-11-13",
+          "crew_2025": "Crew A (5)",
+          "crew_size_2025": 5,
+          "people_needed": 6,
+          "est_hours": 3.0,
+          "real_hours": 1.833333333,
+          "prior_install_date": "2025-11-14",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 3.67,
+          "cal_hours": 1.83,
           "hours_basis": "2025 real",
-          "lat": 30.1916331,
-          "lon": -95.5558902,
-          "geo_display": "23, Eloquence Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "lat": 30.040126,
+          "lon": -95.134273,
+          "geo_display": "5907, Royal Point Court, Royal Shores, Houston, Harris County, Texas, 77345, United States",
           "geo_source": "street",
-          "midx": 9
-        },
-        {
-          "row": 19,
-          "name": "Cain, Andria",
-          "street": "14 Legato",
-          "city": "The Woodlands",
-          "st": "TX",
-          "zip": "77382",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": 17.0,
-          "box_count_sheet": 17.0,
-          "box_verified": false,
-          "phone": "832-326-4930",
-          "email": "andriacain0@gmail.com",
-          "storage": "YES",
-          "date_2024": "2024-11-21",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 7,
-          "est_hours": 4.0,
-          "real_hours": 2.083333333,
-          "prior_install_date": "2025-11-19",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.08,
-          "hours_basis": "2025 real",
-          "lat": 30.1966395,
-          "lon": -95.5589033,
-          "geo_display": "14, Legato Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
-          "geo_source": "street",
-          "midx": 17
+          "midx": 6
         }
       ],
       "order_idx": [
-        9,
-        17
+        26,
+        6
       ],
-      "install_h": 5.75,
-      "drive_min": 107.8,
+      "install_h": 5.33,
+      "drive_min": 112.5,
       "lunch": 40,
-      "total_min": 492.8,
+      "total_min": 472.3,
       "legs": [
-        52.8,
-        3.2,
-        51.8
+        49.8,
+        9.4,
+        53.3
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -4859,7 +5554,7 @@
       "note": "",
       "flags": [],
       "zones": [
-        "The Woodlands"
+        "Kingwood/Humble/Porter"
       ],
       "geometry": [
         [
@@ -4867,151 +5562,203 @@
           -95.47379
         ],
         [
-          29.82398,
-          -95.47311
+          29.80683,
+          -95.46729
         ],
         [
-          29.83848,
-          -95.48873
+          29.80713,
+          -95.45612
         ],
         [
-          29.86558,
-          -95.48677
+          29.80276,
+          -95.45018
         ],
         [
-          29.8756,
-          -95.49432
+          29.81259,
+          -95.43049
         ],
         [
-          29.91991,
-          -95.49389
+          29.81392,
+          -95.35608
         ],
         [
-          29.97004,
-          -95.56045
+          29.80809,
+          -95.33833
         ],
         [
-          30.01266,
-          -95.58975
+          29.80904,
+          -95.33533
         ],
         [
-          30.01439,
-          -95.58556
+          29.86533,
+          -95.33253
         ],
         [
-          30.02532,
-          -95.58576
+          29.9006,
+          -95.31233
         ],
         [
-          30.08579,
-          -95.59404
+          29.91633,
+          -95.30798
         ],
         [
-          30.12159,
-          -95.59225
+          29.97866,
+          -95.27821
         ],
         [
-          30.17616,
-          -95.60089
+          30.02999,
+          -95.25718
         ],
         [
-          30.19274,
-          -95.5902
+          30.05239,
+          -95.25156
         ],
         [
-          30.18632,
-          -95.58031
+          30.04933,
+          -95.23977
         ],
         [
-          30.18808,
-          -95.5689
+          30.05064,
+          -95.22117
         ],
         [
-          30.18375,
-          -95.56043
+          30.04304,
+          -95.19923
         ],
         [
-          30.18606,
-          -95.55205
+          30.04401,
+          -95.19267
         ],
         [
-          30.19171,
-          -95.55585
+          30.05057,
+          -95.18267
         ],
         [
-          30.1967,
-          -95.55897
+          30.05348,
+          -95.16831
         ],
         [
-          30.18662,
-          -95.56537
+          30.04744,
+          -95.16441
         ],
         [
-          30.18625,
-          -95.57952
+          30.04613,
+          -95.16304
         ],
         [
-          30.19291,
-          -95.5901
+          30.04946,
+          -95.16669
         ],
         [
-          30.17616,
-          -95.60089
+          30.05531,
+          -95.15958
         ],
         [
-          30.12158,
-          -95.59237
+          30.05158,
+          -95.15291
         ],
         [
-          30.04205,
-          -95.59111
+          30.04434,
+          -95.15116
         ],
         [
-          30.02606,
-          -95.58596
+          30.04591,
+          -95.14186
         ],
         [
-          30.01446,
-          -95.58567
+          30.04372,
+          -95.13632
         ],
         [
-          30.01313,
-          -95.59123
+          30.03833,
+          -95.13344
         ],
         [
-          29.96939,
-          -95.56012
+          30.04008,
+          -95.13436
         ],
         [
-          29.92003,
-          -95.49409
+          30.05602,
+          -95.14967
         ],
         [
-          29.87603,
-          -95.49454
+          30.06125,
+          -95.15029
         ],
         [
-          29.86543,
-          -95.4869
+          30.06577,
+          -95.16291
         ],
         [
-          29.83758,
-          -95.48899
+          30.07547,
+          -95.17627
         ],
         [
-          29.82334,
-          -95.4736
+          30.07024,
+          -95.18167
+        ],
+        [
+          30.06787,
+          -95.18948
+        ],
+        [
+          30.07003,
+          -95.24732
+        ],
+        [
+          30.03139,
+          -95.2571
+        ],
+        [
+          29.97906,
+          -95.27841
+        ],
+        [
+          29.91638,
+          -95.30837
+        ],
+        [
+          29.90116,
+          -95.31241
+        ],
+        [
+          29.86538,
+          -95.3329
+        ],
+        [
+          29.80944,
+          -95.33587
+        ],
+        [
+          29.81408,
+          -95.35543
+        ],
+        [
+          29.81481,
+          -95.37564
+        ],
+        [
+          29.81279,
+          -95.43071
+        ],
+        [
+          29.80895,
+          -95.44198
+        ],
+        [
+          29.80682,
+          -95.46582
         ],
         [
           29.81276,
           -95.47379
         ]
       ],
-      "distance_mi": 66.82,
+      "distance_mi": 72.74,
       "leg_mi": [
-        33.08,
-        0.97,
-        32.77
+        32.79,
+        3.8,
+        36.14
       ]
     },
     {
@@ -6022,52 +6769,90 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 12,
-          "name": "Bourque, Stacey",
-          "street": "10 Grand Colonial",
-          "city": "Spring",
+          "row": 103,
+          "name": "Seetheram, Rani",
+          "street": "4803 Beamer Creek Ct.",
+          "city": "Sugarland",
           "st": "TX",
-          "zip": "77382",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": 29.0,
-          "box_count_sheet": 29.0,
+          "zip": "77479",
+          "area": "Southwest",
+          "zone": "Sugar Land/Stafford",
+          "box_count": null,
+          "box_count_sheet": null,
           "box_verified": false,
-          "phone": "281-362-8620",
-          "email": "staceyb222@hotmail.com",
-          "storage": "NO",
-          "date_2024": "2024-12-03",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 14,
-          "est_hours": 6.0,
-          "real_hours": 5.5,
-          "prior_install_date": "2025-11-18",
+          "phone": "281-739-7418",
+          "email": "rani9ram@earthlink.net",
+          "storage": "",
+          "date_2024": "",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": null,
+          "prior_install_date": "2025-11-28",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 5.5,
-          "hours_basis": "2025 real",
-          "lat": 30.1968281,
-          "lon": -95.5506355,
-          "geo_display": "10, Grand Colonial Drive, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "cal_hours": 2.58,
+          "hours_basis": "zone median",
+          "lat": 29.5492232,
+          "lon": -95.601416,
+          "geo_display": "4803, Beamer Creek Court, Riverstone, Fort Bend County, Texas, 77479, United States",
           "geo_source": "street",
-          "midx": 11
+          "midx": 101
+        },
+        {
+          "row": 86,
+          "name": "Moss, Dave",
+          "street": "72 Sunset Park Ln",
+          "city": "Sugarland",
+          "st": "TX",
+          "zip": "77479",
+          "area": "Southwest",
+          "zone": "Sugar Land/Stafford",
+          "box_count": 35,
+          "box_count_sheet": 14.0,
+          "box_verified": true,
+          "phone": "281-980-4425",
+          "email": "dmosix@aol.com",
+          "storage": "YES",
+          "date_2024": "2024-11-05",
+          "crew_2025": "Crew B (6)",
+          "crew_size_2025": 6,
+          "people_needed": 9,
+          "est_hours": 4.0,
+          "real_hours": 2.583333333,
+          "prior_install_date": "2025-11-17",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.58,
+          "hours_basis": "2025 real",
+          "lat": 29.5428706,
+          "lon": -95.5742501,
+          "geo_display": "72, Sunset Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+          "geo_source": "street",
+          "midx": 84
         }
       ],
       "order_idx": [
-        11
+        101,
+        84
       ],
-      "install_h": 5.5,
-      "drive_min": 105.8,
+      "install_h": 5.16,
+      "drive_min": 80.7,
       "lunch": 40,
-      "total_min": 475.8,
+      "total_min": 430.3,
       "legs": [
-        52.6,
-        53.2
+        38.5,
+        5.2,
+        37.0
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -6076,10 +6861,526 @@
       "joint_with": "",
       "note": "",
       "flags": [
+        "light day (<7.5h)"
+      ],
+      "zones": [
+        "Sugar Land/Stafford"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.81928,
+          -95.47371
+        ],
+        [
+          29.81935,
+          -95.46913
+        ],
+        [
+          29.8004,
+          -95.45051
+        ],
+        [
+          29.78393,
+          -95.45214
+        ],
+        [
+          29.77666,
+          -95.45601
+        ],
+        [
+          29.75114,
+          -95.45583
+        ],
+        [
+          29.73056,
+          -95.46092
+        ],
+        [
+          29.72649,
+          -95.46748
+        ],
+        [
+          29.72414,
+          -95.49114
+        ],
+        [
+          29.65154,
+          -95.56879
+        ],
+        [
+          29.64203,
+          -95.56524
+        ],
+        [
+          29.56697,
+          -95.56396
+        ],
+        [
+          29.56191,
+          -95.57155
+        ],
+        [
+          29.55525,
+          -95.57412
+        ],
+        [
+          29.55013,
+          -95.57988
+        ],
+        [
+          29.54798,
+          -95.59087
+        ],
+        [
+          29.54923,
+          -95.60151
+        ],
+        [
+          29.54781,
+          -95.59085
+        ],
+        [
+          29.55026,
+          -95.57917
+        ],
+        [
+          29.54747,
+          -95.57454
+        ],
+        [
+          29.5429,
+          -95.5742
+        ],
+        [
+          29.54747,
+          -95.57454
+        ],
+        [
+          29.55026,
+          -95.57917
+        ],
+        [
+          29.55603,
+          -95.57298
+        ],
+        [
+          29.56212,
+          -95.57113
+        ],
+        [
+          29.56693,
+          -95.56382
+        ],
+        [
+          29.64215,
+          -95.5651
+        ],
+        [
+          29.65112,
+          -95.56792
+        ],
+        [
+          29.69133,
+          -95.52767
+        ],
+        [
+          29.72447,
+          -95.49017
+        ],
+        [
+          29.72618,
+          -95.46755
+        ],
+        [
+          29.73026,
+          -95.45981
+        ],
+        [
+          29.75209,
+          -95.45547
+        ],
+        [
+          29.77714,
+          -95.45568
+        ],
+        [
+          29.78367,
+          -95.45193
+        ],
+        [
+          29.80224,
+          -95.4505
+        ],
+        [
+          29.80784,
+          -95.45542
+        ],
+        [
+          29.80702,
+          -95.46704
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 51.24,
+      "leg_mi": [
+        25.04,
+        2.35,
+        23.85
+      ]
+    },
+    {
+      "date": "2026-11-16",
+      "dow": "Mon",
+      "crew": "Crew 3",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 15,
+          "name": "Byers, Merlene (Chapel Hill)",
+          "street": "11235 Jones Wilke Rd",
+          "city": "Chapel Hill",
+          "st": "TX",
+          "zip": "77426",
+          "area": "Far West",
+          "zone": "Brenham/Chappell Hill",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "979-472-0002",
+          "email": "info@thebranchdesigngroup.com",
+          "storage": "",
+          "date_2024": "",
+          "crew_2025": "Justice Crew",
+          "crew_size_2025": 5,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": 2.0,
+          "prior_install_date": "2025-12-13",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "Needs to be earlier. Was sadly too late",
+          "install_2026_no_install": false,
+          "cal_hours": 2.0,
+          "hours_basis": "2025 real",
+          "lat": 30.0725651,
+          "lon": -96.2801867,
+          "geo_display": "11235, Jones Wilke Road, Austin County, Texas, 77426, United States",
+          "geo_source": "street",
+          "midx": 13
+        },
+        {
+          "row": 14,
+          "name": "Byers, Merlene (Bellville)",
+          "street": "214 S L Oak St",
+          "city": "Bellville",
+          "st": "TX",
+          "zip": "77418",
+          "area": "Far West",
+          "zone": "Bellville/Sealy",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "979-472-0002",
+          "email": "info@thebranchdesigngroup.com",
+          "storage": "",
+          "date_2024": "",
+          "crew_2025": "Justice Crew",
+          "crew_size_2025": 5,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": 2.75,
+          "prior_install_date": "2025-12-18",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "Needs to be earlier. Was sadly too late",
+          "install_2026_no_install": false,
+          "cal_hours": 2.75,
+          "hours_basis": "2025 real",
+          "lat": 29.9614662,
+          "lon": -96.2929739,
+          "geo_display": "77418, Austin County, Texas, United States",
+          "geo_source": "street",
+          "midx": 12
+        }
+      ],
+      "order_idx": [
+        13,
+        12
+      ],
+      "install_h": 4.75,
+      "drive_min": 189.6,
+      "lunch": 40,
+      "total_min": 514.6,
+      "legs": [
+        86.0,
+        26.2,
+        77.5
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Bellville/Sealy",
+        "Brenham/Chappell Hill"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.82398,
+          -95.47311
+        ],
+        [
+          29.84181,
+          -95.4928
+        ],
+        [
+          29.88006,
+          -95.56944
+        ],
+        [
+          29.97223,
+          -95.69513
+        ],
+        [
+          30.02402,
+          -95.83513
+        ],
+        [
+          30.03388,
+          -95.84507
+        ],
+        [
+          30.05562,
+          -95.8862
+        ],
+        [
+          30.06883,
+          -95.92107
+        ],
+        [
+          30.08118,
+          -95.99717
+        ],
+        [
+          30.09115,
+          -96.02927
+        ],
+        [
+          30.11243,
+          -96.05687
+        ],
+        [
+          30.13016,
+          -96.13993
+        ],
+        [
+          30.12872,
+          -96.19641
+        ],
+        [
+          30.1324,
+          -96.2109
+        ],
+        [
+          30.13259,
+          -96.2396
+        ],
+        [
+          30.1088,
+          -96.23348
+        ],
+        [
+          30.10383,
+          -96.22485
+        ],
+        [
+          30.09229,
+          -96.22269
+        ],
+        [
+          30.08642,
+          -96.25543
+        ],
+        [
+          30.06986,
+          -96.25188
+        ],
+        [
+          30.07265,
+          -96.28018
+        ],
+        [
+          30.06295,
+          -96.33182
+        ],
+        [
+          30.02572,
+          -96.3109
+        ],
+        [
+          29.98974,
+          -96.30069
+        ],
+        [
+          29.97269,
+          -96.28795
+        ],
+        [
+          29.96208,
+          -96.29601
+        ],
+        [
+          29.97269,
+          -96.28795
+        ],
+        [
+          29.94864,
+          -96.25289
+        ],
+        [
+          29.92754,
+          -96.24642
+        ],
+        [
+          29.84014,
+          -96.17124
+        ],
+        [
+          29.76398,
+          -96.15254
+        ],
+        [
+          29.76212,
+          -96.15767
+        ],
+        [
+          29.77529,
+          -96.12541
+        ],
+        [
+          29.76973,
+          -96.0423
+        ],
+        [
+          29.78166,
+          -95.98987
+        ],
+        [
+          29.77709,
+          -95.84985
+        ],
+        [
+          29.77757,
+          -95.81797
+        ],
+        [
+          29.78525,
+          -95.80447
+        ],
+        [
+          29.78346,
+          -95.48469
+        ],
+        [
+          29.81054,
+          -95.48498
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 135.01,
+      "leg_mi": [
+        61.5,
+        11.37,
+        62.14
+      ]
+    },
+    {
+      "date": "2026-11-17",
+      "dow": "Tue",
+      "crew": "Crew 1",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 84,
+          "name": "Mattix, Margaret & Rick",
+          "street": "96 Benthaven Way",
+          "city": "Montgomery",
+          "st": "TX",
+          "zip": "77356",
+          "area": "North",
+          "zone": "Montgomery/Lake Conroe",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "713-557-9671",
+          "email": "bermudam3@aol.com",
+          "storage": "NO",
+          "date_2024": "",
+          "crew_2025": "Crew C",
+          "crew_size_2025": 6,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": 3.75,
+          "prior_install_date": "2025-12-08",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.75,
+          "hours_basis": "2025 real",
+          "lat": 30.4157864,
+          "lon": -95.6190376,
+          "geo_display": "96, Benthaven Way, Bentwater, Montgomery County, Texas, 77356, United States",
+          "geo_source": "street",
+          "midx": 82
+        }
+      ],
+      "order_idx": [
+        82
+      ],
+      "install_h": 3.75,
+      "drive_min": 161.3,
+      "lunch": 40,
+      "total_min": 426.3,
+      "legs": [
+        80.3,
+        81.0
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [
+        "light day (<7.5h)",
         "single-stop day"
       ],
       "zones": [
-        "The Woodlands"
+        "Montgomery/Lake Conroe"
       ],
       "geometry": [
         [
@@ -6107,96 +7408,128 @@
           -95.49389
         ],
         [
-          29.97004,
-          -95.56045
+          29.97089,
+          -95.56124
         ],
         [
-          30.01266,
-          -95.58975
+          30.07223,
+          -95.62889
         ],
         [
-          30.01439,
-          -95.58556
+          30.11459,
+          -95.64295
         ],
         [
-          30.02532,
-          -95.58576
+          30.18358,
+          -95.68253
         ],
         [
-          30.08579,
-          -95.59404
+          30.20272,
+          -95.68017
         ],
         [
-          30.12159,
-          -95.59225
+          30.27375,
+          -95.71089
         ],
         [
-          30.17616,
-          -95.60089
+          30.2995,
+          -95.69674
         ],
         [
-          30.19274,
-          -95.5902
+          30.40238,
+          -95.69952
         ],
         [
-          30.18611,
-          -95.5796
+          30.40455,
+          -95.68855
         ],
         [
-          30.18643,
-          -95.56539
+          30.41543,
+          -95.67501
         ],
         [
-          30.19514,
-          -95.56116
+          30.43413,
+          -95.6624
         ],
         [
-          30.19691,
-          -95.55062
+          30.43686,
+          -95.64709
         ],
         [
-          30.19514,
-          -95.56116
+          30.43691,
+          -95.63819
         ],
         [
-          30.18662,
-          -95.56537
+          30.42584,
+          -95.63778
         ],
         [
-          30.18625,
-          -95.57952
+          30.4158,
+          -95.61894
         ],
         [
-          30.19291,
-          -95.5901
+          30.4117,
+          -95.61686
         ],
         [
-          30.17616,
-          -95.60089
+          30.42398,
+          -95.62836
         ],
         [
-          30.12158,
-          -95.59237
+          30.42591,
+          -95.63761
         ],
         [
-          30.04205,
-          -95.59111
+          30.43691,
+          -95.63804
         ],
         [
-          30.02606,
-          -95.58596
+          30.43686,
+          -95.64709
         ],
         [
-          30.01446,
-          -95.58567
+          30.43413,
+          -95.6624
         ],
         [
-          30.01313,
-          -95.59123
+          30.41543,
+          -95.67501
         ],
         [
-          29.96939,
-          -95.56012
+          30.40455,
+          -95.68855
+        ],
+        [
+          30.40238,
+          -95.69952
+        ],
+        [
+          30.2995,
+          -95.69674
+        ],
+        [
+          30.27375,
+          -95.71089
+        ],
+        [
+          30.20272,
+          -95.68017
+        ],
+        [
+          30.18289,
+          -95.68309
+        ],
+        [
+          30.11449,
+          -95.64311
+        ],
+        [
+          30.07246,
+          -95.62929
+        ],
+        [
+          29.97052,
+          -95.56121
         ],
         [
           29.92003,
@@ -6223,543 +7556,10 @@
           -95.47379
         ]
       ],
-      "distance_mi": 66.21,
+      "distance_mi": 106.56,
       "leg_mi": [
-        32.93,
-        33.27
-      ]
-    },
-    {
-      "date": "2026-11-16",
-      "dow": "Mon",
-      "crew": "Crew 3",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 87,
-          "name": "Musser, Kristy",
-          "street": "Kristy",
-          "city": "730 W Briarwood Dr, Brenham, TX",
-          "st": "TX",
-          "zip": "77833",
-          "area": "Far West",
-          "zone": "Brenham/Chappell Hill",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "(281) 989-5741",
-          "email": "musser1992@gmail.com",
-          "storage": "NO",
-          "date_2024": "",
-          "crew_2025": "Justice Crew",
-          "crew_size_2025": 7,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": 5.5,
-          "prior_install_date": "",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 5.5,
-          "hours_basis": "2025 real",
-          "lat": 30.1668828,
-          "lon": -96.3977442,
-          "geo_display": "manual override",
-          "geo_source": "manual",
-          "midx": 85
-        }
-      ],
-      "order_idx": [
-        85
-      ],
-      "install_h": 5.5,
-      "drive_min": 154.2,
-      "lunch": 40,
-      "total_min": 524.2,
-      "legs": [
-        77.3,
-        76.9
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "single-stop day"
-      ],
-      "zones": [
-        "Brenham/Chappell Hill"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.82398,
-          -95.47311
-        ],
-        [
-          29.84181,
-          -95.4928
-        ],
-        [
-          29.88006,
-          -95.56944
-        ],
-        [
-          29.9721,
-          -95.69492
-        ],
-        [
-          30.02402,
-          -95.83513
-        ],
-        [
-          30.03388,
-          -95.84507
-        ],
-        [
-          30.05674,
-          -95.88883
-        ],
-        [
-          30.06915,
-          -95.92225
-        ],
-        [
-          30.08118,
-          -95.99717
-        ],
-        [
-          30.09115,
-          -96.02927
-        ],
-        [
-          30.11243,
-          -96.05687
-        ],
-        [
-          30.13025,
-          -96.14068
-        ],
-        [
-          30.13102,
-          -96.22682
-        ],
-        [
-          30.13496,
-          -96.26475
-        ],
-        [
-          30.14157,
-          -96.284
-        ],
-        [
-          30.13733,
-          -96.34843
-        ],
-        [
-          30.14344,
-          -96.36331
-        ],
-        [
-          30.17007,
-          -96.38133
-        ],
-        [
-          30.16678,
-          -96.39772
-        ],
-        [
-          30.15103,
-          -96.39052
-        ],
-        [
-          30.13727,
-          -96.34936
-        ],
-        [
-          30.14133,
-          -96.28393
-        ],
-        [
-          30.13478,
-          -96.26492
-        ],
-        [
-          30.13081,
-          -96.22695
-        ],
-        [
-          30.12973,
-          -96.13913
-        ],
-        [
-          30.11156,
-          -96.0552
-        ],
-        [
-          30.09159,
-          -96.0314
-        ],
-        [
-          30.08141,
-          -95.99949
-        ],
-        [
-          30.06881,
-          -95.92166
-        ],
-        [
-          30.05659,
-          -95.88878
-        ],
-        [
-          30.03377,
-          -95.84515
-        ],
-        [
-          30.02391,
-          -95.83522
-        ],
-        [
-          29.97204,
-          -95.69534
-        ],
-        [
-          29.87987,
-          -95.56964
-        ],
-        [
-          29.84136,
-          -95.49272
-        ],
-        [
-          29.82334,
-          -95.4736
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 128.26,
-      "leg_mi": [
-        64.27,
-        63.99
-      ]
-    },
-    {
-      "date": "2026-11-17",
-      "dow": "Tue",
-      "crew": "Crew 1",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 28,
-          "name": "Casperson, Erik",
-          "street": "2114 Golden Pond Dr",
-          "city": "Kingwood",
-          "st": "TX",
-          "zip": "77345",
-          "area": "Northeast",
-          "zone": "Kingwood/Humble/Porter",
-          "box_count": 20.0,
-          "box_count_sheet": 20.0,
-          "box_verified": false,
-          "phone": "832-967-8618",
-          "email": "Ecasperson@childrenshomecare.net",
-          "storage": "NO",
-          "date_2024": "2024-11-14",
-          "crew_2025": "Crew A (5)",
-          "crew_size_2025": 5,
-          "people_needed": 8,
-          "est_hours": 4.0,
-          "real_hours": 3.5,
-          "prior_install_date": "2025-11-14",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.5,
-          "hours_basis": "2025 real",
-          "lat": 30.04752,
-          "lon": -95.1643306,
-          "geo_display": "2114, Golden Pond Drive, Fosters Mill, Houston, Harris County, Texas, 77345, United States",
-          "geo_source": "street",
-          "midx": 26
-        },
-        {
-          "row": 7,
-          "name": "Allums, Jennifer",
-          "street": "5907 Royal Point Ct.",
-          "city": "Kingwood",
-          "st": "TX",
-          "zip": "77345",
-          "area": "Northeast",
-          "zone": "Kingwood/Humble/Porter",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "713-805-5559",
-          "email": "jennifer@crostex.com",
-          "storage": "NO",
-          "date_2024": "2024-11-14",
-          "crew_2025": "Crew A (5)",
-          "crew_size_2025": 5,
-          "people_needed": 6,
-          "est_hours": 3.0,
-          "real_hours": 1.833333333,
-          "prior_install_date": "2025-11-14",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.83,
-          "hours_basis": "2025 real",
-          "lat": 30.040126,
-          "lon": -95.134273,
-          "geo_display": "5907, Royal Point Court, Royal Shores, Houston, Harris County, Texas, 77345, United States",
-          "geo_source": "street",
-          "midx": 6
-        }
-      ],
-      "order_idx": [
-        26,
-        6
-      ],
-      "install_h": 5.33,
-      "drive_min": 112.5,
-      "lunch": 40,
-      "total_min": 472.3,
-      "legs": [
-        49.8,
-        9.4,
-        53.3
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "Kingwood/Humble/Porter"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.80683,
-          -95.46729
-        ],
-        [
-          29.80713,
-          -95.45612
-        ],
-        [
-          29.80276,
-          -95.45018
-        ],
-        [
-          29.81259,
-          -95.43049
-        ],
-        [
-          29.81392,
-          -95.35608
-        ],
-        [
-          29.80809,
-          -95.33833
-        ],
-        [
-          29.80904,
-          -95.33533
-        ],
-        [
-          29.86533,
-          -95.33253
-        ],
-        [
-          29.9006,
-          -95.31233
-        ],
-        [
-          29.91633,
-          -95.30798
-        ],
-        [
-          29.97866,
-          -95.27821
-        ],
-        [
-          30.02999,
-          -95.25718
-        ],
-        [
-          30.05239,
-          -95.25156
-        ],
-        [
-          30.04933,
-          -95.23977
-        ],
-        [
-          30.05064,
-          -95.22117
-        ],
-        [
-          30.04304,
-          -95.19923
-        ],
-        [
-          30.04401,
-          -95.19267
-        ],
-        [
-          30.05057,
-          -95.18267
-        ],
-        [
-          30.05348,
-          -95.16831
-        ],
-        [
-          30.04744,
-          -95.16441
-        ],
-        [
-          30.04613,
-          -95.16304
-        ],
-        [
-          30.04946,
-          -95.16669
-        ],
-        [
-          30.05531,
-          -95.15958
-        ],
-        [
-          30.05158,
-          -95.15291
-        ],
-        [
-          30.04434,
-          -95.15116
-        ],
-        [
-          30.04591,
-          -95.14186
-        ],
-        [
-          30.04372,
-          -95.13632
-        ],
-        [
-          30.03833,
-          -95.13344
-        ],
-        [
-          30.04008,
-          -95.13436
-        ],
-        [
-          30.05602,
-          -95.14967
-        ],
-        [
-          30.06125,
-          -95.15029
-        ],
-        [
-          30.06577,
-          -95.16291
-        ],
-        [
-          30.07547,
-          -95.17627
-        ],
-        [
-          30.07024,
-          -95.18167
-        ],
-        [
-          30.06787,
-          -95.18948
-        ],
-        [
-          30.07003,
-          -95.24732
-        ],
-        [
-          30.03139,
-          -95.2571
-        ],
-        [
-          29.97906,
-          -95.27841
-        ],
-        [
-          29.91638,
-          -95.30837
-        ],
-        [
-          29.90116,
-          -95.31241
-        ],
-        [
-          29.86538,
-          -95.3329
-        ],
-        [
-          29.80944,
-          -95.33587
-        ],
-        [
-          29.81408,
-          -95.35543
-        ],
-        [
-          29.81481,
-          -95.37564
-        ],
-        [
-          29.81279,
-          -95.43071
-        ],
-        [
-          29.80895,
-          -95.44198
-        ],
-        [
-          29.80682,
-          -95.46582
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 72.74,
-      "leg_mi": [
-        32.79,
-        3.8,
-        36.14
+        52.86,
+        53.7
       ]
     },
     {
@@ -7039,90 +7839,90 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 103,
-          "name": "Seetheram, Rani",
-          "street": "4803 Beamer Creek Ct.",
-          "city": "Sugarland",
+          "row": 51,
+          "name": "Kanyi, Joy and Kenneth (Celestial)",
+          "street": "17011 E Copper Lakes Ct.",
+          "city": "Houston",
           "st": "TX",
-          "zip": "77479",
+          "zip": "77095",
+          "area": "Northwest",
+          "zone": "Cypress/Copperfield",
+          "box_count": 16.0,
+          "box_count_sheet": 16.0,
+          "box_verified": false,
+          "phone": "",
+          "email": "sheajoy@icloud.com",
+          "storage": "YES",
+          "date_2024": "",
+          "crew_2025": "Crew B (3)",
+          "crew_size_2025": 3,
+          "people_needed": 6,
+          "est_hours": 3.0,
+          "real_hours": 3.0,
+          "prior_install_date": "2025-11-07",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.0,
+          "hours_basis": "2025 real",
+          "lat": 29.9013764,
+          "lon": -95.6731505,
+          "geo_display": "17011, East Copper Lakes Court, Copper Lakes, Harris County, Texas, 77095, United States",
+          "geo_source": "street",
+          "midx": 49
+        },
+        {
+          "row": 93,
+          "name": "Parker, Guy",
+          "street": "3118 La Quinta",
+          "city": "Missouri City",
+          "st": "TX",
+          "zip": "77459",
           "area": "Southwest",
-          "zone": "Sugar Land/Stafford",
+          "zone": "Missouri City/Sienna",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "281-739-7418",
-          "email": "rani9ram@earthlink.net",
-          "storage": "",
+          "phone": "7133980124\u202c",
+          "email": "guy@ambientway.com",
+          "storage": "Ask",
           "date_2024": "",
-          "crew_2025": "",
-          "crew_size_2025": null,
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
           "people_needed": null,
           "est_hours": null,
-          "real_hours": null,
-          "prior_install_date": "2025-11-28",
+          "real_hours": 0.5833333333,
+          "prior_install_date": "2025-11-29",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 2.58,
-          "hours_basis": "zone median",
-          "lat": 29.5492232,
-          "lon": -95.601416,
-          "geo_display": "4803, Beamer Creek Court, Riverstone, Fort Bend County, Texas, 77479, United States",
-          "geo_source": "street",
-          "midx": 101
-        },
-        {
-          "row": 86,
-          "name": "Moss, Dave",
-          "street": "72 Sunset Park Ln",
-          "city": "Sugarland",
-          "st": "TX",
-          "zip": "77479",
-          "area": "Southwest",
-          "zone": "Sugar Land/Stafford",
-          "box_count": 35,
-          "box_count_sheet": 14.0,
-          "box_verified": true,
-          "phone": "281-980-4425",
-          "email": "dmosix@aol.com",
-          "storage": "YES",
-          "date_2024": "2024-11-05",
-          "crew_2025": "Crew B (6)",
-          "crew_size_2025": 6,
-          "people_needed": 9,
-          "est_hours": 4.0,
-          "real_hours": 2.583333333,
-          "prior_install_date": "2025-11-17",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.58,
+          "cal_hours": 0.58,
           "hours_basis": "2025 real",
-          "lat": 29.5428706,
-          "lon": -95.5742501,
-          "geo_display": "72, Sunset Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+          "lat": 29.573345,
+          "lon": -95.54368,
+          "geo_display": "3118, La Quinta Drive, Missouri City, Fort Bend County, Texas, 77459, United States",
           "geo_source": "street",
-          "midx": 84
+          "midx": 91
         }
       ],
       "order_idx": [
-        101,
-        84
+        49,
+        91
       ],
-      "install_h": 5.16,
-      "drive_min": 80.7,
+      "install_h": 3.58,
+      "drive_min": 107.0,
       "lunch": 40,
-      "total_min": 430.3,
+      "total_min": 361.8,
       "legs": [
-        38.5,
-        5.2,
-        37.0
+        24.7,
+        47.8,
+        34.6
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -7134,7 +7934,8 @@
         "light day (<7.5h)"
       ],
       "zones": [
-        "Sugar Land/Stafford"
+        "Cypress/Copperfield",
+        "Missouri City/Sienna"
       ],
       "geometry": [
         [
@@ -7142,131 +7943,167 @@
           -95.47379
         ],
         [
-          29.81928,
-          -95.47371
+          29.82398,
+          -95.47311
         ],
         [
-          29.81935,
-          -95.46913
+          29.84181,
+          -95.4928
         ],
         [
-          29.8004,
-          -95.45051
+          29.86041,
+          -95.52571
         ],
         [
-          29.78393,
-          -95.45214
+          29.87949,
+          -95.5685
         ],
         [
-          29.77666,
-          -95.45601
+          29.90125,
+          -95.59915
         ],
         [
-          29.75114,
-          -95.45583
+          29.89751,
+          -95.60382
         ],
         [
-          29.73056,
-          -95.46092
+          29.89749,
+          -95.61317
         ],
         [
-          29.72649,
-          -95.46748
+          29.90242,
+          -95.63416
         ],
         [
-          29.72414,
-          -95.49114
+          29.89113,
+          -95.6414
+        ],
+        [
+          29.89989,
+          -95.66236
+        ],
+        [
+          29.89884,
+          -95.67272
+        ],
+        [
+          29.90144,
+          -95.67321
+        ],
+        [
+          29.89866,
+          -95.67283
+        ],
+        [
+          29.89941,
+          -95.66939
+        ],
+        [
+          29.89706,
+          -95.66874
+        ],
+        [
+          29.87892,
+          -95.66837
+        ],
+        [
+          29.88027,
+          -95.57721
+        ],
+        [
+          29.87652,
+          -95.56345
+        ],
+        [
+          29.77048,
+          -95.56283
+        ],
+        [
+          29.76122,
+          -95.55813
+        ],
+        [
+          29.6916,
+          -95.5572
+        ],
+        [
+          29.67425,
+          -95.56051
+        ],
+        [
+          29.66112,
+          -95.55862
         ],
         [
           29.65154,
           -95.56879
         ],
         [
-          29.64203,
-          -95.56524
+          29.6429,
+          -95.5653
         ],
         [
-          29.56697,
-          -95.56396
+          29.58249,
+          -95.56416
         ],
         [
-          29.56191,
-          -95.57155
+          29.5829,
+          -95.54961
         ],
         [
-          29.55525,
-          -95.57412
+          29.57354,
+          -95.54727
         ],
         [
-          29.55013,
-          -95.57988
+          29.57343,
+          -95.54366
         ],
         [
-          29.54798,
-          -95.59087
+          29.57071,
+          -95.53943
         ],
         [
-          29.54923,
-          -95.60151
+          29.57644,
+          -95.52088
         ],
         [
-          29.54781,
-          -95.59085
+          29.57991,
+          -95.52117
         ],
         [
-          29.55026,
-          -95.57917
+          29.58024,
+          -95.50552
         ],
         [
-          29.54747,
-          -95.57454
+          29.59499,
+          -95.50523
         ],
         [
-          29.5429,
-          -95.5742
+          29.62295,
+          -95.48857
         ],
         [
-          29.54747,
-          -95.57454
+          29.62728,
+          -95.48236
         ],
         [
-          29.55026,
-          -95.57917
+          29.6398,
+          -95.48162
         ],
         [
-          29.55603,
-          -95.57298
+          29.64726,
+          -95.46359
         ],
         [
-          29.56212,
-          -95.57113
+          29.66421,
+          -95.46391
         ],
         [
-          29.56693,
-          -95.56382
+          29.67994,
+          -95.45883
         ],
         [
-          29.64215,
-          -95.5651
-        ],
-        [
-          29.65112,
-          -95.56792
-        ],
-        [
-          29.69133,
-          -95.52767
-        ],
-        [
-          29.72447,
-          -95.49017
-        ],
-        [
-          29.72618,
-          -95.46755
-        ],
-        [
-          29.73026,
+          29.7326,
           -95.45981
         ],
         [
@@ -7282,8 +8119,8 @@
           -95.45193
         ],
         [
-          29.80224,
-          -95.4505
+          29.79993,
+          -95.45015
         ],
         [
           29.80784,
@@ -7298,11 +8135,11 @@
           -95.47379
         ]
       ],
-      "distance_mi": 51.24,
+      "distance_mi": 67.53,
       "leg_mi": [
-        25.04,
-        2.35,
-        23.85
+        15.57,
+        30.67,
+        21.29
       ]
     },
     {
@@ -7312,90 +8149,52 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 15,
-          "name": "Byers, Merlene (Chapel Hill)",
-          "street": "11235 Jones Wilke Rd",
-          "city": "Chapel Hill",
-          "st": "TX",
-          "zip": "77426",
-          "area": "Far West",
-          "zone": "Brenham/Chappell Hill",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "979-472-0002",
-          "email": "info@thebranchdesigngroup.com",
-          "storage": "",
-          "date_2024": "",
-          "crew_2025": "Justice Crew",
-          "crew_size_2025": 5,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": 2.0,
-          "prior_install_date": "2025-12-13",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "Needs to be earlier. Was sadly too late",
-          "install_2026_no_install": false,
-          "cal_hours": 2.0,
-          "hours_basis": "2025 real",
-          "lat": 30.0725651,
-          "lon": -96.2801867,
-          "geo_display": "11235, Jones Wilke Road, Austin County, Texas, 77426, United States",
-          "geo_source": "street",
-          "midx": 13
-        },
-        {
-          "row": 14,
-          "name": "Byers, Merlene (Bellville)",
-          "street": "214 S L Oak St",
-          "city": "Bellville",
+          "row": 105,
+          "name": "Serenity Retreat, Tiffany Pardue",
+          "street": "953 Memory Lane",
+          "city": "Belleville",
           "st": "TX",
           "zip": "77418",
           "area": "Far West",
           "zone": "Bellville/Sealy",
-          "box_count": null,
+          "box_count": 6,
           "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "979-472-0002",
-          "email": "info@thebranchdesigngroup.com",
-          "storage": "",
+          "box_verified": true,
+          "phone": "\u202d+1 (832) 547-5287\u202c",
+          "email": "tiffanyp@serenityretreat.com",
+          "storage": "YES",
           "date_2024": "",
           "crew_2025": "Justice Crew",
-          "crew_size_2025": 5,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": 2.75,
-          "prior_install_date": "2025-12-18",
+          "crew_size_2025": 7,
+          "people_needed": 5,
+          "est_hours": 1.0,
+          "real_hours": 3.0,
+          "prior_install_date": "2025-11-20",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
-          "install_2026_note": "Needs to be earlier. Was sadly too late",
+          "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 2.75,
+          "cal_hours": 3.0,
           "hours_basis": "2025 real",
-          "lat": 29.9614662,
-          "lon": -96.2929739,
-          "geo_display": "77418, Austin County, Texas, United States",
+          "lat": 30.1561989,
+          "lon": -96.6170843,
+          "geo_display": "Memory Lane, Washington County, Texas, 77835, United States",
           "geo_source": "street",
-          "midx": 12
+          "midx": 103
         }
       ],
       "order_idx": [
-        13,
-        12
+        103
       ],
-      "install_h": 4.75,
-      "drive_min": 189.6,
+      "install_h": 3.0,
+      "drive_min": 183.2,
       "lunch": 40,
-      "total_min": 514.6,
+      "total_min": 403.2,
       "legs": [
-        86.0,
-        26.2,
-        77.5
+        91.8,
+        91.5
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -7403,10 +8202,12 @@
       "half_rows": [],
       "joint_with": "",
       "note": "",
-      "flags": [],
+      "flags": [
+        "light day (<7.5h)",
+        "single-stop day"
+      ],
       "zones": [
-        "Bellville/Sealy",
-        "Brenham/Chappell Hill"
+        "Bellville/Sealy"
       ],
       "geometry": [
         [
@@ -7426,8 +8227,20 @@
           -95.56944
         ],
         [
-          29.97223,
-          -95.69513
+          29.90871,
+          -95.61009
+        ],
+        [
+          29.9199,
+          -95.61846
+        ],
+        [
+          29.92525,
+          -95.63363
+        ],
+        [
+          29.9724,
+          -95.69545
         ],
         [
           30.02402,
@@ -7450,372 +8263,180 @@
           -95.99717
         ],
         [
-          30.09115,
-          -96.02927
+          30.09142,
+          -96.03007
         ],
         [
-          30.11243,
-          -96.05687
+          30.11209,
+          -96.05562
         ],
         [
-          30.13016,
-          -96.13993
+          30.13025,
+          -96.14068
         ],
         [
-          30.12872,
-          -96.19641
+          30.13102,
+          -96.22682
         ],
         [
-          30.1324,
-          -96.2109
+          30.13496,
+          -96.26475
         ],
         [
-          30.13259,
-          -96.2396
+          30.14155,
+          -96.28364
         ],
         [
-          30.1088,
-          -96.23348
+          30.13651,
+          -96.33677
         ],
         [
-          30.10383,
-          -96.22485
+          30.1436,
+          -96.36563
         ],
         [
-          30.09229,
-          -96.22269
+          30.14278,
+          -96.39767
         ],
         [
-          30.08642,
-          -96.25543
+          30.15477,
+          -96.4182
         ],
         [
-          30.06986,
-          -96.25188
+          30.16723,
+          -96.42308
         ],
         [
-          30.07265,
-          -96.28018
+          30.18986,
+          -96.51265
         ],
         [
-          30.06295,
-          -96.33182
+          30.1911,
+          -96.53402
         ],
         [
-          30.02572,
-          -96.3109
+          30.18331,
+          -96.58657
         ],
         [
-          29.98974,
-          -96.30069
+          30.15821,
+          -96.62158
         ],
         [
-          29.97269,
-          -96.28795
+          30.1562,
+          -96.61708
         ],
         [
-          29.96208,
-          -96.29601
+          30.15348,
+          -96.61374
         ],
         [
-          29.97269,
-          -96.28795
+          30.15892,
+          -96.62043
         ],
         [
-          29.94864,
-          -96.25289
+          30.17319,
+          -96.60449
         ],
         [
-          29.92754,
-          -96.24642
+          30.18326,
+          -96.58579
         ],
         [
-          29.84014,
-          -96.17124
+          30.19092,
+          -96.53375
         ],
         [
-          29.76398,
-          -96.15254
+          30.18959,
+          -96.5118
         ],
         [
-          29.76212,
-          -96.15767
+          30.16609,
+          -96.42549
         ],
         [
-          29.77529,
-          -96.12541
+          30.15367,
+          -96.41729
         ],
         [
-          29.76973,
-          -96.0423
+          30.1426,
+          -96.3977
         ],
         [
-          29.78166,
-          -95.98987
-        ],
-        [
-          29.77709,
-          -95.84985
-        ],
-        [
-          29.77757,
-          -95.81797
-        ],
-        [
-          29.78525,
-          -95.80447
-        ],
-        [
-          29.78346,
-          -95.48469
-        ],
-        [
-          29.81054,
-          -95.48498
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 135.01,
-      "leg_mi": [
-        61.5,
-        11.37,
-        62.14
-      ]
-    },
-    {
-      "date": "2026-11-18",
-      "dow": "Wed",
-      "crew": "Crew 2",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 84,
-          "name": "Mattix, Margaret & Rick",
-          "street": "96 Benthaven Way",
-          "city": "Montgomery",
-          "st": "TX",
-          "zip": "77356",
-          "area": "North",
-          "zone": "Montgomery/Lake Conroe",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "713-557-9671",
-          "email": "bermudam3@aol.com",
-          "storage": "NO",
-          "date_2024": "",
-          "crew_2025": "Crew C",
-          "crew_size_2025": 6,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": 3.75,
-          "prior_install_date": "2025-12-08",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.75,
-          "hours_basis": "2025 real",
-          "lat": 30.4157864,
-          "lon": -95.6190376,
-          "geo_display": "96, Benthaven Way, Bentwater, Montgomery County, Texas, 77356, United States",
-          "geo_source": "street",
-          "midx": 82
-        }
-      ],
-      "order_idx": [
-        82
-      ],
-      "install_h": 3.75,
-      "drive_min": 161.3,
-      "lunch": 40,
-      "total_min": 426.3,
-      "legs": [
-        80.3,
-        81.0
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)",
-        "single-stop day"
-      ],
-      "zones": [
-        "Montgomery/Lake Conroe"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.82398,
-          -95.47311
-        ],
-        [
-          29.83848,
-          -95.48873
-        ],
-        [
-          29.86558,
-          -95.48677
-        ],
-        [
-          29.8756,
-          -95.49432
-        ],
-        [
-          29.91991,
-          -95.49389
-        ],
-        [
-          29.97089,
-          -95.56124
-        ],
-        [
-          30.07223,
-          -95.62889
-        ],
-        [
-          30.11459,
-          -95.64295
-        ],
-        [
-          30.18358,
-          -95.68253
-        ],
-        [
-          30.20272,
-          -95.68017
-        ],
-        [
-          30.27375,
-          -95.71089
-        ],
-        [
-          30.2995,
-          -95.69674
-        ],
-        [
-          30.40238,
-          -95.69952
-        ],
-        [
-          30.40455,
-          -95.68855
-        ],
-        [
-          30.41543,
-          -95.67501
-        ],
-        [
-          30.43413,
-          -95.6624
-        ],
-        [
-          30.43686,
-          -95.64709
-        ],
-        [
-          30.43691,
-          -95.63819
-        ],
-        [
-          30.42584,
-          -95.63778
-        ],
-        [
-          30.4158,
-          -95.61894
-        ],
-        [
-          30.4117,
-          -95.61686
-        ],
-        [
-          30.42398,
-          -95.62836
+          30.14343,
+          -96.36565
         ],
         [
-          30.42591,
-          -95.63761
+          30.13628,
+          -96.33672
         ],
         [
-          30.43691,
-          -95.63804
+          30.14133,
+          -96.28393
         ],
         [
-          30.43686,
-          -95.64709
+          30.13478,
+          -96.26492
         ],
         [
-          30.43413,
-          -95.6624
+          30.13081,
+          -96.22695
         ],
         [
-          30.41543,
-          -95.67501
+          30.12996,
+          -96.14088
         ],
         [
-          30.40455,
-          -95.68855
+          30.11174,
+          -96.05574
         ],
         [
-          30.40238,
-          -95.69952
+          30.0911,
+          -96.03024
         ],
         [
-          30.2995,
-          -95.69674
+          30.08097,
+          -95.99795
         ],
         [
-          30.27375,
-          -95.71089
+          30.06836,
+          -95.92023
         ],
         [
-          30.20272,
-          -95.68017
+          30.05544,
+          -95.88615
         ],
         [
-          30.18289,
-          -95.68309
+          30.03377,
+          -95.84515
         ],
         [
-          30.11449,
-          -95.64311
+          30.02391,
+          -95.83522
         ],
         [
-          30.07246,
-          -95.62929
+          29.97235,
+          -95.69592
         ],
         [
-          29.97052,
-          -95.56121
+          29.92494,
+          -95.63365
         ],
         [
-          29.92003,
-          -95.49409
+          29.9197,
+          -95.61866
         ],
         [
-          29.87603,
-          -95.49454
+          29.9087,
+          -95.61051
         ],
         [
-          29.86543,
-          -95.4869
+          29.87987,
+          -95.56964
         ],
         [
-          29.83758,
-          -95.48899
+          29.84136,
+          -95.49272
         ],
         [
           29.82334,
@@ -7826,10 +8447,389 @@
           -95.47379
         ]
       ],
-      "distance_mi": 106.56,
+      "distance_mi": 157.55,
       "leg_mi": [
-        52.86,
-        53.7
+        78.7,
+        78.85
+      ]
+    },
+    {
+      "date": "2026-11-18",
+      "dow": "Wed",
+      "crew": "Crew 2",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 116,
+          "name": "William Brothers Office",
+          "street": "3800 Milam St",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77006",
+          "area": "Central",
+          "zone": "Downtown/Midtown",
+          "box_count": 9,
+          "box_count_sheet": 9.0,
+          "box_verified": true,
+          "phone": "713-522-9821",
+          "email": "corinadominquezk@yahoo.com",
+          "storage": "YES",
+          "date_2024": "2024-12-03",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 5,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": null,
+          "prior_install_date": "2025-12-03",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.62,
+          "hours_basis": "est x0.81",
+          "lat": 29.7397873,
+          "lon": -95.381181,
+          "geo_display": "3800, Milam Street, Midtown, Houston, Harris County, Texas, 77002, United States",
+          "geo_source": "street",
+          "midx": 114
+        },
+        {
+          "row": 36,
+          "name": "Ecklund, Michol",
+          "street": "2331 Dunstan Rd",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77005",
+          "area": "Central",
+          "zone": "West University/Rice",
+          "box_count": 10.0,
+          "box_count_sheet": 10.0,
+          "box_verified": false,
+          "phone": "832-452-5266",
+          "email": "michol@alumni.rice.edu",
+          "storage": "YES",
+          "date_2024": "2024-12-02",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 5,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": 3.0,
+          "prior_install_date": "2025-12-05",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.0,
+          "hours_basis": "2025 real",
+          "lat": 29.7192737,
+          "lon": -95.4129833,
+          "geo_display": "2331, Dunstan Road, Southampton Extension, University Place, Houston, Harris County, Texas, 77005, United States",
+          "geo_source": "street",
+          "midx": 34
+        },
+        {
+          "row": 117,
+          "name": "William Brothers-NRG",
+          "street": "1 Fannin St, Houston, TX",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77054",
+          "area": "Central",
+          "zone": "Medical Center",
+          "box_count": 15,
+          "box_count_sheet": 12.0,
+          "box_verified": true,
+          "phone": "",
+          "email": "cdominguez@wbctx.com",
+          "storage": "YES",
+          "date_2024": "2024-12-13",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 8,
+          "est_hours": 4.0,
+          "real_hours": 1.5,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.5,
+          "hours_basis": "2025 real",
+          "lat": 29.6640992,
+          "lon": -95.4029413,
+          "geo_display": "Fannin Street, Houston, Harris County, Texas, 77054, United States",
+          "geo_source": "street",
+          "midx": 115
+        },
+        {
+          "row": 124,
+          "name": "Wright, Lynell",
+          "street": "3522 Bluebonnett Blvd",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77025",
+          "area": "Central",
+          "zone": "West University/Rice",
+          "box_count": 8.0,
+          "box_count_sheet": 8.0,
+          "box_verified": false,
+          "phone": "832.622.3782",
+          "email": "lmwpharmd@gmail.com",
+          "storage": "NO",
+          "date_2024": "2024-11-23",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 5,
+          "people_needed": 7,
+          "est_hours": 3.0,
+          "real_hours": 1.833333333,
+          "prior_install_date": "2025-11-19",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.83,
+          "hours_basis": "2025 real",
+          "lat": 29.700576175081,
+          "lon": -95.430109381378,
+          "geo_display": "census: 3522 BLUE BONNET BLVD, HOUSTON, TX, 77025",
+          "geo_source": "census",
+          "midx": 122
+        }
+      ],
+      "order_idx": [
+        114,
+        34,
+        115,
+        122
+      ],
+      "install_h": 7.95,
+      "drive_min": 58.5,
+      "lunch": 40,
+      "total_min": 575.5,
+      "legs": [
+        18.2,
+        5.1,
+        7.4,
+        9.8,
+        18.0
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Downtown/Midtown",
+        "Medical Center",
+        "West University/Rice"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.81197,
+          -95.4745
+        ],
+        [
+          29.78571,
+          -95.43766
+        ],
+        [
+          29.781,
+          -95.43655
+        ],
+        [
+          29.77784,
+          -95.42968
+        ],
+        [
+          29.77087,
+          -95.42362
+        ],
+        [
+          29.76971,
+          -95.39857
+        ],
+        [
+          29.75104,
+          -95.39868
+        ],
+        [
+          29.74414,
+          -95.39438
+        ],
+        [
+          29.74465,
+          -95.38277
+        ],
+        [
+          29.74269,
+          -95.37878
+        ],
+        [
+          29.73982,
+          -95.38116
+        ],
+        [
+          29.73239,
+          -95.38783
+        ],
+        [
+          29.7312,
+          -95.41284
+        ],
+        [
+          29.71936,
+          -95.41298
+        ],
+        [
+          29.71933,
+          -95.41496
+        ],
+        [
+          29.71747,
+          -95.41494
+        ],
+        [
+          29.71748,
+          -95.41272
+        ],
+        [
+          29.70468,
+          -95.41246
+        ],
+        [
+          29.69837,
+          -95.40564
+        ],
+        [
+          29.68951,
+          -95.40332
+        ],
+        [
+          29.6641,
+          -95.40294
+        ],
+        [
+          29.66308,
+          -95.40332
+        ],
+        [
+          29.66591,
+          -95.40231
+        ],
+        [
+          29.67932,
+          -95.40311
+        ],
+        [
+          29.67789,
+          -95.42464
+        ],
+        [
+          29.6805,
+          -95.42663
+        ],
+        [
+          29.69468,
+          -95.42645
+        ],
+        [
+          29.69848,
+          -95.42727
+        ],
+        [
+          29.69881,
+          -95.43112
+        ],
+        [
+          29.70047,
+          -95.43113
+        ],
+        [
+          29.70052,
+          -95.4301
+        ],
+        [
+          29.70112,
+          -95.43716
+        ],
+        [
+          29.70609,
+          -95.43721
+        ],
+        [
+          29.70588,
+          -95.45868
+        ],
+        [
+          29.707,
+          -95.45933
+        ],
+        [
+          29.72731,
+          -95.46022
+        ],
+        [
+          29.75209,
+          -95.45547
+        ],
+        [
+          29.77669,
+          -95.45573
+        ],
+        [
+          29.78367,
+          -95.45193
+        ],
+        [
+          29.79993,
+          -95.45015
+        ],
+        [
+          29.8034,
+          -95.45098
+        ],
+        [
+          29.80784,
+          -95.45542
+        ],
+        [
+          29.8068,
+          -95.45743
+        ],
+        [
+          29.80702,
+          -95.46704
+        ],
+        [
+          29.81189,
+          -95.47438
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 31.56,
+      "leg_mi": [
+        9.11,
+        3.01,
+        4.28,
+        4.49,
+        10.66
       ]
     },
     {
@@ -8061,596 +9061,6 @@
       "leg_mi": [
         43.14,
         42.91
-      ]
-    },
-    {
-      "date": "2026-11-23",
-      "dow": "Mon",
-      "crew": "Crew 1",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 41,
-          "name": "Hampton Inn",
-          "street": "710 Crawford Street",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77002",
-          "area": "Central",
-          "zone": "Downtown/Midtown",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "847-372-3700",
-          "email": "Chris.Miller@Hilton.com",
-          "storage": "NO",
-          "date_2024": "2024-12-05",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 11,
-          "est_hours": 5.0,
-          "real_hours": null,
-          "prior_install_date": "2025-12-03",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 4.05,
-          "hours_basis": "est x0.81",
-          "lat": 29.7558649,
-          "lon": -95.358557,
-          "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
-          "geo_source": "street",
-          "midx": 39
-        },
-        {
-          "row": 32,
-          "name": "Crane Worldwide Logistics",
-          "street": "1500 Rankin Road",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77073",
-          "area": "North",
-          "zone": "Spring/Klein/North Belt",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "(832) 465-6020",
-          "email": "bryana.seaver@craneww.com",
-          "storage": "NO",
-          "date_2024": "",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 5,
-          "est_hours": 3.0,
-          "real_hours": 2.416666667,
-          "prior_install_date": "2025-12-02",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.42,
-          "hours_basis": "2025 real",
-          "lat": 29.965342,
-          "lon": -95.3785,
-          "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
-          "geo_source": "street",
-          "midx": 30
-        }
-      ],
-      "order_idx": [
-        39,
-        30
-      ],
-      "install_h": 6.47,
-      "drive_min": 65.1,
-      "lunch": 40,
-      "total_min": 493.3,
-      "legs": [
-        17.5,
-        21.7,
-        25.9
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "Downtown/Midtown",
-        "Spring/Klein/North Belt"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.78571,
-          -95.43766
-        ],
-        [
-          29.78087,
-          -95.43639
-        ],
-        [
-          29.77707,
-          -95.42891
-        ],
-        [
-          29.77665,
-          -95.38618
-        ],
-        [
-          29.77885,
-          -95.37573
-        ],
-        [
-          29.77642,
-          -95.36982
-        ],
-        [
-          29.76814,
-          -95.36342
-        ],
-        [
-          29.76853,
-          -95.35227
-        ],
-        [
-          29.76321,
-          -95.35153
-        ],
-        [
-          29.7557,
-          -95.35828
-        ],
-        [
-          29.76463,
-          -95.35087
-        ],
-        [
-          29.81488,
-          -95.35137
-        ],
-        [
-          29.82109,
-          -95.3558
-        ],
-        [
-          29.83034,
-          -95.35457
-        ],
-        [
-          29.94992,
-          -95.38403
-        ],
-        [
-          29.9653,
-          -95.3785
-        ],
-        [
-          29.96542,
-          -95.38032
-        ],
-        [
-          29.95749,
-          -95.38044
-        ],
-        [
-          29.95026,
-          -95.38426
-        ],
-        [
-          29.81466,
-          -95.35305
-        ],
-        [
-          29.81279,
-          -95.43071
-        ],
-        [
-          29.80676,
-          -95.45901
-        ],
-        [
-          29.80721,
-          -95.46767
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 43.81,
-      "leg_mi": [
-        10.14,
-        15.05,
-        18.62
-      ]
-    },
-    {
-      "date": "2026-11-23",
-      "dow": "Mon",
-      "crew": "Crew 2",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 85,
-          "name": "Mercedes Benz",
-          "street": "16917 I-45",
-          "city": "Conroe",
-          "st": "TX",
-          "zip": "77385",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": "31",
-          "box_count_sheet": "31",
-          "box_verified": false,
-          "phone": "(936) 235-2521",
-          "email": "ednac@mbotw.com",
-          "storage": "YES",
-          "date_2024": "2024-11-19",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 16,
-          "est_hours": 6.0,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 4.86,
-          "hours_basis": "est x0.81",
-          "lat": 30.2027206,
-          "lon": -95.4558347,
-          "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
-          "geo_source": "street",
-          "midx": 83
-        },
-        {
-          "row": 115,
-          "name": "Waterway Wealth Waterway",
-          "street": "21 Waterway Ave. # 500",
-          "city": "Woodlands",
-          "st": "TX",
-          "zip": "77380",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": 6,
-          "box_count_sheet": 6.0,
-          "box_verified": true,
-          "phone": "(281) 363-0000",
-          "email": "kristen@waterwaywealth.com",
-          "storage": "YES",
-          "date_2024": "2024-11-13",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 5,
-          "est_hours": 2.0,
-          "real_hours": 1.083333333,
-          "prior_install_date": "2025-11-13",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.08,
-          "hours_basis": "2025 real",
-          "lat": 30.1602263,
-          "lon": -95.4594662,
-          "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
-          "geo_source": "street",
-          "midx": 113
-        }
-      ],
-      "order_idx": [
-        83,
-        113
-      ],
-      "install_h": 5.94,
-      "drive_min": 97.2,
-      "lunch": 40,
-      "total_min": 493.6,
-      "legs": [
-        49.8,
-        5.8,
-        41.5
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "The Woodlands"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.86683,
-          -95.47273
-        ],
-        [
-          29.8708,
-          -95.42961
-        ],
-        [
-          29.8862,
-          -95.43149
-        ],
-        [
-          29.88922,
-          -95.41172
-        ],
-        [
-          29.93388,
-          -95.41182
-        ],
-        [
-          30.0106,
-          -95.4276
-        ],
-        [
-          30.08084,
-          -95.43685
-        ],
-        [
-          30.10757,
-          -95.43551
-        ],
-        [
-          30.16032,
-          -95.44986
-        ],
-        [
-          30.2379,
-          -95.45955
-        ],
-        [
-          30.20272,
-          -95.45583
-        ],
-        [
-          30.16164,
-          -95.45067
-        ],
-        [
-          30.16023,
-          -95.45914
-        ],
-        [
-          30.15463,
-          -95.44937
-        ],
-        [
-          30.10768,
-          -95.43582
-        ],
-        [
-          30.08011,
-          -95.43714
-        ],
-        [
-          30.00983,
-          -95.42782
-        ],
-        [
-          29.9339,
-          -95.41214
-        ],
-        [
-          29.87632,
-          -95.41223
-        ],
-        [
-          29.87068,
-          -95.41277
-        ],
-        [
-          29.87072,
-          -95.46114
-        ],
-        [
-          29.86692,
-          -95.4729
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 67.59,
-      "leg_mi": [
-        35.86,
-        3.45,
-        28.28
-      ]
-    },
-    {
-      "date": "2026-11-23",
-      "dow": "Mon",
-      "crew": "Crew 3",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 90,
-          "name": "Omni Hotel",
-          "street": "4 Riverway Dr, Houston, TX",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77056",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "",
-          "email": "",
-          "storage": "NO",
-          "date_2024": "2024-11-25",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 14,
-          "est_hours": 7.0,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 5.67,
-          "hours_basis": "est x0.81",
-          "lat": 29.7616902,
-          "lon": -95.462021,
-          "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
-          "geo_source": "street",
-          "midx": 88
-        }
-      ],
-      "order_idx": [
-        88
-      ],
-      "install_h": 5.67,
-      "drive_min": 18.2,
-      "lunch": 40,
-      "total_min": 398.4,
-      "legs": [
-        9.0,
-        9.2
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)",
-        "single-stop day"
-      ],
-      "zones": [
-        "Uptown/Galleria"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.81928,
-          -95.47371
-        ],
-        [
-          29.81935,
-          -95.46913
-        ],
-        [
-          29.8043,
-          -95.45258
-        ],
-        [
-          29.8007,
-          -95.45057
-        ],
-        [
-          29.79792,
-          -95.45053
-        ],
-        [
-          29.79049,
-          -95.45229
-        ],
-        [
-          29.78393,
-          -95.45214
-        ],
-        [
-          29.77911,
-          -95.45526
-        ],
-        [
-          29.77666,
-          -95.45601
-        ],
-        [
-          29.76581,
-          -95.45639
-        ],
-        [
-          29.76403,
-          -95.45939
-        ],
-        [
-          29.76346,
-          -95.46172
-        ],
-        [
-          29.76237,
-          -95.46115
-        ],
-        [
-          29.76162,
-          -95.46197
-        ],
-        [
-          29.76137,
-          -95.46336
-        ],
-        [
-          29.76223,
-          -95.46339
-        ],
-        [
-          29.76627,
-          -95.45551
-        ],
-        [
-          29.7734,
-          -95.45549
-        ],
-        [
-          29.77337,
-          -95.4565
-        ],
-        [
-          29.79623,
-          -95.45705
-        ],
-        [
-          29.79833,
-          -95.45568
-        ],
-        [
-          29.81189,
-          -95.47438
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 9.98,
-      "leg_mi": [
-        5.44,
-        4.54
       ]
     },
     {
@@ -9154,28 +9564,28 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 51,
-          "name": "Kanyi, Joy and Kenneth (Celestial)",
-          "street": "17011 E Copper Lakes Ct.",
+          "row": 114,
+          "name": "Valley Forge",
+          "street": "5826 Valley Forge",
           "city": "Houston",
           "st": "TX",
-          "zip": "77095",
-          "area": "Northwest",
-          "zone": "Cypress/Copperfield",
-          "box_count": 16.0,
-          "box_count_sheet": 16.0,
+          "zip": "77057",
+          "area": "West",
+          "zone": "Uptown/Galleria",
+          "box_count": 14.0,
+          "box_count_sheet": 14.0,
           "box_verified": false,
-          "phone": "",
-          "email": "sheajoy@icloud.com",
+          "phone": "7133854169.0",
+          "email": "Cynthia.Wenz@gmail.com",
           "storage": "YES",
           "date_2024": "",
-          "crew_2025": "Crew B (3)",
-          "crew_size_2025": 3,
+          "crew_2025": "Crew B (4)",
+          "crew_size_2025": 4,
           "people_needed": 6,
-          "est_hours": 3.0,
+          "est_hours": 2.0,
           "real_hours": 3.0,
-          "prior_install_date": "2025-11-07",
-          "business": "Residence",
+          "prior_install_date": "2025-11-06",
+          "business": "Business",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
@@ -9183,61 +9593,61 @@
           "install_2026_no_install": false,
           "cal_hours": 3.0,
           "hours_basis": "2025 real",
-          "lat": 29.9013764,
-          "lon": -95.6731505,
-          "geo_display": "17011, East Copper Lakes Court, Copper Lakes, Harris County, Texas, 77095, United States",
+          "lat": 29.7536597,
+          "lon": -95.4844819,
+          "geo_display": "5826, Valley Forge Drive, Houston, Harris County, Texas, 77057, United States",
           "geo_source": "street",
-          "midx": 49
+          "midx": 112
         },
         {
-          "row": 93,
-          "name": "Parker, Guy",
-          "street": "3118 La Quinta",
-          "city": "Missouri City",
+          "row": 45,
+          "name": "Hilton Garden Inn | Home2 Suites",
+          "street": "6840 Almeda Road Houston, Texas",
+          "city": "Houston",
           "st": "TX",
-          "zip": "77459",
-          "area": "Southwest",
-          "zone": "Missouri City/Sienna",
+          "zip": "77030",
+          "area": "Central",
+          "zone": "Medical Center",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "7133980124\u202c",
-          "email": "guy@ambientway.com",
-          "storage": "Ask",
-          "date_2024": "",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": 0.5833333333,
-          "prior_install_date": "2025-11-29",
-          "business": "Residence",
+          "phone": "",
+          "email": "",
+          "storage": "NO",
+          "date_2024": "2024-11-15",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 14,
+          "est_hours": 5.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 0.58,
-          "hours_basis": "2025 real",
-          "lat": 29.573345,
-          "lon": -95.54368,
-          "geo_display": "3118, La Quinta Drive, Missouri City, Fort Bend County, Texas, 77459, United States",
+          "cal_hours": 4.05,
+          "hours_basis": "est x0.81",
+          "lat": 29.7046964,
+          "lon": -95.3854947,
+          "geo_display": "Home2 Suites, 6840, Almeda Road, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
           "geo_source": "street",
-          "midx": 91
+          "midx": 43
         }
       ],
       "order_idx": [
-        49,
-        91
+        112,
+        43
       ],
-      "install_h": 3.58,
-      "drive_min": 107.0,
+      "install_h": 7.05,
+      "drive_min": 48.9,
       "lunch": 40,
-      "total_min": 361.8,
+      "total_min": 511.9,
       "legs": [
-        24.7,
-        47.8,
-        34.6
+        10.5,
+        16.6,
+        21.8
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -9245,12 +9655,10 @@
       "half_rows": [],
       "joint_with": "",
       "note": "",
-      "flags": [
-        "light day (<7.5h)"
-      ],
+      "flags": [],
       "zones": [
-        "Cypress/Copperfield",
-        "Missouri City/Sienna"
+        "Medical Center",
+        "Uptown/Galleria"
       ],
       "geometry": [
         [
@@ -9258,168 +9666,108 @@
           -95.47379
         ],
         [
-          29.82398,
-          -95.47311
+          29.81096,
+          -95.47585
         ],
         [
-          29.84181,
-          -95.4928
+          29.81062,
+          -95.48511
         ],
         [
-          29.86041,
-          -95.52571
+          29.77834,
+          -95.48468
         ],
         [
-          29.87949,
-          -95.5685
+          29.77146,
+          -95.47833
         ],
         [
-          29.90125,
-          -95.59915
+          29.7639,
+          -95.47797
         ],
         [
-          29.89751,
-          -95.60382
+          29.7603,
+          -95.48297
         ],
         [
-          29.89749,
-          -95.61317
+          29.75363,
+          -95.4827
         ],
         [
-          29.90242,
-          -95.63416
+          29.75374,
+          -95.48448
         ],
         [
-          29.89113,
-          -95.6414
+          29.75372,
+          -95.48591
         ],
         [
-          29.89989,
-          -95.66236
+          29.74994,
+          -95.4861
         ],
         [
-          29.89884,
-          -95.67272
+          29.73824,
+          -95.48438
         ],
         [
-          29.90144,
-          -95.67321
+          29.72535,
+          -95.4843
         ],
         [
-          29.89866,
-          -95.67283
+          29.72612,
+          -95.46786
         ],
         [
-          29.89941,
-          -95.66939
+          29.72989,
+          -95.45597
         ],
         [
-          29.89706,
-          -95.66874
+          29.72874,
+          -95.44033
         ],
         [
-          29.87892,
-          -95.66837
+          29.73179,
+          -95.38605
         ],
         [
-          29.88027,
-          -95.57721
+          29.73112,
+          -95.38537
         ],
         [
-          29.87652,
-          -95.56345
+          29.72853,
+          -95.38748
         ],
         [
-          29.77048,
-          -95.56283
+          29.72315,
+          -95.37865
         ],
         [
-          29.76122,
-          -95.55813
+          29.70463,
+          -95.38524
         ],
         [
-          29.6916,
-          -95.5572
+          29.71988,
+          -95.37974
         ],
         [
-          29.67425,
-          -95.56051
+          29.72605,
+          -95.38999
         ],
         [
-          29.66112,
-          -95.55862
+          29.72557,
+          -95.41053
         ],
         [
-          29.65154,
-          -95.56879
+          29.73123,
+          -95.41061
         ],
         [
-          29.6429,
-          -95.5653
+          29.72905,
+          -95.43969
         ],
         [
-          29.58249,
-          -95.56416
-        ],
-        [
-          29.5829,
-          -95.54961
-        ],
-        [
-          29.57354,
-          -95.54727
-        ],
-        [
-          29.57343,
-          -95.54366
-        ],
-        [
-          29.57071,
-          -95.53943
-        ],
-        [
-          29.57644,
-          -95.52088
-        ],
-        [
-          29.57991,
-          -95.52117
-        ],
-        [
-          29.58024,
-          -95.50552
-        ],
-        [
-          29.59499,
-          -95.50523
-        ],
-        [
-          29.62295,
-          -95.48857
-        ],
-        [
-          29.62728,
-          -95.48236
-        ],
-        [
-          29.6398,
-          -95.48162
-        ],
-        [
-          29.64726,
-          -95.46359
-        ],
-        [
-          29.66421,
-          -95.46391
-        ],
-        [
-          29.67994,
-          -95.45883
-        ],
-        [
-          29.7326,
-          -95.45981
+          29.73065,
+          -95.45933
         ],
         [
           29.75209,
@@ -9434,27 +9782,35 @@
           -95.45193
         ],
         [
-          29.79993,
-          -95.45015
+          29.80224,
+          -95.4505
         ],
         [
           29.80784,
           -95.45542
         ],
         [
+          29.8068,
+          -95.45743
+        ],
+        [
           29.80702,
           -95.46704
+        ],
+        [
+          29.81189,
+          -95.47438
         ],
         [
           29.81276,
           -95.47379
         ]
       ],
-      "distance_mi": 67.53,
+      "distance_mi": 28.9,
       "leg_mi": [
-        15.57,
-        30.67,
-        21.29
+        5.18,
+        10.33,
+        13.39
       ]
     },
     {
@@ -9758,477 +10114,90 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 105,
-          "name": "Serenity Retreat, Tiffany Pardue",
-          "street": "953 Memory Lane",
-          "city": "Belleville",
+          "row": 88,
+          "name": "Northside Import",
+          "street": "23110 I45",
+          "city": "Spring",
           "st": "TX",
-          "zip": "77418",
-          "area": "Far West",
-          "zone": "Bellville/Sealy",
-          "box_count": 6,
+          "zip": "77373",
+          "area": "North",
+          "zone": "Spring/Klein/North Belt",
+          "box_count": null,
           "box_count_sheet": null,
-          "box_verified": true,
-          "phone": "\u202d+1 (832) 547-5287\u202c",
-          "email": "tiffanyp@serenityretreat.com",
-          "storage": "YES",
-          "date_2024": "",
-          "crew_2025": "Justice Crew",
-          "crew_size_2025": 7,
-          "people_needed": 5,
-          "est_hours": 1.0,
-          "real_hours": 3.0,
-          "prior_install_date": "2025-11-20",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.0,
-          "hours_basis": "2025 real",
-          "lat": 30.1561989,
-          "lon": -96.6170843,
-          "geo_display": "Memory Lane, Washington County, Texas, 77835, United States",
-          "geo_source": "street",
-          "midx": 103
-        }
-      ],
-      "order_idx": [
-        103
-      ],
-      "install_h": 3.0,
-      "drive_min": 183.2,
-      "lunch": 40,
-      "total_min": 403.2,
-      "legs": [
-        91.8,
-        91.5
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)",
-        "single-stop day"
-      ],
-      "zones": [
-        "Bellville/Sealy"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.82398,
-          -95.47311
-        ],
-        [
-          29.84181,
-          -95.4928
-        ],
-        [
-          29.88006,
-          -95.56944
-        ],
-        [
-          29.90871,
-          -95.61009
-        ],
-        [
-          29.9199,
-          -95.61846
-        ],
-        [
-          29.92525,
-          -95.63363
-        ],
-        [
-          29.9724,
-          -95.69545
-        ],
-        [
-          30.02402,
-          -95.83513
-        ],
-        [
-          30.03388,
-          -95.84507
-        ],
-        [
-          30.05562,
-          -95.8862
-        ],
-        [
-          30.06883,
-          -95.92107
-        ],
-        [
-          30.08118,
-          -95.99717
-        ],
-        [
-          30.09142,
-          -96.03007
-        ],
-        [
-          30.11209,
-          -96.05562
-        ],
-        [
-          30.13025,
-          -96.14068
-        ],
-        [
-          30.13102,
-          -96.22682
-        ],
-        [
-          30.13496,
-          -96.26475
-        ],
-        [
-          30.14155,
-          -96.28364
-        ],
-        [
-          30.13651,
-          -96.33677
-        ],
-        [
-          30.1436,
-          -96.36563
-        ],
-        [
-          30.14278,
-          -96.39767
-        ],
-        [
-          30.15477,
-          -96.4182
-        ],
-        [
-          30.16723,
-          -96.42308
-        ],
-        [
-          30.18986,
-          -96.51265
-        ],
-        [
-          30.1911,
-          -96.53402
-        ],
-        [
-          30.18331,
-          -96.58657
-        ],
-        [
-          30.15821,
-          -96.62158
-        ],
-        [
-          30.1562,
-          -96.61708
-        ],
-        [
-          30.15348,
-          -96.61374
-        ],
-        [
-          30.15892,
-          -96.62043
-        ],
-        [
-          30.17319,
-          -96.60449
-        ],
-        [
-          30.18326,
-          -96.58579
-        ],
-        [
-          30.19092,
-          -96.53375
-        ],
-        [
-          30.18959,
-          -96.5118
-        ],
-        [
-          30.16609,
-          -96.42549
-        ],
-        [
-          30.15367,
-          -96.41729
-        ],
-        [
-          30.1426,
-          -96.3977
-        ],
-        [
-          30.14343,
-          -96.36565
-        ],
-        [
-          30.13628,
-          -96.33672
-        ],
-        [
-          30.14133,
-          -96.28393
-        ],
-        [
-          30.13478,
-          -96.26492
-        ],
-        [
-          30.13081,
-          -96.22695
-        ],
-        [
-          30.12996,
-          -96.14088
-        ],
-        [
-          30.11174,
-          -96.05574
-        ],
-        [
-          30.0911,
-          -96.03024
-        ],
-        [
-          30.08097,
-          -95.99795
-        ],
-        [
-          30.06836,
-          -95.92023
-        ],
-        [
-          30.05544,
-          -95.88615
-        ],
-        [
-          30.03377,
-          -95.84515
-        ],
-        [
-          30.02391,
-          -95.83522
-        ],
-        [
-          29.97235,
-          -95.69592
-        ],
-        [
-          29.92494,
-          -95.63365
-        ],
-        [
-          29.9197,
-          -95.61866
-        ],
-        [
-          29.9087,
-          -95.61051
-        ],
-        [
-          29.87987,
-          -95.56964
-        ],
-        [
-          29.84136,
-          -95.49272
-        ],
-        [
-          29.82334,
-          -95.4736
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 157.55,
-      "leg_mi": [
-        78.7,
-        78.85
-      ]
-    },
-    {
-      "date": "2026-11-25",
-      "dow": "Wed",
-      "crew": "Crew 3",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 116,
-          "name": "William Brothers Office",
-          "street": "3800 Milam St",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77006",
-          "area": "Central",
-          "zone": "Downtown/Midtown",
-          "box_count": 9,
-          "box_count_sheet": 9.0,
-          "box_verified": true,
-          "phone": "713-522-9821",
-          "email": "corinadominquezk@yahoo.com",
-          "storage": "YES",
-          "date_2024": "2024-12-03",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 5,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": null,
-          "prior_install_date": "2025-12-03",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.62,
-          "hours_basis": "est x0.81",
-          "lat": 29.7397873,
-          "lon": -95.381181,
-          "geo_display": "3800, Milam Street, Midtown, Houston, Harris County, Texas, 77002, United States",
-          "geo_source": "street",
-          "midx": 114
-        },
-        {
-          "row": 36,
-          "name": "Ecklund, Michol",
-          "street": "2331 Dunstan Rd",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77005",
-          "area": "Central",
-          "zone": "West University/Rice",
-          "box_count": 10.0,
-          "box_count_sheet": 10.0,
           "box_verified": false,
-          "phone": "832-452-5266",
-          "email": "michol@alumni.rice.edu",
-          "storage": "YES",
-          "date_2024": "2024-12-02",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 5,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": 3.0,
-          "prior_install_date": "2025-12-05",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.0,
-          "hours_basis": "2025 real",
-          "lat": 29.7192737,
-          "lon": -95.4129833,
-          "geo_display": "2331, Dunstan Road, Southampton Extension, University Place, Houston, Harris County, Texas, 77005, United States",
-          "geo_source": "street",
-          "midx": 34
-        },
-        {
-          "row": 117,
-          "name": "William Brothers-NRG",
-          "street": "1 Fannin St, Houston, TX",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77054",
-          "area": "Central",
-          "zone": "Medical Center",
-          "box_count": 15,
-          "box_count_sheet": 12.0,
-          "box_verified": true,
-          "phone": "",
-          "email": "cdominguez@wbctx.com",
-          "storage": "YES",
-          "date_2024": "2024-12-13",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 8,
-          "est_hours": 4.0,
-          "real_hours": 1.5,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.5,
-          "hours_basis": "2025 real",
-          "lat": 29.6640992,
-          "lon": -95.4029413,
-          "geo_display": "Fannin Street, Houston, Harris County, Texas, 77054, United States",
-          "geo_source": "street",
-          "midx": 115
-        },
-        {
-          "row": 124,
-          "name": "Wright, Lynell",
-          "street": "3522 Bluebonnett Blvd",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77025",
-          "area": "Central",
-          "zone": "West University/Rice",
-          "box_count": 8.0,
-          "box_count_sheet": 8.0,
-          "box_verified": false,
-          "phone": "832.622.3782",
-          "email": "lmwpharmd@gmail.com",
+          "phone": "832-643-9266",
+          "email": "blockwood@northsideimportshouston.com",
           "storage": "NO",
-          "date_2024": "2024-11-23",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 5,
-          "people_needed": 7,
-          "est_hours": 3.0,
-          "real_hours": 1.833333333,
-          "prior_install_date": "2025-11-19",
-          "business": "Residence",
+          "date_2024": "",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": 10,
+          "est_hours": 4.0,
+          "real_hours": 3.0,
+          "prior_install_date": "2025-12-02",
+          "business": "Business",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 1.83,
+          "cal_hours": 3.0,
           "hours_basis": "2025 real",
-          "lat": 29.700576175081,
-          "lon": -95.430109381378,
-          "geo_display": "census: 3522 BLUE BONNET BLVD, HOUSTON, TX, 77025",
-          "geo_source": "census",
-          "midx": 122
+          "lat": 30.075599,
+          "lon": -95.435694,
+          "geo_display": "manual override",
+          "geo_source": "manual",
+          "midx": 86
+        },
+        {
+          "row": 31,
+          "name": "Citizens State Bank",
+          "street": "22410 US-59",
+          "city": "Porter",
+          "st": "TX",
+          "zip": "77365",
+          "area": "Northeast",
+          "zone": "Kingwood/Humble/Porter",
+          "box_count": 24,
+          "box_count_sheet": 25.0,
+          "box_verified": true,
+          "phone": "409-283-9373",
+          "email": "Kjohnson@citizensbank.net",
+          "storage": "YES",
+          "date_2024": "2024-11-15",
+          "crew_2025": "Chris Crew",
+          "crew_size_2025": 5,
+          "people_needed": 14,
+          "est_hours": 6.0,
+          "real_hours": 3.5,
+          "prior_install_date": "2025-11-19",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.5,
+          "hours_basis": "2025 real",
+          "lat": 30.1204797,
+          "lon": -95.2236364,
+          "geo_display": "22410, Loop 494, New Caney, Porter, Montgomery County, Texas, 77357, United States",
+          "geo_source": "street",
+          "midx": 29
         }
       ],
       "order_idx": [
-        114,
-        34,
-        115,
-        122
+        86,
+        29
       ],
-      "install_h": 7.95,
-      "drive_min": 58.5,
+      "install_h": 6.5,
+      "drive_min": 95.7,
       "lunch": 40,
-      "total_min": 575.5,
+      "total_min": 525.7,
       "legs": [
-        18.2,
-        5.1,
-        7.4,
-        9.8,
-        18.0
+        32.9,
+        20.4,
+        42.4
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -10238,9 +10207,8 @@
       "note": "",
       "flags": [],
       "zones": [
-        "Downtown/Midtown",
-        "Medical Center",
-        "West University/Rice"
+        "Kingwood/Humble/Porter",
+        "Spring/Klein/North Belt"
       ],
       "geometry": [
         [
@@ -10248,197 +10216,447 @@
           -95.47379
         ],
         [
-          29.81197,
-          -95.4745
+          29.86683,
+          -95.47273
         ],
         [
-          29.78571,
-          -95.43766
+          29.87057,
+          -95.46126
         ],
         [
-          29.781,
-          -95.43655
+          29.8708,
+          -95.42961
         ],
         [
-          29.77784,
-          -95.42968
+          29.8862,
+          -95.43149
         ],
         [
-          29.77087,
-          -95.42362
+          29.88898,
+          -95.41174
         ],
         [
-          29.76971,
-          -95.39857
+          29.93388,
+          -95.41182
         ],
         [
-          29.75104,
-          -95.39868
+          29.95227,
+          -95.41776
         ],
         [
-          29.74414,
-          -95.39438
+          30.00767,
+          -95.42714
         ],
         [
-          29.74465,
-          -95.38277
+          30.03917,
+          -95.42929
         ],
         [
-          29.74269,
-          -95.37878
+          30.0756,
+          -95.43569
         ],
         [
-          29.73982,
-          -95.38116
+          30.09221,
+          -95.43465
         ],
         [
-          29.73239,
-          -95.38783
+          30.09495,
+          -95.40498
         ],
         [
-          29.7312,
-          -95.41284
+          30.12282,
+          -95.37141
         ],
         [
-          29.71936,
-          -95.41298
+          30.14194,
+          -95.33583
         ],
         [
-          29.71933,
-          -95.41496
+          30.13738,
+          -95.31053
         ],
         [
-          29.71747,
-          -95.41494
+          30.13758,
+          -95.259
         ],
         [
-          29.71748,
-          -95.41272
+          30.12919,
+          -95.24083
         ],
         [
-          29.70468,
-          -95.41246
+          30.12937,
+          -95.22048
         ],
         [
-          29.69837,
-          -95.40564
+          30.12046,
+          -95.22355
         ],
         [
-          29.68951,
-          -95.40332
+          30.10261,
+          -95.22965
         ],
         [
-          29.6641,
-          -95.40294
+          30.10444,
+          -95.23703
         ],
         [
-          29.66308,
-          -95.40332
+          30.02705,
+          -95.25877
         ],
         [
-          29.66591,
-          -95.40231
+          29.92629,
+          -95.30204
         ],
         [
-          29.67932,
-          -95.40311
+          29.91638,
+          -95.30837
         ],
         [
-          29.67789,
-          -95.42464
+          29.90116,
+          -95.31241
         ],
         [
-          29.6805,
-          -95.42663
+          29.86538,
+          -95.3329
         ],
         [
-          29.69468,
-          -95.42645
+          29.80944,
+          -95.33587
         ],
         [
-          29.69848,
-          -95.42727
+          29.81408,
+          -95.35543
         ],
         [
-          29.69881,
-          -95.43112
+          29.81481,
+          -95.37564
         ],
         [
-          29.70047,
-          -95.43113
+          29.81279,
+          -95.43071
         ],
         [
-          29.70052,
-          -95.4301
+          29.80895,
+          -95.44198
         ],
         [
-          29.70112,
-          -95.43716
-        ],
-        [
-          29.70609,
-          -95.43721
-        ],
-        [
-          29.70588,
-          -95.45868
-        ],
-        [
-          29.707,
-          -95.45933
-        ],
-        [
-          29.72731,
-          -95.46022
-        ],
-        [
-          29.75209,
-          -95.45547
-        ],
-        [
-          29.77669,
-          -95.45573
-        ],
-        [
-          29.78367,
-          -95.45193
-        ],
-        [
-          29.79993,
-          -95.45015
-        ],
-        [
-          29.8034,
-          -95.45098
-        ],
-        [
-          29.80784,
-          -95.45542
-        ],
-        [
-          29.8068,
-          -95.45743
-        ],
-        [
-          29.80702,
-          -95.46704
-        ],
-        [
-          29.81189,
-          -95.47438
+          29.80682,
+          -95.46582
         ],
         [
           29.81276,
           -95.47379
         ]
       ],
-      "distance_mi": 31.56,
+      "distance_mi": 69.64,
       "leg_mi": [
-        9.11,
-        3.01,
-        4.28,
-        4.49,
-        10.66
+        21.7,
+        16.02,
+        31.91
+      ]
+    },
+    {
+      "date": "2026-11-25",
+      "dow": "Wed",
+      "crew": "Crew 3",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 6,
+          "name": "Akinola, Joke",
+          "street": "6314 Windermere Park Lane",
+          "city": "Sugarland",
+          "st": "TX",
+          "zip": "77479",
+          "area": "Southwest",
+          "zone": "Sugar Land/Stafford",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "832-814-7173",
+          "email": "jk_akinola@hotmail.com",
+          "storage": "NO",
+          "date_2024": "2024-12-14",
+          "crew_2025": "Crew B (6)",
+          "crew_size_2025": 6,
+          "people_needed": 7,
+          "est_hours": 3.0,
+          "real_hours": 4.5,
+          "prior_install_date": "2025-11-21",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 4.5,
+          "hours_basis": "2025 real",
+          "lat": 29.5504496,
+          "lon": -95.6123567,
+          "geo_display": "6314, Windermere Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+          "geo_source": "street",
+          "midx": 5
+        },
+        {
+          "row": 5,
+          "name": "A Hug Away Takisha",
+          "street": "3419  Blue Grass Dr",
+          "city": "Richmond",
+          "st": "TX",
+          "zip": "77406",
+          "area": "West",
+          "zone": "Katy/Fulshear",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "713-320-2684",
+          "email": "pa.manager@yahoo.com",
+          "storage": "Ask",
+          "date_2024": "",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.0,
+          "hours_basis": "zone median",
+          "lat": 29.6175533,
+          "lon": -95.7630575,
+          "geo_display": "3419, Blue Grass Drive, Fort Bend County, Texas, 77406, United States",
+          "geo_source": "street",
+          "midx": 4
+        }
+      ],
+      "order_idx": [
+        5,
+        4
+      ],
+      "install_h": 6.5,
+      "drive_min": 114.7,
+      "lunch": 40,
+      "total_min": 544.7,
+      "legs": [
+        38.0,
+        30.5,
+        46.2
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Katy/Fulshear",
+        "Sugar Land/Stafford"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.81928,
+          -95.47371
+        ],
+        [
+          29.81935,
+          -95.46913
+        ],
+        [
+          29.8004,
+          -95.45051
+        ],
+        [
+          29.78393,
+          -95.45214
+        ],
+        [
+          29.77666,
+          -95.45601
+        ],
+        [
+          29.75114,
+          -95.45583
+        ],
+        [
+          29.73015,
+          -95.46113
+        ],
+        [
+          29.72649,
+          -95.46748
+        ],
+        [
+          29.72414,
+          -95.49114
+        ],
+        [
+          29.62054,
+          -95.60301
+        ],
+        [
+          29.59649,
+          -95.62466
+        ],
+        [
+          29.58139,
+          -95.64826
+        ],
+        [
+          29.57379,
+          -95.64729
+        ],
+        [
+          29.56375,
+          -95.64018
+        ],
+        [
+          29.55466,
+          -95.63885
+        ],
+        [
+          29.55421,
+          -95.62226
+        ],
+        [
+          29.54768,
+          -95.61383
+        ],
+        [
+          29.55036,
+          -95.61244
+        ],
+        [
+          29.54898,
+          -95.61622
+        ],
+        [
+          29.55453,
+          -95.62269
+        ],
+        [
+          29.55526,
+          -95.63915
+        ],
+        [
+          29.5638,
+          -95.63994
+        ],
+        [
+          29.57507,
+          -95.6475
+        ],
+        [
+          29.59411,
+          -95.64854
+        ],
+        [
+          29.59044,
+          -95.66421
+        ],
+        [
+          29.5901,
+          -95.67785
+        ],
+        [
+          29.60193,
+          -95.68422
+        ],
+        [
+          29.59432,
+          -95.7421
+        ],
+        [
+          29.62655,
+          -95.74374
+        ],
+        [
+          29.62678,
+          -95.75788
+        ],
+        [
+          29.62022,
+          -95.75358
+        ],
+        [
+          29.61763,
+          -95.76306
+        ],
+        [
+          29.61845,
+          -95.77001
+        ],
+        [
+          29.62692,
+          -95.77016
+        ],
+        [
+          29.62682,
+          -95.74367
+        ],
+        [
+          29.64406,
+          -95.74405
+        ],
+        [
+          29.65976,
+          -95.73625
+        ],
+        [
+          29.68631,
+          -95.73832
+        ],
+        [
+          29.70257,
+          -95.74283
+        ],
+        [
+          29.72624,
+          -95.45953
+        ],
+        [
+          29.75209,
+          -95.45547
+        ],
+        [
+          29.77714,
+          -95.45568
+        ],
+        [
+          29.78367,
+          -95.45193
+        ],
+        [
+          29.80224,
+          -95.4505
+        ],
+        [
+          29.80784,
+          -95.45542
+        ],
+        [
+          29.80702,
+          -95.46704
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 74.68,
+      "leg_mi": [
+        27.04,
+        15.31,
+        32.33
       ]
     },
     {
@@ -12781,90 +12999,90 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 114,
-          "name": "Valley Forge",
-          "street": "5826 Valley Forge",
+          "row": 118,
+          "name": "Williams, Sandra",
+          "street": "5330 Wilers Way, Houston TX",
           "city": "Houston",
           "st": "TX",
-          "zip": "77057",
+          "zip": "77056",
           "area": "West",
           "zone": "Uptown/Galleria",
-          "box_count": 14.0,
-          "box_count_sheet": 14.0,
-          "box_verified": false,
-          "phone": "7133854169.0",
-          "email": "Cynthia.Wenz@gmail.com",
-          "storage": "YES",
-          "date_2024": "",
-          "crew_2025": "Crew B (4)",
-          "crew_size_2025": 4,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": 3.0,
-          "prior_install_date": "2025-11-06",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.0,
-          "hours_basis": "2025 real",
-          "lat": 29.7536597,
-          "lon": -95.4844819,
-          "geo_display": "5826, Valley Forge Drive, Houston, Harris County, Texas, 77057, United States",
-          "geo_source": "street",
-          "midx": 112
-        },
-        {
-          "row": 45,
-          "name": "Hilton Garden Inn | Home2 Suites",
-          "street": "6840 Almeda Road Houston, Texas",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77030",
-          "area": "Central",
-          "zone": "Medical Center",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "",
-          "email": "",
+          "phone": "(832) 282-3848",
+          "email": "Queensandra1927@gmail.com",
           "storage": "NO",
-          "date_2024": "2024-11-15",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 14,
-          "est_hours": 5.0,
+          "date_2024": "2024-11-20",
+          "crew_2025": "Crew B (4)",
+          "crew_size_2025": 4,
+          "people_needed": 8,
+          "est_hours": 4.0,
           "real_hours": null,
-          "prior_install_date": "",
+          "prior_install_date": "2025-11-28",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.24,
+          "hours_basis": "est x0.81",
+          "lat": 29.747990272478,
+          "lon": -95.468486380459,
+          "geo_display": "census: 5330 WILLERS WAY, HOUSTON, TX, 77056",
+          "geo_source": "census",
+          "midx": 116
+        },
+        {
+          "row": 42,
+          "name": "Hanover Corporate",
+          "street": "1780 S Post Oak LN",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77056",
+          "area": "West",
+          "zone": "Uptown/Galleria",
+          "box_count": 13,
+          "box_count_sheet": 15.0,
+          "box_verified": true,
+          "phone": "713-580-1308",
+          "email": "JThompson@hanoverco.com",
+          "storage": "YES",
+          "date_2024": "2024-11-27",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 6,
+          "people_needed": 10,
+          "est_hours": 4.0,
+          "real_hours": 3.25,
+          "prior_install_date": "2025-11-28",
           "business": "Business",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 4.05,
-          "hours_basis": "est x0.81",
-          "lat": 29.7046964,
-          "lon": -95.3854947,
-          "geo_display": "Home2 Suites, 6840, Almeda Road, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+          "cal_hours": 3.25,
+          "hours_basis": "2025 real",
+          "lat": 29.7493219,
+          "lon": -95.462999,
+          "geo_display": "1780, South Post Oak Lane, Uptown, Houston, Harris County, Texas, 77056, United States",
           "geo_source": "street",
-          "midx": 43
+          "midx": 40
         }
       ],
       "order_idx": [
-        112,
-        43
+        116,
+        40
       ],
-      "install_h": 7.05,
-      "drive_min": 48.9,
+      "install_h": 6.49,
+      "drive_min": 22.8,
       "lunch": 40,
-      "total_min": 511.9,
+      "total_min": 452.2,
       "legs": [
-        10.5,
-        16.6,
-        21.8
+        11.2,
+        1.6,
+        10.0
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -12874,7 +13092,6 @@
       "note": "",
       "flags": [],
       "zones": [
-        "Medical Center",
         "Uptown/Galleria"
       ],
       "geometry": [
@@ -12883,124 +13100,124 @@
           -95.47379
         ],
         [
-          29.81096,
-          -95.47585
+          29.81928,
+          -95.47371
         ],
         [
-          29.81062,
-          -95.48511
+          29.81935,
+          -95.46913
         ],
         [
-          29.77834,
-          -95.48468
+          29.8043,
+          -95.45258
         ],
         [
-          29.77146,
-          -95.47833
+          29.8019,
+          -95.45095
         ],
         [
-          29.7639,
-          -95.47797
+          29.79963,
+          -95.45042
         ],
         [
-          29.7603,
-          -95.48297
+          29.79098,
+          -95.45224
         ],
         [
-          29.75363,
-          -95.4827
+          29.78393,
+          -95.45214
         ],
         [
-          29.75374,
-          -95.48448
+          29.77911,
+          -95.45526
         ],
         [
-          29.75372,
-          -95.48591
+          29.77666,
+          -95.45601
         ],
         [
-          29.74994,
-          -95.4861
+          29.75258,
+          -95.45571
         ],
         [
-          29.73824,
-          -95.48438
+          29.74821,
+          -95.45682
         ],
         [
-          29.72535,
-          -95.4843
+          29.75032,
+          -95.45961
         ],
         [
-          29.72612,
-          -95.46786
+          29.75029,
+          -95.46723
         ],
         [
-          29.72989,
-          -95.45597
+          29.7479,
+          -95.46712
         ],
         [
-          29.72874,
-          -95.44033
+          29.74793,
+          -95.46851
         ],
         [
-          29.73179,
-          -95.38605
+          29.74792,
+          -95.47086
         ],
         [
-          29.73112,
-          -95.38537
+          29.75004,
+          -95.4709
         ],
         [
-          29.72853,
-          -95.38748
+          29.75017,
+          -95.46295
         ],
         [
-          29.72315,
-          -95.37865
+          29.74933,
+          -95.463
         ],
         [
-          29.70463,
-          -95.38524
+          29.75017,
+          -95.46295
         ],
         [
-          29.71988,
-          -95.37974
+          29.75021,
+          -95.46115
         ],
         [
-          29.72605,
-          -95.38999
+          29.75278,
+          -95.45955
         ],
         [
-          29.72557,
-          -95.41053
+          29.75407,
+          -95.45509
         ],
         [
-          29.73123,
-          -95.41061
+          29.77669,
+          -95.45573
         ],
         [
-          29.72905,
-          -95.43969
-        ],
-        [
-          29.73065,
-          -95.45933
-        ],
-        [
-          29.75209,
-          -95.45547
-        ],
-        [
-          29.77714,
-          -95.45568
+          29.77886,
+          -95.45511
         ],
         [
           29.78367,
           -95.45193
         ],
         [
+          29.7906,
+          -95.45202
+        ],
+        [
+          29.79864,
+          -95.45013
+        ],
+        [
           29.80224,
           -95.4505
+        ],
+        [
+          29.80365,
+          -95.45116
         ],
         [
           29.80784,
@@ -13023,11 +13240,11 @@
           -95.47379
         ]
       ],
-      "distance_mi": 28.9,
+      "distance_mi": 13.87,
       "leg_mi": [
-        5.18,
-        10.33,
-        13.39
+        7.1,
+        0.83,
+        5.94
       ]
     },
     {
@@ -13037,26 +13254,62 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 88,
-          "name": "Northside Import",
-          "street": "23110 I45",
-          "city": "Spring",
+          "row": 41,
+          "name": "Hampton Inn",
+          "street": "710 Crawford Street",
+          "city": "Houston",
           "st": "TX",
-          "zip": "77373",
+          "zip": "77002",
+          "area": "Central",
+          "zone": "Downtown/Midtown",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "847-372-3700",
+          "email": "Chris.Miller@Hilton.com",
+          "storage": "NO",
+          "date_2024": "2024-12-05",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 11,
+          "est_hours": 5.0,
+          "real_hours": null,
+          "prior_install_date": "2025-12-03",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 4.05,
+          "hours_basis": "est x0.81",
+          "lat": 29.7558649,
+          "lon": -95.358557,
+          "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
+          "geo_source": "street",
+          "midx": 39
+        },
+        {
+          "row": 32,
+          "name": "Crane Worldwide Logistics",
+          "street": "1500 Rankin Road",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77073",
           "area": "North",
           "zone": "Spring/Klein/North Belt",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "832-643-9266",
-          "email": "blockwood@northsideimportshouston.com",
+          "phone": "(832) 465-6020",
+          "email": "bryana.seaver@craneww.com",
           "storage": "NO",
           "date_2024": "",
           "crew_2025": "Crew A (6)",
           "crew_size_2025": 6,
-          "people_needed": 10,
-          "est_hours": 4.0,
-          "real_hours": 3.0,
+          "people_needed": 5,
+          "est_hours": 3.0,
+          "real_hours": 2.416666667,
           "prior_install_date": "2025-12-02",
           "business": "Business",
           "category": "Standard",
@@ -13064,63 +13317,27 @@
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 3.0,
+          "cal_hours": 2.42,
           "hours_basis": "2025 real",
-          "lat": 30.075599,
-          "lon": -95.435694,
-          "geo_display": "manual override",
-          "geo_source": "manual",
-          "midx": 86
-        },
-        {
-          "row": 31,
-          "name": "Citizens State Bank",
-          "street": "22410 US-59",
-          "city": "Porter",
-          "st": "TX",
-          "zip": "77365",
-          "area": "Northeast",
-          "zone": "Kingwood/Humble/Porter",
-          "box_count": 24,
-          "box_count_sheet": 25.0,
-          "box_verified": true,
-          "phone": "409-283-9373",
-          "email": "Kjohnson@citizensbank.net",
-          "storage": "YES",
-          "date_2024": "2024-11-15",
-          "crew_2025": "Chris Crew",
-          "crew_size_2025": 5,
-          "people_needed": 14,
-          "est_hours": 6.0,
-          "real_hours": 3.5,
-          "prior_install_date": "2025-11-19",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.5,
-          "hours_basis": "2025 real",
-          "lat": 30.1204797,
-          "lon": -95.2236364,
-          "geo_display": "22410, Loop 494, New Caney, Porter, Montgomery County, Texas, 77357, United States",
+          "lat": 29.965342,
+          "lon": -95.3785,
+          "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
           "geo_source": "street",
-          "midx": 29
+          "midx": 30
         }
       ],
       "order_idx": [
-        86,
-        29
+        39,
+        30
       ],
-      "install_h": 6.5,
-      "drive_min": 95.7,
+      "install_h": 6.47,
+      "drive_min": 65.1,
       "lunch": 40,
-      "total_min": 525.7,
+      "total_min": 493.3,
       "legs": [
-        32.9,
-        20.4,
-        42.4
+        17.5,
+        21.7,
+        25.9
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -13130,8 +13347,219 @@
       "note": "",
       "flags": [],
       "zones": [
-        "Kingwood/Humble/Porter",
+        "Downtown/Midtown",
         "Spring/Klein/North Belt"
+      ],
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.78571,
+          -95.43766
+        ],
+        [
+          29.78087,
+          -95.43639
+        ],
+        [
+          29.77707,
+          -95.42891
+        ],
+        [
+          29.77665,
+          -95.38618
+        ],
+        [
+          29.77885,
+          -95.37573
+        ],
+        [
+          29.77642,
+          -95.36982
+        ],
+        [
+          29.76814,
+          -95.36342
+        ],
+        [
+          29.76853,
+          -95.35227
+        ],
+        [
+          29.76321,
+          -95.35153
+        ],
+        [
+          29.7557,
+          -95.35828
+        ],
+        [
+          29.76463,
+          -95.35087
+        ],
+        [
+          29.81488,
+          -95.35137
+        ],
+        [
+          29.82109,
+          -95.3558
+        ],
+        [
+          29.83034,
+          -95.35457
+        ],
+        [
+          29.94992,
+          -95.38403
+        ],
+        [
+          29.9653,
+          -95.3785
+        ],
+        [
+          29.96542,
+          -95.38032
+        ],
+        [
+          29.95749,
+          -95.38044
+        ],
+        [
+          29.95026,
+          -95.38426
+        ],
+        [
+          29.81466,
+          -95.35305
+        ],
+        [
+          29.81279,
+          -95.43071
+        ],
+        [
+          29.80676,
+          -95.45901
+        ],
+        [
+          29.80721,
+          -95.46767
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 43.81,
+      "leg_mi": [
+        10.14,
+        15.05,
+        18.62
+      ]
+    },
+    {
+      "date": "2026-12-02",
+      "dow": "Wed",
+      "crew": "Crew 1",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 85,
+          "name": "Mercedes Benz",
+          "street": "16917 I-45",
+          "city": "Conroe",
+          "st": "TX",
+          "zip": "77385",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": "31",
+          "box_count_sheet": "31",
+          "box_verified": false,
+          "phone": "(936) 235-2521",
+          "email": "ednac@mbotw.com",
+          "storage": "YES",
+          "date_2024": "2024-11-19",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 16,
+          "est_hours": 6.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 4.86,
+          "hours_basis": "est x0.81",
+          "lat": 30.2027206,
+          "lon": -95.4558347,
+          "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
+          "geo_source": "street",
+          "midx": 83
+        },
+        {
+          "row": 115,
+          "name": "Waterway Wealth Waterway",
+          "street": "21 Waterway Ave. # 500",
+          "city": "Woodlands",
+          "st": "TX",
+          "zip": "77380",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": 6,
+          "box_count_sheet": 6.0,
+          "box_verified": true,
+          "phone": "(281) 363-0000",
+          "email": "kristen@waterwaywealth.com",
+          "storage": "YES",
+          "date_2024": "2024-11-13",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": 5,
+          "est_hours": 2.0,
+          "real_hours": 1.083333333,
+          "prior_install_date": "2025-11-13",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.08,
+          "hours_basis": "2025 real",
+          "lat": 30.1602263,
+          "lon": -95.4594662,
+          "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_source": "street",
+          "midx": 113
+        }
+      ],
+      "order_idx": [
+        83,
+        113
+      ],
+      "install_h": 5.94,
+      "drive_min": 97.2,
+      "lunch": 40,
+      "total_min": 493.6,
+      "legs": [
+        49.8,
+        5.8,
+        41.5
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "The Woodlands"
       ],
       "geometry": [
         [
@@ -13143,10 +13571,6 @@
           -95.47273
         ],
         [
-          29.87057,
-          -95.46126
-        ],
-        [
           29.8708,
           -95.42961
         ],
@@ -13155,431 +13579,91 @@
           -95.43149
         ],
         [
-          29.88898,
-          -95.41174
+          29.88922,
+          -95.41172
         ],
         [
           29.93388,
           -95.41182
         ],
         [
-          29.95227,
-          -95.41776
+          30.0106,
+          -95.4276
         ],
         [
-          30.00767,
-          -95.42714
+          30.08084,
+          -95.43685
         ],
         [
-          30.03917,
-          -95.42929
+          30.10757,
+          -95.43551
         ],
         [
-          30.0756,
-          -95.43569
+          30.16032,
+          -95.44986
         ],
         [
-          30.09221,
-          -95.43465
+          30.2379,
+          -95.45955
         ],
         [
-          30.09495,
-          -95.40498
-        ],
-        [
-          30.12282,
-          -95.37141
-        ],
-        [
-          30.14194,
-          -95.33583
-        ],
-        [
-          30.13738,
-          -95.31053
-        ],
-        [
-          30.13758,
-          -95.259
-        ],
-        [
-          30.12919,
-          -95.24083
-        ],
-        [
-          30.12937,
-          -95.22048
-        ],
-        [
-          30.12046,
-          -95.22355
-        ],
-        [
-          30.10261,
-          -95.22965
-        ],
-        [
-          30.10444,
-          -95.23703
-        ],
-        [
-          30.02705,
-          -95.25877
-        ],
-        [
-          29.92629,
-          -95.30204
-        ],
-        [
-          29.91638,
-          -95.30837
-        ],
-        [
-          29.90116,
-          -95.31241
-        ],
-        [
-          29.86538,
-          -95.3329
-        ],
-        [
-          29.80944,
-          -95.33587
-        ],
-        [
-          29.81408,
-          -95.35543
-        ],
-        [
-          29.81481,
-          -95.37564
-        ],
-        [
-          29.81279,
-          -95.43071
-        ],
-        [
-          29.80895,
-          -95.44198
-        ],
-        [
-          29.80682,
-          -95.46582
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 69.64,
-      "leg_mi": [
-        21.7,
-        16.02,
-        31.91
-      ]
-    },
-    {
-      "date": "2026-12-02",
-      "dow": "Wed",
-      "crew": "Crew 1",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 6,
-          "name": "Akinola, Joke",
-          "street": "6314 Windermere Park Lane",
-          "city": "Sugarland",
-          "st": "TX",
-          "zip": "77479",
-          "area": "Southwest",
-          "zone": "Sugar Land/Stafford",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "832-814-7173",
-          "email": "jk_akinola@hotmail.com",
-          "storage": "NO",
-          "date_2024": "2024-12-14",
-          "crew_2025": "Crew B (6)",
-          "crew_size_2025": 6,
-          "people_needed": 7,
-          "est_hours": 3.0,
-          "real_hours": 4.5,
-          "prior_install_date": "2025-11-21",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 4.5,
-          "hours_basis": "2025 real",
-          "lat": 29.5504496,
-          "lon": -95.6123567,
-          "geo_display": "6314, Windermere Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
-          "geo_source": "street",
-          "midx": 5
-        },
-        {
-          "row": 5,
-          "name": "A Hug Away Takisha",
-          "street": "3419  Blue Grass Dr",
-          "city": "Richmond",
-          "st": "TX",
-          "zip": "77406",
-          "area": "West",
-          "zone": "Katy/Fulshear",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "713-320-2684",
-          "email": "pa.manager@yahoo.com",
-          "storage": "Ask",
-          "date_2024": "",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.0,
-          "hours_basis": "zone median",
-          "lat": 29.6175533,
-          "lon": -95.7630575,
-          "geo_display": "3419, Blue Grass Drive, Fort Bend County, Texas, 77406, United States",
-          "geo_source": "street",
-          "midx": 4
-        }
-      ],
-      "order_idx": [
-        5,
-        4
-      ],
-      "install_h": 6.5,
-      "drive_min": 114.7,
-      "lunch": 40,
-      "total_min": 544.7,
-      "legs": [
-        38.0,
-        30.5,
-        46.2
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "Katy/Fulshear",
-        "Sugar Land/Stafford"
-      ],
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.81928,
-          -95.47371
-        ],
-        [
-          29.81935,
-          -95.46913
-        ],
-        [
-          29.8004,
-          -95.45051
-        ],
-        [
-          29.78393,
-          -95.45214
-        ],
-        [
-          29.77666,
-          -95.45601
-        ],
-        [
-          29.75114,
+          30.20272,
           -95.45583
         ],
         [
-          29.73015,
-          -95.46113
+          30.16164,
+          -95.45067
         ],
         [
-          29.72649,
-          -95.46748
+          30.16023,
+          -95.45914
         ],
         [
-          29.72414,
-          -95.49114
+          30.15463,
+          -95.44937
         ],
         [
-          29.62054,
-          -95.60301
+          30.10768,
+          -95.43582
         ],
         [
-          29.59649,
-          -95.62466
+          30.08011,
+          -95.43714
         ],
         [
-          29.58139,
-          -95.64826
+          30.00983,
+          -95.42782
         ],
         [
-          29.57379,
-          -95.64729
+          29.9339,
+          -95.41214
         ],
         [
-          29.56375,
-          -95.64018
+          29.87632,
+          -95.41223
         ],
         [
-          29.55466,
-          -95.63885
+          29.87068,
+          -95.41277
         ],
         [
-          29.55421,
-          -95.62226
+          29.87072,
+          -95.46114
         ],
         [
-          29.54768,
-          -95.61383
-        ],
-        [
-          29.55036,
-          -95.61244
-        ],
-        [
-          29.54898,
-          -95.61622
-        ],
-        [
-          29.55453,
-          -95.62269
-        ],
-        [
-          29.55526,
-          -95.63915
-        ],
-        [
-          29.5638,
-          -95.63994
-        ],
-        [
-          29.57507,
-          -95.6475
-        ],
-        [
-          29.59411,
-          -95.64854
-        ],
-        [
-          29.59044,
-          -95.66421
-        ],
-        [
-          29.5901,
-          -95.67785
-        ],
-        [
-          29.60193,
-          -95.68422
-        ],
-        [
-          29.59432,
-          -95.7421
-        ],
-        [
-          29.62655,
-          -95.74374
-        ],
-        [
-          29.62678,
-          -95.75788
-        ],
-        [
-          29.62022,
-          -95.75358
-        ],
-        [
-          29.61763,
-          -95.76306
-        ],
-        [
-          29.61845,
-          -95.77001
-        ],
-        [
-          29.62692,
-          -95.77016
-        ],
-        [
-          29.62682,
-          -95.74367
-        ],
-        [
-          29.64406,
-          -95.74405
-        ],
-        [
-          29.65976,
-          -95.73625
-        ],
-        [
-          29.68631,
-          -95.73832
-        ],
-        [
-          29.70257,
-          -95.74283
-        ],
-        [
-          29.72624,
-          -95.45953
-        ],
-        [
-          29.75209,
-          -95.45547
-        ],
-        [
-          29.77714,
-          -95.45568
-        ],
-        [
-          29.78367,
-          -95.45193
-        ],
-        [
-          29.80224,
-          -95.4505
-        ],
-        [
-          29.80784,
-          -95.45542
-        ],
-        [
-          29.80702,
-          -95.46704
+          29.86692,
+          -95.4729
         ],
         [
           29.81276,
           -95.47379
         ]
       ],
-      "distance_mi": 74.68,
+      "distance_mi": 67.59,
       "leg_mi": [
-        27.04,
-        15.31,
-        32.33
+        35.86,
+        3.45,
+        28.28
       ]
     },
     {
@@ -13896,9 +13980,9 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 118,
-          "name": "Williams, Sandra",
-          "street": "5330 Wilers Way, Houston TX",
+          "row": 90,
+          "name": "Omni Hotel",
+          "street": "4 Riverway Dr, Houston, TX",
           "city": "Houston",
           "st": "TX",
           "zip": "77056",
@@ -13907,79 +13991,41 @@
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "(832) 282-3848",
-          "email": "Queensandra1927@gmail.com",
+          "phone": "",
+          "email": "",
           "storage": "NO",
-          "date_2024": "2024-11-20",
-          "crew_2025": "Crew B (4)",
-          "crew_size_2025": 4,
-          "people_needed": 8,
-          "est_hours": 4.0,
+          "date_2024": "2024-11-25",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 14,
+          "est_hours": 7.0,
           "real_hours": null,
-          "prior_install_date": "2025-11-28",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.24,
-          "hours_basis": "est x0.81",
-          "lat": 29.747990272478,
-          "lon": -95.468486380459,
-          "geo_display": "census: 5330 WILLERS WAY, HOUSTON, TX, 77056",
-          "geo_source": "census",
-          "midx": 116
-        },
-        {
-          "row": 42,
-          "name": "Hanover Corporate",
-          "street": "1780 S Post Oak LN",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77056",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": 13,
-          "box_count_sheet": 15.0,
-          "box_verified": true,
-          "phone": "713-580-1308",
-          "email": "JThompson@hanoverco.com",
-          "storage": "YES",
-          "date_2024": "2024-11-27",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 6,
-          "people_needed": 10,
-          "est_hours": 4.0,
-          "real_hours": 3.25,
-          "prior_install_date": "2025-11-28",
+          "prior_install_date": "",
           "business": "Business",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 3.25,
-          "hours_basis": "2025 real",
-          "lat": 29.7493219,
-          "lon": -95.462999,
-          "geo_display": "1780, South Post Oak Lane, Uptown, Houston, Harris County, Texas, 77056, United States",
+          "cal_hours": 5.67,
+          "hours_basis": "est x0.81",
+          "lat": 29.7616902,
+          "lon": -95.462021,
+          "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
           "geo_source": "street",
-          "midx": 40
+          "midx": 88
         }
       ],
       "order_idx": [
-        116,
-        40
+        88
       ],
-      "install_h": 6.49,
-      "drive_min": 22.8,
+      "install_h": 5.67,
+      "drive_min": 18.2,
       "lunch": 40,
-      "total_min": 452.2,
+      "total_min": 398.4,
       "legs": [
-        11.2,
-        1.6,
-        10.0
+        9.0,
+        9.2
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -13987,7 +14033,10 @@
       "half_rows": [],
       "joint_with": "",
       "note": "",
-      "flags": [],
+      "flags": [
+        "light day (<7.5h)",
+        "single-stop day"
+      ],
       "zones": [
         "Uptown/Galleria"
       ],
@@ -14009,16 +14058,16 @@
           -95.45258
         ],
         [
-          29.8019,
-          -95.45095
+          29.8007,
+          -95.45057
         ],
         [
-          29.79963,
-          -95.45042
+          29.79792,
+          -95.45053
         ],
         [
-          29.79098,
-          -95.45224
+          29.79049,
+          -95.45229
         ],
         [
           29.78393,
@@ -14033,100 +14082,52 @@
           -95.45601
         ],
         [
-          29.75258,
-          -95.45571
+          29.76581,
+          -95.45639
         ],
         [
-          29.74821,
-          -95.45682
+          29.76403,
+          -95.45939
         ],
         [
-          29.75032,
-          -95.45961
+          29.76346,
+          -95.46172
         ],
         [
-          29.75029,
-          -95.46723
-        ],
-        [
-          29.7479,
-          -95.46712
-        ],
-        [
-          29.74793,
-          -95.46851
-        ],
-        [
-          29.74792,
-          -95.47086
-        ],
-        [
-          29.75004,
-          -95.4709
-        ],
-        [
-          29.75017,
-          -95.46295
-        ],
-        [
-          29.74933,
-          -95.463
-        ],
-        [
-          29.75017,
-          -95.46295
-        ],
-        [
-          29.75021,
+          29.76237,
           -95.46115
         ],
         [
-          29.75278,
-          -95.45955
+          29.76162,
+          -95.46197
         ],
         [
-          29.75407,
-          -95.45509
+          29.76137,
+          -95.46336
         ],
         [
-          29.77669,
-          -95.45573
+          29.76223,
+          -95.46339
         ],
         [
-          29.77886,
-          -95.45511
+          29.76627,
+          -95.45551
         ],
         [
-          29.78367,
-          -95.45193
+          29.7734,
+          -95.45549
         ],
         [
-          29.7906,
-          -95.45202
+          29.77337,
+          -95.4565
         ],
         [
-          29.79864,
-          -95.45013
+          29.79623,
+          -95.45705
         ],
         [
-          29.80224,
-          -95.4505
-        ],
-        [
-          29.80365,
-          -95.45116
-        ],
-        [
-          29.80784,
-          -95.45542
-        ],
-        [
-          29.8068,
-          -95.45743
-        ],
-        [
-          29.80702,
-          -95.46704
+          29.79833,
+          -95.45568
         ],
         [
           29.81189,
@@ -14137,11 +14138,10 @@
           -95.47379
         ]
       ],
-      "distance_mi": 13.87,
+      "distance_mi": 9.98,
       "leg_mi": [
-        7.1,
-        0.83,
-        5.94
+        5.44,
+        4.54
       ]
     }
   ],
