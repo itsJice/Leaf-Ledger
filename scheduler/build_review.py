@@ -130,6 +130,10 @@ header h1 svg{color:var(--brand)}
 .cdot{width:13px;height:13px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.4)}
 .cname{font-family:Georgia,serif;letter-spacing:.03em;font-weight:600;font-size:15px;flex:1;color:var(--ink)}
 .cpeople{font-size:11.5px;color:var(--mut);white-space:nowrap;font-weight:500}
+.sched{display:flex;gap:16px;padding:8px 14px;font-size:11.5px;color:var(--mut);
+  background:var(--brand-soft);border-bottom:1px solid var(--line)}
+.sched b{color:var(--ink);font-weight:700}
+.sched .ic{width:12px;height:12px;vertical-align:-1.5px;margin-right:2px}
 .okbtn{border:1.5px solid var(--ok);color:var(--ok);background:#fff;border-radius:6px;font-family:'Montserrat',sans-serif;
   padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.02em;transition:all .15s}
 .okbtn:hover{background:#f0fdf4}
@@ -212,7 +216,8 @@ const IC={
  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
- home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'};
+ home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+ clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
@@ -462,6 +467,16 @@ function renderStrip(){
 }
 
 function fmtH(m){ return (m/60).toFixed(1)+'h'; }
+// Houston day shape (user rule): crews arrive depot 8:00am, roll out 8:30am
+// -- only meaningful for a real depot round-trip day (d.anchored); Mi
+// Cocina nights and the M Crowd Corporate Office daytime install run on
+// their own fixed shift windows instead.
+const ARRIVE_MIN = 8*60, DEPART_MIN = 8*60+30;
+function fmtClock(mins){
+  const h=Math.floor(mins/60)%24, m=Math.round(mins)%60;
+  const ap=h>=12?'PM':'AM', h12=h%12===0?12:h%12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
+}
 function renderCards(){
   side.innerHTML='';
   if(isOverview(selDate)){
@@ -490,6 +505,14 @@ function renderCards(){
     </div>`;
     card.querySelector('.okbtn').onclick=()=>{
       approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
+    if(d.anchored){
+      const finishMin=DEPART_MIN+calc.total;
+      card.insertAdjacentHTML('beforeend',`<div class="sched">
+        <span>${IC.clock} Arrive Depot <b>${fmtClock(ARRIVE_MIN)}</b></span>
+        <span>Depart <b>${fmtClock(DEPART_MIN)}</b></span>
+        <span>Est. Finish <b>${fmtClock(finishMin)}</b></span>
+      </div>`);
+    }
     // stops + legs (mileage from the real road path — precomputed if the
     // day is untouched, live-fetched once if it's been edited)
     const path=calc.path||[];
