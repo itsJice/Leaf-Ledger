@@ -278,9 +278,64 @@ try{
     stateWarning = 'Migrated saved changes to the new format — please review.';
   }
 }catch(e){}
-function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(
-  {version:SPEC.version, placement:currentPlacement(),
-   moves, approved:[...approved]})); }
+function snapshot(){
+  return {version:SPEC.version, placement:currentPlacement(),
+          moves, approved:[...approved]};
+}
+// Shared save. Several staff work reschedule requests over the same
+// season, so state lives server-side keyed on the schedule build. The
+// parent app posts its auth token in (this page runs in a srcDoc iframe,
+// same origin but with no token of its own); with no token we stay on
+// localStorage alone, which is what the standalone file does.
+let AUTH = null, syncState = 'local';
+window.addEventListener('message', e=>{
+  // Only ever accept a token from our own origin. srcDoc inherits the
+  // parent's origin, so a same-origin check is the right gate; anything
+  // cross-origin trying to hand us a bearer token is not the host app.
+  if(e.origin !== window.location.origin) return;
+  if(e.source !== window.parent) return;
+  if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
+    AUTH = e.data.token;
+    pullShared();
+  }
+});
+async function pullShared(){
+  if(!AUTH) return;
+  try{
+    const r = await fetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`,
+                          {headers:{Authorization:AUTH}});
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    if(j.state && j.state.placement){
+      const missing = applyPlacement(j.state.placement);
+      moves = j.state.moves || [];
+      approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
+      syncState = 'shared';
+      stateWarning = missing
+        ? missing+' shared stop(s) pointed at days that no longer exist.'
+        : null;
+      render();
+    } else { syncState = 'shared'; }
+  }catch(e){ syncState = 'local'; }
+}
+let pushTimer = null;
+function pushShared(){
+  if(!AUTH) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async ()=>{
+    try{
+      await fetch('/api/install-schedule/state', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json', Authorization:AUTH},
+        body: JSON.stringify({version:SPEC.version, state:snapshot()}),
+      });
+    }catch(e){}
+  }, 600);
+}
+function persist(){
+  localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
+  pushShared();
+}
 
 // ---------- routing (embedded OSRM matrix) ----------
 function leg(a,b){ return D[a][b]||0; }
