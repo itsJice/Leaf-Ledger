@@ -1757,7 +1757,7 @@
     {
       "row": 52,
       "name": "Keffer, Pam",
-      "street": "5231",
+      "street": "5231 Wincroft",
       "city": "Houston",
       "st": "TX",
       "zip": "77069",
@@ -1784,9 +1784,9 @@
       "install_2026_no_install": false,
       "cal_hours": 3.33,
       "hours_basis": "2025 real",
-      "lat": 30.0440099,
-      "lon": -94.8907776,
-      "geo_display": "Burger King, 302, United States Highway 90 West, Dayton, Liberty County, Texas, 77535, United States",
+      "lat": 29.9978052,
+      "lon": -95.5207417,
+      "geo_display": "5231, Wincroft Court, Champion Forest, Harris County, Texas, 77069, United States",
       "geo_source": "street"
     },
     {
@@ -3087,7 +3087,7 @@
     {
       "row": 90,
       "name": "Omni Hotel",
-      "street": "4 Riverway Dr, Houston, TX",
+      "street": "4 Riverway Dr",
       "city": "Houston",
       "st": "TX",
       "zip": "77056",
@@ -3472,7 +3472,7 @@
     {
       "row": 101,
       "name": "Scheib, Nataliya",
-      "street": "3810",
+      "street": "3810 N. Virkus CT Missouri City",
       "city": "Houston",
       "st": "TX",
       "zip": "77459",
@@ -3647,7 +3647,7 @@
     {
       "row": 106,
       "name": "Sikkel, Maria",
-      "street": "27 Thornblade Circle Spring, TX",
+      "street": "27 Thornblade Circle",
       "city": "Spring",
       "st": "TX",
       "zip": "77389",
@@ -3674,10 +3674,10 @@
       "install_2026_no_install": false,
       "cal_hours": 2.83,
       "hours_basis": "2025 real",
-      "lat": 30.154667094976,
-      "lon": -95.533286165983,
-      "geo_display": "census: 27 THORNBLADE CIR, SPRING, TX, 77389",
-      "geo_source": "census"
+      "lat": 30.1547697,
+      "lon": -95.5333095,
+      "geo_display": "27, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_source": "street"
     },
     {
       "row": 107,
@@ -4032,7 +4032,7 @@
     {
       "row": 117,
       "name": "William Brothers-NRG",
-      "street": "1 Fannin St, Houston, TX",
+      "street": "1 Fannin St",
       "city": "Houston",
       "st": "TX",
       "zip": "77054",
@@ -4059,9 +4059,9 @@
       "install_2026_no_install": false,
       "cal_hours": 1.5,
       "hours_basis": "2025 real",
-      "lat": 29.6640992,
-      "lon": -95.4029413,
-      "geo_display": "Fannin Street, Houston, Harris County, Texas, 77054, United States",
+      "lat": 29.6918755,
+      "lon": -95.4020769,
+      "geo_display": "Fannin Street, Texas Medical Center, Houston, Harris County, Texas, 77054, United States",
       "geo_source": "street"
     },
     {

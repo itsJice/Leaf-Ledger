@@ -248,12 +248,30 @@ def clean_zip(v):
 
 def clean_street(addr, city, zc):
     """Isolate the street from a messy ADDRESS cell that may have the full
-    'street, city, ST zip' jammed in.  Strip a trailing city/ST/zip tail."""
+    'street, city, ST zip' jammed in.  Strip a trailing city/ST/zip tail.
+
+    Bug (found 2026-08-01, Keffer/Pam): the old generic tail regex
+    (`[A-Za-z .]+,?\\s*TX\\s*\\d{5}`) has no required comma before the
+    letters, so on an ADDRESS cell with no comma between street and city
+    ("5231 Wincroft Houston, TX 77069") it greedily eats "Wincroft Houston"
+    too, leaving just "5231". Strip using the KNOWN city (from the sheet's
+    own CITY column) FIRST, comma optional -- that's anchored to a real
+    place name instead of "however many words happen to precede TX zip" --
+    and only fall back to the generic pattern (now comma-REQUIRED, so it
+    can no longer eat an unknown word) if the city isn't in the string.
+    """
     if not addr:
         return ""
     s = str(addr).strip()
-    # cut everything from a trailing ", City, TX 77xxx" style tail
-    s = re.sub(r",?\s*[A-Za-z .]+,?\s*TX\s*\d{5}.*$", "", s, flags=re.I)
+    if city:
+        c = re.escape(str(city).strip())
+        s = re.sub(r",?\s*" + c + r"\s*,?\s*TX\s*\d{5}.*$", "", s, flags=re.I)
+        s = re.sub(r",?\s*" + c + r"\s*,\s*TX.*$", "", s, flags=re.I)
+        s = re.sub(r",\s*" + c + r"\s*$", "", s, flags=re.I)
+    # fallback: cut a trailing ", City, TX 77xxx" tail -- comma required
+    # before the city words, so this can't swallow an unrecognized street
+    # name the way the old unanchored version did.
+    s = re.sub(r",\s*[A-Za-z .]+,?\s*TX\s*\d{5}.*$", "", s, flags=re.I)
     s = re.sub(r",?\s*TX\s*\d{5}.*$", "", s, flags=re.I)
     s = re.sub(r",?\s*\d{5}(-\d{4})?\s*$", "", s)
     if city:

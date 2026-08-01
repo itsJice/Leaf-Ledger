@@ -38,24 +38,24 @@ ROTARY_SUNDAY = "2026-11-29"
 HOU_WEEKDAYS = ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13",
                 "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20",
                 "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-30"]
-SATURDAYS = ["2026-11-14", "2026-11-21", "2026-11-28",
-             "2026-12-05"]    # extra tail Saturday -- see STD_WEEKDAYS note
-# Standard Houston weekday slots, in calendar order. Nov 9 & 16 Mondays are
-# freed (clubs moved to their client-requested dates).
-STD_WEEKDAYS = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12",
-                "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18",
-                "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24",
-                "2026-11-25", "2026-11-30", "2026-12-01",
-                # overflow tail (used only if November slots run out) --
-                # extended through 12/10 (user, 2026-08-01) purely so the
-                # review tool has real, workable dates to show as empty
-                # drag targets that far out. Lowest priority: the packer
-                # only reaches these if everything earlier is full.
-                "2026-12-02", "2026-12-03", "2026-12-04",
-                "2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10"]
-FORCE_START = {"2026-11-09"}                    # Houston installs must start here
-OVERFLOW_TAIL = {"2026-12-03", "2026-12-04",
-                 "2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10"}
+SATURDAYS = []   # no standard Saturday capacity -- see STD_WEEKDAYS note
+# Round-1 Houston weekday slots (user, 2026-08-01): teams work consecutive
+# Mon-Fri only, nothing on Saturday/Sunday except named exceptions (Rotary
+# House's Sunday, Outdoor Tree & Frame's client-requested Saturday -- both
+# pinned individually below, independent of this pool). The window runs
+# forward from Thanksgiving through Sims, Darcy's confirmed Dec 2 (this
+# round's last date), and back from Thanksgiving only as far as needed to
+# fit everyone -- that floor is Nov 12, one crew-day of slack short of
+# exactly filling this round's Houston need (41 crew-days into 42 slots).
+# The wider Nov 9-Dec 10 calendar the review tool shows (see DOW below)
+# stays available for later manual reschedule accommodation; it's just no
+# longer where the INITIAL round automatically lands people.
+STD_WEEKDAYS = ["2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17",
+                "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23",
+                "2026-11-24", "2026-11-25", "2026-11-27", "2026-11-30",
+                "2026-12-01", "2026-12-02"]
+FORCE_START = set()          # no forced first day -- balance fills naturally
+OVERFLOW_TAIL = set()        # no auto-assigned overflow tail this round
 DOW = {  # for labels, and the full set of dates the review tool can show.
     # Sundays/Thanksgiving are included too (not workable -- see rules.py's
     # SUNDAY/THANKS blockers) so the date strip can show a real, explained
@@ -1065,26 +1065,31 @@ def main():
 
     # Rule (user, 2026-07-31): Sheri Roane always wants a 9am start --
     # pinned first in the route (start_row) on her existing day.
+    # Moved off Nov 9 -> Nov 17 (user, 2026-08-01: round-1 no longer starts
+    # that early; Nov 17 is Crew 1's first open weekday in the new window).
+    # start_row (9am-first) is independent of which date carries the day.
     roane_day = names(["Charlton, Anna", "Roane, Sheri",
                        "Juban, Chris (Sarah Eilers Designer)", "Eilers, Sarah"])
     if roane_day:
         roane_row = next(c["row"] for c in roane_day if c["name"] == "Roane, Sheri")
-        days.append(build_day(D, "Crew 1", "2026-11-09", roane_day, by_idx,
+        days.append(build_day(D, "Crew 1", "2026-11-17", roane_day, by_idx,
                               "Standard", start_row=roane_row,
                               note="Sheri Roane always wants a 9am start -- "
                                    "pinned first stop of the day."))
-        consumed.add(("2026-11-09", "Crew 1"))
+        consumed.add(("2026-11-17", "Crew 1"))
 
     # Rule (user, 2026-07-31): Amy Jinks likes to go first -- pinned first
-    # in the route (start_row) instead of last.
+    # in the route (start_row) instead of last. Moved off Nov 9 -> Nov 13
+    # (user, 2026-08-01: round-1 no longer starts that early; Nov 13 is
+    # Crew 3's first open weekday in the new window).
     jinks_day = names(["Semple, Lauren", "Hensley, Rodney", "Jinks, Amy"])
     if jinks_day:
         jinks_row = next(c["row"] for c in jinks_day if c["name"] == "Jinks, Amy")
-        days.append(build_day(D, "Crew 3", "2026-11-09", jinks_day, by_idx,
+        days.append(build_day(D, "Crew 3", "2026-11-13", jinks_day, by_idx,
                               "Standard", start_row=jinks_row,
                               note="Amy Jinks likes to go first -- pinned "
                                    "first stop of the day."))
-        consumed.add(("2026-11-09", "Crew 3"))
+        consumed.add(("2026-11-13", "Crew 3"))
 
     standard = take(lambda c: True)              # everything still unassigned
 
@@ -1264,11 +1269,37 @@ def main():
 
     unplaced = []
 
+    # Prefer landing a bin close to its clients' prior-year date (user,
+    # 2026-08-01: "as close to the dates from 2025 as possible" -- 2025 is
+    # the primary reference, 2024 a backup when 2025 is missing). A client
+    # whose 2026 note flags their prior date as a mistake (installed too
+    # late, etc.) is excluded from the average -- anchoring near a date we
+    # already know was wrong would just repeat it.
+    def prior_target_ord(bin_stops):
+        ords = []
+        for s in bin_stops:
+            note = (s.get("install_2026_note") or "").lower()
+            if "too late" in note or "needs to be earlier" in note:
+                continue
+            d = s.get("prior_install_date") or s.get("date_2024")
+            if not d or len(d) < 10:
+                continue
+            try:
+                ords.append(_ord(d[:10]))
+            except ValueError:
+                continue
+        return sum(ords) / len(ords) if ords else None
+
     def place(bin_stops, slot_pool):
         if not slot_pool:
             unplaced.append(bin_stops)
             return None
-        slot = min(slot_pool, key=lambda s: slot_load[s])
+        target = prior_target_ord(bin_stops)
+        if target is not None:
+            slot = min(slot_pool,
+                       key=lambda s: (abs(_ord(s[0]) - target), slot_load[s]))
+        else:
+            slot = min(slot_pool, key=lambda s: slot_load[s])
         slot_pool.remove(slot)
         slot_load[slot] += sum(x["cal_hours"] for x in bin_stops)
         return slot
