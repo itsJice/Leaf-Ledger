@@ -213,6 +213,12 @@ STORAGE_BOX_COUNTS = {
     "M Crowd On The Park": 15,
 }
 
+# Manual storage-status corrections (client, 2026-07-31): overrides the
+# sheet's "TBDG STORAGE YES/NO" column when a client's situation changed.
+STORAGE_OVERRIDE = {
+    "Schultea, Kathy": "NO — client now stores at her own house",
+}
+
 # Manual coordinate fixes for rows whose street cell mis-geocodes (verified
 # against Nominatim by ZIP/known location).
 MANUAL_COORDS = {
@@ -400,7 +406,8 @@ def parse():
             "box_verified": name in STORAGE_BOX_COUNTS,
             "phone": str(h(r, "PHONE")).strip() if h(r, "PHONE") else "",
             "email": str(h(r, "EMAIL")).strip() if h(r, "EMAIL") else "",
-            "storage": str(h(r, "TBDG STORAGE YES/NO")).strip() if h(r, "TBDG STORAGE YES/NO") else "",
+            "storage": STORAGE_OVERRIDE.get(
+                name, str(h(r, "TBDG STORAGE YES/NO")).strip() if h(r, "TBDG STORAGE YES/NO") else ""),
             "date_2024": date_2024,
             "crew_2025": crew_2025,
             "crew_size_2025": crew_size_2025,

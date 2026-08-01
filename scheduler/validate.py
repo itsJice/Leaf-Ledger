@@ -51,16 +51,19 @@ check(len(bank_days) <= 2, f"R3 banks on <=2 crews: {len(bank_days)} crew-day(s)
 rot = [x for x in days if x["category"] == "Rotary House"]
 check(all(x["date"] == "2026-11-29" for x in rot), "R4 Rotary on Sun Nov 29")
 
-# Rule 5: Brenda covered by BOTH Crew 1 and Crew 2 (joint cards)
+# Rule 5 (user, 2026-07-31): Brenda Ryan needs ONE well-staffed crew, not
+# two separate crew-days split across her job.
 br_rows = [s["row"] for x in days for s in x["stops"] if s["name"] == "Ryan, Brenda"]
 br_crews = stop_crews.get(br_rows[0], set()) if br_rows else set()
-check(any("Crew 1" in c for c in br_crews) and any("Crew 2" in c for c in br_crews),
-      f"R5 Brenda covered by Crew 1 AND Crew 2: {sorted(br_crews)}")
+check(len(br_crews) == 1,
+      f"R5 Brenda covered by exactly one well-staffed crew: {sorted(br_crews)}")
 
-# Rule 7: no businesses on weekends (Sat/Sun) except Rotary Sunday
+# Rule 7: no businesses on weekends (Sat/Sun) except Rotary Sunday and
+# client-requested Country Club installs (clubs routinely need weekends).
 bad_weekend = []
+WEEKEND_OK_CATS = ("Rotary House", "Country Club")
 for x in days:
-    if x["dow"] in ("Sat", "Sun") and x["category"] != "Rotary House":
+    if x["dow"] in ("Sat", "Sun") and x["category"] not in WEEKEND_OK_CATS:
         for s in x["stops"]:
             if s["business"] == "Business":
                 bad_weekend.append((x["date"], x["crew"], s["name"]))
@@ -121,7 +124,9 @@ for x in days:
     if x["dow"] != "Sat":
         continue
     for s in x["stops"]:
-        if not _was_sat(s.get("prior_install_date", "")):
+        # rule is Residence-only (businesses/clubs are covered separately
+        # by R7's weekend exemption, e.g. client-requested Country Club days)
+        if s["business"] == "Residence" and not _was_sat(s.get("prior_install_date", "")):
             sat_violations.append((x["date"], x["crew"], s["name"],
                                    s.get("prior_install_date", "")))
 check(not sat_violations,
