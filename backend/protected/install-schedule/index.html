@@ -149,6 +149,9 @@ dialog option:disabled{color:#b6b3ae}
 .sfsrc{font-size:11.5px;color:var(--warn-ink);background:var(--warn-soft);
   border-radius:7px;padding:8px 10px;margin-bottom:11px;line-height:1.45}
 .stopbtns{display:flex;flex-direction:column;gap:4px;flex:none}
+.undobar{display:flex;gap:6px;margin-top:10px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+.undobar button{margin-top:0}
+#log button:disabled{opacity:.4;cursor:default}
 .badge.lock{background:var(--warn-soft);color:var(--warn-ink)}
 .stop .sub.advice{color:var(--warn-ink);font-style:italic;margin-top:3px}
 #summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
@@ -357,6 +360,50 @@ function persist(){
   localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
   pushShared();
 }
+
+// ---------- undo / redo ----------
+// Deep history: a season's worth of reschedule calls is a lot of small
+// edits, and "I've just undone one thing" is rarely what you want when you
+// realise a mistake three moves back. Snapshots are small (a row->day map),
+// so 100 of them is cheap. Session-scoped: reloading starts a fresh
+// history, which is the usual expectation.
+const UNDO_LIMIT = 100;
+let undoStack = [], redoStack = [];
+function stateBlob(){
+  return JSON.stringify({placement:currentPlacement(),
+                         approved:[...approved], moves});
+}
+function restoreBlob(blob){
+  const s = JSON.parse(blob);
+  applyPlacement(s.placement);
+  approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+  moves = s.moves || [];
+}
+/** Call immediately BEFORE mutating, so the stack holds the prior state. */
+function pushUndo(){
+  undoStack.push(stateBlob());
+  if(undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack = [];      // a fresh edit invalidates the redo branch
+}
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(stateBlob());
+  restoreBlob(undoStack.pop());
+  persist(); render();
+}
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(stateBlob());
+  restoreBlob(redoStack.pop());
+  persist(); render();
+}
+document.addEventListener('keydown', e=>{
+  const z = (e.key||'').toLowerCase()==='z';
+  if(!z || !(e.metaKey||e.ctrlKey)) return;
+  if(document.querySelector('dialog[open]')) return;
+  e.preventDefault();
+  e.shiftKey ? redo() : undo();
+});
 
 // ---------- routing (embedded OSRM matrix) ----------
 function leg(a,b){ return D[a][b]||0; }
@@ -948,6 +995,7 @@ function buildDayCard(d){
     drawDate(selDate);
   };
   card.querySelector('.okbtn').onclick=()=>{
+    pushUndo();
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
   if(d.anchored){
     const finishMin=DEPART_MIN+calc.total;
@@ -1046,12 +1094,23 @@ function renderCards(){
 }
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
+  const fmtId=id=>{const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
-    moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${m.from.replace('|',' / ')} → ${m.to.replace('|',' / ')}</div>`).join('')+
-    `<div><button onclick="exportJSON()">${IC.down} Export JSON</button>
+    moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${fmtId(m.from)} → ${fmtId(m.to)}</div>`).join('')+
+    `<div class="undobar">
+       <button id="undoBtn" ${undoStack.length?'':'disabled'}>${IC.undo} Undo${
+         undoStack.length>1?` (${undoStack.length})`:''}</button>
+       <button id="redoBtn" ${redoStack.length?'':'disabled'}>Redo${
+         redoStack.length>1?` (${redoStack.length})`:''}</button>
+     </div>
+     <div><button onclick="exportNotebook()">${IC.down} Save notebook</button>
      <button onclick="exportCSV()">${IC.down} Export CSV</button>
-     <button onclick="resetAll()">${IC.undo} Reset all</button></div>`;
+     <button onclick="exportJSON()">${IC.down} Export JSON</button>
+     <button onclick="resetAll()">Reset all</button></div>`;
   side.appendChild(log);
+  const u=log.querySelector('#undoBtn'), r=log.querySelector('#redoBtn');
+  if(u) u.onclick=undo;
+  if(r) r.onclick=redo;
 }
 
 // ---------- commit gate ----------
@@ -1068,6 +1127,7 @@ function commitPlan(ops, {force=false}={}){
   if(chk.warnings.length && !confirm('Heads up:\n\n'
       + chk.warnings.map(w=>'  • '+w.msg).join('\n')
       + '\n\nMake the change anyway?')) return false;
+  pushUndo();
   ops.forEach(o=>applyMove(o.row, o.to));
   render();
   return true;
@@ -1215,6 +1275,34 @@ function dl(name,text){const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([text]));a.download=name;a.click();}
 function resetAll(){ if(confirm('Discard all moves & approvals?')){
   localStorage.removeItem('tbdg2026review'); location.reload(); }}
+
+// ---------- the notebook ----------
+// Freezes the schedule as promised to clients, so re-running the pipeline
+// from an updated spreadsheet puts everyone back where they were told
+// rather than re-solving from scratch. Everything is keyed by client NAME,
+// never by spreadsheet row: adding a row to the sheet renumbers rows and
+// would otherwise reattach dates to the wrong people.
+function exportNotebook(){
+  const out = {
+    kind: 'tbdg-install-overrides',
+    version: SPEC.version,
+    savedAt: new Date().toISOString(),
+    days: days.filter(d=>d.stops.length).map(d=>({
+      date: d.date, crew: d.crew, cat: d.cat,
+      stops: d.stops.map(r=>C[r].name),
+      win: d.win, lunch: d.lunchMin, anchored: d.anchored,
+      stacked: d.stacked, joint: d.joint || '',
+      half: (d.half||[]).filter(r=>d.stops.includes(r)).map(r=>C[r].name),
+      startRow: (d.startRow!=null && d.stops.includes(d.startRow))
+                ? C[d.startRow].name : null,
+      note: d.note || '',
+    })),
+  };
+  dl('overrides.json', JSON.stringify(out, null, 2));
+  alert('Saved overrides.json.\n\nPut it in the scheduler folder. The next '
+      + 'rebuild will read it first and keep everyone on the date they were '
+      + 'promised — new clients from the spreadsheet fill in around them.');
+}
 
 // ---------- render ----------
 function render(){

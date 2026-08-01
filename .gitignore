@@ -101,3 +101,7 @@ catalog-extraction/Vickerman*.py
 # Scheduler engine (offline tool) — env only, code+caches ARE tracked
 scheduler/.venv/
 scheduler/__pycache__/
+
+# The notebook: staff-recorded promised dates. Local working state that
+# schedule.py reads on rebuild -- not a source artifact.
+scheduler/overrides.json

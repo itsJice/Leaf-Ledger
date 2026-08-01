@@ -63,6 +63,36 @@ DOW = {  # for labels
 }
 
 
+OVERRIDES = os.path.join(HERE, "overrides.json")
+
+
+def load_overrides():
+    """Days already promised to clients, exported from the review tool.
+
+    Absent file = normal full re-plan. Present = those days are replayed
+    verbatim and everything else schedules around them. Keyed by client
+    NAME rather than spreadsheet row, because inserting a row into the
+    sheet renumbers every row after it and would silently reattach dates
+    to the wrong people.
+    """
+    if not os.path.exists(OVERRIDES):
+        return []
+    try:
+        with open(OVERRIDES) as f:
+            doc = json.load(f)
+    except (ValueError, OSError) as e:
+        print(f"  !! overrides.json unreadable ({e}) -- ignoring it")
+        return []
+    if doc.get("kind") != "tbdg-install-overrides":
+        print("  !! overrides.json is not a TBDG notebook -- ignoring it")
+        return []
+    out = [d for d in doc.get("days", [])
+           if d.get("date") and d.get("crew") and d.get("stops")]
+    # Deterministic order so a rebuild is reproducible.
+    out.sort(key=lambda d: (d["date"], d["crew"]))
+    return out
+
+
 def load():
     with open(os.path.join(CACHE, "clients.json")) as f:
         data = json.load(f)
@@ -388,6 +418,60 @@ def main():
     #      excluded from the map/schedule entirely). ----
     dropped = names(DROP_CLIENTS) + take(lambda c: c.get("install_2026_no_install"))
 
+    # ---- THE NOTEBOOK: replay days already promised to clients ----------
+    # Applied FIRST, before any other rule, so those clients and their
+    # calendar slots are claimed and nothing downstream can re-plan them.
+    # This is a FROZEN ASSIGNMENT layer, not a set of constraints to
+    # re-solve around: once dates have gone out, the right answer to an
+    # updated spreadsheet is minimum perturbation, not a better schedule
+    # that moves 30 people who were already told when to expect us.
+    by_client_name = {c["name"]: c for c in routable}
+    frozen_days, frozen_names, missing_names = [], set(), []
+    # A joint job appears on BOTH crews' cards, so the same client is
+    # legitimately named by two override days. Claim names only after every
+    # override day has been read, or the second card comes out empty.
+    claimed_here = set()
+    for od in load_overrides():
+        stops = []
+        for nm in od.get("stops", []):
+            c = by_client_name.get(nm)
+            if c is None:
+                missing_names.append(nm)
+                continue
+            # already taken by an EARLIER rule (e.g. dropped), or by a
+            # previous non-joint override day -- skip
+            if c["row"] in assigned_rows:
+                continue
+            if c["row"] in claimed_here and not od.get("joint"):
+                continue
+            stops.append(c)
+        if not stops:
+            continue
+        for c in stops:
+            claimed_here.add(c["row"])
+            frozen_names.add(c["name"])
+        half = {c["row"] for c in stops if c["name"] in set(od.get("half") or ())}
+        start = next((c["row"] for c in stops if c["name"] == od.get("startRow")), None)
+        frozen_days.append(build_day(
+            D, od["crew"], od["date"], stops, by_idx,
+            od.get("cat", "Standard"),
+            depot_anchored=od.get("anchored", True),
+            stacked_crews=od.get("stacked", 1),
+            window=od.get("win"), lunch=od.get("lunch"),
+            half_rows=half, start_row=start,
+            joint_with=od.get("joint", "") or "",
+            allow_single=True,
+            note=od.get("note", "")))
+        consumed.add((od["date"], od["crew"]))
+    assigned_rows.update(claimed_here)
+    days.extend(frozen_days)
+    if frozen_days:
+        print(f"  NOTEBOOK: froze {len(frozen_days)} crew-day(s), "
+              f"{len(frozen_names)} client(s) held to their promised date")
+        if missing_names:
+            print(f"    !! {len(missing_names)} name(s) in the notebook are no "
+                  f"longer in the spreadsheet: {sorted(set(missing_names))}")
+
     # ---- Rule 1: Mi Cocina / M Crowd — NIGHT SHIFTS 11pm-6am (7h incl drive),
     #      as few nights as possible, tight geographic groupings. ----
     dallas = take(lambda c: c["category"] == "M Crowd")
@@ -615,6 +699,12 @@ def main():
 
     def partitions(items, ngroups, maxsize=3):
         """All ways to split items into ngroups unordered groups <= maxsize."""
+        if ngroups <= 0:
+            # Nothing left to place (every Dallas night came back frozen
+            # from the notebook) -- the empty plan is the only plan.
+            if not items:
+                yield []
+            return
         if ngroups == 1:
             if len(items) <= maxsize:
                 yield [list(items)]
@@ -749,12 +839,13 @@ def main():
     #      on purpose; Crew 1 stays free for the client-requested Carlton
     #      Woods club the same Friday. ----
     banks = take(lambda c: c["category"] == "Capital Bank")
-    days.append(build_day(D, "Crew 2", BANK_FRIDAY, banks, by_idx, "Capital Bank",
-                          window=960,
-                          note="All 8 banks in one crew, one day per client "
-                               "request -- spans the full Houston metro "
-                               "(Baytown to Katy), so this intentionally runs "
-                               "well past the normal 10h cap."))
+    if banks:      # empty when the notebook already froze the bank Friday
+        days.append(build_day(D, "Crew 2", BANK_FRIDAY, banks, by_idx, "Capital Bank",
+                              window=960,
+                              note="All 8 banks in one crew, one day per client "
+                                   "request -- spans the full Houston metro "
+                                   "(Baytown to Katy), so this intentionally runs "
+                                   "well past the normal 10h cap."))
     consumed.update({(BANK_FRIDAY, "Crew 2"), (BANK_FRIDAY, "Crew 1")})
 
     # ---- Rule 4: Rotary House, Sunday Nov 29 ----
@@ -1020,6 +1111,8 @@ def main():
         """A required two-crew joint job, one card PER CREW: both crews work
         every stop together (each side carries half the hours), identical
         route on both cards."""
+        if not stops:      # already frozen by the notebook
+            return
         rows = {s["row"] for s in stops}
         for cr in crews2:
             other = crews2[1] if cr == crews2[0] else crews2[0]
