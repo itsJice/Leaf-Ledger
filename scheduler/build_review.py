@@ -219,8 +219,23 @@ header h1 svg{color:var(--brand)}
 .dchip:hover{background:#fafaf9;border-color:#d6d3d1}
 .dchip.wknd{background:var(--warn-soft);color:var(--warn-ink);border-color:#fde3ad}
 .dchip.wknd:hover{background:#fdecc8}
-.dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* Nothing scheduled here yet -- still a real, draggable date, just visibly
+   empty so it reads differently from a day with actual work on it. Wins
+   over .wknd (an empty Saturday is still, first and foremost, empty). */
+.dchip.empty{background:#f4f3f1;color:var(--faint);border-style:dashed;border-color:#d6d3d1}
+.dchip.empty:hover{background:#ecebe8;color:var(--mut)}
+.dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand);border-style:solid}
 .dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
+.emptyday{padding:8px 2px}
+.emptyday p{font-size:12.5px;color:var(--mut);margin:0 0 12px}
+.addcrew{padding:2px 2px 8px}
+.addcrew p{font-size:11.5px;color:var(--faint);margin:2px 0 6px;text-transform:uppercase;letter-spacing:.03em}
+.emptycrew{display:flex;align-items:center;gap:9px;border:1.5px dashed var(--line);border-radius:10px;
+  padding:16px 14px;margin-bottom:10px;font-size:12.5px;color:var(--mut);
+  background:var(--surface);transition:border-color .12s,background .12s}
+.emptycrew .cdot{width:11px;height:11px;border-radius:50%;flex:none;opacity:.55}
+.emptycrew.dragover{border-color:var(--crew-color,var(--brand));border-style:solid;
+  background:var(--brand-soft);color:var(--ink)}
 #main{flex:1;display:flex;min-height:0}
 #side{width:460px;min-width:380px;overflow-y:auto;padding:14px;background:var(--page)}
 #map{flex:1}
@@ -291,6 +306,14 @@ dialog .go:hover{background:var(--brand-hover)}
 dialog option:disabled{color:#b6b3ae}
 #mvnote{font-size:11.5px;color:var(--mut);margin-top:6px;min-height:14px}
 #mvnote .warn{color:var(--warn-ink)}
+#mvdlg{max-width:400px}
+#mvcrewinfo{display:flex;flex-direction:column;gap:5px;margin:4px 0 2px}
+.mvcrewrow{display:flex;gap:7px;font-size:11.5px;border-radius:6px;padding:5px 7px;background:var(--surface)}
+.mvcrewrow.mvsel{background:var(--brand-soft)}
+.mvcrewrow .cdot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:3px}
+.mvcrewrow .mvcrewnames{color:var(--mut)}
+.mvcrewrow .mvcrewnames b{color:var(--ink);font-weight:600}
+.mvcrewrow .mvcrewempty{color:var(--faint);font-style:italic}
 #sfdlg{max-width:500px}
 #sflab{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
   font-weight:700;display:block;margin-top:12px}
@@ -331,6 +354,22 @@ dialog option:disabled{color:#b6b3ae}
 .badge.lock{background:var(--warn-soft);color:var(--warn-ink)}
 .stop .sub.advice{color:var(--warn-ink);font-style:italic;margin-top:3px}
 #summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
+#searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
+#searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
+  border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+#searchbox:focus{outline:none;border-color:var(--brand)}
+#searchresults{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 8px 24px rgba(41,37,36,.14);max-height:340px;overflow-y:auto}
+.srow{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;cursor:pointer;
+  font-size:12.5px;border-bottom:1px solid #f5f5f4}
+.srow:last-child{border-bottom:none}
+.srow:hover{background:var(--brand-soft)}
+.srname{color:var(--ink);font-weight:600}
+.srwhere{color:var(--mut);white-space:nowrap}
+.srnone{padding:10px 12px;font-size:12px;color:var(--mut)}
+@keyframes flashrow{0%,100%{background:var(--surface)}30%,70%{background:var(--brand-soft)}}
+.stop.flash{animation:flashrow 1.1s ease-in-out 2}
 #statewarn{grid-column:1/-1;margin-top:8px;padding:8px 12px;border-radius:6px;
   background:var(--warn-soft);color:var(--warn-ink);font-size:12px;font-weight:600;
   border:1px solid rgba(0,0,0,.06)}
@@ -342,6 +381,10 @@ dialog option:disabled{color:#b6b3ae}
   <div id="headtitle">
     <h1><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 7 9h2.5L5 15h3l-3.5 5h15L16 15h3l-4.5-6H17L12 2Z"/><path d="M12 22v-2"/></svg>TBDG · 2026 Install Schedule</h1>
     <p>Crew routes, drive times &amp; approvals for every install day — drag a stop to reschedule it.</p>
+  </div>
+  <div id="searchwrap">
+    <input id="searchbox" type="text" placeholder="Find a client… (which day are they on?)" autocomplete="off">
+    <div id="searchresults"></div>
   </div>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
@@ -356,6 +399,7 @@ dialog option:disabled{color:#b6b3ae}
   <b id="mvtitle">Move stop</b>
   <select id="mvdate"></select>
   <select id="mvcrew"></select>
+  <div id="mvcrewinfo"></div>
   <div id="mvnote"></div>
   <div class="btns"><button onclick="mvdlg.close()">Cancel</button>
   <button class="go" id="mvgo">Move</button></div>
@@ -411,6 +455,14 @@ function hydrate(d){
 
 // ---------- state ----------
 let days = DATA.days.map(hydrate);
+// Snapshot of each baseline day's original stop set, so restoring saved
+// state can tell which days a placement actually changed. A day whose
+// composition no longer matches this must not be drawn with the precomputed
+// route geometry -- that geometry was traced for the OLD stop set, and a
+// stale line rendered against the NEW markers visibly misses whichever stop
+// moved (the line simply doesn't reach that dot).
+const BASELINE_STOPS = {};
+DATA.days.forEach(d=>{ BASELINE_STOPS[d.id] = [...d.stops].sort((a,b)=>a-b); });
 let approved = new Set(), moves = [], selDate = null;
 let focusDayId = null;   // click a crew header to zoom the map to just their day
 let stateWarning = null;
@@ -455,6 +507,11 @@ function applyPlacement(place){
       }
       d.stops.push(+r);
     });
+  });
+  days.forEach(d=>{
+    const cur = [...d.stops].sort((a,b)=>a-b);
+    const base = BASELINE_STOPS[d.id] || [];
+    if(cur.length!==base.length || cur.some((v,i)=>v!==base[i])) d.edited = true;
   });
   days = days.filter(d=>d.stops.length);
   return missing;
@@ -730,6 +787,10 @@ function codeMsg(c){ return (SPEC.codes[c]||{}).msg || c; }
 // honouring an explicit client request -- Saturdays above all.
 function codeSoft(c){ return !!(SPEC.codes[c]||{}).soft; }
 function hardBlockers(row, date){ return staticBlockers(row,date).filter(c=>!codeSoft(c)); }
+// hardBlockers() alone doesn't know what day it is -- pastBlockers() is
+// defined further down (it needs todayISO/minAllowedDate). Combined here
+// so every date-legality check in one place includes both.
+function dateBlockers(row, date){ return hardBlockers(row,date).concat(pastBlockers(row,date)); }
 
 // Deep-enough clone for what-if evaluation. checkPlan must never touch live
 // state -- previewing a candidate is not an edit.
@@ -832,9 +893,17 @@ function checkPlan(ops){
                   driveBefore:bc.drive, driveAfter:ac.drive,
                   win:after.win, crew:after.crew, date:after.date};
     if(ac.total > after.win)
-      blockers.push({code:'OVER', msg:`${after.crew} on ${after.date} would run `
+      // Advisory, not a block (user, 2026-08-01): the day-hours bar and
+      // Est. Finish time already say exactly how far over and what time
+      // they'd actually get back -- that's enough for a human to judge,
+      // unlike the structural rules above (joint-day integrity, deposited
+      // dates, same-day groups) which stay hard blocks because breaking
+      // those corrupts data rather than just running a long day.
+      warnings.push({code:'OVER', dayId:id,
+        msg:`${after.crew} on ${after.date} would run `
         +`${(ac.total/60).toFixed(1)}h, past its ${(after.win/60).toFixed(1)}h limit`
-        +(after.winReason?` (${after.winReason})`:'')});
+        +(after.winReason?` (${after.winReason})`:''),
+        short:`runs ${(ac.total/60).toFixed(1)}h — over the ${(after.win/60).toFixed(1)}h limit`});
     else if(after.win > K.DAY_CAP && ac.total > K.DAY_CAP
             && ac.total > bc.total){
       // A stretched window is a negotiated exception for the clients
@@ -906,7 +975,7 @@ function findSlots(row, wantDate, limit=8){
   const scored = [];
   candidateSlots().forEach(s=>{
     if(src && s.id===src.id) return;
-    if(hardBlockers(row, s.date).length) return;
+    if(dateBlockers(row, s.date).length) return;
     const chk = checkPlan(planFor(row, s.id));
     if(!chk.ok) return;
     const dNew = chk.deltas[s.id]||{};
@@ -1056,6 +1125,39 @@ function fmtDate(iso){
   const dw=dowOf(iso);
   return (dw?dw+' ':'')+fmtMDY(iso);
 }
+// TODAY, read live from the browser clock -- not baked in at build time.
+// This file gets used for weeks after it's generated, so "today" has to
+// mean whatever day it actually is when someone opens it, not the day
+// build_review.py happened to run.
+function todayISO(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+       + `-${String(d.getDate()).padStart(2,'0')}`;
+}
+function addDaysISO(iso, n){
+  const [y,m,d]=iso.split('-').map(Number);
+  const dt=new Date(Date.UTC(y,m-1,d));
+  dt.setUTCDate(dt.getUTCDate()+n);
+  return dt.toISOString().slice(0,10);
+}
+/** Earliest date this client can legally move to.
+ *
+ * Ordinarily that's just today -- you cannot schedule an install into the
+ * past. But if their CURRENT day already IS today, today is presumably
+ * already in motion (the crew may be en route or on site), so the floor
+ * steps to tomorrow instead. A client whose install already passed with no
+ * action gets floored at today, same as anyone else -- there's no reason
+ * to force the new date later than that. */
+function minAllowedDate(row){
+  const t=todayISO();
+  const src=days.find(d=>d.stops.includes(row));
+  return (src && src.date===t) ? addDaysISO(t,1) : t;
+}
+/** Only reason a date can be off the table independent of any client or
+ * rule: it's before the floor above. */
+function pastBlockers(row, date){
+  return date < minAllowedDate(row) ? ['PAST'] : [];
+}
 function drawDate(date){
   layerGroup.clearLayers();
   let todays = daysFor(date);
@@ -1109,16 +1211,85 @@ function drawDate(date){
   if(bounds.length>1){ map.invalidateSize(); map.fitBounds(bounds,{padding:[40,40]}); }
 }
 
+// ---------- search ----------
+// "Which day is this client on?" -- a plain substring match over C, ranked
+// by whether the match starts a word (so "Kerri" surfaces "Byler, Kerri"
+// before something that merely contains those letters mid-name).
+const searchBox = document.getElementById('searchbox');
+const searchResults = document.getElementById('searchresults');
+function searchClients(q){
+  q = q.trim().toLowerCase();
+  if(!q) return [];
+  const out = [];
+  for(const r in C){
+    const name = C[r].name, lc = name.toLowerCase();
+    const i = lc.indexOf(q);
+    if(i<0) continue;
+    const wordStart = i===0 || /[\s,.|"]/.test(lc[i-1]);
+    out.push({row:+r, name, rank:[wordStart?0:1, i, name.length]});
+  }
+  out.sort((a,b)=>{
+    for(let k=0;k<3;k++) if(a.rank[k]!==b.rank[k]) return a.rank[k]-b.rank[k];
+    return 0;
+  });
+  return out.slice(0,10);
+}
+/** Navigate to a client's day, zoom the map to their crew, and flash their
+ * row in the stop list so it's unmistakable which one you searched for. */
+function jumpToClient(row){
+  const d = days.find(x=>x.stops.includes(row));
+  if(!d){
+    alert(C[row].name+' isn\'t on the schedule (dropped, or no address).');
+    return;
+  }
+  selDate = d.date; focusDayId = d.id; render();
+  requestAnimationFrame(()=>{
+    const el = side.querySelector(`.stop[data-row="${row}"]`);
+    if(el){
+      el.scrollIntoView({block:'center', behavior:'smooth'});
+      el.classList.add('flash');
+      setTimeout(()=>el.classList.remove('flash'), 2200);
+    }
+  });
+}
+function renderSearch(q){
+  const results = searchClients(q);
+  if(!q.trim()){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
+  searchResults.innerHTML = results.length ? results.map(r=>{
+    const d = days.find(x=>x.stops.includes(r.row));
+    const where = d ? `${fmtDate(d.date)} · ${d.crew}` : 'not scheduled';
+    return `<div class="srow" data-row="${r.row}">
+      <span class="srname">${r.name}</span>
+      <span class="srwhere">${where}</span></div>`;
+  }).join('') : `<div class="srnone">No client matches "${q}"</div>`;
+  searchResults.style.display='block';
+  searchResults.querySelectorAll('.srow').forEach(el=>{
+    el.onclick=()=>{ jumpToClient(+el.dataset.row);
+      searchBox.value=''; searchResults.style.display='none'; searchBox.blur(); };
+  });
+}
+searchBox.addEventListener('input', ()=>renderSearch(searchBox.value));
+searchBox.addEventListener('focus', ()=>{ if(searchBox.value) renderSearch(searchBox.value); });
+searchBox.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ searchBox.value=''; searchResults.style.display='none'; searchBox.blur(); }
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#searchwrap')) searchResults.style.display='none';
+});
+
 // ---------- UI ----------
 const strip = document.getElementById('datestrip');
 const side = document.getElementById('side');
-function allDates(){ return [...new Set(days.map(d=>d.date))].sort(); }
+// Every date on the working calendar, not just ones that happen to have a
+// crew-day -- an empty date used to be invisible in the strip, which meant
+// there was nowhere to drag a stop TO if you wanted to start a fresh day.
+function allDates(){ return SPEC.calendar.map(ci=>ci.date); }
 
 function renderStrip(){
   strip.innerHTML='';
-  const mk=(label,val,wknd)=>{
+  const mk=(label,val,wknd,empty)=>{
     const b=document.createElement('button');
-    b.className='dchip'+(wknd?' wknd':'')+(selDate===val?' sel':'');
+    b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'');
     b.textContent=label; b.dataset.val=val;
     b.onclick=()=>{selDate=val; focusDayId=null; render();};
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
@@ -1131,9 +1302,11 @@ function renderStrip(){
   mk('All Houston','ALL-HOU',false);
   mk('All Dallas','ALL-DAL',false);
   allDates().forEach(dt=>{
-    const d=days.find(x=>x.date===dt);
-    const wknd=['Sat','Sun'].includes(d.dow);
-    mk(`${d.dow} ${dt.slice(5).replace('-','/')}`,dt,wknd);
+    const ci=SPEC.calendar.find(x=>x.date===dt);
+    const dow=dowOf(dt);
+    const wknd=['Sat','Sun'].includes(dow);
+    const empty=!days.some(x=>x.date===dt);
+    mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty);
   });
 }
 
@@ -1265,8 +1438,53 @@ function renderCards(){
     });
     renderLog(); return;
   }
-  days.filter(d=>d.date===selDate).forEach(d=>side.appendChild(buildDayCard(d)));
+  const onThisDate = days.filter(d=>d.date===selDate);
+  onThisDate.forEach(d=>side.appendChild(buildDayCard(d)));
+  const missing = BASE_CREWS.filter(cr=>!onThisDate.some(d=>d.crew===cr));
+  if(!onThisDate.length) side.appendChild(buildEmptyDay(selDate, missing));
+  // A day can be short a crew without being empty (one crew emptied out, or
+  // this date never had all three staffed) -- always offer a drop target for
+  // whichever crews aren't on the board yet, not just on a fully blank date.
+  else if(missing.length) side.appendChild(buildAddCrew(selDate, missing));
   renderLog();
+}
+/** A drop target per crew in `crews`, so dragging a stop here starts (or
+ * restarts) that crew's day on `date`. Shared by the fully-empty-date case
+ * and the "some crews are on the board, others aren't" case. */
+function buildCrewZones(date, crews){
+  const wrap=document.createElement('div');
+  crews.forEach(cr=>{
+    const zone=document.createElement('div');
+    zone.className='emptycrew'; zone.dataset.crew=cr;
+    zone.style.setProperty('--crew-color', CREW_COLORS[cr]||'#555');
+    zone.innerHTML=`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
+                  +`Drag a stop here to start ${cr}'s day`;
+    zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragover');};
+    zone.ondragleave=()=>zone.classList.remove('dragover');
+    zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragover');
+      const row=+e.dataTransfer.getData('row');
+      if(row) commitPlan(planFor(row, `${date}|${cr}|0`));};
+    wrap.appendChild(zone);
+  });
+  return wrap;
+}
+/** Nothing scheduled on `date` yet -- a drop target per crew, so dragging a
+ * stop here starts a fresh day instead of finding nowhere to land. */
+function buildEmptyDay(date, crews){
+  const wrap=document.createElement('div'); wrap.className='emptyday';
+  wrap.innerHTML=`<p>Nothing on ${fmtDate(date)} yet.</p>`;
+  wrap.appendChild(buildCrewZones(date, crews));
+  return wrap;
+}
+/** Some crews already have a day here, but not all three -- a compact
+ * "add crew" strip under the existing cards for whichever crew is missing,
+ * so a day that lost its only stop (or never had one) can still be dragged
+ * into without going through the move dialog. */
+function buildAddCrew(date, crews){
+  const wrap=document.createElement('div'); wrap.className='addcrew';
+  wrap.innerHTML=`<p>${crews.length>1?'Add a crew':'Add '+crews[0]}:</p>`;
+  wrap.appendChild(buildCrewZones(date, crews));
+  return wrap;
 }
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
@@ -1321,7 +1539,7 @@ function openMoveDlg(row,presetDate){
   // was built from staffed days, which hid 10 working dates -- including
   // the open days deliberately left in the schedule for exactly this.
   dsel.innerHTML=SPEC.calendar.map(ci=>{
-    const bl=hardBlockers(row, ci.date);
+    const bl=dateBlockers(row, ci.date);
     const lab=`${fmtDate(ci.date)}`
             + (bl.length?` — ${codeMsg(bl[0])}`:'');
     return `<option value="${ci.date}" ${bl.length?'disabled':''} `
@@ -1344,6 +1562,19 @@ function openMoveDlg(row,presetDate){
       opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>${cr} (new day)`
               + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);});
     csel.innerHTML=opts.join('');
+    // Quick answer to "which crew should I drag this onto" -- every crew's
+    // current property list for this date, at a glance, before picking one.
+    const info=document.getElementById('mvcrewinfo');
+    info.innerHTML=BASE_CREWS.map(cr=>{
+      const d=existing.find(x=>x.crew===cr);
+      const names=d?d.stops.filter(r=>r!==row).map(r=>C[r].name):[];
+      const isSel=csel.value.startsWith(`${dt}|${cr}|`);
+      return `<div class="mvcrewrow${isSel?' mvsel':''}">`
+        +`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
+        +`<span class="mvcrewnames"><b>${cr}</b>`
+        +(names.length?': '+names.join(', '):(d?' <span class="mvcrewempty">(only this stop)</span>':' <span class="mvcrewempty">not working this date</span>'))
+        +'</span></div>';
+    }).join('');
     const note=document.getElementById('mvnote');
     const sel=csel.value;
     if(sel){
@@ -1373,7 +1604,7 @@ function openSlotFinder(row){
   const wsel=document.getElementById('sfwant');
   wsel.innerHTML='<option value="">Any date that works</option>'
     + SPEC.calendar.map(ci=>{
-        const bl=hardBlockers(row, ci.date);
+        const bl=dateBlockers(row, ci.date);
         return `<option value="${ci.date}" ${bl.length?'disabled':''}>`
              + `${fmtDate(ci.date)}`
              + (bl.length?` — ${codeMsg(bl[0])}`:'')+`</option>`;}).join('');
@@ -1492,7 +1723,9 @@ function render(){
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
 }
-selDate = allDates()[0];
+// Land on the first date that actually has work, not just the first date
+// on the calendar -- allDates() now includes empty/unused dates too.
+selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
 render();
 </script></body></html>"""
 

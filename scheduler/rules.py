@@ -55,6 +55,11 @@ CODES = {
     "DROPPED":    ("DROP", "No 2026 install for this client", False),
     "NO_DATE":    ("CAL", "Not a working date", False),
     "THANKS":     ("CAL", "Thanksgiving", False),
+    # PAST is never computed server-side (it depends on the real calendar
+    # date when someone opens the tool, which build time can't know) --
+    # listed here only so its message text has one home, same as every
+    # other code.
+    "PAST":       ("CAL", "Too early to move it there", False),
 }
 SOFT_CODES = {k for k, v in CODES.items() if v[2]}
 

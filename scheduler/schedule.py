@@ -38,28 +38,43 @@ ROTARY_SUNDAY = "2026-11-29"
 HOU_WEEKDAYS = ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13",
                 "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20",
                 "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-30"]
-SATURDAYS = ["2026-11-14", "2026-11-21", "2026-11-28"]
+SATURDAYS = ["2026-11-14", "2026-11-21", "2026-11-28",
+             "2026-12-05"]    # extra tail Saturday -- see STD_WEEKDAYS note
 # Standard Houston weekday slots, in calendar order. Nov 9 & 16 Mondays are
 # freed (clubs moved to their client-requested dates).
 STD_WEEKDAYS = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12",
                 "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18",
                 "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24",
                 "2026-11-25", "2026-11-30", "2026-12-01",
-                # overflow tail (used only if November slots run out)
-                "2026-12-02", "2026-12-03", "2026-12-04"]
+                # overflow tail (used only if November slots run out) --
+                # extended through 12/10 (user, 2026-08-01) purely so the
+                # review tool has real, workable dates to show as empty
+                # drag targets that far out. Lowest priority: the packer
+                # only reaches these if everything earlier is full.
+                "2026-12-02", "2026-12-03", "2026-12-04",
+                "2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10"]
 FORCE_START = {"2026-11-09"}                    # Houston installs must start here
-OVERFLOW_TAIL = {"2026-12-03", "2026-12-04"}    # strictly last-resort dates
-DOW = {  # for labels
+OVERFLOW_TAIL = {"2026-12-03", "2026-12-04",
+                 "2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10"}
+DOW = {  # for labels, and the full set of dates the review tool can show.
+    # Sundays/Thanksgiving are included too (not workable -- see rules.py's
+    # SUNDAY/THANKS blockers) so the date strip can show a real, explained
+    # gray bubble instead of just not mentioning that day at all.
     "2026-11-01": "Sun", "2026-11-02": "Mon", "2026-11-03": "Tue",
     "2026-11-04": "Wed", "2026-11-05": "Thu", "2026-11-06": "Fri",
     "2026-11-07": "Sat", "2026-11-09": "Mon", "2026-11-10": "Tue",
     "2026-11-11": "Wed", "2026-11-12": "Thu", "2026-11-13": "Fri",
-    "2026-11-14": "Sat", "2026-11-16": "Mon", "2026-11-17": "Tue",
+    "2026-11-14": "Sat", "2026-11-15": "Sun",
+    "2026-11-16": "Mon", "2026-11-17": "Tue",
     "2026-11-18": "Wed", "2026-11-19": "Thu", "2026-11-20": "Fri",
-    "2026-11-21": "Sat", "2026-11-23": "Mon", "2026-11-24": "Tue",
-    "2026-11-25": "Wed", "2026-11-27": "Fri", "2026-11-28": "Sat",
+    "2026-11-21": "Sat", "2026-11-22": "Sun",
+    "2026-11-23": "Mon", "2026-11-24": "Tue",
+    "2026-11-25": "Wed", "2026-11-26": "Thu",   # Thanksgiving
+    "2026-11-27": "Fri", "2026-11-28": "Sat",
     "2026-11-29": "Sun", "2026-11-30": "Mon", "2026-12-01": "Tue",
     "2026-12-02": "Wed", "2026-12-03": "Thu", "2026-12-04": "Fri",
+    "2026-12-05": "Sat", "2026-12-06": "Sun", "2026-12-07": "Mon",
+    "2026-12-08": "Tue", "2026-12-09": "Wed", "2026-12-10": "Thu",
 }
 
 
