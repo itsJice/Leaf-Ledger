@@ -1440,50 +1440,63 @@ function renderCards(){
   }
   const onThisDate = days.filter(d=>d.date===selDate);
   onThisDate.forEach(d=>side.appendChild(buildDayCard(d)));
-  const missing = BASE_CREWS.filter(cr=>!onThisDate.some(d=>d.crew===cr));
-  if(!onThisDate.length) side.appendChild(buildEmptyDay(selDate, missing));
-  // A day can be short a crew without being empty (one crew emptied out, or
-  // this date never had all three staffed) -- always offer a drop target for
-  // whichever crews aren't on the board yet, not just on a fully blank date.
-  else if(missing.length) side.appendChild(buildAddCrew(selDate, missing));
+  if(!onThisDate.length) side.appendChild(buildEmptyDay(selDate));
+  // Always offer a way to add a crew day here, at the bottom, whether or
+  // not all three crews already have one -- a crew that got emptied out
+  // (or never staffed this date) gets its normal "start the day" zone, and
+  // a crew that's already working gets an explicit "add another day" zone,
+  // so a genuine second route for that crew (e.g. a stacked/overflow job,
+  // like the Hilton Garden Inn case) always has somewhere to drag into
+  // instead of only being reachable through the move dialog.
+  else side.appendChild(buildAddCrew(selDate, onThisDate));
   renderLog();
 }
-/** A drop target per crew in `crews`, so dragging a stop here starts (or
- * restarts) that crew's day on `date`. Shared by the fully-empty-date case
- * and the "some crews are on the board, others aren't" case. */
-function buildCrewZones(date, crews){
+/** The next unused occurrence id for (date, crew) -- ids are
+ * date|crew|occurrence, and a crew can legitimately run two separate
+ * day-instances on the same date (e.g. a stacked overflow job). */
+function nextOccId(date, crew){
+  let i=0;
+  while(days.some(d=>d.id===`${date}|${crew}|${i}`)) i++;
+  return `${date}|${crew}|${i}`;
+}
+/** A drop target per BASE_CREW for `date`. `existing` is the day objects
+ * already on the board that date -- a crew already in it gets a zone that
+ * ADDS a new occurrence rather than colliding with its current day. */
+function buildCrewZones(date, existing){
   const wrap=document.createElement('div');
-  crews.forEach(cr=>{
+  BASE_CREWS.forEach(cr=>{
+    const already = existing.some(d=>d.crew===cr);
+    const id = already ? nextOccId(date, cr) : `${date}|${cr}|0`;
     const zone=document.createElement('div');
     zone.className='emptycrew'; zone.dataset.crew=cr;
     zone.style.setProperty('--crew-color', CREW_COLORS[cr]||'#555');
     zone.innerHTML=`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
-                  +`Drag a stop here to start ${cr}'s day`;
+                  +(already?`Drag a stop here to add another ${cr} day`
+                           :`Drag a stop here to start ${cr}'s day`);
     zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragover');};
     zone.ondragleave=()=>zone.classList.remove('dragover');
     zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragover');
       const row=+e.dataTransfer.getData('row');
-      if(row) commitPlan(planFor(row, `${date}|${cr}|0`));};
+      if(row) commitPlan(planFor(row, id));};
     wrap.appendChild(zone);
   });
   return wrap;
 }
 /** Nothing scheduled on `date` yet -- a drop target per crew, so dragging a
  * stop here starts a fresh day instead of finding nowhere to land. */
-function buildEmptyDay(date, crews){
+function buildEmptyDay(date){
   const wrap=document.createElement('div'); wrap.className='emptyday';
   wrap.innerHTML=`<p>Nothing on ${fmtDate(date)} yet.</p>`;
-  wrap.appendChild(buildCrewZones(date, crews));
+  wrap.appendChild(buildCrewZones(date, []));
   return wrap;
 }
-/** Some crews already have a day here, but not all three -- a compact
- * "add crew" strip under the existing cards for whichever crew is missing,
- * so a day that lost its only stop (or never had one) can still be dragged
- * into without going through the move dialog. */
-function buildAddCrew(date, crews){
+/** Bottom-of-day "add crew" strip -- always present under the existing
+ * cards, one zone per crew (start a missing crew's day, or add a genuine
+ * extra day for one that's already working). */
+function buildAddCrew(date, existing){
   const wrap=document.createElement('div'); wrap.className='addcrew';
-  wrap.innerHTML=`<p>${crews.length>1?'Add a crew':'Add '+crews[0]}:</p>`;
-  wrap.appendChild(buildCrewZones(date, crews));
+  wrap.innerHTML=`<p>Add a crew:</p>`;
+  wrap.appendChild(buildCrewZones(date, existing));
   return wrap;
 }
 function renderLog(){
@@ -1551,10 +1564,16 @@ function openMoveDlg(row,presetDate){
   }
   const fillCrews=()=>{ const dt=dsel.value;
     const existing=days.filter(d=>d.date===dt);
+    // A crew can have two separate day-instances on the same date (a
+    // stacked/overflow job added via the "add a crew" zone) -- disambiguate
+    // those options by stop count, otherwise they're identical labels.
+    const crewCounts={};
+    existing.forEach(d=>{ crewCounts[d.crew]=(crewCounts[d.crew]||0)+1; });
     const opts=existing.map(d=>{
       const chk=checkPlan(planFor(row, d.id));
       const tag=d.win===480?' (day shift 9-5)':(d.win===K.NIGHT?' (night)':'');
-      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${d.crew}${tag}`
+      const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
+      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${d.crew}${tag}${dupe}`
            + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
     BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
       const id=`${dt}|${cr}|0`;
@@ -1566,13 +1585,15 @@ function openMoveDlg(row,presetDate){
     // current property list for this date, at a glance, before picking one.
     const info=document.getElementById('mvcrewinfo');
     info.innerHTML=BASE_CREWS.map(cr=>{
-      const d=existing.find(x=>x.crew===cr);
-      const names=d?d.stops.filter(r=>r!==row).map(r=>C[r].name):[];
+      // A crew can have more than one day-instance here (stacked/overflow
+      // job) -- fold every occurrence's stops together for the glance view.
+      const ds=existing.filter(x=>x.crew===cr);
+      const names=ds.flatMap(d=>d.stops.filter(r=>r!==row).map(r=>C[r].name));
       const isSel=csel.value.startsWith(`${dt}|${cr}|`);
       return `<div class="mvcrewrow${isSel?' mvsel':''}">`
         +`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
         +`<span class="mvcrewnames"><b>${cr}</b>`
-        +(names.length?': '+names.join(', '):(d?' <span class="mvcrewempty">(only this stop)</span>':' <span class="mvcrewempty">not working this date</span>'))
+        +(names.length?': '+names.join(', '):(ds.length?' <span class="mvcrewempty">(only this stop)</span>':' <span class="mvcrewempty">not working this date</span>'))
         +'</span></div>';
     }).join('');
     const note=document.getElementById('mvnote');
