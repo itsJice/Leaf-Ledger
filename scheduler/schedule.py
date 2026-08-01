@@ -335,7 +335,8 @@ def pack_bins(D, pool, by_idx):
 # override the generic clubs-on-Mondays rule where a client asked otherwise.
 # ---------------------------------------------------------------------------
 DROP_CLIENTS = {"Woodlands CC Tournament",
-                "Pullin, Myra"}     # user, 2026-07-31: take Myra Pullin out entirely
+                "Pullin, Myra",     # user, 2026-07-31: take Myra Pullin out entirely
+                "Kanyi, Joy and Kenneth (Celestial)"}   # user, 2026-07-31: take off
 CARLTON_NICKLAUS = "The Club at Carlton Woods | Nicklaus Clubhouse"
 CARLTON_OUTDOOR = "The Club at Carlton Woods | Outdoor Tree & Frame"
 CARLTON_FAZIO = "The Club at Carlton Woods | Fazio Clubhouse"
@@ -786,6 +787,21 @@ def main():
     hampton_crane_waterway = names(["Hampton Inn", "Crane Worldwide Logistics",
                                     "Waterway Wealth Waterway"])
 
+    # Rule (user, 2026-07-31): Sullivan, Kristine and Mattix, Margaret & Rick
+    # are ~1.3min apart (essentially the same address) but were on separate
+    # days 5 weeks apart. Moved onto Mattix's day instead of Sims, Darcy's
+    # (Darcy stays on her confirmed 12/2 date, alone now that Sullivan's
+    # gone -- fine, that was a fill-in pairing, not a requirement of hers).
+    # Fits comfortably inside the normal 10h cap (~8h46m) -- no exception
+    # needed, this one's a clean win.
+    sullivan_mattix = names(["Sullivan, Kristine", "Mattix, Margaret & Rick"])
+
+    # Rule (user, 2026-07-31): Citizens State Bank was alone; Ingram, Donna +
+    # Northside Import (17-21min away) had spare room. Combined day runs
+    # ~10h44m -- a modest exception past the normal 10h cap.
+    citizens_ingram_northside = names(["Citizens State Bank", "Ingram, Donna",
+                                       "Northside Import"])
+
     # Rule (2026 Install Date column, client note "1/3, 2/3, 3/3 Same Day"):
     # A Hug Away's 3 locations (daycare, Frazier residence, office) must be
     # worked in one visit. All 3 fit comfortably inside the normal 10h cap
@@ -903,6 +919,27 @@ def main():
             note="Waterway Wealth added here per client note (not Carlton "
                  "Woods/Fazio -- those days are already full)."))
         consumed.add(("2026-12-01", "Crew 3"))
+
+    # Rule (user, 2026-07-31): Sullivan, Kristine + Mattix, Margaret & Rick
+    # -- 1.3min apart, moved onto Mattix's existing day.
+    if sullivan_mattix:
+        days.append(build_day(
+            D, "Crew 3", "2026-11-17", sullivan_mattix, by_idx, "Standard",
+            note="Sullivan, Kristine moved here to join Mattix (~1.3min "
+                 "apart, essentially the same address) instead of a "
+                 "separate remote round-trip 5 weeks apart."))
+        consumed.add(("2026-11-17", "Crew 3"))
+
+    # Rule (user, 2026-07-31): Citizens State Bank + Ingram, Donna + Northside
+    # Import -- 17-21min apart, combined instead of Citizens sitting alone.
+    if citizens_ingram_northside:
+        days.append(build_day(
+            D, "Crew 3", "2026-11-25", citizens_ingram_northside, by_idx,
+            "Standard", window=680,
+            note="Citizens State Bank joined with Ingram/Northside Import "
+                 "(17-21min apart) instead of sitting alone -- runs "
+                 "~10h44m, a modest exception past the normal 10h cap."))
+        consumed.add(("2026-11-25", "Crew 3"))
 
     # Rule (user, 2026-07-31): Sheri Roane always wants a 9am start --
     # pinned first in the route (start_row) on her existing day.
