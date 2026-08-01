@@ -33,26 +33,38 @@ import schedule as S
 # Blocker codes. Anything in BLOCKERS is a hard NO; WARNINGS are advisory.
 # The UI shows `msg`; `rule` ties it back to the validate.py check name.
 # ---------------------------------------------------------------------------
+# `soft` marks a rule that constrains how the scheduler BUILDS the base
+# schedule but must not stop a human accommodating an explicit client
+# request. The Saturday rules are the case in point: the scheduler should
+# never put someone on a Saturday unprompted, but if the client rings up
+# and asks for one, that is the client choosing it. validate.py still
+# enforces these strictly against generated output; only the review tool
+# treats them as "confirm this" rather than "no".
 CODES = {
-    "MC_DATE":    ("R1",  "Mi Cocina restaurants only run the Dallas nights, Nov 2-6"),
-    "MC_ONLY":    ("R1",  "Nov 2-6 is the Dallas Mi Cocina week -- nothing else is scheduled"),
-    "NOT_MC":     ("R1",  "Only Mi Cocina restaurants belong on a Dallas night"),
-    "CLUB_CREW":  ("R2",  "Country club jobs need Crew 1"),
-    "BANK_DATE":  ("R3",  "All 8 Capital Banks are pinned to Fri Nov 27"),
-    "BANK_ONLY":  ("R3",  "Fri Nov 27 is the Capital Bank run"),
-    "ROTARY":     ("R4",  "Rotary House is the Sunday Nov 29 exception"),
-    "SUNDAY":     ("R4",  "Nobody works Sunday except Rotary House on Nov 29"),
-    "BIZ_WKND":   ("R7",  "Businesses don't install on weekends (clubs and Rotary excepted)"),
-    "SAT_HIST":   ("R12", "No Saturday unless their 2025 install was also a Saturday"),
-    "LOCKED":     ("PIN", "Client has deposited and reserved this date"),
-    "DROPPED":    ("DROP", "No 2026 install for this client"),
-    "NO_DATE":    ("CAL", "Not a working date"),
-    "THANKS":     ("CAL", "Thanksgiving"),
+    "MC_DATE":    ("R1",  "Mi Cocina restaurants only run the Dallas nights, Nov 2-6", False),
+    "MC_ONLY":    ("R1",  "Nov 2-6 is the Dallas Mi Cocina week -- nothing else is scheduled", False),
+    "NOT_MC":     ("R1",  "Only Mi Cocina restaurants belong on a Dallas night", False),
+    "CLUB_CREW":  ("R2",  "Country club jobs need Crew 1", False),
+    "BANK_DATE":  ("R3",  "All 8 Capital Banks are pinned to Fri Nov 27", False),
+    "BANK_ONLY":  ("R3",  "Fri Nov 27 is the Capital Bank run", False),
+    "ROTARY":     ("R4",  "Rotary House is the Sunday Nov 29 exception", False),
+    "SUNDAY":     ("R4",  "Nobody works Sunday except Rotary House on Nov 29", False),
+    "BIZ_SAT":    ("R7",  "A business on a Saturday — confirm they'll be open", True),
+    "SAT_HIST":   ("R12", "Didn't work a Saturday in 2025 — confirm the client wants one", True),
+    "LOCKED":     ("PIN", "Client has deposited and reserved this date", False),
+    "DROPPED":    ("DROP", "No 2026 install for this client", False),
+    "NO_DATE":    ("CAL", "Not a working date", False),
+    "THANKS":     ("CAL", "Thanksgiving", False),
 }
+SOFT_CODES = {k for k, v in CODES.items() if v[2]}
 
 
 def code_msg(code):
-    return CODES.get(code, ("?", code))[1]
+    return CODES.get(code, ("?", code, False))[1]
+
+
+def is_soft(code):
+    return code in SOFT_CODES
 
 
 # ---------------------------------------------------------------------------
@@ -154,10 +166,12 @@ def static_blockers(c, date, crew, dow=None, kind=None):
     if dow == "Sun" and cat != "Rotary House":
         out.append("SUNDAY")
 
-    # R7 -- businesses off weekends, clubs and Rotary excepted.
-    if dow in ("Sat", "Sun") and biz == "Business" \
+    # R7 -- businesses off weekends, clubs and Rotary excepted. Sunday is
+    # already hard-blocked above for everyone but Rotary, so this only ever
+    # fires for Saturday, where it is advisory (see SOFT_CODES).
+    if dow == "Sat" and biz == "Business" \
             and cat not in ("Rotary House", "Country Club"):
-        out.append("BIZ_WKND")
+        out.append("BIZ_SAT")
 
     # R12 -- Saturdays are for clients who worked a Saturday in 2025.
     if dow == "Sat" and biz == "Residence" \

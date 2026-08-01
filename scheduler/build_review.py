@@ -155,7 +155,8 @@ spec = {
     "groups": groups,
     "forceFirst": force_first,
     "eligibility": elig,
-    "codes": {k: {"rule": v[0], "msg": v[1]} for k, v in rules.CODES.items()},
+    "codes": {k: {"rule": v[0], "msg": v[1], "soft": v[2]}
+              for k, v in rules.CODES.items()},
 }
 
 payload_obj = {
@@ -290,18 +291,39 @@ dialog .go:hover{background:var(--brand-hover)}
 dialog option:disabled{color:#b6b3ae}
 #mvnote{font-size:11.5px;color:var(--mut);margin-top:6px;min-height:14px}
 #mvnote .warn{color:var(--warn-ink)}
-#sfdlg{max-width:460px}
-#sflab{font-size:11px;color:var(--mut);font-weight:600;display:block;margin-top:10px}
-#sfbody{margin-top:10px;max-height:52vh;overflow-y:auto}
-.sfrow{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px;
-  position:relative;background:var(--surface)}
-.sfrow .sfmain{font-size:13px;color:var(--ink)}
-.sfrow .sfsub{font-size:11px;color:var(--mut);margin-top:3px;padding-right:86px}
-.sfrow .sfwarn{font-size:11px;color:var(--warn-ink);margin-top:4px;padding-right:86px}
-.sfrow .sfgo{position:absolute;right:10px;top:10px;padding:5px 10px;font-size:11.5px}
-.sfnone{font-size:12px;color:var(--mut);margin-bottom:10px}
-.sfsrc{font-size:11px;color:var(--warn-ink);background:var(--warn-soft);
-  border-radius:6px;padding:7px 9px;margin-bottom:10px}
+#sfdlg{max-width:500px}
+#sflab{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+  font-weight:700;display:block;margin-top:12px}
+#sfbody{margin-top:12px;max-height:56vh;overflow-y:auto;padding-right:2px}
+.sfrow{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;
+  position:relative;background:var(--surface);transition:border-color .12s,box-shadow .12s}
+.sfrow:hover{border-color:var(--brand);box-shadow:0 1px 6px rgba(41,37,36,.08)}
+.sfrow.top{border-color:var(--brand);background:#fcfdfc}
+.sfhead{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding-right:100px}
+.sfdate{font-family:Georgia,serif;font-size:15px;font-weight:600;color:var(--ink)}
+.sfcrew{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--mut)}
+.sfcrew i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.badge.best{background:var(--brand);color:#fff}
+.sfstats{display:flex;gap:24px;margin-top:9px;padding-right:100px}
+.sfstat{display:flex;flex-direction:column;gap:1px;min-width:98px}
+.sflab{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.sfval{font-size:13px;font-weight:700;color:var(--ink)}
+.sfval .sfmut{font-weight:500;color:var(--faint)}
+.sfval.good{color:var(--ok-ink)}
+.sfval.bad{color:var(--warn-ink)}
+.sfbar{display:block;height:4px;border-radius:3px;background:var(--line);
+  overflow:hidden;margin-top:4px;width:98px}
+.sfbar i{display:block;height:100%;border-radius:3px}
+.sfrow .sfwarn{margin:9px 0 0;padding:0 100px 0 16px;list-style:none;
+  font-size:11px;color:var(--warn-ink);line-height:1.45}
+.sfrow .sfwarn li{position:relative;margin-top:2px}
+.sfrow .sfwarn li:before{content:'!';position:absolute;left:-16px;top:1px;width:12px;height:12px;
+  border-radius:50%;background:var(--warn-soft);color:var(--warn-ink);font-size:9px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
+.sfrow .sfgo{position:absolute;right:12px;top:12px;padding:6px 12px;font-size:12px}
+.sfnone{font-size:12.5px;color:var(--mut);margin-bottom:11px;line-height:1.5}
+.sfsrc{font-size:11.5px;color:var(--warn-ink);background:var(--warn-soft);
+  border-radius:7px;padding:8px 10px;margin-bottom:11px;line-height:1.45}
 .stopbtns{display:flex;flex-direction:column;gap:4px;flex:none}
 .badge.lock{background:var(--warn-soft);color:var(--warn-ink)}
 .stop .sub.advice{color:var(--warn-ink);font-style:italic;margin-top:3px}
@@ -657,6 +679,10 @@ function staticBlockers(row, date){
   return seq ? ELIG.sets[seq[i]] : [];
 }
 function codeMsg(c){ return (SPEC.codes[c]||{}).msg || c; }
+// Soft codes constrain how the schedule is BUILT but must not stop a human
+// honouring an explicit client request -- Saturdays above all.
+function codeSoft(c){ return !!(SPEC.codes[c]||{}).soft; }
+function hardBlockers(row, date){ return staticBlockers(row,date).filter(c=>!codeSoft(c)); }
 
 // Deep-enough clone for what-if evaluation. checkPlan must never touch live
 // state -- previewing a candidate is not an edit.
@@ -705,7 +731,8 @@ function checkPlan(ops){
     const c = C[op.row];
     // static
     staticBlockers(op.row, date).forEach(code=>
-      blockers.push({code, msg:`${c.name}: ${codeMsg(code)}`}));
+      (codeSoft(code)?warnings:blockers).push(
+        {code, msg:`${c.name}: ${codeMsg(code)}`, short:codeMsg(code)}));
     // joint-day integrity: a half-hours row lives on TWO cards. Moving one
     // side leaves it on the partner at half hours AND here at full hours.
     const src = days.find(d=>d.stops.includes(op.row));
@@ -731,7 +758,8 @@ function checkPlan(ops){
     const others = {...tgt, stops: tgt.stops.filter(r=>!moving.has(r))};
     if(others.stops.length && !radiusOK(op.row, others))
       warnings.push({code:'RADIUS', msg:`${c.name} is more than 30 min from the `
-        +`rest of that day — it will add real drive time`});
+        +`rest of that day — it will add real drive time`,
+        short:'30+ min from the rest of that day'});
   });
 
   // R2 coverage: a club stop needs Crew 1 among the crews working it.
@@ -766,16 +794,21 @@ function checkPlan(ops){
       // already on that day, NOT spare capacity to fill. Adding to it is
       // legal but should never look free.
       deltas[id].exception = true;
-      warnings.push({code:'EXCEPT', msg:`${after.crew} on ${after.date} is already an `
+      warnings.push({code:'EXCEPT', dayId:id,
+        msg:`${after.crew} on ${after.date} is already an `
         +`over-length day by exception (${after.winReason||'client request'}) — `
-        +`adding here pushes it to ${(ac.total/60).toFixed(1)}h`});
+        +`adding here pushes it to ${(ac.total/60).toFixed(1)}h`,
+        short:'already an over-length day by exception'});
     }
     else if(ac.total < K.DAY_MIN && after.cat==='Standard')
-      warnings.push({code:'LIGHT', msg:`${after.crew} on ${after.date} drops to `
-        +`${(ac.total/60).toFixed(1)}h — under the 7.5h they like to work`});
+      warnings.push({code:'LIGHT', dayId:id,
+        msg:`${after.crew} on ${after.date} drops to `
+        +`${(ac.total/60).toFixed(1)}h — under the 7.5h they like to work`,
+        short:`light day — ${(ac.total/60).toFixed(1)}h`});
     if(after.stops.length===1 && !after.joint && after.cat==='Standard')
-      warnings.push({code:'SINGLE', msg:`${after.crew} on ${after.date} would be a `
-        +`single-stop day`});
+      warnings.push({code:'SINGLE', dayId:id,
+        msg:`${after.crew} on ${after.date} would be a single-stop day`,
+        short:'their only stop that day'});
   });
   // dedupe by message
   const seen=new Set(), uniq=a=>a.filter(x=>!seen.has(x.msg)&&seen.add(x.msg));
@@ -826,7 +859,7 @@ function findSlots(row, wantDate, limit=8){
   const scored = [];
   candidateSlots().forEach(s=>{
     if(src && s.id===src.id) return;
-    if(staticBlockers(row, s.date).length) return;
+    if(hardBlockers(row, s.date).length) return;
     const chk = checkPlan(planFor(row, s.id));
     if(!chk.ok) return;
     const dNew = chk.deltas[s.id]||{};
@@ -837,8 +870,7 @@ function findSlots(row, wantDate, limit=8){
     // Warnings about the day they're LEAVING are identical for every
     // option, so they belong once at the top, not repeated on each row.
     const srcId = src ? src.id : null;
-    const isSrc = w => srcId && w.msg.includes(srcId.split('|')[1])
-                    && w.msg.includes(src.date);
+    const isSrc = w => srcId && w.dayId === srcId;
     scored.push({
       slot:s, net, addTarget, saveSource,
       totalAfter:dNew.after, win:dNew.win,
@@ -960,9 +992,22 @@ function daysFor(sel){
   if(sel==='ALL-DAL') return days.filter(d=>d.cat==='M Crowd');
   return days.filter(d=>d.date===sel);
 }
-function fmtDDMMYY(iso){
-  const [y,m,dd]=iso.split('-');
-  return `${dd}/${m}/${y.slice(2)}`;
+// US format throughout -- this is a Houston crew reading it. Anything
+// day-first invites a real misread ("01/12/26" for Dec 1 looks like Jan 12).
+function fmtMDY(iso){
+  const [y,m,d]=iso.split('-');
+  return `${m}/${d}/${y.slice(2)}`;
+}
+function dowOf(iso){
+  const ci=(SPEC.calendar||[]).find(x=>x.date===iso);
+  if(ci) return ci.dow;
+  const d=days.find(x=>x.date===iso);
+  return d?d.dow:'';
+}
+/** "Mon 11/23/26" -- weekday first, because staff think in weekdays. */
+function fmtDate(iso){
+  const dw=dowOf(iso);
+  return (dw?dw+' ':'')+fmtMDY(iso);
 }
 function drawDate(date){
   layerGroup.clearLayers();
@@ -1007,7 +1052,7 @@ function drawDate(date){
       } else {
         const isHalf=(d.half||[]).includes(r);
         const estH=isHalf?(c.h26/2).toFixed(1):c.h26;
-        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDDMMYY(d.date)} · ${d.crew}`+
+        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${d.crew}`+
           `<br>Est. time: ${estH}h · Box count: ${c.boxes||'—'}`,
           {direction:'top',offset:[0,-8]});
       }
@@ -1216,8 +1261,8 @@ function openMoveDlg(row,presetDate){
   // was built from staffed days, which hid 10 working dates -- including
   // the open days deliberately left in the schedule for exactly this.
   dsel.innerHTML=SPEC.calendar.map(ci=>{
-    const bl=staticBlockers(row, ci.date);
-    const lab=`${ci.dow} ${ci.date.slice(5).replace('-','/')}`
+    const bl=hardBlockers(row, ci.date);
+    const lab=`${fmtDate(ci.date)}`
             + (bl.length?` — ${codeMsg(bl[0])}`:'');
     return `<option value="${ci.date}" ${bl.length?'disabled':''} `
          + `${ci.date===(presetDate||selDate)&&!bl.length?'selected':''}>${lab}</option>`;
@@ -1268,9 +1313,9 @@ function openSlotFinder(row){
   const wsel=document.getElementById('sfwant');
   wsel.innerHTML='<option value="">Any date that works</option>'
     + SPEC.calendar.map(ci=>{
-        const bl=staticBlockers(row, ci.date);
+        const bl=hardBlockers(row, ci.date);
         return `<option value="${ci.date}" ${bl.length?'disabled':''}>`
-             + `${ci.dow} ${ci.date.slice(5).replace('-','/')}`
+             + `${fmtDate(ci.date)}`
              + (bl.length?` — ${codeMsg(bl[0])}`:'')+`</option>`;}).join('');
   const body=document.getElementById('sfbody');
   const run=()=>{
@@ -1279,30 +1324,49 @@ function openSlotFinder(row){
     const cur=days.find(d=>d.stops.includes(row));
     let head='';
     if(want && !res.some(r=>r.slot.date===want)){
-      head=`<div class="sfnone">No crew can take ${c.name} on `
-         + `${want.slice(5).replace('-','/')}. Closest workable options:</div>`;
+      head=`<div class="sfnone"><b>No crew can take them on ${fmtDate(want)}.</b>`
+         + ` Closest workable options:</div>`;
     }
     // Consequences for the day they're LEAVING are the same whichever
     // option is chosen -- state them once.
     const sw = res.length ? res[0].sourceWarnings : [];
     if(sw.length && cur)
-      head += `<div class="sfsrc">Leaving ${cur.crew} on `
-            + `${cur.date.slice(5).replace('-','/')}: `
-            + sw.map(w=>w.msg.replace(/^.*?on \S+ /,'')).join('; ')+`</div>`;
+      head += `<div class="sfsrc"><b>Leaving ${cur.crew} on ${fmtDate(cur.date)}:</b> `
+            + sw.map(w=>w.short||w.msg).join(' · ')+`</div>`;
     body.innerHTML = head + (res.length? res.map((r,i)=>{
       // deltas are already in MINUTES (dayCalc divides seconds by 60)
       const s=r.slot, mins=Math.round(r.net);
-      const sign=mins>0?'+':'';
-      return `<div class="sfrow" data-to="${s.id}">
-        <div class="sfmain"><b>${s.date.slice(5).replace('-','/')} · ${r.anyCrew?'any crew':s.crew}</b>
+      const pct=Math.min(100, r.totalAfter/r.win*100);
+      const tight=pct>92;
+      // Extra driving is the number staff actually weigh; say it plainly.
+      const drive = mins<=-2 ? {t:`saves ${Math.abs(mins)} min`, k:'good'}
+                  : mins<=2  ? {t:'no extra driving',            k:'good'}
+                  : mins<=30 ? {t:`+${mins} min driving`,        k:''}
+                             : {t:`+${mins} min driving`,        k:'bad'};
+      const dot = CREW_COLORS[s.crew]||'#555';
+      return `<div class="sfrow${i===0?' top':''}" data-to="${s.id}">
+        <div class="sfhead">
+          <span class="sfdate">${fmtDate(s.date)}</span>
+          <span class="sfcrew"><i style="background:${dot}"></i>${r.anyCrew?'any crew':s.crew}</span>
+          ${want&&s.date===want?'<span class="badge store">their date</span>':''}
           ${s.isNew?'<span class="badge">new crew-day</span>':''}
-          ${want&&s.date===want?'<span class="badge store">requested</span>':''}</div>
-        <div class="sfsub">Day would run ${(r.totalAfter/60).toFixed(1)}h of
-          ${(r.win/60).toFixed(1)}h · net drive ${sign}${mins} min
-          ${r.saveSource<-0.5?`(saves ${Math.abs(Math.round(r.saveSource))} min on their old day)`:''}</div>
-        ${r.warnings.length?`<div class="sfwarn">${r.warnings.map(w=>w.msg).join('<br>')}</div>`:''}
+          ${i===0?'<span class="badge best">best fit</span>':''}
+        </div>
+        <div class="sfstats">
+          <div class="sfstat">
+            <span class="sflab">Day length</span>
+            <span class="sfval">${(r.totalAfter/60).toFixed(1)}h<span class="sfmut"> / ${(r.win/60).toFixed(0)}h</span></span>
+            <span class="sfbar"><i style="width:${pct}%;background:${tight?'#ca8a04':'#2d5a33'}"></i></span>
+          </div>
+          <div class="sfstat">
+            <span class="sflab">Driving</span>
+            <span class="sfval ${drive.k}">${drive.t}</span>
+          </div>
+        </div>
+        ${r.warnings.length?`<ul class="sfwarn">${r.warnings.map(w=>
+          `<li>${w.short||w.msg}</li>`).join('')}</ul>`:''}
         <button class="go sfgo">Move here</button></div>`;}).join('')
-      : `<div class="sfnone">No legal slot found for ${c.name}.</div>`);
+      : `<div class="sfnone">No workable slot found for ${c.name}.</div>`);
     body.querySelectorAll('.sfgo').forEach(b=>b.onclick=()=>{
       const to=b.closest('.sfrow').dataset.to;
       if(commitPlan(planFor(row, to))) sfdlg.close();
