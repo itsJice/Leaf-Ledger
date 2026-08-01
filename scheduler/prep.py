@@ -225,6 +225,14 @@ MANUAL_COORDS = {
     "Northside Import": (30.0755990, -95.4356940),   # I-45 frontage, Spring
     "Scheib, Nataliya": (29.6185669, -95.5377215),   # Missouri City 77459
     "Musser, Kristy": (30.1668828, -96.3977442),     # Brenham 77833
+    # 953 Memory Lane has no exact match in Nominatim OR the Census
+    # geocoder (checked 2026-08-01, likely a newer/private road neither
+    # database has). Nominatim's fuzzy fallback matched a DIFFERENT
+    # "Memory Lane" in Washington County (~24mi away, wrong county) --
+    # user confirmed she's really in Bellville, so this is the Bellville
+    # 77418 ZIP centroid instead: right town, not house-precise, but far
+    # closer to true than the wrong-county match it replaces.
+    "Serenity Retreat, Tiffany Pardue": (29.9502253, -96.2571858),
 }
 
 BUSINESS_KEYWORDS = [

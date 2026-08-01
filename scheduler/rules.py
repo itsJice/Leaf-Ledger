@@ -238,11 +238,7 @@ SAME_DAY_GROUPS = [
     {"id": "musser_serenity", "label": "Musser + Serenity Retreat",
      "names": ["Musser, Kristy", "Serenity Retreat, Tiffany Pardue"],
      "first": None, "min_crews": 1,
-     "why": "~18min apart, both far west -- one trip instead of two"},
-    {"id": "keffer_group", "label": "Keffer + Casperson + Allums",
-     "names": ["Keffer, Pam", "Casperson, Erik", "Allums, Jennifer"],
-     "first": None, "min_crews": 1,
-     "why": "Keffer is a confirmed 9:15am appt; neighbours share the long drive"},
+     "why": "Both far west with no closer option -- one trip instead of two"},
     {"id": "sullivan_mattix", "label": "Sullivan + Mattix",
      "names": ["Sullivan, Kristine", "Mattix, Margaret & Rick"],
      "first": None, "min_crews": 1,
@@ -267,7 +263,6 @@ FORCE_FIRST = {
 
 # Client-requested / confirmed dates asserted by validate.py.
 PINS = {
-    "Keffer, Pam": "2026-11-18",
     "Marek Bros": "2026-11-30",
     "The Club at Carlton Woods | Nicklaus Clubhouse": "2026-11-27",
     "The Club at Carlton Woods | Fazio Clubhouse": "2026-12-01",

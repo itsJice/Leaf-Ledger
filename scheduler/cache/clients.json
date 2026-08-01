@@ -37,7 +37,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.598233,
       "lon": -95.482223,
-      "geo_display": "15710, Chimney Rock Road, Fort Bend Houston, Houston, Fort Bend County, Texas, 77489, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -72,7 +72,7 @@
       "hours_basis": "2025 real",
       "lat": 29.6798863,
       "lon": -95.9210128,
-      "geo_display": "31902, Churchill Field Lane, Fort Bend County, Texas, 77441, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -107,7 +107,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7900924,
       "lon": -95.8244984,
-      "geo_display": "1203, Avenue D, Katy, Harris County, Texas, 77493, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -142,7 +142,7 @@
       "hours_basis": "zone median",
       "lat": 29.6175533,
       "lon": -95.7630575,
-      "geo_display": "3419, Blue Grass Drive, Fort Bend County, Texas, 77406, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -177,7 +177,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5504496,
       "lon": -95.6123567,
-      "geo_display": "6314, Windermere Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -212,7 +212,7 @@
       "hours_basis": "2025 real",
       "lat": 30.040126,
       "lon": -95.134273,
-      "geo_display": "5907, Royal Point Court, Royal Shores, Houston, Harris County, Texas, 77345, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -247,7 +247,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.8000436,
       "lon": -95.422483,
-      "geo_display": "77008, Houston Heights, Houston, Harris County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip"
     },
     {
@@ -282,7 +282,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.1654988,
       "lon": -95.7389553,
-      "geo_display": "28322, Meadow Forest, High Meadow Ranch, Montgomery County, Texas, 77355, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -317,7 +317,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1916331,
       "lon": -95.5558902,
-      "geo_display": "23, Eloquence Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -352,7 +352,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7703342,
       "lon": -95.5220304,
-      "geo_display": "10, Oaklawn Drive, Piney Point Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -387,7 +387,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1968281,
       "lon": -95.5506355,
-      "geo_display": "10, Grand Colonial Drive, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -456,7 +456,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9614662,
       "lon": -96.2929739,
-      "geo_display": "77418, Austin County, Texas, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -491,7 +491,7 @@
       "hours_basis": "2025 real",
       "lat": 30.0725651,
       "lon": -96.2801867,
-      "geo_display": "11235, Jones Wilke Road, Austin County, Texas, 77426, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -526,7 +526,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9335628,
       "lon": -96.2495138,
-      "geo_display": "Coshatte Road, Bellville, Austin County, Texas, 77418, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -561,7 +561,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9491877,
       "lon": -96.2594215,
-      "geo_display": "South Masonic Street, Bellville, Austin County, Texas, 77418, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -596,7 +596,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9503741,
       "lon": -96.2578294,
-      "geo_display": "4, South Holland Street, Bellville, Austin County, Texas, 77418, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -631,7 +631,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1966395,
       "lon": -95.5589033,
-      "geo_display": "14, Legato Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -666,7 +666,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7626108,
       "lon": -94.9774952,
-      "geo_display": "3719, Garth Road, Baytown, Harris County, Texas, 77521, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -701,7 +701,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5551465,
       "lon": -95.1200961,
-      "geo_display": "1010, Bay Area Boulevard, Clear Lake City, Houston, Harris County, Texas, 77058, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -736,7 +736,7 @@
       "hours_basis": "2025 real",
       "lat": 29.684694,
       "lon": -95.098693,
-      "geo_display": "3500, East Boulevard, Deer Park, Harris County, Texas, 77536, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -771,7 +771,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7741647,
       "lon": -95.2467224,
-      "geo_display": "10304, East Freeway, Houston, Harris County, Texas, 77029, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -806,7 +806,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7881261,
       "lon": -95.7666976,
-      "geo_display": "23033, Grand Circle Boulevard, Harris County, Texas, 77449, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -841,7 +841,7 @@
       "hours_basis": "2025 real",
       "lat": 29.6503942,
       "lon": -95.1467315,
-      "geo_display": "6101, Fairmont Parkway, Pasadena, Harris County, Texas, 77505, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -876,7 +876,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5479196,
       "lon": -95.2382889,
-      "geo_display": "1813, East Broadway Street, Pearland, Brazoria County, Texas, 77581, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -911,7 +911,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5748812,
       "lon": -95.6195842,
-      "geo_display": "77479, Sugar Land, Fort Bend County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip"
     },
     {
@@ -946,7 +946,7 @@
       "hours_basis": "2025 real",
       "lat": 30.04752,
       "lon": -95.1643306,
-      "geo_display": "2114, Golden Pond Drive, Fosters Mill, Houston, Harris County, Texas, 77345, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -981,7 +981,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.1635722,
       "lon": -95.5453721,
-      "geo_display": "15, North Fazio Way, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1016,7 +1016,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7680877,
       "lon": -95.4941559,
-      "geo_display": "426, Thamer Lane, Hunters Creek Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1051,7 +1051,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1204797,
       "lon": -95.2236364,
-      "geo_display": "22410, Loop 494, New Caney, Porter, Montgomery County, Texas, 77357, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1086,7 +1086,7 @@
       "hours_basis": "2025 real",
       "lat": 29.965342,
       "lon": -95.3785,
-      "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1121,7 +1121,7 @@
       "hours_basis": "2025 real",
       "lat": 29.792923,
       "lon": -95.46352,
-      "geo_display": "1301, Zora Street, Spring Branch, Spring Branch East, Houston, Harris County, Texas, 77055, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1156,7 +1156,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.193958,
       "lon": -95.534977,
-      "geo_display": "91, Wind Ridge Circle, Palmer Woods, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1191,7 +1191,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7685532,
       "lon": -95.5888986,
-      "geo_display": "546, Ramblewood Road, Yorkshire, Houston, Harris County, Texas, 77079, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1226,7 +1226,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7192737,
       "lon": -95.4129833,
-      "geo_display": "2331, Dunstan Road, Southampton Extension, University Place, Houston, Harris County, Texas, 77005, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1261,7 +1261,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7934617,
       "lon": -95.4801994,
-      "geo_display": "East Jordan Cove, Spring Branch, Spring Branch East, Houston, Harris County, Texas, 77055, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1296,7 +1296,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1152344,
       "lon": -95.4727742,
-      "geo_display": "214, North Tranquil Path, Grogan's Mill, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1331,7 +1331,7 @@
       "hours_basis": "zone median",
       "lat": 29.793221,
       "lon": -95.448644,
-      "geo_display": "9000, Hempstead Road, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77008, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1366,7 +1366,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9805366,
       "lon": -95.1834915,
-      "geo_display": "18014, Yellowstone Trail, Sierra Ridge, Atascocita, Harris County, Texas, 77346, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1401,7 +1401,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7558649,
       "lon": -95.358557,
-      "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1436,7 +1436,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7493219,
       "lon": -95.462999,
-      "geo_display": "1780, South Post Oak Lane, Uptown, Houston, Harris County, Texas, 77056, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1471,7 +1471,7 @@
       "hours_basis": "zone median",
       "lat": 29.7677025,
       "lon": -95.4262067,
-      "geo_display": "426, West Cowan Drive, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77007, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1506,7 +1506,7 @@
       "hours_basis": "2025 real",
       "lat": 29.73829,
       "lon": -95.7478807,
-      "geo_display": "3107, Canyon Links Drive, Kelliwood Terrace, Fort Bend County, Texas, 77450, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1541,7 +1541,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7046964,
       "lon": -95.3854947,
-      "geo_display": "Home2 Suites, 6840, Almeda Road, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1576,7 +1576,7 @@
       "hours_basis": "2025 real",
       "lat": 30.006247,
       "lon": -95.544254,
-      "geo_display": "8815, Sterling Gate Circle, Sterling Gate Estates, Champion Forest, Harris County, Texas, 77379, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1611,7 +1611,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7966366,
       "lon": -95.404485,
-      "geo_display": "1424, Waverly Street, Houston Heights, Houston, Harris County, Texas, 77008, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1646,7 +1646,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7397024,
       "lon": -95.8407965,
-      "geo_display": "2910, Sundance Summit Lane, Ironwood Estates, Cinco Ranch, Fort Bend County, Texas, 77494, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1681,7 +1681,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7790686,
       "lon": -95.5080789,
-      "geo_display": "9, Hedwig Circle, Hedwig Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1716,7 +1716,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.765082503749,
       "lon": -95.414862568882,
-      "geo_display": "census: 5303 CALLE CADIZ PL, HOUSTON, TX, 77007",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -1751,7 +1751,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9013764,
       "lon": -95.6731505,
-      "geo_display": "17011, East Copper Lakes Court, Copper Lakes, Harris County, Texas, 77095, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1786,7 +1786,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9978052,
       "lon": -95.5207417,
-      "geo_display": "5231, Wincroft Court, Champion Forest, Harris County, Texas, 77069, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1821,7 +1821,7 @@
       "hours_basis": "2025 real",
       "lat": 30.174582897091,
       "lon": -95.549084539252,
-      "geo_display": "census: 51 W BRACEBRIDGE CIR, SPRING, TX, 77382",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -1856,7 +1856,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.1546257,
       "lon": -95.5333268,
-      "geo_display": "23, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1891,7 +1891,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1585971,
       "lon": -95.4774721,
-      "geo_display": "38, East Bay Boulevard, East Shore, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -1926,7 +1926,7 @@
       "hours_basis": "2025 real",
       "lat": 30.166381019312,
       "lon": -95.502501454042,
-      "geo_display": "census: 4800 W PANTHER CREEK DR, SPRING, TX, 77381",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -1961,7 +1961,7 @@
       "hours_basis": "2025 real",
       "lat": 33.086967531314,
       "lon": -96.684027575915,
-      "geo_display": "census: 815 MARKET ST, ALLEN, TX, 75013",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -1996,7 +1996,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9993563,
       "lon": -96.8280899,
-      "geo_display": "Domino's, 18352, Dallas Parkway, Dallas, Collin County, Texas, 75287, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2031,7 +2031,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9194179,
       "lon": -96.9293177,
-      "geo_display": "2455, McIver Lane, Carrollton, Dallas County, Texas, 75057, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2066,7 +2066,7 @@
       "hours_basis": "2025 real",
       "lat": 33.1725974,
       "lon": -96.7155171,
-      "geo_display": "Alma Road, McKinney, Collin County, Texas, 75072, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2101,7 +2101,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9315359,
       "lon": -96.820112,
-      "geo_display": "13350, Dallas Parkway, Inwood, Dallas, Dallas County, Texas, 75240, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2136,7 +2136,7 @@
       "hours_basis": "2025 real",
       "lat": 33.0694368,
       "lon": -97.0824891,
-      "geo_display": "6220, Long Prairie Road, Flower Mound, Denton County, Texas, 75028, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2171,7 +2171,7 @@
       "hours_basis": "2025 real",
       "lat": 32.880221,
       "lon": -96.735394,
-      "geo_display": "Mi Cocina, 7215, Skillman Street, Lake Highlands, Dallas, Dallas County, Texas, 75231, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2206,7 +2206,7 @@
       "hours_basis": "2025 real",
       "lat": 33.0510039,
       "lon": -96.7950742,
-      "geo_display": "4001, Preston Road, Plano, Collin County, Texas, 75093, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2241,7 +2241,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8126098,
       "lon": -96.7539703,
-      "geo_display": "6332, La Vista Drive, Dallas, Dallas County, Texas, 75214, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2276,7 +2276,7 @@
       "hours_basis": "2025 real",
       "lat": 33.07783141846,
       "lon": -96.82084071126,
-      "geo_display": "census: 5760 LEGACY DR, PLANO, TX, 75024",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -2311,7 +2311,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9787823,
       "lon": -96.7666175,
-      "geo_display": "Mi Cocina, 1370, West Campbell Road, Richardson, Dallas County, Texas, 75080, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2346,7 +2346,7 @@
       "hours_basis": "2025 real",
       "lat": 32.7993688,
       "lon": -96.8214775,
-      "geo_display": "Tru by Hilton Dallas Market Center, 1949, North Stemmons Freeway, Design District, Dallas, Dallas County, Texas, 75207, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2381,7 +2381,7 @@
       "hours_basis": "2025 real",
       "lat": 33.071811,
       "lon": -96.872648,
-      "geo_display": "5400, Nebraska Furniture Mart Drive, Grandscape, Camey, The Colony, Denton County, Texas, 75056, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2416,7 +2416,7 @@
       "hours_basis": "2025 real",
       "lat": 32.788951,
       "lon": -96.80138,
-      "geo_display": "2000, Woodall Rodgers Freeway, Klyde Warren Park-Arts District PID, Downtown PID, Dallas, Dallas County, Texas, 75201, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2451,7 +2451,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9031305,
       "lon": -96.4542441,
-      "geo_display": "Mi Cocina, 971, East Interstate 30, Glen Hill, Rockwall, Rockwall County, Texas, 75087, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2486,7 +2486,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9426696,
       "lon": -97.1322206,
-      "geo_display": "1276, Main Street, Southlake Town Square, Southlake, Tarrant County, Texas, 76092, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2521,7 +2521,7 @@
       "hours_basis": "2025 real",
       "lat": 32.7543952,
       "lon": -97.33076,
-      "geo_display": "509, Main Street, Downtown Fort Worth, Sundance Square, Fort Worth, Tarrant County, Texas, 76102, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2556,7 +2556,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9113505,
       "lon": -96.8046988,
-      "geo_display": "The Mercury, 11909, Preston Road, Dallas, Dallas County, Texas, 75230, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2591,7 +2591,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8039497,
       "lon": -96.7993321,
-      "geo_display": "Mi Cocina, 3232, McKinney Avenue, Uptown PID, Dallas, Dallas County, Texas, 75204, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2626,7 +2626,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9092284,
       "lon": -97.316148,
-      "geo_display": "Mi Cocina, 9369, Rain Lily Trail, Alliance Town Center, Fort Worth, Tarrant County, Texas, 76244, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2661,7 +2661,7 @@
       "hours_basis": "2025 real",
       "lat": 32.7393404,
       "lon": -97.3795403,
-      "geo_display": "76107, Fort Worth, Tarrant County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip"
     },
     {
@@ -2696,7 +2696,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8357323,
       "lon": -96.8060454,
-      "geo_display": "Mi Cocina, 77, Highland Park Village, Highland Park, Dallas County, Texas, 75205, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2731,7 +2731,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8263793,
       "lon": -96.9591181,
-      "geo_display": "North MacArthur Boulevard, Irving, Dallas County, Texas, 75061, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2766,7 +2766,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9090326,
       "lon": -96.8048346,
-      "geo_display": "11661, Preston Road, Dallas, Dallas County, Texas, 75248, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2801,7 +2801,7 @@
       "hours_basis": "2025 real",
       "lat": 33.1072638,
       "lon": -96.8278942,
-      "geo_display": "6740, Winning Drive, Dallas Cowboys & Frisco Multi Event Center, Frisco, Collin County, Texas, 75034, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2836,7 +2836,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.9404593,
       "lon": -95.7367628,
-      "geo_display": "18810, East Josey Overlook Drive, Bridgeland, Cypress, Harris County, Texas, 77433, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2871,7 +2871,7 @@
       "hours_basis": "2025 real",
       "lat": 29.820541,
       "lon": -95.437387,
-      "geo_display": "2115, Judiway Street, Central Northwest Houston, Houston, Harris County, Texas, 77018, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2906,7 +2906,7 @@
       "hours_basis": "2025 real",
       "lat": 30.4157864,
       "lon": -95.6190376,
-      "geo_display": "96, Benthaven Way, Bentwater, Montgomery County, Texas, 77356, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2941,7 +2941,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.2027206,
       "lon": -95.4558347,
-      "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -2976,7 +2976,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5428706,
       "lon": -95.5742501,
-      "geo_display": "72, Sunset Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3081,7 +3081,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7639105,
       "lon": -95.426926,
-      "geo_display": "6218, Memorial Drive, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77007, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3116,7 +3116,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7616902,
       "lon": -95.462021,
-      "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3151,7 +3151,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7497092,
       "lon": -95.4861229,
-      "geo_display": "1702, Fountain View Drive, Houston, Harris County, Texas, 77057, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3186,7 +3186,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.756782303508,
       "lon": -95.50176797482,
-      "geo_display": "census: 1018 RIVER GLYNN DR, HOUSTON, TX, 77063",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -3221,7 +3221,7 @@
       "hours_basis": "2025 real",
       "lat": 29.573345,
       "lon": -95.54368,
-      "geo_display": "3118, La Quinta Drive, Missouri City, Fort Bend County, Texas, 77459, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3256,7 +3256,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5435391,
       "lon": -95.0767192,
-      "geo_display": "940, Plantation Drive, League City, Galveston County, Texas, 77573, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3291,7 +3291,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7506696,
       "lon": -95.5217186,
-      "geo_display": "149, Quail Creek Court, Piney Point Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3326,7 +3326,7 @@
       "hours_basis": "zone median",
       "lat": 30.1415999,
       "lon": -95.5375842,
-      "geo_display": "23, Liberty Branch Boulevard, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3361,7 +3361,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7728273,
       "lon": -95.4939725,
-      "geo_display": "646, Shartle Circle, Hunters Creek Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3396,7 +3396,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7065646,
       "lon": -95.4053495,
-      "geo_display": "Pizza Hut, 1600, Holcombe Boulevard, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3431,7 +3431,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7344874,
       "lon": -95.5849954,
-      "geo_display": "2910, Royal Oaks Club Drive, Royal Oaks Country Club, Briar Forest, Houston, Harris County, Texas, 77082, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3466,7 +3466,7 @@
       "hours_basis": "2025 real",
       "lat": 29.542901,
       "lon": -95.371945,
-      "geo_display": "3018, Richfield Court, Brazoria County, Texas, 77584, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3536,7 +3536,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5887639,
       "lon": -95.1233947,
-      "geo_display": "2819, Acorn Wood Way, Clear Lake, Houston, Harris County, Texas, 77059, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3571,7 +3571,7 @@
       "hours_basis": "zone median",
       "lat": 29.5492232,
       "lon": -95.601416,
-      "geo_display": "4803, Beamer Creek Court, Riverstone, Fort Bend County, Texas, 77479, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3606,7 +3606,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7453911,
       "lon": -95.7281265,
-      "geo_display": "2506, Sara Ridge Lane, LakeForest, Harris County, Texas, 77450, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3639,10 +3639,10 @@
       "install_2026_no_install": false,
       "cal_hours": 3.0,
       "hours_basis": "2025 real",
-      "lat": 30.1561989,
-      "lon": -96.6170843,
-      "geo_display": "Memory Lane, Washington County, Texas, 77835, United States",
-      "geo_source": "street"
+      "lat": 29.9502253,
+      "lon": -96.2571858,
+      "geo_display": "manual override",
+      "geo_source": "manual"
     },
     {
       "row": 106,
@@ -3676,7 +3676,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1547697,
       "lon": -95.5333095,
-      "geo_display": "27, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3711,7 +3711,7 @@
       "hours_basis": "zone median",
       "lat": 30.3972231,
       "lon": -95.6468638,
-      "geo_display": "77356, Conroe, Montgomery County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip"
     },
     {
@@ -3746,7 +3746,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.411671808563,
       "lon": -95.616999631493,
-      "geo_display": "census: 102 BENTHAVEN CT, MONTGOMERY, TX, 77356",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -3781,7 +3781,7 @@
       "hours_basis": "2025 real",
       "lat": 29.745656444215,
       "lon": -95.457538541221,
-      "geo_display": "census: 2200 W LOOP S SVC RD, HOUSTON, TX, 77056",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -3816,7 +3816,7 @@
       "hours_basis": "2025 real",
       "lat": 30.15864,
       "lon": -95.548066,
-      "geo_display": "1, Carlton Woods Creekside Drive, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3851,7 +3851,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.193162,
       "lon": -95.549459,
-      "geo_display": "1, Carlton Woods Drive, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3886,7 +3886,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.193162,
       "lon": -95.549459,
-      "geo_display": "1, Carlton Woods Drive, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3921,7 +3921,7 @@
       "hours_basis": "zone median",
       "lat": 29.7523937,
       "lon": -95.8937204,
-      "geo_display": "30318, Orchard Place Lane, Jordan Ranch, Fort Bend County, Texas, 77423, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3956,7 +3956,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7536597,
       "lon": -95.4844819,
-      "geo_display": "5826, Valley Forge Drive, Houston, Harris County, Texas, 77057, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -3991,7 +3991,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1602263,
       "lon": -95.4594662,
-      "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4026,7 +4026,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7397873,
       "lon": -95.381181,
-      "geo_display": "3800, Milam Street, Midtown, Houston, Harris County, Texas, 77002, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4061,7 +4061,7 @@
       "hours_basis": "2025 real",
       "lat": 29.6918755,
       "lon": -95.4020769,
-      "geo_display": "Fannin Street, Texas Medical Center, Houston, Harris County, Texas, 77054, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4096,7 +4096,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.747990272478,
       "lon": -95.468486380459,
-      "geo_display": "census: 5330 WILLERS WAY, HOUSTON, TX, 77056",
+      "geo_display": "",
       "geo_source": "census"
     },
     {
@@ -4131,7 +4131,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1893618,
       "lon": -95.5213084,
-      "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4166,7 +4166,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1893618,
       "lon": -95.5213084,
-      "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4201,7 +4201,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1893618,
       "lon": -95.5213084,
-      "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4236,7 +4236,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1432529,
       "lon": -95.462095,
-      "geo_display": "1730, South Millbend Drive, Grogan's Mill, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4271,7 +4271,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1432529,
       "lon": -95.462095,
-      "geo_display": "1730, South Millbend Drive, Grogan's Mill, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street"
     },
     {
@@ -4306,7 +4306,7 @@
       "hours_basis": "2025 real",
       "lat": 29.700576175081,
       "lon": -95.430109381378,
-      "geo_display": "census: 3522 BLUE BONNET BLVD, HOUSTON, TX, 77025",
+      "geo_display": "",
       "geo_source": "census"
     }
   ]

@@ -43,7 +43,7 @@
           "hours_basis": "2025 real",
           "lat": 32.880221,
           "lon": -96.735394,
-          "geo_display": "Mi Cocina, 7215, Skillman Street, Lake Highlands, Dallas, Dallas County, Texas, 75231, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 61
         },
@@ -79,7 +79,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.8126098,
           "lon": -96.7539703,
-          "geo_display": "6332, La Vista Drive, Dallas, Dallas County, Texas, 75214, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 63
         }
@@ -189,7 +189,7 @@
           "hours_basis": "2025 real",
           "lat": 32.880221,
           "lon": -96.735394,
-          "geo_display": "Mi Cocina, 7215, Skillman Street, Lake Highlands, Dallas, Dallas County, Texas, 75231, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 61
         },
@@ -225,7 +225,7 @@
           "hours_basis": "2025 real",
           "lat": 32.8039497,
           "lon": -96.7993321,
-          "geo_display": "Mi Cocina, 3232, McKinney Avenue, Uptown PID, Dallas, Dallas County, Texas, 75204, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 73
         }
@@ -368,7 +368,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9194179,
           "lon": -96.9293177,
-          "geo_display": "2455, McIver Lane, Carrollton, Dallas County, Texas, 75057, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 57
         }
@@ -431,7 +431,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 33.1072638,
           "lon": -96.8278942,
-          "geo_display": "6740, Winning Drive, Dallas Cowboys & Frisco Multi Event Center, Frisco, Collin County, Texas, 75034, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 79
         },
@@ -467,7 +467,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9993563,
           "lon": -96.8280899,
-          "geo_display": "Domino's, 18352, Dallas Parkway, Dallas, Collin County, Texas, 75287, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 56
         },
@@ -503,7 +503,7 @@
           "hours_basis": "2025 real",
           "lat": 32.9787823,
           "lon": -96.7666175,
-          "geo_display": "Mi Cocina, 1370, West Campbell Road, Richardson, Dallas County, Texas, 75080, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 65
         }
@@ -651,7 +651,7 @@
           "hours_basis": "2025 real",
           "lat": 32.8357323,
           "lon": -96.8060454,
-          "geo_display": "Mi Cocina, 77, Highland Park Village, Highland Park, Dallas County, Texas, 75205, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 76
         },
@@ -687,7 +687,7 @@
           "hours_basis": "2025 real",
           "lat": 32.7993688,
           "lon": -96.8214775,
-          "geo_display": "Tru by Hilton Dallas Market Center, 1949, North Stemmons Freeway, Design District, Dallas, Dallas County, Texas, 75207, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 66
         }
@@ -817,7 +817,7 @@
           "hours_basis": "2025 real",
           "lat": 32.8357323,
           "lon": -96.8060454,
-          "geo_display": "Mi Cocina, 77, Highland Park Village, Highland Park, Dallas County, Texas, 75205, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 76
         },
@@ -853,7 +853,7 @@
           "hours_basis": "2025 real",
           "lat": 32.788951,
           "lon": -96.80138,
-          "geo_display": "2000, Woodall Rodgers Freeway, Klyde Warren Park-Arts District PID, Downtown PID, Dallas, Dallas County, Texas, 75201, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 68
         }
@@ -975,7 +975,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 33.071811,
           "lon": -96.872648,
-          "geo_display": "5400, Nebraska Furniture Mart Drive, Grandscape, Camey, The Colony, Denton County, Texas, 75056, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 67
         },
@@ -1011,7 +1011,7 @@
           "hours_basis": "2025 real",
           "lat": 33.07783141846,
           "lon": -96.82084071126,
-          "geo_display": "census: 5760 LEGACY DR, PLANO, TX, 75024",
+          "geo_display": "",
           "geo_source": "census",
           "midx": 64
         },
@@ -1047,7 +1047,7 @@
           "hours_basis": "2025 real",
           "lat": 33.0510039,
           "lon": -96.7950742,
-          "geo_display": "4001, Preston Road, Plano, Collin County, Texas, 75093, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 62
         }
@@ -1219,7 +1219,7 @@
           "hours_basis": "2025 real",
           "lat": 33.086967531314,
           "lon": -96.684027575915,
-          "geo_display": "census: 815 MARKET ST, ALLEN, TX, 75013",
+          "geo_display": "",
           "geo_source": "census",
           "midx": 55
         },
@@ -1255,7 +1255,7 @@
           "hours_basis": "2025 real",
           "lat": 33.1725974,
           "lon": -96.7155171,
-          "geo_display": "Alma Road, McKinney, Collin County, Texas, 75072, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 58
         }
@@ -1383,7 +1383,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9031305,
           "lon": -96.4542441,
-          "geo_display": "Mi Cocina, 971, East Interstate 30, Glen Hill, Rockwall, Rockwall County, Texas, 75087, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 69
         },
@@ -1419,7 +1419,7 @@
           "hours_basis": "2025 real",
           "lat": 32.9315359,
           "lon": -96.820112,
-          "geo_display": "13350, Dallas Parkway, Inwood, Dallas, Dallas County, Texas, 75240, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 59
         }
@@ -1556,7 +1556,7 @@
           "hours_basis": "2025 real",
           "lat": 32.8263793,
           "lon": -96.9591181,
-          "geo_display": "North MacArthur Boulevard, Irving, Dallas County, Texas, 75061, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 77
         },
@@ -1592,7 +1592,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9090326,
           "lon": -96.8048346,
-          "geo_display": "11661, Preston Road, Dallas, Dallas County, Texas, 75248, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 78
         },
@@ -1628,7 +1628,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9113505,
           "lon": -96.8046988,
-          "geo_display": "The Mercury, 11909, Preston Road, Dallas, Dallas County, Texas, 75230, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 72
         }
@@ -1780,7 +1780,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.7393404,
           "lon": -97.3795403,
-          "geo_display": "76107, Fort Worth, Tarrant County, Texas, United States",
+          "geo_display": "",
           "geo_source": "zip",
           "midx": 75
         },
@@ -1816,7 +1816,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.7543952,
           "lon": -97.33076,
-          "geo_display": "509, Main Street, Downtown Fort Worth, Sundance Square, Fort Worth, Tarrant County, Texas, 76102, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 71
         }
@@ -1928,7 +1928,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9092284,
           "lon": -97.316148,
-          "geo_display": "Mi Cocina, 9369, Rain Lily Trail, Alliance Town Center, Fort Worth, Tarrant County, Texas, 76244, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 74
         },
@@ -1964,7 +1964,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 32.9426696,
           "lon": -97.1322206,
-          "geo_display": "1276, Main Street, Southlake Town Square, Southlake, Tarrant County, Texas, 76092, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 70
         }
@@ -2125,7 +2125,7 @@
           "hours_basis": "MiCo pace (3/night)",
           "lat": 33.0694368,
           "lon": -97.0824891,
-          "geo_display": "6220, Long Prairie Road, Flower Mound, Denton County, Texas, 75028, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 60
         }
@@ -2190,7 +2190,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1916331,
           "lon": -95.5558902,
-          "geo_display": "23, Eloquence Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 9
         },
@@ -2226,7 +2226,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1968281,
           "lon": -95.5506355,
-          "geo_display": "10, Grand Colonial Drive, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 11
         },
@@ -2262,7 +2262,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1966395,
           "lon": -95.5589033,
-          "geo_display": "14, Legato Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 17
         }
@@ -2497,7 +2497,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1916331,
           "lon": -95.5558902,
-          "geo_display": "23, Eloquence Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 9
         },
@@ -2533,7 +2533,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1968281,
           "lon": -95.5506355,
-          "geo_display": "10, Grand Colonial Drive, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 11
         },
@@ -2569,7 +2569,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1966395,
           "lon": -95.5589033,
-          "geo_display": "14, Legato Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 17
         }
@@ -2804,7 +2804,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.598233,
           "lon": -95.482223,
-          "geo_display": "15710, Chimney Rock Road, Fort Bend Houston, Houston, Fort Bend County, Texas, 77489, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 1
         },
@@ -2840,7 +2840,7 @@
           "hours_basis": "2025 real",
           "lat": 29.6798863,
           "lon": -95.9210128,
-          "geo_display": "31902, Churchill Field Lane, Fort Bend County, Texas, 77441, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 2
         },
@@ -2876,7 +2876,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7900924,
           "lon": -95.8244984,
-          "geo_display": "1203, Avenue D, Katy, Harris County, Texas, 77493, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 3
         }
@@ -3122,7 +3122,7 @@
           "hours_basis": "2025 real",
           "lat": 30.166381019312,
           "lon": -95.502501454042,
-          "geo_display": "census: 4800 W PANTHER CREEK DR, SPRING, TX, 77381",
+          "geo_display": "",
           "geo_source": "census",
           "midx": 54
         },
@@ -3158,7 +3158,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1585971,
           "lon": -95.4774721,
-          "geo_display": "38, East Bay Boulevard, East Shore, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 53
         }
@@ -3392,10 +3392,10 @@
           "install_2026_no_install": false,
           "cal_hours": 3.0,
           "hours_basis": "2025 real",
-          "lat": 30.1561989,
-          "lon": -96.6170843,
-          "geo_display": "Memory Lane, Washington County, Texas, 77835, United States",
-          "geo_source": "street",
+          "lat": 29.9502253,
+          "lon": -96.2571858,
+          "geo_display": "manual override",
+          "geo_source": "manual",
           "midx": 103
         },
         {
@@ -3440,12 +3440,12 @@
         85
       ],
       "install_h": 8.5,
-      "drive_min": 186.5,
+      "drive_min": 169.2,
       "lunch": 40,
-      "total_min": 736.5,
+      "total_min": 719.2,
       "legs": [
-        91.8,
-        17.8,
+        70.5,
+        21.8,
         76.9
       ],
       "window_min": 780,
@@ -3453,7 +3453,7 @@
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Kristy Musser paired with Serenity Retreat (~18min apart, both far west) instead of 2 separate remote round-trips. Runs ~12h17m -- past even the usual 12h exception ceiling, widened further per client request.",
+      "note": "Kristy Musser paired with Serenity Retreat (both far west) instead of 2 separate remote round-trips.",
       "flags": [],
       "zones": [
         "Bellville/Sealy",
@@ -3466,144 +3466,80 @@
           -95.47379
         ],
         [
-          29.82398,
-          -95.47311
+          29.81062,
+          -95.48511
         ],
         [
-          29.84181,
-          -95.4928
+          29.78451,
+          -95.48493
         ],
         [
-          29.88006,
-          -95.56944
+          29.78551,
+          -95.80459
         ],
         [
-          29.90871,
-          -95.61009
+          29.77772,
+          -95.81813
         ],
         [
-          29.9199,
-          -95.61846
+          29.77726,
+          -95.84987
         ],
         [
-          29.92525,
-          -95.63363
+          29.77887,
+          -95.96895
         ],
         [
-          29.9724,
-          -95.69545
+          29.78275,
+          -95.98191
         ],
         [
-          30.02402,
-          -95.83513
+          29.76986,
+          -96.04299
         ],
         [
-          30.03388,
-          -95.84507
+          29.77548,
+          -96.12593
         ],
         [
-          30.05562,
-          -95.8862
+          29.76391,
+          -96.15592
         ],
         [
-          30.06883,
-          -95.92107
+          29.83937,
+          -96.17038
         ],
         [
-          30.08118,
-          -95.99717
+          29.92676,
+          -96.24582
         ],
         [
-          30.09142,
-          -96.03007
+          29.95015,
+          -96.25716
         ],
         [
-          30.11209,
-          -96.05562
+          29.96965,
+          -96.28496
         ],
         [
-          30.13025,
-          -96.14068
+          29.9879,
+          -96.29961
         ],
         [
-          30.13102,
-          -96.22682
+          30.05441,
+          -96.32425
         ],
         [
-          30.13496,
-          -96.26475
+          30.06257,
+          -96.34025
         ],
         [
-          30.14155,
-          -96.28364
+          30.08125,
+          -96.35126
         ],
         [
-          30.13651,
-          -96.33677
-        ],
-        [
-          30.1436,
-          -96.36563
-        ],
-        [
-          30.14278,
-          -96.39767
-        ],
-        [
-          30.15477,
-          -96.4182
-        ],
-        [
-          30.16723,
-          -96.42308
-        ],
-        [
-          30.18986,
-          -96.51265
-        ],
-        [
-          30.1911,
-          -96.53402
-        ],
-        [
-          30.18331,
-          -96.58657
-        ],
-        [
-          30.15821,
-          -96.62158
-        ],
-        [
-          30.1562,
-          -96.61708
-        ],
-        [
-          30.15348,
-          -96.61374
-        ],
-        [
-          30.15892,
-          -96.62043
-        ],
-        [
-          30.17217,
-          -96.60565
-        ],
-        [
-          30.18307,
-          -96.58633
-        ],
-        [
-          30.19092,
-          -96.53375
-        ],
-        [
-          30.18434,
-          -96.48819
-        ],
-        [
-          30.16659,
-          -96.43033
+          30.12412,
+          -96.39213
         ],
         [
           30.16678,
@@ -3682,10 +3618,10 @@
           -95.47379
         ]
       ],
-      "distance_mi": 157.83,
+      "distance_mi": 140.66,
       "leg_mi": [
-        78.7,
-        15.14,
+        58.5,
+        18.16,
         63.99
       ]
     },
@@ -3727,7 +3663,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7397024,
           "lon": -95.8407965,
-          "geo_display": "2910, Sundance Summit Lane, Ironwood Estates, Cinco Ranch, Fort Bend County, Texas, 77494, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 46
         },
@@ -3763,7 +3699,7 @@
           "hours_basis": "2025 real",
           "lat": 29.73829,
           "lon": -95.7478807,
-          "geo_display": "3107, Canyon Links Drive, Kelliwood Terrace, Fort Bend County, Texas, 77450, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 42
         },
@@ -3799,7 +3735,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7453911,
           "lon": -95.7281265,
-          "geo_display": "2506, Sara Ridge Lane, LakeForest, Harris County, Texas, 77450, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 102
         }
@@ -3994,7 +3930,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.7685532,
           "lon": -95.5888986,
-          "geo_display": "546, Ramblewood Road, Yorkshire, Houston, Harris County, Texas, 77079, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 33
         },
@@ -4030,7 +3966,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7344874,
           "lon": -95.5849954,
-          "geo_display": "2910, Royal Oaks Club Drive, Royal Oaks Country Club, Briar Forest, Houston, Harris County, Texas, 77082, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 97
         },
@@ -4066,7 +4002,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7497092,
           "lon": -95.4861229,
-          "geo_display": "1702, Fountain View Drive, Houston, Harris County, Texas, 77057, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 89
         }
@@ -4362,7 +4298,7 @@
           "hours_basis": "est x0.81",
           "lat": 30.1546257,
           "lon": -95.5333268,
-          "geo_display": "23, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 52
         },
@@ -4398,7 +4334,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1152344,
           "lon": -95.4727742,
-          "geo_display": "214, North Tranquil Path, Grogan's Mill, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 36
         }
@@ -4706,7 +4642,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1547697,
           "lon": -95.5333095,
-          "geo_display": "27, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 104
         },
@@ -4742,7 +4678,7 @@
           "hours_basis": "zone median",
           "lat": 30.1415999,
           "lon": -95.5375842,
-          "geo_display": "23, Liberty Branch Boulevard, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 94
         }
@@ -4998,7 +4934,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7728273,
           "lon": -95.4939725,
-          "geo_display": "646, Shartle Circle, Hunters Creek Village, Harris County, Texas, 77024, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 95
         },
@@ -5034,7 +4970,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.7680877,
           "lon": -95.4941559,
-          "geo_display": "426, Thamer Lane, Hunters Creek Village, Harris County, Texas, 77024, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 28
         },
@@ -5070,7 +5006,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7790686,
           "lon": -95.5080789,
-          "geo_display": "9, Hedwig Circle, Hedwig Village, Harris County, Texas, 77024, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 47
         },
@@ -5106,7 +5042,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7934617,
           "lon": -95.4801994,
-          "geo_display": "East Jordan Cove, Spring Branch, Spring Branch East, Houston, Harris County, Texas, 77055, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 35
         }
@@ -5396,7 +5332,7 @@
           "hours_basis": "2025 real",
           "lat": 29.9335628,
           "lon": -96.2495138,
-          "geo_display": "Coshatte Road, Bellville, Austin County, Texas, 77418, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 14
         },
@@ -5432,7 +5368,7 @@
           "hours_basis": "2025 real",
           "lat": 29.9503741,
           "lon": -96.2578294,
-          "geo_display": "4, South Holland Street, Bellville, Austin County, Texas, 77418, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 16
         },
@@ -5468,7 +5404,7 @@
           "hours_basis": "2025 real",
           "lat": 29.9491877,
           "lon": -96.2594215,
-          "geo_display": "South Masonic Street, Bellville, Austin County, Texas, 77418, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 15
         }
@@ -5667,7 +5603,7 @@
           "hours_basis": "2025 real",
           "lat": 30.4157864,
           "lon": -95.6190376,
-          "geo_display": "96, Benthaven Way, Bentwater, Montgomery County, Texas, 77356, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 82
         },
@@ -5703,7 +5639,7 @@
           "hours_basis": "est x0.81",
           "lat": 30.411671808563,
           "lon": -95.616999631493,
-          "geo_display": "census: 102 BENTHAVEN CT, MONTGOMERY, TX, 77356",
+          "geo_display": "",
           "geo_source": "census",
           "midx": 106
         }
@@ -5951,7 +5887,7 @@
           "hours_basis": "zone median",
           "lat": 29.5492232,
           "lon": -95.601416,
-          "geo_display": "4803, Beamer Creek Court, Riverstone, Fort Bend County, Texas, 77479, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 101
         },
@@ -5987,7 +5923,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5504496,
           "lon": -95.6123567,
-          "geo_display": "6314, Windermere Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 5
         }
@@ -6188,6 +6124,307 @@
       "category": "Standard",
       "stops": [
         {
+          "row": 52,
+          "name": "Keffer, Pam",
+          "street": "5231 Wincroft",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77069",
+          "area": "North",
+          "zone": "Spring/Klein/North Belt",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "281-814-4872",
+          "email": "jrkeffer@aol.com",
+          "storage": "NO",
+          "date_2024": "2024-12-04",
+          "crew_2025": "Crew A",
+          "crew_size_2025": 6,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": 3.333333333,
+          "prior_install_date": "2025-12-02",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.33,
+          "hours_basis": "2025 real",
+          "lat": 29.9978052,
+          "lon": -95.5207417,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 50
+        },
+        {
+          "row": 9,
+          "name": "Beaver, Cindy",
+          "street": "28322 Meadow Forest",
+          "city": "Magnolia",
+          "st": "TX",
+          "zip": "77355",
+          "area": "North",
+          "zone": "Magnolia/Tomball",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "713-502-4605",
+          "email": "cindy.beaver@bcei.com",
+          "storage": "NO",
+          "date_2024": "2024-11-12",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 7,
+          "est_hours": 3.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.43,
+          "hours_basis": "est x0.81",
+          "lat": 30.1654988,
+          "lon": -95.7389553,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 8
+        },
+        {
+          "row": 33,
+          "name": "DInkins, Carol (Melissa Snow-Designer)",
+          "street": "1301 Zora ST",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77055",
+          "area": "West",
+          "zone": "Memorial/Spring Branch",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "281-639-0039",
+          "email": "Melissa@Melissasnowdesigns.com",
+          "storage": "NO",
+          "date_2024": "2024-12-04",
+          "crew_2025": "Crew B (6)",
+          "crew_size_2025": 6,
+          "people_needed": 6,
+          "est_hours": 3.0,
+          "real_hours": 1.0,
+          "prior_install_date": "2025-11-25",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.0,
+          "hours_basis": "2025 real",
+          "lat": 29.792923,
+          "lon": -95.46352,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 31
+        }
+      ],
+      "order_idx": [
+        50,
+        8,
+        31
+      ],
+      "install_h": 6.76,
+      "drive_min": 121.6,
+      "lunch": 40,
+      "total_min": 567.2,
+      "legs": [
+        25.1,
+        37.8,
+        54.1,
+        4.7
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Magnolia/Tomball",
+        "Memorial/Spring Branch",
+        "Spring/Klein/North Belt"
+      ],
+      "start_row": null,
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.82398,
+          -95.47311
+        ],
+        [
+          29.83848,
+          -95.48873
+        ],
+        [
+          29.86568,
+          -95.48678
+        ],
+        [
+          29.87515,
+          -95.49424
+        ],
+        [
+          29.89446,
+          -95.49556
+        ],
+        [
+          29.92542,
+          -95.49152
+        ],
+        [
+          29.93408,
+          -95.49778
+        ],
+        [
+          29.95687,
+          -95.49833
+        ],
+        [
+          29.99402,
+          -95.5267
+        ],
+        [
+          29.99788,
+          -95.5208
+        ],
+        [
+          29.99402,
+          -95.5267
+        ],
+        [
+          30.0013,
+          -95.53275
+        ],
+        [
+          29.98125,
+          -95.56709
+        ],
+        [
+          30.0733,
+          -95.62953
+        ],
+        [
+          30.11459,
+          -95.64295
+        ],
+        [
+          30.16532,
+          -95.67302
+        ],
+        [
+          30.17916,
+          -95.69735
+        ],
+        [
+          30.16102,
+          -95.72844
+        ],
+        [
+          30.16967,
+          -95.73377
+        ],
+        [
+          30.16559,
+          -95.73892
+        ],
+        [
+          30.16967,
+          -95.73377
+        ],
+        [
+          30.16102,
+          -95.72844
+        ],
+        [
+          30.17916,
+          -95.69735
+        ],
+        [
+          30.16512,
+          -95.67388
+        ],
+        [
+          30.11449,
+          -95.64311
+        ],
+        [
+          30.07246,
+          -95.62929
+        ],
+        [
+          29.97239,
+          -95.5628
+        ],
+        [
+          29.92003,
+          -95.49409
+        ],
+        [
+          29.87603,
+          -95.49454
+        ],
+        [
+          29.86543,
+          -95.4869
+        ],
+        [
+          29.83758,
+          -95.48899
+        ],
+        [
+          29.80993,
+          -95.45909
+        ],
+        [
+          29.79829,
+          -95.45589
+        ],
+        [
+          29.79292,
+          -95.46344
+        ],
+        [
+          29.79456,
+          -95.47561
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 76.9,
+      "leg_mi": [
+        14.37,
+        23.69,
+        36.71,
+        2.13
+      ]
+    },
+    {
+      "date": "2026-11-18",
+      "dow": "Wed",
+      "crew": "Crew 3",
+      "category": "Standard",
+      "stops": [
+        {
           "row": 86,
           "name": "Moss, Dave",
           "street": "72 Sunset Park Ln",
@@ -6219,7 +6456,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5428706,
           "lon": -95.5742501,
-          "geo_display": "72, Sunset Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 84
         },
@@ -6255,7 +6492,7 @@
           "hours_basis": "2025 real",
           "lat": 29.573345,
           "lon": -95.54368,
-          "geo_display": "3118, La Quinta Drive, Missouri City, Fort Bend County, Texas, 77459, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 91
         },
@@ -6502,47 +6739,11 @@
       ]
     },
     {
-      "date": "2026-11-18",
-      "dow": "Wed",
-      "crew": "Crew 3",
+      "date": "2026-11-19",
+      "dow": "Thu",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
-        {
-          "row": 52,
-          "name": "Keffer, Pam",
-          "street": "5231 Wincroft",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77069",
-          "area": "North",
-          "zone": "Spring/Klein/North Belt",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "281-814-4872",
-          "email": "jrkeffer@aol.com",
-          "storage": "NO",
-          "date_2024": "2024-12-04",
-          "crew_2025": "Crew A",
-          "crew_size_2025": 6,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": 3.333333333,
-          "prior_install_date": "2025-12-02",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.33,
-          "hours_basis": "2025 real",
-          "lat": 29.9978052,
-          "lon": -95.5207417,
-          "geo_display": "5231, Wincroft Court, Champion Forest, Harris County, Texas, 77069, United States",
-          "geo_source": "street",
-          "midx": 50
-        },
         {
           "row": 28,
           "name": "Casperson, Erik",
@@ -6575,7 +6776,7 @@
           "hours_basis": "2025 real",
           "lat": 30.04752,
           "lon": -95.1643306,
-          "geo_display": "2114, Golden Pond Drive, Fosters Mill, Houston, Harris County, Texas, 77345, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 26
         },
@@ -6611,36 +6812,33 @@
           "hours_basis": "2025 real",
           "lat": 30.040126,
           "lon": -95.134273,
-          "geo_display": "5907, Royal Point Court, Royal Shores, Houston, Harris County, Texas, 77345, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 6
         }
       ],
       "order_idx": [
-        50,
         26,
         6
       ],
-      "install_h": 8.66,
-      "drive_min": 134.6,
+      "install_h": 5.33,
+      "drive_min": 112.5,
       "lunch": 40,
-      "total_min": 694.2,
+      "total_min": 472.3,
       "legs": [
-        25.1,
-        46.8,
+        49.8,
         9.4,
         53.3
       ],
-      "window_min": 720,
+      "window_min": 600,
       "depot_anchored": true,
       "stacked_crews": 1,
       "half_rows": [],
       "joint_with": "",
-      "note": "Keffer, Pam (confirmed 9:15am appt) paired with her nearest real neighbors, Casperson/Allums, so the long drive out isn't spent on a lone 3h20m install.",
+      "note": "",
       "flags": [],
       "zones": [
-        "Kingwood/Humble/Porter",
-        "Spring/Klein/North Belt"
+        "Kingwood/Humble/Porter"
       ],
       "start_row": null,
       "geometry": [
@@ -6649,92 +6847,56 @@
           -95.47379
         ],
         [
-          29.82398,
-          -95.47311
+          29.80683,
+          -95.46729
         ],
         [
-          29.83848,
-          -95.48873
+          29.80713,
+          -95.45612
         ],
         [
-          29.86568,
-          -95.48678
+          29.80276,
+          -95.45018
         ],
         [
-          29.87515,
-          -95.49424
+          29.81259,
+          -95.43049
         ],
         [
-          29.89446,
-          -95.49556
+          29.81392,
+          -95.35608
         ],
         [
-          29.91619,
-          -95.49577
+          29.80809,
+          -95.33833
         ],
         [
-          29.92542,
-          -95.49152
+          29.80904,
+          -95.33533
         ],
         [
-          29.93408,
-          -95.49778
+          29.86533,
+          -95.33253
         ],
         [
-          29.95687,
-          -95.49833
+          29.9006,
+          -95.31233
         ],
         [
-          29.95832,
-          -95.50197
+          29.91633,
+          -95.30798
         ],
         [
-          29.97665,
-          -95.5105
+          29.97866,
+          -95.27821
         ],
         [
-          29.99402,
-          -95.5267
+          30.02999,
+          -95.25718
         ],
         [
-          29.99788,
-          -95.5208
-        ],
-        [
-          30.00343,
-          -95.50968
-        ],
-        [
-          29.9878,
-          -95.49838
-        ],
-        [
-          30.01547,
-          -95.44811
-        ],
-        [
-          30.02696,
-          -95.40169
-        ],
-        [
-          30.02106,
-          -95.38499
-        ],
-        [
-          30.01138,
-          -95.33026
-        ],
-        [
-          30.00433,
-          -95.31111
-        ],
-        [
-          30.00486,
-          -95.26754
-        ],
-        [
-          30.0517,
-          -95.24733
+          30.05239,
+          -95.25156
         ],
         [
           30.04933,
@@ -6745,8 +6907,8 @@
           -95.22117
         ],
         [
-          30.04302,
-          -95.19885
+          30.04304,
+          -95.19923
         ],
         [
           30.04401,
@@ -6877,10 +7039,9 @@
           -95.47379
         ]
       ],
-      "distance_mi": 80.45,
+      "distance_mi": 72.74,
       "leg_mi": [
-        14.37,
-        26.13,
+        32.79,
         3.8,
         36.14
       ]
@@ -6888,44 +7049,80 @@
     {
       "date": "2026-11-19",
       "dow": "Thu",
-      "crew": "Crew 1",
+      "crew": "Crew 2",
       "category": "Standard",
       "stops": [
         {
-          "row": 33,
-          "name": "DInkins, Carol (Melissa Snow-Designer)",
-          "street": "1301 Zora ST",
+          "row": 114,
+          "name": "Valley Forge",
+          "street": "5826 Valley Forge",
           "city": "Houston",
           "st": "TX",
-          "zip": "77055",
+          "zip": "77057",
           "area": "West",
-          "zone": "Memorial/Spring Branch",
+          "zone": "Uptown/Galleria",
+          "box_count": 14.0,
+          "box_count_sheet": 14.0,
+          "box_verified": false,
+          "phone": "7133854169.0",
+          "email": "Cynthia.Wenz@gmail.com",
+          "storage": "YES",
+          "date_2024": "",
+          "crew_2025": "Crew B (4)",
+          "crew_size_2025": 4,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": 3.0,
+          "prior_install_date": "2025-11-06",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.0,
+          "hours_basis": "2025 real",
+          "lat": 29.7536597,
+          "lon": -95.4844819,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 112
+        },
+        {
+          "row": 92,
+          "name": "Paramo, Paloma",
+          "street": "1018 River Glynn",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77063",
+          "area": "West",
+          "zone": "Uptown/Galleria",
           "box_count": null,
           "box_count_sheet": null,
           "box_verified": false,
-          "phone": "281-639-0039",
-          "email": "Melissa@Melissasnowdesigns.com",
+          "phone": "281-844-7991",
+          "email": "palomapmuniz@gmail.com",
           "storage": "NO",
-          "date_2024": "2024-12-04",
-          "crew_2025": "Crew B (6)",
-          "crew_size_2025": 6,
-          "people_needed": 6,
+          "date_2024": "2024-11-06",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 7,
           "est_hours": 3.0,
-          "real_hours": 1.0,
-          "prior_install_date": "2025-11-25",
+          "real_hours": null,
+          "prior_install_date": "2025-11-03",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 1.0,
-          "hours_basis": "2025 real",
-          "lat": 29.792923,
-          "lon": -95.46352,
-          "geo_display": "1301, Zora Street, Spring Branch, Spring Branch East, Houston, Harris County, Texas, 77055, United States",
-          "geo_source": "street",
-          "midx": 31
+          "cal_hours": 2.43,
+          "hours_basis": "est x0.81",
+          "lat": 29.756782303508,
+          "lon": -95.50176797482,
+          "geo_display": "",
+          "geo_source": "census",
+          "midx": 90
         },
         {
           "row": 11,
@@ -6959,22 +7156,24 @@
           "hours_basis": "2025 real",
           "lat": 29.7703342,
           "lon": -95.5220304,
-          "geo_display": "10, Oaklawn Drive, Piney Point Village, Harris County, Texas, 77024, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 10
         }
       ],
       "order_idx": [
-        31,
+        112,
+        90,
         10
       ],
-      "install_h": 4.25,
-      "drive_min": 27.1,
+      "install_h": 8.68,
+      "drive_min": 32.3,
       "lunch": 40,
-      "total_min": 322.1,
+      "total_min": 593.1,
       "legs": [
-        5.2,
-        10.7,
+        10.5,
+        3.6,
+        7.0,
         11.2
       ],
       "window_min": 600,
@@ -6983,12 +7182,10 @@
       "half_rows": [],
       "joint_with": "",
       "note": "",
-      "flags": [
-        "light day (<7.5h)"
-      ],
+      "flags": [],
       "zones": [
         "Energy Corridor/Westchase",
-        "Memorial/Spring Branch"
+        "Uptown/Galleria"
       ],
       "start_row": null,
       "geometry": [
@@ -7001,64 +7198,88 @@
           -95.4736
         ],
         [
-          29.81114,
-          -95.47521
+          29.81096,
+          -95.47585
         ],
         [
-          29.80798,
-          -95.47558
+          29.81062,
+          -95.48511
         ],
         [
-          29.80264,
-          -95.47553
+          29.77834,
+          -95.48468
         ],
         [
-          29.79961,
-          -95.47602
+          29.77146,
+          -95.47833
         ],
         [
-          29.79448,
-          -95.47572
+          29.7639,
+          -95.47797
         ],
         [
-          29.7945,
-          -95.46346
+          29.76333,
+          -95.47957
         ],
         [
-          29.79292,
-          -95.46344
+          29.7603,
+          -95.48297
         ],
         [
-          29.79284,
-          -95.4681
+          29.75363,
+          -95.4827
         ],
         [
-          29.78478,
-          -95.46807
+          29.75374,
+          -95.48448
         ],
         [
-          29.78408,
-          -95.48243
+          29.75372,
+          -95.48579
         ],
         [
-          29.78471,
-          -95.50184
+          29.75861,
+          -95.48618
         ],
         [
-          29.78458,
-          -95.51453
+          29.75526,
+          -95.49955
         ],
         [
-          29.78491,
-          -95.5213
+          29.75424,
+          -95.50109
         ],
         [
-          29.77332,
-          -95.52124
+          29.75568,
+          -95.50104
         ],
         [
-          29.77331,
-          -95.52248
+          29.75573,
+          -95.50189
+        ],
+        [
+          29.75728,
+          -95.50144
+        ],
+        [
+          29.75677,
+          -95.50173
+        ],
+        [
+          29.7505,
+          -95.50122
+        ],
+        [
+          29.75189,
+          -95.50913
+        ],
+        [
+          29.75119,
+          -95.5149
+        ],
+        [
+          29.75118,
+          -95.52264
         ],
         [
           29.77023,
@@ -7073,10 +7294,6 @@
           -95.52203
         ],
         [
-          29.77023,
-          -95.52239
-        ],
-        [
           29.77331,
           -95.52248
         ],
@@ -7089,10 +7306,6 @@
           -95.5212
         ],
         [
-          29.78402,
-          -95.50996
-        ],
-        [
           29.78375,
           -95.49862
         ],
@@ -7101,24 +7314,12 @@
           -95.49871
         ],
         [
-          29.78625,
-          -95.5
-        ],
-        [
           29.78728,
           -95.50044
         ],
         [
           29.81087,
           -95.50087
-        ],
-        [
-          29.81099,
-          -95.49412
-        ],
-        [
-          29.81062,
-          -95.49144
         ],
         [
           29.81058,
@@ -7133,38 +7334,75 @@
           -95.47379
         ]
       ],
-      "distance_mi": 13.61,
+      "distance_mi": 16.2,
       "leg_mi": [
-        2.24,
-        5.38,
+        5.18,
+        1.69,
+        3.34,
         5.99
       ]
     },
     {
       "date": "2026-11-19",
       "dow": "Thu",
-      "crew": "Crew 2",
+      "crew": "Crew 3",
       "category": "Standard",
       "stops": [
         {
-          "row": 9,
-          "name": "Beaver, Cindy",
-          "street": "28322 Meadow Forest",
-          "city": "Magnolia",
+          "row": 116,
+          "name": "William Brothers Office",
+          "street": "3800 Milam St",
+          "city": "Houston",
           "st": "TX",
-          "zip": "77355",
-          "area": "North",
-          "zone": "Magnolia/Tomball",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "713-502-4605",
-          "email": "cindy.beaver@bcei.com",
-          "storage": "NO",
-          "date_2024": "2024-11-12",
+          "zip": "77006",
+          "area": "Central",
+          "zone": "Downtown/Midtown",
+          "box_count": 9,
+          "box_count_sheet": 9.0,
+          "box_verified": true,
+          "phone": "713-522-9821",
+          "email": "corinadominquezk@yahoo.com",
+          "storage": "YES",
+          "date_2024": "2024-12-03",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 5,
+          "people_needed": 6,
+          "est_hours": 2.0,
+          "real_hours": null,
+          "prior_install_date": "2025-12-03",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 1.62,
+          "hours_basis": "est x0.81",
+          "lat": 29.7397873,
+          "lon": -95.381181,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 114
+        },
+        {
+          "row": 50,
+          "name": "Junious, Carvis Dr.",
+          "street": "5303 Calle Cadiz Place",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77007",
+          "area": "Central",
+          "zone": "Heights/Near Northside",
+          "box_count": 11,
+          "box_count_sheet": 11.0,
+          "box_verified": true,
+          "phone": "",
+          "email": "carvis@aol.com",
+          "storage": "YES",
+          "date_2024": "2024-11-20",
           "crew_2025": "",
           "crew_size_2025": null,
-          "people_needed": 7,
+          "people_needed": 8,
           "est_hours": 3.0,
           "real_hours": null,
           "prior_install_date": "",
@@ -7176,531 +7414,47 @@
           "install_2026_no_install": false,
           "cal_hours": 2.43,
           "hours_basis": "est x0.81",
-          "lat": 30.1654988,
-          "lon": -95.7389553,
-          "geo_display": "28322, Meadow Forest, High Meadow Ranch, Montgomery County, Texas, 77355, United States",
-          "geo_source": "street",
-          "midx": 8
-        }
-      ],
-      "order_idx": [
-        8
-      ],
-      "install_h": 2.43,
-      "drive_min": 101.1,
-      "lunch": 40,
-      "total_min": 286.9,
-      "legs": [
-        50.5,
-        50.7
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)",
-        "single-stop day"
-      ],
-      "zones": [
-        "Magnolia/Tomball"
-      ],
-      "start_row": null,
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.82398,
-          -95.47311
-        ],
-        [
-          29.83848,
-          -95.48873
-        ],
-        [
-          29.86558,
-          -95.48677
-        ],
-        [
-          29.8756,
-          -95.49432
-        ],
-        [
-          29.91583,
-          -95.4958
-        ],
-        [
-          29.91991,
-          -95.49389
-        ],
-        [
-          29.9729,
-          -95.56283
-        ],
-        [
-          30.00589,
-          -95.5863
-        ],
-        [
-          30.06498,
-          -95.6215
-        ],
-        [
-          30.0733,
-          -95.62953
-        ],
-        [
-          30.08516,
-          -95.63568
-        ],
-        [
-          30.09487,
-          -95.63578
-        ],
-        [
-          30.11459,
-          -95.64295
-        ],
-        [
-          30.16505,
-          -95.67278
-        ],
-        [
-          30.17916,
-          -95.69735
-        ],
-        [
-          30.17424,
-          -95.70048
-        ],
-        [
-          30.17519,
-          -95.70334
-        ],
-        [
-          30.1704,
-          -95.71463
-        ],
-        [
-          30.16565,
-          -95.72442
-        ],
-        [
-          30.16102,
-          -95.72844
-        ],
-        [
-          30.16967,
-          -95.73377
-        ],
-        [
-          30.16956,
-          -95.7382
-        ],
-        [
-          30.16559,
-          -95.73892
-        ],
-        [
-          30.16486,
-          -95.73521
-        ],
-        [
-          30.16574,
-          -95.7395
-        ],
-        [
-          30.16857,
-          -95.73922
-        ],
-        [
-          30.16967,
-          -95.73377
-        ],
-        [
-          30.16102,
-          -95.72844
-        ],
-        [
-          30.16565,
-          -95.72442
-        ],
-        [
-          30.1704,
-          -95.71463
-        ],
-        [
-          30.17519,
-          -95.70334
-        ],
-        [
-          30.17424,
-          -95.70048
-        ],
-        [
-          30.17916,
-          -95.69735
-        ],
-        [
-          30.16533,
-          -95.67404
-        ],
-        [
-          30.11449,
-          -95.64311
-        ],
-        [
-          30.09468,
-          -95.63594
-        ],
-        [
-          30.08507,
-          -95.63587
-        ],
-        [
-          30.07246,
-          -95.62929
-        ],
-        [
-          30.06517,
-          -95.62193
-        ],
-        [
-          30.00602,
-          -95.58662
-        ],
-        [
-          29.97239,
-          -95.5628
-        ],
-        [
-          29.92003,
-          -95.49409
-        ],
-        [
-          29.91566,
-          -95.49596
-        ],
-        [
-          29.87603,
-          -95.49454
-        ],
-        [
-          29.86543,
-          -95.4869
-        ],
-        [
-          29.83758,
-          -95.48899
-        ],
-        [
-          29.82334,
-          -95.4736
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 68.59,
-      "leg_mi": [
-        34.0,
-        34.6
-      ]
-    },
-    {
-      "date": "2026-11-19",
-      "dow": "Thu",
-      "crew": "Crew 3",
-      "category": "Standard",
-      "stops": [
+          "lat": 29.765082503749,
+          "lon": -95.414862568882,
+          "geo_display": "",
+          "geo_source": "census",
+          "midx": 48
+        },
         {
-          "row": 82,
-          "name": "Madden, Misty",
-          "street": "18810 E Josey Overlook Drive",
-          "city": "Cypress",
+          "row": 89,
+          "name": "O'Brien, Pamela (Hope)",
+          "street": "6218 Memorial Dr",
+          "city": "Houston",
           "st": "TX",
-          "zip": "77433",
-          "area": "Northwest",
-          "zone": "Cypress/Copperfield",
-          "box_count": null,
-          "box_count_sheet": null,
+          "zip": "77007",
+          "area": "Central",
+          "zone": "Heights/Near Northside",
+          "box_count": 7.0,
+          "box_count_sheet": 7.0,
           "box_verified": false,
-          "phone": "",
-          "email": "See Pamela Hope",
+          "phone": "713-880-1934",
+          "email": "admin@pamelahopedesigns.com",
           "storage": "NO",
           "date_2024": "2024-12-05",
-          "crew_2025": "",
-          "crew_size_2025": null,
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 5,
           "people_needed": 6,
           "est_hours": 2.0,
-          "real_hours": null,
-          "prior_install_date": "2025-12-04",
+          "real_hours": 1.083333333,
+          "prior_install_date": "2025-12-05",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 1.62,
-          "hours_basis": "est x0.81",
-          "lat": 29.9404593,
-          "lon": -95.7367628,
-          "geo_display": "18810, East Josey Overlook Drive, Bridgeland, Cypress, Harris County, Texas, 77433, United States",
+          "cal_hours": 1.08,
+          "hours_basis": "2025 real",
+          "lat": 29.7639105,
+          "lon": -95.426926,
+          "geo_display": "",
           "geo_source": "street",
-          "midx": 80
-        }
-      ],
-      "order_idx": [
-        80
-      ],
-      "install_h": 1.62,
-      "drive_min": 64.2,
-      "lunch": 40,
-      "total_min": 201.4,
-      "legs": [
-        32.2,
-        32.0
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)",
-        "single-stop day"
-      ],
-      "zones": [
-        "Cypress/Copperfield"
-      ],
-      "start_row": null,
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.82398,
-          -95.47311
-        ],
-        [
-          29.84181,
-          -95.4928
-        ],
-        [
-          29.86041,
-          -95.52571
-        ],
-        [
-          29.87988,
-          -95.56914
-        ],
-        [
-          29.90871,
-          -95.61009
-        ],
-        [
-          29.9199,
-          -95.61846
-        ],
-        [
-          29.92294,
-          -95.62339
-        ],
-        [
-          29.92519,
-          -95.63353
-        ],
-        [
-          29.94909,
-          -95.6673
-        ],
-        [
-          29.95488,
-          -95.67265
-        ],
-        [
-          29.94257,
-          -95.6786
-        ],
-        [
-          29.94321,
-          -95.68769
-        ],
-        [
-          29.94097,
-          -95.69377
-        ],
-        [
-          29.94068,
-          -95.71413
-        ],
-        [
-          29.94249,
-          -95.71792
-        ],
-        [
-          29.93735,
-          -95.72593
-        ],
-        [
-          29.93961,
-          -95.73109
-        ],
-        [
-          29.93712,
-          -95.73794
-        ],
-        [
-          29.9372,
-          -95.7419
-        ],
-        [
-          29.93819,
-          -95.74179
-        ],
-        [
-          29.94038,
-          -95.73673
-        ],
-        [
-          29.93833,
-          -95.74198
-        ],
-        [
-          29.93708,
-          -95.7421
-        ],
-        [
-          29.93696,
-          -95.73789
-        ],
-        [
-          29.93945,
-          -95.73109
-        ],
-        [
-          29.93719,
-          -95.72586
-        ],
-        [
-          29.94226,
-          -95.71796
-        ],
-        [
-          29.94052,
-          -95.71413
-        ],
-        [
-          29.94088,
-          -95.6935
-        ],
-        [
-          29.94307,
-          -95.68767
-        ],
-        [
-          29.94241,
-          -95.67853
-        ],
-        [
-          29.95274,
-          -95.67368
-        ],
-        [
-          29.92475,
-          -95.63334
-        ],
-        [
-          29.92164,
-          -95.6214
-        ],
-        [
-          29.91826,
-          -95.61714
-        ],
-        [
-          29.90845,
-          -95.6102
-        ],
-        [
-          29.87987,
-          -95.56964
-        ],
-        [
-          29.86013,
-          -95.52578
-        ],
-        [
-          29.84136,
-          -95.49272
-        ],
-        [
-          29.82334,
-          -95.4736
-        ],
-        [
-          29.81189,
-          -95.47438
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 42.82,
-      "leg_mi": [
-        21.47,
-        21.35
-      ]
-    },
-    {
-      "date": "2026-11-20",
-      "dow": "Fri",
-      "crew": "Crew 1",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 90,
-          "name": "Omni Hotel",
-          "street": "4 Riverway Dr",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77056",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "",
-          "email": "",
-          "storage": "NO",
-          "date_2024": "2024-11-25",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 14,
-          "est_hours": 7.0,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 5.67,
-          "hours_basis": "est x0.81",
-          "lat": 29.7616902,
-          "lon": -95.462021,
-          "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
-          "geo_source": "street",
-          "midx": 88
+          "midx": 87
         },
         {
           "row": 43,
@@ -7734,22 +7488,26 @@
           "hours_basis": "zone median",
           "lat": 29.7677025,
           "lon": -95.4262067,
-          "geo_display": "426, West Cowan Drive, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77007, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 41
         }
       ],
       "order_idx": [
-        88,
+        114,
+        48,
+        87,
         41
       ],
-      "install_h": 7.67,
-      "drive_min": 25.0,
+      "install_h": 7.13,
+      "drive_min": 40.5,
       "lunch": 40,
-      "total_min": 525.2,
+      "total_min": 508.3,
       "legs": [
-        9.0,
-        6.3,
+        18.2,
+        8.9,
+        2.6,
+        1.2,
         9.7
       ],
       "window_min": 600,
@@ -7760,8 +7518,8 @@
       "note": "",
       "flags": [],
       "zones": [
-        "Heights/Near Northside",
-        "Uptown/Galleria"
+        "Downtown/Midtown",
+        "Heights/Near Northside"
       ],
       "start_row": null,
       "geometry": [
@@ -7770,92 +7528,144 @@
           -95.47379
         ],
         [
-          29.81928,
-          -95.47371
+          29.81342,
+          -95.4736
         ],
         [
-          29.81935,
-          -95.46913
+          29.81197,
+          -95.4745
         ],
         [
-          29.8043,
-          -95.45258
+          29.78836,
+          -95.44227
         ],
         [
-          29.8007,
-          -95.45057
+          29.78571,
+          -95.43766
         ],
         [
-          29.79792,
-          -95.45053
+          29.78467,
+          -95.43695
         ],
         [
-          29.79049,
-          -95.45229
+          29.781,
+          -95.43655
         ],
         [
-          29.78393,
-          -95.45214
+          29.7802,
+          -95.43354
         ],
         [
-          29.77911,
-          -95.45526
+          29.77784,
+          -95.42968
         ],
         [
-          29.77666,
-          -95.45601
+          29.77087,
+          -95.42362
         ],
         [
-          29.76581,
-          -95.45639
+          29.7705,
+          -95.40614
         ],
         [
-          29.76403,
-          -95.45939
+          29.76971,
+          -95.39857
         ],
         [
-          29.76346,
-          -95.46172
-        ],
-        [
-          29.76237,
-          -95.46115
-        ],
-        [
-          29.76162,
-          -95.46197
-        ],
-        [
-          29.76137,
-          -95.46336
-        ],
-        [
-          29.76223,
-          -95.46339
-        ],
-        [
-          29.76802,
-          -95.45156
-        ],
-        [
-          29.76741,
-          -95.44599
-        ],
-        [
-          29.76509,
-          -95.44055
-        ],
-        [
-          29.76497,
-          -95.43396
+          29.76592,
+          -95.39811
         ],
         [
           29.76344,
-          -95.4282
+          -95.39907
         ],
         [
-          29.76344,
-          -95.42733
+          29.76128,
+          -95.39827
+        ],
+        [
+          29.75323,
+          -95.39804
+        ],
+        [
+          29.75104,
+          -95.39868
+        ],
+        [
+          29.74414,
+          -95.39438
+        ],
+        [
+          29.74464,
+          -95.39326
+        ],
+        [
+          29.74465,
+          -95.38277
+        ],
+        [
+          29.74269,
+          -95.37878
+        ],
+        [
+          29.73982,
+          -95.38116
+        ],
+        [
+          29.74083,
+          -95.38149
+        ],
+        [
+          29.74321,
+          -95.37964
+        ],
+        [
+          29.74468,
+          -95.38237
+        ],
+        [
+          29.74466,
+          -95.39264
+        ],
+        [
+          29.75323,
+          -95.39804
+        ],
+        [
+          29.75305,
+          -95.40836
+        ],
+        [
+          29.75987,
+          -95.40844
+        ],
+        [
+          29.76535,
+          -95.4094
+        ],
+        [
+          29.76507,
+          -95.41483
+        ],
+        [
+          29.76447,
+          -95.41629
+        ],
+        [
+          29.76152,
+          -95.41648
+        ],
+        [
+          29.76146,
+          -95.42232
+        ],
+        [
+          29.76326,
+          -95.42503
+        ],
+        [
+          29.76357,
+          -95.42692
         ],
         [
           29.76721,
@@ -7906,313 +7716,19 @@
           -95.47379
         ]
       ],
-      "distance_mi": 13.01,
+      "distance_mi": 18.79,
       "leg_mi": [
-        5.44,
-        2.84,
+        9.08,
+        3.61,
+        1.0,
+        0.37,
         4.72
       ]
     },
     {
       "date": "2026-11-20",
       "dow": "Fri",
-      "crew": "Crew 2",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 5,
-          "name": "A Hug Away Takisha",
-          "street": "3419  Blue Grass Dr",
-          "city": "Richmond",
-          "st": "TX",
-          "zip": "77406",
-          "area": "West",
-          "zone": "Katy/Fulshear",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "713-320-2684",
-          "email": "pa.manager@yahoo.com",
-          "storage": "Ask",
-          "date_2024": "",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": null,
-          "est_hours": null,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.0,
-          "hours_basis": "zone median",
-          "lat": 29.6175533,
-          "lon": -95.7630575,
-          "geo_display": "3419, Blue Grass Drive, Fort Bend County, Texas, 77406, United States",
-          "geo_source": "street",
-          "midx": 4
-        },
-        {
-          "row": 92,
-          "name": "Paramo, Paloma",
-          "street": "1018 River Glynn",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77063",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": null,
-          "box_count_sheet": null,
-          "box_verified": false,
-          "phone": "281-844-7991",
-          "email": "palomapmuniz@gmail.com",
-          "storage": "NO",
-          "date_2024": "2024-11-06",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 7,
-          "est_hours": 3.0,
-          "real_hours": null,
-          "prior_install_date": "2025-11-03",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.43,
-          "hours_basis": "est x0.81",
-          "lat": 29.756782303508,
-          "lon": -95.50176797482,
-          "geo_display": "census: 1018 RIVER GLYNN DR, HOUSTON, TX, 77063",
-          "geo_source": "census",
-          "midx": 90
-        },
-        {
-          "row": 114,
-          "name": "Valley Forge",
-          "street": "5826 Valley Forge",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77057",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": 14.0,
-          "box_count_sheet": 14.0,
-          "box_verified": false,
-          "phone": "7133854169.0",
-          "email": "Cynthia.Wenz@gmail.com",
-          "storage": "YES",
-          "date_2024": "",
-          "crew_2025": "Crew B (4)",
-          "crew_size_2025": 4,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": 3.0,
-          "prior_install_date": "2025-11-06",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.0,
-          "hours_basis": "2025 real",
-          "lat": 29.7536597,
-          "lon": -95.4844819,
-          "geo_display": "5826, Valley Forge Drive, Houston, Harris County, Texas, 77057, United States",
-          "geo_source": "street",
-          "midx": 112
-        }
-      ],
-      "order_idx": [
-        4,
-        90,
-        112
-      ],
-      "install_h": 7.43,
-      "drive_min": 98.4,
-      "lunch": 40,
-      "total_min": 584.2,
-      "legs": [
-        46.7,
-        38.1,
-        3.6,
-        10.0
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [],
-      "zones": [
-        "Katy/Fulshear",
-        "Uptown/Galleria"
-      ],
-      "start_row": null,
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.81928,
-          -95.47371
-        ],
-        [
-          29.81935,
-          -95.46913
-        ],
-        [
-          29.80002,
-          -95.45045
-        ],
-        [
-          29.78393,
-          -95.45214
-        ],
-        [
-          29.77666,
-          -95.45601
-        ],
-        [
-          29.75114,
-          -95.45583
-        ],
-        [
-          29.72864,
-          -95.46246
-        ],
-        [
-          29.72351,
-          -95.49351
-        ],
-        [
-          29.70323,
-          -95.74307
-        ],
-        [
-          29.68604,
-          -95.73845
-        ],
-        [
-          29.6592,
-          -95.73644
-        ],
-        [
-          29.6443,
-          -95.74417
-        ],
-        [
-          29.62662,
-          -95.74382
-        ],
-        [
-          29.62678,
-          -95.75788
-        ],
-        [
-          29.62022,
-          -95.75358
-        ],
-        [
-          29.61763,
-          -95.76306
-        ],
-        [
-          29.61845,
-          -95.77001
-        ],
-        [
-          29.62692,
-          -95.77016
-        ],
-        [
-          29.62682,
-          -95.74367
-        ],
-        [
-          29.64406,
-          -95.74405
-        ],
-        [
-          29.65976,
-          -95.73625
-        ],
-        [
-          29.68631,
-          -95.73832
-        ],
-        [
-          29.70257,
-          -95.74283
-        ],
-        [
-          29.72306,
-          -95.50099
-        ],
-        [
-          29.75677,
-          -95.50173
-        ],
-        [
-          29.7541,
-          -95.50125
-        ],
-        [
-          29.7585,
-          -95.48623
-        ],
-        [
-          29.75374,
-          -95.48448
-        ],
-        [
-          29.75363,
-          -95.4827
-        ],
-        [
-          29.76023,
-          -95.48289
-        ],
-        [
-          29.76374,
-          -95.47791
-        ],
-        [
-          29.77146,
-          -95.47833
-        ],
-        [
-          29.77865,
-          -95.48461
-        ],
-        [
-          29.81054,
-          -95.48498
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 63.91,
-      "leg_mi": [
-        32.07,
-        25.17,
-        1.6,
-        5.07
-      ]
-    },
-    {
-      "date": "2026-11-20",
-      "dow": "Fri",
-      "crew": "Crew 3",
+      "crew": "Crew 1",
       "category": "Standard",
       "stops": [
         {
@@ -8247,7 +7763,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7192737,
           "lon": -95.4129833,
-          "geo_display": "2331, Dunstan Road, Southampton Extension, University Place, Houston, Harris County, Texas, 77005, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 34
         },
@@ -8283,7 +7799,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.7046964,
           "lon": -95.3854947,
-          "geo_display": "Home2 Suites, 6840, Almeda Road, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 43
         }
@@ -8471,6 +7987,434 @@
       ]
     },
     {
+      "date": "2026-11-20",
+      "dow": "Fri",
+      "crew": "Crew 2",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 118,
+          "name": "Williams, Sandra",
+          "street": "5330 Wilers Way, Houston TX",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77056",
+          "area": "West",
+          "zone": "Uptown/Galleria",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "(832) 282-3848",
+          "email": "Queensandra1927@gmail.com",
+          "storage": "NO",
+          "date_2024": "2024-11-20",
+          "crew_2025": "Crew B (4)",
+          "crew_size_2025": 4,
+          "people_needed": 8,
+          "est_hours": 4.0,
+          "real_hours": null,
+          "prior_install_date": "2025-11-28",
+          "business": "Residence",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.24,
+          "hours_basis": "est x0.81",
+          "lat": 29.747990272478,
+          "lon": -95.468486380459,
+          "geo_display": "",
+          "geo_source": "census",
+          "midx": 116
+        },
+        {
+          "row": 42,
+          "name": "Hanover Corporate",
+          "street": "1780 S Post Oak LN",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77056",
+          "area": "West",
+          "zone": "Uptown/Galleria",
+          "box_count": 13,
+          "box_count_sheet": 15.0,
+          "box_verified": true,
+          "phone": "713-580-1308",
+          "email": "JThompson@hanoverco.com",
+          "storage": "YES",
+          "date_2024": "2024-11-27",
+          "crew_2025": "Lesly Crew",
+          "crew_size_2025": 6,
+          "people_needed": 10,
+          "est_hours": 4.0,
+          "real_hours": 3.25,
+          "prior_install_date": "2025-11-28",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 3.25,
+          "hours_basis": "2025 real",
+          "lat": 29.7493219,
+          "lon": -95.462999,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 40
+        }
+      ],
+      "order_idx": [
+        116,
+        40
+      ],
+      "install_h": 6.49,
+      "drive_min": 22.8,
+      "lunch": 40,
+      "total_min": 452.2,
+      "legs": [
+        11.2,
+        1.6,
+        10.0
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [],
+      "zones": [
+        "Uptown/Galleria"
+      ],
+      "start_row": null,
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.81928,
+          -95.47371
+        ],
+        [
+          29.81935,
+          -95.46913
+        ],
+        [
+          29.8043,
+          -95.45258
+        ],
+        [
+          29.8019,
+          -95.45095
+        ],
+        [
+          29.79963,
+          -95.45042
+        ],
+        [
+          29.79098,
+          -95.45224
+        ],
+        [
+          29.78393,
+          -95.45214
+        ],
+        [
+          29.77911,
+          -95.45526
+        ],
+        [
+          29.77666,
+          -95.45601
+        ],
+        [
+          29.75258,
+          -95.45571
+        ],
+        [
+          29.74821,
+          -95.45682
+        ],
+        [
+          29.75032,
+          -95.45961
+        ],
+        [
+          29.75029,
+          -95.46723
+        ],
+        [
+          29.7479,
+          -95.46712
+        ],
+        [
+          29.74793,
+          -95.46851
+        ],
+        [
+          29.74792,
+          -95.47086
+        ],
+        [
+          29.75004,
+          -95.4709
+        ],
+        [
+          29.75017,
+          -95.46295
+        ],
+        [
+          29.74933,
+          -95.463
+        ],
+        [
+          29.75017,
+          -95.46295
+        ],
+        [
+          29.75021,
+          -95.46115
+        ],
+        [
+          29.75278,
+          -95.45955
+        ],
+        [
+          29.75407,
+          -95.45509
+        ],
+        [
+          29.77669,
+          -95.45573
+        ],
+        [
+          29.77886,
+          -95.45511
+        ],
+        [
+          29.78367,
+          -95.45193
+        ],
+        [
+          29.7906,
+          -95.45202
+        ],
+        [
+          29.79864,
+          -95.45013
+        ],
+        [
+          29.80224,
+          -95.4505
+        ],
+        [
+          29.80365,
+          -95.45116
+        ],
+        [
+          29.80784,
+          -95.45542
+        ],
+        [
+          29.8068,
+          -95.45743
+        ],
+        [
+          29.80702,
+          -95.46704
+        ],
+        [
+          29.81189,
+          -95.47438
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 13.87,
+      "leg_mi": [
+        7.1,
+        0.83,
+        5.94
+      ]
+    },
+    {
+      "date": "2026-11-20",
+      "dow": "Fri",
+      "crew": "Crew 3",
+      "category": "Standard",
+      "stops": [
+        {
+          "row": 90,
+          "name": "Omni Hotel",
+          "street": "4 Riverway Dr",
+          "city": "Houston",
+          "st": "TX",
+          "zip": "77056",
+          "area": "West",
+          "zone": "Uptown/Galleria",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "",
+          "email": "",
+          "storage": "NO",
+          "date_2024": "2024-11-25",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 14,
+          "est_hours": 7.0,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 5.67,
+          "hours_basis": "est x0.81",
+          "lat": 29.7616902,
+          "lon": -95.462021,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 88
+        }
+      ],
+      "order_idx": [
+        88
+      ],
+      "install_h": 5.67,
+      "drive_min": 18.2,
+      "lunch": 40,
+      "total_min": 398.4,
+      "legs": [
+        9.0,
+        9.2
+      ],
+      "window_min": 600,
+      "depot_anchored": true,
+      "stacked_crews": 1,
+      "half_rows": [],
+      "joint_with": "",
+      "note": "",
+      "flags": [
+        "light day (<7.5h)",
+        "single-stop day"
+      ],
+      "zones": [
+        "Uptown/Galleria"
+      ],
+      "start_row": null,
+      "geometry": [
+        [
+          29.81276,
+          -95.47379
+        ],
+        [
+          29.81928,
+          -95.47371
+        ],
+        [
+          29.81935,
+          -95.46913
+        ],
+        [
+          29.8043,
+          -95.45258
+        ],
+        [
+          29.8007,
+          -95.45057
+        ],
+        [
+          29.79792,
+          -95.45053
+        ],
+        [
+          29.79049,
+          -95.45229
+        ],
+        [
+          29.78393,
+          -95.45214
+        ],
+        [
+          29.77911,
+          -95.45526
+        ],
+        [
+          29.77666,
+          -95.45601
+        ],
+        [
+          29.76581,
+          -95.45639
+        ],
+        [
+          29.76403,
+          -95.45939
+        ],
+        [
+          29.76346,
+          -95.46172
+        ],
+        [
+          29.76237,
+          -95.46115
+        ],
+        [
+          29.76162,
+          -95.46197
+        ],
+        [
+          29.76137,
+          -95.46336
+        ],
+        [
+          29.76223,
+          -95.46339
+        ],
+        [
+          29.76627,
+          -95.45551
+        ],
+        [
+          29.7734,
+          -95.45549
+        ],
+        [
+          29.77337,
+          -95.4565
+        ],
+        [
+          29.79623,
+          -95.45705
+        ],
+        [
+          29.79833,
+          -95.45568
+        ],
+        [
+          29.81189,
+          -95.47438
+        ],
+        [
+          29.81276,
+          -95.47379
+        ]
+      ],
+      "distance_mi": 9.98,
+      "leg_mi": [
+        5.44,
+        4.54
+      ]
+    },
+    {
       "date": "2026-11-23",
       "dow": "Mon",
       "crew": "Crew 1",
@@ -8508,7 +8452,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5435391,
           "lon": -95.0767192,
-          "geo_display": "940, Plantation Drive, League City, Galveston County, Texas, 77573, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 92
         },
@@ -8544,7 +8488,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5887639,
           "lon": -95.1233947,
-          "geo_display": "2819, Acorn Wood Way, Clear Lake, Houston, Harris County, Texas, 77059, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 100
         }
@@ -8812,7 +8756,7 @@
           "hours_basis": "2025 real",
           "lat": 30.0725651,
           "lon": -96.2801867,
-          "geo_display": "11235, Jones Wilke Road, Austin County, Texas, 77426, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 13
         },
@@ -8848,7 +8792,7 @@
           "hours_basis": "2025 real",
           "lat": 29.9614662,
           "lon": -96.2929739,
-          "geo_display": "77418, Austin County, Texas, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 12
         }
@@ -9062,28 +9006,28 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 118,
-          "name": "Williams, Sandra",
-          "street": "5330 Wilers Way, Houston TX",
-          "city": "Houston",
+          "row": 34,
+          "name": "Dr. Francis",
+          "street": "91 Wind Ridge Circle",
+          "city": "Woodlands",
           "st": "TX",
-          "zip": "77056",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": null,
-          "box_count_sheet": null,
+          "zip": "77385",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": 17.0,
+          "box_count_sheet": 17.0,
           "box_verified": false,
-          "phone": "(832) 282-3848",
-          "email": "Queensandra1927@gmail.com",
-          "storage": "NO",
-          "date_2024": "2024-11-20",
-          "crew_2025": "Crew B (4)",
-          "crew_size_2025": 4,
-          "people_needed": 8,
+          "phone": "713-582-4387",
+          "email": "francis_spine@msn.com",
+          "storage": "YES",
+          "date_2024": "",
+          "crew_2025": "",
+          "crew_size_2025": null,
+          "people_needed": 6,
           "est_hours": 4.0,
           "real_hours": null,
-          "prior_install_date": "2025-11-28",
-          "business": "Residence",
+          "prior_install_date": "2025-11-18",
+          "business": "Business",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
@@ -9091,61 +9035,61 @@
           "install_2026_no_install": false,
           "cal_hours": 3.24,
           "hours_basis": "est x0.81",
-          "lat": 29.747990272478,
-          "lon": -95.468486380459,
-          "geo_display": "census: 5330 WILLERS WAY, HOUSTON, TX, 77056",
-          "geo_source": "census",
-          "midx": 116
+          "lat": 30.193958,
+          "lon": -95.534977,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 32
         },
         {
-          "row": 42,
-          "name": "Hanover Corporate",
-          "street": "1780 S Post Oak LN",
-          "city": "Houston",
+          "row": 53,
+          "name": "Larson, Susan",
+          "street": "51 West Brace Bridge",
+          "city": "Spring",
           "st": "TX",
-          "zip": "77056",
-          "area": "West",
-          "zone": "Uptown/Galleria",
-          "box_count": 13,
+          "zip": "77382",
+          "area": "North",
+          "zone": "The Woodlands",
+          "box_count": 15.0,
           "box_count_sheet": 15.0,
-          "box_verified": true,
-          "phone": "713-580-1308",
-          "email": "JThompson@hanoverco.com",
-          "storage": "YES",
-          "date_2024": "2024-11-27",
-          "crew_2025": "Lesly Crew",
+          "box_verified": false,
+          "phone": "936-537-0130",
+          "email": "stl47@aol.com",
+          "storage": "NO",
+          "date_2024": "2024-11-21",
+          "crew_2025": "Crew A (6)",
           "crew_size_2025": 6,
-          "people_needed": 10,
-          "est_hours": 4.0,
-          "real_hours": 3.25,
-          "prior_install_date": "2025-11-28",
-          "business": "Business",
+          "people_needed": 7,
+          "est_hours": 3.0,
+          "real_hours": 2.333333333,
+          "prior_install_date": "2025-11-18",
+          "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 3.25,
+          "cal_hours": 2.33,
           "hours_basis": "2025 real",
-          "lat": 29.7493219,
-          "lon": -95.462999,
-          "geo_display": "1780, South Post Oak Lane, Uptown, Houston, Harris County, Texas, 77056, United States",
-          "geo_source": "street",
-          "midx": 40
+          "lat": 30.174582897091,
+          "lon": -95.549084539252,
+          "geo_display": "",
+          "geo_source": "census",
+          "midx": 51
         }
       ],
       "order_idx": [
-        116,
-        40
+        32,
+        51
       ],
-      "install_h": 6.49,
-      "drive_min": 22.8,
+      "install_h": 5.57,
+      "drive_min": 112.8,
       "lunch": 40,
-      "total_min": 452.2,
+      "total_min": 487.0,
       "legs": [
-        11.2,
-        1.6,
-        10.0
+        53.1,
+        8.9,
+        50.8
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -9155,7 +9099,7 @@
       "note": "",
       "flags": [],
       "zones": [
-        "Uptown/Galleria"
+        "The Woodlands"
       ],
       "start_row": null,
       "geometry": [
@@ -9164,151 +9108,151 @@
           -95.47379
         ],
         [
-          29.81928,
-          -95.47371
+          29.82398,
+          -95.47311
         ],
         [
-          29.81935,
-          -95.46913
+          29.83848,
+          -95.48873
         ],
         [
-          29.8043,
-          -95.45258
+          29.86558,
+          -95.48677
         ],
         [
-          29.8019,
-          -95.45095
+          29.8756,
+          -95.49432
         ],
         [
-          29.79963,
-          -95.45042
+          29.91991,
+          -95.49389
         ],
         [
-          29.79098,
-          -95.45224
+          29.97089,
+          -95.56124
         ],
         [
-          29.78393,
-          -95.45214
+          30.04961,
+          -95.61342
         ],
         [
-          29.77911,
-          -95.45526
+          30.0518,
+          -95.58186
         ],
         [
-          29.77666,
-          -95.45601
+          30.07606,
+          -95.55559
         ],
         [
-          29.75258,
-          -95.45571
+          30.09398,
+          -95.50667
         ],
         [
-          29.74821,
-          -95.45682
+          30.16843,
+          -95.50665
         ],
         [
-          29.75032,
-          -95.45961
+          30.17727,
+          -95.52666
         ],
         [
-          29.75029,
-          -95.46723
+          30.18947,
+          -95.52462
         ],
         [
-          29.7479,
-          -95.46712
+          30.1901,
+          -95.53367
         ],
         [
-          29.74793,
-          -95.46851
+          30.19403,
+          -95.53502
         ],
         [
-          29.74792,
-          -95.47086
+          30.18936,
+          -95.52457
         ],
         [
-          29.75004,
-          -95.4709
+          30.18267,
+          -95.52458
         ],
         [
-          29.75017,
-          -95.46295
+          30.18443,
+          -95.5329
         ],
         [
-          29.74933,
-          -95.463
+          30.17609,
+          -95.53762
         ],
         [
-          29.75017,
-          -95.46295
+          30.17456,
+          -95.54902
         ],
         [
-          29.75021,
-          -95.46115
+          30.17599,
+          -95.5377
         ],
         [
-          29.75278,
-          -95.45955
+          30.16253,
+          -95.54764
         ],
         [
-          29.75407,
-          -95.45509
+          30.11359,
+          -95.55451
         ],
         [
-          29.77669,
-          -95.45573
+          30.08735,
+          -95.52748
         ],
         [
-          29.77886,
-          -95.45511
+          30.07836,
+          -95.542
         ],
         [
-          29.78367,
-          -95.45193
+          30.07613,
+          -95.55595
         ],
         [
-          29.7906,
-          -95.45202
+          30.05214,
+          -95.58161
         ],
         [
-          29.79864,
-          -95.45013
+          30.04914,
+          -95.61379
         ],
         [
-          29.80224,
-          -95.4505
+          29.97016,
+          -95.56088
         ],
         [
-          29.80365,
-          -95.45116
+          29.92003,
+          -95.49409
         ],
         [
-          29.80784,
-          -95.45542
+          29.87603,
+          -95.49454
         ],
         [
-          29.8068,
-          -95.45743
+          29.86543,
+          -95.4869
         ],
         [
-          29.80702,
-          -95.46704
+          29.83758,
+          -95.48899
         ],
         [
-          29.81189,
-          -95.47438
+          29.82334,
+          -95.4736
         ],
         [
           29.81276,
           -95.47379
         ]
       ],
-      "distance_mi": 13.87,
+      "distance_mi": 73.53,
       "leg_mi": [
-        7.1,
-        0.83,
-        5.94
+        35.79,
+        3.78,
+        33.96
       ]
     },
     {
@@ -9349,7 +9293,7 @@
           "hours_basis": "2025 real",
           "lat": 29.542901,
           "lon": -95.371945,
-          "geo_display": "3018, Richfield Court, Brazoria County, Texas, 77584, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 98
         },
@@ -9385,7 +9329,7 @@
           "hours_basis": "2025 real",
           "lat": 29.6918755,
           "lon": -95.4020769,
-          "geo_display": "Fannin Street, Texas Medical Center, Houston, Harris County, Texas, 77054, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 115
         },
@@ -9421,7 +9365,7 @@
           "hours_basis": "2025 real",
           "lat": 29.700576175081,
           "lon": -95.430109381378,
-          "geo_display": "census: 3522 BLUE BONNET BLVD, HOUSTON, TX, 77025",
+          "geo_display": "",
           "geo_source": "census",
           "midx": 122
         }
@@ -9635,90 +9579,90 @@
       "category": "Standard",
       "stops": [
         {
-          "row": 34,
-          "name": "Dr. Francis",
-          "street": "91 Wind Ridge Circle",
-          "city": "Woodlands",
+          "row": 82,
+          "name": "Madden, Misty",
+          "street": "18810 E Josey Overlook Drive",
+          "city": "Cypress",
           "st": "TX",
-          "zip": "77385",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": 17.0,
-          "box_count_sheet": 17.0,
+          "zip": "77433",
+          "area": "Northwest",
+          "zone": "Cypress/Copperfield",
+          "box_count": null,
+          "box_count_sheet": null,
           "box_verified": false,
-          "phone": "713-582-4387",
-          "email": "francis_spine@msn.com",
-          "storage": "YES",
-          "date_2024": "",
+          "phone": "",
+          "email": "See Pamela Hope",
+          "storage": "NO",
+          "date_2024": "2024-12-05",
           "crew_2025": "",
           "crew_size_2025": null,
           "people_needed": 6,
-          "est_hours": 4.0,
+          "est_hours": 2.0,
           "real_hours": null,
-          "prior_install_date": "2025-11-18",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 3.24,
-          "hours_basis": "est x0.81",
-          "lat": 30.193958,
-          "lon": -95.534977,
-          "geo_display": "91, Wind Ridge Circle, Palmer Woods, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
-          "geo_source": "street",
-          "midx": 32
-        },
-        {
-          "row": 53,
-          "name": "Larson, Susan",
-          "street": "51 West Brace Bridge",
-          "city": "Spring",
-          "st": "TX",
-          "zip": "77382",
-          "area": "North",
-          "zone": "The Woodlands",
-          "box_count": 15.0,
-          "box_count_sheet": 15.0,
-          "box_verified": false,
-          "phone": "936-537-0130",
-          "email": "stl47@aol.com",
-          "storage": "NO",
-          "date_2024": "2024-11-21",
-          "crew_2025": "Crew A (6)",
-          "crew_size_2025": 6,
-          "people_needed": 7,
-          "est_hours": 3.0,
-          "real_hours": 2.333333333,
-          "prior_install_date": "2025-11-18",
+          "prior_install_date": "2025-12-04",
           "business": "Residence",
           "category": "Standard",
           "no_address": false,
           "install_2026_confirmed": "",
           "install_2026_note": "",
           "install_2026_no_install": false,
-          "cal_hours": 2.33,
-          "hours_basis": "2025 real",
-          "lat": 30.174582897091,
-          "lon": -95.549084539252,
-          "geo_display": "census: 51 W BRACEBRIDGE CIR, SPRING, TX, 77382",
-          "geo_source": "census",
-          "midx": 51
+          "cal_hours": 1.62,
+          "hours_basis": "est x0.81",
+          "lat": 29.9404593,
+          "lon": -95.7367628,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 80
+        },
+        {
+          "row": 5,
+          "name": "A Hug Away Takisha",
+          "street": "3419  Blue Grass Dr",
+          "city": "Richmond",
+          "st": "TX",
+          "zip": "77406",
+          "area": "West",
+          "zone": "Katy/Fulshear",
+          "box_count": null,
+          "box_count_sheet": null,
+          "box_verified": false,
+          "phone": "713-320-2684",
+          "email": "pa.manager@yahoo.com",
+          "storage": "Ask",
+          "date_2024": "",
+          "crew_2025": "Crew A (6)",
+          "crew_size_2025": 6,
+          "people_needed": null,
+          "est_hours": null,
+          "real_hours": null,
+          "prior_install_date": "",
+          "business": "Business",
+          "category": "Standard",
+          "no_address": false,
+          "install_2026_confirmed": "",
+          "install_2026_note": "",
+          "install_2026_no_install": false,
+          "cal_hours": 2.0,
+          "hours_basis": "zone median",
+          "lat": 29.6175533,
+          "lon": -95.7630575,
+          "geo_display": "",
+          "geo_source": "street",
+          "midx": 4
         }
       ],
       "order_idx": [
-        32,
-        51
+        80,
+        4
       ],
-      "install_h": 5.57,
-      "drive_min": 112.8,
+      "install_h": 3.62,
+      "drive_min": 118.7,
       "lunch": 40,
-      "total_min": 487.0,
+      "total_min": 375.9,
       "legs": [
-        53.1,
-        8.9,
-        50.8
+        32.2,
+        40.3,
+        46.2
       ],
       "window_min": 600,
       "depot_anchored": true,
@@ -9726,9 +9670,12 @@
       "half_rows": [],
       "joint_with": "",
       "note": "",
-      "flags": [],
+      "flags": [
+        "light day (<7.5h)"
+      ],
       "zones": [
-        "The Woodlands"
+        "Cypress/Copperfield",
+        "Katy/Fulshear"
       ],
       "start_row": null,
       "geometry": [
@@ -9741,481 +9688,207 @@
           -95.47311
         ],
         [
-          29.83848,
-          -95.48873
+          29.84181,
+          -95.4928
         ],
         [
-          29.86558,
-          -95.48677
+          29.86041,
+          -95.52571
         ],
         [
-          29.8756,
-          -95.49432
+          29.87988,
+          -95.56914
         ],
         [
-          29.91991,
-          -95.49389
+          29.90871,
+          -95.61009
         ],
         [
-          29.97089,
-          -95.56124
+          29.9199,
+          -95.61846
         ],
         [
-          30.04961,
-          -95.61342
+          29.92519,
+          -95.63353
         ],
         [
-          30.0518,
-          -95.58186
+          29.95488,
+          -95.67265
         ],
         [
-          30.07606,
-          -95.55559
+          29.94257,
+          -95.6786
         ],
         [
-          30.09398,
-          -95.50667
+          29.94068,
+          -95.71413
         ],
         [
-          30.16843,
-          -95.50665
+          29.94249,
+          -95.71792
         ],
         [
-          30.17727,
-          -95.52666
+          29.93735,
+          -95.72593
         ],
         [
-          30.18947,
-          -95.52462
+          29.93961,
+          -95.73109
         ],
         [
-          30.1901,
-          -95.53367
+          29.9372,
+          -95.7419
         ],
         [
-          30.19403,
-          -95.53502
+          29.94038,
+          -95.73673
         ],
         [
-          30.18936,
-          -95.52457
+          29.9367,
+          -95.74822
         ],
         [
-          30.18267,
-          -95.52458
+          29.94163,
+          -95.75943
         ],
         [
-          30.18443,
-          -95.5329
+          29.94027,
+          -95.76659
         ],
         [
-          30.17609,
-          -95.53762
+          29.90335,
+          -95.75852
         ],
         [
-          30.17456,
-          -95.54902
+          29.84351,
+          -95.75633
         ],
         [
-          30.17599,
-          -95.5377
+          29.83441,
+          -95.75896
         ],
         [
-          30.16253,
-          -95.54764
+          29.81394,
+          -95.77299
         ],
         [
-          30.11359,
-          -95.55451
+          29.80145,
+          -95.77567
         ],
         [
-          30.08735,
-          -95.52748
+          29.7729,
+          -95.77743
         ],
         [
-          30.07836,
-          -95.542
+          29.75274,
+          -95.7764
         ],
         [
-          30.07613,
-          -95.55595
+          29.74503,
+          -95.77325
         ],
         [
-          30.05214,
-          -95.58161
+          29.7189,
+          -95.77293
         ],
         [
-          30.04914,
-          -95.61379
+          29.70078,
+          -95.77603
         ],
         [
-          29.97016,
-          -95.56088
+          29.68061,
+          -95.76591
         ],
         [
-          29.92003,
-          -95.49409
+          29.6592,
+          -95.73644
         ],
         [
-          29.87603,
-          -95.49454
+          29.6443,
+          -95.74417
         ],
         [
-          29.86543,
-          -95.4869
+          29.62662,
+          -95.74382
         ],
         [
-          29.83758,
-          -95.48899
+          29.62678,
+          -95.75788
         ],
         [
-          29.82334,
-          -95.4736
+          29.62022,
+          -95.75358
+        ],
+        [
+          29.61763,
+          -95.76306
+        ],
+        [
+          29.61845,
+          -95.77001
+        ],
+        [
+          29.62692,
+          -95.77016
+        ],
+        [
+          29.62682,
+          -95.74367
+        ],
+        [
+          29.64406,
+          -95.74405
+        ],
+        [
+          29.65976,
+          -95.73625
+        ],
+        [
+          29.68631,
+          -95.73832
+        ],
+        [
+          29.70257,
+          -95.74283
+        ],
+        [
+          29.72624,
+          -95.45953
+        ],
+        [
+          29.75209,
+          -95.45547
+        ],
+        [
+          29.77714,
+          -95.45568
+        ],
+        [
+          29.78367,
+          -95.45193
+        ],
+        [
+          29.80224,
+          -95.4505
+        ],
+        [
+          29.80784,
+          -95.45542
+        ],
+        [
+          29.80702,
+          -95.46704
         ],
         [
           29.81276,
           -95.47379
         ]
       ],
-      "distance_mi": 73.53,
+      "distance_mi": 81.09,
       "leg_mi": [
-        35.79,
-        3.78,
-        33.96
-      ]
-    },
-    {
-      "date": "2026-11-24",
-      "dow": "Tue",
-      "crew": "Crew 3",
-      "category": "Standard",
-      "stops": [
-        {
-          "row": 116,
-          "name": "William Brothers Office",
-          "street": "3800 Milam St",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77006",
-          "area": "Central",
-          "zone": "Downtown/Midtown",
-          "box_count": 9,
-          "box_count_sheet": 9.0,
-          "box_verified": true,
-          "phone": "713-522-9821",
-          "email": "corinadominquezk@yahoo.com",
-          "storage": "YES",
-          "date_2024": "2024-12-03",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 5,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": null,
-          "prior_install_date": "2025-12-03",
-          "business": "Business",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.62,
-          "hours_basis": "est x0.81",
-          "lat": 29.7397873,
-          "lon": -95.381181,
-          "geo_display": "3800, Milam Street, Midtown, Houston, Harris County, Texas, 77002, United States",
-          "geo_source": "street",
-          "midx": 114
-        },
-        {
-          "row": 50,
-          "name": "Junious, Carvis Dr.",
-          "street": "5303 Calle Cadiz Place",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77007",
-          "area": "Central",
-          "zone": "Heights/Near Northside",
-          "box_count": 11,
-          "box_count_sheet": 11.0,
-          "box_verified": true,
-          "phone": "",
-          "email": "carvis@aol.com",
-          "storage": "YES",
-          "date_2024": "2024-11-20",
-          "crew_2025": "",
-          "crew_size_2025": null,
-          "people_needed": 8,
-          "est_hours": 3.0,
-          "real_hours": null,
-          "prior_install_date": "",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 2.43,
-          "hours_basis": "est x0.81",
-          "lat": 29.765082503749,
-          "lon": -95.414862568882,
-          "geo_display": "census: 5303 CALLE CADIZ PL, HOUSTON, TX, 77007",
-          "geo_source": "census",
-          "midx": 48
-        },
-        {
-          "row": 89,
-          "name": "O'Brien, Pamela (Hope)",
-          "street": "6218 Memorial Dr",
-          "city": "Houston",
-          "st": "TX",
-          "zip": "77007",
-          "area": "Central",
-          "zone": "Heights/Near Northside",
-          "box_count": 7.0,
-          "box_count_sheet": 7.0,
-          "box_verified": false,
-          "phone": "713-880-1934",
-          "email": "admin@pamelahopedesigns.com",
-          "storage": "NO",
-          "date_2024": "2024-12-05",
-          "crew_2025": "Lesly Crew",
-          "crew_size_2025": 5,
-          "people_needed": 6,
-          "est_hours": 2.0,
-          "real_hours": 1.083333333,
-          "prior_install_date": "2025-12-05",
-          "business": "Residence",
-          "category": "Standard",
-          "no_address": false,
-          "install_2026_confirmed": "",
-          "install_2026_note": "",
-          "install_2026_no_install": false,
-          "cal_hours": 1.08,
-          "hours_basis": "2025 real",
-          "lat": 29.7639105,
-          "lon": -95.426926,
-          "geo_display": "6218, Memorial Drive, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77007, United States",
-          "geo_source": "street",
-          "midx": 87
-        }
-      ],
-      "order_idx": [
-        114,
-        48,
-        87
-      ],
-      "install_h": 5.13,
-      "drive_min": 39.8,
-      "lunch": 40,
-      "total_min": 387.6,
-      "legs": [
-        18.2,
-        8.9,
-        2.6,
-        10.2
-      ],
-      "window_min": 600,
-      "depot_anchored": true,
-      "stacked_crews": 1,
-      "half_rows": [],
-      "joint_with": "",
-      "note": "",
-      "flags": [
-        "light day (<7.5h)"
-      ],
-      "zones": [
-        "Downtown/Midtown",
-        "Heights/Near Northside"
-      ],
-      "start_row": null,
-      "geometry": [
-        [
-          29.81276,
-          -95.47379
-        ],
-        [
-          29.81342,
-          -95.4736
-        ],
-        [
-          29.81197,
-          -95.4745
-        ],
-        [
-          29.78836,
-          -95.44227
-        ],
-        [
-          29.78571,
-          -95.43766
-        ],
-        [
-          29.78467,
-          -95.43695
-        ],
-        [
-          29.781,
-          -95.43655
-        ],
-        [
-          29.7802,
-          -95.43354
-        ],
-        [
-          29.77784,
-          -95.42968
-        ],
-        [
-          29.77087,
-          -95.42362
-        ],
-        [
-          29.7705,
-          -95.40614
-        ],
-        [
-          29.76971,
-          -95.39857
-        ],
-        [
-          29.76592,
-          -95.39811
-        ],
-        [
-          29.76344,
-          -95.39907
-        ],
-        [
-          29.76128,
-          -95.39827
-        ],
-        [
-          29.75323,
-          -95.39804
-        ],
-        [
-          29.75104,
-          -95.39868
-        ],
-        [
-          29.74414,
-          -95.39438
-        ],
-        [
-          29.74464,
-          -95.39326
-        ],
-        [
-          29.74465,
-          -95.38277
-        ],
-        [
-          29.74269,
-          -95.37878
-        ],
-        [
-          29.73982,
-          -95.38116
-        ],
-        [
-          29.74083,
-          -95.38149
-        ],
-        [
-          29.74321,
-          -95.37964
-        ],
-        [
-          29.74468,
-          -95.38237
-        ],
-        [
-          29.74466,
-          -95.39264
-        ],
-        [
-          29.75323,
-          -95.39804
-        ],
-        [
-          29.75305,
-          -95.40836
-        ],
-        [
-          29.75987,
-          -95.40844
-        ],
-        [
-          29.76535,
-          -95.4094
-        ],
-        [
-          29.76507,
-          -95.41483
-        ],
-        [
-          29.76447,
-          -95.41629
-        ],
-        [
-          29.76152,
-          -95.41648
-        ],
-        [
-          29.76146,
-          -95.42232
-        ],
-        [
-          29.76326,
-          -95.42503
-        ],
-        [
-          29.76357,
-          -95.42692
-        ],
-        [
-          29.76978,
-          -95.42736
-        ],
-        [
-          29.77107,
-          -95.42329
-        ],
-        [
-          29.77629,
-          -95.42757
-        ],
-        [
-          29.78222,
-          -95.43645
-        ],
-        [
-          29.78501,
-          -95.43684
-        ],
-        [
-          29.78584,
-          -95.43755
-        ],
-        [
-          29.78854,
-          -95.44229
-        ],
-        [
-          29.81183,
-          -95.4743
-        ],
-        [
-          29.81276,
-          -95.47379
-        ]
-      ],
-      "distance_mi": 18.74,
-      "leg_mi": [
-        9.08,
-        3.61,
-        1.0,
-        5.04
+        21.47,
+        27.29,
+        32.33
       ]
     },
     {
@@ -10256,7 +9929,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1893618,
           "lon": -95.5213084,
-          "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 119
         }
@@ -10491,7 +10164,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1893618,
           "lon": -95.5213084,
-          "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 119
         }
@@ -10726,7 +10399,7 @@
           "hours_basis": "2025 real",
           "lat": 30.006247,
           "lon": -95.544254,
-          "geo_display": "8815, Sterling Gate Circle, Sterling Gate Estates, Champion Forest, Harris County, Texas, 77379, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 44
         },
@@ -10798,7 +10471,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1204797,
           "lon": -95.2236364,
-          "geo_display": "22410, Loop 494, New Caney, Porter, Montgomery County, Texas, 77357, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 29
         }
@@ -11042,7 +10715,7 @@
           "hours_basis": "est x0.81",
           "lat": 30.193162,
           "lon": -95.549459,
-          "geo_display": "1, Carlton Woods Drive, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 109
         }
@@ -11265,7 +10938,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7881261,
           "lon": -95.7666976,
-          "geo_display": "23033, Grand Circle Boulevard, Harris County, Texas, 77449, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 22
         },
@@ -11301,7 +10974,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5748812,
           "lon": -95.6195842,
-          "geo_display": "77479, Sugar Land, Fort Bend County, Texas, United States",
+          "geo_display": "",
           "geo_source": "zip",
           "midx": 25
         },
@@ -11337,7 +11010,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5479196,
           "lon": -95.2382889,
-          "geo_display": "1813, East Broadway Street, Pearland, Brazoria County, Texas, 77581, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 24
         },
@@ -11373,7 +11046,7 @@
           "hours_basis": "2025 real",
           "lat": 29.5551465,
           "lon": -95.1200961,
-          "geo_display": "1010, Bay Area Boulevard, Clear Lake City, Houston, Harris County, Texas, 77058, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 19
         },
@@ -11409,7 +11082,7 @@
           "hours_basis": "2025 real",
           "lat": 29.6503942,
           "lon": -95.1467315,
-          "geo_display": "6101, Fairmont Parkway, Pasadena, Harris County, Texas, 77505, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 23
         },
@@ -11445,7 +11118,7 @@
           "hours_basis": "2025 real",
           "lat": 29.684694,
           "lon": -95.098693,
-          "geo_display": "3500, East Boulevard, Deer Park, Harris County, Texas, 77536, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 20
         },
@@ -11481,7 +11154,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7626108,
           "lon": -94.9774952,
-          "geo_display": "3719, Garth Road, Baytown, Harris County, Texas, 77521, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 18
         },
@@ -11517,7 +11190,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7741647,
           "lon": -95.2467224,
-          "geo_display": "10304, East Freeway, Houston, Harris County, Texas, 77029, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 21
         }
@@ -11852,7 +11525,7 @@
           "hours_basis": "est x0.81",
           "lat": 30.193162,
           "lon": -95.549459,
-          "geo_display": "1, Carlton Woods Drive, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 110
         }
@@ -12075,7 +11748,7 @@
           "hours_basis": "2025 real",
           "lat": 29.7065646,
           "lon": -95.4053495,
-          "geo_display": "Pizza Hut, 1600, Holcombe Boulevard, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 96
         }
@@ -12268,7 +11941,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1893618,
           "lon": -95.5213084,
-          "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 117
         },
@@ -12304,7 +11977,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1893618,
           "lon": -95.5213084,
-          "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 118
         },
@@ -12340,7 +12013,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1432529,
           "lon": -95.462095,
-          "geo_display": "1730, South Millbend Drive, Grogan's Mill, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 120
         }
@@ -12607,7 +12280,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1893618,
           "lon": -95.5213084,
-          "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 117
         },
@@ -12643,7 +12316,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1893618,
           "lon": -95.5213084,
-          "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 118
         },
@@ -12679,7 +12352,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1432529,
           "lon": -95.462095,
-          "geo_display": "1730, South Millbend Drive, Grogan's Mill, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 120
         }
@@ -12946,7 +12619,7 @@
           "hours_basis": "2025 real",
           "lat": 29.820541,
           "lon": -95.437387,
-          "geo_display": "2115, Judiway Street, Central Northwest Houston, Houston, Harris County, Texas, 77018, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 81
         },
@@ -12982,7 +12655,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.8000436,
           "lon": -95.422483,
-          "geo_display": "77008, Houston Heights, Houston, Harris County, Texas, United States",
+          "geo_display": "",
           "geo_source": "zip",
           "midx": 7
         },
@@ -13018,7 +12691,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.7966366,
           "lon": -95.404485,
-          "geo_display": "1424, Waverly Street, Houston Heights, Houston, Harris County, Texas, 77008, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 45
         },
@@ -13054,7 +12727,7 @@
           "hours_basis": "zone median",
           "lat": 29.793221,
           "lon": -95.448644,
-          "geo_display": "9000, Hempstead Road, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77008, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 37
         }
@@ -13292,7 +12965,7 @@
           "hours_basis": "2025 real",
           "lat": 30.15864,
           "lon": -95.548066,
-          "geo_display": "1, Carlton Woods Creekside Drive, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 108
         },
@@ -13328,7 +13001,7 @@
           "hours_basis": "est x0.81",
           "lat": 30.1635722,
           "lon": -95.5453721,
-          "geo_display": "15, North Fazio Way, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 27
         }
@@ -13564,7 +13237,7 @@
           "hours_basis": "2025 real",
           "lat": 30.1602263,
           "lon": -95.4594662,
-          "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 113
         },
@@ -13600,7 +13273,7 @@
           "hours_basis": "2025 real",
           "lat": 29.965342,
           "lon": -95.3785,
-          "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 30
         },
@@ -13636,7 +13309,7 @@
           "hours_basis": "est x0.81",
           "lat": 29.7558649,
           "lon": -95.358557,
-          "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 39
         }
@@ -13829,7 +13502,7 @@
           "hours_basis": "est x0.81",
           "lat": 30.2027206,
           "lon": -95.4558347,
-          "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
+          "geo_display": "",
           "geo_source": "street",
           "midx": 83
         }
@@ -13992,7 +13665,7 @@
           "hours_basis": "zone median",
           "lat": 30.3972231,
           "lon": -95.6468638,
-          "geo_display": "77356, Conroe, Montgomery County, Texas, United States",
+          "geo_display": "",
           "geo_source": "zip",
           "midx": 105
         }
@@ -14228,7 +13901,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.598233,
       "lon": -95.482223,
-      "geo_display": "15710, Chimney Rock Road, Fort Bend Houston, Houston, Fort Bend County, Texas, 77489, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 1
     },
@@ -14264,7 +13937,7 @@
       "hours_basis": "2025 real",
       "lat": 29.6798863,
       "lon": -95.9210128,
-      "geo_display": "31902, Churchill Field Lane, Fort Bend County, Texas, 77441, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 2
     },
@@ -14300,7 +13973,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7900924,
       "lon": -95.8244984,
-      "geo_display": "1203, Avenue D, Katy, Harris County, Texas, 77493, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 3
     },
@@ -14336,7 +14009,7 @@
       "hours_basis": "zone median",
       "lat": 29.6175533,
       "lon": -95.7630575,
-      "geo_display": "3419, Blue Grass Drive, Fort Bend County, Texas, 77406, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 4
     },
@@ -14372,7 +14045,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5504496,
       "lon": -95.6123567,
-      "geo_display": "6314, Windermere Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 5
     },
@@ -14408,7 +14081,7 @@
       "hours_basis": "2025 real",
       "lat": 30.040126,
       "lon": -95.134273,
-      "geo_display": "5907, Royal Point Court, Royal Shores, Houston, Harris County, Texas, 77345, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 6
     },
@@ -14444,7 +14117,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.8000436,
       "lon": -95.422483,
-      "geo_display": "77008, Houston Heights, Houston, Harris County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip",
       "midx": 7
     },
@@ -14480,7 +14153,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.1654988,
       "lon": -95.7389553,
-      "geo_display": "28322, Meadow Forest, High Meadow Ranch, Montgomery County, Texas, 77355, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 8
     },
@@ -14516,7 +14189,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1916331,
       "lon": -95.5558902,
-      "geo_display": "23, Eloquence Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 9
     },
@@ -14552,7 +14225,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7703342,
       "lon": -95.5220304,
-      "geo_display": "10, Oaklawn Drive, Piney Point Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 10
     },
@@ -14588,7 +14261,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1968281,
       "lon": -95.5506355,
-      "geo_display": "10, Grand Colonial Drive, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 11
     },
@@ -14659,7 +14332,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9614662,
       "lon": -96.2929739,
-      "geo_display": "77418, Austin County, Texas, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 12
     },
@@ -14695,7 +14368,7 @@
       "hours_basis": "2025 real",
       "lat": 30.0725651,
       "lon": -96.2801867,
-      "geo_display": "11235, Jones Wilke Road, Austin County, Texas, 77426, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 13
     },
@@ -14731,7 +14404,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9335628,
       "lon": -96.2495138,
-      "geo_display": "Coshatte Road, Bellville, Austin County, Texas, 77418, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 14
     },
@@ -14767,7 +14440,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9491877,
       "lon": -96.2594215,
-      "geo_display": "South Masonic Street, Bellville, Austin County, Texas, 77418, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 15
     },
@@ -14803,7 +14476,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9503741,
       "lon": -96.2578294,
-      "geo_display": "4, South Holland Street, Bellville, Austin County, Texas, 77418, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 16
     },
@@ -14839,7 +14512,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1966395,
       "lon": -95.5589033,
-      "geo_display": "14, Legato Way, Carlton Woods, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 17
     },
@@ -14875,7 +14548,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7626108,
       "lon": -94.9774952,
-      "geo_display": "3719, Garth Road, Baytown, Harris County, Texas, 77521, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 18
     },
@@ -14911,7 +14584,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5551465,
       "lon": -95.1200961,
-      "geo_display": "1010, Bay Area Boulevard, Clear Lake City, Houston, Harris County, Texas, 77058, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 19
     },
@@ -14947,7 +14620,7 @@
       "hours_basis": "2025 real",
       "lat": 29.684694,
       "lon": -95.098693,
-      "geo_display": "3500, East Boulevard, Deer Park, Harris County, Texas, 77536, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 20
     },
@@ -14983,7 +14656,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7741647,
       "lon": -95.2467224,
-      "geo_display": "10304, East Freeway, Houston, Harris County, Texas, 77029, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 21
     },
@@ -15019,7 +14692,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7881261,
       "lon": -95.7666976,
-      "geo_display": "23033, Grand Circle Boulevard, Harris County, Texas, 77449, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 22
     },
@@ -15055,7 +14728,7 @@
       "hours_basis": "2025 real",
       "lat": 29.6503942,
       "lon": -95.1467315,
-      "geo_display": "6101, Fairmont Parkway, Pasadena, Harris County, Texas, 77505, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 23
     },
@@ -15091,7 +14764,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5479196,
       "lon": -95.2382889,
-      "geo_display": "1813, East Broadway Street, Pearland, Brazoria County, Texas, 77581, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 24
     },
@@ -15127,7 +14800,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5748812,
       "lon": -95.6195842,
-      "geo_display": "77479, Sugar Land, Fort Bend County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip",
       "midx": 25
     },
@@ -15163,7 +14836,7 @@
       "hours_basis": "2025 real",
       "lat": 30.04752,
       "lon": -95.1643306,
-      "geo_display": "2114, Golden Pond Drive, Fosters Mill, Houston, Harris County, Texas, 77345, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 26
     },
@@ -15199,7 +14872,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.1635722,
       "lon": -95.5453721,
-      "geo_display": "15, North Fazio Way, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 27
     },
@@ -15235,7 +14908,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7680877,
       "lon": -95.4941559,
-      "geo_display": "426, Thamer Lane, Hunters Creek Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 28
     },
@@ -15271,7 +14944,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1204797,
       "lon": -95.2236364,
-      "geo_display": "22410, Loop 494, New Caney, Porter, Montgomery County, Texas, 77357, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 29
     },
@@ -15307,7 +14980,7 @@
       "hours_basis": "2025 real",
       "lat": 29.965342,
       "lon": -95.3785,
-      "geo_display": "1500, Rankin Road, Harris County, Texas, 77073, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 30
     },
@@ -15343,7 +15016,7 @@
       "hours_basis": "2025 real",
       "lat": 29.792923,
       "lon": -95.46352,
-      "geo_display": "1301, Zora Street, Spring Branch, Spring Branch East, Houston, Harris County, Texas, 77055, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 31
     },
@@ -15379,7 +15052,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.193958,
       "lon": -95.534977,
-      "geo_display": "91, Wind Ridge Circle, Palmer Woods, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 32
     },
@@ -15415,7 +15088,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7685532,
       "lon": -95.5888986,
-      "geo_display": "546, Ramblewood Road, Yorkshire, Houston, Harris County, Texas, 77079, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 33
     },
@@ -15451,7 +15124,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7192737,
       "lon": -95.4129833,
-      "geo_display": "2331, Dunstan Road, Southampton Extension, University Place, Houston, Harris County, Texas, 77005, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 34
     },
@@ -15487,7 +15160,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7934617,
       "lon": -95.4801994,
-      "geo_display": "East Jordan Cove, Spring Branch, Spring Branch East, Houston, Harris County, Texas, 77055, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 35
     },
@@ -15523,7 +15196,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1152344,
       "lon": -95.4727742,
-      "geo_display": "214, North Tranquil Path, Grogan's Mill, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 36
     },
@@ -15559,7 +15232,7 @@
       "hours_basis": "zone median",
       "lat": 29.793221,
       "lon": -95.448644,
-      "geo_display": "9000, Hempstead Road, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77008, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 37
     },
@@ -15595,7 +15268,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9805366,
       "lon": -95.1834915,
-      "geo_display": "18014, Yellowstone Trail, Sierra Ridge, Atascocita, Harris County, Texas, 77346, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 38
     },
@@ -15631,7 +15304,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7558649,
       "lon": -95.358557,
-      "geo_display": "Hampton Inn, 710, Crawford Street, Downtown, Houston, Harris County, Texas, 77002, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 39
     },
@@ -15667,7 +15340,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7493219,
       "lon": -95.462999,
-      "geo_display": "1780, South Post Oak Lane, Uptown, Houston, Harris County, Texas, 77056, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 40
     },
@@ -15703,7 +15376,7 @@
       "hours_basis": "zone median",
       "lat": 29.7677025,
       "lon": -95.4262067,
-      "geo_display": "426, West Cowan Drive, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77007, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 41
     },
@@ -15739,7 +15412,7 @@
       "hours_basis": "2025 real",
       "lat": 29.73829,
       "lon": -95.7478807,
-      "geo_display": "3107, Canyon Links Drive, Kelliwood Terrace, Fort Bend County, Texas, 77450, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 42
     },
@@ -15775,7 +15448,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7046964,
       "lon": -95.3854947,
-      "geo_display": "Home2 Suites, 6840, Almeda Road, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 43
     },
@@ -15811,7 +15484,7 @@
       "hours_basis": "2025 real",
       "lat": 30.006247,
       "lon": -95.544254,
-      "geo_display": "8815, Sterling Gate Circle, Sterling Gate Estates, Champion Forest, Harris County, Texas, 77379, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 44
     },
@@ -15847,7 +15520,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7966366,
       "lon": -95.404485,
-      "geo_display": "1424, Waverly Street, Houston Heights, Houston, Harris County, Texas, 77008, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 45
     },
@@ -15883,7 +15556,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7397024,
       "lon": -95.8407965,
-      "geo_display": "2910, Sundance Summit Lane, Ironwood Estates, Cinco Ranch, Fort Bend County, Texas, 77494, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 46
     },
@@ -15919,7 +15592,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7790686,
       "lon": -95.5080789,
-      "geo_display": "9, Hedwig Circle, Hedwig Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 47
     },
@@ -15955,7 +15628,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.765082503749,
       "lon": -95.414862568882,
-      "geo_display": "census: 5303 CALLE CADIZ PL, HOUSTON, TX, 77007",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 48
     },
@@ -15991,7 +15664,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9013764,
       "lon": -95.6731505,
-      "geo_display": "17011, East Copper Lakes Court, Copper Lakes, Harris County, Texas, 77095, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 49
     },
@@ -16027,7 +15700,7 @@
       "hours_basis": "2025 real",
       "lat": 29.9978052,
       "lon": -95.5207417,
-      "geo_display": "5231, Wincroft Court, Champion Forest, Harris County, Texas, 77069, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 50
     },
@@ -16063,7 +15736,7 @@
       "hours_basis": "2025 real",
       "lat": 30.174582897091,
       "lon": -95.549084539252,
-      "geo_display": "census: 51 W BRACEBRIDGE CIR, SPRING, TX, 77382",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 51
     },
@@ -16099,7 +15772,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.1546257,
       "lon": -95.5333268,
-      "geo_display": "23, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 52
     },
@@ -16135,7 +15808,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1585971,
       "lon": -95.4774721,
-      "geo_display": "38, East Bay Boulevard, East Shore, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 53
     },
@@ -16171,7 +15844,7 @@
       "hours_basis": "2025 real",
       "lat": 30.166381019312,
       "lon": -95.502501454042,
-      "geo_display": "census: 4800 W PANTHER CREEK DR, SPRING, TX, 77381",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 54
     },
@@ -16207,7 +15880,7 @@
       "hours_basis": "2025 real",
       "lat": 33.086967531314,
       "lon": -96.684027575915,
-      "geo_display": "census: 815 MARKET ST, ALLEN, TX, 75013",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 55
     },
@@ -16243,7 +15916,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9993563,
       "lon": -96.8280899,
-      "geo_display": "Domino's, 18352, Dallas Parkway, Dallas, Collin County, Texas, 75287, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 56
     },
@@ -16279,7 +15952,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9194179,
       "lon": -96.9293177,
-      "geo_display": "2455, McIver Lane, Carrollton, Dallas County, Texas, 75057, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 57
     },
@@ -16315,7 +15988,7 @@
       "hours_basis": "2025 real",
       "lat": 33.1725974,
       "lon": -96.7155171,
-      "geo_display": "Alma Road, McKinney, Collin County, Texas, 75072, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 58
     },
@@ -16351,7 +16024,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9315359,
       "lon": -96.820112,
-      "geo_display": "13350, Dallas Parkway, Inwood, Dallas, Dallas County, Texas, 75240, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 59
     },
@@ -16387,7 +16060,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 33.0694368,
       "lon": -97.0824891,
-      "geo_display": "6220, Long Prairie Road, Flower Mound, Denton County, Texas, 75028, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 60
     },
@@ -16423,7 +16096,7 @@
       "hours_basis": "2025 real",
       "lat": 32.880221,
       "lon": -96.735394,
-      "geo_display": "Mi Cocina, 7215, Skillman Street, Lake Highlands, Dallas, Dallas County, Texas, 75231, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 61
     },
@@ -16459,7 +16132,7 @@
       "hours_basis": "2025 real",
       "lat": 33.0510039,
       "lon": -96.7950742,
-      "geo_display": "4001, Preston Road, Plano, Collin County, Texas, 75093, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 62
     },
@@ -16495,7 +16168,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.8126098,
       "lon": -96.7539703,
-      "geo_display": "6332, La Vista Drive, Dallas, Dallas County, Texas, 75214, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 63
     },
@@ -16531,7 +16204,7 @@
       "hours_basis": "2025 real",
       "lat": 33.07783141846,
       "lon": -96.82084071126,
-      "geo_display": "census: 5760 LEGACY DR, PLANO, TX, 75024",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 64
     },
@@ -16567,7 +16240,7 @@
       "hours_basis": "2025 real",
       "lat": 32.9787823,
       "lon": -96.7666175,
-      "geo_display": "Mi Cocina, 1370, West Campbell Road, Richardson, Dallas County, Texas, 75080, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 65
     },
@@ -16603,7 +16276,7 @@
       "hours_basis": "2025 real",
       "lat": 32.7993688,
       "lon": -96.8214775,
-      "geo_display": "Tru by Hilton Dallas Market Center, 1949, North Stemmons Freeway, Design District, Dallas, Dallas County, Texas, 75207, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 66
     },
@@ -16639,7 +16312,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 33.071811,
       "lon": -96.872648,
-      "geo_display": "5400, Nebraska Furniture Mart Drive, Grandscape, Camey, The Colony, Denton County, Texas, 75056, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 67
     },
@@ -16675,7 +16348,7 @@
       "hours_basis": "2025 real",
       "lat": 32.788951,
       "lon": -96.80138,
-      "geo_display": "2000, Woodall Rodgers Freeway, Klyde Warren Park-Arts District PID, Downtown PID, Dallas, Dallas County, Texas, 75201, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 68
     },
@@ -16711,7 +16384,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9031305,
       "lon": -96.4542441,
-      "geo_display": "Mi Cocina, 971, East Interstate 30, Glen Hill, Rockwall, Rockwall County, Texas, 75087, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 69
     },
@@ -16747,7 +16420,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9426696,
       "lon": -97.1322206,
-      "geo_display": "1276, Main Street, Southlake Town Square, Southlake, Tarrant County, Texas, 76092, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 70
     },
@@ -16783,7 +16456,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.7543952,
       "lon": -97.33076,
-      "geo_display": "509, Main Street, Downtown Fort Worth, Sundance Square, Fort Worth, Tarrant County, Texas, 76102, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 71
     },
@@ -16819,7 +16492,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9113505,
       "lon": -96.8046988,
-      "geo_display": "The Mercury, 11909, Preston Road, Dallas, Dallas County, Texas, 75230, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 72
     },
@@ -16855,7 +16528,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8039497,
       "lon": -96.7993321,
-      "geo_display": "Mi Cocina, 3232, McKinney Avenue, Uptown PID, Dallas, Dallas County, Texas, 75204, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 73
     },
@@ -16891,7 +16564,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9092284,
       "lon": -97.316148,
-      "geo_display": "Mi Cocina, 9369, Rain Lily Trail, Alliance Town Center, Fort Worth, Tarrant County, Texas, 76244, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 74
     },
@@ -16927,7 +16600,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.7393404,
       "lon": -97.3795403,
-      "geo_display": "76107, Fort Worth, Tarrant County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip",
       "midx": 75
     },
@@ -16963,7 +16636,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8357323,
       "lon": -96.8060454,
-      "geo_display": "Mi Cocina, 77, Highland Park Village, Highland Park, Dallas County, Texas, 75205, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 76
     },
@@ -16999,7 +16672,7 @@
       "hours_basis": "2025 real",
       "lat": 32.8263793,
       "lon": -96.9591181,
-      "geo_display": "North MacArthur Boulevard, Irving, Dallas County, Texas, 75061, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 77
     },
@@ -17035,7 +16708,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 32.9090326,
       "lon": -96.8048346,
-      "geo_display": "11661, Preston Road, Dallas, Dallas County, Texas, 75248, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 78
     },
@@ -17071,7 +16744,7 @@
       "hours_basis": "MiCo pace (3/night)",
       "lat": 33.1072638,
       "lon": -96.8278942,
-      "geo_display": "6740, Winning Drive, Dallas Cowboys & Frisco Multi Event Center, Frisco, Collin County, Texas, 75034, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 79
     },
@@ -17107,7 +16780,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.9404593,
       "lon": -95.7367628,
-      "geo_display": "18810, East Josey Overlook Drive, Bridgeland, Cypress, Harris County, Texas, 77433, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 80
     },
@@ -17143,7 +16816,7 @@
       "hours_basis": "2025 real",
       "lat": 29.820541,
       "lon": -95.437387,
-      "geo_display": "2115, Judiway Street, Central Northwest Houston, Houston, Harris County, Texas, 77018, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 81
     },
@@ -17179,7 +16852,7 @@
       "hours_basis": "2025 real",
       "lat": 30.4157864,
       "lon": -95.6190376,
-      "geo_display": "96, Benthaven Way, Bentwater, Montgomery County, Texas, 77356, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 82
     },
@@ -17215,7 +16888,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.2027206,
       "lon": -95.4558347,
-      "geo_display": "I 45, Conroe, Montgomery County, Texas, 77385, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 83
     },
@@ -17251,7 +16924,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5428706,
       "lon": -95.5742501,
-      "geo_display": "72, Sunset Park Lane, Riverstone, Fort Bend County, Texas, 77479, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 84
     },
@@ -17359,7 +17032,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7639105,
       "lon": -95.426926,
-      "geo_display": "6218, Memorial Drive, Washington Avenue Coalition / Memorial Park, Houston, Harris County, Texas, 77007, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 87
     },
@@ -17395,7 +17068,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7616902,
       "lon": -95.462021,
-      "geo_display": "4, Riverway Drive, Uptown, Houston, Harris County, Texas, 77056, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 88
     },
@@ -17431,7 +17104,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7497092,
       "lon": -95.4861229,
-      "geo_display": "1702, Fountain View Drive, Houston, Harris County, Texas, 77057, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 89
     },
@@ -17467,7 +17140,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.756782303508,
       "lon": -95.50176797482,
-      "geo_display": "census: 1018 RIVER GLYNN DR, HOUSTON, TX, 77063",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 90
     },
@@ -17503,7 +17176,7 @@
       "hours_basis": "2025 real",
       "lat": 29.573345,
       "lon": -95.54368,
-      "geo_display": "3118, La Quinta Drive, Missouri City, Fort Bend County, Texas, 77459, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 91
     },
@@ -17539,7 +17212,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5435391,
       "lon": -95.0767192,
-      "geo_display": "940, Plantation Drive, League City, Galveston County, Texas, 77573, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 92
     },
@@ -17575,7 +17248,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7506696,
       "lon": -95.5217186,
-      "geo_display": "149, Quail Creek Court, Piney Point Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 93
     },
@@ -17611,7 +17284,7 @@
       "hours_basis": "zone median",
       "lat": 30.1415999,
       "lon": -95.5375842,
-      "geo_display": "23, Liberty Branch Boulevard, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 94
     },
@@ -17647,7 +17320,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7728273,
       "lon": -95.4939725,
-      "geo_display": "646, Shartle Circle, Hunters Creek Village, Harris County, Texas, 77024, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 95
     },
@@ -17683,7 +17356,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7065646,
       "lon": -95.4053495,
-      "geo_display": "Pizza Hut, 1600, Holcombe Boulevard, Texas Medical Center, Houston, Harris County, Texas, 77030, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 96
     },
@@ -17719,7 +17392,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7344874,
       "lon": -95.5849954,
-      "geo_display": "2910, Royal Oaks Club Drive, Royal Oaks Country Club, Briar Forest, Houston, Harris County, Texas, 77082, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 97
     },
@@ -17755,7 +17428,7 @@
       "hours_basis": "2025 real",
       "lat": 29.542901,
       "lon": -95.371945,
-      "geo_display": "3018, Richfield Court, Brazoria County, Texas, 77584, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 98
     },
@@ -17827,7 +17500,7 @@
       "hours_basis": "2025 real",
       "lat": 29.5887639,
       "lon": -95.1233947,
-      "geo_display": "2819, Acorn Wood Way, Clear Lake, Houston, Harris County, Texas, 77059, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 100
     },
@@ -17863,7 +17536,7 @@
       "hours_basis": "zone median",
       "lat": 29.5492232,
       "lon": -95.601416,
-      "geo_display": "4803, Beamer Creek Court, Riverstone, Fort Bend County, Texas, 77479, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 101
     },
@@ -17899,7 +17572,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7453911,
       "lon": -95.7281265,
-      "geo_display": "2506, Sara Ridge Lane, LakeForest, Harris County, Texas, 77450, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 102
     },
@@ -17933,10 +17606,10 @@
       "install_2026_no_install": false,
       "cal_hours": 3.0,
       "hours_basis": "2025 real",
-      "lat": 30.1561989,
-      "lon": -96.6170843,
-      "geo_display": "Memory Lane, Washington County, Texas, 77835, United States",
-      "geo_source": "street",
+      "lat": 29.9502253,
+      "lon": -96.2571858,
+      "geo_display": "manual override",
+      "geo_source": "manual",
       "midx": 103
     },
     {
@@ -17971,7 +17644,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1547697,
       "lon": -95.5333095,
-      "geo_display": "27, Thornblade Circle, Carlton Woods Creekside, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 104
     },
@@ -18007,7 +17680,7 @@
       "hours_basis": "zone median",
       "lat": 30.3972231,
       "lon": -95.6468638,
-      "geo_display": "77356, Conroe, Montgomery County, Texas, United States",
+      "geo_display": "",
       "geo_source": "zip",
       "midx": 105
     },
@@ -18043,7 +17716,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.411671808563,
       "lon": -95.616999631493,
-      "geo_display": "census: 102 BENTHAVEN CT, MONTGOMERY, TX, 77356",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 106
     },
@@ -18079,7 +17752,7 @@
       "hours_basis": "2025 real",
       "lat": 29.745656444215,
       "lon": -95.457538541221,
-      "geo_display": "census: 2200 W LOOP S SVC RD, HOUSTON, TX, 77056",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 107
     },
@@ -18115,7 +17788,7 @@
       "hours_basis": "2025 real",
       "lat": 30.15864,
       "lon": -95.548066,
-      "geo_display": "1, Carlton Woods Creekside Drive, Creekside Park, The Woodlands, Harris County, Texas, 77389, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 108
     },
@@ -18151,7 +17824,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.193162,
       "lon": -95.549459,
-      "geo_display": "1, Carlton Woods Drive, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 109
     },
@@ -18187,7 +17860,7 @@
       "hours_basis": "est x0.81",
       "lat": 30.193162,
       "lon": -95.549459,
-      "geo_display": "1, Carlton Woods Drive, Sterling Ridge, The Woodlands, Montgomery County, Texas, 77382, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 110
     },
@@ -18223,7 +17896,7 @@
       "hours_basis": "zone median",
       "lat": 29.7523937,
       "lon": -95.8937204,
-      "geo_display": "30318, Orchard Place Lane, Jordan Ranch, Fort Bend County, Texas, 77423, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 111
     },
@@ -18259,7 +17932,7 @@
       "hours_basis": "2025 real",
       "lat": 29.7536597,
       "lon": -95.4844819,
-      "geo_display": "5826, Valley Forge Drive, Houston, Harris County, Texas, 77057, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 112
     },
@@ -18295,7 +17968,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1602263,
       "lon": -95.4594662,
-      "geo_display": "21, Waterway Avenue, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 113
     },
@@ -18331,7 +18004,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.7397873,
       "lon": -95.381181,
-      "geo_display": "3800, Milam Street, Midtown, Houston, Harris County, Texas, 77002, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 114
     },
@@ -18367,7 +18040,7 @@
       "hours_basis": "2025 real",
       "lat": 29.6918755,
       "lon": -95.4020769,
-      "geo_display": "Fannin Street, Texas Medical Center, Houston, Harris County, Texas, 77054, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 115
     },
@@ -18403,7 +18076,7 @@
       "hours_basis": "est x0.81",
       "lat": 29.747990272478,
       "lon": -95.468486380459,
-      "geo_display": "census: 5330 WILLERS WAY, HOUSTON, TX, 77056",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 116
     },
@@ -18439,7 +18112,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1893618,
       "lon": -95.5213084,
-      "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 117
     },
@@ -18475,7 +18148,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1893618,
       "lon": -95.5213084,
-      "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 118
     },
@@ -18511,7 +18184,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1893618,
       "lon": -95.5213084,
-      "geo_display": "Palmer Course - General nine, 100, Grand Fairway, Cochran's Crossing, The Woodlands, Montgomery County, Texas, 77381, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 119
     },
@@ -18547,7 +18220,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1432529,
       "lon": -95.462095,
-      "geo_display": "1730, South Millbend Drive, Grogan's Mill, Town Center, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 120
     },
@@ -18583,7 +18256,7 @@
       "hours_basis": "2025 real",
       "lat": 30.1432529,
       "lon": -95.462095,
-      "geo_display": "1730, South Millbend Drive, Grogan's Mill, The Woodlands, Montgomery County, Texas, 77380, United States",
+      "geo_display": "",
       "geo_source": "street",
       "midx": 121
     },
@@ -18619,7 +18292,7 @@
       "hours_basis": "2025 real",
       "lat": 29.700576175081,
       "lon": -95.430109381378,
-      "geo_display": "census: 3522 BLUE BONNET BLVD, HOUSTON, TX, 77025",
+      "geo_display": "",
       "geo_source": "census",
       "midx": 122
     }

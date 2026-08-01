@@ -878,19 +878,31 @@ def main():
     wcc30 = names(WCC_NOV30)                      # Palmer, Legacy, Trails
     players = names([WCC_PLAYERS])
     royal = names([ROYAL]) + take(lambda c: c["category"] == "Country Club")  # +any stray
-    keffer = names(["Keffer, Pam"])
     marek = names(["Marek Bros"])
     sims_darcy = names(["Sims, Darcy"])           # confirmed 2026-12-02
 
-    # Rule (user, 2026-07-31): Keffer, Pam is genuinely isolated (nearest
-    # AVAILABLE neighbor is 31+min away and already well-paired elsewhere;
-    # Casperson/Allums, 9min from each other, are the next-best real option
-    # at ~36-41min). Bundling them saves a full extra depot round-trip vs.
-    # 2 separate days -- same tradeoff as Kerri Byler/Schultea above.
-    casperson_allums = names(["Casperson, Erik", "Allums, Jennifer"])
+    # Keffer, Pam / Casperson, Erik / Allums, Jennifer are deliberately NOT
+    # pinned here anymore (user, 2026-08-01). The old pairing was reasoned
+    # from a bad geocode of Keffer's address ("5231 Wincroft Houston, TX
+    # 77069" mis-parsed to bare "5231", landing ~35mi northeast near
+    # Livingston) that made her look isolated -- fixed now, and her real
+    # nearest neighbor is Ingram, Donna at 7.5min, not Casperson/Allums at
+    # 46.8/51.5min. None of the three are in the confirmed/deposited list,
+    # so per user instruction they fall through to the standard pool and
+    # get clustered by the normal geography + prior-year-date logic below,
+    # same as everyone else without a locked-in date.
 
-    # Rule (user, 2026-07-31): Kristy Musser (Bellville) was a lone day;
-    # Serenity Retreat (also far west) is her real nearest neighbor.
+    # Rule (user, 2026-08-01): Serenity Retreat's address had no exact
+    # match in Nominatim OR the Census geocoder; Nominatim's fuzzy fallback
+    # matched a DIFFERENT "Memory Lane" in the wrong county, 24mi off --
+    # corrected to the Bellville ZIP centroid (user confirmed she's really
+    # in Bellville). That puts her closer to the Kerri Byler cluster and
+    # Byers Merlene (Bellville) than to Musser on paper, but the automatic
+    # packer split Musser and Byers Merlene (Bellville) into two separate
+    # single-stop days instead of using that -- worse than the original
+    # pairing. User preferred keeping Musser + Serenity together (both
+    # genuinely remote -- Musser has no good option regardless), so this
+    # stays a manual pin rather than left to the general packer.
     musser_serenity = names(["Musser, Kristy", "Serenity Retreat, Tiffany Pardue"])
 
     # Rule (user, 2026-07-31): Bourque, Stacey's house needs 2 full crews
@@ -994,33 +1006,20 @@ def main():
                  "Client OK with any date the last week of Nov."))
         consumed.add(("2026-11-23", "Crew 1"))
 
-    # Rule (user, 2026-07-31): Keffer, Pam is confirmed 9:15am Wed Nov 18 but
-    # genuinely isolated -- pairing her with Casperson/Allums (her real
-    # nearest available neighbors, 9min apart from each other) means the
-    # long drive out there isn't wasted on a lone 3h20m install; nets a
-    # saved round-trip too. Long day (~11h55m) -- same exception pattern.
-    keffer_casperson_allums = keffer + casperson_allums
-    if keffer_casperson_allums:
-        days.append(build_day(
-            D, "Crew 3", "2026-11-18", keffer_casperson_allums, by_idx, "Standard",
-            window=WINDOW,
-            note="Keffer, Pam (confirmed 9:15am appt) paired with her "
-                 "nearest real neighbors, Casperson/Allums, so the long "
-                 "drive out isn't spent on a lone 3h20m install."))
-        consumed.add(("2026-11-18", "Crew 3"))
-
-    # Rule (user, 2026-07-31): Kristy Musser (Bellville) was a lone day;
-    # Serenity Retreat (also far west) is her real nearest neighbor
-    # (~18min apart) -- pair them instead of 2 separate remote round-trips.
+    # Rule (user, 2026-08-01): Kristy Musser (Brenham) paired with Serenity
+    # Retreat (Bellville, corrected location) instead of 2 separate remote
+    # round-trips -- kept as a manual pin even after Serenity's address fix
+    # because the automatic packer's alternative (splitting them into two
+    # separate single-stop days) was worse, and Musser has no meaningfully
+    # closer option regardless of where Serenity lands.
     if musser_serenity:
         days.append(build_day(
             D, "Crew 2", "2026-11-13", musser_serenity, by_idx, "Standard",
             window=780,
-            note="Kristy Musser paired with Serenity Retreat (~18min apart, "
-                 "both far west) instead of 2 separate remote round-trips. "
-                 "Runs ~12h17m -- past even the usual 12h exception ceiling, "
-                 "widened further per client request."))
+            note="Kristy Musser paired with Serenity Retreat (both far "
+                 "west) instead of 2 separate remote round-trips."))
         consumed.add(("2026-11-13", "Crew 2"))
+
 
     # Rule (user, 2026-07-31): Mercedes Benz is uncertain to even happen --
     # keep it fully standalone so it can be dropped without disrupting
