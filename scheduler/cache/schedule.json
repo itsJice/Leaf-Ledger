@@ -107,6 +107,7 @@
       "zones": [
         "Lakewood/Lake Highlands"
       ],
+      "start_row": 63,
       "geometry": [
         [
           32.88038,
@@ -253,6 +254,7 @@
         "Lakewood/Lake Highlands",
         "Uptown/Park Cities"
       ],
+      "start_row": 63,
       "geometry": [
         [
           32.88038,
@@ -388,7 +390,8 @@
       "flags": [],
       "zones": [
         "Addison/Carrollton/Richardson"
-      ]
+      ],
+      "start_row": null
     },
     {
       "date": "2026-11-02",
@@ -529,6 +532,7 @@
         "Addison/Carrollton/Richardson",
         "Plano/Frisco"
       ],
+      "start_row": null,
       "geometry": [
         [
           33.10735,
@@ -711,6 +715,7 @@
       "zones": [
         "Uptown/Park Cities"
       ],
+      "start_row": 78,
       "geometry": [
         [
           32.8356,
@@ -876,6 +881,7 @@
       "zones": [
         "Uptown/Park Cities"
       ],
+      "start_row": 78,
       "geometry": [
         [
           32.8356,
@@ -1070,6 +1076,7 @@
         "Plano/Frisco",
         "The Colony/Grandscape"
       ],
+      "start_row": null,
       "geometry": [
         [
           33.07182,
@@ -1274,6 +1281,7 @@
       "zones": [
         "Allen/McKinney"
       ],
+      "start_row": null,
       "geometry": [
         [
           33.08696,
@@ -1438,6 +1446,7 @@
         "Preston Hollow/NorthPark",
         "Rockwall/East"
       ],
+      "start_row": null,
       "geometry": [
         [
           32.90324,
@@ -1648,6 +1657,7 @@
         "Las Colinas/Irving",
         "Preston Hollow/NorthPark"
       ],
+      "start_row": null,
       "geometry": [
         [
           32.82638,
@@ -1832,6 +1842,7 @@
       "zones": [
         "Fort Worth"
       ],
+      "start_row": null,
       "geometry": [
         [
           32.73945,
@@ -1980,6 +1991,7 @@
         "Flower Mound/Southlake/Grapevine",
         "Fort Worth"
       ],
+      "start_row": null,
       "geometry": [
         [
           32.90906,
@@ -2137,7 +2149,8 @@
       ],
       "zones": [
         "Flower Mound/Southlake/Grapevine"
-      ]
+      ],
+      "start_row": null
     },
     {
       "date": "2026-11-09",
@@ -2317,6 +2330,7 @@
       "zones": [
         "Memorial/Spring Branch"
       ],
+      "start_row": 97,
       "geometry": [
         [
           29.81276,
@@ -2638,6 +2652,7 @@
       "zones": [
         "Sugar Land/Stafford"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -2943,6 +2958,7 @@
       "zones": [
         "Katy/Fulshear"
       ],
+      "start_row": 48,
       "geometry": [
         [
           29.81276,
@@ -3213,6 +3229,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -3519,6 +3536,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -3824,6 +3842,7 @@
         "Katy/Fulshear",
         "Missouri City/Sienna"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -4100,6 +4119,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": 56,
       "geometry": [
         [
           29.81276,
@@ -4372,6 +4392,7 @@
         "Bellville/Sealy",
         "Brenham/Chappell Hill"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -4742,6 +4763,7 @@
         "Missouri City/Sienna",
         "Sugar Land/Stafford"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -5022,6 +5044,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -5365,6 +5388,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -5695,6 +5719,7 @@
         "Energy Corridor/Westchase",
         "Uptown/Galleria"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -6024,6 +6049,7 @@
         "Bellville/Sealy",
         "Brenham/Chappell Hill"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -6306,6 +6332,7 @@
         "Energy Corridor/Westchase",
         "Memorial/Spring Branch"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -6522,6 +6549,7 @@
       "zones": [
         "Magnolia/Tomball"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -6866,6 +6894,7 @@
       "zones": [
         "Bellville/Sealy"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -7098,6 +7127,7 @@
       "zones": [
         "Montgomery/Lake Conroe"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -7346,6 +7376,7 @@
       "zones": [
         "Cypress/Copperfield"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -7629,6 +7660,7 @@
         "Heights/Near Northside",
         "Uptown/Galleria"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -7919,6 +7951,7 @@
         "Kingwood/Humble/Porter",
         "Spring/Klein/North Belt"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -8291,6 +8324,7 @@
       "zones": [
         "Clear Lake/Bay Area"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -8633,6 +8667,7 @@
         "Katy/Fulshear",
         "Uptown/Galleria"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -8890,6 +8925,7 @@
         "Medical Center",
         "West University/Rice"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -9189,6 +9225,7 @@
         "Pearland",
         "West University/Rice"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -9449,6 +9486,7 @@
       "zones": [
         "Uptown/Galleria"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -9704,6 +9742,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -9923,6 +9962,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -10157,6 +10197,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -10466,6 +10507,7 @@
         "Kingwood/Humble/Porter",
         "Spring/Klein/North Belt"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -10706,6 +10748,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -11197,6 +11240,7 @@
         "Pearland",
         "Sugar Land/Stafford"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -11514,6 +11558,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -11734,6 +11779,7 @@
       "zones": [
         "Medical Center"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -12006,6 +12052,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -12344,6 +12391,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -12716,6 +12764,7 @@
       "zones": [
         "Heights/Near Northside"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -12985,6 +13034,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -13297,6 +13347,7 @@
         "Downtown/Midtown",
         "Heights/Near Northside"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -13629,6 +13680,7 @@
         "Spring/Klein/North Belt",
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -13817,6 +13869,7 @@
       "zones": [
         "The Woodlands"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,
@@ -13980,6 +14033,7 @@
       "zones": [
         "Montgomery/Lake Conroe"
       ],
+      "start_row": null,
       "geometry": [
         [
           29.81276,

@@ -11,8 +11,12 @@ Single self-contained HTML file (Leaflet from CDN, OSM tiles) with:
     routes + times recompute instantly from the embedded OSRM matrix
   - changes persist in localStorage; Export JSON/CSV of decisions
 """
+import hashlib
 import json
 import os
+
+import rules
+import schedule as S
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -44,18 +48,26 @@ for c in sched["all_clients"]:
         "zone": c["zone"], "area": c["area"], "cat": c["category"],
         "bus": c["business"], "lat": c["lat"], "lon": c["lon"],
         "geo": c.get("geo_source", ""),
+        # Deposited date + free-text note from the "2026 Install Date"
+        # column. Both were already parsed by prep.py and never used.
+        "locked": c.get("install_2026_confirmed", "") or "",
+        "advice": c.get("install_2026_note", "") or "",
     }
 
+# Day ids must survive a pipeline re-run, or saved accommodations silently
+# reattach to the wrong day. The old id embedded the day's index in the
+# global array, so inserting one day shifted every later id. Key on the
+# occurrence within (date, crew) instead -- stable unless that specific
+# pair gains or loses a day.
+_occ = {}
 days = []
-for i, d in enumerate(sched["days"]):
+for d in sched["days"]:
+    k = (d["date"], d["crew"])
+    _occ[k] = _occ.get(k, -1) + 1
     days.append({
-        "id": f'{d["date"]}|{d["crew"]}|{i}',
+        "id": f'{d["date"]}|{d["crew"]}|{_occ[k]}',
         "date": d["date"], "dow": d["dow"], "crew": d["crew"],
-        "cat": d["category"], "anchored": d["depot_anchored"],
-        "stacked": d["stacked_crews"], "note": d["note"],
         "stops": [s["row"] for s in d["stops"]],
-        "win": d.get("window_min", 600), "lunchMin": d.get("lunch", 40),
-        "half": d.get("half_rows", []), "joint": d.get("joint_with", ""),
         # Real road-following path + actual mileage from route_geometry.py
         # (OSRM /route -- distinct from the /table durations used to plan
         # the stop order). Goes stale the moment the day is edited; the
@@ -64,12 +76,102 @@ for i, d in enumerate(sched["days"]):
         "legMi": d.get("leg_mi"),
     })
 
-payload = json.dumps({
+# Day METADATA lives in a side map keyed by day id, not on the day itself.
+# Emptying a day used to delete it outright, so refilling that slot rebuilt
+# a bare day defaulting to a 600-minute window -- silently discarding
+# negotiated client exceptions (Capital Bank 960, Lewis/LTS 960, ...) and
+# showing a false OVER flag. Metadata now outlives its day.
+dayMeta = {}
+for d, dd in zip(sched["days"], days):
+    dayMeta[dd["id"]] = {
+        "cat": d["category"], "anchored": d["depot_anchored"],
+        "stacked": d["stacked_crews"], "note": d["note"],
+        "win": d.get("window_min", S.DAY_CAP), "lunchMin": d.get("lunch", S.LUNCH),
+        "half": d.get("half_rows", []), "joint": d.get("joint_with", ""),
+        "startRow": d.get("start_row"),
+        "winReason": rules.window_reason(d),
+        "flags": d.get("flags", []), "zones": d.get("zones", []),
+    }
+
+# ---- static eligibility, precomputed -------------------------------------
+# Every (client x date) answer, computed once here by the same predicates
+# validate.py uses. The browser looks the answer up rather than
+# re-implementing the rules, so there is no second copy to drift.
+#
+# Stored as interned blocker-sets referenced by index: 2005 non-empty cells
+# collapse to ~42 distinct sets, which takes the table from ~193KB to ~13KB.
+# The crew dimension is omitted because no static rule depends on the crew
+# (R2, the one crew rule, is a per-DAY coverage check -- see club_crew_ok);
+# it is asserted below rather than assumed.
+cal = rules.calendar()
+_by_name = {c["name"]: c for c in sched["all_clients"]}
+elig_dates = [ci["date"] for ci in cal]
+_sets, _set_idx = [[]], {"[]": 0}
+by_row = {}
+for row in sorted(clients):
+    c = _by_name[clients[row]["name"]]
+    seq = []
+    for ci in cal:
+        per_crew = [rules.static_blockers(c, ci["date"], crew, ci["dow"], ci["kind"])
+                    for crew in S.CREWS]
+        assert all(b == per_crew[0] for b in per_crew), (
+            f"static rule became crew-dependent for {c['name']} on {ci['date']} "
+            f"-- the eligibility table's crew collapse is no longer valid")
+        key = json.dumps(per_crew[0])
+        if key not in _set_idx:
+            _set_idx[key] = len(_sets)
+            _sets.append(per_crew[0])
+        seq.append(_set_idx[key])
+    if any(seq):
+        by_row[str(row)] = seq
+elig = {"dates": elig_dates, "sets": _sets, "byRow": by_row}
+
+groups = []
+for g in rules.SAME_DAY_GROUPS:
+    rws = [c["row"] for c in sched["all_clients"] if c["name"] in g["names"]]
+    rws = [r for r in rws if r in clients]
+    if len(rws) < 2:
+        continue
+    first = next((c["row"] for c in sched["all_clients"]
+                  if c["name"] == g["first"]), None) if g["first"] else None
+    groups.append({"id": g["id"], "label": g["label"], "rows": rws,
+                   "first": first, "minCrews": g["min_crews"], "why": g["why"]})
+
+force_first = {}
+for nm, why in rules.FORCE_FIRST.items():
+    c = _by_name.get(nm)
+    if c and c["row"] in clients:
+        force_first[str(c["row"])] = why
+
+spec = {
+    "const": {
+        "DAY_CAP": S.DAY_CAP, "DAY_MIN": S.DAY_MIN, "WINDOW": S.WINDOW,
+        "LUNCH": S.LUNCH, "NIGHT": S.NIGHT, "NIGHT_MIN": S.NIGHT_MIN,
+        "NIGHT_MAX": S.NIGHT_MAX, "RADIUS_S": S.RADIUS_S,
+        "RADIUS_RURAL_S": 2700, "CREWS": list(S.CREWS),
+    },
+    "calendar": cal,
+    "dayMeta": dayMeta,
+    "groups": groups,
+    "forceFirst": force_first,
+    "eligibility": elig,
+    "codes": {k: {"rule": v[0], "msg": v[1]} for k, v in rules.CODES.items()},
+}
+
+payload_obj = {
     "depot": {"lat": sched["depot"]["lat"], "lon": sched["depot"]["lon"]},
     "clients": clients, "days": days, "node": node, "durs": durs,
     "noaddr": sched.get("flagged_noaddr", []),
     "dropped": sched.get("dropped", []),
-}, separators=(",", ":"))
+    "spec": spec,
+}
+# Version stamps the inputs, so saved state from before a regeneration is
+# caught and reconciled rather than silently misapplied to shifted days.
+spec["version"] = hashlib.sha256(
+    json.dumps({"d": days, "c": clients}, sort_keys=True).encode()
+).hexdigest()[:12]
+
+payload = json.dumps(payload_obj, separators=(",", ":"))
 
 HTML = r"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -185,7 +287,28 @@ dialog button{padding:7px 14px;border-radius:6px;border:1px solid var(--line);cu
   font-family:'Montserrat',sans-serif;font-weight:600;font-size:12.5px;background:#fff;color:var(--ink)}
 dialog .go{background:var(--brand);color:#fff;border:none}
 dialog .go:hover{background:var(--brand-hover)}
+dialog option:disabled{color:#b6b3ae}
+#mvnote{font-size:11.5px;color:var(--mut);margin-top:6px;min-height:14px}
+#mvnote .warn{color:var(--warn-ink)}
+#sfdlg{max-width:460px}
+#sflab{font-size:11px;color:var(--mut);font-weight:600;display:block;margin-top:10px}
+#sfbody{margin-top:10px;max-height:52vh;overflow-y:auto}
+.sfrow{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px;
+  position:relative;background:var(--surface)}
+.sfrow .sfmain{font-size:13px;color:var(--ink)}
+.sfrow .sfsub{font-size:11px;color:var(--mut);margin-top:3px;padding-right:86px}
+.sfrow .sfwarn{font-size:11px;color:var(--warn-ink);margin-top:4px;padding-right:86px}
+.sfrow .sfgo{position:absolute;right:10px;top:10px;padding:5px 10px;font-size:11.5px}
+.sfnone{font-size:12px;color:var(--mut);margin-bottom:10px}
+.sfsrc{font-size:11px;color:var(--warn-ink);background:var(--warn-soft);
+  border-radius:6px;padding:7px 9px;margin-bottom:10px}
+.stopbtns{display:flex;flex-direction:column;gap:4px;flex:none}
+.badge.lock{background:var(--warn-soft);color:var(--warn-ink)}
+.stop .sub.advice{color:var(--warn-ink);font-style:italic;margin-top:3px}
 #summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
+#statewarn{grid-column:1/-1;margin-top:8px;padding:8px 12px;border-radius:6px;
+  background:var(--warn-soft);color:var(--warn-ink);font-size:12px;font-weight:600;
+  border:1px solid rgba(0,0,0,.06)}
 .edited{font-size:10px;color:#c2410c;font-weight:700;margin-left:6px;font-family:'Montserrat',sans-serif}
 .ic{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;display:inline-block}
 </style></head>
@@ -196,6 +319,7 @@ dialog .go:hover{background:var(--brand-hover)}
     <p>Crew routes, drive times &amp; approvals for every install day — drag a stop to reschedule it.</p>
   </div>
   <div id="summarybar"></div>
+  <div id="statewarn" style="display:none"></div>
   <div id="datestrip"></div>
 </header>
 <div id="main">
@@ -207,8 +331,16 @@ dialog .go:hover{background:var(--brand-hover)}
   <b id="mvtitle">Move stop</b>
   <select id="mvdate"></select>
   <select id="mvcrew"></select>
+  <div id="mvnote"></div>
   <div class="btns"><button onclick="mvdlg.close()">Cancel</button>
   <button class="go" id="mvgo">Move</button></div>
+</dialog>
+<dialog id="sfdlg">
+  <b id="sftitle">Find a new date</b>
+  <label id="sflab">Client asked for</label>
+  <select id="sfwant"></select>
+  <div id="sfbody"></div>
+  <div class="btns"><button onclick="sfdlg.close()">Close</button></div>
 </dialog>
 <script>
 const DATA = __DATA__;
@@ -228,20 +360,102 @@ const IC={
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
-const LUNCH=40;
+const SPEC = DATA.spec, K = SPEC.const;
+const LUNCH = K.LUNCH;
 const N = DATA.node, D = DATA.durs, C = DATA.clients;
 
+// ---------- day metadata ----------
+// Metadata is keyed by day id in an immutable side map, so a day that gets
+// emptied and later refilled keeps its negotiated window, note and joint
+// wiring instead of silently reverting to a bare 10h default.
+function metaFor(id){
+  const m = SPEC.dayMeta[id];
+  if(m) return m;
+  const crew = (id||'').split('|')[1] || '';
+  return {cat:'Standard', anchored:true, stacked:1, note:'', win:K.DAY_CAP,
+          lunchMin:K.LUNCH, half:[], joint:'', startRow:null, winReason:'',
+          flags:[], zones:[], _synthetic:true, crew};
+}
+function hydrate(d){
+  const m = metaFor(d.id);
+  return {...d, stops:[...d.stops],
+          cat:m.cat, anchored:m.anchored, stacked:m.stacked, note:m.note,
+          win:m.win, lunchMin:m.lunchMin, half:[...(m.half||[])],
+          joint:m.joint, startRow:m.startRow, winReason:m.winReason};
+}
+
 // ---------- state ----------
-let days = DATA.days.map(d=>({...d, stops:[...d.stops]}));
+let days = DATA.days.map(hydrate);
 let approved = new Set(), moves = [], selDate = null;
 let focusDayId = null;   // click a crew header to zoom the map to just their day
+let stateWarning = null;
+
+// Authoritative saved state is a SNAPSHOT ({row -> dayId}), not a replay
+// log. Replaying a move list was order-dependent and broke outright when a
+// pipeline re-run shifted day ids; a snapshot is idempotent and can be
+// reconciled against a regenerated baseline.
+const LS_KEY = 'tbdg2026review';
+function baselinePlacement(){
+  const m = {};
+  DATA.days.forEach(d=>d.stops.forEach(r=>{ (m[r] = m[r] || []).push(d.id); }));
+  return m;
+}
+function currentPlacement(){
+  const m = {};
+  days.forEach(d=>d.stops.forEach(r=>{ (m[r] = m[r] || []).push(d.id); }));
+  return m;
+}
+function applyPlacement(place){
+  const want = {};
+  Object.entries(place).forEach(([r,ids])=>{ want[+r] = ids; });
+  const byId = new Map(days.map(d=>[d.id,d]));
+  days.forEach(d=>{ d.stops = []; });
+  let missing = 0;
+  Object.entries(want).forEach(([r,ids])=>{
+    ids.forEach(id=>{
+      let d = byId.get(id);
+      if(!d){
+        // A day may be absent for two very different reasons: the user
+        // created it during a previous session (legitimate -- rebuild it),
+        // or it referred to a baseline day that a pipeline re-run removed
+        // (stale -- drop it and say so). Tell them apart by whether the
+        // id names a real working date and crew.
+        const [date,crew] = id.split('|');
+        const ci = SPEC.calendar.find(x=>x.date===date);
+        if(!ci || !K.CREWS.includes(crew)){ missing++; return; }
+        d = hydrate({id, date, crew, dow:ci.dow,
+                     stops:[], geom:null, mi:null, legMi:null});
+        d.edited = true;
+        days.push(d); byId.set(id,d);
+      }
+      d.stops.push(+r);
+    });
+  });
+  days = days.filter(d=>d.stops.length);
+  return missing;
+}
 try{
-  const s = JSON.parse(localStorage.getItem('tbdg2026review')||'{}');
-  if(s.moves){ s.moves.forEach(m=>applyMove(m.row, m.to, false)); moves = s.moves; }
-  if(s.approved) approved = new Set(s.approved);
+  const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+  if(s.version && SPEC.version && s.version !== SPEC.version){
+    stateWarning = 'Saved changes were made against an older schedule build. '
+                 + 'They have NOT been applied — re-check them before saving.';
+  } else if(s.placement){
+    const missing = applyPlacement(s.placement);
+    moves = s.moves || [];
+    approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+    if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
+                             + 'longer exist and were left at their baseline.';
+  } else if(s.moves && s.moves.length){
+    // one-time migration off the old replay-log format
+    s.moves.forEach(m=>{ try{ applyMove(m.row, m.to, false); }catch(e){} });
+    moves = s.moves;
+    approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+    stateWarning = 'Migrated saved changes to the new format — please review.';
+  }
 }catch(e){}
-function persist(){ localStorage.setItem('tbdg2026review',
-  JSON.stringify({moves, approved:[...approved]})); }
+function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(
+  {version:SPEC.version, placement:currentPlacement(),
+   moves, approved:[...approved]})); }
 
 // ---------- routing (embedded OSRM matrix) ----------
 function leg(a,b){ return D[a][b]||0; }
@@ -260,61 +474,348 @@ function routeDay(d){
     return {order:[...d.stops], drive:drive/60,
             path:d.stops.map(r=>N[r])};
   }
-  let path;
-  if(d.anchored){
-    let unv=[...idx], cur=0; path=[];
-    while(unv.length){ let best=unv.reduce((p,s)=>leg(cur,s)<leg(cur,p)?s:p,unv[0]);
-      path.push(best); unv=unv.filter(x=>x!==best); cur=best; }
-    path=[0,...path,0];
+  // Edited day: re-route with the SAME algorithm the Python pipeline uses
+  // (route_exact -- exhaustive permutation over the true asymmetric
+  // durations), so the hours shown here are the pipeline's numbers rather
+  // than an approximation of them. Days are <=8 stops, so 8! x 9 lookups is
+  // a few milliseconds. Held-Karp covers the larger cases an edit can
+  // create. A forced-first stop is pinned and only the remainder permuted,
+  // exactly as build_day does.
+  const startIdx = (d.startRow!=null && d.stops.includes(d.startRow))
+                 ? N[d.startRow] : null;
+  const free = startIdx==null ? idx : idx.filter(i=>i!==startIdx);
+  const head = d.anchored ? [0] : [];
+  const tail = d.anchored ? [0] : [];
+  let best=null, bestSeq=null;
+
+  const score = perm => {
+    const seq = head.concat(startIdx==null?[]:[startIdx], perm, tail);
+    let t=0; for(let i=0;i<seq.length-1;i++) t+=leg(seq[i],seq[i+1]);
+    return {t, seq};
+  };
+  if(free.length<=8){
+    const perm=[], used=new Array(free.length).fill(false);
+    (function rec(){
+      if(perm.length===free.length){
+        const s=score(perm);
+        if(best===null || s.t<best){ best=s.t; bestSeq=s.seq.slice(); }
+        return;
+      }
+      for(let i=0;i<free.length;i++){
+        if(used[i]) continue;
+        used[i]=true; perm.push(free[i]); rec(); perm.pop(); used[i]=false;
+      }
+    })();
   } else {
-    let seed=idx.reduce((p,s)=>sum(s)<sum(p)?s:p,idx[0]);
-    function sum(s){return idx.reduce((a,t)=>a+leg(s,t),0);}
-    let unv=idx.filter(x=>x!==seed), cur=seed; path=[seed];
-    while(unv.length){ let best=unv.reduce((p,s)=>leg(cur,s)<leg(cur,p)?s:p,unv[0]);
-      path.push(best); unv=unv.filter(x=>x!==best); cur=best; }
+    // Held-Karp over the free stops, with a fixed start and (for anchored
+    // days) a fixed return to the depot.
+    const n=free.length, FULL=1<<n;
+    const from = startIdx!=null ? startIdx : (d.anchored?0:free[0]);
+    const dp=new Float64Array(FULL*n).fill(Infinity);
+    const par=new Int16Array(FULL*n).fill(-1);
+    for(let i=0;i<n;i++) dp[(1<<i)*n+i]=leg(from,free[i]);
+    for(let m=1;m<FULL;m++) for(let i=0;i<n;i++){
+      const cur=dp[m*n+i];
+      if(!(m&(1<<i))||cur===Infinity) continue;
+      for(let j=0;j<n;j++){
+        if(m&(1<<j)) continue;
+        const nm2=m|(1<<j), v=cur+leg(free[i],free[j]);
+        if(v<dp[nm2*n+j]){ dp[nm2*n+j]=v; par[nm2*n+j]=i; }
+      }
+    }
+    let endBest=Infinity, endI=0;
+    for(let i=0;i<n;i++){
+      const v=dp[(FULL-1)*n+i]+(d.anchored?leg(free[i],0):0);
+      if(v<endBest){ endBest=v; endI=i; }
+    }
+    const order=[]; let m=FULL-1, i=endI;
+    while(i>=0){ order.push(free[i]); const p=par[m*n+i]; m^=(1<<i); i=p; }
+    order.reverse();
+    bestSeq = head.concat(startIdx==null?[]:[startIdx], order, tail);
+    best = endBest + (startIdx!=null?0:0);
   }
-  // 2-opt (fixed ends)
-  let imp=true;
-  while(imp){ imp=false;
-    for(let i=1;i<path.length-2;i++) for(let k=i+1;k<path.length-1;k++){
-      const a=path[i-1],b=path[i],c2=path[k],e=path[k+1];
-      if(leg(a,c2)+leg(b,e) < leg(a,b)+leg(c2,e)-1e-9){
-        path=path.slice(0,i).concat(path.slice(i,k+1).reverse(),path.slice(k+1)); imp=true; }
-    } }
-  let drive=0; for(let i=0;i<path.length-1;i++) drive+=leg(path[i],path[i+1]);
-  const inner = d.anchored? path.slice(1,-1): path;
+  let drive=0; for(let i=0;i<bestSeq.length-1;i++) drive+=leg(bestSeq[i],bestSeq[i+1]);
+  const inner = d.anchored? bestSeq.slice(1,-1): bestSeq;
   const idx2row={}; d.stops.forEach(r=>idx2row[N[r]]=r);
-  return {order: inner.map(i=>idx2row[i]), drive: drive/60, path};
+  return {order: inner.map(i=>idx2row[i]), drive: drive/60, path:bestSeq};
 }
 function effH(d,r){
   return (d.half||[]).includes(r) ? (C[r].h26||0)/2 : (C[r].h26||0);
 }
+// PURE. This used to assign d.stops, and it runs during paint (from both
+// buildDayCard and drawDate) -- so merely previewing a candidate day would
+// silently reorder days the user never touched. Callers that want the
+// reordering apply calc.order themselves.
 function dayCalc(d){
   const rt=routeDay(d);
-  d.stops = rt.order.length? rt.order : d.stops;
-  const inst = d.stops.reduce((a,r)=>a+effH(d,r),0)/(d.stacked||1);
-  const total = inst*60 + rt.drive + (d.stops.length?(d.lunchMin??LUNCH):0);
-  return {inst, drive:rt.drive, total, path:rt.path};
+  const order = rt.order.length? rt.order : d.stops;
+  const inst = order.reduce((a,r)=>a+effH(d,r),0)/(d.stacked||1);
+  const total = inst*60 + rt.drive + (order.length?(d.lunchMin??LUNCH):0);
+  return {inst, drive:rt.drive, total, path:rt.path, order};
 }
 
 // ---------- moves ----------
+function dayById(id, create){
+  let d = days.find(x=>x.id===id);
+  if(d || !create) return d;
+  const [date,crew] = id.split('|');
+  d = hydrate({id, date, crew,
+               dow:(DATA.days.find(x=>x.date===date)||{}).dow
+                   || (SPEC.calendar.find(x=>x.date===date)||{}).dow || '',
+               stops:[], geom:null, mi:null, legMi:null});
+  days.push(d);
+  return d;
+}
 function applyMove(row, toId, record=true){
   const from = days.find(x=>x.stops.includes(row)); if(!from) return;
-  let to = days.find(x=>x.id===toId);
-  if(!to){ // create new crew-day
-    const [date,crew]=toId.split('|');
-    const dow = days.find(x=>x.date===date)?.dow || '';
-    to={id:toId,date,dow,crew,cat:'Standard',anchored:true,stacked:1,note:'(new day)',stops:[]};
-    days.push(to);
-  }
+  const to = dayById(toId, true);
   from.stops = from.stops.filter(r=>r!==row);
   to.stops.push(row);
   from.edited = to.edited = true;
+  // An edited day is no longer the day anyone approved.
+  approved.delete(from.id); approved.delete(to.id);
   if(record){
     moves.push({row, name:C[row].name, from:from.id, to:to.id});
     persist();
   }
   days = days.filter(x=>x.stops.length>0 || x.id===toId);
+  // Drop approvals for days that no longer exist, so the summary count
+  // can't drift upward over a session.
+  const live = new Set(days.map(x=>x.id));
+  [...approved].forEach(id=>{ if(!live.has(id)) approved.delete(id); });
+}
+
+// ---------- constraint engine ----------
+// Static rules (dates, categories, weekend/Saturday history, deposits) were
+// evaluated in Python by the same predicates validate.py uses; we look the
+// answer up. Only the rules that depend on what a day currently CONTAINS
+// are evaluated here, because only those change as the user edits.
+const ELIG = SPEC.eligibility;
+const DATE_IX = {}; ELIG.dates.forEach((dt,i)=>DATE_IX[dt]=i);
+const GROUP_OF = {};
+SPEC.groups.forEach(g=>g.rows.forEach(r=>GROUP_OF[r]=g));
+
+function staticBlockers(row, date){
+  const seq = ELIG.byRow[row];
+  const i = DATE_IX[date];
+  if(i===undefined) return ['NO_DATE'];
+  return seq ? ELIG.sets[seq[i]] : [];
+}
+function codeMsg(c){ return (SPEC.codes[c]||{}).msg || c; }
+
+// Deep-enough clone for what-if evaluation. checkPlan must never touch live
+// state -- previewing a candidate is not an edit.
+function cloneDays(){ return days.map(d=>({...d, stops:[...d.stops]})); }
+
+function radiusOK(row, day){
+  if(!day.stops.length) return true;
+  // Mirror Python's DIRECTION exactly: candidate -> member. Using the
+  // symmetric min would quietly diverge from pack_bins/fill_nearby.
+  const v = N[row];
+  let best = Infinity;
+  day.stops.forEach(s=>{ const t=leg(v, N[s]); if(t<best) best=t; });
+  const depotFar = leg(0, v) > 2700;   // rural pockets get the wider radius
+  return best <= (depotFar ? K.RADIUS_RURAL_S : K.RADIUS_S);
+}
+
+/**
+ * Validate a proposed transaction: [{row, to}] applied together.
+ * Single drag is just a one-op plan; groups and joint days need the
+ * multi-op form or a legal intent gets blocked one atom at a time.
+ */
+function checkPlan(ops){
+  const sim = cloneDays();
+  const byId = new Map(sim.map(d=>[d.id,d]));
+  const blockers=[], warnings=[];
+  const touched = new Set();
+
+  ops.forEach(op=>{
+    const from = sim.find(d=>d.stops.includes(op.row));
+    if(from){ from.stops = from.stops.filter(r=>r!==op.row); touched.add(from.id); }
+    let to = byId.get(op.to);
+    if(!to){
+      const m = metaFor(op.to);
+      const [date,crew] = op.to.split('|');
+      to = {...hydrate({id:op.to, date, crew, dow:(SPEC.calendar.find(x=>x.date===date)||{}).dow||'',
+                        stops:[], geom:null, mi:null, legMi:null})};
+      sim.push(to); byId.set(op.to, to);
+    }
+    to.stops.push(op.row); to.edited = true; touched.add(to.id);
+  });
+
+  const moving = new Set(ops.map(o=>o.row));
+
+  ops.forEach(op=>{
+    const [date, crew] = op.to.split('|');
+    const c = C[op.row];
+    // static
+    staticBlockers(op.row, date).forEach(code=>
+      blockers.push({code, msg:`${c.name}: ${codeMsg(code)}`}));
+    // joint-day integrity: a half-hours row lives on TWO cards. Moving one
+    // side leaves it on the partner at half hours AND here at full hours.
+    const src = days.find(d=>d.stops.includes(op.row));
+    if(src && (src.half||[]).includes(op.row)){
+      const partners = days.filter(d=>d.date===src.date && d.id!==src.id
+                                    && d.stops.includes(op.row));
+      const alsoMoving = partners.every(p=>ops.some(o=>o.row===op.row && o.to!==p.id)
+                                        && ops.filter(o=>o.row===op.row).length>1);
+      if(partners.length && !alsoMoving)
+        blockers.push({code:'JOINT', msg:`${c.name} is a two-crew job shared with `
+          +`${src.joint||'another crew'} — move the whole day, not one card`});
+    }
+    // same-day group cohesion
+    const g = GROUP_OF[op.row];
+    if(g){
+      const dates = new Set();
+      g.rows.forEach(r=>{ const d=sim.find(x=>x.stops.includes(r)); if(d) dates.add(d.date); });
+      if(dates.size>1)
+        blockers.push({code:'GROUP', msg:`${g.label} must stay on one day — ${g.why}`});
+    }
+    // geography
+    const tgt = byId.get(op.to);
+    const others = {...tgt, stops: tgt.stops.filter(r=>!moving.has(r))};
+    if(others.stops.length && !radiusOK(op.row, others))
+      warnings.push({code:'RADIUS', msg:`${c.name} is more than 30 min from the `
+        +`rest of that day — it will add real drive time`});
+  });
+
+  // R2 coverage: a club stop needs Crew 1 among the crews working it.
+  sim.forEach(d=>d.stops.forEach(r=>{
+    if(C[r].cat!=='Country Club') return;
+    const crews = sim.filter(x=>x.date===d.date && x.stops.includes(r)).map(x=>x.crew);
+    if(!crews.some(c2=>c2.includes('Crew 1')))
+      blockers.push({code:'CLUB_CREW', msg:`${C[r].name}: ${codeMsg('CLUB_CREW')}`});
+  }));
+
+  // capacity + shape, on every day the plan disturbed
+  const deltas = {};
+  touched.forEach(id=>{
+    const after = byId.get(id) || sim.find(d=>d.id===id);
+    const before = days.find(d=>d.id===id);
+    const bc = before ? dayCalc(before) : {total:0, drive:0};
+    if(!after || !after.stops.length){
+      deltas[id] = {before:bc.total, after:0, gone:true};
+      return;
+    }
+    const ac = dayCalc({...after, edited:true});
+    deltas[id] = {before:bc.total, after:ac.total,
+                  driveBefore:bc.drive, driveAfter:ac.drive,
+                  win:after.win, crew:after.crew, date:after.date};
+    if(ac.total > after.win)
+      blockers.push({code:'OVER', msg:`${after.crew} on ${after.date} would run `
+        +`${(ac.total/60).toFixed(1)}h, past its ${(after.win/60).toFixed(1)}h limit`
+        +(after.winReason?` (${after.winReason})`:'')});
+    else if(after.win > K.DAY_CAP && ac.total > K.DAY_CAP
+            && ac.total > bc.total){
+      // A stretched window is a negotiated exception for the clients
+      // already on that day, NOT spare capacity to fill. Adding to it is
+      // legal but should never look free.
+      deltas[id].exception = true;
+      warnings.push({code:'EXCEPT', msg:`${after.crew} on ${after.date} is already an `
+        +`over-length day by exception (${after.winReason||'client request'}) — `
+        +`adding here pushes it to ${(ac.total/60).toFixed(1)}h`});
+    }
+    else if(ac.total < K.DAY_MIN && after.cat==='Standard')
+      warnings.push({code:'LIGHT', msg:`${after.crew} on ${after.date} drops to `
+        +`${(ac.total/60).toFixed(1)}h — under the 7.5h they like to work`});
+    if(after.stops.length===1 && !after.joint && after.cat==='Standard')
+      warnings.push({code:'SINGLE', msg:`${after.crew} on ${after.date} would be a `
+        +`single-stop day`});
+  });
+  // dedupe by message
+  const seen=new Set(), uniq=a=>a.filter(x=>!seen.has(x.msg)&&seen.add(x.msg));
+  return {blockers:uniq(blockers), warnings:uniq(warnings), deltas, ok:!blockers.length};
+}
+
+/** Everything that moving `row` implies -- groups and joint days travel together. */
+function planFor(row, toId){
+  const g = GROUP_OF[row];
+  const src = days.find(d=>d.stops.includes(row));
+  const rows = new Set([row]);
+  if(g && g.rows.every(r=>{
+      const d=days.find(x=>x.stops.includes(r));
+      return d && src && d.date===src.date; }))
+    g.rows.forEach(r=>rows.add(r));
+  return [...rows].map(r=>({row:r, to:toId}));
+}
+
+// ---------- slot finder ----------
+// "This client wants Nov 18" -> ranked legal (date, crew) options.
+function candidateSlots(){
+  const out = [];
+  SPEC.calendar.forEach(ci=>{
+    const existing = days.filter(d=>d.date===ci.date);
+    existing.forEach(d=>out.push({id:d.id, date:d.date, crew:d.crew, day:d, isNew:false}));
+    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
+      const id=`${ci.date}|${cr}|0`;
+      out.push({id, date:ci.date, crew:cr, day:null, isNew:true});
+    });
+  });
+  return out;
+}
+/** Marginal insertion cost, asymmetric-safe. Upper bound on the re-optimised delta. */
+function insertionCost(row, day){
+  if(!day || !day.stops.length) return day&&day.anchored ? leg(0,N[row])+leg(N[row],0) : 0;
+  const v=N[row], seq=(day.anchored?[0]:[]).concat(day.stops.map(r=>N[r]))
+                      .concat(day.anchored?[0]:[]);
+  let best=Infinity;
+  for(let i=0;i<seq.length-1;i++)
+    best=Math.min(best, leg(seq[i],v)+leg(v,seq[i+1])-leg(seq[i],seq[i+1]));
+  if(!day.anchored){   // open path: prepend/append are legal too
+    best=Math.min(best, leg(v,seq[0]), leg(seq[seq.length-1],v));
+  }
+  return best;
+}
+function findSlots(row, wantDate, limit=8){
+  const src = days.find(d=>d.stops.includes(row));
+  const scored = [];
+  candidateSlots().forEach(s=>{
+    if(src && s.id===src.id) return;
+    if(staticBlockers(row, s.date).length) return;
+    const chk = checkPlan(planFor(row, s.id));
+    if(!chk.ok) return;
+    const dNew = chk.deltas[s.id]||{};
+    const dOld = src ? (chk.deltas[src.id]||{}) : {};
+    const addTarget = (dNew.driveAfter||0)-(dNew.driveBefore||0);
+    const saveSource = (dOld.driveAfter||0)-(dOld.driveBefore||0);
+    const net = addTarget + saveSource;
+    // Warnings about the day they're LEAVING are identical for every
+    // option, so they belong once at the top, not repeated on each row.
+    const srcId = src ? src.id : null;
+    const isSrc = w => srcId && w.msg.includes(srcId.split('|')[1])
+                    && w.msg.includes(src.date);
+    scored.push({
+      slot:s, net, addTarget, saveSource,
+      totalAfter:dNew.after, win:dNew.win,
+      warnings:chk.warnings.filter(w=>!isSrc(w)),
+      sourceWarnings:chk.warnings.filter(isSrc),
+      rank:[ wantDate && s.date===wantDate ? 0 : 1,
+             dNew.exception ? 1 : 0,   // never present an exception day as free capacity
+             s.isNew ? 1 : 0,
+             net,
+             chk.warnings.length ],
+    });
+  });
+  scored.sort((a,b)=>{
+    for(let i=0;i<a.rank.length;i++){
+      if(a.rank[i]!==b.rank[i]) return a.rank[i]-b.rank[i];
+    }
+    return 0;
+  });
+  // A brand-new crew-day on an empty date is identical whichever crew
+  // takes it -- offering the same option three times is noise. Keep the
+  // first and note that any crew is free.
+  const seenNewDate = new Set();
+  const out = [];
+  scored.forEach(r=>{
+    if(r.slot.isNew && !(r.slot.day && r.slot.day.stops.length)){
+      if(seenNewDate.has(r.slot.date)) return;
+      seenNewDate.add(r.slot.date);
+      r.anyCrew = true;
+    }
+    out.push(r);
+  });
+  return out.slice(0, limit);
 }
 
 // ---------- real road geometry & mileage ----------
@@ -548,15 +1049,23 @@ function buildDayCard(d){
     el.className='stop'; el.draggable=true; el.dataset.row=r;
     const approx=!['street','manual','census'].includes(c.geo);
     const isHalf=(d.half||[]).includes(r);
+    const locked=c.locked && c.locked===d.date;
     el.innerHTML=`<span class="num" style="background:${col}">${i+1}</span>
       <div class="body"><div class="nm">${c.name}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
+        ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
+        ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub">${c.zone}</div>
       <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
-      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div></div>
-      <button class="mv">move ▾</button>`;
-    el.querySelector('.mv').onclick=()=>openMoveDlg(r,null);
+      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
+      <div class="stopbtns">
+        <button class="mv find">find date</button>
+        <button class="mv">move ▾</button>
+      </div>`;
+    el.querySelector('.find').onclick=()=>openSlotFinder(r);
+    el.querySelector('.mv:not(.find)').onclick=()=>openMoveDlg(r,null);
     el.ondragstart=e=>e.dataTransfer.setData('row',r);
     card.appendChild(el);
     const nxt=d.stops[i+1];
@@ -585,7 +1094,7 @@ function buildDayCard(d){
   card.ondragleave=()=>card.classList.remove('dragover');
   card.ondrop=e=>{e.preventDefault();card.classList.remove('dragover');
     const row=+e.dataTransfer.getData('row');
-    if(row && !d.stops.includes(row)){ applyMove(row,d.id); render(); }};
+    if(row && !d.stops.includes(row)) commitPlan(planFor(row, d.id));};
   return card;
 }
 function renderCards(){
@@ -621,30 +1130,132 @@ function renderLog(){
   side.appendChild(log);
 }
 
+// ---------- commit gate ----------
+// Every user-initiated edit goes through here. Deliberately NOT inside
+// applyMove: loading saved state replays through applyMove and must not be
+// re-validated against intermediate states.
+function commitPlan(ops, {force=false}={}){
+  const chk = checkPlan(ops);
+  if(chk.blockers.length && !force){
+    alert('Cannot make this change:\n\n'
+      + chk.blockers.map(b=>'  • '+b.msg).join('\n'));
+    return false;
+  }
+  if(chk.warnings.length && !confirm('Heads up:\n\n'
+      + chk.warnings.map(w=>'  • '+w.msg).join('\n')
+      + '\n\nMake the change anyway?')) return false;
+  ops.forEach(o=>applyMove(o.row, o.to));
+  render();
+  return true;
+}
+
 // ---------- move dialog ----------
 const mvdlg=document.getElementById('mvdlg');
 let mvRow=null;
 function openMoveDlg(row,presetDate){
   mvRow=row;
-  document.getElementById('mvtitle').textContent='Move: '+C[row].name;
+  const c=C[row];
+  document.getElementById('mvtitle').textContent='Move: '+c.name;
   const dsel=document.getElementById('mvdate'), csel=document.getElementById('mvcrew');
-  dsel.innerHTML=allDates().map(dt=>{
-    const dow=days.find(x=>x.date===dt).dow;
-    return `<option value="${dt}" ${dt===(presetDate||selDate)?'selected':''}>${dow} ${dt}</option>`;}).join('');
+  // Every LEGAL date, not just ones that already have crews. The old list
+  // was built from staffed days, which hid 10 working dates -- including
+  // the open days deliberately left in the schedule for exactly this.
+  dsel.innerHTML=SPEC.calendar.map(ci=>{
+    const bl=staticBlockers(row, ci.date);
+    const lab=`${ci.dow} ${ci.date.slice(5).replace('-','/')}`
+            + (bl.length?` — ${codeMsg(bl[0])}`:'');
+    return `<option value="${ci.date}" ${bl.length?'disabled':''} `
+         + `${ci.date===(presetDate||selDate)&&!bl.length?'selected':''}>${lab}</option>`;
+  }).join('');
+  if(dsel.selectedIndex<0 || dsel.options[dsel.selectedIndex].disabled){
+    const first=[...dsel.options].findIndex(o=>!o.disabled);
+    if(first>=0) dsel.selectedIndex=first;
+  }
   const fillCrews=()=>{ const dt=dsel.value;
     const existing=days.filter(d=>d.date===dt);
-    const opts=existing.map(d=>
-      `<option value="${d.id}">${d.crew}${d.win===480?' (day shift 9-5)':(d.win===420?' (night)':'')}</option>`);
-    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>
-      opts.push(`<option value="${dt}|${cr}|new">${cr} (new day)</option>`));
-    csel.innerHTML=opts.join('');};
-  dsel.onchange=fillCrews; fillCrews();
+    const opts=existing.map(d=>{
+      const chk=checkPlan(planFor(row, d.id));
+      const tag=d.win===480?' (day shift 9-5)':(d.win===K.NIGHT?' (night)':'');
+      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${d.crew}${tag}`
+           + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
+    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
+      const id=`${dt}|${cr}|0`;
+      const chk=checkPlan(planFor(row, id));
+      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>${cr} (new day)`
+              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);});
+    csel.innerHTML=opts.join('');
+    const note=document.getElementById('mvnote');
+    const sel=csel.value;
+    if(sel){
+      const chk=checkPlan(planFor(row, sel));
+      const d=chk.deltas[sel]||{};
+      note.innerHTML = d.after!=null
+        ? `That day would run <b>${(d.after/60).toFixed(1)}h</b> of `
+          +`${(d.win/60).toFixed(1)}h`
+          + (chk.warnings.length?`<br><span class="warn">${chk.warnings.map(w=>w.msg).join('<br>')}</span>`:'')
+        : '';
+    } else note.innerHTML='';
+  };
+  dsel.onchange=fillCrews; csel.onchange=fillCrews; fillCrews();
   mvdlg.showModal();
 }
 document.getElementById('mvgo').onclick=()=>{
-  applyMove(mvRow,document.getElementById('mvcrew').value);
-  mvdlg.close(); render();
+  const to=document.getElementById('mvcrew').value;
+  if(!to) return;
+  if(commitPlan(planFor(mvRow, to))) mvdlg.close();
 };
+
+// ---------- slot finder ----------
+const sfdlg=document.getElementById('sfdlg');
+function openSlotFinder(row){
+  const c=C[row];
+  document.getElementById('sftitle').textContent='Find a new date: '+c.name;
+  const wsel=document.getElementById('sfwant');
+  wsel.innerHTML='<option value="">Any date that works</option>'
+    + SPEC.calendar.map(ci=>{
+        const bl=staticBlockers(row, ci.date);
+        return `<option value="${ci.date}" ${bl.length?'disabled':''}>`
+             + `${ci.dow} ${ci.date.slice(5).replace('-','/')}`
+             + (bl.length?` — ${codeMsg(bl[0])}`:'')+`</option>`;}).join('');
+  const body=document.getElementById('sfbody');
+  const run=()=>{
+    const want=wsel.value||null;
+    const res=findSlots(row, want);
+    const cur=days.find(d=>d.stops.includes(row));
+    let head='';
+    if(want && !res.some(r=>r.slot.date===want)){
+      head=`<div class="sfnone">No crew can take ${c.name} on `
+         + `${want.slice(5).replace('-','/')}. Closest workable options:</div>`;
+    }
+    // Consequences for the day they're LEAVING are the same whichever
+    // option is chosen -- state them once.
+    const sw = res.length ? res[0].sourceWarnings : [];
+    if(sw.length && cur)
+      head += `<div class="sfsrc">Leaving ${cur.crew} on `
+            + `${cur.date.slice(5).replace('-','/')}: `
+            + sw.map(w=>w.msg.replace(/^.*?on \S+ /,'')).join('; ')+`</div>`;
+    body.innerHTML = head + (res.length? res.map((r,i)=>{
+      // deltas are already in MINUTES (dayCalc divides seconds by 60)
+      const s=r.slot, mins=Math.round(r.net);
+      const sign=mins>0?'+':'';
+      return `<div class="sfrow" data-to="${s.id}">
+        <div class="sfmain"><b>${s.date.slice(5).replace('-','/')} · ${r.anyCrew?'any crew':s.crew}</b>
+          ${s.isNew?'<span class="badge">new crew-day</span>':''}
+          ${want&&s.date===want?'<span class="badge store">requested</span>':''}</div>
+        <div class="sfsub">Day would run ${(r.totalAfter/60).toFixed(1)}h of
+          ${(r.win/60).toFixed(1)}h · net drive ${sign}${mins} min
+          ${r.saveSource<-0.5?`(saves ${Math.abs(Math.round(r.saveSource))} min on their old day)`:''}</div>
+        ${r.warnings.length?`<div class="sfwarn">${r.warnings.map(w=>w.msg).join('<br>')}</div>`:''}
+        <button class="go sfgo">Move here</button></div>`;}).join('')
+      : `<div class="sfnone">No legal slot found for ${c.name}.</div>`);
+    body.querySelectorAll('.sfgo').forEach(b=>b.onclick=()=>{
+      const to=b.closest('.sfrow').dataset.to;
+      if(commitPlan(planFor(row, to))) sfdlg.close();
+    });
+  };
+  wsel.onchange=run; run();
+  sfdlg.showModal();
+}
 
 // ---------- export ----------
 function exportJSON(){
@@ -664,10 +1275,15 @@ function resetAll(){ if(confirm('Discard all moves & approvals?')){
 
 // ---------- render ----------
 function render(){
+  // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
+  // paint can no longer mutate the schedule as a side effect of drawing.
+  days.forEach(d=>{ if(d.edited) d.stops = dayCalc(d).order; });
   renderStrip(); renderCards(); drawDate(selDate);
   const n=days.reduce((a,d)=>a+d.stops.length,0);
   document.getElementById('summarybar').textContent=
     `${n} stops · ${days.length} crew-days · ${approved.size} approved`;
+  const w=document.getElementById('statewarn');
+  if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
 }
 selDate = allDates()[0];
 render();

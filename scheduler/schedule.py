@@ -39,6 +39,16 @@ HOU_WEEKDAYS = ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13",
                 "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20",
                 "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-30"]
 SATURDAYS = ["2026-11-14", "2026-11-21", "2026-11-28"]
+# Standard Houston weekday slots, in calendar order. Nov 9 & 16 Mondays are
+# freed (clubs moved to their client-requested dates).
+STD_WEEKDAYS = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12",
+                "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18",
+                "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24",
+                "2026-11-25", "2026-11-30", "2026-12-01",
+                # overflow tail (used only if November slots run out)
+                "2026-12-02", "2026-12-03", "2026-12-04"]
+FORCE_START = {"2026-11-09"}                    # Houston installs must start here
+OVERFLOW_TAIL = {"2026-12-03", "2026-12-04"}    # strictly last-resort dates
 DOW = {  # for labels
     "2026-11-01": "Sun", "2026-11-02": "Mon", "2026-11-03": "Tue",
     "2026-11-04": "Wed", "2026-11-05": "Thu", "2026-11-06": "Fri",
@@ -230,6 +240,12 @@ def build_day(D, crew, date, stops, by_idx, category, depot_anchored=True,
         "half_rows": sorted(half_rows), "joint_with": joint_with,
         "note": note, "flags": flags,
         "zones": sorted({s["zone"] for s in stops}),
+        # Forced-first stop (client ordering requirement: Love That Smile
+        # before Holly Lewis, Sheri Roane's 9am start, Amy Jinks, and every
+        # joint mega-restaurant lead). Was computed above and thrown away --
+        # the review tool needs it or it re-routes these days wrongly the
+        # first time anyone edits them.
+        "start_row": start_row,
     }
 
 
@@ -1108,12 +1124,6 @@ def main():
 
     # calendar slots: Nov 9 & 16 Mondays are freed (clubs moved to client dates);
     # exclude any (date, crew) already consumed by special/pinned days.
-    STD_WEEKDAYS = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12",
-                    "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18",
-                    "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24",
-                    "2026-11-25", "2026-11-30", "2026-12-01",
-                    # overflow tail (used only if November slots run out)
-                    "2026-12-02", "2026-12-03", "2026-12-04"]
     weekday_slots = [(dt, cr) for dt in STD_WEEKDAYS for cr in CREWS
                      if (dt, cr) not in consumed]
     sat_slots = [(dt, cr) for dt in SATURDAYS for cr in CREWS
@@ -1127,8 +1137,6 @@ def main():
     # gap land later in the season, not stranded between two working
     # days). The true overflow tail (used only if November genuinely
     # runs out of room) stays last-resort and chronological.
-    FORCE_START = {"2026-11-09"}
-    OVERFLOW_TAIL = {"2026-12-03", "2026-12-04"}
     pinned_dates = {dt for (dt, cr) in consumed}
 
     def _ord(dt):

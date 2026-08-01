@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
-"""Rule-by-rule validation of the produced schedule."""
+"""Rule-by-rule validation of the produced schedule.
+
+The pins, same-day groups and no-install list live in `rules.py` so this
+file and the review tool's guardrails cannot drift apart -- they used to be
+duplicated here as literals, which meant a scheduler change could make this
+script fail as though the scheduler were broken.
+"""
 import json
 import os
+
+import rules
 
 CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 d = json.load(open(os.path.join(CACHE, "schedule.json")))
@@ -147,29 +155,26 @@ assign = {}
 for x in days:
     for s in x["stops"]:
         assign[s["name"]] = x["date"]
-pins = {"Keffer, Pam": "2026-11-18", "Marek Bros": "2026-11-30",
-        "The Club at Carlton Woods | Nicklaus Clubhouse": "2026-11-27",
-        "The Club at Carlton Woods | Fazio Clubhouse": "2026-12-01",
-        "Woodlands CC Players": "2026-11-25", "Woodlands CC Palmer": "2026-11-30",
-        "Sims, Darcy": "2026-12-02"}
-for nm, dt in pins.items():
+for nm, dt in rules.PINS.items():
     check(assign.get(nm) == dt, f"PIN {nm} -> {dt} (got {assign.get(nm)})")
 
-# Same-day groupings (2026 Install Date column notes)
-same_day_groups = [
-    ["A Hug Away | Daycare \"A Creative Genius Academy Learning\"",
-     "A Hug Away | Frazier, Marissa Residence", "A Hug Away | Office"],
-    ["Lewis, Holly", "Love That Smile"],
-    ["Byler, Kerri - House", "Byler, Kerri - Office",
-     "Byler, Kerri - Store Buck Ferguson"],
-]
-for grp in same_day_groups:
+# Same-day groupings (2026 Install Date column notes + client requests)
+for g in rules.SAME_DAY_GROUPS:
+    grp = g["names"]
     dts = {assign.get(nm) for nm in grp}
+    # a group whose members were all dropped isn't a violation
+    if dts == {None}:
+        continue
     check(len(dts) == 1 and None not in dts,
-          f"SAME-DAY {grp} -> {dts}")
+          f"SAME-DAY {g['label']} -> {dts}")
+
+# Forced-first ordering actually landed first in the route
+for nm, why in rules.FORCE_FIRST.items():
+    pos = [i for x in days for i, s in enumerate(x["stops"]) if s["name"] == nm]
+    check(not pos or pos[0] == 0, f"FIRST {nm} leads its day ({why})")
 
 # Dropped clients (2026 Install Date says "No Install")
-no_install = ["Gitu, Patrick", "Tenaris", "Valenzuela, Melinda"]
+no_install = rules.NO_INSTALL
 dropped_names = {c["name"] for c in d.get("dropped", [])}
 missing = [nm for nm in no_install if nm not in dropped_names]
 check(not missing, f"DROP no-2026-install clients: missing from dropped: {missing}")
