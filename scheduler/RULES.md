@@ -198,19 +198,25 @@ definition of "legal," not a second implementation that can drift.
 
 - **No client names in the codebase (user, 2026-08-02: "in the codebase"
   no, "in the UI" yes).** Every named client rule -- deposited-date pins,
-  same-day groups, forced-first stops, drops, and the ~15 one-off manual
-  pairings built up over the season -- lives in `scheduler/client_config.json`
-  (gitignored, never tracked, required to build a correct schedule --
-  `schedule.py` hard-errors on startup if it's missing rather than
-  silently building a wrong schedule with empty rules). `schedule.py`
-  loads it once as `CLIENT_CONFIG`; `rules.py` reuses that same loaded
-  copy for `PINS`/`FORCE_FIRST`/`SAME_DAY_GROUPS`/`NO_INSTALL` instead of
-  reading the file twice. Code keeps its exact structure (crew, date,
-  window, fill -- all non-PII scheduling parameters) as literals; only
-  names and name-bearing notes are config-driven. The generated tool
-  (review.html/map.html) is unaffected -- it still embeds full client
-  data, sourced from `cache/clients.json` same as always, and reaches
-  the deployed app through Postgres (see §10), never through git.
+  same-day groups, forced-first stops, drops, the ~15 one-off manual
+  pairings built up over the season, ZIP/storage/coordinate overrides,
+  and the single-crew-priority category special-case -- lives in
+  `scheduler/client_config.json` (gitignored, never tracked, required to
+  build a correct schedule). `scheduler/client_config_loader.py` is the
+  one shared loader (`load()`, hard-errors on a missing file rather than
+  silently building a wrong schedule with empty rules); `prep.py`,
+  `schedule.py`, `validate.py` and `outputs.py` all call it directly
+  since prep.py runs before schedule.py exists as an importable module
+  and can't reuse its loaded copy. `rules.py` is the one exception --
+  it reuses `schedule.py`'s already-loaded `CLIENT_CONFIG` for
+  `PINS`/`FORCE_FIRST`/`SAME_DAY_GROUPS`/`NO_INSTALL` instead of loading
+  a second time. Code keeps its exact structure (crew, date, window,
+  fill -- all non-PII scheduling parameters) as literals; only names,
+  name-bearing notes, and the one name-derived category value are
+  config-driven. The generated tool (review.html/map.html) is
+  unaffected -- it still embeds full client data, sourced from
+  `cache/clients.json` same as always, and reaches the deployed app
+  through Postgres (see §10), never through git.
 - **Guardrails, not a re-solve.** Dragging a stop runs `checkPlan(ops)`
   against a CLONED copy of the day state (never live) before anything
   commits. Static rules (dates, categories, deposits) are precomputed in

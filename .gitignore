@@ -112,6 +112,18 @@ scheduler/review.html
 scheduler/map.html
 backend/protected/
 
+# The source spreadsheet and every generated workbook -- these are the
+# actual client data (names, addresses, phones, emails, install dates),
+# not just code that references it. Found tracked in git history on
+# 2026-08-02 despite the rest of this section predating it; untracked
+# going forward, history purge is a separate decision (destructive,
+# needs a force-push -- see conversation).
+scheduler/2025 CHRISTMAS CLIENTS (2026 zoning + assignments).xlsx
+scheduler/2025 CHRISTMAS CLIENTS (ORIGINAL).xlsx
+scheduler/2026 Christmas Schedule.xlsx
+scheduler/2026 Team Review.xlsx
+scheduler/CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx
+
 # Every client name schedule.py/rules.py's business rules reference (pins,
 # same-day groups, forced-first stops, drops, the one-off manual pairings)
 # -- code reads this at runtime instead of embedding names as literals.

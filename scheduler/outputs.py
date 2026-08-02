@@ -10,6 +10,8 @@ import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+import client_config_loader
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 XLSX = os.path.join(HERE, "2026 Christmas Schedule.xlsx")
@@ -19,7 +21,8 @@ HDR_FILL = PatternFill("solid", fgColor="0B5D3B")
 HDR_FONT = Font(bold=True, color="FFFFFF", size=11)
 CAT_FILL = {
     "M Crowd": "C0392B", "Country Club": "8E44AD", "Capital Bank": "2C7873",
-    "Rotary House": "D35400", "Brenda Ryan": "B7950B", "Standard": "1F618D",
+    "Rotary House": "D35400", "Standard": "1F618D",
+    client_config_loader.load()["single_crew_priority"]["category"]: "B7950B",
 }
 FLAG_FILL = PatternFill("solid", fgColor="F9E79F")
 OVER_FILL = PatternFill("solid", fgColor="F5B7B1")

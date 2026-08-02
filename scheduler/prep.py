@@ -24,6 +24,8 @@ import time
 import openpyxl
 import requests
 
+import client_config_loader
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 os.makedirs(CACHE, exist_ok=True)
@@ -37,6 +39,12 @@ EXCLUDE = {
     "PICKUP & DELIVERY - TAKEDOWN", "SPECIALTY INSTALL LABOR",
     "STORAGE FEE PER BOX", "CREW LEAD", "DESIGNER ART DIRECTOR LEAD",
 }
+
+# Every per-client override below (ZIP, no-address, storage box counts,
+# storage status, manual coordinates, the single-crew-priority category)
+# lives in client_config.json, never in this file (user, 2026-08-02: no
+# client names in the codebase). See client_config_loader.py.
+CLIENT_CONFIG = client_config_loader.load()
 
 # ---------------------------------------------------------------------------
 # ZIP -> (Area, Zone).  Reconstructed from the brief's taxonomy + Houston/DFW
@@ -138,102 +146,26 @@ ZIP_ZONE = {
 
 # Per-client ZIP overrides keyed by exact client name (brief's corrections
 # and the messy rows).  ZIP then flows through ZIP_ZONE.
-ZIP_OVERRIDE = {
-    "Madden, Misty": "77433",              # Cypress (file had bad 77233)
-    "Woodlands CC Players": "77381",       # no ZIP -> The Woodlands
-    "Woodlands CC Tavern at The Trails": "77381",
-}
+ZIP_OVERRIDE = CLIENT_CONFIG["zip_override"]
 
 # Clients with no usable address at all -> flag, do not route/map.
-NO_ADDRESS = {"Buenrostro, Felecia", "Cornith Church"}
+NO_ADDRESS = set(CLIENT_CONFIG["no_address"])
 
 # VERIFIED box counts from the storage-room binder photos (2026-07-30).
 # The binder reflects what is physically racked and OVERRIDES the sheet's
-# BOX COUNT column (which was wildly off for the clubs: Nicklaus 83 vs 20).
-STORAGE_BOX_COUNTS = {
-    "The Club at Carlton Woods | Fazio Clubhouse": 31,
-    "The Club at Carlton Woods | Nicklaus Clubhouse": 83,
-    "The Club at Carlton Woods | Outdoor Tree & Frame": 10,
-    "William Brothers Office": 9,
-    "William Brothers-NRG": 15,
-    "Harter, Suzanne": 3,
-    "Ingram, Donna": 8,
-    "Jinks, Amy": 2,
-    "Waterway Wealth Waterway": 6,
-    "Woodlands CC Palmer": 12,
-    "Woodlands CC Tavern at The Trails": 10,
-    "Woodlands CC Legacy": 7,   # + separate wreath
-    "Woodlands CC Players": 7,
-    "Woodlands CC Tournament": 12,
-    "Moss, Dave": 35,
-    "Semple, Lauren": 14,
-    "Jensen, Traci": 13,
-    "Royal Oaks CC": 42,        # physical boxes labeled "n OF 42"
-    "Serenity Retreat, Tiffany Pardue": 6,  # rental package "of 6"
-    "Citizens State Bank": 24,
-    "Pitcock, James": 29,
-    "Capital Bank - Pearland": 4,
-    "Capital Bank - Pasadena": 4,
-    "Capital Bank - Deer Park": 5,
-    "Capital Bank - Clearlake": 5,
-    "Capital Bank - Katy": 6,
-    "Capital Bank - I-10": 16,
-    "Capital Bank - Sugarland": 4,
-    "Capital Bank - Baytown": 4,
-    "Origin Bank Tanglewood": 3,
-    "Buenrostro, Felecia": 12,
-    "Junious, Carvis Dr.": 11,
-    "Hanover Corporate": 13,
-    "Lee, Evelyn": 38,
-    "Cornith Church": 2,
-    "M Crowd The Mercury Grill": 11,
-    "M Crowd Preston Forest": 4,
-    "M Crowd Legacy Plano": 4,
-    "M Crowd The Star – Frisco": 5,
-    "M Crowd District 121": 15,
-    "M Crowd Uptown": 6,
-    "M Crowd Highlands Ranch": 6,
-    "M Crowd Alliance Town Center": 7,
-    "M Crowd Lakewood": 4,
-    "M Crowd Lakeside Market": 2,
-    "M Crowd Lennox Center": 4,
-    "M Crowd Chapel Hill": 4,
-    "M Crowd Allen Market Street": 4,
-    "M Crowd Nebraska Furniture Mart": 7,
-    "M Crowd Highland Park Village": 39,
-    "M Crowd Southlake Town Square": 4,
-    "M Crowd Corporate Office": 9,   # binder "Mc Crowd 9 Boxes" — assumed Corporate; CONFIRM
-    "M Crowd Las Colinas Village": 9,
-    "M Crowd Bent Tree": 3,
-    "M Crowd Sundance Square": 6,
-    "M Crowd Lake Highlands": 4,
-    "M Crowd Galleria Dallas": 5,
-    "M Crowd Rockwall": 5,
-    "M Crowd Monkey Bar on 9": 12,
-    "M Crowd On The Park": 15,
-}
+# BOX COUNT column (which was wildly off for the clubs).
+STORAGE_BOX_COUNTS = CLIENT_CONFIG["storage_box_counts"]
 
 # Manual storage-status corrections (client, 2026-07-31): overrides the
 # sheet's "TBDG STORAGE YES/NO" column when a client's situation changed.
-STORAGE_OVERRIDE = {
-    "Schultea, Kathy": "NO — client now stores at her own house",
-}
+STORAGE_OVERRIDE = CLIENT_CONFIG["storage_override"]
 
 # Manual coordinate fixes for rows whose street cell mis-geocodes (verified
-# against Nominatim by ZIP/known location).
-MANUAL_COORDS = {
-    "Northside Import": (30.0755990, -95.4356940),   # I-45 frontage, Spring
-    "Scheib, Nataliya": (29.6185669, -95.5377215),   # Missouri City 77459
-    "Musser, Kristy": (30.1668828, -96.3977442),     # Brenham 77833
-    # 953 Memory Lane has no exact match in Nominatim OR the Census
-    # geocoder (checked 2026-08-01, likely a newer/private road neither
-    # database has). Nominatim's fuzzy fallback matched a DIFFERENT
-    # "Memory Lane" in Washington County (~24mi away, wrong county) --
-    # user confirmed she's really in Bellville, so this is the Bellville
-    # 77418 ZIP centroid instead: right town, not house-precise, but far
-    # closer to true than the wrong-county match it replaces.
-    "Serenity Retreat, Tiffany Pardue": (29.9502253, -96.2571858),
-}
+# against Nominatim by ZIP/known location). One entry (a rural road with no
+# exact match in Nominatim or the Census geocoder) is a ZIP-centroid
+# fallback rather than house-precise -- see client_config.json's comment
+# convention / RULES.md for the full story.
+MANUAL_COORDS = CLIENT_CONFIG["manual_coords"]
 
 BUSINESS_KEYWORDS = [
     "m crowd", "bank", "club", "cc", "hotel", "suites", "inn", "church",
@@ -313,8 +245,9 @@ def categorize(name):
         return "Country Club"
     if "rotary house" in n:
         return "Rotary House"
-    if name.strip() == "Ryan, Brenda":
-        return "Brenda Ryan"
+    scp = CLIENT_CONFIG["single_crew_priority"]
+    if name.strip() == scp["client_name"]:
+        return scp["category"]
     return "Standard"
 
 

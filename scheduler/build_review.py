@@ -1507,8 +1507,9 @@ function drawDate(date){
 
 // ---------- search ----------
 // "Which day is this client on?" -- a plain substring match over C, ranked
-// by whether the match starts a word (so "Kerri" surfaces "Byler, Kerri"
-// before something that merely contains those letters mid-name).
+// by whether the match starts a word (so a first-name search surfaces the
+// matching "Lastname, Firstname" entry before a name that merely contains
+// those letters mid-string).
 const searchBox = document.getElementById('searchbox');
 const searchResults = document.getElementById('searchresults');
 function searchClients(q){

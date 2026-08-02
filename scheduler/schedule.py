@@ -78,30 +78,8 @@ DOW = {  # for labels, and the full set of dates the review tool can show.
 }
 
 
-CLIENT_CONFIG_PATH = os.path.join(HERE, "client_config.json")
-
-
-def load_client_config():
-    """Every client name the business rules below touch -- deposits,
-    same-day groups, forced-first stops, drops, and the one-off manual
-    pairings built up over the season (user, 2026-08-02: no client names
-    in the codebase). Never git-tracked (see .gitignore) -- the pipeline
-    can't build a correct schedule without it, so a missing file is a
-    hard error, not a silent empty-rules fallback that would quietly
-    drop every pinned date and grouping."""
-    if not os.path.exists(CLIENT_CONFIG_PATH):
-        raise SystemExit(
-            f"{CLIENT_CONFIG_PATH} not found -- this holds every named "
-            "client rule (pins, groups, forced-first, drops, manual "
-            "pairings) and is required to build a correct schedule. "
-            "It's intentionally not in git; restore it from wherever "
-            "the team keeps working copies."
-        )
-    with open(CLIENT_CONFIG_PATH) as f:
-        return json.load(f)
-
-
-CLIENT_CONFIG = load_client_config()
+import client_config_loader
+CLIENT_CONFIG = client_config_loader.load()
 
 OVERRIDES = os.path.join(HERE, "overrides.json")
 
@@ -996,7 +974,7 @@ def main():
         consumed.add((ROTARY_SUNDAY, "Crew 3"))
 
     # ---- Claim pinned (email-dated) clients before the standard pool forms ----
-    brenda = take(lambda c: c["category"] == "Brenda Ryan")
+    brenda = take(lambda c: c["category"] == CLIENT_CONFIG["single_crew_priority"]["category"])
     nicklaus = names([CARLTON_NICKLAUS])
     outdoor = names([CARLTON_OUTDOOR])
     fazio = names([CARLTON_FAZIO])

@@ -9,6 +9,7 @@ script fail as though the scheduler were broken.
 import json
 import os
 
+import client_config_loader
 import rules
 
 CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
@@ -59,12 +60,13 @@ check(len(bank_days) <= 2, f"R3 banks on <=2 crews: {len(bank_days)} crew-day(s)
 rot = [x for x in days if x["category"] == "Rotary House"]
 check(all(x["date"] == "2026-11-29" for x in rot), "R4 Rotary on Sun Nov 29")
 
-# Rule 5 (user, 2026-07-31): Brenda Ryan needs ONE well-staffed crew, not
-# two separate crew-days split across her job.
-br_rows = [s["row"] for x in days for s in x["stops"] if s["name"] == "Ryan, Brenda"]
+# Rule 5 (user, 2026-07-31): the single-crew-priority client needs ONE
+# well-staffed crew, not two separate crew-days split across her job.
+scp_name = client_config_loader.load()["single_crew_priority"]["client_name"]
+br_rows = [s["row"] for x in days for s in x["stops"] if s["name"] == scp_name]
 br_crews = stop_crews.get(br_rows[0], set()) if br_rows else set()
 check(len(br_crews) == 1,
-      f"R5 Brenda covered by exactly one well-staffed crew: {sorted(br_crews)}")
+      f"R5 single-crew-priority client covered by exactly one well-staffed crew: {sorted(br_crews)}")
 
 # Rule 7: no businesses on weekends (Sat/Sun) except Rotary Sunday and
 # client-requested Country Club installs (clubs routinely need weekends).
