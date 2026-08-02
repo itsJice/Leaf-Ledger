@@ -1869,25 +1869,15 @@ function openMoveDlg(row,presetDate){
     const first=[...dsel.options].findIndex(o=>!o.disabled);
     if(first>=0) dsel.selectedIndex=first;
   }
-  const fillCrews=()=>{ const dt=dsel.value;
+  // Split in two: rebuilding csel's <option> list resets its selection to
+  // the browser default, so that rebuild must only run when the DATE
+  // changes (the set of valid crews changed) -- never from csel's own
+  // onchange, or picking Crew 2/3 would immediately snap back to Crew 1
+  // the moment the rebuild ran. Each option's checkPlan result is already
+  // per-crew and independent of which one is currently selected, so a
+  // crew-only change never needs the options themselves recomputed.
+  const renderCrewInfo=()=>{ const dt=dsel.value;
     const existing=days.filter(d=>d.date===dt);
-    // A crew can have two separate day-instances on the same date (a
-    // stacked/overflow job added via the "add a crew" zone) -- disambiguate
-    // those options by stop count, otherwise they're identical labels.
-    const crewCounts={};
-    existing.forEach(d=>{ crewCounts[d.crew]=(crewCounts[d.crew]||0)+1; });
-    const opts=existing.map(d=>{
-      const chk=checkPlan(planFor(row, d.id));
-      const tag=d.win===480?' (day shift 9-5)':(d.win===K.NIGHT?' (night)':'');
-      const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
-      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${d.crew}${tag}${dupe}`
-           + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
-    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
-      const id=`${dt}|${cr}|0`;
-      const chk=checkPlan(planFor(row, id));
-      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>${cr} (new day)`
-              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);});
-    csel.innerHTML=opts.join('');
     // Quick answer to "which crew should I drag this onto" -- every crew's
     // current property list for this date, at a glance, before picking one.
     const info=document.getElementById('mvcrewinfo');
@@ -1915,7 +1905,28 @@ function openMoveDlg(row,presetDate){
         : '';
     } else note.innerHTML='';
   };
-  dsel.onchange=fillCrews; csel.onchange=fillCrews; fillCrews();
+  const fillCrews=()=>{ const dt=dsel.value;
+    const existing=days.filter(d=>d.date===dt);
+    // A crew can have two separate day-instances on the same date (a
+    // stacked/overflow job added via the "add a crew" zone) -- disambiguate
+    // those options by stop count, otherwise they're identical labels.
+    const crewCounts={};
+    existing.forEach(d=>{ crewCounts[d.crew]=(crewCounts[d.crew]||0)+1; });
+    const opts=existing.map(d=>{
+      const chk=checkPlan(planFor(row, d.id));
+      const tag=d.win===480?' (day shift 9-5)':(d.win===K.NIGHT?' (night)':'');
+      const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
+      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${d.crew}${tag}${dupe}`
+           + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
+    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
+      const id=`${dt}|${cr}|0`;
+      const chk=checkPlan(planFor(row, id));
+      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>${cr} (new day)`
+              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);});
+    csel.innerHTML=opts.join('');
+    renderCrewInfo();
+  };
+  dsel.onchange=fillCrews; csel.onchange=renderCrewInfo; fillCrews();
   mvdlg.showModal();
 }
 document.getElementById('mvgo').onclick=()=>{
