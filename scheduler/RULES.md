@@ -1,7 +1,7 @@
 # TBDG Christmas Install Scheduling — RULEBOOK
 *The accumulated business rules from building the 2026 schedule. Feed next
 year's raw client spreadsheet through the pipeline with these rules and the
-first pass should be ~90% right. Last updated: 2026-07-30.*
+first pass should be ~90% right. Last updated: 2026-08-02.*
 
 ---
 
@@ -147,11 +147,20 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
 ## 10. Leaf & Ledger integration
 - The Install Schedule tool is embedded in the Leaf & Ledger app as a
   sidebar tab (Workspace → "Install Schedule", TreePine icon, route
-  `/install-schedule`, page = Layout-wrapped iframe of
-  `public/install-schedule/index.html`).
+  `/install-schedule`). The page is client names, home addresses and
+  phone numbers, so it is served ONLY from the authenticated
+  `GET /api/install-schedule/page` route (backend/app/apis/install_schedule)
+  and synced into `backend/protected/install-schedule/` — never
+  `frontend/public/`, which is served to anyone with the URL. The
+  frontend page fetches it with the signed-in user's token and injects
+  it into a `srcDoc` iframe (`frontend/src/pages/InstallSchedule.tsx`),
+  then `postMessage`s the auth token in so the tool's shared-state calls
+  (§12) can authenticate — with no token it falls back to localStorage
+  only, same as running the standalone file offline.
 - `build_review.py` auto-syncs review.html + map.html into
-  `leaf-and-ledger/app/frontend/public/install-schedule/` on every
-  regenerate — rebuild the frontend (or redeploy) to ship updates.
+  `backend/protected/install-schedule/` on every regenerate — restart
+  or redeploy the backend to ship updates (no frontend rebuild needed;
+  the page is fetched at request time, not bundled).
 
 ## 11. Real road geometry, mileage & map robustness
 - `route_geometry.py` fetches each day's REAL road-following path + actual
@@ -181,3 +190,72 @@ first pass should be ~90% right. Last updated: 2026-07-30.*
   all. Normal user zoom/pan still works fine afterward. Applied in
   outputs.py's MAP_TEMPLATE; review.html's per-date `fitBounds` calls are
   interaction-triggered (not first-paint) and were not affected.
+
+## 12. Reschedule-assist: guardrails, overrides, shared editing
+Built after the base 2026 schedule shipped, for the weeks of client
+reschedule requests that follow. All in `build_review.py`'s emitted JS
+unless noted; rules mirror `rules.py`'s predicates so there is one
+definition of "legal," not a second implementation that can drift.
+
+- **Guardrails, not a re-solve.** Dragging a stop runs `checkPlan(ops)`
+  against a CLONED copy of the day state (never live) before anything
+  commits. Static rules (dates, categories, deposits) are precomputed in
+  Python per (client × date) and shipped as a lookup table; dynamic
+  rules (30-min radius, day window, group cohesion, joint integrity)
+  are evaluated live in JS since they depend on what a day currently
+  contains.
+- **Blockers vs. warnings (user, 2026-08-02: staff need full override
+  capability to accommodate a customer "even if something goes wrong").**
+  Every DATE/category rule — Dallas week, Bank Friday, Rotary Sunday,
+  a client's own deposited date, day-over-window hours — is a soft
+  warning: it never disables a date in the move dialog or slot finder,
+  it shows a concise "heads up, confirm to proceed" note before commit.
+  What stays a hard block is scoped to what would silently corrupt a
+  job, not just break a scheduling preference: a stop that needs two
+  crews, a same-day client group split apart, a club job missing Crew 1
+  coverage. `rules.py`'s `CODES` dict is the single switch for this
+  (`soft=True`/`False` per code) — flip it there, not per call site.
+- **Slot finder** (`openSlotFinder`) — "this client wants date X" → every
+  legal (date, crew) ranked by a marginal-insertion-cost screen (asymmetric
+  matrix, evaluated in the actual direction — never symmetrized) against
+  the day's real geography, then exactly re-routed for the top candidates.
+  Recommends dates before AND after the client's current one when today's
+  date allows it (never a date that's already passed).
+- **Notebook** (`overrides.json`, exported from the tool) — every promised
+  (date, crew, stops) is a FROZEN assignment, replayed verbatim by
+  `schedule.py` before anything else runs, so a spreadsheet regeneration
+  doesn't silently move 30 people who were already told their date.
+  Keyed by client NAME (a sheet row insertion renumbers every row after
+  it, which would reattach dates to the wrong person otherwise).
+- **Manually-added clients** (jobs never in the spreadsheet: an
+  install → event-takedown → reinstall pattern, a one-day install with
+  a next-day takedown, a callback because something broke or the client
+  bought more) — a "+ New client" dialog geocodes the address live and
+  fetches REAL OSRM drive times against every existing client (two
+  targeted `/table` calls, both directions — durations are asymmetric,
+  same as everywhere else in this codebase — not a full N×N matrix, so
+  it stays fast regardless of how many manual clients already exist).
+  The fetched legs are persisted with the client record (localStorage,
+  shared state, and the notebook export) so a reload or a full
+  `schedule.py` rebuild reuses the same real numbers instead of
+  re-deriving or re-fetching them. Straight-line-plus-fudge estimate is
+  a fallback only, for when the live fetch fails or for the rare case
+  of two manually-added clients' distance to each other.
+- **Undo/redo** — full state snapshots (placement + approvals + moves),
+  100 deep, session-scoped (a reload starts fresh — see shared state
+  below for what actually persists across reloads).
+- **Shared state** — several staff work the same schedule over the
+  season, so edits live in Postgres keyed on the schedule build version
+  (`ll_app.install_schedule_state`), not per-user — a per-user document
+  would let two people silently diverge. Saves are debounced 200ms and
+  carry a timestamp; on load, if THIS device's last local save is newer
+  than the server's last recorded write (its own debounced push from
+  before a refresh may simply not have landed yet), local wins and gets
+  pushed up rather than being silently overwritten by stale server data.
+- **Change history** — every save also appends to
+  `ll_app.install_schedule_history` (200-version retention per build)
+  instead of only overwriting the current row. The tool's "History"
+  panel lists past saves (who, when) with a Restore action; restoring
+  never deletes anything — it applies the old state locally and saves
+  it back as a new current version, same model as a Google Doc's
+  version history.

@@ -14,6 +14,7 @@ The application replaces a fragmented workflow of supplier portals, spreadsheets
 - Calculates recipe-driven quantities while keeping supplier cost separate from customer pricing.
 - Supports resumable enrichment and image-storage work for large catalogs.
 - Generates visual mockups when an image-generation provider is configured.
+- Runs a seasonal install-scheduling pipeline and a live reschedule-assist tool (see [Install Schedule](#install-schedule)) for a client's crew routing and day-of accommodation work.
 
 ## Product boundary
 
@@ -46,11 +47,21 @@ flowchart LR
 
 See [Architecture](ARCHITECTURE.md) for boundaries and data flow.
 
+## Install Schedule
+
+A seasonal side-product: a Python pipeline that builds TBDG's Christmas install schedule from a raw client spreadsheet (geocoding, drive-time matrices, crew routing, business rules), and a browser-based tool for the weeks of client reschedule requests that follow after the base schedule ships.
+
+- **Pipeline** (`scheduler/`) — `prep.py` (parse → zones → hours → geocode → OSRM drive-time matrix, all cached) → `schedule.py` (rule-driven crew-day packing, routes every day for minimum real drive time) → `route_geometry.py` (real road-following paths for the map) → `validate.py` (assertions against the generated schedule, run after every change) → `build_review.py` (emits the standalone review tool). The full rule set — Houston day shape, Dallas Mi Cocina nights, Saturday eligibility, client-pinned dates, box-count sourcing — is documented in [scheduler/RULES.md](scheduler/RULES.md).
+- **Review tool** (served at `/install-schedule`, authenticated — it carries client names, addresses, and phone numbers, so it's never in `frontend/public/`) — drag-and-drop crew-day editing with guardrails: a move is checked against the same rules the pipeline used, structural breaks (a job that needs two crews, a same-day client group, club-crew coverage) stay hard blocks, and everything else (date/category rules, deposited dates) is an overridable warning so staff can accommodate an unusual request without fighting the tool. Includes a slot finder for "what dates could this move to," on-the-fly entry for jobs that were never in the spreadsheet (event takedown/reinstall pairs, callbacks) with live-fetched real drive times, and full undo/redo.
+- **Shared state** — every staff member's edits land in Postgres (`ll_app.install_schedule_state`), keyed to the schedule build so an old build's saved edits are never misapplied to a regenerated one. Saves are an append-only history (`ll_app.install_schedule_history`), so a mistake can be rolled back without losing anyone else's work in between — a "History" panel in the tool lists past versions and restores any of them.
+- **Notebook** (`overrides.json`) — the review tool can export every promised date (and any manually-added client) as a frozen-assignment layer; re-running the pipeline from an updated spreadsheet replays those verbatim before re-solving everything else, so a client who was already told their date doesn't get silently moved.
+
 ## Repository map
 
 ```text
 backend/                    FastAPI application, domain services, and tests
 frontend/                   React and TypeScript web application
+scheduler/                  TBDG install-schedule pipeline and review tool (see above)
 catalog-extraction/         Optional file-producing extraction workspace
 supplier onboarding notes/ Source-intake runbooks and historical lessons
 .github/workflows/          Continuous integration and manual extraction jobs
