@@ -98,10 +98,26 @@ catalog-extraction/Vickerman*.py
 # pnpm-lock.yaml
 # uv.lock
 
-# Scheduler engine (offline tool) — env only, code+caches ARE tracked
+# Scheduler engine (offline tool) — only the pipeline CODE is tracked.
+# Everything below is real client data (names, home addresses, phone
+# numbers, install dates) and must never be committed, private repo or
+# not (user, 2026-08-02). Regenerate locally from the pipeline scripts;
+# publish_pages.py pushes the compiled tool straight to Postgres instead
+# of a git-tracked file — see backend/app/apis/install_schedule and
+# scheduler/RULES.md §12.
 scheduler/.venv/
 scheduler/__pycache__/
+scheduler/cache/
+scheduler/review.html
+scheduler/map.html
+backend/protected/
+
+# Every client name schedule.py/rules.py's business rules reference (pins,
+# same-day groups, forced-first stops, drops, the one-off manual pairings)
+# -- code reads this at runtime instead of embedding names as literals.
+scheduler/client_config.json
 
 # The notebook: staff-recorded promised dates. Local working state that
-# schedule.py reads on rebuild -- not a source artifact.
+# schedule.py reads on rebuild -- not a source artifact, and also client
+# data (see above).
 scheduler/overrides.json

@@ -2108,16 +2108,5 @@ render();
 with open(OUT, "w") as f:
     f.write(HTML.replace("__DATA__", payload))
 print("Wrote", OUT, f"({os.path.getsize(OUT)//1024} KB)")
-
-# Keep the embedded Leaf & Ledger copy in sync (Install Schedule tab).
-# PROTECTED dir — served only through the authenticated
-# /api/install-schedule/page endpoint, never from public/ (client PII).
-LL_PROTECTED = os.path.normpath(
-    os.path.join(HERE, "..", "backend", "protected", "install-schedule"))
-if os.path.isdir(LL_PROTECTED):
-    import shutil
-    shutil.copyfile(OUT, os.path.join(LL_PROTECTED, "index.html"))
-    map_src = os.path.join(HERE, "map.html")
-    if os.path.exists(map_src):
-        shutil.copyfile(map_src, os.path.join(LL_PROTECTED, "map.html"))
-    print("Synced into Leaf & Ledger backend/protected/install-schedule/")
+print("Run publish_pages.py to push this to the deployed tool "
+      "(it's served from Postgres now, not a file -- see RULES.md \xa712).")

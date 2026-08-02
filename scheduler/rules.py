@@ -223,65 +223,22 @@ def club_crew_ok(category, crews_covering):
 # Same-day groups -- clients that must be worked together.
 # `first` names the stop that must lead the route; `min_crews` flags the
 # jobs that need more than one crew on site.
+#
+# All of these, plus FORCE_FIRST/PINS/NO_INSTALL below, come from
+# schedule.py's CLIENT_CONFIG (client_config.json, never git-tracked --
+# user, 2026-08-02: no client names in the codebase). Reusing S's already-
+# loaded copy instead of reading the file a second time here.
 # ---------------------------------------------------------------------------
-SAME_DAY_GROUPS = [
-    {"id": "a_hug_away", "label": "A Hug Away (3 locations)",
-     "names": ["A Hug Away | Daycare \"A Creative Genius Academy Learning\"",
-               "A Hug Away | Frazier, Marissa Residence",
-               "A Hug Away | Office"],
-     "first": None, "min_crews": 1,
-     "why": "2026 Install Date column: \"1/3, 2/3, 3/3 Same Day\""},
-    {"id": "lewis_lts", "label": "Holly Lewis + Love That Smile",
-     "names": ["Lewis, Holly", "Love That Smile"],
-     "first": "Love That Smile", "min_crews": 1,
-     "why": "Same day per client; Love That Smile FIRST -- Holly's boxes are stored there"},
-    {"id": "kerri_byler", "label": "Kerri Byler (3 Bellville locations)",
-     "names": ["Byler, Kerri - House", "Byler, Kerri - Office",
-               "Byler, Kerri - Store Buck Ferguson"],
-     "first": None, "min_crews": 1,
-     "why": "House/office/store kept together -- Bellville is 70min each way"},
-    {"id": "schultea_pitcock", "label": "Schultea + Pitcock",
-     "names": ["Schultea, Kathy", "Pitcock, James"],
-     "first": None, "min_crews": 1,
-     "why": "~19min apart in Clear Lake; paired to save a depot round-trip"},
-    {"id": "musser_serenity", "label": "Musser + Serenity Retreat",
-     "names": ["Musser, Kristy", "Serenity Retreat, Tiffany Pardue"],
-     "first": None, "min_crews": 1,
-     "why": "Both far west with no closer option -- one trip instead of two"},
-    {"id": "sullivan_mattix", "label": "Sullivan + Mattix",
-     "names": ["Sullivan, Kristine", "Mattix, Margaret & Rick"],
-     "first": None, "min_crews": 1,
-     "why": "~1.3min apart -- essentially the same address"},
-    {"id": "citizens_group", "label": "Citizens Bank + Ingram + Northside",
-     "names": ["Citizens State Bank", "Ingram, Donna", "Northside Import"],
-     "first": None, "min_crews": 1,
-     "why": "17-21min apart; combined so Citizens isn't a lone day"},
-    {"id": "bourque_group", "label": "Bourque + Cain + Bergstrom",
-     "names": ["Bourque, Stacey", "Cain, Andria",
-               "Bergstrom, Debbie and Steve"],
-     "first": None, "min_crews": 2,
-     "why": "Bourque's house needs 2 full crews; worked with her Woodlands neighbours"},
-]
+SAME_DAY_GROUPS = S.CLIENT_CONFIG["same_day_groups"]
 
 # Stops that must lead their day's route, independent of any group.
-FORCE_FIRST = {
-    "Roane, Sheri": "Always wants a 9am start",
-    "Jinks, Amy": "Likes to go first",
-    "Love That Smile": "Holly Lewis's boxes are stored here -- must open first",
-}
+FORCE_FIRST = S.CLIENT_CONFIG["force_first"]
 
 # Client-requested / confirmed dates asserted by validate.py.
-PINS = {
-    "Marek Bros": "2026-11-30",
-    "The Club at Carlton Woods | Nicklaus Clubhouse": "2026-11-27",
-    "The Club at Carlton Woods | Fazio Clubhouse": "2026-12-01",
-    "Woodlands CC Players": "2026-11-25",
-    "Woodlands CC Palmer": "2026-11-30",
-    "Sims, Darcy": "2026-12-02",
-}
+PINS = S.CLIENT_CONFIG["pins"]
 
 # Clients whose "2026 Install Date" cell says no install this year.
-NO_INSTALL = ["Gitu, Patrick", "Tenaris", "Valenzuela, Melinda"]
+NO_INSTALL = list(S.CLIENT_CONFIG["no_install"])
 
 
 def window_reason(day):

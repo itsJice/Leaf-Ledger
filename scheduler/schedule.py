@@ -41,9 +41,9 @@ HOU_WEEKDAYS = ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13",
 SATURDAYS = []   # no standard Saturday capacity -- see STD_WEEKDAYS note
 # Round-1 Houston weekday slots (user, 2026-08-01): teams work consecutive
 # Mon-Fri only, nothing on Saturday/Sunday except named exceptions (Rotary
-# House's Sunday, Outdoor Tree & Frame's client-requested Saturday -- both
-# pinned individually below, independent of this pool). The window runs
-# forward from Thanksgiving through Sims, Darcy's confirmed Dec 2 (this
+# House's Sunday, one club's client-requested Saturday -- both pinned
+# individually below, independent of this pool). The window runs forward
+# from Thanksgiving through a deposited client's confirmed Dec 2 (this
 # round's last date), and back from Thanksgiving only as far as needed to
 # fit everyone -- that floor is Nov 12, one crew-day of slack short of
 # exactly filling this round's Houston need (41 crew-days into 42 slots).
@@ -77,6 +77,31 @@ DOW = {  # for labels, and the full set of dates the review tool can show.
     "2026-12-08": "Tue", "2026-12-09": "Wed", "2026-12-10": "Thu",
 }
 
+
+CLIENT_CONFIG_PATH = os.path.join(HERE, "client_config.json")
+
+
+def load_client_config():
+    """Every client name the business rules below touch -- deposits,
+    same-day groups, forced-first stops, drops, and the one-off manual
+    pairings built up over the season (user, 2026-08-02: no client names
+    in the codebase). Never git-tracked (see .gitignore) -- the pipeline
+    can't build a correct schedule without it, so a missing file is a
+    hard error, not a silent empty-rules fallback that would quietly
+    drop every pinned date and grouping."""
+    if not os.path.exists(CLIENT_CONFIG_PATH):
+        raise SystemExit(
+            f"{CLIENT_CONFIG_PATH} not found -- this holds every named "
+            "client rule (pins, groups, forced-first, drops, manual "
+            "pairings) and is required to build a correct schedule. "
+            "It's intentionally not in git; restore it from wherever "
+            "the team keeps working copies."
+        )
+    with open(CLIENT_CONFIG_PATH) as f:
+        return json.load(f)
+
+
+CLIENT_CONFIG = load_client_config()
 
 OVERRIDES = os.path.join(HERE, "overrides.json")
 
@@ -345,10 +370,10 @@ def build_day(D, crew, date, stops, by_idx, category, depot_anchored=True,
         "half_rows": sorted(half_rows), "joint_with": joint_with,
         "note": note, "flags": flags,
         "zones": sorted({s["zone"] for s in stops}),
-        # Forced-first stop (client ordering requirement: Love That Smile
-        # before Holly Lewis, Sheri Roane's 9am start, Amy Jinks, and every
-        # joint mega-restaurant lead). Was computed above and thrown away --
-        # the review tool needs it or it re-routes these days wrongly the
+        # Forced-first stop (client ordering requirements -- see
+        # client_config.json's force_first/lead_names -- plus every joint
+        # mega-restaurant lead). Was computed above and thrown away -- the
+        # review tool needs it or it re-routes these days wrongly the
         # first time anyone edits them.
         "start_row": start_row,
     }
@@ -455,16 +480,15 @@ def pack_bins(D, pool, by_idx):
 # joybells Christmas account). These pin specific clients to fixed dates and
 # override the generic clubs-on-Mondays rule where a client asked otherwise.
 # ---------------------------------------------------------------------------
-DROP_CLIENTS = {"Woodlands CC Tournament",
-                "Pullin, Myra",     # user, 2026-07-31: take Myra Pullin out entirely
-                "Kanyi, Joy and Kenneth (Celestial)"}   # user, 2026-07-31: take off
-CARLTON_NICKLAUS = "The Club at Carlton Woods | Nicklaus Clubhouse"
-CARLTON_OUTDOOR = "The Club at Carlton Woods | Outdoor Tree & Frame"
-CARLTON_FAZIO = "The Club at Carlton Woods | Fazio Clubhouse"
-WCC_NOV30 = ["Woodlands CC Palmer", "Woodlands CC Legacy",
-             "Woodlands CC Tavern at The Trails"]
-WCC_PLAYERS = "Woodlands CC Players"
-ROYAL = "Royal Oaks CC"
+# Names, pin dates and reasons live in client_config.json -- see
+# load_client_config() above.
+DROP_CLIENTS = set(CLIENT_CONFIG["drop_clients"].keys())
+CARLTON_NICKLAUS = CLIENT_CONFIG["clubs"]["nicklaus"]
+CARLTON_OUTDOOR = CLIENT_CONFIG["clubs"]["outdoor"]
+CARLTON_FAZIO = CLIENT_CONFIG["clubs"]["fazio"]
+WCC_NOV30 = CLIENT_CONFIG["clubs"]["wcc_nov30"]
+WCC_PLAYERS = CLIENT_CONFIG["clubs"]["wcc_players"]
+ROYAL = CLIENT_CONFIG["clubs"]["royal"]
 
 
 def main():
@@ -624,7 +648,7 @@ def main():
     # normal business hours (start after 9am, done before 5pm). Arrival-day
     # plan: drive up Monday morning, install 9-5 window, hotel + sleep,
     # then the first night shift starts Monday 11pm.
-    corp = [c for c in dallas if "Corporate Office" in c["name"]]
+    corp = [c for c in dallas if CLIENT_CONFIG["corp_name_substr"] in c["name"]]
     for c in corp:
         days.append(build_day(
             D, "Crew 3", DALLAS_DAYS[0], [c], by_idx, "M Crowd",
@@ -979,216 +1003,173 @@ def main():
     wcc30 = names(WCC_NOV30)                      # Palmer, Legacy, Trails
     players = names([WCC_PLAYERS])
     royal = names([ROYAL]) + take(lambda c: c["category"] == "Country Club")  # +any stray
-    marek = names(["Marek Bros"])
-    sims_darcy = names(["Sims, Darcy"])           # confirmed 2026-12-02
+    marek = names(CLIENT_CONFIG["pairing_names"]["marek"])
+    sims_darcy = names(CLIENT_CONFIG["pairing_names"]["sims_darcy"])  # confirmed 2026-12-02
 
-    # Keffer, Pam / Casperson, Erik / Allums, Jennifer are deliberately NOT
-    # pinned here anymore (user, 2026-08-01). The old pairing was reasoned
-    # from a bad geocode of Keffer's address ("5231 Wincroft Houston, TX
-    # 77069" mis-parsed to bare "5231", landing ~35mi northeast near
-    # Livingston) that made her look isolated -- fixed now, and her real
-    # nearest neighbor is Ingram, Donna at 7.5min, not Casperson/Allums at
-    # 46.8/51.5min. None of the three are in the confirmed/deposited list,
-    # so per user instruction they fall through to the standard pool and
-    # get clustered by the normal geography + prior-year-date logic below,
-    # same as everyone else without a locked-in date.
+    # One client's geocode used to send them through a manual isolation
+    # pairing here (user, 2026-08-01: fixed a bad address parse that made
+    # them look ~35mi from where they actually are) -- removed, they now
+    # fall through to the standard pool and cluster normally.
 
-    # Rule (user, 2026-08-01): Serenity Retreat's address had no exact
-    # match in Nominatim OR the Census geocoder; Nominatim's fuzzy fallback
-    # matched a DIFFERENT "Memory Lane" in the wrong county, 24mi off --
-    # corrected to the Bellville ZIP centroid (user confirmed she's really
-    # in Bellville). That puts her closer to the Kerri Byler cluster and
-    # Byers Merlene (Bellville) than to Musser on paper, but the automatic
-    # packer split Musser and Byers Merlene (Bellville) into two separate
-    # single-stop days instead of using that -- worse than the original
-    # pairing. User preferred keeping Musser + Serenity together (both
-    # genuinely remote -- Musser has no good option regardless), so this
-    # stays a manual pin rather than left to the general packer.
-    musser_serenity = names(["Musser, Kristy", "Serenity Retreat, Tiffany Pardue"])
+    # Two clients stay a manual pin even after their address was corrected,
+    # because the automatic packer's alternative placement was worse and
+    # neither has a meaningfully closer option regardless (user, 2026-08-01
+    # -- see client_config.json's pairing_notes.musser_serenity for detail).
+    musser_serenity = names(CLIENT_CONFIG["pairing_names"]["musser_serenity"])
 
-    # Rule (user, 2026-07-31): Bourque, Stacey's house needs 2 full crews
-    # to complete -- combine with her Woodlands neighbors Cain, Andria and
-    # Bergstrom (Debbie and Steve) into one 2-crew joint day instead of
-    # splitting them across two separate single-crew days.
-    two_crew_woodlands = names(["Bourque, Stacey", "Cain, Andria",
-                                "Bergstrom, Debbie and Steve"])
+    # Rule (user, 2026-07-31): one client's house needs 2 full crews to
+    # complete -- combined with 2 close neighbors into one 2-crew joint day
+    # instead of splitting across two separate single-crew days. See
+    # client_config.json's pairing_notes.two_crew_woodlands.
+    two_crew_woodlands = names(CLIENT_CONFIG["pairing_names"]["two_crew_woodlands"])
 
-    # Rule (user, 2026-07-31): Mercedes Benz is uncertain to happen at all
-    # -- keep it fully standalone (easy to cancel without disrupting
-    # anyone else) instead of paired with Waterway Wealth.
-    mercedes = names(["Mercedes Benz"])
-    # Waterway Wealth goes to the Hampton Inn/Crane Worldwide day instead
-    # (client note: not the Carlton Woods or Fazio/Houston-Cathy days).
-    hampton_crane_waterway = names(["Hampton Inn", "Crane Worldwide Logistics",
-                                    "Waterway Wealth Waterway"])
+    # Rule (user, 2026-07-31): one client is uncertain to happen at all --
+    # kept fully standalone (easy to cancel without disrupting anyone else)
+    # instead of paired with another. See pairing_notes.mercedes.
+    mercedes = names(CLIENT_CONFIG["pairing_names"]["mercedes"])
+    # A third client goes onto this pairing's day instead (client note: not
+    # the other 2 club days, already full). See pairing_notes.hampton_crane_waterway.
+    hampton_crane_waterway = names(CLIENT_CONFIG["pairing_names"]["hampton_crane_waterway"])
 
-    # Rule (user, 2026-07-31): Sullivan, Kristine and Mattix, Margaret & Rick
-    # are ~1.3min apart (essentially the same address) but were on separate
-    # days 5 weeks apart. Moved onto Mattix's day instead of Sims, Darcy's
-    # (Darcy stays on her confirmed 12/2 date, alone now that Sullivan's
-    # gone -- fine, that was a fill-in pairing, not a requirement of hers).
-    # Fits comfortably inside the normal 10h cap (~8h46m) -- no exception
-    # needed, this one's a clean win.
-    sullivan_mattix = names(["Sullivan, Kristine", "Mattix, Margaret & Rick"])
+    # Rule (user, 2026-07-31): two clients ~1.3min apart (essentially the
+    # same address) but on separate days 5 weeks apart -- moved onto one
+    # day. Fits comfortably inside the normal 10h cap -- no exception
+    # needed. See pairing_notes.sullivan_mattix.
+    sullivan_mattix = names(CLIENT_CONFIG["pairing_names"]["sullivan_mattix"])
 
-    # Rule (user, 2026-07-31): Citizens State Bank was alone; Ingram, Donna +
-    # Northside Import (17-21min away) had spare room. Combined day runs
-    # ~10h44m -- a modest exception past the normal 10h cap.
-    citizens_ingram_northside = names(["Citizens State Bank", "Ingram, Donna",
-                                       "Northside Import"])
+    # Rule (user, 2026-07-31): one client was alone; 2 others 17-21min away
+    # had spare room. Combined day runs ~10h44m -- a modest exception past
+    # the normal 10h cap. See pairing_notes.citizens_ingram_northside.
+    citizens_ingram_northside = names(CLIENT_CONFIG["pairing_names"]["citizens_ingram_northside"])
 
     # Rule (2026 Install Date column, client note "1/3, 2/3, 3/3 Same Day"):
-    # A Hug Away's 3 locations (daycare, Frazier residence, office) must be
-    # worked in one visit. All 3 fit comfortably inside the normal 10h cap
-    # (~7h26m total), so no exception needed here.
-    a_hug_away = names(["A Hug Away | Daycare \"A Creative Genius Academy Learning\"",
-                        "A Hug Away | Frazier, Marissa Residence",
-                        "A Hug Away | Office"])
+    # one client's 3 locations must be worked in one visit. All 3 fit
+    # comfortably inside the normal 10h cap (~7h26m total), so no exception
+    # needed here.
+    a_hug_away = names(CLIENT_CONFIG["pairing_names"]["a_hug_away"])
     if a_hug_away:
         days.append(build_day(
             D, "Crew 3", "2026-11-12", a_hug_away, by_idx, "Standard",
-            note="A Hug Away's 3 locations (daycare/residence/office) kept "
-                 "together per client note."))
+            note=CLIENT_CONFIG["pairing_notes"]["a_hug_away"]))
         consumed.add(("2026-11-12", "Crew 3"))
 
-    # Rule (2026 Install Date column, client note): Holly Lewis and Love
-    # That Smile must be worked the SAME day, with Love That Smile FIRST
-    # (Holly Lewis's boxes are stored there). Combined install alone is
-    # 10h45m -- already past the normal cap before any drive -- so this is
-    # an explicit exception (same generous window as Capital Bank), pinned
-    # first via start_row per the client's stated order requirement.
-    lewis_lts = names(["Lewis, Holly", "Love That Smile"])
+    # Rule (2026 Install Date column, client note): two clients must be
+    # worked the SAME day, one of them FIRST (their boxes are stored at the
+    # other's location). Combined install alone is 10h45m -- already past
+    # the normal cap before any drive -- so this is an explicit exception
+    # (same generous window as Capital Bank), pinned first via start_row
+    # per the client's stated order requirement.
+    lewis_lts = names(CLIENT_CONFIG["pairing_names"]["lewis_lts"])
     if lewis_lts:
-        lts_row = next(c["row"] for c in lewis_lts if c["name"] == "Love That Smile")
+        lts_row = next(c["row"] for c in lewis_lts
+                       if c["name"] == CLIENT_CONFIG["lead_names"]["lewis_lts"])
         days.append(build_day(
             D, "Crew 1", "2026-11-13", lewis_lts, by_idx, "Standard",
             window=960, start_row=lts_row,
-            note="Holly Lewis + Love That Smile kept on the same day per "
-                 "client note, Love That Smile FIRST (Holly's boxes are "
-                 "stored there). Combined install alone is 10h45m, so this "
-                 "intentionally runs well past the normal 10h cap."))
+            note=CLIENT_CONFIG["pairing_notes"]["lewis_lts"]))
         consumed.add(("2026-11-13", "Crew 1"))
 
-    # Rule (user, 2026-07-31): Kerri Byler's 3 Bellville locations (house,
+    # Rule (user, 2026-07-31): one client's 3 Bellville locations (house,
     # office, store) must all be worked in ONE visit rather than split
     # across two trips. Bellville is ~70min each way from depot, so this
     # trades 2 depot round-trips for 1 (net LESS total drive across the
     # week) at the cost of a single long day (~11h40m). Explicit exception
     # to the normal 10h cap, capped instead at the absolute 8am-8pm legal
     # window -- same pattern as the M Crowd Corporate Office exception above.
-    kerri_byler = names(["Byler, Kerri - House", "Byler, Kerri - Office",
-                         "Byler, Kerri - Store Buck Ferguson"])
+    kerri_byler = names(CLIENT_CONFIG["pairing_names"]["kerri_byler"])
     if kerri_byler:
         days.append(build_day(
             D, "Crew 2", "2026-11-17", kerri_byler, by_idx, "Standard",
             window=WINDOW,
-            note="Kerri Byler's 3 Bellville locations (house/office/store) "
-                 "kept together per client request. Bellville is 70min each "
-                 "way from depot, so this runs a long ~11h40m day -- but it "
-                 "saves a full second round-trip vs. splitting across 2 days."))
+            note=CLIENT_CONFIG["pairing_notes"]["kerri_byler"]))
         consumed.add(("2026-11-17", "Crew 2"))
 
-    # Rule (user, 2026-07-31): Kathy Schultea was sitting alone on a light
-    # single-stop day. Pitcock, James is her only real neighbor (Clear
-    # Lake/Bay Area, ~19min away) but was ALSO a lone single-stop day
-    # elsewhere -- pairing them cuts one full depot round-trip AND a
-    # duplicate lunch (~2h net savings across the week), at the cost of a
-    # single ~10h53m day. Same absolute-window exception as Kerri Byler above.
-    # Client now says any date the last week of November works -- moved off
-    # 11/11 onto 11/23 (still saves the round-trip; just later in the season).
-    schultea_pitcock = names(["Schultea, Kathy", "Pitcock, James"])
+    # Rule (user, 2026-07-31): one client was sitting alone on a light
+    # single-stop day; her only real neighbor (Clear Lake/Bay Area, ~19min
+    # away) was ALSO a lone single-stop day elsewhere -- pairing them cuts
+    # one full depot round-trip AND a duplicate lunch (~2h net savings
+    # across the week), at the cost of a single ~10h53m day. Same
+    # absolute-window exception as the Bellville 3-location client above.
+    # Client OK with any date the last week of November.
+    schultea_pitcock = names(CLIENT_CONFIG["pairing_names"]["schultea_pitcock"])
     if schultea_pitcock:
         days.append(build_day(
             D, "Crew 1", "2026-11-23", schultea_pitcock, by_idx, "Standard",
             window=WINDOW,
-            note="Kathy Schultea paired with her nearest neighbor, James "
-                 "Pitcock (~19min apart), so neither sits alone on a light "
-                 "day -- runs ~10h53m but saves a full depot round-trip. "
-                 "Client OK with any date the last week of Nov."))
+            note=CLIENT_CONFIG["pairing_notes"]["schultea_pitcock"]))
         consumed.add(("2026-11-23", "Crew 1"))
 
-    # Rule (user, 2026-08-01): Kristy Musser (Brenham) paired with Serenity
-    # Retreat (Bellville, corrected location) instead of 2 separate remote
-    # round-trips -- kept as a manual pin even after Serenity's address fix
-    # because the automatic packer's alternative (splitting them into two
-    # separate single-stop days) was worse, and Musser has no meaningfully
-    # closer option regardless of where Serenity lands.
+    # Rule (user, 2026-08-01): kept as a manual pin even after an address
+    # fix because the automatic packer's alternative (splitting them into
+    # two separate single-stop days) was worse, and one client has no
+    # meaningfully closer option regardless. See pairing_notes.musser_serenity.
     if musser_serenity:
         days.append(build_day(
             D, "Crew 2", "2026-11-13", musser_serenity, by_idx, "Standard",
             window=780,
-            note="Kristy Musser paired with Serenity Retreat (both far "
-                 "west) instead of 2 separate remote round-trips."))
+            note=CLIENT_CONFIG["pairing_notes"]["musser_serenity"]))
         consumed.add(("2026-11-13", "Crew 2"))
 
-
-    # Rule (user, 2026-07-31): Mercedes Benz is uncertain to even happen --
+    # Rule (user, 2026-07-31): one client is uncertain to even happen --
     # keep it fully standalone so it can be dropped without disrupting
     # anyone else.
     if mercedes:
         days.append(build_day(D, "Crew 1", "2026-12-02", mercedes, by_idx,
                               "Standard", allow_single=True,
-                              note="Kept standalone -- client uncertain "
-                                   "whether this install happens at all."))
+                              note=CLIENT_CONFIG["pairing_notes"]["mercedes"]))
         consumed.add(("2026-12-02", "Crew 1"))
 
-    # Rule (user, 2026-07-31): Waterway Wealth goes with Hampton Inn/Crane
-    # Worldwide (client note: not the Carlton Woods or Fazio/Houston-Cathy
-    # days, which are already full) -- reasonably close to Crane (~20min).
+    # Rule (user, 2026-07-31): a third client goes with this pairing's day
+    # instead (client note: not the other 2 club days, which are already
+    # full) -- reasonably close (~20min). See pairing_notes.hampton_crane_waterway.
     if hampton_crane_waterway:
         days.append(build_day(
             D, "Crew 3", "2026-12-01", hampton_crane_waterway, by_idx, "Standard",
-            note="Waterway Wealth added here per client note (not Carlton "
-                 "Woods/Fazio -- those days are already full)."))
+            note=CLIENT_CONFIG["pairing_notes"]["hampton_crane_waterway"]))
         consumed.add(("2026-12-01", "Crew 3"))
 
-    # Rule (user, 2026-07-31): Sullivan, Kristine + Mattix, Margaret & Rick
-    # -- 1.3min apart, moved onto Mattix's existing day.
+    # Rule (user, 2026-07-31): two clients ~1.3min apart, moved onto one
+    # existing day. See pairing_notes.sullivan_mattix.
     if sullivan_mattix:
         days.append(build_day(
             D, "Crew 3", "2026-11-17", sullivan_mattix, by_idx, "Standard",
-            note="Sullivan, Kristine moved here to join Mattix (~1.3min "
-                 "apart, essentially the same address) instead of a "
-                 "separate remote round-trip 5 weeks apart."))
+            note=CLIENT_CONFIG["pairing_notes"]["sullivan_mattix"]))
         consumed.add(("2026-11-17", "Crew 3"))
 
-    # Rule (user, 2026-07-31): Citizens State Bank + Ingram, Donna + Northside
-    # Import -- 17-21min apart, combined instead of Citizens sitting alone.
+    # Rule (user, 2026-07-31): 3 clients 17-21min apart, combined instead of
+    # one sitting alone. See pairing_notes.citizens_ingram_northside.
     if citizens_ingram_northside:
         days.append(build_day(
             D, "Crew 3", "2026-11-25", citizens_ingram_northside, by_idx,
             "Standard", window=680,
-            note="Citizens State Bank joined with Ingram/Northside Import "
-                 "(17-21min apart) instead of sitting alone -- runs "
-                 "~10h44m, a modest exception past the normal 10h cap."))
+            note=CLIENT_CONFIG["pairing_notes"]["citizens_ingram_northside"]))
         consumed.add(("2026-11-25", "Crew 3"))
 
-    # Rule (user, 2026-07-31): Sheri Roane always wants a 9am start --
-    # pinned first in the route (start_row) on her existing day.
-    # Moved off Nov 9 -> Nov 17 (user, 2026-08-01: round-1 no longer starts
-    # that early; Nov 17 is Crew 1's first open weekday in the new window).
-    # start_row (9am-first) is independent of which date carries the day.
-    roane_day = names(["Charlton, Anna", "Roane, Sheri",
-                       "Juban, Chris (Sarah Eilers Designer)", "Eilers, Sarah"])
+    # Rule (user, 2026-07-31): one client always wants a 9am start -- pinned
+    # first in the route (start_row) on her existing day. Moved off Nov 9 ->
+    # Nov 17 (user, 2026-08-01: round-1 no longer starts that early; Nov 17
+    # is Crew 1's first open weekday in the new window). start_row (9am-
+    # first) is independent of which date carries the day.
+    roane_day = names(CLIENT_CONFIG["pairing_names"]["roane_day"])
     if roane_day:
-        roane_row = next(c["row"] for c in roane_day if c["name"] == "Roane, Sheri")
+        roane_row = next(c["row"] for c in roane_day
+                         if c["name"] == CLIENT_CONFIG["lead_names"]["roane_day"])
         days.append(build_day(D, "Crew 1", "2026-11-17", roane_day, by_idx,
                               "Standard", start_row=roane_row,
-                              note="Sheri Roane always wants a 9am start -- "
-                                   "pinned first stop of the day."))
+                              note=CLIENT_CONFIG["pairing_notes"]["roane_day"]))
         consumed.add(("2026-11-17", "Crew 1"))
 
-    # Rule (user, 2026-07-31): Amy Jinks likes to go first -- pinned first
+    # Rule (user, 2026-07-31): one client likes to go first -- pinned first
     # in the route (start_row) instead of last. Moved off Nov 9 -> Nov 13
     # (user, 2026-08-01: round-1 no longer starts that early; Nov 13 is
     # Crew 3's first open weekday in the new window).
-    jinks_day = names(["Semple, Lauren", "Hensley, Rodney", "Jinks, Amy"])
+    jinks_day = names(CLIENT_CONFIG["pairing_names"]["jinks_day"])
     if jinks_day:
-        jinks_row = next(c["row"] for c in jinks_day if c["name"] == "Jinks, Amy")
+        jinks_row = next(c["row"] for c in jinks_day
+                         if c["name"] == CLIENT_CONFIG["lead_names"]["jinks_day"])
         days.append(build_day(D, "Crew 3", "2026-11-13", jinks_day, by_idx,
                               "Standard", start_row=jinks_row,
-                              note="Amy Jinks likes to go first -- pinned "
-                                   "first stop of the day."))
+                              note=CLIENT_CONFIG["pairing_notes"]["jinks_day"]))
         consumed.add(("2026-11-13", "Crew 3"))
 
     standard = take(lambda c: True)              # everything still unassigned
@@ -1242,50 +1223,44 @@ def main():
                                   note=note + f" (working jointly with {other}'s crew)"))
             consumed.add((date, cr))
 
-    # Rule (user, 2026-07-31): Bourque, Stacey's house needs 2 full crews to
-    # complete it -- combine with her close Woodlands neighbors (Cain,
-    # Bergstrom) into ONE 2-crew joint day instead of splitting them across
-    # 2 separate single-crew days.
+    # Rule (user, 2026-07-31): one client's house needs 2 full crews to
+    # complete it -- combined with 2 close Woodlands neighbors into ONE
+    # 2-crew joint day instead of splitting across 2 separate single-crew
+    # days. See pairing_notes.two_crew_woodlands.
     if two_crew_woodlands:
         joint_convoy(["Crew 1", "Crew 2"], "2026-11-12", two_crew_woodlands,
-                     "Standard",
-                     "Bourque, Stacey needs 2 full crews to complete her "
-                     "house -- combined with Woodlands neighbors Cain and "
-                     "Bergstrom into one 2-crew day")
+                     "Standard", CLIENT_CONFIG["pairing_notes"]["two_crew_woodlands"])
 
-    # Rule (user, 2026-07-31): Brenda Ryan does NOT need two separate crews
+    # Rule (user, 2026-07-31): one client does NOT need two separate crews
     # dispatched to her -- she needs a well-staffed SINGLE crew (extra
     # hands), freeing the other crew for its own independent work that day.
-    # Scheib (previously force-attached here as "nearby residence") only
-    # needs 1 crew too -- released back to the standard pool to get her own
-    # normal placement instead.
+    # A previously force-attached "nearby residence" fill only needs 1 crew
+    # too -- released back to the standard pool for its own normal placement.
     pin_day("Crew 1", "2026-11-24", brenda, "Standard",
-            "Brenda Ryan needs a well-staffed single crew (extra hands), "
-            "not two separate crew-days", fill=2)
+            CLIENT_CONFIG["pairing_notes"]["brenda"], fill=2)
 
     # --- Email-pinned clubs & appointments (client requests win over Mondays rule) ---
     joint_convoy(["Crew 1", "Crew 2"], "2026-11-30", wcc30, "Country Club",
-                 "Woodlands CC Palmer/Legacy/Trails per note (Mon Nov 30); Crew 1 present")
+                 CLIENT_CONFIG["pairing_notes"]["wcc30"])
     pin_day("Crew 3", "2026-11-30", marek, "Standard",
-            "Marek Bros — client requested install Mon Nov 30 (Lisa Walla)", fill=3)
-    # Rule (user, 2026-07-31): Woodlands CC Players is a 2-crew SOLE FOCUS
-    # day -- no fill. (Dr. Francis / Larson, Susan, previously fill here,
-    # return to the standard pool for their own normal placement.)
+            CLIENT_CONFIG["pairing_notes"]["marek"], fill=3)
+    # Rule (user, 2026-07-31): this club is a 2-crew SOLE FOCUS day -- no
+    # fill. (2 clients previously fill here, return to the standard pool
+    # for their own normal placement.)
     joint_convoy(["Crew 1", "Crew 2"], "2026-11-25", players, "Country Club",
-                 "Woodlands CC Players — 2-crew sole focus per client note "
-                 "(Wed Nov 25 — overrides clubs-Monday)")
-    # Rule (user, 2026-07-31): split Nicklaus (stays Fri 11/27) from Outdoor
-    # Tree & Frame (moves to Sat 11/28) per client.
+                 CLIENT_CONFIG["pairing_notes"]["players"])
+    # Rule (user, 2026-07-31): split this club's 2 jobs (one stays Fri
+    # 11/27, the other moves to Sat 11/28) per client.
     pin_day("Crew 1", "2026-11-27", nicklaus, "Country Club",
-            "Carlton Woods Nicklaus per client (Fri Nov 27); overrides clubs-Monday; Crew 1 present")
+            CLIENT_CONFIG["pairing_notes"]["nicklaus"])
     pin_day("Crew 1", "2026-11-28", outdoor, "Country Club",
-            "Carlton Woods Outdoor Tree & Frame moved to Sat Nov 28 per client")
+            CLIENT_CONFIG["pairing_notes"]["outdoor"])
     pin_day("Crew 1", "2026-12-01", fazio, "Country Club",
-            "Carlton Woods Fazio per client (Tue Dec 1); overrides clubs-Monday; Crew 1 present", fill=2)
+            CLIENT_CONFIG["pairing_notes"]["fazio"], fill=2)
     pin_day("Crew 1", "2026-11-16", royal, "Country Club",
-            "Royal Oaks per note (install Monday); Crew 1 present", fill=3)
+            CLIENT_CONFIG["pairing_notes"]["royal"], fill=3)
     pin_day("Crew 2", "2026-12-02", sims_darcy, "Standard",
-            "Sims, Darcy — confirmed/deposited date via 2026 Install Date column", fill=2)
+            CLIENT_CONFIG["pairing_notes"]["sims_darcy"], fill=2)
 
     # Rule (user, 2026-07-30): NOBODY on a Saturday unless their 2025
     # install was ALSO on a Saturday. Businesses were already weekend-
