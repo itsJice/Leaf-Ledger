@@ -235,6 +235,14 @@ definition of "legal," not a second implementation that can drift.
   crews, a same-day client group split apart, a club job missing Crew 1
   coverage. `rules.py`'s `CODES` dict is the single switch for this
   (`soft=True`/`False` per code) — flip it there, not per call site.
+  Note (2026-08-02): the soft flags on SUNDAY/BIZ_SAT/SAT_HIST only
+  reach a date if `calendar()` gives it a real `kind` in the first
+  place -- every Saturday/Sunday except the named exceptions (Rotary
+  Sunday, Bank Friday) fell through to `kind="unused"` -> the hard
+  NO_DATE code, disabling the whole date regardless of those rules'
+  soft flags. Fixed by giving every Saturday/Sunday its own kind
+  (`"saturday"`/`"sunday"`) in `calendar()` so they reach the soft
+  checks instead of being excluded before those checks ever run.
 - **Slot finder** (`openSlotFinder`) — "this client wants date X" → every
   legal (date, crew) ranked by a marginal-insertion-cost screen (asymmetric
   matrix, evaluated in the actual direction — never symmetrized) against

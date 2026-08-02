@@ -110,6 +110,10 @@ def calendar():
             kind = "overflow_tail"
         elif date in S.STD_WEEKDAYS:
             kind = "hou_weekday"
+        elif dow == "Sat":
+            kind = "saturday"
+        elif dow == "Sun":
+            kind = "sunday"
         else:
             kind = "unused"
         out.append({"date": date, "dow": dow, "kind": kind,
