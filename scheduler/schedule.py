@@ -81,6 +81,66 @@ DOW = {  # for labels, and the full set of dates the review tool can show.
 OVERRIDES = os.path.join(HERE, "overrides.json")
 
 
+def load_new_clients():
+    """Clients added in the review tool (anomaly jobs, callbacks) that
+    aren't in the spreadsheet at all -- exported alongside the frozen days
+    in overrides.json. Raw dicts; main() turns each into a full client
+    record with its own synthetic matrix node."""
+    if not os.path.exists(OVERRIDES):
+        return []
+    try:
+        with open(OVERRIDES) as f:
+            doc = json.load(f)
+    except (ValueError, OSError):
+        return []
+    if doc.get("kind") != "tbdg-install-overrides":
+        return []
+    return [c for c in doc.get("new_clients", [])
+            if c.get("name") and c.get("lat") is not None and c.get("lon") is not None]
+
+
+# A client added in the browser gets REAL OSRM drive times captured once
+# at creation (build_review.py live-fetches a /table lookup against every
+# real client, both directions, and persists the result as out_row/in_col
+# in the notebook) -- reused here verbatim so a from-scratch rebuild
+# agrees with what the tool already showed. The straight-line estimate
+# below is only a fallback: a client created before this existed, or one
+# whose live fetch failed at the time.
+ROAD_FUDGE = 1.35
+EST_AVG_MPH = 27
+
+
+def haversine_mi(a, b):
+    import math
+    R = 3958.8
+    p1, p2 = math.radians(a[0]), math.radians(b[0])
+    dphi, dl = math.radians(b[0] - a[0]), math.radians(b[1] - a[1])
+    h = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(h))
+
+
+def est_seconds(a, b):
+    return round(haversine_mi(a, b) * ROAD_FUDGE / EST_AVG_MPH * 3600)
+
+
+def add_synthetic_node(D, node_latlon, lat, lon, out_row=None, in_col=None):
+    """out_row/in_col are real OSRM durations vs the ORIGINAL (real-client)
+    matrix nodes, indexed 0..len(out_row)-1 -- any node beyond that (an
+    earlier synthetic addition) always falls back to the estimate, same
+    as build_review.py's extendMatrix()."""
+    idx = len(D)
+    pt = (lat, lon)
+    real_n = len(out_row) if out_row else 0
+    for i, row in enumerate(D):
+        row.append(in_col[i] if in_col and i < real_n else est_seconds(node_latlon[i], pt))
+    new_row = [out_row[i] if out_row and i < real_n else est_seconds(pt, node_latlon[i])
+               for i in range(len(D))]
+    new_row.append(0)
+    D.append(new_row)
+    node_latlon[idx] = pt
+    return idx
+
+
 def load_overrides():
     """Days already promised to clients, exported from the review tool.
 
@@ -432,6 +492,47 @@ def main():
     #      "No Install" / "No 2026 Install" (client note, not scheduled --
     #      excluded from the map/schedule entirely). ----
     dropped = names(DROP_CLIENTS) + take(lambda c: c.get("install_2026_no_install"))
+
+    # ---- New clients added in the review tool (not in the spreadsheet at
+    #      all -- anomaly jobs, callbacks). Give each its own synthetic
+    #      matrix node and fold it into the normal client pool so the
+    #      freeze-replay below can find it by name like any other client.
+    node_latlon = {0: (depot["lat"], depot["lon"])}
+    for c in clients:
+        if c.get("midx") is not None:
+            node_latlon[c["midx"]] = (c["lat"], c["lon"])
+    next_synth_row = 900001
+    new_clients = load_new_clients()
+    for nc in new_clients:
+        row = nc.get("row") or next_synth_row
+        next_synth_row = max(next_synth_row, row + 1)
+        midx = add_synthetic_node(D, node_latlon, nc["lat"], nc["lon"],
+                                   out_row=nc.get("outRow"), in_col=nc.get("inCol"))
+        rec = {
+            "row": row, "name": nc["name"], "street": nc.get("street", ""),
+            "city": "", "st": "TX", "zip": "", "area": "", "zone": "",
+            "box_count": None, "box_count_sheet": None, "box_verified": False,
+            "phone": "", "email": "", "storage": "", "date_2024": "",
+            "crew_2025": "", "crew_size_2025": None, "people_needed": None,
+            "est_hours": None, "real_hours": None,
+            "prior_install_date": "", "business": "Business",
+            "category": "Standard", "no_address": False,
+            "install_2026_confirmed": "", "install_2026_note": nc.get("notes", ""),
+            "install_2026_no_install": False,
+            "cal_hours": nc.get("hours") or 1,
+            "hours_basis": "manual entry (review tool)",
+            "lat": nc["lat"], "lon": nc["lon"],
+            "geo_display": "manual (review tool)",
+            "geo_source": "street" if nc.get("outRow") else "synthetic",
+            "midx": midx,
+        }
+        clients.append(rec)
+        by_row[row] = rec
+        by_idx[midx] = rec
+        routable.append(rec)
+    if new_clients:
+        print(f"  NEW CLIENTS (from review tool): {len(new_clients)} -- "
+              f"{[c['name'] for c in new_clients]}")
 
     # ---- THE NOTEBOOK: replay days already promised to clients ----------
     # Applied FIRST, before any other rule, so those clients and their

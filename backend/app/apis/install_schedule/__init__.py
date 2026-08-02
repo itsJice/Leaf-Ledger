@@ -66,6 +66,12 @@ async def get_conn():
 
 _SCHEMA_READY = False
 
+#: Keep at most this many history rows per schedule version -- an append-
+#: only log with no cap would grow forever across a season of frequent
+#: small saves (the tool debounces to one save per 600ms of inactivity,
+#: but that's still potentially hundreds of saves over several weeks).
+MAX_HISTORY_PER_VERSION = 200
+
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
 
@@ -76,6 +82,21 @@ CREATE TABLE IF NOT EXISTS ll_app.install_schedule_state (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Append-only save history, so several staff working the same schedule can
+-- see who changed what and roll back a mistake -- the same shape as a
+-- Google Doc's version history. Restoring an old version does not delete
+-- anything from this table; it just writes a new current state (and a new
+-- history row) that happens to match the old one, so the trail stays intact.
+CREATE TABLE IF NOT EXISTS ll_app.install_schedule_history (
+    id         bigserial PRIMARY KEY,
+    version    text NOT NULL,
+    state      jsonb NOT NULL,
+    updated_by text,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS install_schedule_history_version_idx
+    ON ll_app.install_schedule_history (version, created_at DESC);
 """
 
 
@@ -189,6 +210,93 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
                 encoded,
                 user_id,
             )
+            # Append to history, then trim to the retention cap -- every
+            # save gets a row, restoring an old one included, so the trail
+            # itself is never rewritten.
+            await conn.execute(
+                "INSERT INTO ll_app.install_schedule_history (version, state, updated_by) "
+                "VALUES ($1, $2::jsonb, $3)",
+                v,
+                encoded,
+                user_id,
+            )
+            await conn.execute(
+                "DELETE FROM ll_app.install_schedule_history "
+                "WHERE version = $1 AND id NOT IN ("
+                "  SELECT id FROM ll_app.install_schedule_history "
+                "  WHERE version = $1 ORDER BY created_at DESC LIMIT $2"
+                ")",
+                v,
+                MAX_HISTORY_PER_VERSION,
+            )
     finally:
         await conn.close()
     return {"version": v, "ok": True, "updatedBy": user_id}
+
+
+@router.get("/history")
+async def list_history(version: str, limit: int = 50) -> dict:
+    """Lightweight save history for a schedule build -- timestamp and who,
+    not the full state (kept small; fetch one entry's state on demand to
+    preview or restore it). Newest first, like a Google Doc's version list.
+    """
+    v = _clean_version(version)
+    limit = max(1, min(limit, MAX_HISTORY_PER_VERSION))
+    try:
+        conn = await get_conn()
+    except Exception:
+        return {"version": v, "entries": [], "storage": "unavailable"}
+    try:
+        await ensure_schema(conn)
+        rows = await conn.fetch(
+            "SELECT id, updated_by, created_at FROM ll_app.install_schedule_history "
+            "WHERE version = $1 ORDER BY created_at DESC LIMIT $2",
+            v,
+            limit,
+        )
+    finally:
+        await conn.close()
+    return {
+        "version": v,
+        "entries": [
+            {
+                "id": r["id"],
+                "updatedBy": r["updated_by"],
+                "createdAt": r["created_at"].isoformat() if r["created_at"] else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/history/{entry_id}")
+async def get_history_entry(entry_id: int, version: str) -> dict:
+    """One historical save's full state, for previewing or restoring it.
+    Scoped to `version` too so an id from a different (e.g. regenerated)
+    schedule build can't be replayed onto this one."""
+    v = _clean_version(version)
+    try:
+        conn = await get_conn()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Schedule state storage unavailable"
+        ) from exc
+    try:
+        await ensure_schema(conn)
+        row = await conn.fetchrow(
+            "SELECT id, state, updated_by, created_at "
+            "FROM ll_app.install_schedule_history WHERE id = $1 AND version = $2",
+            entry_id,
+            v,
+        )
+    finally:
+        await conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="History entry not found")
+    return {
+        "id": row["id"],
+        "version": v,
+        "state": _loads(row["state"]),
+        "updatedBy": row["updated_by"],
+        "createdAt": row["created_at"].isoformat() if row["created_at"] else None,
+    }

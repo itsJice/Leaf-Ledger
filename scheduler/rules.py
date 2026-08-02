@@ -41,20 +41,29 @@ import schedule as S
 # enforces these strictly against generated output; only the review tool
 # treats them as "confirm this" rather than "no".
 CODES = {
-    "MC_DATE":    ("R1",  "Mi Cocina restaurants only run the Dallas nights, Nov 2-6", False),
-    "MC_ONLY":    ("R1",  "Nov 2-6 is the Dallas Mi Cocina week -- nothing else is scheduled", False),
-    "NOT_MC":     ("R1",  "Only Mi Cocina restaurants belong on a Dallas night", False),
+    # user, 2026-08-02: staff need full override capability to accommodate
+    # a customer even on a normally-off-limits date ("something goes wrong,
+    # we need to do something out of the ordinary") -- every DATE/category
+    # rule below is soft (advisory, confirm-to-proceed) so it never disables
+    # an option in the review tool's date pickers, only warns before commit.
+    # What stays a hard block is scoped to physical/data-integrity breaks
+    # the tool can't meaningfully ask "are you sure?" about (a stop that
+    # needs 2 crews, a same-day group split apart, crew coverage on a
+    # club job) -- those are still blockers, defined further down.
+    "MC_DATE":    ("R1",  "Dallas restaurant -- normally only the Nov 2-6 nights", True),
+    "MC_ONLY":    ("R1",  "Nov 2-6 is normally Dallas-only", True),
+    "NOT_MC":     ("R1",  "Dallas night -- normally Mi Cocina restaurants only", True),
     "CLUB_CREW":  ("R2",  "Country club jobs need Crew 1", False),
-    "BANK_DATE":  ("R3",  "All 8 Capital Banks are pinned to Fri Nov 27", False),
-    "BANK_ONLY":  ("R3",  "Fri Nov 27 is the Capital Bank run", False),
-    "ROTARY":     ("R4",  "Rotary House is the Sunday Nov 29 exception", False),
-    "SUNDAY":     ("R4",  "Nobody works Sunday except Rotary House on Nov 29", False),
+    "BANK_DATE":  ("R3",  "Capital Banks are normally all pinned to Fri Nov 27", True),
+    "BANK_ONLY":  ("R3",  "Fri Nov 27 is normally the Capital Bank run", True),
+    "ROTARY":     ("R4",  "Rotary House is normally the Sunday exception", True),
+    "SUNDAY":     ("R4",  "Sunday -- normally off", True),
     "BIZ_SAT":    ("R7",  "A business on a Saturday — confirm they'll be open", True),
     "SAT_HIST":   ("R12", "Didn't work a Saturday in 2025 — confirm the client wants one", True),
-    "LOCKED":     ("PIN", "Client has deposited and reserved this date", False),
+    "LOCKED":     ("PIN", "Client has a deposit reserved for a different date", True),
     "DROPPED":    ("DROP", "No 2026 install for this client", False),
     "NO_DATE":    ("CAL", "Not a working date", False),
-    "THANKS":     ("CAL", "Thanksgiving", False),
+    "THANKS":     ("CAL", "Thanksgiving", True),
     # PAST is never computed server-side (it depends on the real calendar
     # date when someone opens the tool, which build time can't know) --
     # listed here only so its message text has one home, same as every

@@ -32,6 +32,21 @@ for i, rid in enumerate(mat["node_ids"]):
         node[rid] = i
 durs = [[(int(v) if v is not None else 0) for v in row] for row in mat["durations"]]
 
+# Clients added in the review tool (or replayed from the notebook) have no
+# entry in the real OSRM matrix -- matrix.json is prep.py's cache of the
+# spreadsheet-only clients and never gets rewritten. Extend durs/node with
+# the same haversine-estimate synthetic node schedule.py used to route
+# their frozen day, so the browser's own radius/slot-finder math (which
+# rebuilds N/D from THIS payload, not from schedule.json) sees them too.
+node_latlon = {0: (sched["depot"]["lat"], sched["depot"]["lon"])}
+for c in sched["all_clients"]:
+    if c.get("lat") is not None and c["row"] in node:
+        node_latlon[node[c["row"]]] = (c["lat"], c["lon"])
+for c in sched["all_clients"]:
+    if c.get("lat") is None or c["row"] in node:
+        continue
+    node[c["row"]] = S.add_synthetic_node(durs, node_latlon, c["lat"], c["lon"])
+
 clients = {}
 for c in sched["all_clients"]:
     if c.get("lat") is None:
@@ -226,16 +241,19 @@ header h1 svg{color:var(--brand)}
 .dchip.empty:hover{background:#ecebe8;color:var(--mut)}
 .dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand);border-style:solid}
 .dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
-.emptyday{padding:8px 2px}
-.emptyday p{font-size:12.5px;color:var(--mut);margin:0 0 12px}
-.addcrew{padding:2px 2px 8px}
-.addcrew p{font-size:11.5px;color:var(--faint);margin:2px 0 6px;text-transform:uppercase;letter-spacing:.03em}
+.nothingyet{font-size:12.5px;color:var(--mut);margin:2px 2px 12px}
 .emptycrew{display:flex;align-items:center;gap:9px;border:1.5px dashed var(--line);border-radius:10px;
   padding:16px 14px;margin-bottom:10px;font-size:12.5px;color:var(--mut);
   background:var(--surface);transition:border-color .12s,background .12s}
 .emptycrew .cdot{width:11px;height:11px;border-radius:50%;flex:none;opacity:.55}
 .emptycrew.dragover{border-color:var(--crew-color,var(--brand));border-style:solid;
   background:var(--brand-soft);color:var(--ink)}
+.addcrewbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  border:1.5px dashed var(--line);border-radius:10px;padding:14px;margin-bottom:10px;
+  font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:var(--mut);
+  background:var(--surface);cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.addcrewbtn:hover{border-color:var(--brand);background:var(--brand-soft);color:var(--ink)}
+.addcrewbtn .plus{font-size:16px;font-weight:700;line-height:1}
 #main{flex:1;display:flex;min-height:0}
 #side{width:460px;min-width:380px;overflow-y:auto;padding:14px;background:var(--page)}
 #map{flex:1}
@@ -296,8 +314,12 @@ header h1 svg{color:var(--brand)}
 dialog{border:1px solid var(--line);border-radius:10px;padding:18px;max-width:340px;font-family:'Montserrat',sans-serif;
   box-shadow:0 8px 30px rgba(41,37,36,.18)}
 dialog b{font-family:Georgia,serif;letter-spacing:.02em}
-dialog select{width:100%;margin:7px 0;padding:7px;font-size:13px;font-family:'Montserrat',sans-serif;
-  border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+dialog select,dialog input[type=text],dialog input[type=number]{width:100%;margin:4px 0 7px;padding:7px;
+  font-size:13px;font-family:'Montserrat',sans-serif;border:1px solid var(--line);border-radius:6px;
+  background:#fff;color:var(--ink);box-sizing:border-box}
+dialog select:focus,dialog input:focus{outline:none;border-color:var(--brand)}
+.nclabel{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
+  font-weight:700;display:block;margin-top:6px}
 dialog .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 dialog button{padding:7px 14px;border-radius:6px;border:1px solid var(--line);cursor:pointer;
   font-family:'Montserrat',sans-serif;font-weight:600;font-size:12.5px;background:#fff;color:var(--ink)}
@@ -315,6 +337,18 @@ dialog option:disabled{color:#b6b3ae}
 .mvcrewrow .mvcrewnames b{color:var(--ink);font-weight:600}
 .mvcrewrow .mvcrewempty{color:var(--faint);font-style:italic}
 #sfdlg{max-width:500px}
+#ncdlg{max-width:380px}
+.ncerr{font-size:11.5px;color:var(--warn-ink);margin-top:2px;min-height:14px}
+#histdlg{max-width:440px}
+.histsub{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
+#histbody{max-height:56vh;overflow-y:auto;padding-right:2px}
+.histrow{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:8px;
+  background:var(--surface)}
+.histrow.histcurrent{border-color:var(--brand);background:var(--brand-soft)}
+.histwhen{font-size:12.5px;color:var(--ink);font-weight:600}
+.histwho{font-size:11px;color:var(--mut)}
+.histempty,.histloading{font-size:12.5px;color:var(--mut);padding:8px 2px}
 #sflab{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
   font-weight:700;display:block;margin-top:12px}
 #sfbody{margin-top:12px;max-height:56vh;overflow-y:auto;padding-right:2px}
@@ -352,8 +386,13 @@ dialog option:disabled{color:#b6b3ae}
 .undobar button{margin-top:0}
 #log button:disabled{opacity:.4;cursor:default}
 .badge.lock{background:var(--warn-soft);color:var(--warn-ink)}
+.badge.visittype{background:#e8e0f0;color:#4a2e7a}
 .stop .sub.advice{color:var(--warn-ink);font-style:italic;margin-top:3px}
 #summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
+#newclientbtn{align-self:center;padding:8px 14px;border-radius:8px;border:1.5px solid var(--brand);
+  background:#fff;color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:700;
+  font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+#newclientbtn:hover{background:var(--brand);color:#fff}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
   border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
@@ -386,6 +425,7 @@ dialog option:disabled{color:#b6b3ae}
     <input id="searchbox" type="text" placeholder="Find a client… (which day are they on?)" autocomplete="off">
     <div id="searchresults"></div>
   </div>
+  <button id="newclientbtn" type="button">+ New client</button>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
   <div id="datestrip"></div>
@@ -411,6 +451,34 @@ dialog option:disabled{color:#b6b3ae}
   <div id="sfbody"></div>
   <div class="btns"><button onclick="sfdlg.close()">Close</button></div>
 </dialog>
+<dialog id="ncdlg">
+  <b>New client / job</b>
+  <label class="nclabel">Name</label>
+  <input id="ncname" type="text" placeholder="e.g. Client X - Reinstall, or Client Y - Callback">
+  <label class="nclabel">Address</label>
+  <input id="ncaddr" type="text" placeholder="Street, city, state zip">
+  <label class="nclabel">Est. install time (hours)</label>
+  <input id="nchours" type="number" step="0.25" min="0" value="1">
+  <label class="nclabel">Type</label>
+  <select id="nctype">
+    <option value="Standard">Standard</option>
+    <option value="Install">Install</option>
+    <option value="Takedown">Takedown (event teardown)</option>
+    <option value="Reinstall">Reinstall (after event)</option>
+    <option value="Callback">Callback (bought more / fix / unfinished)</option>
+  </select>
+  <label class="nclabel">Notes (optional)</label>
+  <input id="ncnotes" type="text" placeholder="Anything worth flagging">
+  <div id="ncerr" class="ncerr"></div>
+  <div class="btns"><button onclick="ncdlg.close()">Cancel</button>
+  <button class="go" id="ncgo">Look up &amp; add</button></div>
+</dialog>
+<dialog id="histdlg">
+  <b>Change history</b>
+  <p id="histsub" class="histsub"></p>
+  <div id="histbody"></div>
+  <div class="btns"><button onclick="histdlg.close()">Close</button></div>
+</dialog>
 <script>
 const DATA = __DATA__;
 const IC={
@@ -432,6 +500,106 @@ const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
 const SPEC = DATA.spec, K = SPEC.const;
 const LUNCH = K.LUNCH;
 const N = DATA.node, D = DATA.durs, C = DATA.clients;
+
+// ---------- manually-added clients (new jobs, anomalies, callbacks) ----------
+// D/N only cover the clients baked in at build time from the spreadsheet.
+// A client added in the browser (a same-day-teardown/reinstall anomaly, a
+// one-off event takedown, a callback because something broke or they
+// bought more) gets a brand-new matrix node instead. On creation this
+// live-fetches REAL OSRM drive times against every existing client (same
+// public OSRM /table service the rest of the tool already depends on) --
+// the straight-line estimate below only kicks in if that fetch fails, or
+// for the rare case of two synthetic clients' distance to EACH OTHER
+// (not worth a full re-fetch chain for something this uncommon).
+const REAL_NODE_COUNT = D.length;   // real clients are always 0..this-1
+const NODE_LATLON = {0: [DATA.depot.lat, DATA.depot.lon]};
+Object.values(C).forEach(c=>{ if(N[c.row]!=null) NODE_LATLON[N[c.row]] = [c.lat, c.lon]; });
+
+function haversineMi(a, b){
+  const R=3958.8, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(b[0]-a[0]), dLon=toRad(b[1]-a[1]);
+  const s = Math.sin(dLat/2)**2 +
+    Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+const ROAD_FUDGE = 1.35, EST_AVG_MPH = 27;   // fallback only, see note above
+function estSeconds(a, b){
+  return Math.round(haversineMi(a,b) * ROAD_FUDGE / EST_AVG_MPH * 3600);
+}
+/** Live OSRM /table fetch: (lat,lon) vs every REAL client, both directions
+ * (durations are asymmetric -- one-ways, ramps). Two targeted sources/
+ * destinations calls instead of a full matrix, so this stays fast (well
+ * under a second) and small regardless of how many synthetic clients
+ * already exist. Returns null on any failure -- caller falls back to
+ * the haversine estimate. */
+async function fetchRealLegs(lat, lon){
+  try{
+    const coords=[]; for(let i=0;i<REAL_NODE_COUNT;i++) coords.push(NODE_LATLON[i]);
+    coords.push([lat,lon]);
+    const newIdx=REAL_NODE_COUNT;
+    const coordStr=coords.map(([la,lo])=>`${lo},${la}`).join(';');
+    const dests=Array.from({length:REAL_NODE_COUNT},(_,i)=>i).join(';');
+    const base=`https://router.project-osrm.org/table/v1/driving/${coordStr}`;
+    const [outRes,inRes]=await Promise.all([
+      fetch(`${base}?sources=${newIdx}&destinations=${dests}`),
+      fetch(`${base}?sources=${dests}&destinations=${newIdx}`),
+    ]);
+    const [outJ,inJ]=await Promise.all([outRes.json(),inRes.json()]);
+    if(outJ.code!=='Ok'||inJ.code!=='Ok') return null;
+    return {outRow: outJ.durations[0], inCol: inJ.durations.map(r=>r[0])};
+  }catch(e){ return null; }
+}
+/** Extend D/N/NODE_LATLON in place with one new node at (lat, lon), using
+ * REAL legs (outRow/inCol, vs the REAL_NODE_COUNT base clients) where
+ * given and the straight-line estimate everywhere else -- other synthetic
+ * nodes beyond REAL_NODE_COUNT, or the whole row/column when outRow/inCol
+ * is null. Synchronous; the live fetch (if any) already happened. */
+function extendMatrix(lat, lon, outRow, inCol){
+  const idx = D.length, pt = [lat, lon];
+  D.forEach((row, i)=>{
+    row.push(outRow && inCol && i<REAL_NODE_COUNT ? inCol[i] : estSeconds(NODE_LATLON[i], pt));
+  });
+  const newRow = D.map((_, i)=>
+    outRow && inCol && i<REAL_NODE_COUNT ? outRow[i] : estSeconds(pt, NODE_LATLON[i]));
+  newRow.push(0);
+  D.push(newRow);
+  NODE_LATLON[idx] = pt;
+  return idx;
+}
+// Synthetic rows live well above any real spreadsheet row so they can
+// never collide with one, now or after a future spreadsheet regeneration.
+let nextSyntheticRow = 900001 + Object.keys(C).filter(r=>C[r].synthetic).length;
+/** Register a client row from already-known data -- restoring saved state
+ * (outRow/inCol were captured once at creation and persisted, so this
+ * never re-fetches) or as the final step after a live creation fetch.
+ * Synchronous. */
+function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visitType, notes,
+                                  row, outRow, inCol}){
+  const r = row!=null ? row : nextSyntheticRow++;
+  const idx = extendMatrix(lat, lon, outRow||null, inCol||null);
+  C[r] = {
+    row:r, name, street:street||'', city:city||'', zip:zip||'',
+    phone:'', email:'', storage:'', boxes:'',
+    d24:'', d25:'', real25:null, crew25:'', size25:null, people:null,
+    h26:hours, basis:'manual entry', zone:city||'', area:'',
+    cat:'Standard', bus:'Business', lat, lon,
+    // Real OSRM legs -> treat like a normal street-geocoded client (no
+    // "approx pin" flag); estimate-only -> flag it so staff know to
+    // sanity-check drive time if it matters for this one.
+    geo: (outRow && inCol) ? 'street' : 'synthetic',
+    locked:'', advice:notes||'',
+    visitType: visitType||'Standard', synthetic:true,
+    outRow: outRow||null, inCol: inCol||null,
+  };
+  N[r] = idx;
+  return r;
+}
+/** Create a new client row from the "add a client" dialog: live-fetches
+ * real OSRM legs first, then registers the row. */
+async function createSyntheticClient(def){
+  const legs = await fetchRealLegs(def.lat, def.lon);
+  return addSyntheticClientSync({...def, outRow: legs?legs.outRow:null, inCol: legs?legs.inCol:null});
+}
 
 // ---------- day metadata ----------
 // Metadata is keyed by day id in an immutable side map, so a day that gets
@@ -516,12 +684,23 @@ function applyPlacement(place){
   days = days.filter(d=>d.stops.length);
   return missing;
 }
+/** Restore clients added in a previous session (or by another device) --
+ * lat/lon are already known, so this is synchronous, no re-geocoding.
+ * Must run BEFORE applyPlacement(), which references these rows. */
+function restoreSyntheticClients(list){
+  (list||[]).forEach(def=>{
+    if(C[def.row]) return;   // already present -- idempotent
+    addSyntheticClientSync(def);
+    if(def.row >= nextSyntheticRow) nextSyntheticRow = def.row + 1;
+  });
+}
 try{
   const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
   if(s.version && SPEC.version && s.version !== SPEC.version){
     stateWarning = 'Saved changes were made against an older schedule build. '
                  + 'They have NOT been applied — re-check them before saving.';
   } else if(s.placement){
+    restoreSyntheticClients(s.newClients);
     const missing = applyPlacement(s.placement);
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -536,8 +715,12 @@ try{
   }
 }catch(e){}
 function snapshot(){
+  const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
+    {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
+     hours:c.h26, visitType:c.visitType, notes:c.advice,
+     outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
-          moves, approved:[...approved]};
+          moves, approved:[...approved], newClients, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -564,6 +747,20 @@ async function pullShared(){
     if(!r.ok) throw new Error(r.status);
     const j = await r.json();
     if(j.state && j.state.placement){
+      // Guard against a real data-loss race: if THIS device's last local
+      // save (already applied at bootstrap, from localStorage) happened
+      // AFTER the server's last recorded write, our own debounced push
+      // from before a page refresh may simply not have landed yet.
+      // Applying the server's older state here would silently throw away
+      // a real edit -- local wins instead, and gets pushed up to match.
+      const localSaved = (JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{}).savedAt || 0;
+      const serverSaved = j.updatedAt ? new Date(j.updatedAt).getTime() : 0;
+      if(localSaved > serverSaved){
+        syncState = 'shared';
+        pushSharedNow();
+        return;
+      }
+      restoreSyntheticClients(j.state.newClients);
       const missing = applyPlacement(j.state.placement);
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -576,24 +773,115 @@ async function pullShared(){
   }catch(e){ syncState = 'local'; }
 }
 let pushTimer = null;
+// Short debounce -- just enough to coalesce a fast drag/edit burst into
+// one request, not so long that a quick refresh can race past it (see
+// pullShared's local-wins guard above for the remaining edge of that).
 function pushShared(){
   if(!AUTH) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(async ()=>{
-    try{
-      await fetch('/api/install-schedule/state', {
-        method:'PUT',
-        headers:{'Content-Type':'application/json', Authorization:AUTH},
-        body: JSON.stringify({version:SPEC.version, state:snapshot()}),
-      });
-    }catch(e){}
-  }, 600);
+  pushTimer = setTimeout(pushSharedNow, 200);
 }
 function persist(){
   localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
   pushShared();
 }
+/** Immediate, awaited PUT -- bypasses the 600ms debounce. Used only by
+ * history restore, where the user is waiting on a deliberate action and
+ * needs to know whether it actually landed before the dialog closes. */
+async function pushSharedNow(){
+  if(!AUTH) return false;
+  clearTimeout(pushTimer);
+  try{
+    const r = await fetch('/api/install-schedule/state', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json', Authorization:AUTH},
+      body: JSON.stringify({version:SPEC.version, state:snapshot()}),
+    });
+    return r.ok;
+  }catch(e){ return false; }
+}
 
+// ---------- change history ----------
+// Shared save history, so several staff working the same schedule can see
+// who changed what and roll back a mistake -- same idea as a Google Doc's
+// version history. Restoring an old save doesn't erase anything: it just
+// applies that old state locally and saves it as a new current version
+// (through the normal persist path), so the trail only ever grows.
+const histdlg=document.getElementById('histdlg');
+function fmtWhen(iso){
+  if(!iso) return '';
+  const d=new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' · '
+       + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function fmtWho(id){
+  if(!id) return 'unknown';
+  return id.length>18 ? id.slice(0,8)+'…' : id;
+}
+async function openHistory(){
+  const body=document.getElementById('histbody');
+  const sub=document.getElementById('histsub');
+  histdlg.showModal();
+  if(!AUTH){
+    sub.textContent='';
+    body.innerHTML='<div class="histempty">History needs the shared schedule connection -- '
+      +'open this tool from the main app (not the standalone file) to use it.</div>';
+    return;
+  }
+  sub.textContent='Loading…';
+  body.innerHTML='<div class="histloading">Loading past saves…</div>';
+  try{
+    const r=await fetch(`/api/install-schedule/history?version=${encodeURIComponent(SPEC.version)}`,
+                        {headers:{Authorization:AUTH}});
+    const j=await r.json();
+    const entries=j.entries||[];
+    sub.textContent=entries.length
+      ? `${entries.length} saved version${entries.length===1?'':'s'} -- newest first`
+      : 'No saved versions yet.';
+    body.innerHTML = entries.length ? entries.map((e,i)=>`
+      <div class="histrow${i===0?' histcurrent':''}" data-id="${e.id}">
+        <div><div class="histwhen">${fmtWhen(e.createdAt)}${i===0?' (current)':''}</div>
+        <div class="histwho">${fmtWho(e.updatedBy)}</div></div>
+        ${i===0?'':'<button class="histrestore">Restore</button>'}
+      </div>`).join('') : '<div class="histempty">No saved versions yet.</div>';
+    body.querySelectorAll('.histrestore').forEach(btn=>{
+      btn.onclick=()=>restoreHistoryEntry(+btn.closest('.histrow').dataset.id, btn);
+    });
+  }catch(e){
+    sub.textContent='';
+    body.innerHTML='<div class="histempty">Couldn\'t load history (network error).</div>';
+  }
+}
+async function restoreHistoryEntry(entryId, btn){
+  const row=document.querySelector(`.histrow[data-id="${entryId}"]`);
+  const when=row?.querySelector('.histwhen')?.textContent||'this version';
+  if(!confirm(`Restore to ${when}?\n\nThis replaces the current shared schedule state with `
+    +`that saved version. Nothing is deleted -- you can restore back to now afterward if needed.`))
+    return;
+  btn.disabled=true; btn.textContent='Restoring…';
+  try{
+    const r=await fetch(`/api/install-schedule/history/${entryId}?version=${encodeURIComponent(SPEC.version)}`,
+                        {headers:{Authorization:AUTH}});
+    if(!r.ok) throw new Error(r.status);
+    const j=await r.json();
+    const st=j.state;
+    if(!st || !st.placement) throw new Error('empty state');
+    restoreSyntheticClients(st.newClients);
+    applyPlacement(st.placement);
+    moves = st.moves || [];
+    approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
+    undoStack=[]; redoStack=[];   // local undo history no longer matches reality
+    const ok = await pushSharedNow();
+    localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
+    histdlg.close();
+    render();
+    if(!ok) alert('Restored locally, but saving it back to the shared schedule failed -- '
+      +'your next edit will retry the save automatically.');
+  }catch(e){
+    btn.disabled=false; btn.textContent='Restore';
+    alert('Could not restore that version (network error) -- try again.');
+  }
+}
 // ---------- undo / redo ----------
 // Deep history: a season's worth of reschedule calls is a lot of small
 // edits, and "I've just undone one thing" is rarely what you want when you
@@ -748,15 +1036,21 @@ function dayById(id, create){
   return d;
 }
 function applyMove(row, toId, record=true){
-  const from = days.find(x=>x.stops.includes(row)); if(!from) return;
+  // A brand-new client (just created, never placed anywhere) has no
+  // "from" day -- that's a real case, not a bug: just add it to `to`
+  // without touching a nonexistent source day.
+  const from = days.find(x=>x.stops.includes(row));
   const to = dayById(toId, true);
-  from.stops = from.stops.filter(r=>r!==row);
+  if(from){
+    from.stops = from.stops.filter(r=>r!==row);
+    from.edited = true;
+    approved.delete(from.id);
+  }
   to.stops.push(row);
-  from.edited = to.edited = true;
-  // An edited day is no longer the day anyone approved.
-  approved.delete(from.id); approved.delete(to.id);
+  to.edited = true;
+  approved.delete(to.id);
   if(record){
-    moves.push({row, name:C[row].name, from:from.id, to:to.id});
+    moves.push({row, name:C[row].name, from: from?from.id:null, to:to.id});
     persist();
   }
   days = days.filter(x=>x.stops.length>0 || x.id===toId);
@@ -1376,6 +1670,7 @@ function buildDayCard(d){
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
+        ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub">${c.zone}</div>
       <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
@@ -1439,18 +1734,22 @@ function renderCards(){
     renderLog(); return;
   }
   const onThisDate = days.filter(d=>d.date===selDate);
+  if(!onThisDate.length){
+    const p=document.createElement('p'); p.className='nothingyet';
+    p.textContent=`Nothing on ${fmtDate(selDate)} yet.`;
+    side.appendChild(p);
+  }
   onThisDate.forEach(d=>side.appendChild(buildDayCard(d)));
-  if(!onThisDate.length) side.appendChild(buildEmptyDay(selDate));
-  // Always offer a way to add a crew day here, at the bottom, whether or
-  // not all three crews already have one -- a crew that got emptied out
-  // (or never staffed this date) gets its normal "start the day" zone, and
-  // a crew that's already working gets an explicit "add another day" zone,
-  // so a genuine second route for that crew (e.g. a stacked/overflow job,
-  // like the Hilton Garden Inn case) always has somewhere to drag into
-  // instead of only being reachable through the move dialog.
-  else side.appendChild(buildAddCrew(selDate, onThisDate));
+  // Blank boxes the user clicked "+ Add a crew" for but hasn't dropped a
+  // stop into yet -- a real day with that crew name now exists means the
+  // pending placeholder did its job, so drop it instead of showing both.
+  pendingSlots[selDate] = (pendingSlots[selDate]||[])
+    .filter(cr=>!onThisDate.some(d=>d.crew===cr));
+  pendingSlots[selDate].forEach(cr=>side.appendChild(buildCrewSlot(selDate, cr)));
+  side.appendChild(buildAddCrewButton(selDate));
   renderLog();
 }
+let pendingSlots = {};   // date -> ["Crew 4", ...] clicked but not yet filled
 /** The next unused occurrence id for (date, crew) -- ids are
  * date|crew|occurrence, and a crew can legitimately run two separate
  * day-instances on the same date (e.g. a stacked overflow job). */
@@ -1459,49 +1758,43 @@ function nextOccId(date, crew){
   while(days.some(d=>d.id===`${date}|${crew}|${i}`)) i++;
   return `${date}|${crew}|${i}`;
 }
-/** A drop target per BASE_CREW for `date`. `existing` is the day objects
- * already on the board that date -- a crew already in it gets a zone that
- * ADDS a new occurrence rather than colliding with its current day. */
-function buildCrewZones(date, existing){
-  const wrap=document.createElement('div');
-  BASE_CREWS.forEach(cr=>{
-    const already = existing.some(d=>d.crew===cr);
-    const id = already ? nextOccId(date, cr) : `${date}|${cr}|0`;
-    const zone=document.createElement('div');
-    zone.className='emptycrew'; zone.dataset.crew=cr;
-    zone.style.setProperty('--crew-color', CREW_COLORS[cr]||'#555');
-    zone.innerHTML=`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
-                  +(already?`Drag a stop here to add another ${cr} day`
-                           :`Drag a stop here to start ${cr}'s day`);
-    zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragover');};
-    zone.ondragleave=()=>zone.classList.remove('dragover');
-    zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragover');
-      const row=+e.dataTransfer.getData('row');
-      if(row) commitPlan(planFor(row, id));};
-    wrap.appendChild(zone);
-  });
-  return wrap;
+/** One blank, draggable-into box for `crew` on `date`. Used for a slot the
+ * user just clicked "+ Add a crew" for -- becomes a real card the moment
+ * something's dropped into it. */
+function buildCrewSlot(date, crew){
+  const id = nextOccId(date, crew);
+  const zone=document.createElement('div');
+  zone.className='emptycrew'; zone.dataset.crew=crew;
+  zone.style.setProperty('--crew-color', CREW_COLORS[crew]||'#555');
+  zone.innerHTML=`<span class="cdot" style="background:${CREW_COLORS[crew]||'#555'}"></span>`
+                +`Drag a stop here to start ${crew}'s day`;
+  zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragover');};
+  zone.ondragleave=()=>zone.classList.remove('dragover');
+  zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragover');
+    const row=+e.dataTransfer.getData('row');
+    if(row) commitPlan(planFor(row, id));};
+  return zone;
 }
-/** Nothing scheduled on `date` yet -- a drop target per crew, so dragging a
- * stop here starts a fresh day instead of finding nowhere to land. */
-function buildEmptyDay(date){
-  const wrap=document.createElement('div'); wrap.className='emptyday';
-  wrap.innerHTML=`<p>Nothing on ${fmtDate(date)} yet.</p>`;
-  wrap.appendChild(buildCrewZones(date, []));
-  return wrap;
-}
-/** Bottom-of-day "add crew" strip -- always present under the existing
- * cards, one zone per crew (start a missing crew's day, or add a genuine
- * extra day for one that's already working). */
-function buildAddCrew(date, existing){
-  const wrap=document.createElement('div'); wrap.className='addcrew';
-  wrap.innerHTML=`<p>Add a crew:</p>`;
-  wrap.appendChild(buildCrewZones(date, existing));
-  return wrap;
+/** Single "+ Add a crew" button. Each click appends one more blank box,
+ * numbered one past however many crews (real + still-pending) are already
+ * on this date -- 3 crews present -> "Crew 4", 2 present -> "Crew 3", and
+ * so on. Not limited to the 3 base crews: a big day can genuinely need a
+ * 4th, ad-hoc crew. */
+function buildAddCrewButton(date){
+  const btn=document.createElement('button');
+  btn.className='addcrewbtn'; btn.type='button';
+  btn.innerHTML=`<span class="plus">+</span> Add a crew`;
+  btn.onclick=()=>{
+    const have=days.filter(d=>d.date===date).length + (pendingSlots[date]||[]).length;
+    const label=`Crew ${have+1}`;
+    pendingSlots[date]=[...(pendingSlots[date]||[]), label];
+    render();
+  };
+  return btn;
 }
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
-  const fmtId=id=>{const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
+  const fmtId=id=>{if(!id) return 'new'; const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
     moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${fmtId(m.from)} → ${fmtId(m.to)}</div>`).join('')+
     `<div class="undobar">
@@ -1509,6 +1802,7 @@ function renderLog(){
          undoStack.length>1?` (${undoStack.length})`:''}</button>
        <button id="redoBtn" ${redoStack.length?'':'disabled'}>Redo${
          redoStack.length>1?` (${redoStack.length})`:''}</button>
+       <button id="histBtn">${IC.clock} History</button>
      </div>
      <div><button onclick="exportNotebook()">${IC.down} Save notebook</button>
      <button onclick="exportCSV()">${IC.down} Export CSV</button>
@@ -1518,6 +1812,7 @@ function renderLog(){
   const u=log.querySelector('#undoBtn'), r=log.querySelector('#redoBtn');
   if(u) u.onclick=undo;
   if(r) r.onclick=redo;
+  log.querySelector('#histBtn').onclick=openHistory;
 }
 
 // ---------- commit gate ----------
@@ -1617,6 +1912,58 @@ document.getElementById('mvgo').onclick=()=>{
   if(commitPlan(planFor(mvRow, to))) mvdlg.close();
 };
 
+// ---------- new client / manual stop ----------
+// Covers three cases in one form: a genuinely new job, a multi-visit
+// anomaly (install -> event takedown -> reinstall, or install-one-day
+// -> takedown-next-day -- each visit is its own entry here, scheduled on
+// its own date), and a callback add-on (bought more / broke something /
+// didn't finish). All three are just "a new addressable stop" underneath.
+const ncdlg=document.getElementById('ncdlg');
+document.getElementById('newclientbtn').onclick=()=>{
+  ['ncname','ncaddr','ncnotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nchours').value='1';
+  document.getElementById('nctype').value='Standard';
+  document.getElementById('ncerr').textContent='';
+  ncdlg.showModal();
+};
+async function geocodeAddress(q){
+  const res = await fetch(`https://nominatim.openstreetmap.org/search`
+    + `?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`);
+  const j = await res.json();
+  if(!j.length) return null;
+  return {lat:+j[0].lat, lon:+j[0].lon, display:j[0].display_name};
+}
+document.getElementById('ncgo').onclick=async()=>{
+  const name=document.getElementById('ncname').value.trim();
+  const addr=document.getElementById('ncaddr').value.trim();
+  const hours=+document.getElementById('nchours').value || 0;
+  const visitType=document.getElementById('nctype').value;
+  const notes=document.getElementById('ncnotes').value.trim();
+  const err=document.getElementById('ncerr');
+  const go=document.getElementById('ncgo');
+  err.textContent='';
+  if(!name){ err.textContent='Name is required.'; return; }
+  if(!addr){ err.textContent='Address is required -- needed to place it on the map and check drive time.'; return; }
+  go.disabled=true; go.textContent='Looking up address…';
+  try{
+    const geo = await geocodeAddress(addr);
+    if(!geo){
+      err.textContent='Couldn\'t find that address -- try adding city/state, or a more exact street match.';
+      return;
+    }
+    go.textContent='Checking drive times…';
+    const row = await createSyntheticClient({name, street:addr, lat:geo.lat, lon:geo.lon,
+      hours, visitType, notes});
+    persist();
+    ncdlg.close();
+    openMoveDlg(row, null);
+  }catch(e){
+    err.textContent='Address lookup failed (network error) -- try again.';
+  }finally{
+    go.disabled=false; go.textContent='Look up & add';
+  }
+};
+
 // ---------- slot finder ----------
 const sfdlg=document.getElementById('sfdlg');
 function openSlotFinder(row){
@@ -1711,10 +2058,18 @@ function resetAll(){ if(confirm('Discard all moves & approvals?')){
 // never by spreadsheet row: adding a row to the sheet renumbers rows and
 // would otherwise reattach dates to the wrong people.
 function exportNotebook(){
+  // Clients added in the review tool (anomaly jobs, callbacks) aren't in
+  // the spreadsheet at all -- schedule.py needs their full definition,
+  // not just a name, to recreate them on a full rebuild.
+  const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
+    {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
+     hours:c.h26, visitType:c.visitType, notes:c.advice,
+     outRow:c.outRow, inCol:c.inCol}));
   const out = {
     kind: 'tbdg-install-overrides',
     version: SPEC.version,
     savedAt: new Date().toISOString(),
+    new_clients: newClients,
     days: days.filter(d=>d.stops.length).map(d=>({
       date: d.date, crew: d.crew, cat: d.cat,
       stops: d.stops.map(r=>C[r].name),
