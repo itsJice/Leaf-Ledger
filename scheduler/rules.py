@@ -63,7 +63,7 @@ CODES = {
     "LOCKED":     ("PIN", "Client has a deposit reserved for a different date", True),
     "DROPPED":    ("DROP", "No 2026 install for this client", False),
     "NO_DATE":    ("CAL", "Not a working date", False),
-    "THANKS":     ("CAL", "Thanksgiving", True),
+    "THANKS":     ("CAL", "Thanksgiving Day", True),
     # PAST is never computed server-side (it depends on the real calendar
     # date when someone opens the tool, which build time can't know) --
     # listed here only so its message text has one home, same as every
@@ -104,6 +104,8 @@ def calendar():
             kind = "bank_friday"
         elif date == S.ROTARY_SUNDAY:
             kind = "rotary_sunday"
+        elif date == THANKSGIVING:
+            kind = "thanksgiving"
         elif date in S.SATURDAYS:
             kind = "saturday"
         elif date in S.OVERFLOW_TAIL:
@@ -115,7 +117,11 @@ def calendar():
         elif dow == "Sun":
             kind = "sunday"
         else:
-            kind = "unused"
+            # Every other weekday in DOW's range is a real, workable date --
+            # just outside this round's automated pool (before/after the
+            # window schedule.py filled first). Staff can still place a
+            # client here; see the override-capability note below.
+            kind = "weekday"
         out.append({"date": date, "dow": dow, "kind": kind,
                     "crews": list(S.CREWS)})
     return out

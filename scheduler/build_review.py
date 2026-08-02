@@ -1085,6 +1085,18 @@ function hardBlockers(row, date){ return staticBlockers(row,date).filter(c=>!cod
 // defined further down (it needs todayISO/minAllowedDate). Combined here
 // so every date-legality check in one place includes both.
 function dateBlockers(row, date){ return hardBlockers(row,date).concat(pastBlockers(row,date)); }
+// Suffix for a date option: a hard-blocker reason if the date is actually
+// disabled, else an informational note for the one day worth flagging even
+// though it's still workable (Thanksgiving) -- SOFT_CODES elsewhere stay
+// silent here on purpose (that's the declutter the move dialog already
+// relies on; only THANKS gets called out unconditionally).
+function dateLabel(row, date){
+  const bl = dateBlockers(row, date);
+  if(bl.length) return ` — ${codeMsg(bl[0])}`;
+  const ci = SPEC.calendar.find(x=>x.date===date);
+  if(ci && ci.kind === 'thanksgiving') return ` — ${codeMsg('THANKS')}`;
+  return '';
+}
 
 // Deep-enough clone for what-if evaluation. checkPlan must never touch live
 // state -- previewing a candidate is not an edit.
@@ -1849,8 +1861,7 @@ function openMoveDlg(row,presetDate){
   // the open days deliberately left in the schedule for exactly this.
   dsel.innerHTML=SPEC.calendar.map(ci=>{
     const bl=dateBlockers(row, ci.date);
-    const lab=`${fmtDate(ci.date)}`
-            + (bl.length?` — ${codeMsg(bl[0])}`:'');
+    const lab=`${fmtDate(ci.date)}${dateLabel(row, ci.date)}`;
     return `<option value="${ci.date}" ${bl.length?'disabled':''} `
          + `${ci.date===(presetDate||selDate)&&!bl.length?'selected':''}>${lab}</option>`;
   }).join('');
@@ -1975,8 +1986,7 @@ function openSlotFinder(row){
     + SPEC.calendar.map(ci=>{
         const bl=dateBlockers(row, ci.date);
         return `<option value="${ci.date}" ${bl.length?'disabled':''}>`
-             + `${fmtDate(ci.date)}`
-             + (bl.length?` — ${codeMsg(bl[0])}`:'')+`</option>`;}).join('');
+             + `${fmtDate(ci.date)}${dateLabel(row, ci.date)}</option>`;}).join('');
   const body=document.getElementById('sfbody');
   const run=()=>{
     const want=wsel.value||null;

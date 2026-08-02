@@ -243,6 +243,16 @@ definition of "legal," not a second implementation that can drift.
   soft flags. Fixed by giving every Saturday/Sunday its own kind
   (`"saturday"`/`"sunday"`) in `calendar()` so they reach the soft
   checks instead of being excluded before those checks ever run.
+  Same bug, same fix, extended (user, 2026-08-02) to every remaining
+  weekday in `DOW`'s Nov 1-Dec 10 range that sat outside this round's
+  automated pool (before/after the window `schedule.py` filled first,
+  plus Thanksgiving) -- those now get `kind="weekday"` (Thanksgiving
+  gets its own `"thanksgiving"` kind). Thanksgiving is workable like
+  every other soft-blocked date, but is worth flagging even though it
+  isn't disabled -- `build_review.py`'s `dateLabel()` helper appends
+  " — Thanksgiving Day" to its option label unconditionally (not just
+  when something's actually disabling it), the one exception to "soft
+  codes stay silent in the dropdown."
 - **Slot finder** (`openSlotFinder`) — "this client wants date X" → every
   legal (date, crew) ranked by a marginal-insertion-cost screen (asymmetric
   matrix, evaluated in the actual direction — never symmetrized) against
