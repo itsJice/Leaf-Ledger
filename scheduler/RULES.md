@@ -107,10 +107,9 @@ first pass should be ~90% right. Last updated: 2026-08-02.*
   (shared Christmas account). Search for `<year>` install dates; EXCLUDE
   prior-year installs, takedowns ("TD Crew", tear down), and January HOLD
   events. Confirmed calendar events beat email requests beat internal notes.
-- Pin every client-communicated date in schedule.py (PIN validations catch
-  drift). Known 2026 pins: Keffer Nov 18 (appt), Marek Nov 30, Carlton
-  Nicklaus+Outdoor Nov 27 (+tweak 11/30), Fazio Dec 1, WCC Players Nov 25,
-  WCC Palmer/Legacy/Trails Nov 30, WCC Tournament = no install.
+- Pin every client-communicated date in `scheduler/client_config.json`'s
+  `pins` (PIN validations catch drift) -- see §12 for why that file, not
+  schedule.py/rules.py, is where every named client rule lives now.
 
 ## 8. Process / tooling
 - Pipeline: `prep.py` (parse→zones→hours→geocode→matrix, all cached) →
@@ -135,9 +134,9 @@ first pass should be ~90% right. Last updated: 2026-08-02.*
 ## 9. Box counts / truck loading
 - The STORAGE-ROOM BINDER (photographed sheets + physical box labels) is
   the source of truth for box counts — the spreadsheet's BOX COUNT column
-  runs badly stale (2026 audit: Nicklaus 83 vs sheet's 20, Fazio 31 vs 10,
-  Moss 35 vs 14, Royal Oaks 42 vs 38; ~22 clients had counts only in the
-  binder). Photograph the binder each season and load
+  runs badly stale (2026 audit found several clients off by 2-4x, one by
+  10x; ~22 clients had counts only in the binder). Photograph the binder
+  each season and load
   `STORAGE_BOX_COUNTS` in prep.py; pipeline keeps both values
   (`box_count` = verified, `box_count_sheet` = original) and the annotated
   workbook adds a highlighted "Storage Boxes (verified)" column.
@@ -197,6 +196,21 @@ reschedule requests that follow. All in `build_review.py`'s emitted JS
 unless noted; rules mirror `rules.py`'s predicates so there is one
 definition of "legal," not a second implementation that can drift.
 
+- **No client names in the codebase (user, 2026-08-02: "in the codebase"
+  no, "in the UI" yes).** Every named client rule -- deposited-date pins,
+  same-day groups, forced-first stops, drops, and the ~15 one-off manual
+  pairings built up over the season -- lives in `scheduler/client_config.json`
+  (gitignored, never tracked, required to build a correct schedule --
+  `schedule.py` hard-errors on startup if it's missing rather than
+  silently building a wrong schedule with empty rules). `schedule.py`
+  loads it once as `CLIENT_CONFIG`; `rules.py` reuses that same loaded
+  copy for `PINS`/`FORCE_FIRST`/`SAME_DAY_GROUPS`/`NO_INSTALL` instead of
+  reading the file twice. Code keeps its exact structure (crew, date,
+  window, fill -- all non-PII scheduling parameters) as literals; only
+  names and name-bearing notes are config-driven. The generated tool
+  (review.html/map.html) is unaffected -- it still embeds full client
+  data, sourced from `cache/clients.json` same as always, and reaches
+  the deployed app through Postgres (see §10), never through git.
 - **Guardrails, not a re-solve.** Dragging a stop runs `checkPlan(ops)`
   against a CLONED copy of the day state (never live) before anything
   commits. Static rules (dates, categories, deposits) are precomputed in
