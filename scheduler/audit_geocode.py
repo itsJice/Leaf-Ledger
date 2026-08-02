@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 One-off audit (2026-08-01): sanity-check every client's geocoded lat/lon
-against their own stated ZIP code's centroid. Catches the Keffer-style bug
+against their own stated ZIP code's centroid. Catches a bad-geocode bug
 (a street mis-parse sent Nominatim a garbage query, which happily returned
-SOME coordinate -- just the wrong one) that a "did geocoding succeed"
-check alone can't see, since Nominatim returned a confident, non-empty
-result both times.
+SOME coordinate -- just the wrong one, ~35mi off in the case that first
+surfaced this) that a "did geocoding succeed" check alone can't see, since
+Nominatim returned a confident, non-empty result both times.
 
 Not part of the regular pipeline -- run by hand, reads cache/clients.json,
 writes nothing. Flags anything more than FLAG_MILES from its ZIP centroid
