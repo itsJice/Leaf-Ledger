@@ -459,6 +459,8 @@ dialog option:disabled{color:#b6b3ae}
   <input id="ncaddr" type="text" placeholder="Street, city, state zip">
   <label class="nclabel">Est. install time (hours)</label>
   <input id="nchours" type="number" step="0.25" min="0" value="1">
+  <label class="nclabel">Crew size (people, optional)</label>
+  <input id="ncpeople" type="number" step="1" min="0" placeholder="e.g. 5">
   <label class="nclabel">Type</label>
   <select id="nctype">
     <option value="Standard">Standard</option>
@@ -573,16 +575,34 @@ let nextSyntheticRow = 900001 + Object.keys(C).filter(r=>C[r].synthetic).length;
  * (outRow/inCol were captured once at creation and persisted, so this
  * never re-fetches) or as the final step after a live creation fetch.
  * Synchronous. */
+// Mirrors prep.py's classify() for the one thing a synthetic client still
+// needs guessed: Business vs Residence drives which soft weekend warning
+// applies (BIZ_SAT vs SAT_HIST) -- getting it wrong doesn't block anything,
+// but shows staff the wrong "confirm ___" message.
+const SYN_BUSINESS_KEYWORDS = ['m crowd','bank','club','cc','hotel','suites','inn','church',
+  'daycare','academy','office','salon','market','grill','cafe','center','rotary','llc',
+  'inc','company','school','corporate','restaurant','cocina','tavern','group','medical',
+  'clinic','mercury','district'];
+function classifyBusiness(name){
+  const n = (name||'').toLowerCase();
+  const personPattern = /^[A-Za-z'`.\- ]+,\s*[A-Za-z]/.test(name||'');
+  const kw = k => new RegExp('\\b'+k+'\\b').test(n);
+  if(personPattern && !n.includes('crowd')
+     && !SYN_BUSINESS_KEYWORDS.filter(k=>k!=='cc'&&k!=='club').some(kw)) return 'Residence';
+  if(n.includes('residence')) return 'Residence';
+  if(SYN_BUSINESS_KEYWORDS.some(kw)) return 'Business';
+  return personPattern ? 'Residence' : 'Business';
+}
 function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visitType, notes,
-                                  row, outRow, inCol}){
+                                  people, row, outRow, inCol}){
   const r = row!=null ? row : nextSyntheticRow++;
   const idx = extendMatrix(lat, lon, outRow||null, inCol||null);
   C[r] = {
     row:r, name, street:street||'', city:city||'', zip:zip||'',
     phone:'', email:'', storage:'', boxes:'',
-    d24:'', d25:'', real25:null, crew25:'', size25:null, people:null,
+    d24:'', d25:'', real25:null, crew25:'', size25:null, people:(people!=null?people:null),
     h26:hours, basis:'manual entry', zone:city||'', area:'',
-    cat:'Standard', bus:'Business', lat, lon,
+    cat:'Standard', bus:classifyBusiness(name), lat, lon,
     // Real OSRM legs -> treat like a normal street-geocoded client (no
     // "approx pin" flag); estimate-only -> flag it so staff know to
     // sanity-check drive time if it matters for this one.
@@ -718,6 +738,7 @@ function snapshot(){
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
     {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
      hours:c.h26, visitType:c.visitType, notes:c.advice,
+     people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], newClients, savedAt:Date.now()};
@@ -1945,6 +1966,7 @@ const ncdlg=document.getElementById('ncdlg');
 document.getElementById('newclientbtn').onclick=()=>{
   ['ncname','ncaddr','ncnotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nchours').value='1';
+  document.getElementById('ncpeople').value='';
   document.getElementById('nctype').value='Standard';
   document.getElementById('ncerr').textContent='';
   ncdlg.showModal();
@@ -1960,6 +1982,7 @@ document.getElementById('ncgo').onclick=async()=>{
   const name=document.getElementById('ncname').value.trim();
   const addr=document.getElementById('ncaddr').value.trim();
   const hours=+document.getElementById('nchours').value || 0;
+  const people=+document.getElementById('ncpeople').value || null;
   const visitType=document.getElementById('nctype').value;
   const notes=document.getElementById('ncnotes').value.trim();
   const err=document.getElementById('ncerr');
@@ -1976,7 +1999,7 @@ document.getElementById('ncgo').onclick=async()=>{
     }
     go.textContent='Checking drive times…';
     const row = await createSyntheticClient({name, street:addr, lat:geo.lat, lon:geo.lon,
-      hours, visitType, notes});
+      hours, visitType, notes, people});
     persist();
     ncdlg.close();
     openMoveDlg(row, null);
@@ -2086,6 +2109,7 @@ function exportNotebook(){
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
     {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
      hours:c.h26, visitType:c.visitType, notes:c.advice,
+     people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   const out = {
     kind: 'tbdg-install-overrides',

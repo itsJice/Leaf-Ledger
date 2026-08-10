@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Any
 import asyncpg
 import asyncio
+import time
 import io
 import os
 import re
@@ -410,19 +411,63 @@ class CatalogImportCommitOut(BaseModel):
 
 # ---------- Endpoints ----------
 
+# Counting products per supplier means walking all ~166k active rows, which on
+# this instance costs 16-29s and made the Suppliers page look broken. The
+# catalog only changes on import, so the counts are cached and refreshed in the
+# background; the supplier list itself (32 rows) is always fetched fresh.
+_SUPPLIER_COUNT_CACHE: dict = {"ts": 0.0, "counts": None}
+_SUPPLIER_COUNT_TTL = 900  # 15 minutes
+_SUPPLIER_COUNT_LOCK = asyncio.Lock()
+
+
+async def _fetch_supplier_counts(conn) -> dict:
+    rows = await conn.fetch(
+        """SELECT supplier_id, COUNT(*) AS n FROM products
+            WHERE is_active = TRUE GROUP BY supplier_id"""
+    )
+    return {r["supplier_id"]: r["n"] for r in rows}
+
+
+async def _refresh_supplier_counts() -> None:
+    """Rebuild the count cache on its own connection, one refresh at a time."""
+    if _SUPPLIER_COUNT_LOCK.locked():
+        return
+    async with _SUPPLIER_COUNT_LOCK:
+        conn = await get_conn()
+        try:
+            counts = await _fetch_supplier_counts(conn)
+            _SUPPLIER_COUNT_CACHE.update(ts=time.time(), counts=counts)
+        except Exception:
+            pass
+        finally:
+            await conn.close()
+
+
 @router.get("/list", response_model=List[SupplierOut])
 async def list_suppliers():
     conn = await get_conn()
     try:
         rows = await conn.fetch("""
-            SELECT s.*, COUNT(p.id) as product_count,
+            SELECT s.*,
                    (s.login_username IS NOT NULL AND s.login_username != '' AND s.login_password IS NOT NULL AND s.login_password != '') as has_credentials
             FROM suppliers s
-            LEFT JOIN products p ON p.supplier_id = s.id AND p.is_active = TRUE
-            GROUP BY s.id
             ORDER BY s.name
         """)
-        return [dict(r) for r in rows]
+        cached = _SUPPLIER_COUNT_CACHE.get("counts")
+        fresh = cached is not None and (time.time() - _SUPPLIER_COUNT_CACHE["ts"]) < _SUPPLIER_COUNT_TTL
+        if not fresh:
+            if cached is None:
+                # Nothing cached yet: pay for it once so the first load is correct.
+                try:
+                    cached = await _fetch_supplier_counts(conn)
+                    _SUPPLIER_COUNT_CACHE.update(ts=time.time(), counts=cached)
+                except Exception:
+                    cached = {}
+            else:
+                # Stale but usable - serve it now, refresh behind the request.
+                asyncio.create_task(_refresh_supplier_counts())
+        counts = cached or {}
+        return [dict(r, product_count=counts.get(r["id"], 0)) for r in rows]
     finally:
         await conn.close()
 
