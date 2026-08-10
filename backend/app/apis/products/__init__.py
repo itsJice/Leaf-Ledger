@@ -590,6 +590,8 @@ async def page_products(
 # instant after the first load. Same pattern as the ornament matcher above.
 _SEARCH_CACHE: dict = {"ts": 0.0, "rows": None}
 _SEARCH_TTL = 3600  # 1 hour — catalog is static between imports
+# Warm-up fallback only: how far we will count before reporting "N+".
+_DB_COUNT_CAP = 5000
 
 # The in-memory index takes ~30s to build (longer on a small CPU). Until it's
 # ready — on a fresh boot or right after a deploy — search falls back to the
@@ -847,18 +849,31 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     lim = max(1, min(limit, 500))
     off = max(0, offset)
 
-    # One scan, not two: COUNT(*) OVER() rides along with the page so the total
-    # doesn't cost a second full-table scan during the warm-up window.
+    # COUNT(*) OVER() used to ride along with the page, but it forces the planner
+    # to materialise every matching row just to number them - 13s+ once the
+    # catalog passed 166k rows. The page itself is served by an index-ordered
+    # scan that stops at LIMIT (~0.3s), and the total is counted separately with
+    # a cap, so an unfiltered browse never pays for a full scan.
     rows = await conn.fetch(f"""
         SELECT p.id, p.name, s.name AS supplier_name, p.supplier_sku, p.current_price,
-               p.image_urls, p.photo_url, p.raw_data,
-               COUNT(*) OVER() AS _total
+               p.image_urls, p.photo_url, p.raw_data
         FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
         WHERE {wsql}
         ORDER BY p.name
         LIMIT {lim} OFFSET {off}
     """, *args)
-    total = rows[0]["_total"] if rows else 0
+
+    # Exact up to the cap, then reported as "at least this many". The index is
+    # authoritative once warm; this only has to be good enough to page through.
+    capped = await conn.fetchval(f"""
+        SELECT COUNT(*) FROM (
+            SELECT 1 FROM products p WHERE {wsql} LIMIT {_DB_COUNT_CAP + 1}
+        ) x
+    """, *args)
+    total = int(capped or 0)
+    total_is_capped = total > _DB_COUNT_CAP
+    if total_is_capped:
+        total = _DB_COUNT_CAP
 
     items = []
     for r in rows:
@@ -881,7 +896,8 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                                         "size_in": norm.get("size_in"), "class": norm.get("class")}},
         })
 
-    resp = {"items": items, "total": total or 0, "limit": limit, "offset": offset, "warming": True}
+    resp = {"items": items, "total": total or 0, "limit": limit, "offset": offset,
+            "warming": True, "total_is_capped": total_is_capped}
     if build_facets:
         resp["facets"] = {"categories": [], "colors": [], "sizes": [], "finishes": [],
                           "availability": [], "product_types": [], "suppliers": []}
