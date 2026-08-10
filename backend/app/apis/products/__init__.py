@@ -691,14 +691,53 @@ async def _load_search_index(conn):
         return await _build_search_index(conn)
 
 
+def _loads_obj(value) -> dict:
+    """asyncpg hands back jsonb as text; tolerate either, never raise."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _loads_list(value) -> list:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except json.JSONDecodeError:
+            return []
+    return []
+
+
 async def _build_search_index(conn):
     now = _time.time()
 
+    # Only the pieces of raw_data the index actually uses are pulled, and the
+    # searchable text is flattened server-side. Shipping whole raw_data
+    # documents for 166k rows meant transferring 237 MB (compressed on disk,
+    # more on the wire) and the warm-up ran for over nine minutes; extracting
+    # here costs ~400 chars a row instead. The WHERE clauses mirror
+    # _searchable_values(): no URLs, nothing longer than prose.
     query = f"""
         SELECT p.id, p.name, s.name AS supplier_name, p.supplier_id, p.supplier_sku,
                p.current_price, p.image_urls, p.photo_url, p.availability, p.description,
                {PRODUCT_TYPE_SQL} AS product_type,
-               p.raw_data
+               p.raw_data->'normalized'       AS norm_json,
+               p.raw_data->'color_families'   AS color_families_json,
+               p.raw_data->>'category_group'  AS category_group,
+               p.raw_data->>'source_photo_url' AS source_photo_url,
+               (SELECT string_agg(v.value, ' ')
+                  FROM jsonb_each_text(CASE WHEN jsonb_typeof(p.raw_data) = 'object'
+                                            THEN p.raw_data ELSE '{{}}'::jsonb END) AS v(key, value)
+                 WHERE v.value <> '' AND length(v.value) < 200
+                   AND v.value NOT LIKE 'http%%') AS raw_blob
         FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
         WHERE p.is_active = TRUE
     """
@@ -710,19 +749,12 @@ async def _build_search_index(conn):
     # torn down by Supabase's transaction pooler mid-read.
     async with conn.transaction():
         async for r in conn.cursor(query, prefetch=1000):
-            raw_text = r["raw_data"]  # asyncpg returns jsonb as its JSON text
-            try:
-                raw = json.loads(raw_text) if isinstance(raw_text, str) else (raw_text or {})
-            except json.JSONDecodeError:
-                raw = {}
-            if not isinstance(raw, dict):
-                raw = {}
-            norm = raw.get("normalized") or {}
-            cf = [c for c in (raw.get("color_families") or []) if isinstance(c, str)]
+            norm = _loads_obj(r["norm_json"])
+            cf = [c for c in (_loads_list(r["color_families_json"])) if isinstance(c, str)]
             # All candidate images (deduped) so the card can fall back URL→URL when
             # one 404s, instead of showing a broken/empty tile.
             images: list[str] = []
-            for u in list(r["image_urls"] or []) + [r["photo_url"], raw.get("source_photo_url")]:
+            for u in list(r["image_urls"] or []) + [r["photo_url"], r["source_photo_url"]]:
                 if u and u not in images:
                     images.append(u)
             image = images[0] if images else None
@@ -732,10 +764,8 @@ async def _build_search_index(conn):
             color, finish = norm.get("color"), norm.get("finish")
             # full-breadth keyword blob: name + sku + description + every
             # searchable value captured in raw_data (see _searchable_values).
-            raw_values: list[str] = []
-            _searchable_values(raw, raw_values)
             blob = _build_blob(r["name"], r["supplier_sku"], r["description"],
-                               r["supplier_name"], " ".join(raw_values))
+                               r["supplier_name"], r["raw_blob"] or "")
             idx.append({
                 "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
                 "supplier_id": r["supplier_id"], "supplier_sku": r["supplier_sku"],
@@ -743,7 +773,7 @@ async def _build_search_index(conn):
                 "image": image, "images": images[:6], "class": norm.get("class"), "color": color, "finish": finish,
                 "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
                 "product_type": r["product_type"], "color_families": cf,
-                "category": raw.get("category_group"),
+                "category": r["category_group"],
                 "avail": _avail_bucket_py(r["availability"]),
                 "blob": blob,
             })
