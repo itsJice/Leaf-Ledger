@@ -244,6 +244,12 @@ header h1 svg{color:var(--brand)}
   letter-spacing:.01em;transition:all .15s}
 .dchip:hover{background:#fafaf9;border-color:#d6d3d1}
 .dchip.wknd{background:var(--warn-soft);color:var(--warn-ink);border-color:#fde3ad}
+.dchip.tagged{border-color:#7c3aed;border-width:2px}
+.dtag{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:4px;
+  background:#7c3aed;color:#fff;font-size:9px;font-weight:800;letter-spacing:.3px;
+  vertical-align:1px}
+#daytag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:5px;
+  background:#7c3aed;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px}
 .dchip.wknd:hover{background:#fdecc8}
 /* Nothing scheduled here yet -- still a real, draggable date, just visibly
    empty so it reads differently from a day with actual work on it. Wins
@@ -1155,6 +1161,10 @@ function dateLabel(row, date){
   const bl = dateBlockers(row, date);
   if(bl.length) return ` — ${codeMsg(bl[0])}`;
   const ci = SPEC.calendar.find(x=>x.date===date);
+  // A standing commitment (e.g. HYROX) doesn't block the date -- staff can
+  // still book it -- but it must be visible in the picker so nobody
+  // schedules over one without realising.
+  if(ci && ci.label) return ` — ${ci.label}`;
   if(ci && ci.kind === 'thanksgiving') return ` — ${codeMsg('THANKS')}`;
   return '';
 }
@@ -1655,10 +1665,16 @@ function allDates(){ return SPEC.calendar.map(ci=>ci.date); }
 
 function renderStrip(){
   strip.innerHTML='';
-  const mk=(label,val,wknd,empty)=>{
+  const mk=(label,val,wknd,empty,tag)=>{
     const b=document.createElement('button');
-    b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'');
+    b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
+             +(tag?' tagged':'');
     b.textContent=label; b.dataset.val=val;
+    if(tag){
+      const s=document.createElement('span'); s.className='dtag'; s.textContent=tag;
+      b.appendChild(s);
+      b.title=`${tag} — still bookable, just flagged`;
+    }
     b.onclick=()=>{selDate=val; focusDayId=null; render();};
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
     b.ondragleave=()=>b.classList.remove('dragover');
@@ -1674,7 +1690,7 @@ function renderStrip(){
     const dow=dowOf(dt);
     const wknd=['Sat','Sun'].includes(dow);
     const empty=!days.some(x=>x.date===dt);
-    mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty);
+    mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
   });
 }
 
@@ -1808,6 +1824,17 @@ function renderCards(){
     renderLog(); return;
   }
   const onThisDate = days.filter(d=>d.date===selDate);
+  // Standing commitment for this date (HYROX etc.) -- advisory banner, shown
+  // whether or not anything is booked, so an empty tagged day still explains
+  // itself rather than just looking free.
+  const ciSel = SPEC.calendar.find(x=>x.date===selDate);
+  if(ciSel && ciSel.label){
+    const t=document.createElement('div'); t.className='ovdate';
+    t.innerHTML=`${fmtDate(selDate)} <span id="daytag">${ciSel.label}</span>`
+              + `<div class="mvcrewempty" style="font-weight:500;margin-top:3px">`
+              + `Reserved for ${ciSel.label} — you can still book work here.</div>`;
+    side.appendChild(t);
+  }
   if(!onThisDate.length){
     const p=document.createElement('p'); p.className='nothingyet';
     p.textContent=`Nothing on ${fmtDate(selDate)} yet.`;

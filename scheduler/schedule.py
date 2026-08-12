@@ -51,11 +51,23 @@ SATURDAYS = []   # no standard Saturday capacity -- see STD_WEEKDAYS note
 # stays available for later manual reschedule accommodation; it's just no
 # longer where the INITIAL round automatically lands people.
 STD_WEEKDAYS = ["2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17",
-                "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23",
+                "2026-11-18", "2026-11-19", "2026-11-23",
                 "2026-11-24", "2026-11-25", "2026-11-27", "2026-11-30",
                 "2026-12-01", "2026-12-02"]
 FORCE_START = set()          # no forced first day -- balance fills naturally
 OVERFLOW_TAIL = set()        # no auto-assigned overflow tail this round
+
+# Dates carrying a standing commitment. These are LABELS, not blocks: the
+# review tool shows the tag on the date chip and the day card so nobody
+# schedules over one by accident, but staff can still place work there
+# (user, 2026-08-12). Nov 20 was additionally pulled out of STD_WEEKDAYS
+# above so the optimizer stops auto-filling it -- its 5 stops were
+# redistributed to Nov 9-11.
+DATE_LABELS = {
+    "2026-11-20": "HYROX",
+    "2026-11-21": "HYROX",
+    "2026-11-22": "HYROX",
+}
 DOW = {  # for labels, and the full set of dates the review tool can show.
     # Sundays/Thanksgiving are included too (not workable -- see rules.py's
     # SUNDAY/THANKS blockers) so the date strip can show a real, explained

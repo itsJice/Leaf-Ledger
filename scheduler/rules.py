@@ -123,6 +123,7 @@ def calendar():
             # client here; see the override-capability note below.
             kind = "weekday"
         out.append({"date": date, "dow": dow, "kind": kind,
+                    "label": S.DATE_LABELS.get(date, ""),
                     "crews": list(S.CREWS)})
     return out
 
