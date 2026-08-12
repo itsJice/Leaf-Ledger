@@ -605,6 +605,18 @@ _SEARCH_DISK_CACHE = os.environ.get("SEARCH_INDEX_CACHE_DIR") or os.path.join(
     tempfile.gettempdir(), "leaf-ledger-index"
 )
 _SEARCH_DISK_VERSION = 2  # bump whenever the row shape below changes
+# Rows pulled per cursor round trip. At 1,000 a 166k-row catalog needed 166
+# round trips, which dominates the build wherever latency to the database is
+# non-trivial (a laptop, or a host in a different region). Larger batches trade
+# a little peak memory for far fewer trips.
+_INDEX_PREFETCH = int(os.environ.get("SEARCH_INDEX_PREFETCH", 10000))
+
+# Escape hatch. The in-memory index buys instant filtering and the colour/size/
+# finish facets, but building it reads the whole catalog, which is expensive in
+# both time and egress. Since the trigram indexes landed, the database path is
+# fast enough to serve search on its own - it just can't do those extra facets
+# yet. Set SEARCH_INDEX_ENABLED=0 to skip the build entirely and stay on SQL.
+_INDEX_ENABLED = os.environ.get("SEARCH_INDEX_ENABLED", "1").lower() not in ("0", "false", "no")
 # Warm-up fallback only: how far we will count before reporting "N+".
 _DB_COUNT_CAP = 5000
 
@@ -620,6 +632,8 @@ _index_build_task = None  # the in-flight background build, if any
 
 
 def _index_ready() -> bool:
+    if not _INDEX_ENABLED:
+        return False
     rows = _SEARCH_CACHE.get("rows")
     return rows is not None and (_time.time() - _SEARCH_CACHE["ts"]) < _SEARCH_TTL
 
@@ -632,6 +646,8 @@ def _ensure_index_building() -> None:
     this from ever building a second copy concurrently.
     """
     global _index_build_task
+    if not _INDEX_ENABLED:
+        return  # SQL-only mode: never read the whole catalog
     if _index_ready():
         return
     if _index_build_task is not None and not _index_build_task.done():
@@ -806,7 +822,7 @@ async def _build_search_index(conn):
     # peak memory to roughly double the finished index and got the connection
     # torn down by Supabase's transaction pooler mid-read.
     async with conn.transaction():
-        async for r in conn.cursor(query, prefetch=1000):
+        async for r in conn.cursor(query, prefetch=_INDEX_PREFETCH):
             norm = _loads_obj(r["norm_json"])
             cf = [c for c in (_loads_list(r["color_families_json"])) if isinstance(c, str)]
             # All candidate images (deduped) so the card can fall back URL→URL when

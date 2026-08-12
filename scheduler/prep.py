@@ -311,6 +311,15 @@ def parse():
             except (ValueError, TypeError):
                 return None
 
+        def as_money(v):
+            # Several fee columns are broken formulas ("#VALUE!") on most
+            # rows -- a formula error reads back as that literal string, not
+            # a raise, so isinstance(v, str) alone isn't enough to catch it.
+            try:
+                return round(float(v), 2)
+            except (ValueError, TypeError):
+                return None
+
         prior_date = as_date(h(r, "Install Date 2025"))
         date_2024 = as_date(h(r, "2024 INSTALL DATE"))
 
@@ -335,6 +344,22 @@ def parse():
 
         box = h(r, "BOX COUNT")
         area, zone = ZIP_ZONE.get(zc, ("UNKNOWN", "UNKNOWN"))
+
+        # Billing-adjacent columns for the review tool's billing export.
+        # INSTALL/TAKEDOWN LABOR FEE and the TOTAL columns are broken
+        # formulas ("#VALUE!") on effectively every row as of 2026-08-10 --
+        # as_money() returns None for those rather than a garbage string.
+        # STORAGE FEE is a real, working column. Production Notes carries
+        # repair/relight/replacement flags ("needs new tree", "had to
+        # relight") -- distinct from Confirmation Notes, which is
+        # scheduling/logistics chatter, not billing- or repair-relevant.
+        storage_fee = as_money(h(r, "STORAGE FEE (BASED ON # OF BOXES)"))
+        install_fee = as_money(h(r, "INSTALL LABOR FEE"))
+        takedown_fee = as_money(h(r, "TAKEDOWN LABOR FEE"))
+        invoice_2025_total = as_money(h(r, "2025 Invoice Total Actual Created"))
+        production_notes_v = h(r, "2025 Production Notes", "Production Notes")
+        production_notes = (str(production_notes_v).strip()
+                            if production_notes_v else "")
 
         box_sheet = box
         if name in STORAGE_BOX_COUNTS:
@@ -380,6 +405,11 @@ def parse():
             "install_2026_confirmed": install_2026_confirmed,
             "install_2026_note": install_2026_note,
             "install_2026_no_install": install_2026_no_install,
+            "storage_fee": storage_fee,
+            "install_fee_2026": install_fee,
+            "takedown_fee_2026": takedown_fee,
+            "invoice_2025_total": invoice_2025_total,
+            "production_notes": production_notes,
         }
         clients.append(rec)
     return clients

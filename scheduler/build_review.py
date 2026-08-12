@@ -53,7 +53,8 @@ for c in sched["all_clients"]:
         continue
     clients[c["row"]] = {
         "row": c["row"], "name": c["name"], "street": c["street"],
-        "city": c["city"], "zip": c["zip"], "phone": c.get("phone", ""),
+        "city": c["city"], "st": c.get("st", "TX"), "zip": c["zip"],
+        "phone": c.get("phone", ""),
         "email": c.get("email", ""), "storage": c.get("storage", ""),
         "boxes": c.get("box_count") or "", "d24": c.get("date_2024", ""),
         "d25": c.get("prior_install_date", ""),
@@ -67,6 +68,14 @@ for c in sched["all_clients"]:
         # column. Both were already parsed by prep.py and never used.
         "locked": c.get("install_2026_confirmed", "") or "",
         "advice": c.get("install_2026_note", "") or "",
+        # Billing export fields (see prep.py) -- storageFee is a real,
+        # working column; install/takedownFee are None until the broken
+        # spreadsheet formulas are fixed (2026-08-10: not yet).
+        "storageFee": c.get("storage_fee"),
+        "installFee": c.get("install_fee_2026"),
+        "takedownFee": c.get("takedown_fee_2026"),
+        "invoice25": c.get("invoice_2025_total"),
+        "repairNotes": c.get("production_notes", "") or "",
     }
 
 # Day ids must survive a pipeline re-run, or saved accommodations silently
@@ -393,6 +402,17 @@ dialog option:disabled{color:#b6b3ae}
   background:#fff;color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:700;
   font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
 #newclientbtn:hover{background:var(--brand);color:#fff}
+#billexportbtn{align-self:center;padding:8px 14px;border-radius:8px;border:1.5px solid var(--line);
+  background:#fff;color:var(--ink);font-family:'Montserrat',sans-serif;font-weight:700;
+  font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s}
+#billexportbtn:hover{background:var(--brand-soft)}
+#billdlg{max-width:360px}
+#billdlg .billscope{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+#billdlg .billscope button{padding:10px 14px;border-radius:8px;border:1.5px solid var(--line);
+  background:#fff;color:var(--ink);font-family:'Montserrat',sans-serif;font-weight:600;
+  font-size:13px;cursor:pointer;text-align:left}
+#billdlg .billscope button:hover{border-color:var(--brand);background:var(--brand-soft)}
+#billdlg .billnote{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:2px}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
   border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
@@ -426,6 +446,7 @@ dialog option:disabled{color:#b6b3ae}
     <div id="searchresults"></div>
   </div>
   <button id="newclientbtn" type="button">+ New client</button>
+  <button id="billexportbtn" type="button">⬇ Billing export</button>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
   <div id="datestrip"></div>
@@ -480,6 +501,17 @@ dialog option:disabled{color:#b6b3ae}
   <p id="histsub" class="histsub"></p>
   <div id="histbody"></div>
   <div class="btns"><button onclick="histdlg.close()">Close</button></div>
+</dialog>
+<dialog id="billdlg">
+  <b>Billing export</b>
+  <p class="billnote">One row per client: name, bill-to, billing address, install
+    date, install/takedown/storage price, and notes. Opens directly in Excel.</p>
+  <div class="billscope">
+    <button data-scope="all">Everyone</button>
+    <button data-scope="houston">Houston only</button>
+    <button data-scope="dallas">Dallas only (Mi Cocina week)</button>
+  </div>
+  <div class="btns"><button onclick="billdlg.close()">Cancel</button></div>
 </dialog>
 <script>
 const DATA = __DATA__;
@@ -598,7 +630,7 @@ function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visit
   const r = row!=null ? row : nextSyntheticRow++;
   const idx = extendMatrix(lat, lon, outRow||null, inCol||null);
   C[r] = {
-    row:r, name, street:street||'', city:city||'', zip:zip||'',
+    row:r, name, street:street||'', city:city||'', st:'TX', zip:zip||'',
     phone:'', email:'', storage:'', boxes:'',
     d24:'', d25:'', real25:null, crew25:'', size25:null, people:(people!=null?people:null),
     h26:hours, basis:'manual entry', zone:city||'', area:'',
@@ -608,6 +640,10 @@ function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visit
     // sanity-check drive time if it matters for this one.
     geo: (outRow && inCol) ? 'street' : 'synthetic',
     locked:'', advice:notes||'',
+    // No fee history for a client the spreadsheet never had -- billing
+    // export leaves these blank rather than guessing.
+    storageFee:null, installFee:null, takedownFee:null, invoice25:null,
+    repairNotes:'',
     visitType: visitType||'Standard', synthetic:true,
     outRow: outRow||null, inCol: inCol||null,
   };
@@ -2093,6 +2129,44 @@ function exportCSV(){
 }
 function dl(name,text){const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([text]));a.download=name;a.click();}
+// RFC4180-ish: always quote, double up embedded quotes. exportCSV above
+// doesn't bother (its fields can't contain commas/quotes) -- billing rows
+// pull free-text notes and addresses, which routinely do.
+function csvCell(v){
+  const s = v==null ? '' : String(v);
+  return `"${s.replace(/"/g,'""')}"`;
+}
+function exportBilling(scope){
+  const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
+                    : scope==='dallas'  ? days.filter(d=>d.cat==='M Crowd')
+                    : days;
+  // A joint job sits on two crews' cards for the same date -- one billing
+  // line per CLIENT, not per crew-assignment, or a two-crew job would look
+  // like two separate charges.
+  const seen = new Map();
+  scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
+  const rows = [['Client name','Bill-to name/company','Billing address','Install date',
+    'Install price','Takedown price','Storage price','Repairs & install notes','Billing notes']];
+  [...seen.entries()]
+    .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
+    .forEach(([r,date])=>{
+      const c = C[r];
+      const addr = [c.street, [c.city, c.st].filter(Boolean).join(', '), c.zip]
+        .filter(Boolean).join(', ');
+      rows.push([
+        c.name, c.name, addr, date,
+        c.installFee ?? '', c.takedownFee ?? '', c.storageFee ?? '',
+        c.repairNotes || '', '',
+      ]);
+    });
+  dl(`tbdg-2026-billing-${scope}.csv`,
+     rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
+}
+const billdlg = document.getElementById('billdlg');
+document.getElementById('billexportbtn').onclick = ()=> billdlg.showModal();
+billdlg.querySelectorAll('.billscope button').forEach(b=>{
+  b.onclick = ()=>{ exportBilling(b.dataset.scope); billdlg.close(); };
+});
 function resetAll(){ if(confirm('Discard all moves & approvals?')){
   localStorage.removeItem('tbdg2026review'); location.reload(); }}
 
