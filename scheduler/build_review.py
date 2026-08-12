@@ -76,6 +76,8 @@ for c in sched["all_clients"]:
         "takedownFee": c.get("takedown_fee_2026"),
         "invoice25": c.get("invoice_2025_total"),
         "repairNotes": c.get("production_notes", "") or "",
+        "install24": c.get("install_fee_2024"), "storage24": c.get("storage_fee_2024"),
+        "install25": c.get("install_fee_2025"), "storage25": c.get("storage_fee_2025"),
     }
 
 # Day ids must survive a pipeline re-run, or saved accommodations silently
@@ -505,7 +507,9 @@ dialog option:disabled{color:#b6b3ae}
 <dialog id="billdlg">
   <b>Billing export</b>
   <p class="billnote">One row per client: name, bill-to, billing address, install
-    date, install/takedown/storage price, and notes. Opens directly in Excel.</p>
+    date, 2026 install/takedown/storage price, repair &amp; billing notes, plus
+    2024/2025 install &amp; storage invoice history where a record exists.
+    Opens directly in Excel.</p>
   <div class="billscope">
     <button data-scope="all">Everyone</button>
     <button data-scope="houston">Houston only</button>
@@ -643,7 +647,7 @@ function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visit
     // No fee history for a client the spreadsheet never had -- billing
     // export leaves these blank rather than guessing.
     storageFee:null, installFee:null, takedownFee:null, invoice25:null,
-    repairNotes:'',
+    repairNotes:'', install24:null, storage24:null, install25:null, storage25:null,
     visitType: visitType||'Standard', synthetic:true,
     outRow: outRow||null, inCol: inCol||null,
   };
@@ -2136,6 +2140,25 @@ function csvCell(v){
   const s = v==null ? '' : String(v);
   return `"${s.replace(/"/g,'""')}"`;
 }
+/** One mailable address line from the sheet's messy parts.
+ * Several source rows jam the whole address into the street cell (or into
+ * CITY), so naively joining street+city+state+zip yields "…Houston, TX
+ * 77024, TX". Append each part only when it isn't already present. */
+function billingAddress(c){
+  const street = (c.street||'').replace(/\s*\n\s*/g, ', ').trim();
+  const has = (hay, needle) =>
+    !!needle && new RegExp(`(^|[\\s,])${needle.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}([\\s,]|$)`, 'i').test(hay);
+  const parts = [street];
+  if(c.city && !has(street, c.city)) parts.push(c.city);
+  let sofar = parts.join(', ');
+  // "TX" and "Texas" are the same state -- some rows spell it out.
+  const hasState = c.st && (has(sofar, c.st)
+    || (/^tx$/i.test(c.st) && has(sofar, 'Texas')));
+  if(c.st && !hasState) parts.push(c.st);
+  sofar = parts.join(', ');
+  if(c.zip && !has(sofar, c.zip)) parts.push(c.zip);
+  return parts.filter(Boolean).join(', ');
+}
 function exportBilling(scope){
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
                     : scope==='dallas'  ? days.filter(d=>d.cat==='M Crowd')
@@ -2146,17 +2169,20 @@ function exportBilling(scope){
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
   const rows = [['Client name','Bill-to name/company','Billing address','Install date',
-    'Install price','Takedown price','Storage price','Repairs & install notes','Billing notes']];
+    '2026 install price','2026 takedown price','2026 storage price',
+    'Repairs & install notes','Billing notes',
+    '2024 install invoice','2024 storage invoice',
+    '2025 install invoice','2025 storage invoice']];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
       const c = C[r];
-      const addr = [c.street, [c.city, c.st].filter(Boolean).join(', '), c.zip]
-        .filter(Boolean).join(', ');
+      const addr = billingAddress(c);
       rows.push([
         c.name, c.name, addr, date,
         c.installFee ?? '', c.takedownFee ?? '', c.storageFee ?? '',
         c.repairNotes || '', '',
+        c.install24 ?? '', c.storage24 ?? '', c.install25 ?? '', c.storage25 ?? '',
       ]);
     });
   dl(`tbdg-2026-billing-${scope}.csv`,

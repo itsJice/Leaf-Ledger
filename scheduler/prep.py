@@ -30,9 +30,58 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 os.makedirs(CACHE, exist_ok=True)
 SRC = os.path.join(HERE, "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx")
+HIST_SRC = os.path.join(HERE, "CHRISTMAS Historical Reference (2024-2025).xlsx")
 SHEET = "2026 Christmas"
 DEPOT = "2860 Antoine Dr, Houston, TX 77092"
 UA = {"User-Agent": "TBDG-christmas-scheduler/1.0 (justice@wenzdays.com)"}
+
+
+def norm_name(n):
+    """Loose match key for a client name across seasons -- spacing/
+    punctuation drifts year to year ("Mcrowd Chapel Hill" vs "M Crowd
+    Chapel Hill"), so an exact-string join would miss real matches."""
+    n = re.sub(r"\s+", " ", str(n).strip().lower())
+    return re.sub(r"[^a-z0-9, ]", "", n)
+
+
+def load_history():
+    """2024/2025 install + storage fees, keyed by normalized name.
+
+    HIST_SRC's cached values (not its formulas) are the source of truth --
+    it's a closed-season reference file, not live, so whatever was last
+    computed there is the historical fact. Best-effort match (~85% of
+    2026's roster has a 2025 record, ~55% has 2024) -- clients missing a
+    year just get a blank cell for it, not a fabricated number.
+    """
+    hist = {}
+    if not os.path.exists(HIST_SRC):
+        return hist
+    wb = openpyxl.load_workbook(HIST_SRC, data_only=True)
+
+    ws25 = wb["2025 Christmas"]
+    h25 = {str(c.value).strip(): c.column for c in ws25[2] if c.value}
+    for r in range(3, ws25.max_row + 1):
+        name = ws25.cell(r, 1).value
+        if not name:
+            continue
+        install = ws25.cell(r, h25.get("INSTALL LABOR FEE", 0)).value
+        storage = ws25.cell(r, h25.get("STORAGE FEE (BASED ON # OF BOXES)", 0)).value
+        d = hist.setdefault(norm_name(name), {})
+        d["install_2025"] = install if isinstance(install, (int, float)) else None
+        d["storage_2025"] = storage if isinstance(storage, (int, float)) else None
+
+    ws24 = wb["2024 Christmas"]
+    h24 = {str(c.value).strip(): c.column for c in ws24[1] if c.value}
+    for r in range(2, ws24.max_row + 1):
+        name = ws24.cell(r, 1).value
+        if not name:
+            continue
+        install = ws24.cell(r, h24.get("TOTAL INSTALL LABOR FEE", 0)).value
+        storage = ws24.cell(r, h24.get("TOTAL TBDG STORAGE FEE (BASED ON # OF BOXES)", 0)).value
+        d = hist.setdefault(norm_name(name), {})
+        d["install_2024"] = install if isinstance(install, (int, float)) else None
+        d["storage_2024"] = storage if isinstance(storage, (int, float)) else None
+    return hist
 
 EXCLUDE = {
     "GENERAL INSTALL LABOR", "PICKUP & DELIVERY - INSTALL",
@@ -254,6 +303,7 @@ def categorize(name):
 def parse():
     wb = openpyxl.load_workbook(SRC, data_only=True)
     ws = wb[SHEET]
+    hist = load_history()
 
     # Header-name column lookup (NOT fixed indices) -- the sheet's column
     # order has already shifted once between spreadsheet revisions, and a
@@ -360,6 +410,7 @@ def parse():
         production_notes_v = h(r, "2025 Production Notes", "Production Notes")
         production_notes = (str(production_notes_v).strip()
                             if production_notes_v else "")
+        h_rec = hist.get(norm_name(name), {})
 
         box_sheet = box
         if name in STORAGE_BOX_COUNTS:
@@ -410,6 +461,10 @@ def parse():
             "takedown_fee_2026": takedown_fee,
             "invoice_2025_total": invoice_2025_total,
             "production_notes": production_notes,
+            "install_fee_2024": h_rec.get("install_2024"),
+            "storage_fee_2024": h_rec.get("storage_2024"),
+            "install_fee_2025": h_rec.get("install_2025"),
+            "storage_fee_2025": h_rec.get("storage_2025"),
         }
         clients.append(rec)
     return clients
