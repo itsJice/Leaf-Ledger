@@ -529,7 +529,21 @@ def main():
             "geo_display": "manual (review tool)",
             "geo_source": "street" if nc.get("outRow") else "synthetic",
             "midx": midx,
+            # Billing: same rate card the spreadsheet uses (crew lead $100/hr,
+            # general $75/hr, storage $75/box). A manually-added client has a
+            # headcount but no crew breakdown, so bill it as 1 lead + the rest
+            # general -- the floor crew shape. Keeps the billing export from
+            # having a blank price for anyone added mid-season.
+            "install_fee_2026": None, "takedown_fee_2026": None,
+            "storage_fee": 0.0, "invoice_2025_total": None,
+            "production_notes": "", "install_fee_2024": None,
+            "storage_fee_2024": None, "install_fee_2025": None,
+            "storage_fee_2025": None,
         }
+        _people = nc.get("people") or 5
+        _fee = round((100 + max(_people - 1, 4) * 75) * (nc.get("hours") or 0), 2)
+        rec["install_fee_2026"] = _fee
+        rec["takedown_fee_2026"] = _fee
         clients.append(rec)
         by_row[row] = rec
         by_idx[midx] = rec
