@@ -7,6 +7,8 @@ import os
 import re
 import uuid
 import json
+import tempfile
+import gzip
 import hashlib
 import requests as http_requests
 import databutton as db
@@ -589,7 +591,20 @@ async def page_products(
 # the catalog into memory ONCE (cached with a TTL) and filter it in Python —
 # instant after the first load. Same pattern as the ornament matcher above.
 _SEARCH_CACHE: dict = {"ts": 0.0, "rows": None}
-_SEARCH_TTL = 3600  # 1 hour — catalog is static between imports
+# The catalog only changes when someone runs an import, so an hour was needlessly
+# short: every expiry re-reads the whole catalog out of Supabase. Egress is the
+# binding constraint (a single rebuild moves tens of MB), not staleness.
+_SEARCH_TTL = int(os.environ.get("SEARCH_INDEX_TTL", 24 * 3600))
+
+# Rebuilding the index on every process start is the single largest source of
+# database egress: each build streams the whole catalog. Persisting it means a
+# restart reloads from local disk and reads nothing. Set SEARCH_INDEX_CACHE_DIR
+# to a persistent volume in production; on an ephemeral filesystem this still
+# covers in-place restarts, just not brand-new containers.
+_SEARCH_DISK_CACHE = os.environ.get("SEARCH_INDEX_CACHE_DIR") or os.path.join(
+    tempfile.gettempdir(), "leaf-ledger-index"
+)
+_SEARCH_DISK_VERSION = 2  # bump whenever the row shape below changes
 # Warm-up fallback only: how far we will count before reporting "N+".
 _DB_COUNT_CAP = 5000
 
@@ -688,6 +703,12 @@ async def _load_search_index(conn):
     async with _INDEX_BUILD_LOCK:
         if _index_ready():
             return _SEARCH_CACHE["rows"]
+        # Prefer a warm index left on disk by an earlier run: reading it costs
+        # nothing from the database, where a rebuild streams the whole catalog.
+        cached = _load_index_from_disk()
+        if cached:
+            _SEARCH_CACHE.update(ts=_time.time(), rows=cached)
+            return cached
         return await _build_search_index(conn)
 
 
@@ -714,6 +735,43 @@ def _loads_list(value) -> list:
         except json.JSONDecodeError:
             return []
     return []
+
+
+def _disk_cache_path() -> str:
+    return os.path.join(_SEARCH_DISK_CACHE, f"search-index-v{_SEARCH_DISK_VERSION}.json.gz")
+
+
+def _load_index_from_disk():
+    """Return a cached index if one is on disk and still within its TTL."""
+    path = _disk_cache_path()
+    try:
+        if not os.path.exists(path):
+            return None
+        age = _time.time() - os.path.getmtime(path)
+        if age >= _SEARCH_TTL:
+            return None
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        rows = payload.get("rows")
+        if not isinstance(rows, list) or not rows:
+            return None
+        print(f"search index loaded from disk ({len(rows)} rows, {age/60:.0f} min old) — no catalog read")
+        return rows
+    except Exception as e:  # noqa: BLE001 — a bad cache must never block startup
+        print(f"search index disk cache unreadable, rebuilding: {e}")
+        return None
+
+
+def _save_index_to_disk(rows) -> None:
+    path = _disk_cache_path()
+    try:
+        os.makedirs(_SEARCH_DISK_CACHE, exist_ok=True)
+        tmp = f"{path}.{os.getpid()}.tmp"
+        with gzip.open(tmp, "wt", encoding="utf-8") as fh:
+            json.dump({"rows": rows}, fh)
+        os.replace(tmp, path)  # atomic: readers never see a half-written file
+    except Exception as e:  # noqa: BLE001 — caching is an optimisation, not a requirement
+        print(f"could not persist search index: {e}")
 
 
 async def _build_search_index(conn):
@@ -778,6 +836,7 @@ async def _build_search_index(conn):
                 "blob": blob,
             })
     _SEARCH_CACHE.update(ts=now, rows=idx)
+    _save_index_to_disk(idx)
     return idx
 
 
