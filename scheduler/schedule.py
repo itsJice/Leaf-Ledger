@@ -67,6 +67,7 @@ DATE_LABELS = {
     "2026-11-20": "HYROX",
     "2026-11-21": "HYROX",
     "2026-11-22": "HYROX",
+    "2026-11-26": "THANKSGIVING",
 }
 DOW = {  # for labels, and the full set of dates the review tool can show.
     # Sundays/Thanksgiving are included too (not workable -- see rules.py's

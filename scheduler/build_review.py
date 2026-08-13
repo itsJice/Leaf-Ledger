@@ -2176,6 +2176,12 @@ function csvCell(v){
  * street cell (or into CITY, leaving street holding a first name), some
  * repeat "City, TX" on the end of the street, and one carries the client's
  * own name on the first line. */
+/** MM/DD/YYYY for the billing export. fmtMDY() is the UI's 2-digit-year
+ * form; an invoice wants the full year. */
+function fmtMDYYYY(iso){
+  const [y,m,d]=String(iso).split('-');
+  return (y&&m&&d) ? `${m}/${d}/${y}` : String(iso||'');
+}
 function addrParts(c){
   const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   let street=(c.street||'').replace(/\s*\n\s*/g,', ').trim();
@@ -2229,7 +2235,7 @@ function exportBilling(scope){
       const nums=[c.installFee,c.takedownFee,c.storageFee].filter(v=>typeof v==='number');
       const grand = nums.length ? nums.reduce((s,v)=>s+v,0) : '';
       rows.push([
-        c.name, c.name, a.street, a.city, a.st, a.zip, date,
+        c.name, c.name, a.street, a.city, a.st, a.zip, fmtMDYYYY(date),
         c.installFee ?? '', c.takedownFee ?? '', c.storageFee ?? '', grand,
         c.repairNotes || '', '',
         c.install24 ?? '', c.storage24 ?? '', c.install25 ?? '', c.storage25 ?? '',
