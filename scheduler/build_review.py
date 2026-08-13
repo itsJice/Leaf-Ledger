@@ -512,10 +512,10 @@ dialog option:disabled{color:#b6b3ae}
 </dialog>
 <dialog id="billdlg">
   <b>Billing export</b>
-  <p class="billnote">One row per client: name, bill-to, billing address, install
-    date, 2026 install/takedown/storage price, repair &amp; billing notes, plus
-    2024/2025 install &amp; storage invoice history where a record exists.
-    Opens directly in Excel.</p>
+  <p class="billnote">One row per client: name, bill-to, address / city / state /
+    zip in separate columns, install date, 2026 install / takedown / storage
+    price and their combined total, repair &amp; billing notes, plus 2024/2025
+    invoice history where a record exists. Opens directly in Excel.</p>
   <div class="billscope">
     <button data-scope="all">Everyone</button>
     <button data-scope="houston">Houston only</button>
@@ -2171,20 +2171,36 @@ function csvCell(v){
  * Several source rows jam the whole address into the street cell (or into
  * CITY), so naively joining street+city+state+zip yields "…Houston, TX
  * 77024, TX". Append each part only when it isn't already present. */
-function billingAddress(c){
-  const street = (c.street||'').replace(/\s*\n\s*/g, ', ').trim();
-  const has = (hay, needle) =>
-    !!needle && new RegExp(`(^|[\\s,])${needle.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}([\\s,]|$)`, 'i').test(hay);
-  const parts = [street];
-  if(c.city && !has(street, c.city)) parts.push(c.city);
-  let sofar = parts.join(', ');
-  // "TX" and "Texas" are the same state -- some rows spell it out.
-  const hasState = c.st && (has(sofar, c.st)
-    || (/^tx$/i.test(c.st) && has(sofar, 'Texas')));
-  if(c.st && !hasState) parts.push(c.st);
-  sofar = parts.join(', ');
-  if(c.zip && !has(sofar, c.zip)) parts.push(c.zip);
-  return parts.filter(Boolean).join(', ');
+/** Split the sheet's messy address cells into real ADDRESS / CITY / ST / ZIP
+ * columns. Six source rows need repair: some jam the whole address into the
+ * street cell (or into CITY, leaving street holding a first name), some
+ * repeat "City, TX" on the end of the street, and one carries the client's
+ * own name on the first line. */
+function addrParts(c){
+  const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  let street=(c.street||'').replace(/\s*\n\s*/g,', ').trim();
+  let city=(c.city||'').trim(), st=(c.st||'TX').trim(), zip=(c.zip||'').trim();
+  // CITY sometimes holds the real street (street cell holds a first name).
+  if(city && /\d/.test(city) && !/\d/.test(street)){
+    const p=city.split(',').map(s=>s.trim()).filter(Boolean);
+    if(p.length>=2){ street=p[0]; city=p[1].replace(/\s*(TX|Texas)$/i,'').trim(); }
+  }
+  // A manually-added client can carry the whole "street, city, ST zip" in
+  // the street cell with CITY/ZIP empty -- pull them back out.
+  if(!city || !zip){
+    const m=street.match(/^(.*?),\s*([A-Za-z .'-]+),\s*(TX|Texas)\s*(\d{5})?\s*$/i);
+    if(m){ street=m[1].trim(); city=city||m[2].trim(); st=st||'TX'; zip=zip||(m[4]||''); }
+  }
+  if(!zip){ const z=street.match(/\b(\d{5})\b\s*$/); if(z){ zip=z[1]; street=street.replace(/\s*\b\d{5}\b\s*$/,'').replace(/,\s*$/,'').trim(); } }
+  // Drop the client's own name if it leaked onto the street line.
+  const first=(c.name||'').split(',')[0].trim();
+  if(first) street=street.replace(new RegExp('^'+esc(c.name)+'\\s*,\\s*','i'),'')
+                         .replace(new RegExp('^'+esc(first)+'\\s*,\\s*','i'),'').trim();
+  // Strip a duplicated ", City TX 77xxx" tail off the street.
+  if(city) street=street.replace(
+    new RegExp(',?\\s*'+esc(city)+'\\s*,?\\s*(TX|Texas)?\\s*\\d{0,5}\\s*$','i'),'').trim();
+  street=street.replace(/,?\s*(TX|Texas)\s*\d{0,5}\s*$/i,'').replace(/,\s*$/,'').trim();
+  return {street, city, st, zip};
 }
 function exportBilling(scope){
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
@@ -2195,21 +2211,29 @@ function exportBilling(scope){
   // like two separate charges.
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
-  const rows = [['Client name','Bill-to name/company','Billing address','Install date',
+  const rows = [['Client name','Bill-to name/company','ADDRESS','CITY','ST','ZIP','Install date',
     '2026 install price','2026 takedown price','2026 storage price',
+    'TOTAL PICK UP & DELIVERY INSTALL + TAKEDOWN + Storage',
     'Repairs & install notes','Billing notes',
     '2024 install invoice','2024 storage invoice',
-    '2025 install invoice','2025 storage invoice']];
+    '2025 install invoice','2025 storage invoice',
+    '2025 Invoice Total Actual']];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
       const c = C[r];
-      const addr = billingAddress(c);
+      const a = addrParts(c);
+      // Grand total mirrors the sheet's 2026 IDEAL TOTAL: install + takedown
+      // + storage. Blank (not 0) when we have no priced components at all,
+      // so an unpriced row reads as "unknown" rather than "free".
+      const nums=[c.installFee,c.takedownFee,c.storageFee].filter(v=>typeof v==='number');
+      const grand = nums.length ? nums.reduce((s,v)=>s+v,0) : '';
       rows.push([
-        c.name, c.name, addr, date,
-        c.installFee ?? '', c.takedownFee ?? '', c.storageFee ?? '',
+        c.name, c.name, a.street, a.city, a.st, a.zip, date,
+        c.installFee ?? '', c.takedownFee ?? '', c.storageFee ?? '', grand,
         c.repairNotes || '', '',
         c.install24 ?? '', c.storage24 ?? '', c.install25 ?? '', c.storage25 ?? '',
+        c.invoice25 ?? '',
       ]);
     });
   dl(`tbdg-2026-billing-${scope}.csv`,
