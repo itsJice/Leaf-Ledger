@@ -513,9 +513,10 @@ dialog option:disabled{color:#b6b3ae}
 <dialog id="billdlg">
   <b>Billing export</b>
   <p class="billnote">One row per client: name, bill-to, address / city / state /
-    zip in separate columns, install date, 2026 install / takedown / storage
-    price and their combined total, repair &amp; billing notes, plus 2024/2025
-    invoice history where a record exists. Opens directly in Excel.</p>
+    zip, install date, and 2026 install / takedown / storage priced off the
+    client's real 2025 invoice +5% (storage carried over flat). Shows the 2025
+    figure it was derived from, so every number is checkable. Contract accounts
+    are marked, not guessed. Opens directly in Excel.</p>
   <div class="billscope">
     <button data-scope="all">Everyone</button>
     <button data-scope="houston">Houston only</button>
@@ -2208,6 +2209,31 @@ function addrParts(c){
   street=street.replace(/,?\s*(TX|Texas)\s*\d{0,5}\s*$/i,'').replace(/,\s*$/,'').trim();
   return {street, city, st, zip};
 }
+/** 2026 price from what the client was ACTUALLY invoiced in 2025 (user,
+ * 2026-08-12), so the number is defensible line by line:
+ *
+ *   storage      = boxes x $75, carried over UNCHANGED (the rate didn't move)
+ *   remainder    = 2025 actual invoice - storage
+ *   install      = remainder / 2, +5%
+ *   takedown     = remainder / 2, +5%
+ *   2026 total   = install + takedown + storage
+ *
+ * Only clients with a real 2025 invoice are priced this way. M Crowd and the
+ * contract accounts bill on their own terms, so they're marked rather than
+ * guessed at; a 2025 invoice smaller than the storage owed is a data gap,
+ * not a $0 job, so it goes to manual review instead of a negative. */
+const UPLIFT = 1.05;
+function price2026(c){
+  const S = typeof c.storageFee==='number' ? c.storageFee : 0;
+  const R = c.invoice25;
+  if(c.cat==='M Crowd')   return {basis:'Contract — M Crowd billed separately'};
+  if(typeof R!=='number') return {basis:'Contract — priced separately'};
+  if(R - S < 0)           return {basis:'MANUAL — 2025 invoice below storage owed', stor:S};
+  const half = (R - S) / 2;
+  const inst = Math.round(half * UPLIFT * 100) / 100;
+  return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
+          basis:'2025 invoice +5% (storage flat)'};
+}
 function exportBilling(scope){
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
                     : scope==='dallas'  ? days.filter(d=>d.cat==='M Crowd')
@@ -2218,28 +2244,18 @@ function exportBilling(scope){
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
   const rows = [['Client name','Bill-to name/company','ADDRESS','CITY','ST','ZIP','Install date',
-    '2026 install price','2026 takedown price','2026 storage price',
-    'TOTAL PICK UP & DELIVERY INSTALL + TAKEDOWN + Storage',
+    '2026 install price','2026 takedown price','2026 storage price','2026 TOTAL invoice',
     'Repairs & install notes','Billing notes',
-    '2024 install invoice','2024 storage invoice',
-    '2025 install invoice','2025 storage invoice',
-    '2025 Invoice Total Actual']];
+    '2025 total invoice (actual)','Pricing basis']];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
-      const c = C[r];
-      const a = addrParts(c);
-      // Grand total mirrors the sheet's 2026 IDEAL TOTAL: install + takedown
-      // + storage. Blank (not 0) when we have no priced components at all,
-      // so an unpriced row reads as "unknown" rather than "free".
-      const nums=[c.installFee,c.takedownFee,c.storageFee].filter(v=>typeof v==='number');
-      const grand = nums.length ? nums.reduce((s,v)=>s+v,0) : '';
+      const c = C[r], a = addrParts(c), p = price2026(c);
       rows.push([
         c.name, c.name, a.street, a.city, a.st, a.zip, fmtMDYYYY(date),
-        c.installFee ?? '', c.takedownFee ?? '', c.storageFee ?? '', grand,
+        p.inst ?? '', p.tdwn ?? '', p.stor ?? '', p.total ?? '',
         c.repairNotes || '', '',
-        c.install24 ?? '', c.storage24 ?? '', c.install25 ?? '', c.storage25 ?? '',
-        c.invoice25 ?? '',
+        c.invoice25 ?? '', p.basis,
       ]);
     });
   dl(`tbdg-2026-billing-${scope}.csv`,
