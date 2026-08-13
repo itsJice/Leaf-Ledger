@@ -2260,6 +2260,19 @@ function exportBilling(scope){
         c.repairNotes || '', '',
       ]);
     });
+  // Footer: column totals, blank-separated so a spreadsheet's own SUM over
+  // the data range doesn't swallow the total row. Only the money columns
+  // add up; the rest stay blank rather than showing a meaningless count.
+  const MONEY=[7,8,9,10,11];
+  const body=rows.slice(1);
+  const sums={};
+  MONEY.forEach(i=>{ sums[i]=body.reduce((s,r)=>s+(typeof r[i]==='number'?r[i]:0),0); });
+  const priced=body.filter(r=>typeof r[10]==='number').length;
+  const foot=rows[0].map(()=>'');
+  foot[0]=`TOTAL — ${body.length} clients (${priced} priced)`;
+  MONEY.forEach(i=>{ foot[i]=Math.round(sums[i]*100)/100; });
+  rows.push(rows[0].map(()=>''));   // spacer
+  rows.push(foot);
   dl(`tbdg-2026-billing-${scope}.csv`,
      rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
 }
