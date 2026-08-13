@@ -427,6 +427,9 @@ dialog option:disabled{color:#b6b3ae}
   padding:10px 6px;border-radius:8px;border:1.5px solid var(--line);background:#fff;
   cursor:pointer;font-weight:700;font-size:12.5px}
 #billdlg .billfmt button:hover{border-color:var(--brand);background:var(--brand-soft)}
+#billdlg .billfmt button.sel{border-color:var(--brand);border-width:2px;
+  background:var(--brand-soft);box-shadow:inset 0 0 0 1px var(--brand-soft)}
+#billdlg .billfmt button.sel small{color:var(--brand)}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
@@ -532,11 +535,12 @@ dialog option:disabled{color:#b6b3ae}
   </div>
   <label class="nclabel">Format</label>
   <div class="billfmt">
-    <button data-fmt="xlsx">Excel<small>.xlsx</small></button>
+    <button data-fmt="xlsx" class="sel">Excel<small>.xlsx</small></button>
     <button data-fmt="csv">CSV<small>.csv</small></button>
     <button data-fmt="pdf">PDF<small>print</small></button>
   </div>
-  <div class="btns"><button onclick="billdlg.close()">Cancel</button></div>
+  <div class="btns"><button onclick="billdlg.close()">Cancel</button>
+  <button class="go" id="billgo">Download</button></div>
 </dialog>
 <script>
 const DATA = __DATA__;
@@ -2451,19 +2455,31 @@ function runExport(scope, fmt){
   }
 }
 const billdlg = document.getElementById('billdlg');
-let billScope='all';
-document.getElementById('billexportbtn').onclick = ()=> billdlg.showModal();
-// Scope is a choice, format is the action -- picking "Houston only" shouldn't
-// fire a download, only arm it.
+let billScope='all', billFmt='xlsx';
+// Both rows are CHOICES; nothing downloads until the explicit button. Picking
+// a scope or format used to fire the export immediately, which made it easy
+// to grab the wrong file and gave no chance to review the pair first.
+const SCOPE_LABEL={all:'everyone',houston:'Houston',dallas:'Dallas'};
+const FMT_LABEL={xlsx:'Excel',csv:'CSV',pdf:'PDF'};
+function syncBillBtn(){
+  const go=document.getElementById('billgo');
+  go.textContent = billFmt==='pdf'
+    ? `Open PDF — ${SCOPE_LABEL[billScope]}`
+    : `Download ${FMT_LABEL[billFmt]} — ${SCOPE_LABEL[billScope]}`;
+}
+function pick(group, val, key){
+  billdlg.querySelectorAll(group+' button').forEach(x=>
+    x.classList.toggle('sel', x.dataset[key]===val));
+  syncBillBtn();
+}
+document.getElementById('billexportbtn').onclick = ()=>{ syncBillBtn(); billdlg.showModal(); };
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
-  b.onclick = ()=>{
-    billScope=b.dataset.scope;
-    billdlg.querySelectorAll('.billscope button').forEach(x=>x.classList.toggle('sel',x===b));
-  };
+  b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
 });
 billdlg.querySelectorAll('.billfmt button').forEach(b=>{
-  b.onclick = ()=>{ runExport(billScope, b.dataset.fmt); billdlg.close(); };
+  b.onclick = ()=>{ billFmt=b.dataset.fmt; pick('.billfmt', billFmt, 'fmt'); };
 });
+document.getElementById('billgo').onclick = ()=>{ runExport(billScope, billFmt); billdlg.close(); };
 // Back-compat for anything still calling the old name.
 function exportBilling(scope){ runExport(scope||'all','csv'); }
 function resetAll(){ if(confirm('Discard all moves & approvals?')){
