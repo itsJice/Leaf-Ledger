@@ -2243,10 +2243,12 @@ function exportBilling(scope){
   // like two separate charges.
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
+  // 2025 total sits immediately right of the 2026 total so the year-over-year
+  // comparison is a single glance, with the basis right after it.
   const rows = [['Client name','Bill-to name/company','ADDRESS','CITY','ST','ZIP','Install date',
     '2026 install price','2026 takedown price','2026 storage price','2026 TOTAL invoice',
-    'Repairs & install notes','Billing notes',
-    '2025 total invoice (actual)','Pricing basis']];
+    '2025 total invoice (actual)','Pricing basis',
+    'Repairs & install notes','Billing notes']];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
@@ -2254,8 +2256,8 @@ function exportBilling(scope){
       rows.push([
         c.name, c.name, a.street, a.city, a.st, a.zip, fmtMDYYYY(date),
         p.inst ?? '', p.tdwn ?? '', p.stor ?? '', p.total ?? '',
-        c.repairNotes || '', '',
         c.invoice25 ?? '', p.basis,
+        c.repairNotes || '', '',
       ]);
     });
   dl(`tbdg-2026-billing-${scope}.csv`,
