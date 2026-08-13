@@ -421,6 +421,13 @@ dialog option:disabled{color:#b6b3ae}
   font-size:13px;cursor:pointer;text-align:left}
 #billdlg .billscope button:hover{border-color:var(--brand);background:var(--brand-soft)}
 #billdlg .billnote{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:2px}
+#billdlg .billscope button.sel{border-color:var(--brand);background:var(--brand-soft);font-weight:700}
+#billdlg .billfmt{display:flex;gap:8px;margin:8px 0 4px}
+#billdlg .billfmt button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:10px 6px;border-radius:8px;border:1.5px solid var(--line);background:#fff;
+  cursor:pointer;font-weight:700;font-size:12.5px}
+#billdlg .billfmt button:hover{border-color:var(--brand);background:var(--brand-soft)}
+#billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
   border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
@@ -454,7 +461,7 @@ dialog option:disabled{color:#b6b3ae}
     <div id="searchresults"></div>
   </div>
   <button id="newclientbtn" type="button">+ New client</button>
-  <button id="billexportbtn" type="button">⬇ Billing export</button>
+  <button id="billexportbtn" type="button">⬇ Export</button>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
   <div id="datestrip"></div>
@@ -511,16 +518,23 @@ dialog option:disabled{color:#b6b3ae}
   <div class="btns"><button onclick="histdlg.close()">Close</button></div>
 </dialog>
 <dialog id="billdlg">
-  <b>Billing export</b>
+  <b>Export</b>
   <p class="billnote">One row per client: name, bill-to, address / city / state /
     zip, install date, and 2026 install / takedown / storage priced off the
     client's real 2025 invoice +5% (storage carried over flat). Shows the 2025
     figure it was derived from, so every number is checkable. Contract accounts
-    are marked, not guessed. Opens directly in Excel.</p>
+    are marked, not guessed. Column totals at the bottom.</p>
+  <label class="nclabel">Who</label>
   <div class="billscope">
-    <button data-scope="all">Everyone</button>
+    <button data-scope="all" class="sel">Everyone</button>
     <button data-scope="houston">Houston only</button>
     <button data-scope="dallas">Dallas only (Mi Cocina week)</button>
+  </div>
+  <label class="nclabel">Format</label>
+  <div class="billfmt">
+    <button data-fmt="xlsx">Excel<small>.xlsx</small></button>
+    <button data-fmt="csv">CSV<small>.csv</small></button>
+    <button data-fmt="pdf">PDF<small>print</small></button>
   </div>
   <div class="btns"><button onclick="billdlg.close()">Cancel</button></div>
 </dialog>
@@ -2234,7 +2248,7 @@ function price2026(c){
   return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
           basis:'2025 invoice +5% (storage flat)'};
 }
-function exportBilling(scope){
+function buildBillingRows(scope){
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
                     : scope==='dallas'  ? days.filter(d=>d.cat==='M Crowd')
                     : days;
@@ -2273,14 +2287,185 @@ function exportBilling(scope){
   MONEY.forEach(i=>{ foot[i]=Math.round(sums[i]*100)/100; });
   rows.push(rows[0].map(()=>''));   // spacer
   rows.push(foot);
-  dl(`tbdg-2026-billing-${scope}.csv`,
-     rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
+  return rows;
+}
+
+// ---------- export writers (CSV / real .xlsx / print-to-PDF) ----------
+// The tool is one self-contained file with no CDN access, so .xlsx is built
+// by hand: an xlsx IS a zip of XML parts, and a zip written with the STORED
+// (uncompressed) method needs nothing but a CRC32. Worth it over dumping CSV
+// with an .xls extension -- numbers arrive as numbers, money is formatted,
+// the header freezes, and Excel opens it without a "corrupt file" warning.
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}
+  return t;})();
+function crc32(bytes){let c=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) c=CRC_TABLE[(c^bytes[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;}
+function zipFile(files){
+  const enc=new TextEncoder(), chunks=[], central=[]; let offset=0;
+  const d=new Date(), dosT=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()/2))&0xFFFF;
+  const dosD=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  const u16=v=>[v&255,(v>>8)&255], u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>24)&255];
+  files.forEach(f=>{
+    const name=enc.encode(f.name), body=enc.encode(f.data), crc=crc32(body);
+    const local=[...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(dosT),...u16(dosD),
+      ...u32(crc),...u32(body.length),...u32(body.length),...u16(name.length),...u16(0)];
+    chunks.push(new Uint8Array(local),name,body);
+    central.push([...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(dosT),
+      ...u16(dosD),...u32(crc),...u32(body.length),...u32(body.length),...u16(name.length),
+      ...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset),
+      ...Array.from(name)]);
+    offset+=local.length+name.length+body.length;
+  });
+  const cd=[].concat(...central), cdBytes=new Uint8Array(cd);
+  const end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(files.length),
+    ...u16(files.length),...u32(cdBytes.length),...u32(offset),...u16(0)]);
+  return new Blob([...chunks,cdBytes,end],
+    {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function colLetter(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26;}return s;}
+function xesc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/\x00-\x08|\x0B|\x0C|\x0E-\x1F/g,'');}
+function rowsToXlsx(rows, moneyCols, sheetName){
+  const money=new Set(moneyCols);
+  const body=rows.map((r,ri)=>{
+    const cells=r.map((v,ci)=>{
+      const ref=colLetter(ci)+(ri+1);
+      const isNum = typeof v==='number' && isFinite(v);
+      const last = ri===rows.length-1 && rows[rows.length-1][0];
+      let s = ri===0 ? 1 : (money.has(ci) ? (last?4:2) : (last?3:0));
+      if(isNum) return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+      if(v===''||v==null) return `<c r="${ref}" s="${s}"/>`;
+      return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xesc(v)}</t></is></c>`;
+    }).join('');
+    return `<row r="${ri+1}">${cells}</row>`;
+  }).join('');
+  const widths=rows[0].map((h,i)=>
+    `<col min="${i+1}" max="${i+1}" width="${money.has(i)?14:(i===0||i===1?30:(i===2?26:(i>=13?34:12)))}" customWidth="1"/>`).join('');
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+    +`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+    +`<sheetViews><sheetView workbookViewId="0" tabSelected="1">`
+    +`<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>`
+    +`</sheetView></sheetViews><cols>${widths}</cols><sheetData>${body}</sheetData>`
+    +`<autoFilter ref="A1:${colLetter(rows[0].length-1)}1"/></worksheet>`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+    +`<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+    +`<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0.00"/></numFmts>`
+    +`<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>`
+    +`<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>`
+    +`<fills count="3"><fill><patternFill patternType="none"/></fill>`
+    +`<fill><patternFill patternType="gray125"/></fill>`
+    +`<fill><patternFill patternType="solid"><fgColor rgb="FFE8EFE9"/><bgColor indexed="64"/></patternFill></fill></fills>`
+    +`<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>`
+    +`<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`
+    +`<cellXfs count="5">`
+    +`<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0"/>`
+    +`<xf xfId="0" numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/>`
+    +`<xf xfId="0" numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/>`
+    +`<xf xfId="0" numFmtId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>`
+    +`<xf xfId="0" numFmtId="164" fontId="1" fillId="0" borderId="0" applyNumberFormat="1" applyFont="1"/>`
+    +`</cellXfs>`
+    // Without a <cellStyles> entry some readers warn "workbook contains no
+    // default style" -- harmless but it makes the file look malformed.
+    +`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>`
+    +`</styleSheet>`;
+  return zipFile([
+    {name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+      +`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`
+      +`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`
+      +`<Default Extension="xml" ContentType="application/xml"/>`
+      +`<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`
+      +`<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+      +`<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`
+      +`</Types>`},
+    {name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+      +`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+      +`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>`
+      +`</Relationships>`},
+    {name:'xl/workbook.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+      +`<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" `
+      +`xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`
+      +`<sheets><sheet name="${xesc(sheetName).slice(0,31)}" sheetId="1" r:id="rId1"/></sheets></workbook>`},
+    {name:'xl/_rels/workbook.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+      +`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+      +`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>`
+      +`<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`
+      +`</Relationships>`},
+    {name:'xl/styles.xml', data:styles},
+    {name:'xl/worksheets/sheet1.xml', data:sheet},
+  ]);
+}
+function openPrintView(rows, moneyCols, title){
+  const money=new Set(moneyCols);
+  const fmt=(v,ci)=> typeof v==='number'
+      ? (money.has(ci) ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : v)
+      : (v==null?'':v);
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const head=rows[0].map(h=>`<th>${esc(h)}</th>`).join('');
+  const body=rows.slice(1).map(r=>{
+    const blank=r.every(c=>c==='');
+    if(blank) return '';
+    const isTot=/^TOTAL/.test(String(r[0]));
+    return `<tr class="${isTot?'tot':''}">`+r.map((v,ci)=>
+      `<td class="${money.has(ci)?'num':''}">${esc(fmt(v,ci))}</td>`).join('')+`</tr>`;
+  }).join('');
+  const w=window.open('','_blank');
+  if(!w){ alert('Pop-up blocked — allow pop-ups for this page to print/save as PDF.'); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+  <style>
+    @page{size:landscape;margin:10mm}
+    body{font:10px/1.35 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
+    h1{font-size:15px;margin:0 0 2px}
+    .sub{font-size:10px;color:#666;margin:0 0 10px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #ccd;padding:3px 5px;text-align:left;vertical-align:top}
+    th{background:#e8efe9;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.2px}
+    td.num,th:nth-child(n+8):nth-child(-n+12){text-align:right;white-space:nowrap}
+    tr.tot td{font-weight:800;border-top:2px solid #333;background:#f4f6f4}
+    thead{display:table-header-group}
+    tr{break-inside:avoid}
+  </style></head><body>
+  <h1>${esc(title)}</h1>
+  <p class="sub">TBDG 2026 Christmas installs · ${rows.length-3} clients</p>
+  <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+  <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`);
+  w.document.close();
+}
+function runExport(scope, fmt){
+  const rows = buildBillingRows(scope);
+  const MONEY=[7,8,9,10,11];
+  const label = scope==='houston' ? 'Houston' : scope==='dallas' ? 'Dallas' : 'All clients';
+  const base = `TBDG 2026 install billing — ${label}`;
+  const file = `tbdg-2026-billing-${scope}`;
+  if(fmt==='csv'){
+    dl(`${file}.csv`, rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
+  } else if(fmt==='pdf'){
+    openPrintView(rows, MONEY, base);
+  } else {
+    const blob=rowsToXlsx(rows, MONEY, label);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=`${file}.xlsx`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  }
 }
 const billdlg = document.getElementById('billdlg');
+let billScope='all';
 document.getElementById('billexportbtn').onclick = ()=> billdlg.showModal();
+// Scope is a choice, format is the action -- picking "Houston only" shouldn't
+// fire a download, only arm it.
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
-  b.onclick = ()=>{ exportBilling(b.dataset.scope); billdlg.close(); };
+  b.onclick = ()=>{
+    billScope=b.dataset.scope;
+    billdlg.querySelectorAll('.billscope button').forEach(x=>x.classList.toggle('sel',x===b));
+  };
 });
+billdlg.querySelectorAll('.billfmt button').forEach(b=>{
+  b.onclick = ()=>{ runExport(billScope, b.dataset.fmt); billdlg.close(); };
+});
+// Back-compat for anything still calling the old name.
+function exportBilling(scope){ runExport(scope||'all','csv'); }
 function resetAll(){ if(confirm('Discard all moves & approvals?')){
   localStorage.removeItem('tbdg2026review'); location.reload(); }}
 
