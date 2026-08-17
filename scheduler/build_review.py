@@ -459,8 +459,17 @@ dialog option:disabled{color:#b6b3ae}
 .calcell.tagged{border-color:#7c3aed;border-width:2px}
 .calnum{font-weight:800;font-size:15px}
 .calnum small{font-weight:600;color:var(--mut);font-size:10.5px;margin-left:4px}
-.calcrew{margin-top:4px;line-height:1.35}
-.calcrew b{font-weight:800}
+/* Month cells read as chips, one per crew-day, colour-keyed to the crew and
+   dark when it is a night shift -- the same visual language as the time
+   blocks in Week/Day, so a night is recognisable at any zoom level. */
+.calchip{margin-top:4px;padding:3px 6px;border-radius:6px;background:#fff;
+  border:1px solid var(--line);border-left:4px solid var(--cc,#555);line-height:1.35}
+.calchip b{font-weight:800}
+.cctime{color:var(--mut);font-weight:600}
+.calchip.night{background:#1e293b;border-color:#334155;color:#e2e8f0}
+.calchip.night .calnames,.calchip.night .cctime{color:#94a3b8}
+.calchip.appr{background:#eaf5ec;border-color:var(--ok)}
+.calchip.night.appr{background:#14532d;border-color:var(--ok)}
 .calnames{color:var(--mut);font-size:10.5px;display:block;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .calfoot{margin-top:5px;padding-top:4px;border-top:1px solid var(--line);
@@ -483,11 +492,15 @@ dialog option:disabled{color:#b6b3ae}
 .calsel{padding:7px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
   font-size:13px;font-weight:600;font-family:'Montserrat',sans-serif;cursor:pointer}
 /* ---- time grid ---- */
-.calband{margin-bottom:8px}
-.calnight{background:#1e293b;color:#e2e8f0;border-radius:7px;padding:6px 10px;margin-bottom:4px;
-  font-size:11.5px;cursor:pointer}
-.calnight:hover{background:#334155}
-.calghead{display:grid;position:sticky;top:0;background:var(--bg);z-index:5;
+/* Night blocks read as night: dark, like the Mi Cocina shift they represent. */
+.calev.night{background:#1e293b;border-color:#334155;color:#e2e8f0}
+.calev.night .cevt{color:#94a3b8}
+.calev.night.appr{background:#14532d;border-color:var(--ok)}
+.calev.cut-tail{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-style:dashed}
+.calev.cut-head{border-top-left-radius:0;border-top-right-radius:0;border-top-style:dashed}
+.calslot.offhr{background:rgba(30,41,59,.035)}
+/* Opaque, or the scrolled hour labels underneath show through the day names. */
+.calghead{display:grid;position:sticky;top:0;background:var(--page);z-index:5;
   border-bottom:1.5px solid var(--line)}
 .calgh{text-align:center;padding:5px 2px 7px}
 .calgh[data-date]{cursor:pointer;border-radius:8px}
@@ -2756,8 +2769,15 @@ function monthHTML(anchor){
     let appr=0;
     ds.forEach(d=>{ const c=dayCalc(d); stops+=d.stops.length; boxes+=dayBoxes(d); hrs+=c.total/60;
       if(approved.has(d.id)) appr++;
-      inner+=`<div class="calcrew"><b>${d.crew.replace('Crew ','C')}</b> · ${d.stops.length} stop`
-           + `${d.stops.length===1?'':'s'}${approved.has(d.id)?' <span class="apprdot">✓</span>':''}`
+      const ts=stopTimes(d), night=d.win===K.NIGHT;
+      const span=ts.length
+        ? `${gridHourLabel(ts[0].start)}–${gridHourLabel(ts[ts.length-1].end)}` : '';
+      inner+=`<div class="calchip${night?' night':''}${approved.has(d.id)?' appr':''}" `
+           + `style="--cc:${CREW_COLORS[d.crew]||'#555'}">`
+           + `<b>${d.crew.replace('Crew ','C')}</b> `
+           + (span?`<span class="cctime">${span}</span> · `:'')
+           + `${d.stops.length} stop${d.stops.length===1?'':'s'}`
+           + `${approved.has(d.id)?' <span class="apprdot">✓</span>':''}`
            + `<span class="calnames">`
            + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</span></div>`; });
     if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
@@ -2768,33 +2788,60 @@ function monthHTML(anchor){
   return h+`</div>`;
 }
 /** Time-grid used by both Week (7 day columns) and Day (one column per crew).
- *  Night shifts start at 11pm and run past midnight, so they can't be placed
- *  on a 7am-8pm grid honestly -- they get their own band above it with the
- *  real hours spelled out instead of a faked position. */
-function gridHTML(cols, bandOnly){
+ *  Night shifts start at 11pm and run to 6:30am, so the axis is not fixed to
+ *  business hours -- it grows to whatever the columns actually contain, and a
+ *  shift crossing midnight is cut and carried into the next date's column.
+ *  (This replaced a text band above the grid: 13 stacked dark rows that said
+ *  the hours but showed no position -- user, 2026-08-17.) */
+/** Hour label for a minutes-from-midnight value that may run past 24:00
+ *  (a Mi Cocina night ends 6:30am the NEXT day, i.e. minute 1830). */
+function gridHourLabel(t){
+  const wrapped=((t%1440)+1440)%1440;
+  return fmtClock(wrapped).replace(':00','') + (t>=1440?' +1':'');
+}
+/** Build the placed blocks for a set of columns.
+ *  splitMidnight=true (Week/Month-style, one column per DATE): a shift that
+ *  crosses midnight is cut in two and the tail moves to the next date's
+ *  column, the way Google Calendar draws an overnight event.
+ *  splitMidnight=false (Day view, one column per CREW): the shift stays whole
+ *  -- it is that crew's single night of work and splitting it across two
+ *  columns that don't both exist here would just lose the tail. */
+function placeBlocks(cols, splitMidnight){
+  const byCol=new Map(cols.map((c,i)=>[i,[]]));
+  const dateCol=new Map(); cols.forEach((c,i)=>{ if(c.date) dateCol.set(c.date,i); });
+  cols.forEach((col,i)=>{
+    col.days.forEach(d=>{
+      stopTimes(d).forEach(t=>{
+        const seg={...t, d, night:d.win===K.NIGHT};
+        if(splitMidnight && t.end>1440){
+          if(t.start<1440) byCol.get(i).push({...seg, end:1440, cut:'tail'});
+          const nx=col.date?dateCol.get(addDays(col.date,1)):undefined;
+          const head={...seg, start:Math.max(0,t.start-1440), end:t.end-1440,
+                      cut:'head', fromDate:col.date};
+          if(nx!==undefined) byCol.get(nx).push(head);
+        } else byCol.get(i).push(seg);
+      });
+    });
+  });
+  return byCol;
+}
+function gridHTML(cols, opts){
+  const split = !(opts&&opts.noSplit);
+  const byCol = placeBlocks(cols, split);
+  // Time axis follows the content: a normal Houston day sits inside 7am-9pm,
+  // but the Dallas nights need the small hours, so the grid grows to fit
+  // rather than hiding work in a text band above it.
+  let lo=GRID_S, hi=GRID_E;
+  byCol.forEach(list=>list.forEach(b=>{ lo=Math.min(lo,b.start); hi=Math.max(hi,b.end); }));
+  lo=Math.floor(lo/60)*60; hi=Math.ceil(hi/60)*60;
   let hours='';
-  for(let t=GRID_S;t<=GRID_E;t+=60)
-    hours+=`<div class="calhr" style="top:${(t-GRID_S)*PXM}px">${fmtClock(t).replace(':00','')}</div>`;
+  for(let t=lo;t<=hi;t+=60)
+    hours+=`<div class="calhr" style="top:${(t-lo)*PXM}px">${gridHourLabel(t)}</div>`;
   let head=`<div class="calgh"></div>`, body=`<div class="calgutter">${hours}</div>`;
-  let band='';
-  // Night rows carry their own date: a week spanning the Mi Cocina run stacks
-  // up to 13 of these, and without the date they're indistinguishable.
-  const bandRow=(d,date)=>`<div class="calnight" data-dayid="${d.id}">`
-    + (date?`<b>${DOW3[dateOf(date).getDay()]} ${date.slice(5).replace('-','/')}</b> · `:'')
-    + `<b>${d.crew}</b> · night 11pm–6:30am · ${d.stops.length} stops · `
-    + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</div>`;
-  (bandOnly||[]).forEach(x=>{ band+=bandRow(x.d, x.date); });
-  cols.forEach(col=>{
+  cols.forEach((col,i)=>{
     head+=`<div class="calgh${col.today?' today':''}" ${col.date?`data-date="${col.date}"`:''}>`
         + `<span class="cghd">${col.sub||''}</span><span class="cghn">${col.title}</span></div>`;
-    // Collect the column's blocks first, then lane-pack them. Two crews can be
-    // on site at the same hour, and stacking would hide one of them entirely.
-    const blocks=[];
-    col.days.forEach(d=>{
-      const times=stopTimes(d);
-      if(d.win===K.NIGHT){ band+=bandRow(d, col.date); return; }
-      times.forEach(t=>blocks.push({...t, d}));
-    });
+    const blocks=byCol.get(i);
     blocks.sort((a,b)=>a.start-b.start || a.end-b.end);
     const laneEnd=[];                       // lane -> when it frees up
     blocks.forEach(b=>{
@@ -2808,31 +2855,33 @@ function gridHTML(cols, bandOnly){
     });
     let ev='';
     blocks.forEach(b=>{
-      const top=Math.max(0,(b.start-GRID_S)*PXM);
-      const hgt=Math.max(15,(Math.min(b.end,GRID_E)-Math.max(b.start,GRID_S))*PXM);
+      const top=(b.start-lo)*PXM;
+      const hgt=Math.max(15,(b.end-b.start)*PXM);
       const w=100/b.lanes, left=w*b.lane;
-      const over=b.end>GRID_E;   // say so rather than silently clipping
-      ev+=`<div class="calev${over?' clipped':''}${approved.has(b.d.id)?' appr':''}" `
-        + `draggable="true" style="top:${top}px;height:${hgt}px;`
+      // A carried-over tail says whose night it belongs to, so an early-hours
+      // block is never mistaken for work that started that morning.
+      const carried=b.cut==='head'&&b.fromDate
+        ? ` (${DOW3[dateOf(b.fromDate).getDay()]} night)` : '';
+      ev+=`<div class="calev${b.night?' night':''}${approved.has(b.d.id)?' appr':''}`
+        + `${b.cut?' cut-'+b.cut:''}" draggable="true" style="top:${top}px;height:${hgt}px;`
         + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
         + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
-        + `data-row="${b.row}" data-dayid="${b.d.id}"`
-        + (over?` title="runs to ${fmtClock(b.end)}"`:'')+`>`
-        + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
-        + `<span class="cevt">${fmtClock(b.start)} · ${b.d.crew}`
-        + `${over?` · ends ${fmtClock(b.end)} ▾`:''}</span></div>`;
+        + `data-row="${b.row}" data-dayid="${b.d.id}" `
+        + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
+        + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}${carried}</span>`
+        + `<span class="cevt">${gridHourLabel(b.start)} · ${b.d.crew}</span></div>`;
     });
     body+=`<div class="calgcol${col.today?' today':''}"`
         + (col.dropDate?` data-drop-date="${col.dropDate}"`:'')
         + (col.dropDayId?` data-drop-dayid="${col.dropDayId}"`:'')+`>`
-        + Array.from({length:(GRID_E-GRID_S)/60},(_,i)=>
-            `<div class="calslot" style="top:${i*60*PXM}px;height:${60*PXM}px"></div>`).join('')
+        + Array.from({length:(hi-lo)/60},(_,k)=>
+            `<div class="calslot${((lo+k*60)%1440)<6*60||((lo+k*60)%1440)>=21*60?' offhr':''}" `
+            + `style="top:${k*60*PXM}px;height:${60*PXM}px"></div>`).join('')
         + ev+`</div>`;
   });
-  return (band?`<div class="calband">${band}</div>`:'')
-       + `<div class="calghead" style="grid-template-columns:56px repeat(${cols.length},1fr)">${head}</div>`
+  return `<div class="calghead" style="grid-template-columns:56px repeat(${cols.length},1fr)">${head}</div>`
        + `<div class="calgbody" style="grid-template-columns:56px repeat(${cols.length},1fr);`
-       + `height:${(GRID_E-GRID_S)*PXM+8}px">${body}</div>`;
+       + `height:${(hi-lo)*PXM+8}px">${body}</div>`;
 }
 function weekHTML(anchor){
   const TODAY=todayISO();
@@ -2849,23 +2898,16 @@ function weekHTML(anchor){
 function dayHTML(anchor){
   const ds=calDaysOn(anchor);
   if(!ds.length) return `<p class="nothingyet">Nothing scheduled on ${fmtDate(anchor)}.</p>`;
-  // Night crew-days belong in the band, not the daytime grid -- giving them a
-  // column produced empty ghost columns (and a duplicate "Crew 3" heading on
-  // the Dallas nights, where one crew works both a day and a night shift).
-  // No `date` on the columns either: the header is this day, so making it
-  // clickable would just re-render the view you are already looking at.
-  const grid=ds.filter(d=>d.win!==K.NIGHT), night=ds.filter(d=>d.win===K.NIGHT);
-  if(!grid.length) return `<div class="calband">`
-    + night.map(d=>`<div class="calnight" data-dayid="${d.id}"><b>${d.crew}</b> · `
-        + `night 11pm–6:30am · ${d.stops.length} stops · `
-        + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</div>`).join('')
-    + `</div>`;
-  // Day-view columns ARE a specific crew, so a drop needs no dialog -- it goes
-  // straight onto that crew-day (still through commitPlan's guardrails).
-  return gridHTML(grid.map(d=>({days:[d], dropDayId:d.id, sub:d.crew.toUpperCase(),
+  // One column per crew-day, nights included -- the axis stretches past
+  // midnight for them rather than shunting them into a text band. No `date`
+  // on the columns: the header IS this day, so making it clickable would only
+  // re-render the view you are already on. noSplit keeps a night shift whole,
+  // since the crew column it belongs to is the only one on screen.
+  return gridHTML(ds.map(d=>({days:[d], dropDayId:d.id,
+      sub:d.crew.toUpperCase()+(d.win===K.NIGHT?' · NIGHT':''),
       title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`
            + (approved.has(d.id)?' <span class="apprtag">APPROVED</span>':'')})),
-    night.map(d=>({d, date:null})));
+    {noSplit:true});
 }
 function agendaHTML(){
   let h='', last='';
