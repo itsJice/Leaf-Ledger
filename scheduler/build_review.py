@@ -524,6 +524,21 @@ dialog option:disabled{color:#b6b3ae}
 .agt{width:74px;color:var(--mut);font-size:11.5px;flex:none}
 .agt em{font-style:normal;font-weight:800;color:#7c3aed}
 .calev.clipped{border-bottom:2px dashed var(--warn-ink)}
+/* ---- operational: drag to reschedule, approval state ---- */
+.calev{cursor:grab}
+.calev:active{cursor:grabbing}
+.calev.dragging,.agrow.dragging{opacity:.4}
+.calev.appr{background:#f2fbf4;border-color:var(--ok)}
+.calev.appr .cevn::after{content:' ✓';color:var(--ok);font-weight:800}
+.agrow.appr .agn::after{content:' ✓';color:var(--ok);font-weight:800}
+.agrow{cursor:grab}
+.calgcol.dragover{background:var(--brand-soft);outline:2px dashed var(--brand);outline-offset:-2px}
+.calcell.dragover{border-color:var(--brand);background:var(--brand-soft)}
+.agday.dragover{background:var(--brand-soft);outline:2px dashed var(--brand)}
+.apprdot{color:var(--ok);font-weight:800}
+.apprtag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;
+  background:var(--ok);color:#fff;font-size:9px;font-weight:800;vertical-align:2px}
+#peekappr.on{background:var(--ok);color:#fff}
 .agn{font-weight:600}
 .agm{margin-left:auto;color:var(--mut);font-size:11px;white-space:nowrap}
 /* ---- event peek ---- */
@@ -631,7 +646,9 @@ dialog option:disabled{color:#b6b3ae}
 <dialog id="peekdlg">
   <div id="peekbody"></div>
   <div class="btns"><button onclick="peekdlg.close()">Close</button>
+  <button class="okbtn" id="peekappr">Approve day</button>
   <button id="peekprint">Print sheet</button>
+  <button id="peekmove">Reschedule</button>
   <button class="go" id="peekopen">Open day</button></div>
 </dialog>
 <dialog id="billdlg">
@@ -2736,12 +2753,16 @@ function monthHTML(anchor){
     let inner=`<div class="calnum">${n}<small>${DOW3[dateOf(iso).getDay()]}</small>`
             + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div>`;
     let stops=0,boxes=0,hrs=0;
+    let appr=0;
     ds.forEach(d=>{ const c=dayCalc(d); stops+=d.stops.length; boxes+=dayBoxes(d); hrs+=c.total/60;
+      if(approved.has(d.id)) appr++;
       inner+=`<div class="calcrew"><b>${d.crew.replace('Crew ','C')}</b> · ${d.stops.length} stop`
-           + `${d.stops.length===1?'':'s'}<span class="calnames">`
+           + `${d.stops.length===1?'':'s'}${approved.has(d.id)?' <span class="apprdot">✓</span>':''}`
+           + `<span class="calnames">`
            + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</span></div>`; });
     if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
-                       + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')+`</div>`;
+                       + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')
+                       + (appr?` · <span class="apprdot">${appr}/${ds.length} ✓</span>`:'')+`</div>`;
     h+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}" data-date="${iso}">${inner}</div>`;
   }
   return h+`</div>`;
@@ -2791,7 +2812,8 @@ function gridHTML(cols, bandOnly){
       const hgt=Math.max(15,(Math.min(b.end,GRID_E)-Math.max(b.start,GRID_S))*PXM);
       const w=100/b.lanes, left=w*b.lane;
       const over=b.end>GRID_E;   // say so rather than silently clipping
-      ev+=`<div class="calev${over?' clipped':''}" style="top:${top}px;height:${hgt}px;`
+      ev+=`<div class="calev${over?' clipped':''}${approved.has(b.d.id)?' appr':''}" `
+        + `draggable="true" style="top:${top}px;height:${hgt}px;`
         + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
         + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
         + `data-row="${b.row}" data-dayid="${b.d.id}"`
@@ -2800,7 +2822,9 @@ function gridHTML(cols, bandOnly){
         + `<span class="cevt">${fmtClock(b.start)} · ${b.d.crew}`
         + `${over?` · ends ${fmtClock(b.end)} ▾`:''}</span></div>`;
     });
-    body+=`<div class="calgcol${col.today?' today':''}">`
+    body+=`<div class="calgcol${col.today?' today':''}"`
+        + (col.dropDate?` data-drop-date="${col.dropDate}"`:'')
+        + (col.dropDayId?` data-drop-dayid="${col.dropDayId}"`:'')+`>`
         + Array.from({length:(GRID_E-GRID_S)/60},(_,i)=>
             `<div class="calslot" style="top:${i*60*PXM}px;height:${60*PXM}px"></div>`).join('')
         + ev+`</div>`;
@@ -2816,7 +2840,7 @@ function weekHTML(anchor){
   const cols=[];
   for(let i=0;i<7;i++){ const iso=addDays(start,i);
     const ci=SPEC.calendar.find(c=>c.date===iso);
-    cols.push({date:iso, today:iso===TODAY, days:calDaysOn(iso),
+    cols.push({date:iso, dropDate:iso, today:iso===TODAY, days:calDaysOn(iso),
       sub:DOW3[i].toUpperCase(), title:String(dateOf(iso).getDate())
         +(ci&&ci.label?` <span class="caltag">${ci.label}</span>`:'')});
   }
@@ -2836,8 +2860,11 @@ function dayHTML(anchor){
         + `night 11pm–6:30am · ${d.stops.length} stops · `
         + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</div>`).join('')
     + `</div>`;
-  return gridHTML(grid.map(d=>({days:[d], sub:d.crew.toUpperCase(),
-      title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`})),
+  // Day-view columns ARE a specific crew, so a drop needs no dialog -- it goes
+  // straight onto that crew-day (still through commitPlan's guardrails).
+  return gridHTML(grid.map(d=>({days:[d], dropDayId:d.id, sub:d.crew.toUpperCase(),
+      title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`
+           + (approved.has(d.id)?' <span class="apprtag">APPROVED</span>':'')})),
     night.map(d=>({d, date:null})));
 }
 function agendaHTML(){
@@ -2855,7 +2882,8 @@ function agendaHTML(){
     calDaysOn(dt).flatMap(d=>stopTimes(d).map(t=>({t,d})))
       .sort((a,b)=>a.t.start-b.t.start)
       .forEach(({t,d})=>{
-        h+=`<div class="agrow" data-row="${t.row}" data-dayid="${d.id}">`
+        h+=`<div class="agrow${approved.has(d.id)?' appr':''}" draggable="true" `
+         + `data-row="${t.row}" data-dayid="${d.id}">`
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
          + `<span class="agn">${C[t.row].name}</span>`
@@ -2924,6 +2952,31 @@ function renderCalendar(){
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
     el.onclick=e=>{ e.stopPropagation(); openStopPeek(+el.dataset.row, el.dataset.dayid); };
+    el.ondragstart=e=>{ e.dataTransfer.setData('row', el.dataset.row);
+                        e.dataTransfer.effectAllowed='move';
+                        el.classList.add('dragging'); };
+    el.ondragend=()=>el.classList.remove('dragging');
+  });
+  // Dropping reuses the SAME guarded paths as the Days view -- nothing here
+  // rewrites the schedule directly. Where the target names a crew (a Day-view
+  // column) it commits through checkPlan; where the crew is ambiguous (a month
+  // cell, a week column, an agenda date) it opens the move dialog to pick one.
+  const dropOn=(el, handler)=>{
+    el.ondragover=e=>{ e.preventDefault(); el.classList.add('dragover'); };
+    el.ondragleave=()=>el.classList.remove('dragover');
+    el.ondrop=e=>{ e.preventDefault(); el.classList.remove('dragover');
+      const row=+e.dataTransfer.getData('row'); if(row) handler(row); };
+  };
+  wrap.querySelectorAll('.calcell[data-date]').forEach(el=>
+    dropOn(el, row=>openMoveDlg(row, el.dataset.date)));
+  wrap.querySelectorAll('.calgcol[data-drop-date]').forEach(el=>
+    dropOn(el, row=>openMoveDlg(row, el.dataset.dropDate)));
+  wrap.querySelectorAll('.calgcol[data-drop-dayid]').forEach(el=>
+    dropOn(el, row=>{ const d=days.find(x=>x.id===el.dataset.dropDayid);
+                      if(d && !d.stops.includes(row)) commitPlan(planFor(row, d.id)); }));
+  wrap.querySelectorAll('.agday').forEach(el=>{
+    const dt=el.querySelector('.agdate'); if(!dt) return;
+    dropOn(el, row=>openMoveDlg(row, dt.dataset.date));
   });
   wrap.querySelectorAll('.calnight[data-dayid]').forEach(el=>{
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.dayid);
@@ -2959,6 +3012,14 @@ function openStopPeek(row,dayId){
     peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
   document.getElementById('peekprint').onclick=()=>{
     peekdlg.close(); printManifests([d],`${d.crew} — ${fmtMDYYYY(d.date)}`); };
+  const mv=document.getElementById('peekmove');
+  mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
+  const apBtn=document.getElementById('peekappr');
+  apBtn.textContent = approved.has(d.id) ? '✓ Approved' : 'Approve day';
+  apBtn.classList.toggle('on', approved.has(d.id));
+  apBtn.onclick=()=>{ pushUndo();
+    approved.has(d.id)?approved.delete(d.id):approved.add(d.id);
+    persist(); peekdlg.close(); render(); };
   peekdlg.showModal();
 }
 let viewMode='days';
