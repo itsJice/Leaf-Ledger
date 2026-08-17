@@ -2290,16 +2290,39 @@ function addrParts(c){
  * guessed at; a 2025 invoice smaller than the storage owed is a data gap,
  * not a $0 job, so it goes to manual review instead of a negative. */
 const UPLIFT = 1.05;
+/** 2026 price for one client, in preference order:
+ *   1. M Crowd -- contract, billed outside this sheet entirely.
+ *   2. Carlton Woods and Woodlands CC -- negotiated per club, left blank on
+ *      purpose (user, 2026-08-17) rather than guessed. Matched by NAME, not
+ *      by the "Country Club" category: Royal Oaks is also a country club but
+ *      has a real 2025 invoice, and blanketing the category silently dropped
+ *      it from the priced list.
+ *   3. A real 2025 invoice -> that +5%. Storage carries over flat, and the
+ *      remainder splits evenly between install and takedown because the
+ *      2025 sheet's own takedown formula is literally "=install".
+ *   4. No 2025 invoice -> the sheet's own ideal figure (crew x rate x
+ *      hours off the 2026 rate card). No uplift: that rate card is already
+ *      2026 pricing, so adding 5% would double-count the increase.
+ *   5. Nothing to work from -> blank, flagged for manual pricing. */
 function price2026(c){
   const S = typeof c.storageFee==='number' ? c.storageFee : 0;
   const R = c.invoice25;
-  if(c.cat==='M Crowd')   return {basis:'Contract — M Crowd billed separately'};
-  if(typeof R!=='number') return {basis:'Contract — priced separately'};
-  if(R - S < 0)           return {basis:'MANUAL — 2025 invoice below storage owed', stor:S};
-  const half = (R - S) / 2;
-  const inst = Math.round(half * UPLIFT * 100) / 100;
-  return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
-          basis:'2025 invoice +5% (storage flat)'};
+  if(c.cat==='M Crowd')     return {basis:'Contract — M Crowd billed separately'};
+  if(/carlton woods|woodlands cc/i.test(c.name))
+                            return {basis:'Club contract — priced separately'};
+  if(typeof R==='number'){
+    if(R - S < 0)           return {basis:'MANUAL — 2025 invoice below storage owed', stor:S};
+    const inst = Math.round(((R - S) / 2) * UPLIFT * 100) / 100;
+    return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
+            basis:'2025 invoice +5% (storage flat)'};
+  }
+  if(typeof c.installFee==='number'){
+    const inst = c.installFee;
+    const tdwn = typeof c.takedownFee==='number' ? c.takedownFee : inst;
+    return {inst, tdwn, stor:S, total:Math.round((inst + tdwn + S)*100)/100,
+            basis:'2026 ideal (crew × rate × hours) — no 2025 invoice on file'};
+  }
+  return {basis:'MANUAL — no 2025 invoice and no rate-card estimate'};
 }
 function buildBillingRows(scope){
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
