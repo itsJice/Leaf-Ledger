@@ -68,6 +68,11 @@ DATE_LABELS = {
     "2026-11-21": "HYROX",
     "2026-11-22": "HYROX",
     "2026-11-26": "THANKSGIVING",
+    # Prospective, not booked: the 7/15 email calls it a "New opportunity"
+    # with Leigh Redmond (Dir. of Catering) still owed a call from TBDG
+    # (voicemail 7/16, no follow-up). Labelled so nobody reads it as sold work.
+    "2026-12-23": "EVENT — UNCONFIRMED",
+    "2026-12-24": "EVENT — UNCONFIRMED",
 }
 DOW = {  # for labels, and the full set of dates the review tool can show.
     # Sundays/Thanksgiving are included too (not workable -- see rules.py's
@@ -88,6 +93,15 @@ DOW = {  # for labels, and the full set of dates the review tool can show.
     "2026-12-02": "Wed", "2026-12-03": "Thu", "2026-12-04": "Fri",
     "2026-12-05": "Sat", "2026-12-06": "Sun", "2026-12-07": "Mon",
     "2026-12-08": "Tue", "2026-12-09": "Wed", "2026-12-10": "Thu",
+    # Extended past the install window for the Carlton Woods 12/23 Signature
+    # Event (set up 12/23, tear down 12/24). These are NOT part of the standard
+    # install pool -- they are absent from STD_WEEKDAYS, so the optimizer will
+    # never place a regular client here; they exist only so the event has real
+    # dates to sit on and shows up on the calendar.
+    "2026-12-11": "Fri", "2026-12-14": "Mon", "2026-12-15": "Tue",
+    "2026-12-16": "Wed", "2026-12-17": "Thu", "2026-12-18": "Fri",
+    "2026-12-21": "Mon", "2026-12-22": "Tue", "2026-12-23": "Wed",
+    "2026-12-24": "Thu",
 }
 
 

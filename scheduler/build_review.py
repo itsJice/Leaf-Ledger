@@ -2377,9 +2377,11 @@ const UPLIFT = 1.05;
  *   3. A real 2025 invoice -> that +5%. Storage carries over flat, and the
  *      remainder splits evenly between install and takedown because the
  *      2025 sheet's own takedown formula is literally "=install".
- *   4. No 2025 invoice -> the sheet's own ideal figure (crew x rate x
- *      hours off the 2026 rate card). No uplift: that rate card is already
- *      2026 pricing, so adding 5% would double-count the increase.
+ *   4. Didn't install with us in 2025 -> they forfeit the historical
+ *      preferred rate and slide up to the IDEAL TOTAL (crew x rate x hours
+ *      off the 2026 rate card). This is the pricing policy, not a fallback
+ *      guess (user, 2026-08-17). No +5% on top: that rate card is already
+ *      2026 pricing, so an uplift would double-count the increase.
  *   5. Nothing to work from -> blank, flagged for manual pricing. */
 function price2026(c){
   const S = typeof c.storageFee==='number' ? c.storageFee : 0;
@@ -2400,7 +2402,7 @@ function price2026(c){
     const inst = c.installFee;
     const tdwn = typeof c.takedownFee==='number' ? c.takedownFee : inst;
     return {inst, tdwn, stor:S, total:Math.round((inst + tdwn + S)*100)/100,
-            basis:'2026 ideal (crew × rate × hours) — no 2025 invoice on file'};
+            basis:'IDEAL TOTAL — no 2025 install, preferred rate not carried forward'};
   }
   return {basis:'MANUAL — no 2025 invoice and no rate-card estimate'};
 }
