@@ -521,7 +521,9 @@ dialog option:disabled{color:#b6b3ae}
   font-size:12.5px}
 .agrow:hover{background:var(--brand-soft)}
 .agrow i{width:9px;height:9px;border-radius:50%;flex:none}
-.agt{width:64px;color:var(--mut);font-size:11.5px;flex:none}
+.agt{width:74px;color:var(--mut);font-size:11.5px;flex:none}
+.agt em{font-style:normal;font-weight:800;color:#7c3aed}
+.calev.clipped{border-bottom:2px dashed var(--warn-ink)}
 .agn{font-weight:600}
 .agm{margin-left:auto;color:var(--mut);font-size:11px;white-space:nowrap}
 /* ---- event peek ---- */
@@ -2713,7 +2715,9 @@ function stopTimes(d){
     return {row:r, start, end:start+dur};
   });
 }
-const GRID_S=7*60, GRID_E=20*60, PXM=0.85;   // 7am-8pm grid
+// 7am-9pm. 8pm clipped two real crew-days (Lewis/LTS ends 8:07pm, the Capital
+// Bank run 8:39pm) -- the last block was cut with no indication.
+const GRID_S=7*60, GRID_E=21*60, PXM=0.85;
 function calDaysOn(iso){ return days.filter(x=>x.date===iso)
   .sort((a,b)=>a.crew.localeCompare(b.crew)); }
 
@@ -2744,12 +2748,19 @@ function monthHTML(anchor){
  *  Night shifts start at 11pm and run past midnight, so they can't be placed
  *  on a 7am-8pm grid honestly -- they get their own band above it with the
  *  real hours spelled out instead of a faked position. */
-function gridHTML(cols){
+function gridHTML(cols, bandOnly){
   let hours='';
   for(let t=GRID_S;t<=GRID_E;t+=60)
     hours+=`<div class="calhr" style="top:${(t-GRID_S)*PXM}px">${fmtClock(t).replace(':00','')}</div>`;
   let head=`<div class="calgh"></div>`, body=`<div class="calgutter">${hours}</div>`;
   let band='';
+  // Night rows carry their own date: a week spanning the Mi Cocina run stacks
+  // up to 13 of these, and without the date they're indistinguishable.
+  const bandRow=(d,date)=>`<div class="calnight" data-dayid="${d.id}">`
+    + (date?`<b>${DOW3[dateOf(date).getDay()]} ${date.slice(5).replace('-','/')}</b> · `:'')
+    + `<b>${d.crew}</b> · night 11pm–6:30am · ${d.stops.length} stops · `
+    + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</div>`;
+  (bandOnly||[]).forEach(x=>{ band+=bandRow(x.d, x.date); });
   cols.forEach(col=>{
     head+=`<div class="calgh${col.today?' today':''}" ${col.date?`data-date="${col.date}"`:''}>`
         + `<span class="cghd">${col.sub||''}</span><span class="cghn">${col.title}</span></div>`;
@@ -2758,11 +2769,7 @@ function gridHTML(cols){
     const blocks=[];
     col.days.forEach(d=>{
       const times=stopTimes(d);
-      if(d.win===K.NIGHT){
-        band+=`<div class="calnight" data-dayid="${d.id}"><b>${d.crew}</b> · night 11pm–6:30am · `
-            + `${d.stops.length} stops · ${times.map(t=>C[t.row].name.split('|')[0].trim()).join(', ')}</div>`;
-        return;
-      }
+      if(d.win===K.NIGHT){ band+=bandRow(d, col.date); return; }
       times.forEach(t=>blocks.push({...t, d}));
     });
     blocks.sort((a,b)=>a.start-b.start || a.end-b.end);
@@ -2781,12 +2788,15 @@ function gridHTML(cols){
       const top=Math.max(0,(b.start-GRID_S)*PXM);
       const hgt=Math.max(15,(Math.min(b.end,GRID_E)-Math.max(b.start,GRID_S))*PXM);
       const w=100/b.lanes, left=w*b.lane;
-      ev+=`<div class="calev" style="top:${top}px;height:${hgt}px;`
+      const over=b.end>GRID_E;   // say so rather than silently clipping
+      ev+=`<div class="calev${over?' clipped':''}" style="top:${top}px;height:${hgt}px;`
         + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
         + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
-        + `data-row="${b.row}" data-dayid="${b.d.id}">`
+        + `data-row="${b.row}" data-dayid="${b.d.id}"`
+        + (over?` title="runs to ${fmtClock(b.end)}"`:'')+`>`
         + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
-        + `<span class="cevt">${fmtClock(b.start)} · ${b.d.crew}</span></div>`;
+        + `<span class="cevt">${fmtClock(b.start)} · ${b.d.crew}`
+        + `${over?` · ends ${fmtClock(b.end)} ▾`:''}</span></div>`;
     });
     body+=`<div class="calgcol${col.today?' today':''}">`
         + Array.from({length:(GRID_E-GRID_S)/60},(_,i)=>
@@ -2813,8 +2823,20 @@ function weekHTML(anchor){
 function dayHTML(anchor){
   const ds=calDaysOn(anchor);
   if(!ds.length) return `<p class="nothingyet">Nothing scheduled on ${fmtDate(anchor)}.</p>`;
-  return gridHTML(ds.map(d=>({date:anchor, days:[d], sub:d.crew.toUpperCase(),
-    title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`})));
+  // Night crew-days belong in the band, not the daytime grid -- giving them a
+  // column produced empty ghost columns (and a duplicate "Crew 3" heading on
+  // the Dallas nights, where one crew works both a day and a night shift).
+  // No `date` on the columns either: the header is this day, so making it
+  // clickable would just re-render the view you are already looking at.
+  const grid=ds.filter(d=>d.win!==K.NIGHT), night=ds.filter(d=>d.win===K.NIGHT);
+  if(!grid.length) return `<div class="calband">`
+    + night.map(d=>`<div class="calnight" data-dayid="${d.id}"><b>${d.crew}</b> · `
+        + `night 11pm–6:30am · ${d.stops.length} stops · `
+        + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</div>`).join('')
+    + `</div>`;
+  return gridHTML(grid.map(d=>({days:[d], sub:d.crew.toUpperCase(),
+      title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`})),
+    night.map(d=>({d, date:null})));
 }
 function agendaHTML(){
   let h='', last='';
@@ -2826,15 +2848,17 @@ function agendaHTML(){
     h+=`<div class="agday"><div class="agdate" data-date="${dt}">`
      + `<b>${dateOf(dt).getDate()}</b><span>${DOW3[dateOf(dt).getDay()]}</span>`
      + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div><div class="agrows">`;
-    calDaysOn(dt).forEach(d=>{
-      stopTimes(d).forEach(t=>{
+    // Flatten across crews and sort by clock -- emitting crew-by-crew made the
+    // time column run backwards on every multi-crew date.
+    calDaysOn(dt).flatMap(d=>stopTimes(d).map(t=>({t,d})))
+      .sort((a,b)=>a.t.start-b.t.start)
+      .forEach(({t,d})=>{
         h+=`<div class="agrow" data-row="${t.row}" data-dayid="${d.id}">`
-         + `<span class="agt">${fmtClock(t.start)}</span>`
+         + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
          + `<span class="agn">${C[t.row].name}</span>`
          + `<span class="agm">${d.crew}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
       });
-    });
     h+=`</div></div>`;
   });
   return h||`<p class="nothingyet">Nothing scheduled.</p>`;
@@ -2850,7 +2874,9 @@ function calTitle(){
                  : `${MONTHS[+sm-1]} ${+sd} – ${MONTHS[+em-1]} ${+ed}, ${ey}`;
 }
 function calShift(n){
-  if(calView==='month'){ const d=dateOf(calAnchor+''); d.setMonth(d.getMonth()+n); d.setDate(1);
+  // setDate(1) BEFORE setMonth: stepping back from a 31st would otherwise land
+  // on a short month, normalise forward, and leave you in the month you started.
+  if(calView==='month'){ const d=dateOf(calAnchor); d.setDate(1); d.setMonth(d.getMonth()+n);
     calAnchor=isoOf(d); }
   else if(calView==='week') calAnchor=addDays(calAnchor,7*n);
   else if(calView==='day')  calAnchor=addDays(calAnchor,n);
@@ -2880,6 +2906,13 @@ function renderCalendar(){
     // the first date that actually has work.
     calAnchor = SEASON.includes(TODAY) ? TODAY
               : (SEASON.find(dt=>calDaysOn(dt).length) || SEASON[0]);
+    if(calView==='agenda'){
+      // Agenda lists the whole season and ignores the anchor, so re-rendering
+      // would look like nothing happened -- scroll to the date instead.
+      const t=wrap.querySelector(`.agdate[data-date="${calAnchor}"]`);
+      if(t) t.scrollIntoView({block:'start',behavior:'smooth'});
+      return;
+    }
     renderCalendar();
   };
   if(nav){ document.getElementById('calprev').onclick=()=>calShift(-1);
@@ -2891,14 +2924,16 @@ function renderCalendar(){
     el.onclick=e=>{ e.stopPropagation(); openStopPeek(+el.dataset.row, el.dataset.dayid); };
   });
   wrap.querySelectorAll('.calnight[data-dayid]').forEach(el=>{
-    el.onclick=()=>{ selDate=days.find(d=>d.id===el.dataset.dayid).date;
-                     focusDayId=el.dataset.dayid; setView('days'); };
+    el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.dayid);
+                     if(!d) return;
+                     selDate=d.date; focusDayId=d.id; setView('days'); };
   });
 }
 /** Google-Cal-style event peek: the stop's real detail, plus the two actions
  *  that already exist elsewhere in the tool (open the day, print the sheet). */
 function openStopPeek(row,dayId){
   const c=C[row], d=days.find(x=>x.id===dayId);
+  if(!c||!d) return;            // stale id after an edit -- fail quiet, not throw
   const t=(stopTimes(d).find(x=>x.row===row))||{};
   const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   // addrParts() repairs the six source rows that jam the whole address into
