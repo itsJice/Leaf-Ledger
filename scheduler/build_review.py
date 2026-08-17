@@ -430,6 +430,38 @@ dialog option:disabled{color:#b6b3ae}
 #billdlg .billfmt button.sel{border-color:var(--brand);border-width:2px;
   background:var(--brand-soft);box-shadow:inset 0 0 0 1px var(--brand-soft)}
 #billdlg .billfmt button.sel small{color:var(--brand)}
+/* ---- view toggle + calendar ---- */
+.viewtog{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden;
+  margin-right:10px;vertical-align:middle}
+.viewtog button{padding:7px 13px;border:0;background:#fff;cursor:pointer;font-weight:700;
+  font-size:12.5px;color:var(--mut)}
+.viewtog button.sel{background:var(--brand);color:#fff}
+#calwrap{padding:16px 20px 40px}
+.calmonth{margin-bottom:26px}
+.calmonth h2{font-family:var(--serif);font-size:22px;margin:0 0 10px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.caldow{font-size:11px;font-weight:800;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.5px;text-align:center;padding:4px 0}
+.calcell{min-height:118px;border:1.5px solid var(--line);border-radius:9px;background:#fff;
+  padding:7px 8px;font-size:11.5px;overflow:hidden;cursor:pointer}
+.calcell.empty{background:#faf9f7;border-style:dashed;cursor:default}
+.calcell.off{visibility:hidden}
+.calcell:hover:not(.empty){border-color:var(--brand)}
+.calcell.tagged{border-color:#7c3aed;border-width:2px}
+.calnum{font-weight:800;font-size:15px}
+.calnum small{font-weight:600;color:var(--mut);font-size:10.5px;margin-left:4px}
+.calcrew{margin-top:4px;line-height:1.35}
+.calcrew b{font-weight:800}
+.calnames{color:var(--mut);font-size:10.5px;display:block;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calfoot{margin-top:5px;padding-top:4px;border-top:1px solid var(--line);
+  font-weight:800;font-size:11px}
+.calbox{color:#8a5a00}
+.caltag{display:inline-block;padding:0 5px;border-radius:4px;background:#7c3aed;color:#fff;
+  font-size:9px;font-weight:800;margin-left:4px;vertical-align:2px}
+.printbtn{margin-left:auto;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
+  background:#fff;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut)}
+.printbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
@@ -463,12 +495,17 @@ dialog option:disabled{color:#b6b3ae}
     <input id="searchbox" type="text" placeholder="Find a client… (which day are they on?)" autocomplete="off">
     <div id="searchresults"></div>
   </div>
+  <div class="viewtog">
+    <button id="viewdays" class="sel" type="button">Days</button>
+    <button id="viewcal" type="button">Calendar</button>
+  </div>
   <button id="newclientbtn" type="button">+ New client</button>
   <button id="billexportbtn" type="button">⬇ Export</button>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
   <div id="datestrip"></div>
 </header>
+<div id="calwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
   <div id="map"></div>
@@ -1738,8 +1775,13 @@ function buildDayCard(d){
       <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
+    <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>`;
+  card.querySelector('.printbtn').onclick=(e)=>{
+    e.stopPropagation();
+    printManifests([d], `${d.crew} — ${fmtMDYYYY(d.date)}`);
+  };
   card.querySelector('.chead-crew').onclick=()=>{
     focusDayId=d.id;
     document.querySelectorAll('.card.focused').forEach(c=>c.classList.remove('focused'));
@@ -1858,6 +1900,13 @@ function renderCards(){
     const p=document.createElement('p'); p.className='nothingyet';
     p.textContent=`Nothing on ${fmtDate(selDate)} yet.`;
     side.appendChild(p);
+  }
+  if(onThisDate.length>1){
+    const all=document.createElement('button');
+    all.className='printbtn'; all.style.cssText='margin:0 0 10px;width:100%';
+    all.textContent=`Print all ${onThisDate.length} crew sheets for ${fmtDate(selDate)}`;
+    all.onclick=()=>printDate(selDate);
+    side.appendChild(all);
   }
   onThisDate.forEach(d=>side.appendChild(buildDayCard(d)));
   // Blank boxes the user clicked "+ Add a crew" for but hasn't dropped a
@@ -2472,6 +2521,8 @@ function pick(group, val, key){
     x.classList.toggle('sel', x.dataset[key]===val));
   syncBillBtn();
 }
+document.getElementById('viewdays').onclick = ()=> setView('days');
+document.getElementById('viewcal').onclick  = ()=> setView('cal');
 document.getElementById('billexportbtn').onclick = ()=>{ syncBillBtn(); billdlg.showModal(); };
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
   b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
@@ -2523,11 +2574,165 @@ function exportNotebook(){
 }
 
 // ---------- render ----------
+// ---------- calendar view ----------
+// Built for the warehouse wall screen, so it answers production's questions
+// at a glance rather than the planner's: what installs that day, which crew,
+// and -- the one that drives the pull list -- how many boxes come off the
+// rack. Clicking a day drops into the normal day view.
+const MONTHS=['January','February','March','April','May','June','July',
+  'August','September','October','November','December'];
+function dayBoxes(d){
+  return d.stops.reduce((a,r)=>a+(parseFloat(C[r].boxes)||0),0);
+}
+function renderCalendar(){
+  const wrap=document.getElementById('calwrap');
+  const dates=SPEC.calendar.map(c=>c.date).sort();
+  if(!dates.length){ wrap.innerHTML=''; return; }
+  // group the calendar's own dates by month, then pad each grid to whole weeks
+  const byMonth={};
+  dates.forEach(dt=>{ const k=dt.slice(0,7); (byMonth[k]=byMonth[k]||[]).push(dt); });
+  let html='';
+  Object.keys(byMonth).sort().forEach(k=>{
+    const [y,m]=k.split('-').map(Number);
+    const first=new Date(y,m-1,1), last=new Date(y,m,0).getDate();
+    html+=`<div class="calmonth"><h2>${MONTHS[m-1]} ${y}</h2><div class="calgrid">`;
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>html+=`<div class="caldow">${d}</div>`);
+    for(let i=0;i<first.getDay();i++) html+=`<div class="calcell off"></div>`;
+    for(let dnum=1;dnum<=last;dnum++){
+      const iso=`${y}-${String(m).padStart(2,'0')}-${String(dnum).padStart(2,'0')}`;
+      const ci=SPEC.calendar.find(c=>c.date===iso);
+      const ds=days.filter(x=>x.date===iso).sort((a,b)=>a.crew.localeCompare(b.crew));
+      const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y,m-1,dnum).getDay()];
+      if(!ci && !ds.length){ html+=`<div class="calcell empty"><div class="calnum">${dnum}</div></div>`; continue; }
+      const tag=ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'';
+      let inner=`<div class="calnum">${dnum}<small>${dow}</small>${tag}</div>`;
+      let stops=0, boxes=0, hrs=0;
+      ds.forEach(d=>{
+        const c=dayCalc(d); stops+=d.stops.length; boxes+=dayBoxes(d); hrs+=c.total/60;
+        const names=d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ');
+        inner+=`<div class="calcrew"><b>${d.crew.replace('Crew ','C')}</b> · `
+             + `${d.stops.length} stop${d.stops.length===1?'':'s'}`
+             + `<span class="calnames">${names}</span></div>`;
+      });
+      if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
+                         + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')+`</div>`;
+      html+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}" `
+          + `data-date="${iso}">${inner}</div>`;
+    }
+    html+=`</div></div>`;
+  });
+  wrap.innerHTML=html;
+  wrap.querySelectorAll('.calcell[data-date]').forEach(c=>{
+    c.onclick=()=>{ selDate=c.dataset.date; focusDayId=null; setView('days'); };
+  });
+}
+let viewMode='days';
+function setView(v){
+  viewMode=v;
+  document.getElementById('viewdays').classList.toggle('sel',v==='days');
+  document.getElementById('viewcal').classList.toggle('sel',v==='cal');
+  document.getElementById('calwrap').style.display = v==='cal' ? 'block':'none';
+  document.getElementById('main').style.display   = v==='cal' ? 'none':'';
+  document.getElementById('datestrip').style.display = v==='cal' ? 'none':'';
+  render();
+}
+
+// ---------- printable crew manifest ----------
+// One page per crew-day: the running order with everything the crew needs on
+// site (address, contact, box count, install time) and the drive to the next
+// stop between them, so the sheet reads as the day's actual flow.
+function manifestHTML(d){
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const calc=dayCalc(d), order=calc.order.length?calc.order:d.stops;
+  const anchored=d.anchored!==false;
+  let clock=DEPART_MIN, rows='';
+  if(anchored && order.length) clock+=leg(0,N[order[0]])/60;
+  order.forEach((r,i)=>{
+    const c=C[r], mins=effH(d,r)*60/(d.stacked||1);
+    const addr=[c.street,[c.city,c.st].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' · ');
+    const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
+    rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
+      <div class="nm">${esc(c.name)}</div>
+      <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
+      ${c.phone||c.email?`<div class="ct">${esc(c.phone||'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
+      ${note?`<div class="nt">${esc(note)}</div>`:''}
+    </td>
+    <td class="c">${c.boxes||'—'}</td>
+    <td class="c">${(mins/60).toFixed(2)}h</td>
+    <td class="c">${fmtClock(clock)}</td></tr>`;
+    clock+=mins;
+    const nxt=order[i+1];
+    if(nxt!==undefined){
+      const dr=leg(N[r],N[nxt])/60;
+      rows+=`<tr class="drive"><td></td><td colspan="4">▼ drive ${Math.round(dr)} min to ${esc(C[nxt].name)}</td></tr>`;
+      clock+=dr;
+    }
+  });
+  const boxes=dayBoxes(d);
+  return `<section class="sheet">
+    <div class="shead">
+      <div><h1>${esc(d.crew)} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
+        <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
+        ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p></div>
+      <div class="stot"><b>${(calc.total/60).toFixed(1)}h</b><span>total day</span></div>
+    </div>
+    <table><thead><tr><th></th><th>Client</th><th class="c">Boxes</th>
+      <th class="c">Install</th><th class="c">Arrive ≈</th></tr></thead>
+      <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(DEPART_MIN)}</td></tr>`:''}
+      ${rows}
+      ${anchored&&order.length?`<tr class="depot"><td></td><td colspan="4">Return to depot ≈ ${fmtClock(clock+leg(N[order[order.length-1]],0)/60)}</td></tr>`:''}
+      </tbody></table>
+    <div class="sfoot">Install ${(calc.inst).toFixed(1)}h · Drive ${(calc.drive/60).toFixed(1)}h
+      ${order.length?` · Lunch ${((d.lunchMin??LUNCH)/60).toFixed(1)}h`:''} · Boxes ${boxes||0}</div>
+  </section>`;
+}
+function printManifests(list, title){
+  if(!list.length){ alert('Nothing scheduled to print for that selection.'); return; }
+  const w=window.open('','_blank');
+  if(!w){ alert('Pop-up blocked — allow pop-ups for this page to print.'); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>
+    @page{size:portrait;margin:12mm}
+    body{font:12px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
+    .sheet{page-break-after:always;break-after:page}
+    .sheet:last-child{page-break-after:auto;break-after:auto}
+    .shead{display:flex;justify-content:space-between;align-items:flex-start;
+      border-bottom:2.5px solid #2d5a33;padding-bottom:7px;margin-bottom:11px}
+    h1{font-size:19px;margin:0}
+    .shead p{margin:3px 0 0;color:#555;font-size:11.5px}
+    .stot{text-align:right;white-space:nowrap;padding-left:14px}
+    .stot b{display:block;font-size:21px;line-height:1}
+    .stot span{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.4px}
+    table{border-collapse:collapse;width:100%}
+    th{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:#666;
+      text-align:left;border-bottom:1px solid #bbb;padding:0 6px 4px}
+    td{padding:7px 6px;vertical-align:top;border-bottom:1px solid #eee}
+    td.n{font-weight:800;font-size:15px;width:26px;color:#2d5a33}
+    td.c{text-align:center;white-space:nowrap;width:64px}
+    .nm{font-weight:700;font-size:13px}
+    .ad{color:#444;font-size:11px;margin-top:1px}
+    .ct{color:#666;font-size:10.5px;margin-top:1px}
+    .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
+    tr.drive td{border:0;padding:2px 6px 2px 32px;color:#777;font-size:10.5px}
+    tr.depot td{border:0;padding:4px 6px;color:#2d5a33;font-weight:700;font-size:11px;
+      text-transform:uppercase;letter-spacing:.3px}
+    tr.stop{break-inside:avoid}
+    .sfoot{margin-top:11px;padding-top:6px;border-top:1.5px solid #333;font-weight:700;font-size:11.5px}
+  </style></head><body>${list.map(manifestHTML).join('')}
+  <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`);
+  w.document.close();
+}
+function printDate(dt){
+  printManifests(days.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew)),
+    `Crew sheets — ${fmtMDYYYY(dt)}`);
+}
+
 function render(){
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
   days.forEach(d=>{ if(d.edited) d.stops = dayCalc(d).order; });
-  renderStrip(); renderCards(); drawDate(selDate);
+  if(viewMode==='cal'){ renderCalendar(); }
+  else { renderStrip(); renderCards(); drawDate(selDate); }
   const n=days.reduce((a,d)=>a+d.stops.length,0);
   document.getElementById('summarybar').textContent=
     `${n} stops · ${days.length} crew-days · ${approved.size} approved`;
