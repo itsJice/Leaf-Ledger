@@ -441,7 +441,11 @@ dialog option:disabled{color:#b6b3ae}
 .viewtog button{padding:7px 13px;border:0;background:#fff;cursor:pointer;font-weight:700;
   font-size:12.5px;color:var(--mut)}
 .viewtog button.sel{background:var(--brand);color:#fff}
-#calwrap{padding:16px 20px 40px}
+/* #app is a flex column, so this would otherwise shrink to its content --
+   and the week grid reports almost no intrinsic width (overflow:hidden),
+   collapsing every day column and the % widths measured against them. */
+#calwrap{padding:16px 20px 40px;width:100%;box-sizing:border-box;
+  align-self:stretch;overflow-y:auto;min-height:0}
 .calmonth{margin-bottom:26px}
 .calmonth h2{font-family:var(--serif);font-size:22px;margin:0 0 10px}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
@@ -467,6 +471,66 @@ dialog option:disabled{color:#b6b3ae}
 .printbtn{margin-left:auto;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut)}
 .printbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+/* ---- Google-Cal-style toolbar ---- */
+.calbar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.calbtn{padding:8px 18px;border:1.5px solid var(--line);border-radius:20px;background:#fff;
+  cursor:pointer;font-weight:700;font-size:13px}
+.calbtn:hover{background:var(--brand-soft);border-color:var(--brand)}
+.calnav{width:32px;height:32px;border:0;border-radius:50%;background:transparent;cursor:pointer;
+  font-size:20px;line-height:1;color:var(--mut)}
+.calnav:hover{background:#ece9e4}
+.caltitle{font-family:var(--serif);font-size:22px;margin:0 auto 0 6px;font-weight:600}
+.calsel{padding:7px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
+  font-size:13px;font-weight:600;font-family:'Montserrat',sans-serif;cursor:pointer}
+/* ---- time grid ---- */
+.calband{margin-bottom:8px}
+.calnight{background:#1e293b;color:#e2e8f0;border-radius:7px;padding:6px 10px;margin-bottom:4px;
+  font-size:11.5px;cursor:pointer}
+.calnight:hover{background:#334155}
+.calghead{display:grid;position:sticky;top:0;background:var(--bg);z-index:5;
+  border-bottom:1.5px solid var(--line)}
+.calgh{text-align:center;padding:5px 2px 7px}
+.calgh[data-date]{cursor:pointer;border-radius:8px}
+.calgh[data-date]:hover{background:var(--brand-soft)}
+.cghd{display:block;font-size:10px;font-weight:800;color:var(--mut);letter-spacing:.5px}
+.cghn{display:block;font-size:20px;font-weight:600;margin-top:1px}
+.calgh.today .cghn{background:var(--brand);color:#fff;border-radius:50%;width:34px;height:34px;
+  line-height:34px;margin:1px auto 0}
+.calgbody{display:grid;position:relative;overflow:hidden}
+.calgutter{position:relative}
+.calhr{position:absolute;right:6px;font-size:10px;color:var(--mut);transform:translateY(-50%)}
+.calgcol{position:relative;border-left:1px solid var(--line)}
+.calgcol.today{background:#fbfaf7}
+.calslot{position:absolute;left:0;right:0;border-bottom:1px solid #eeebe6}
+.calev{position:absolute;background:#fff;border:1px solid var(--line);
+  border-left:4px solid var(--brand);border-radius:5px;padding:2px 5px;overflow:hidden;
+  cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.calev:hover{box-shadow:0 3px 8px rgba(0,0,0,.14);z-index:3}
+.cevn{display:block;font-size:11px;font-weight:700;line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cevt{display:block;font-size:9.5px;color:var(--mut)}
+/* ---- schedule/agenda ---- */
+.agmon{font-family:var(--serif);font-size:18px;margin:18px 0 8px}
+.agday{display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--line)}
+.agdate{width:60px;text-align:center;cursor:pointer;flex:none}
+.agdate b{display:block;font-size:20px;font-weight:600}
+.agdate span{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.agdate:hover b{color:var(--brand)}
+.agrows{flex:1}
+.agrow{display:flex;align-items:center;gap:9px;padding:4px 8px;border-radius:6px;cursor:pointer;
+  font-size:12.5px}
+.agrow:hover{background:var(--brand-soft)}
+.agrow i{width:9px;height:9px;border-radius:50%;flex:none}
+.agt{width:64px;color:var(--mut);font-size:11.5px;flex:none}
+.agn{font-weight:600}
+.agm{margin-left:auto;color:var(--mut);font-size:11px;white-space:nowrap}
+/* ---- event peek ---- */
+#peekdlg{max-width:390px}
+#peekbody h3{margin:0 0 3px;font-size:16px}
+.pkwhen{margin:0 0 10px;color:var(--mut);font-size:12px}
+.pkrow{margin:4px 0;font-size:12.5px}
+.pknote{margin:8px 0 0;padding:7px 9px;background:var(--warn-soft);border-radius:6px;
+  font-size:11.5px;color:var(--warn-ink);line-height:1.45}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
@@ -561,6 +625,12 @@ dialog option:disabled{color:#b6b3ae}
   <p id="histsub" class="histsub"></p>
   <div id="histbody"></div>
   <div class="btns"><button onclick="histdlg.close()">Close</button></div>
+</dialog>
+<dialog id="peekdlg">
+  <div id="peekbody"></div>
+  <div class="btns"><button onclick="peekdlg.close()">Close</button>
+  <button id="peekprint">Print sheet</button>
+  <button class="go" id="peekopen">Open day</button></div>
 </dialog>
 <dialog id="billdlg">
   <b>Export</b>
@@ -2534,6 +2604,7 @@ function runExport(scope, fmt){
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
   }
 }
+const peekdlg = document.getElementById('peekdlg');
 const billdlg = document.getElementById('billdlg');
 let billScope='all', billFmt='xlsx';
 // Both rows are CHOICES; nothing downloads until the explicit button. Picking
@@ -2615,47 +2686,243 @@ const MONTHS=['January','February','March','April','May','June','July',
 function dayBoxes(d){
   return d.stops.reduce((a,r)=>a+(parseFloat(C[r].boxes)||0),0);
 }
+const DOW3=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function isoOf(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+                        + `-${String(d.getDate()).padStart(2,'0')}`; }
+function dateOf(iso){ const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d); }
+function addDays(iso,n){ const d=dateOf(iso); d.setDate(d.getDate()+n); return isoOf(d); }
+const SEASON=SPEC.calendar.map(c=>c.date).sort();
+
+// A crew-day's shift start: Mi Cocina runs 11pm, the Dallas corporate office
+// is a 9-5 daytime install, everything else is the standard 8:30 depot roll-out.
+function shiftStart(d){
+  if(d.win===K.NIGHT) return 23*60;
+  if(d.win===480)     return 9*60;
+  return DEPART_MIN;
+}
+/** Real clock span for every stop on a day, from the same arithmetic the run
+ *  sheet prints: depot roll-out, then drive + install, stop after stop. */
+function stopTimes(d){
+  const calc=dayCalc(d), order=calc.order.length?calc.order:d.stops;
+  let t=shiftStart(d);
+  if(d.anchored!==false && order.length) t+=leg(0,N[order[0]])/60;
+  return order.map((r,i)=>{
+    const dur=effH(d,r)*60/(d.stacked||1), start=t;
+    t+=dur;
+    if(order[i+1]!==undefined) t+=leg(N[r],N[order[i+1]])/60;
+    return {row:r, start, end:start+dur};
+  });
+}
+const GRID_S=7*60, GRID_E=20*60, PXM=0.85;   // 7am-8pm grid
+function calDaysOn(iso){ return days.filter(x=>x.date===iso)
+  .sort((a,b)=>a.crew.localeCompare(b.crew)); }
+
+function monthHTML(anchor){
+  const [y,m]=anchor.split('-').map(Number);
+  const first=new Date(y,m-1,1), last=new Date(y,m,0).getDate();
+  let h=`<div class="calgrid">`;
+  DOW3.forEach(d=>h+=`<div class="caldow">${d}</div>`);
+  for(let i=0;i<first.getDay();i++) h+=`<div class="calcell off"></div>`;
+  for(let n=1;n<=last;n++){
+    const iso=`${y}-${String(m).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
+    const ci=SPEC.calendar.find(c=>c.date===iso), ds=calDaysOn(iso);
+    if(!ci && !ds.length){ h+=`<div class="calcell empty"><div class="calnum">${n}</div></div>`; continue; }
+    let inner=`<div class="calnum">${n}<small>${DOW3[dateOf(iso).getDay()]}</small>`
+            + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div>`;
+    let stops=0,boxes=0,hrs=0;
+    ds.forEach(d=>{ const c=dayCalc(d); stops+=d.stops.length; boxes+=dayBoxes(d); hrs+=c.total/60;
+      inner+=`<div class="calcrew"><b>${d.crew.replace('Crew ','C')}</b> · ${d.stops.length} stop`
+           + `${d.stops.length===1?'':'s'}<span class="calnames">`
+           + `${d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ')}</span></div>`; });
+    if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
+                       + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')+`</div>`;
+    h+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}" data-date="${iso}">${inner}</div>`;
+  }
+  return h+`</div>`;
+}
+/** Time-grid used by both Week (7 day columns) and Day (one column per crew).
+ *  Night shifts start at 11pm and run past midnight, so they can't be placed
+ *  on a 7am-8pm grid honestly -- they get their own band above it with the
+ *  real hours spelled out instead of a faked position. */
+function gridHTML(cols){
+  let hours='';
+  for(let t=GRID_S;t<=GRID_E;t+=60)
+    hours+=`<div class="calhr" style="top:${(t-GRID_S)*PXM}px">${fmtClock(t).replace(':00','')}</div>`;
+  let head=`<div class="calgh"></div>`, body=`<div class="calgutter">${hours}</div>`;
+  let band='';
+  cols.forEach(col=>{
+    head+=`<div class="calgh${col.today?' today':''}" ${col.date?`data-date="${col.date}"`:''}>`
+        + `<span class="cghd">${col.sub||''}</span><span class="cghn">${col.title}</span></div>`;
+    // Collect the column's blocks first, then lane-pack them. Two crews can be
+    // on site at the same hour, and stacking would hide one of them entirely.
+    const blocks=[];
+    col.days.forEach(d=>{
+      const times=stopTimes(d);
+      if(d.win===K.NIGHT){
+        band+=`<div class="calnight" data-dayid="${d.id}"><b>${d.crew}</b> · night 11pm–6:30am · `
+            + `${d.stops.length} stops · ${times.map(t=>C[t.row].name.split('|')[0].trim()).join(', ')}</div>`;
+        return;
+      }
+      times.forEach(t=>blocks.push({...t, d}));
+    });
+    blocks.sort((a,b)=>a.start-b.start || a.end-b.end);
+    const laneEnd=[];                       // lane -> when it frees up
+    blocks.forEach(b=>{
+      let ln=laneEnd.findIndex(e=>e<=b.start);
+      if(ln<0) ln=laneEnd.length;
+      laneEnd[ln]=b.end; b.lane=ln;
+    });
+    blocks.forEach(b=>{                     // share width with whatever overlaps it
+      b.lanes=blocks.filter(o=>o.start<b.end && o.end>b.start)
+                    .reduce((m,o)=>Math.max(m,o.lane+1),1);
+    });
+    let ev='';
+    blocks.forEach(b=>{
+      const top=Math.max(0,(b.start-GRID_S)*PXM);
+      const hgt=Math.max(15,(Math.min(b.end,GRID_E)-Math.max(b.start,GRID_S))*PXM);
+      const w=100/b.lanes, left=w*b.lane;
+      ev+=`<div class="calev" style="top:${top}px;height:${hgt}px;`
+        + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
+        + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
+        + `data-row="${b.row}" data-dayid="${b.d.id}">`
+        + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
+        + `<span class="cevt">${fmtClock(b.start)} · ${b.d.crew}</span></div>`;
+    });
+    body+=`<div class="calgcol${col.today?' today':''}">`
+        + Array.from({length:(GRID_E-GRID_S)/60},(_,i)=>
+            `<div class="calslot" style="top:${i*60*PXM}px;height:${60*PXM}px"></div>`).join('')
+        + ev+`</div>`;
+  });
+  return (band?`<div class="calband">${band}</div>`:'')
+       + `<div class="calghead" style="grid-template-columns:56px repeat(${cols.length},1fr)">${head}</div>`
+       + `<div class="calgbody" style="grid-template-columns:56px repeat(${cols.length},1fr);`
+       + `height:${(GRID_E-GRID_S)*PXM+8}px">${body}</div>`;
+}
+function weekHTML(anchor){
+  const TODAY=todayISO();
+  const start=addDays(anchor,-dateOf(anchor).getDay());
+  const cols=[];
+  for(let i=0;i<7;i++){ const iso=addDays(start,i);
+    const ci=SPEC.calendar.find(c=>c.date===iso);
+    cols.push({date:iso, today:iso===TODAY, days:calDaysOn(iso),
+      sub:DOW3[i].toUpperCase(), title:String(dateOf(iso).getDate())
+        +(ci&&ci.label?` <span class="caltag">${ci.label}</span>`:'')});
+  }
+  return gridHTML(cols);
+}
+function dayHTML(anchor){
+  const ds=calDaysOn(anchor);
+  if(!ds.length) return `<p class="nothingyet">Nothing scheduled on ${fmtDate(anchor)}.</p>`;
+  return gridHTML(ds.map(d=>({date:anchor, days:[d], sub:d.crew.toUpperCase(),
+    title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`})));
+}
+function agendaHTML(){
+  let h='', last='';
+  SEASON.filter(dt=>calDaysOn(dt).length).forEach(dt=>{
+    const ci=SPEC.calendar.find(c=>c.date===dt);
+    if(dt.slice(0,7)!==last){ last=dt.slice(0,7);
+      const [y,m]=last.split('-').map(Number);
+      h+=`<h2 class="agmon">${MONTHS[m-1]} ${y}</h2>`; }
+    h+=`<div class="agday"><div class="agdate" data-date="${dt}">`
+     + `<b>${dateOf(dt).getDate()}</b><span>${DOW3[dateOf(dt).getDay()]}</span>`
+     + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div><div class="agrows">`;
+    calDaysOn(dt).forEach(d=>{
+      stopTimes(d).forEach(t=>{
+        h+=`<div class="agrow" data-row="${t.row}" data-dayid="${d.id}">`
+         + `<span class="agt">${fmtClock(t.start)}</span>`
+         + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
+         + `<span class="agn">${C[t.row].name}</span>`
+         + `<span class="agm">${d.crew}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
+      });
+    });
+    h+=`</div></div>`;
+  });
+  return h||`<p class="nothingyet">Nothing scheduled.</p>`;
+}
+let calView='month', calAnchor=(SEASON[0]||todayISO());
+function calTitle(){
+  if(calView==='month'){ const [y,m]=calAnchor.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; }
+  if(calView==='agenda') return 'Schedule';
+  if(calView==='day') return `${DOW3[dateOf(calAnchor).getDay()]} ${fmtMDYYYY(calAnchor)}`;
+  const s=addDays(calAnchor,-dateOf(calAnchor).getDay()), e=addDays(s,6);
+  const [sy,sm,sd]=s.split('-'), [ey,em,ed]=e.split('-');
+  return sm===em ? `${MONTHS[+sm-1]} ${+sd} – ${+ed}, ${sy}`
+                 : `${MONTHS[+sm-1]} ${+sd} – ${MONTHS[+em-1]} ${+ed}, ${ey}`;
+}
+function calShift(n){
+  if(calView==='month'){ const d=dateOf(calAnchor+''); d.setMonth(d.getMonth()+n); d.setDate(1);
+    calAnchor=isoOf(d); }
+  else if(calView==='week') calAnchor=addDays(calAnchor,7*n);
+  else if(calView==='day')  calAnchor=addDays(calAnchor,n);
+  renderCalendar();
+}
 function renderCalendar(){
   const wrap=document.getElementById('calwrap');
-  const dates=SPEC.calendar.map(c=>c.date).sort();
-  if(!dates.length){ wrap.innerHTML=''; return; }
-  // group the calendar's own dates by month, then pad each grid to whole weeks
-  const byMonth={};
-  dates.forEach(dt=>{ const k=dt.slice(0,7); (byMonth[k]=byMonth[k]||[]).push(dt); });
-  let html='';
-  Object.keys(byMonth).sort().forEach(k=>{
-    const [y,m]=k.split('-').map(Number);
-    const first=new Date(y,m-1,1), last=new Date(y,m,0).getDate();
-    html+=`<div class="calmonth"><h2>${MONTHS[m-1]} ${y}</h2><div class="calgrid">`;
-    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>html+=`<div class="caldow">${d}</div>`);
-    for(let i=0;i<first.getDay();i++) html+=`<div class="calcell off"></div>`;
-    for(let dnum=1;dnum<=last;dnum++){
-      const iso=`${y}-${String(m).padStart(2,'0')}-${String(dnum).padStart(2,'0')}`;
-      const ci=SPEC.calendar.find(c=>c.date===iso);
-      const ds=days.filter(x=>x.date===iso).sort((a,b)=>a.crew.localeCompare(b.crew));
-      const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y,m-1,dnum).getDay()];
-      if(!ci && !ds.length){ html+=`<div class="calcell empty"><div class="calnum">${dnum}</div></div>`; continue; }
-      const tag=ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'';
-      let inner=`<div class="calnum">${dnum}<small>${dow}</small>${tag}</div>`;
-      let stops=0, boxes=0, hrs=0;
-      ds.forEach(d=>{
-        const c=dayCalc(d); stops+=d.stops.length; boxes+=dayBoxes(d); hrs+=c.total/60;
-        const names=d.stops.map(r=>C[r].name.split('|')[0].trim()).join(', ');
-        inner+=`<div class="calcrew"><b>${d.crew.replace('Crew ','C')}</b> · `
-             + `${d.stops.length} stop${d.stops.length===1?'':'s'}`
-             + `<span class="calnames">${names}</span></div>`;
-      });
-      if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
-                         + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')+`</div>`;
-      html+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}" `
-          + `data-date="${iso}">${inner}</div>`;
-    }
-    html+=`</div></div>`;
+  const nav=calView!=='agenda';
+  wrap.innerHTML=`<div class="calbar">
+      <button class="calbtn" id="caltoday">Today</button>
+      ${nav?`<button class="calnav" id="calprev" aria-label="Previous">‹</button>
+      <button class="calnav" id="calnext" aria-label="Next">›</button>`:''}
+      <h2 class="caltitle">${calTitle()}</h2>
+      <select class="calsel" id="calviewsel">
+        <option value="day">Day</option><option value="week">Week</option>
+        <option value="month">Month</option><option value="agenda">Schedule</option>
+      </select>
+    </div><div id="calbodywrap">${
+      calView==='month'?monthHTML(calAnchor):
+      calView==='week' ?weekHTML(calAnchor):
+      calView==='day'  ?dayHTML(calAnchor):agendaHTML()}</div>`;
+  document.getElementById('calviewsel').value=calView;
+  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; renderCalendar(); };
+  const TODAY=todayISO();
+  document.getElementById('caltoday').onclick=()=>{
+    // "Today" outside the season would land on an empty screen -- fall back to
+    // the first date that actually has work.
+    calAnchor = SEASON.includes(TODAY) ? TODAY
+              : (SEASON.find(dt=>calDaysOn(dt).length) || SEASON[0]);
+    renderCalendar();
+  };
+  if(nav){ document.getElementById('calprev').onclick=()=>calShift(-1);
+           document.getElementById('calnext').onclick=()=>calShift(1); }
+  wrap.querySelectorAll('.calcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
+    c.onclick=()=>{ calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
-  wrap.innerHTML=html;
-  wrap.querySelectorAll('.calcell[data-date]').forEach(c=>{
-    c.onclick=()=>{ selDate=c.dataset.date; focusDayId=null; setView('days'); };
+  wrap.querySelectorAll('[data-row]').forEach(el=>{
+    el.onclick=e=>{ e.stopPropagation(); openStopPeek(+el.dataset.row, el.dataset.dayid); };
   });
+  wrap.querySelectorAll('.calnight[data-dayid]').forEach(el=>{
+    el.onclick=()=>{ selDate=days.find(d=>d.id===el.dataset.dayid).date;
+                     focusDayId=el.dataset.dayid; setView('days'); };
+  });
+}
+/** Google-Cal-style event peek: the stop's real detail, plus the two actions
+ *  that already exist elsewhere in the tool (open the day, print the sheet). */
+function openStopPeek(row,dayId){
+  const c=C[row], d=days.find(x=>x.id===dayId);
+  const t=(stopTimes(d).find(x=>x.row===row))||{};
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // addrParts() repairs the six source rows that jam the whole address into
+  // one cell -- using c.street raw duplicates the state on those.
+  const ap=addrParts(c);
+  const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
+             .filter(Boolean).join(', ');
+  document.getElementById('peekbody').innerHTML=`
+    <h3>${esc(c.name)}</h3>
+    <p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
+       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(d.crew)}</p>
+    ${addr?`<p class="pkrow">📍 ${esc(addr)}</p>`:''}
+    ${c.phone?`<p class="pkrow">📞 ${esc(c.phone)}</p>`:''}
+    ${c.email?`<p class="pkrow">✉ ${esc(c.email)}</p>`:''}
+    <p class="pkrow">📦 ${c.boxes||'—'} boxes · ⏱ ${(effH(d,row)/(d.stacked||1)).toFixed(2)}h
+       this crew${(d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}
+       ${c.people?` · ${c.people} people`:''}</p>
+    ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
+    ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}`;
+  document.getElementById('peekopen').onclick=()=>{
+    peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
+  document.getElementById('peekprint').onclick=()=>{
+    peekdlg.close(); printManifests([d],`${d.crew} — ${fmtMDYYYY(d.date)}`); };
+  peekdlg.showModal();
 }
 let viewMode='days';
 function setView(v){
@@ -2680,7 +2947,9 @@ function manifestHTML(d){
   if(anchored && order.length) clock+=leg(0,N[order[0]])/60;
   order.forEach((r,i)=>{
     const c=C[r], mins=effH(d,r)*60/(d.stacked||1);
-    const addr=[c.street,[c.city,c.st].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' · ');
+    const ap=addrParts(c);   // repairs the rows that jam the whole address into one cell
+    const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
+               .filter(Boolean).join(' · ');
     const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
       <div class="nm">${esc(c.name)}</div>
