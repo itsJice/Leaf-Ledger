@@ -18,6 +18,10 @@ import os
 import rules
 import schedule as S
 
+# Clients installed at no charge (donations). Kept in client_config.json with
+# every other named-client rule so no name is hard-coded here.
+NO_CHARGE = S.CLIENT_CONFIG.get("no_charge", {})
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 OUT = os.path.join(HERE, "review.html")
@@ -75,6 +79,7 @@ for c in sched["all_clients"]:
         "installFee": c.get("install_fee_2026"),
         "takedownFee": c.get("takedown_fee_2026"),
         "invoice25": c.get("invoice_2025_total"),
+        "noCharge": NO_CHARGE.get(c["name"], ""),
         "repairNotes": c.get("production_notes", "") or "",
         "install24": c.get("install_fee_2024"), "storage24": c.get("storage_fee_2024"),
         "install25": c.get("install_fee_2025"), "storage25": c.get("storage_fee_2025"),
@@ -2307,6 +2312,9 @@ const UPLIFT = 1.05;
 function price2026(c){
   const S = typeof c.storageFee==='number' ? c.storageFee : 0;
   const R = c.invoice25;
+  // A donated install is $0 on purpose -- it must read as free, never as
+  // "we forgot to price this".
+  if(c.noCharge)            return {inst:0, tdwn:0, stor:0, total:0, basis:c.noCharge};
   if(c.cat==='M Crowd')     return {basis:'Contract — M Crowd billed separately'};
   if(/carlton woods|woodlands cc/i.test(c.name))
                             return {basis:'Club contract — priced separately'};
