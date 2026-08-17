@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Respons
 from pydantic import BaseModel
 from typing import Any, Optional, List
 from collections import Counter
+from decimal import Decimal, InvalidOperation
 import asyncpg
 import os
 import re
@@ -920,65 +921,714 @@ def _fuzzy_variants(term: str, vocab: set, maxd: int) -> list:
     return hits
 
 
-async def _search_products_db(conn, *, search, price_min, price_max,
-                              supplier_ids, ids, limit, offset, build_facets):
-    """Warm-up fallback: answer a search straight from the database.
+# ─── SQL-served facets ────────────────────────────────────────────────────────
+# The sidebar is the last thing the in-memory index does that SQL did not, so it
+# is the last thing standing between us and deleting ~892 MB of resident memory.
+#
+# Two measurements on the production instance shape the implementation:
+#   * touching raw_data at all costs ~15 s for a full-catalog pass — 145 MB of
+#     TOAST to fetch and parse for 166k rows. So a facet build must make at most
+#     ONE pass, and must not make it when the answer is already known;
+#   * as soon as any indexable predicate narrows the scan, that same pass drops
+#     to ~0.2 s. Keyword, supplier and price all narrow.
+#
+# Hence the shape below: ONE materialised pass that extracts every dimension in a
+# single scan and then aggregates seven times over the tuplestore (seven separate
+# GROUP BYs would pay the 15 s seven times over), plus a cache for the unfiltered
+# counts — the one case nothing can narrow, and the case most page loads ask for.
+_FACET_DIMS = ("categories", "colors", "sizes", "finishes",
+               "availability", "suppliers", "product_types")
 
-    Used only while the in-memory index is still building. It covers the
-    column-backed filters (keyword, price, supplier, ids) so the catalog shows
-    real products immediately; the richer facet filters (colour/size/finish…)
-    live in the index and are simply not applied during this brief window, which
-    only ever widens results, never hides the catalog. `warming` lets the client
-    show a "still loading" hint if it wants. Once the index is ready every
-    request returns to the fast in-memory path automatically.
+_FACET_TTL = int(os.environ.get("SEARCH_FACET_TTL", _SEARCH_TTL))
+# Unfiltered baseline: the counts for "no search, nothing selected". They only
+# change when someone runs an import.
+_FACET_CACHE: dict = {"ts": 0.0, "facets": None, "total": 0}
+_FACET_BUILD_LOCK = _asyncio.Lock()
+_facet_build_task = None
+_FACET_DISK_VERSION = 1
+# How long a cold request will wait for the baseline before giving up on it and
+# serving a sidebar-less page. The build itself keeps running either way.
+_FACET_COLD_WAIT = float(os.environ.get("SEARCH_FACET_COLD_WAIT", 8))
+# Exact hits below this make a query look like a typo and unlock fuzzy matching.
+_FUZZY_MIN_HITS = int(os.environ.get("SEARCH_FUZZY_MIN_HITS", 5))
+# Typo-correction vocabulary, built by the database (see _load_sql_vocab).
+_SQL_VOCAB_CACHE: dict = {"ts": 0.0, "vocab": None}
+
+# migrations/006 adds `product_facets`: a narrow, trigger-maintained projection
+# of the facet values (52 MB against the 500 MB products table). Reading a colour
+# or a category from it costs an index lookup instead of detoasting raw_data for
+# 166k rows. The JSONB expressions below stay correct if it is absent, so this
+# file works on either schema and just gets faster when the migration lands.
+_FACET_SOURCE: dict = {"probed": False, "has_pf": False, "has_blob": False}
+# The dimensions product_facets actually covers. supplier_id and availability are
+# plain products columns (no TOAST, already indexed) and product_type falls back
+# to raw_data on 82% of rows, so none of those three gain anything from the join.
+_PF_DIMS = ("categories", "colors", "sizes", "finishes")
+
+# Sizes are grouped into half-inch buckets. Python's round() is half-to-even, so
+# the index buckets 1.25" down to 1.0" where a naive SQL round() gives 1.5";
+# reproduced here so the two paths agree on every bucket.
+_SIZE_BUCKET_SQL = """CASE WHEN {v} IS NULL THEN NULL ELSE
+    (CASE WHEN ({v} * 2) - floor({v} * 2) = 0.5 AND (floor({v} * 2))::bigint % 2 = 0
+          THEN floor({v} * 2) ELSE round({v} * 2) END) / 2 END"""
+# The bucket's label, formatted the way "%g" does it (20.0 -> "20", 2.5 -> "2.5").
+# Applied to the ~80 grouped buckets, never to the 166k rows behind them.
+_SIZE_LABEL_SQL = "rtrim(rtrim(to_char({v}, 'FM9999990.0'), '0'), '.')"
+
+
+async def _facet_source_probe(conn) -> tuple[bool, bool]:
+    """(product_facets exists, it carries search_blob). Probed once per process.
+
+    `search_blob` is the flattened raw_data text the in-memory index searches.
+    Until it exists the SQL path can only match name/description/sku, which is
+    the one real recall gap between the two paths; the moment the column and its
+    trigram index land, this picks it up with no further code change.
     """
-    where = ["p.is_active = TRUE"]
-    args: list = []
+    if _FACET_SOURCE["probed"]:
+        return _FACET_SOURCE["has_pf"], _FACET_SOURCE["has_blob"]
+    has = blob = False
+    try:
+        row = await conn.fetchrow("""
+            SELECT to_regclass('public.product_facets') AS t,
+                   EXISTS (SELECT 1 FROM information_schema.columns
+                            WHERE table_schema = 'public' AND table_name = 'product_facets'
+                              AND column_name = 'search_blob') AS blob""")
+        has = bool(row and row["t"])
+        blob = has and bool(row["blob"])
+    except Exception as e:  # noqa: BLE001 — a failed probe just means "use raw_data"
+        print(f"facet source probe failed, using raw_data paths: {e}")
+    _FACET_SOURCE.update(probed=True, has_pf=has, has_blob=blob)
+    print(f"facets reading from {'product_facets' if has else 'products.raw_data'}"
+          f"{'; keyword search includes search_blob' if blob else ''}")
+    return has, blob
 
-    for t in [w for w in (search or "").split() if w]:
-        args.append(f"%{t}%")
-        i = len(args)
-        where.append(f"(p.name ILIKE ${i} OR p.description ILIKE ${i} OR p.supplier_sku ILIKE ${i})")
-    if price_min is not None:
-        args.append(price_min); where.append(f"p.current_price >= ${len(args)}")
-    if price_max is not None:
-        args.append(price_max); where.append(f"p.current_price <= ${len(args)}")
-    sup = [int(x) for x in _csv_list(supplier_ids) if x.isdigit()]
-    if sup:
-        args.append(sup); where.append(f"p.supplier_id = ANY(${len(args)}::int[])")
-    id_list = [int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()] if ids is not None else None
-    if id_list is not None:
-        args.append(id_list); where.append(f"p.id = ANY(${len(args)}::int[])")
 
-    wsql = " AND ".join(where)
+def _facet_exprs(has_pf: bool) -> dict:
+    """SQL for each faceted value, keyed by the short name used everywhere below.
+
+    These must agree value-for-value with what _build_search_index puts in the
+    in-memory rows, or the two paths disagree on counts. Note `categories` reads
+    category_group with NO fallback to the (much sparser, slug-shaped) category
+    column, and `colors` reads the multi-valued color_families — not
+    normalized.color, which is a different, single-valued thing.
+
+    `cfam_kind` exists because the two sources spell "many colours" differently:
+    a jsonb array in raw_data, a text[] in product_facets. Overlap and unnest
+    differ accordingly.
+    """
+    if has_pf:
+        # product_facets stores size_in as text, so it has to be validated before
+        # the cast — one bad row would otherwise error the whole sidebar. The
+        # exponent branch matters because jsonb renders some numbers that way.
+        size = ("CASE WHEN pf.norm_size_in ~ '^-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?$' "
+                "THEN pf.norm_size_in::numeric END")
+        exprs = {
+            "join": "JOIN product_facets pf ON pf.product_id = p.id",
+            "cat": "NULLIF(pf.category_group, '')",
+            "fin": "NULLIF(pf.norm_finish, '')",
+            "cfam": "pf.color_families",
+            "cfam_kind": "array",
+            "size": size,
+        }
+    else:
+        # size_in is stored as a JSON number on every row that has one, so the
+        # type check answers for free; the regex is a guard against a future
+        # importer writing it as text, and never actually runs today (a JSON null
+        # makes ->> return SQL NULL, which the regex short-circuits on).
+        size = ("CASE WHEN jsonb_typeof(p.raw_data->'normalized'->'size_in') = 'number' "
+                "     THEN (p.raw_data->'normalized'->>'size_in')::numeric "
+                "     WHEN p.raw_data->'normalized'->>'size_in' ~ '^-?[0-9]+(\\.[0-9]+)?$' "
+                "     THEN (p.raw_data->'normalized'->>'size_in')::numeric END")
+        exprs = {
+            "join": "",
+            "cat": "NULLIF(p.raw_data->>'category_group', '')",
+            "fin": "NULLIF(p.raw_data->'normalized'->>'finish', '')",
+            "cfam": ("CASE WHEN jsonb_typeof(p.raw_data->'color_families') = 'array' "
+                     "THEN p.raw_data->'color_families' END"),
+            "cfam_kind": "jsonb",
+            "size": size,
+        }
+    exprs.update({
+        "szn": _SIZE_BUCKET_SQL.format(v=f"({size})"),
+        # Neither of these gains anything from product_facets: availability and
+        # style are plain products columns, and product_type falls through to
+        # raw_data on the 82% of rows where style is empty either way.
+        "ptype": f"NULLIF({PRODUCT_TYPE_SQL}, '')",
+        "avail": f"({_availability_bucket_sql('btrim(p.availability)')})",
+        "sid": "p.supplier_id",
+    })
+    return exprs
+
+
+def _dim_predicate(dim: str, ref: dict, placeholder: str) -> str:
+    """"This row is inside the user's selection for `dim`" — over `ref`, which is
+    either the raw p.*/pf.* expressions (items query) or CTE aliases (facets).
+
+    COALESCE to false throughout: a NULL here would poison the drill-down
+    arithmetic and silently drop the row from every facet.
+    """
+    if dim == "colors":
+        if ref.get("cfam_kind") == "array":
+            return f"COALESCE({ref['cfam']} && {placeholder}::text[], false)"
+        return f"COALESCE({ref['cfam']} ?| {placeholder}::text[], false)"
+    if dim == "suppliers":
+        return f"COALESCE({ref['sid']} = ANY({placeholder}::int[]), false)"
+    if dim == "sizes":
+        # Compared as numbers, not as their labels — "2.5" and "2.50" are the
+        # same bucket, and it saves formatting every row just to filter it.
+        return f"COALESCE({ref['szn']} = ANY({placeholder}::numeric[]), false)"
+    col = {"categories": "cat", "finishes": "fin",
+           "availability": "avail", "product_types": "ptype"}[dim]
+    return f"COALESCE({ref[col]} = ANY({placeholder}::text[]), false)"
+
+
+def _facet_query(exprs: dict, base_where: str, base_args: list,
+                 sel: dict, dims: tuple) -> tuple[str, list]:
+    """One materialised pass, then one GROUP BY per requested dimension.
+
+    Drill-down is arithmetic rather than seven differently-filtered queries: the
+    CTE carries `nfail`, the number of *selected* dimensions this row fails. A
+    row belongs in dimension d's counts when it fails nothing except possibly d
+    itself — `nfail = (NOT passes_d)::int`, which collapses to `nfail = 0` for a
+    dimension the user has not touched. That is exactly the in-memory rule
+    (count where nfail==0, plus the single failing dimension when nfail==1), and
+    it means every dimension is counted in the same scan.
+    """
+    args = list(base_args)
+
+    def add(value) -> str:
+        args.append(value)
+        return f"${len(args)}"
+
+    # Built against p.*/pf.* because a CTE cannot reference its own output aliases.
+    raw_ref = {"cat": exprs["cat"], "cfam": exprs["cfam"], "szn": "sb.szn",
+               "fin": exprs["fin"], "avail": exprs["avail"], "ptype": exprs["ptype"],
+               "sid": exprs["sid"], "cfam_kind": exprs["cfam_kind"]}
+
+    # Hard predicates that touch only product_facets can be applied before the
+    # join. Sizes is spelled inline here rather than through the lateral so it
+    # stays pf-only.
+    pf_ref = dict(raw_ref, szn=_SIZE_BUCKET_SQL.format(v=f"({exprs['size']})"))
+
+    pass_cols, nfail_terms = [], []
+    pf_hard: list[str] = []       # applied to product_facets BEFORE the join
+    hard: list[str] = []          # applied after it
+    drill_cte, drill_pf = [], []  # the "at least one passes" term, both spellings
+    drill_all_pf = True           # can that term be answered before the join?
+
+    for dim in _FACET_DIMS:
+        if not sel.get(dim):
+            continue
+        ph = add(sel[dim])
+        pred = _dim_predicate(dim, raw_ref, ph)
+        pf_only = bool(exprs["join"]) and dim in _PF_DIMS
+        pf_pred = f"({_dim_predicate(dim, pf_ref, ph)})" if pf_only else None
+        if dim in dims:
+            pass_cols.append(f"({pred}) AS ps_{dim}")
+            nfail_terms.append(f"(NOT ({pred}))::int")
+            drill_cte.append(f"({pred})")
+            drill_pf.append(pf_pred or f"({pred})")
+            drill_all_pf = drill_all_pf and pf_only
+        elif pf_only:
+            pf_hard.append(pf_pred)
+        else:
+            # This dimension's own counts are coming from the cache, so no branch
+            # here ever wants a row that fails it. Pushing the selection into the
+            # scan instead of into `nfail` is the difference between a GIN lookup
+            # over a few thousand rows and materialising all 166k — this is the
+            # "user clicked one colour" path, so it is the one that matters.
+            hard.append(f"({pred})")
+    nfail = " + ".join(nfail_terms) or "0"
+
+    # Every branch wants rows failing at most one selected dimension, so with two
+    # or more of them at least one must pass. Weaker than nfail <= 1, but unlike
+    # nfail it is a plain OR the planner can answer from indexes — and when every
+    # drilled dimension lives in product_facets it can be answered before the join.
+    if len(drill_cte) >= 2:
+        if drill_all_pf:
+            pf_hard.append("(" + " OR ".join(drill_pf) + ")")
+        else:
+            hard.append("(" + " OR ".join(drill_cte) + ")")
+
+    # Filtering the 52 MB projection first and only then fetching the matching
+    # product rows. Without this fence the planner sees two PK-ordered inputs and
+    # picks a merge join, which walks products_pkey across 160k rows in random
+    # heap order — measured at 39 s for a two-facet drill-down.
+    # Only when there is something to filter on: fencing an unfiltered pass just
+    # buys a 166k-row tuplestore (measured 58.7s either way — that pass is bound
+    # by detoasting raw_data for product_type, not by the join), and a keyword
+    # query is better served by the products-side trigram bitmap.
+    join_sql, pf_cte = exprs["join"], ""
+    if pf_hard:
+        pf_cte = ("pf_sel AS MATERIALIZED (SELECT * FROM product_facets pf WHERE "
+                  + " AND ".join(pf_hard) + "), ")
+        join_sql = "JOIN pf_sel pf ON pf.product_id = p.id"
+
+    where_sql = " AND ".join([base_where, *hard])
+
+    def drill(dim: str) -> str:
+        return f"b.nfail = (NOT b.ps_{dim})::int" if sel.get(dim) else "b.nfail = 0"
+
+    branches = [
+        # The exact total of the current selection, free of charge in this pass —
+        # so a faceted request never has to fall back on the capped count.
+        f"SELECT '__total__' AS dim, NULL::text AS val, NULL::int AS sid, "
+        f"count(*)::int AS n FROM base b WHERE b.nfail = 0"
+    ]
+    branch_sql = {
+        "categories": ("SELECT 'categories', b.cat, NULL::int, count(*)::int FROM base b "
+                       f"WHERE {drill('categories')} AND b.cat IS NOT NULL GROUP BY b.cat"),
+        "finishes": ("SELECT 'finishes', b.fin, NULL::int, count(*)::int FROM base b "
+                     f"WHERE {drill('finishes')} AND b.fin IS NOT NULL GROUP BY b.fin"),
+        "sizes": (f"SELECT 'sizes', {_SIZE_LABEL_SQL.format(v='b.szn')}, NULL::int, count(*)::int "
+                  f"FROM base b WHERE {drill('sizes')} AND b.szn IS NOT NULL GROUP BY b.szn"),
+        "availability": ("SELECT 'availability', b.av, NULL::int, count(*)::int FROM base b "
+                         f"WHERE {drill('availability')} AND b.av IS NOT NULL GROUP BY b.av"),
+        "product_types": ("SELECT 'product_types', b.ptype, NULL::int, count(*)::int FROM base b "
+                          f"WHERE {drill('product_types')} AND b.ptype IS NOT NULL GROUP BY b.ptype"),
+        "suppliers": ("SELECT 'suppliers', COALESCE(s.name, b.sid::text), b.sid, count(*)::int "
+                      "FROM base b LEFT JOIN suppliers s ON s.id = b.sid "
+                      f"WHERE {drill('suppliers')} AND b.sid IS NOT NULL GROUP BY b.sid, s.name"),
+        # colors is the multi-valued dimension: one row can be Red AND Gold, so it
+        # is counted through an unnest rather than a plain GROUP BY.
+        "colors": ("SELECT 'colors', f, NULL::int, count(*)::int FROM base b, LATERAL "
+                   + ("unnest(b.cfam) f" if exprs["cfam_kind"] == "array"
+                      else "jsonb_array_elements_text(b.cfam) f")
+                   + f" WHERE b.cfam IS NOT NULL AND {drill('colors')} GROUP BY f"),
+    }
+    branches += [branch_sql[d] for d in dims if d in branch_sql]
+
+    # Only carry the dimensions some branch is actually going to count. This is
+    # not tidiness: product_type falls back to raw_data on 82% of rows, so a
+    # request whose product_types facet comes from the cache can avoid touching
+    # TOAST at all and run entirely off product_facets.
+    col_sql = {
+        "categories": f"{exprs['cat']} AS cat",
+        "colors": f"{exprs['cfam']} AS cfam",
+        "finishes": f"{exprs['fin']} AS fin",
+        "availability": f"{exprs['avail']} AS av",
+        "product_types": f"{exprs['ptype']} AS ptype",
+        "suppliers": f"{exprs['sid']} AS sid",
+        "sizes": "sb.szn AS szn",
+    }
+    select_cols = [col_sql[d] for d in _FACET_DIMS if d in dims]
+    select_cols += pass_cols
+    select_cols.append(f"({nfail}) AS nfail")
+
+    # The lateral exists so the size expression is pulled out of raw_data ONCE
+    # per row instead of four times by the rounding arithmetic.
+    lateral = ""
+    if "sizes" in dims or sel.get("sizes"):
+        lateral = f"""LEFT JOIN LATERAL (
+                SELECT {_SIZE_BUCKET_SQL.format(v='sv.v')} AS szn
+                FROM (SELECT {exprs['size']} AS v) sv
+            ) sb ON TRUE"""
+
+    sql = f"""
+        WITH {pf_cte}base AS MATERIALIZED (
+            SELECT {', '.join(select_cols)}
+            FROM products p
+            {join_sql}
+            {lateral}
+            WHERE {where_sql}
+        )
+        {' UNION ALL '.join(branches)}
+    """
+    return sql, args
+
+
+def _shape_facets(rows, dims) -> tuple[dict, Optional[int]]:
+    """Group the flat (dim, value, id, count) result into the sidebar payload.
+
+    Ordering and truncation copy the in-memory path exactly: count descending
+    then value, capped at 80 — except sizes, which sort numerically so 10" lands
+    after 9" instead of after 1", and drop the 0" noise bucket.
+    """
+    buckets: dict = {d: [] for d in dims}
+    total: Optional[int] = None
+    for r in rows:
+        dim = r["dim"]
+        if dim == "__total__":
+            total = int(r["n"] or 0)
+            continue
+        if dim not in buckets:
+            continue
+        value = r["val"]
+        if value is None or not str(value).strip():
+            continue
+        entry = {"value": str(value), "count": int(r["n"] or 0)}
+        if r["sid"] is not None:
+            entry["id"] = int(r["sid"])
+        buckets[dim].append(entry)
+
+    def _num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 1e9
+
+    out = {}
+    for dim, entries in buckets.items():
+        if dim == "sizes":
+            entries = [e for e in entries if _num(e["value"]) > 0]
+            entries.sort(key=lambda e: _num(e["value"]))
+        else:
+            entries.sort(key=lambda e: (-e["count"], str(e["value"]).lower()))
+        out[dim] = entries[:80]
+    return out, total
+
+
+def _empty_facets() -> dict:
+    return {d: [] for d in _FACET_DIMS}
+
+
+def _facets_fresh() -> bool:
+    return (_FACET_CACHE["facets"] is not None
+            and (_time.time() - _FACET_CACHE["ts"]) < _FACET_TTL)
+
+
+def _facet_disk_path() -> str:
+    return os.path.join(_SEARCH_DISK_CACHE, f"facets-v{_FACET_DISK_VERSION}.json.gz")
+
+
+def _load_facets_from_disk() -> bool:
+    """Warm the unfiltered baseline from a previous run. Costs the database
+    nothing, which is the entire point of this exercise."""
+    path = _facet_disk_path()
+    try:
+        if not os.path.exists(path):
+            return False
+        age = _time.time() - os.path.getmtime(path)
+        if age >= _FACET_TTL:
+            return False
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        facets = payload.get("facets")
+        if not isinstance(facets, dict) or not facets:
+            return False
+        _FACET_CACHE.update(ts=_time.time() - age, facets=facets,
+                            total=int(payload.get("total") or 0))
+        vocab = payload.get("vocab")
+        if isinstance(vocab, list) and vocab:
+            _SQL_VOCAB_CACHE.update(ts=_time.time() - age, vocab=set(vocab))
+        return True
+    except Exception as e:  # noqa: BLE001 — a bad cache must never block a request
+        print(f"facet disk cache unreadable, rebuilding: {e}")
+        return False
+
+
+def _save_facets_to_disk() -> None:
+    path = _facet_disk_path()
+    try:
+        os.makedirs(_SEARCH_DISK_CACHE, exist_ok=True)
+        payload = {"facets": _FACET_CACHE["facets"], "total": _FACET_CACHE["total"],
+                   "vocab": sorted(_SQL_VOCAB_CACHE["vocab"] or ())}
+        tmp = f"{path}.{os.getpid()}.tmp"
+        with gzip.open(tmp, "wt", encoding="utf-8") as fh:
+            json.dump(payload, fh)
+        os.replace(tmp, path)
+    except Exception as e:  # noqa: BLE001 — caching is an optimisation
+        print(f"could not persist facet cache: {e}")
+
+
+async def _build_unfiltered_facets(conn) -> Optional[dict]:
+    """The no-search, nothing-selected counts. The one pass nothing can narrow
+    (~15 s), so it is computed once and cached hard — memory plus disk, the same
+    way the search index is, so a restart does not re-read the catalog."""
+    has_pf, _ = await _facet_source_probe(conn)
+    exprs = _facet_exprs(has_pf)
+    sql, args = _facet_query(exprs, "TRUE" if has_pf else "p.is_active = TRUE",
+                             [], {}, _FACET_DIMS)
+    started = _time.time()
+    rows = await conn.fetch(sql, *args)
+    if not rows:
+        return None  # a stub or a failure — never cache an empty sidebar
+    facets, total = _shape_facets(rows, _FACET_DIMS)
+    _FACET_CACHE.update(ts=_time.time(), facets=facets, total=int(total or 0))
+    _save_facets_to_disk()
+    print(f"unfiltered facets built in {_time.time() - started:.1f}s ({total} products)")
+    return facets
+
+
+def _ensure_facets_building() -> None:
+    """Kick off the baseline build without blocking this request.
+
+    A cold process would otherwise hold the first browse for ~15 s. Serving an
+    empty sidebar for one request and filling it on the next is the better trade,
+    and with the disk cache only a brand-new container ever sees it.
+    """
+    global _facet_build_task
+    if _facets_fresh():
+        return
+    if _facet_build_task is not None and not _facet_build_task.done():
+        return
+    if _load_facets_from_disk():
+        return
+
+    async def _bg():
+        async with _FACET_BUILD_LOCK:
+            if _facets_fresh():
+                return
+            conn = await get_conn()
+            try:
+                await _build_unfiltered_facets(conn)
+            except Exception as e:  # noqa: BLE001 — never let this kill the loop
+                print(f"unfiltered facet build failed: {e}")
+            finally:
+                await conn.close()
+
+    try:
+        _facet_build_task = _asyncio.create_task(_bg())
+    except RuntimeError:
+        pass  # no running loop (tests) — the next request will try again
+
+
+async def _load_sql_vocab(conn) -> set:
+    """The typo-correction vocabulary: ≥4-letter words from product names.
+
+    Same definition as _get_search_vocab, but the DISTINCT happens in the
+    database, so this moves ~117 KB of unique words instead of the catalog —
+    17k words, ~2.3 s, cached for a day. Only ever built when a query already
+    looks misspelt, so a correctly spelled search never pays for it.
+    """
+    cached = _SQL_VOCAB_CACHE["vocab"]
+    if cached and (_time.time() - _SQL_VOCAB_CACHE["ts"]) < _FACET_TTL:
+        return cached
+    try:
+        rows = await conn.fetch("""
+            SELECT DISTINCT m[1] AS w
+            FROM products p, LATERAL regexp_matches(lower(p.name), '[a-z]{4,}', 'g') m
+            WHERE p.is_active = TRUE
+        """)
+        vocab = {r["w"] for r in rows}
+    except Exception as e:  # noqa: BLE001 — typo tolerance is a bonus, not a feature gate
+        print(f"search vocabulary unavailable, typo tolerance off: {e}")
+        return set()
+    if not vocab:
+        return set()
+    _SQL_VOCAB_CACHE.update(ts=_time.time(), vocab=vocab)
+    if _FACET_CACHE["facets"]:
+        _save_facets_to_disk()  # ride along, so a restart keeps the vocabulary too
+    return vocab
+
+
+# A term is only ever fuzzy-matched when it is a *word*. Item numbers are
+# identifiers, not spellings: correcting N590321-2 by one edit hands the user a
+# different product, so anything carrying a digit or a separator stays exact.
+_WORD_RE = re.compile(r"^[a-z]{4,}$")
+
+
+async def _expand_terms(conn, terms: list[str]) -> tuple[list[tuple[str, list[str]]], bool]:
+    """Map each query term to the spellings worth matching.
+
+    Returns (term, variants) pairs — variants always lead with the term itself —
+    and whether anything was actually corrected. Only the minimal-edit group is
+    taken, so "wreathe" corrects to "wreath" and not also to "weather".
+    """
+    words = [t for t in terms if _WORD_RE.match(t)]
+    if not words:
+        return [(t, [t]) for t in terms], False
+    vocab = await _load_sql_vocab(conn)
+    if not vocab:
+        return [(t, [t]) for t in terms], False
+    expanded = False
+    out: list[tuple[str, list[str]]] = []
+    for t in terms:
+        variants = [t]
+        if _WORD_RE.match(t) and t not in vocab:
+            near = [w for w in _fuzzy_variants(t, vocab, 2 if len(t) >= 7 else 1) if w != t]
+            if near:
+                variants += near[:8]  # a huge correction set would be noise, not recall
+                expanded = True
+        out.append((t, variants))
+    return out, expanded
+
+
+async def _search_products_db(conn, *, search, price_min, price_max,
+                              supplier_ids, ids, limit, offset, build_facets,
+                              categories=None, colors=None, sizes=None, finishes=None,
+                              availability=None, product_types=None):
+    """Answer a faceted catalog search from Postgres.
+
+    This is a full replacement for the in-memory index, not just a warm-up
+    fallback: it applies every filter the sidebar can set, returns the same
+    drill-down facets, and tolerates typos. It exists because the index holds
+    ~892 MB resident and OOM-kills the web service.
+    """
     lim = max(1, min(limit, 500))
     off = max(0, offset)
+    terms = [w for w in (search or "").lower().split() if w]
 
-    # COUNT(*) OVER() used to ride along with the page, but it forces the planner
-    # to materialise every matching row just to number them - 13s+ once the
-    # catalog passed 166k rows. The page itself is served by an index-ordered
-    # scan that stops at LIMIT (~0.3s), and the total is counted separately with
-    # a cap, so an unfiltered browse never pays for a full scan.
-    rows = await conn.fetch(f"""
-        SELECT p.id, p.name, s.name AS supplier_name, p.supplier_sku, p.current_price,
-               p.image_urls, p.photo_url, p.raw_data
-        FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
-        WHERE {wsql}
-        ORDER BY p.name
-        LIMIT {lim} OFFSET {off}
-    """, *args)
+    sel: dict = {}
+    for dim, raw in (("categories", categories), ("colors", colors),
+                     ("finishes", finishes), ("availability", availability),
+                     ("product_types", product_types)):
+        values = _csv_list(raw)
+        if values:
+            sel[dim] = values
+    size_values = []
+    for value in _csv_list(sizes):
+        try:
+            size_values.append(Decimal(value))
+        except (InvalidOperation, ValueError):
+            continue  # a label the catalog never produced — ignore, don't 500
+    if size_values:
+        sel["sizes"] = size_values
+    sup = [int(x) for x in _csv_list(supplier_ids) if x.isdigit()]
+    if sup:
+        sel["suppliers"] = sup
+    id_list = [int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()] if ids is not None else None
 
-    # Exact up to the cap, then reported as "at least this many". The index is
-    # authoritative once warm; this only has to be good enough to page through.
-    capped = await conn.fetchval(f"""
-        SELECT COUNT(*) FROM (
-            SELECT 1 FROM products p WHERE {wsql} LIMIT {_DB_COUNT_CAP + 1}
-        ) x
-    """, *args)
-    total = int(capped or 0)
-    total_is_capped = total > _DB_COUNT_CAP
-    if total_is_capped:
-        total = _DB_COUNT_CAP
+    has_pf, has_blob = (await _facet_source_probe(conn)
+                        if (sel or build_facets or terms) else (False, False))
+    exprs = _facet_exprs(has_pf)
+    item_ref = {"cat": exprs["cat"], "cfam": exprs["cfam"], "szn": exprs["szn"],
+                "fin": exprs["fin"], "avail": exprs["avail"], "ptype": exprs["ptype"],
+                "sid": exprs["sid"], "cfam_kind": exprs["cfam_kind"]}
+    # Only reach for product_facets when a dimension it covers is being filtered
+    # on, or when the keyword has to search its blob. On a plain browse the extra
+    # join would only get in the way of the index-ordered scan.
+    blob_search = bool(has_blob and terms)
+    item_join = (exprs["join"] if (has_pf and (set(sel) & set(_PF_DIMS) or blob_search))
+                 else "")
+
+    def _build(term_variants):
+        """WHERE clauses + args for a given keyword expansion.
+
+        `base` is everything that is not a facet dimension (it narrows the facet
+        counts too); `dim_where` is the user's facet selections, which apply to
+        the result rows but are held out of their own facet's count.
+        """
+        args: list = []
+
+        def add(v):
+            args.append(v)
+            return f"${len(args)}"
+
+        base: list[str] = []
+        scores: list[str] = []
+        for term, variants in term_variants:
+            alts = []
+            for v in variants:
+                ph = add(f"%{v}%")
+                cols = [f"p.name ILIKE {ph}", f"p.description ILIKE {ph}",
+                        f"p.supplier_sku ILIKE {ph}"]
+                if blob_search:
+                    # The flattened raw_data values the index folds into its blob
+                    # — material, collection, type, UPC and so on. Without this
+                    # the SQL path loses ~30-70% of the rows on a keyword query.
+                    cols.append(f"pf.search_blob ILIKE {ph}")
+                alts.append("(" + " OR ".join(cols) + ")")
+            base.append(f"({' OR '.join(alts)})")
+            if len(alts) > 1:
+                scores.append(f"({alts[0]})::int")  # alts[0] is the literal spelling
+        if price_min is not None:
+            base.append(f"p.current_price >= {add(price_min)}")
+        if price_max is not None:
+            base.append(f"p.current_price <= {add(price_max)}")
+        if id_list is not None:
+            base.append(f"p.id = ANY({add(id_list)}::int[])")
+
+        base_args = list(args)
+        dim_where = [_dim_predicate(d, item_ref, add(v)) for d, v in sel.items()]
+        return base, base_args, dim_where, args, scores
+
+    def _where(conds: list, scoped: bool) -> str:
+        """AND the conditions, adding is_active only where it isn't implied.
+
+        product_facets holds active products and nothing else, so once it is
+        joined, repeating `p.is_active` only gives the planner a reason to start
+        from products — measured as a merge join walking products_pkey over
+        160k rows (13 s) instead of a bitmap scan of the 52 MB projection.
+        """
+        parts = (conds if scoped else ["p.is_active = TRUE", *conds])
+        return " AND ".join(parts) if parts else "TRUE"
+
+    # ORDER BY name LIMIT 48 is served by idx_products_active_name, which is what
+    # makes a browse ~0.3 s instead of sorting 166k rows. But that plan walks the
+    # catalog in name order until it has found 48 matches, so it collapses when
+    # the filters are selective: "ornament" AND colour=Red matches 106 rows out
+    # of 166k and the same query measured 44 s. Fetching the matches first and
+    # sorting those (an OFFSET 0 optimisation fence) measured 5.4 s on the same
+    # data — and the reverse on an unfiltered browse, where the fence would mean
+    # materialising the whole catalog. Neither plan is right for both, and the
+    # planner cannot tell them apart, so we choose: one filter is assumed
+    # unselective enough for the index walk, two or more are not.
+    narrowers = (bool(terms) + (price_min is not None or price_max is not None)
+                 + (id_list is not None) + len(sel))
+    fenced = narrowers >= 2
+
+    async def _page(term_variants):
+        conds, base_args, dim_where, args, scores = _build(term_variants)
+        wsql = _where([*conds, *dim_where], scoped=bool(item_join))
+        base_where = _where(conds, scoped=has_pf)
+        # Exact spellings rank ahead of corrected ones. Only sorted by relevance
+        # when something actually was corrected — otherwise every row scores the
+        # same and the name ordering is all that matters.
+        rank = f"({' + '.join(scores)})" if scores else None
+        # The index sorts on Python's name.lower(), i.e. raw codepoints. This
+        # database is en_US.UTF-8, whose collation ignores leading punctuation:
+        # it puts '.25-.5" Green Putka Pods' where the index puts
+        # '"Caroline\'s Treasures'. Two orders means offset pagination breaks
+        # the moment the backend flips paths — duplicates and skipped rows — so
+        # SQL has to reproduce the codepoint order exactly, NULL names included.
+        name_key = lambda t: f"""lower(coalesce({t}.name, '')) COLLATE "C" """
+        select = f"""SELECT p.id, p.name, s.name AS supplier_name, p.supplier_sku,
+                   p.current_price, p.image_urls, p.photo_url, p.raw_data
+                   {(', ' + rank + ' AS _rank') if rank else ''}
+            FROM products p {item_join} LEFT JOIN suppliers s ON s.id = p.supplier_id
+            WHERE {wsql}"""
+        if fenced:
+            order = (f"ORDER BY t._rank DESC, {name_key('t')}" if rank
+                     else f"ORDER BY {name_key('t')}")
+            sql = f"SELECT * FROM ({select} OFFSET 0) t {order} LIMIT {lim} OFFSET {off}"
+        else:
+            order = (f"ORDER BY {rank} DESC, {name_key('p')}" if rank
+                     else f"ORDER BY {name_key('p')}")
+            sql = f"{select} {order} LIMIT {lim} OFFSET {off}"
+        rows = await conn.fetch(sql, *args)
+        return rows, wsql, args, base_where, base_args
+
+    async def _count(wsql, args) -> tuple[int, bool]:
+        # COUNT(*) OVER() used to ride along with the page, but it forces the
+        # planner to materialise every matching row just to number them - 13s+
+        # once the catalog passed 166k rows. Counted separately with a cap, so an
+        # unfiltered browse never pays for a full scan.
+        capped = int(await conn.fetchval(f"""
+            SELECT COUNT(*) FROM (
+                SELECT 1 FROM products p {item_join} WHERE {wsql} LIMIT {_DB_COUNT_CAP + 1}
+            ) x
+        """, *args) or 0)
+        return (_DB_COUNT_CAP, True) if capped > _DB_COUNT_CAP else (capped, False)
+
+    term_variants = [(t, [t]) for t in terms]
+    rows, wsql, args, base_where, base_args = await _page(term_variants)
+
+    # Typo tolerance, second attempt only. A correctly spelled query fills its
+    # page and stops here, paying nothing at all for this; only a query that came
+    # back nearly empty goes looking for near spellings, and even then only for
+    # terms that are words. A short page is proof the match set is small, so this
+    # decision costs no extra query.
+    if terms and len(rows) < lim and off + len(rows) < _FUZZY_MIN_HITS:
+        term_variants, expanded = await _expand_terms(conn, terms)
+        if expanded:
+            rows, wsql, args, base_where, base_args = await _page(term_variants)
+
+    facets, exact_total = None, None
+    if build_facets:
+        facets, exact_total = await _facets_for(conn, exprs, base_where, base_args, sel,
+                                                unfiltered=not (terms or price_min is not None
+                                                                or price_max is not None
+                                                                or id_list is not None))
+    if exact_total is not None:
+        # The facet pass already counted this exact result set, so the capped
+        # count would be a second scan for a worse answer. Skipping it also
+        # dodges a planner trap: LIMIT inside the count makes it favour a
+        # cheap-startup merge join that walks the products PK index (32s
+        # measured) instead of the index the page itself uses.
+        total, total_is_capped = exact_total, False
+    else:
+        total, total_is_capped = await _count(wsql, args)
 
     items = []
     for r in rows:
@@ -996,17 +1646,80 @@ async def _search_products_db(conn, *, search, price_min, price_max,
             "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
             "supplier_sku": r["supplier_sku"],
             "current_price": float(r["current_price"]) if r["current_price"] is not None else None,
-            "image_urls": imgs,
+            "image_urls": imgs[:6],  # same cap the index applies, so the payloads match
             "raw_data": {"normalized": {"color": norm.get("color"), "finish": norm.get("finish"),
                                         "size_in": norm.get("size_in"), "class": norm.get("class")}},
         })
 
     resp = {"items": items, "total": total or 0, "limit": limit, "offset": offset,
-            "warming": True, "total_is_capped": total_is_capped}
+            # Only a real warm-up when an index is coming. With SEARCH_INDEX_ENABLED=0
+            # this IS the search, and a permanent "still loading" hint would be a lie.
+            "warming": _INDEX_ENABLED, "total_is_capped": total_is_capped}
     if build_facets:
-        resp["facets"] = {"categories": [], "colors": [], "sizes": [], "finishes": [],
-                          "availability": [], "product_types": [], "suppliers": []}
+        resp["facets"] = facets if facets is not None else _empty_facets()
     return resp
+
+
+async def _facets_for(conn, exprs, base_where, base_args, sel,
+                      *, unfiltered: bool) -> tuple[dict, Optional[int]]:
+    """The sidebar for this request, computed as cheaply as it can be.
+
+    The trick that makes selection-only browsing affordable: a dimension is
+    counted ignoring its OWN selection, so when there is no search/price/id
+    filter and no OTHER dimension is selected, its counts are — by definition —
+    the unfiltered baseline. Clicking one colour therefore reads the colour list
+    straight from cache and only re-counts the other six, and an untouched
+    browse opens no facet query at all.
+    """
+    baseline = _FACET_CACHE["facets"] if _facets_fresh() else None
+    if baseline is None:
+        _ensure_facets_building()
+        # A cold process would otherwise serve one sidebar-less browse. Wait a
+        # bounded moment for the build rather than either blocking on the full
+        # pass or guaranteeing an empty first page; shielded, so timing out here
+        # leaves the build running for the next request.
+        task = _facet_build_task
+        if task is not None and _FACET_COLD_WAIT > 0:
+            try:
+                await _asyncio.wait_for(_asyncio.shield(task), _FACET_COLD_WAIT)
+            except Exception:  # noqa: BLE001 — timeout or a failed build; both fine
+                pass
+            if _facets_fresh():
+                baseline = _FACET_CACHE["facets"]
+
+    selected = {d for d in _FACET_DIMS if sel.get(d)}
+    from_cache, need = [], []
+    for dim in _FACET_DIMS:
+        others = selected - {dim}
+        if unfiltered and not others:
+            from_cache.append(dim)
+        else:
+            need.append(dim)
+
+    # A baseline dimension is served from cache or not at all — never by running
+    # the full-catalog pass inline, which is the 15 s the background build exists
+    # to keep off the request path. One browse with a thin sidebar beats a browse
+    # that times out.
+    facets = {d: (baseline[d] if baseline else []) for d in from_cache}
+    exact_total: Optional[int] = None
+    if not need:
+        # Nothing selected and no search: the whole answer is the baseline. The
+        # total deliberately still comes from the capped count — deriving it from
+        # the cache instead would make the same request report 166,029 warm and
+        # "5000+" cold, and a number that moves with cache state is worse than a
+        # number that is honestly approximate.
+        return facets, None
+    sql, args = _facet_query(exprs, base_where, base_args, sel, tuple(need))
+    try:
+        rows = await conn.fetch(sql, *args)
+    except Exception as e:  # noqa: BLE001 — a broken sidebar must not 500 the catalog
+        print(f"facet query failed: {e}")
+        rows = []
+    computed, exact_total = _shape_facets(rows, tuple(need))
+    facets.update(computed)
+    for dim in _FACET_DIMS:
+        facets.setdefault(dim, [])
+    return facets, exact_total
 
 
 @router.get("/search")
@@ -1048,6 +1761,8 @@ async def search_products(
                 conn, search=search, price_min=price_min, price_max=price_max,
                 supplier_ids=supplier_ids, ids=ids, limit=limit, offset=offset,
                 build_facets=offset <= 0,
+                categories=categories, colors=colors, sizes=sizes, finishes=finishes,
+                availability=availability, product_types=product_types,
             )
         finally:
             await conn.close()
@@ -1167,9 +1882,14 @@ async def search_products(
             "finishes": _by_count(counters["finishes"]),
             "availability": _by_count(counters["availability"]),
             "product_types": _by_count(counters["product_types"]),
+            # most_common() leaves equal-count suppliers in arbitrary order, which
+            # made this the one dimension whose ordering was not reproducible.
+            # Tie-break on the name, like every other dimension does.
             "suppliers": [
                 {"value": sup_names.get(sid, str(sid)), "id": sid, "count": n}
-                for sid, n in counters["suppliers"].most_common(80)
+                for sid, n in sorted(
+                    counters["suppliers"].items(),
+                    key=lambda kv: (-kv[1], str(sup_names.get(kv[0], kv[0])).lower()))[:80]
             ],
         }
     return resp
