@@ -948,7 +948,10 @@ _facet_build_task = None
 _FACET_DISK_VERSION = 1
 # How long a cold request will wait for the baseline before giving up on it and
 # serving a sidebar-less page. The build itself keeps running either way.
-_FACET_COLD_WAIT = float(os.environ.get("SEARCH_FACET_COLD_WAIT", 8))
+# 15s covers the measured worst case for the pf-only baseline on cold shared
+# buffers (9.3s); after the very first boot the disk cache answers instead. One
+# bounded wait on the first-ever browse beats guaranteeing it an empty sidebar.
+_FACET_COLD_WAIT = float(os.environ.get("SEARCH_FACET_COLD_WAIT", 15))
 # Exact hits below this make a query look like a typo and unlock fuzzy matching.
 _FUZZY_MIN_HITS = int(os.environ.get("SEARCH_FUZZY_MIN_HITS", 5))
 # Typo-correction vocabulary, built by the database (see _load_sql_vocab).
@@ -1003,7 +1006,7 @@ async def _facet_source_probe(conn) -> tuple[bool, bool]:
     return has, blob
 
 
-def _facet_exprs(has_pf: bool) -> dict:
+def _facet_exprs(has_pf: bool, has_new_cols: bool = False) -> dict:
     """SQL for each faceted value, keyed by the short name used everywhere below.
 
     These must agree value-for-value with what _build_search_index puts in the
@@ -1050,13 +1053,28 @@ def _facet_exprs(has_pf: bool) -> dict:
         }
     exprs.update({
         "szn": _SIZE_BUCKET_SQL.format(v=f"({size})"),
-        # Neither of these gains anything from product_facets: availability and
-        # style are plain products columns, and product_type falls through to
-        # raw_data on the 82% of rows where style is empty either way.
-        "ptype": f"NULLIF({PRODUCT_TYPE_SQL}, '')",
-        "avail": f"({_availability_bucket_sql('btrim(p.availability)')})",
         "sid": "p.supplier_id",
     })
+    exprs["pf_dims"] = _PF_DIMS
+    if has_pf and has_new_cols:
+        # migrations/007 precomputes product_type into product_facets.
+        # PRODUCT_TYPE_SQL falls through to raw_data on the 82% of rows where
+        # style is empty, and that single expression was why the unfiltered
+        # baseline cost ~59s: it detoasted the whole catalog. Reading the
+        # precomputed column keeps the baseline inside the cold-start wait,
+        # which is what makes the first browse of a fresh process show a
+        # sidebar instead of an empty one.
+        exprs.update({
+            "ptype": "NULLIF(pf.product_type, '')",
+            "avail": f"({_availability_bucket_sql('btrim(pf.availability)')})",
+            # These two now read pf.*, so any query filtering on them must join.
+            "pf_dims": _PF_DIMS + ("product_types", "availability"),
+        })
+    else:
+        exprs.update({
+            "ptype": f"NULLIF({PRODUCT_TYPE_SQL}, '')",
+            "avail": f"({_availability_bucket_sql('btrim(p.availability)')})",
+        })
     return exprs
 
 
@@ -1100,6 +1118,11 @@ def _facet_query(exprs: dict, base_where: str, base_args: list,
         args.append(value)
         return f"${len(args)}"
 
+    # Whenever product_facets is joined, its supplier_id is the same value as
+    # products' — reading it from pf is what lets a pass whose every column
+    # lives in the projection skip the 660 MB products heap altogether.
+    exprs = dict(exprs, sid="pf.supplier_id") if exprs["join"] else exprs
+
     # Built against p.*/pf.* because a CTE cannot reference its own output aliases.
     raw_ref = {"cat": exprs["cat"], "cfam": exprs["cfam"], "szn": "sb.szn",
                "fin": exprs["fin"], "avail": exprs["avail"], "ptype": exprs["ptype"],
@@ -1121,7 +1144,7 @@ def _facet_query(exprs: dict, base_where: str, base_args: list,
             continue
         ph = add(sel[dim])
         pred = _dim_predicate(dim, raw_ref, ph)
-        pf_only = bool(exprs["join"]) and dim in _PF_DIMS
+        pf_only = bool(exprs["join"]) and dim in exprs.get("pf_dims", _PF_DIMS)
         pf_pred = f"({_dim_predicate(dim, pf_ref, ph)})" if pf_only else None
         if dim in dims:
             pass_cols.append(f"({pred}) AS ps_{dim}")
@@ -1224,11 +1247,21 @@ def _facet_query(exprs: dict, base_where: str, base_args: list,
                 FROM (SELECT {exprs['size']} AS v) sv
             ) sb ON TRUE"""
 
+    # The unfiltered baseline (and any pass whose dimensions all live in the
+    # projection) never reads a products column once sid comes from pf. Scanning
+    # the 52 MB projection instead of joining the 660 MB heap took the cold
+    # baseline from ~30s to inside the cold-start wait — which is the difference
+    # between the first browse of a fresh process having a sidebar and not.
+    fragments = " ".join([*select_cols, where_sql, lateral])
+    if exprs["join"] and not _re.search(r"\bp\.", fragments):
+        from_sql = "FROM pf_sel pf" if pf_cte else "FROM product_facets pf"
+    else:
+        from_sql = f"FROM products p {join_sql}"
+
     sql = f"""
         WITH {pf_cte}base AS MATERIALIZED (
             SELECT {', '.join(select_cols)}
-            FROM products p
-            {join_sql}
+            {from_sql}
             {lateral}
             WHERE {where_sql}
         )
@@ -1335,8 +1368,8 @@ async def _build_unfiltered_facets(conn) -> Optional[dict]:
     """The no-search, nothing-selected counts. The one pass nothing can narrow
     (~15 s), so it is computed once and cached hard — memory plus disk, the same
     way the search index is, so a restart does not re-read the catalog."""
-    has_pf, _ = await _facet_source_probe(conn)
-    exprs = _facet_exprs(has_pf)
+    has_pf, has_blob = await _facet_source_probe(conn)
+    exprs = _facet_exprs(has_pf, has_blob)
     sql, args = _facet_query(exprs, "TRUE" if has_pf else "p.is_active = TRUE",
                              [], {}, _FACET_DIMS)
     started = _time.time()
@@ -1481,7 +1514,7 @@ async def _search_products_db(conn, *, search, price_min, price_max,
 
     has_pf, has_blob = (await _facet_source_probe(conn)
                         if (sel or build_facets or terms) else (False, False))
-    exprs = _facet_exprs(has_pf)
+    exprs = _facet_exprs(has_pf, has_blob)
     item_ref = {"cat": exprs["cat"], "cfam": exprs["cfam"], "szn": exprs["szn"],
                 "fin": exprs["fin"], "avail": exprs["avail"], "ptype": exprs["ptype"],
                 "sid": exprs["sid"], "cfam_kind": exprs["cfam_kind"]}
@@ -1489,7 +1522,8 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     # on, or when the keyword has to search its blob. On a plain browse the extra
     # join would only get in the way of the index-ordered scan.
     blob_search = bool(has_blob and terms)
-    item_join = (exprs["join"] if (has_pf and (set(sel) & set(_PF_DIMS) or blob_search))
+    item_join = (exprs["join"]
+                 if (has_pf and (set(sel) & set(exprs.get("pf_dims", _PF_DIMS)) or blob_search))
                  else "")
 
     def _build(term_variants):
@@ -1521,7 +1555,12 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                 alts.append("(" + " OR ".join(cols) + ")")
             base.append(f"({' OR '.join(alts)})")
             if len(alts) > 1:
-                scores.append(f"({alts[0]})::int")  # alts[0] is the literal spelling
+                # alts[0] is the literal spelling. COALESCE matters: a NULL
+                # description or sku makes the OR-group NULL, not false, and
+                # ORDER BY rank DESC puts NULLs FIRST - every NULL-description
+                # row jumped ahead of correctly-ranked ones, which is exactly
+                # the page swap the parity gate caught on the typo query.
+                scores.append(f"COALESCE(({alts[0]})::int, 0)")
         if price_min is not None:
             base.append(f"p.current_price >= {add(price_min)}")
         if price_max is not None:
