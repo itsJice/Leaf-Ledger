@@ -151,7 +151,17 @@ def create_app() -> FastAPI:
 
         async def _warm():
             try:
-                from app.apis.products import get_conn, _load_search_index
+                from app.apis.products import (_INDEX_ENABLED, _ensure_facets_building,
+                                               get_conn, _load_search_index)
+                if not _INDEX_ENABLED:
+                    # SQL-only mode: the big index would cost a full catalog
+                    # read (and ~892 MB) for a path nothing serves from. Warm
+                    # the unfiltered facet baseline instead - disk cache first,
+                    # a single aggregate pass if there is none - so the first
+                    # browse after a deploy has a sidebar.
+                    _ensure_facets_building()
+                    print("facet baseline warm-up started (SQL search mode)")
+                    return
                 conn = await get_conn()
                 try:
                     await _load_search_index(conn)
@@ -159,7 +169,7 @@ def create_app() -> FastAPI:
                 finally:
                     await conn.close()
             except Exception as e:  # noqa: BLE001
-                print(f"search index warm-up skipped: {e}")
+                print(f"search warm-up skipped: {e}")
 
         asyncio.create_task(_warm())
 

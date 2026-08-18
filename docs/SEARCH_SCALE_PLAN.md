@@ -1,5 +1,12 @@
 # Retiring the in-memory search index
 
+**STATUS (2026-08-18): Phases 1-3 complete; SQL is the default search path.**
+The parity gate passed clean — 20 queries x 2 paths, 0 defects, against a fresh
+reference (an earlier "15-defect" run was the cached reference being a day
+behind a mid-day supplier import; the harness now detects that). Process RSS at
+boot: 27 MB vs ~892 MB. `SEARCH_INDEX_ENABLED=1` temporarily re-enables the
+index; Phase 4 (deleting it) waits for the SQL path to soak in production.
+
 ## Why
 
 Catalog search is served from an in-memory index holding every active product.

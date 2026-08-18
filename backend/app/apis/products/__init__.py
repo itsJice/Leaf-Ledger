@@ -612,12 +612,16 @@ _SEARCH_DISK_VERSION = 2  # bump whenever the row shape below changes
 # a little peak memory for far fewer trips.
 _INDEX_PREFETCH = int(os.environ.get("SEARCH_INDEX_PREFETCH", 10000))
 
-# Escape hatch. The in-memory index buys instant filtering and the colour/size/
-# finish facets, but building it reads the whole catalog, which is expensive in
-# both time and egress. Since the trigram indexes landed, the database path is
-# fast enough to serve search on its own - it just can't do those extra facets
-# yet. Set SEARCH_INDEX_ENABLED=0 to skip the build entirely and stay on SQL.
-_INDEX_ENABLED = os.environ.get("SEARCH_INDEX_ENABLED", "1").lower() not in ("0", "false", "no")
+# SQL is the search path. The in-memory index (~892 MB resident, ~1.3 GB peak
+# while building) OOM-killed the web service, and every crash-restart re-read
+# the whole catalog - the loop that exhausted the org's bandwidth quota. It
+# also serves data up to SEARCH_INDEX_TTL stale, which a mid-day supplier
+# import turned into 14 phantom parity defects. The SQL path now returns
+# identical answers (parity gate: 20 queries x 2 paths, 0 defects, fresh
+# reference) with facets, drill-down, typo tolerance and exact totals.
+# SEARCH_INDEX_ENABLED=1 re-enables the index as a temporary escape hatch;
+# it is slated for deletion after the SQL path has soaked in production.
+_INDEX_ENABLED = os.environ.get("SEARCH_INDEX_ENABLED", "0").lower() not in ("0", "false", "no")
 # Warm-up fallback only: how far we will count before reporting "N+".
 _DB_COUNT_CAP = 5000
 
