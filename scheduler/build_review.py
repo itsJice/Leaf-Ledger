@@ -496,12 +496,16 @@ dialog option:disabled{color:#b6b3ae}
 .calev.night{background:#1e293b;border-color:#334155;color:#e2e8f0}
 .calev.night .cevt{color:#94a3b8}
 .calev.night.appr{background:#14532d;border-color:var(--ok)}
-.calev.cut-tail{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-style:dashed}
-.calev.cut-head{border-top-left-radius:0;border-top-right-radius:0;border-top-style:dashed}
 .calslot.offhr{background:rgba(30,41,59,.035)}
-/* Opaque, or the scrolled hour labels underneath show through the day names. */
-.calghead{display:grid;position:sticky;top:0;background:var(--page);z-index:5;
-  border-bottom:1.5px solid var(--line)}
+.calslot.mid{border-top:1px dashed #cfcac3}
+.calhr.mid{font-weight:800;color:var(--ink)}
+.calghead{display:grid;background:var(--page);border-bottom:1.5px solid var(--line)}
+/* The grid scrolls on its own, under a fixed header. Its scrollbar is hidden:
+   the content is circular, so a thumb position would mean nothing. */
+.calgscroll{overflow-y:auto;overscroll-behavior:contain;
+  max-height:calc(100vh - 270px);min-height:320px;
+  scrollbar-width:none;-ms-overflow-style:none}
+.calgscroll::-webkit-scrollbar{display:none}
 .calgh{text-align:center;padding:5px 2px 7px}
 .calgh[data-date]{cursor:pointer;border-radius:8px}
 .calgh[data-date]:hover{background:var(--brand-soft)}
@@ -2747,9 +2751,13 @@ function stopTimes(d){
     return {row:r, start, end:start+dur};
   });
 }
-// 7am-9pm. 8pm clipped two real crew-days (Lewis/LTS ends 8:07pm, the Capital
-// Bank run 8:39pm) -- the last block was cut with no indication.
-const GRID_S=7*60, GRID_E=21*60, PXM=0.85;
+// The time grid is a CLOCK CYLINDER: one 24h period drawn REPEATS times, with
+// the scroll position wrapped so it never reaches an end. 11pm rolls straight
+// into midnight in either direction, which is the only way a Mi Cocina night
+// (11pm-6:30am) reads as one block instead of two halves at opposite ends of
+// the screen -- and it means day and night are always one scroll apart, never
+// separated by 14 empty hours of grid. (user, 2026-08-18)
+const PERIOD=1440, REPEATS=3, PXM=0.85;
 function calDaysOn(iso){ return days.filter(x=>x.date===iso)
   .sort((a,b)=>a.crew.localeCompare(b.crew)); }
 
@@ -2794,49 +2802,49 @@ function monthHTML(anchor){
  *  (This replaced a text band above the grid: 13 stacked dark rows that said
  *  the hours but showed no position -- user, 2026-08-17.) */
 /** Hour label for a minutes-from-midnight value that may run past 24:00
- *  (a Mi Cocina night ends 6:30am the NEXT day, i.e. minute 1830). */
+ *  (a Mi Cocina night ends 6:30am the NEXT day, i.e. minute 1830). Used for
+ *  BLOCK labels, where "+1" carries real information: it names the calendar
+ *  day the crew finishes on. */
 function gridHourLabel(t){
-  const wrapped=((t%1440)+1440)%1440;
-  return fmtClock(wrapped).replace(':00','') + (t>=1440?' +1':'');
+  return clockLabel(t) + (t>=PERIOD?' +1':'');
 }
-/** Build the placed blocks for a set of columns.
- *  splitMidnight=true (Week/Month-style, one column per DATE): a shift that
- *  crosses midnight is cut in two and the tail moves to the next date's
- *  column, the way Google Calendar draws an overnight event.
- *  splitMidnight=false (Day view, one column per CREW): the shift stays whole
- *  -- it is that crew's single night of work and splitting it across two
- *  columns that don't both exist here would just lose the tail. */
-function placeBlocks(cols, splitMidnight){
+/** Label for the grid's own axis. No "+1" here -- the axis is a clock that
+ *  goes round, so the same hour legitimately appears once per repeat. */
+function clockLabel(t){
+  return fmtClock(((t%PERIOD)+PERIOD)%PERIOD).replace(':00','');
+}
+/** Build the placed blocks for a set of columns, at their TRUE times.
+ *  Nothing is cut at midnight: a shift that runs to minute 1830 is drawn as
+ *  one block 450 minutes long, and the cylinder's next repeat is what it
+ *  crosses into. A block always belongs to the column of the crew-day that
+ *  owns it, so dragging it moves the whole stop -- there is no half-block
+ *  sitting in a neighbouring column that means something different. */
+function placeBlocks(cols){
   const byCol=new Map(cols.map((c,i)=>[i,[]]));
-  const dateCol=new Map(); cols.forEach((c,i)=>{ if(c.date) dateCol.set(c.date,i); });
-  cols.forEach((col,i)=>{
-    col.days.forEach(d=>{
-      stopTimes(d).forEach(t=>{
-        const seg={...t, d, night:d.win===K.NIGHT};
-        if(splitMidnight && t.end>1440){
-          if(t.start<1440) byCol.get(i).push({...seg, end:1440, cut:'tail'});
-          const nx=col.date?dateCol.get(addDays(col.date,1)):undefined;
-          const head={...seg, start:Math.max(0,t.start-1440), end:t.end-1440,
-                      cut:'head', fromDate:col.date};
-          if(nx!==undefined) byCol.get(nx).push(head);
-        } else byCol.get(i).push(seg);
-      });
-    });
-  });
+  cols.forEach((col,i)=>col.days.forEach(d=>
+    stopTimes(d).forEach(t=>byCol.get(i).push({...t, d, night:d.win===K.NIGHT}))));
   return byCol;
 }
-function gridHTML(cols, opts){
-  const split = !(opts&&opts.noSplit);
-  const byCol = placeBlocks(cols, split);
-  // Time axis follows the content: a normal Houston day sits inside 7am-9pm,
-  // but the Dallas nights need the small hours, so the grid grows to fit
-  // rather than hiding work in a text band above it.
-  let lo=GRID_S, hi=GRID_E;
-  byCol.forEach(list=>list.forEach(b=>{ lo=Math.min(lo,b.start); hi=Math.max(hi,b.end); }));
-  lo=Math.floor(lo/60)*60; hi=Math.ceil(hi/60)*60;
+function gridHTML(cols){
+  const byCol=placeBlocks(cols);
+  const H=PERIOD*REPEATS;                 // total minutes drawn
   let hours='';
-  for(let t=lo;t<=hi;t+=60)
-    hours+=`<div class="calhr" style="top:${(t-lo)*PXM}px">${gridHourLabel(t)}</div>`;
+  for(let t=0;t<H;t+=60)
+    hours+=`<div class="calhr${t%PERIOD===0?' mid':''}" style="top:${t*PXM}px">`
+         + `${clockLabel(t)}</div>`;
+  // Open on the busiest stretch of the clock rather than a fixed hour: a
+  // Dallas night week lands on ~10pm-10am, a Houston week on the working day.
+  const VIEW=720;
+  let openAt=7*60, bestLoad=-1;
+  for(let h=0;h<24;h++){
+    const w0=h*60; let load=0;
+    byCol.forEach(list=>list.forEach(b=>{
+      for(let r=-1;r<=1;r++)
+        load+=Math.max(0, Math.min(b.end+r*PERIOD, w0+VIEW)
+                        - Math.max(b.start+r*PERIOD, w0));
+    }));
+    if(load>bestLoad){ bestLoad=load; openAt=w0; }
+  }
   let head=`<div class="calgh"></div>`, body=`<div class="calgutter">${hours}</div>`;
   cols.forEach((col,i)=>{
     head+=`<div class="calgh${col.today?' today':''}" ${col.date?`data-date="${col.date}"`:''}>`
@@ -2855,33 +2863,51 @@ function gridHTML(cols, opts){
     });
     let ev='';
     blocks.forEach(b=>{
-      const top=(b.start-lo)*PXM;
       const hgt=Math.max(15,(b.end-b.start)*PXM);
       const w=100/b.lanes, left=w*b.lane;
-      // A carried-over tail says whose night it belongs to, so an early-hours
-      // block is never mistaken for work that started that morning.
-      const carried=b.cut==='head'&&b.fromDate
-        ? ` (${DOW3[dateOf(b.fromDate).getDay()]} night)` : '';
-      ev+=`<div class="calev${b.night?' night':''}${approved.has(b.d.id)?' appr':''}`
-        + `${b.cut?' cut-'+b.cut:''}" draggable="true" style="top:${top}px;height:${hgt}px;`
-        + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
-        + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
-        + `data-row="${b.row}" data-dayid="${b.d.id}" `
-        + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
-        + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}${carried}</span>`
-        + `<span class="cevt">${gridHourLabel(b.start)} · ${b.d.crew}</span></div>`;
+      // One copy per repeat: the same stop at the same clock time, so scrolling
+      // round the cylinder never runs out of grid.
+      for(let r=0;r<REPEATS;r++){
+        const top=(b.start+r*PERIOD)*PXM;
+        if(top>=H*PXM) break;
+        ev+=`<div class="calev${b.night?' night':''}${approved.has(b.d.id)?' appr':''}"`
+          + ` draggable="true" style="top:${top}px;height:${hgt}px;`
+          + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
+          + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
+          + `data-row="${b.row}" data-dayid="${b.d.id}" `
+          + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
+          + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
+          + `<span class="cevt">${gridHourLabel(b.start)} · ${b.d.crew}</span></div>`;
+      }
     });
     body+=`<div class="calgcol${col.today?' today':''}"`
         + (col.dropDate?` data-drop-date="${col.dropDate}"`:'')
         + (col.dropDayId?` data-drop-dayid="${col.dropDayId}"`:'')+`>`
-        + Array.from({length:(hi-lo)/60},(_,k)=>
-            `<div class="calslot${((lo+k*60)%1440)<6*60||((lo+k*60)%1440)>=21*60?' offhr':''}" `
+        + Array.from({length:H/60},(_,k)=>
+            `<div class="calslot${(k*60)%PERIOD===0?' mid':''}`
+            + `${(k%24)<6||(k%24)>=21?' offhr':''}" `
             + `style="top:${k*60*PXM}px;height:${60*PXM}px"></div>`).join('')
         + ev+`</div>`;
   });
-  return `<div class="calghead" style="grid-template-columns:56px repeat(${cols.length},1fr)">${head}</div>`
-       + `<div class="calgbody" style="grid-template-columns:56px repeat(${cols.length},1fr);`
-       + `height:${(hi-lo)*PXM+8}px">${body}</div>`;
+  const tpl=`grid-template-columns:56px repeat(${cols.length},1fr)`;
+  return `<div class="calghead" style="${tpl}">${head}</div>`
+       + `<div class="calgscroll" data-period="${PERIOD*PXM}" data-open="${openAt*PXM}">`
+       + `<div class="calgbody" style="${tpl};height:${H*PXM}px">${body}</div></div>`;
+}
+/** Keep the viewport inside the middle repeat, so there is always a whole day
+ *  of grid above and below and neither direction ever hits an end. Because
+ *  every repeat is identical, shifting by exactly one period is invisible. */
+function cylWrap(el){
+  const P=+el.dataset.period;
+  if(el.scrollTop < P*0.5)      el.scrollTop += P;
+  else if(el.scrollTop > P*1.5) el.scrollTop -= P;
+}
+function initCylinder(wrap){
+  const el=wrap.querySelector('.calgscroll');
+  if(!el) return;
+  el.scrollTop = +el.dataset.period + (+el.dataset.open);
+  cylWrap(el);
+  el.onscroll=()=>cylWrap(el);
 }
 function weekHTML(anchor){
   const TODAY=todayISO();
@@ -2898,16 +2924,13 @@ function weekHTML(anchor){
 function dayHTML(anchor){
   const ds=calDaysOn(anchor);
   if(!ds.length) return `<p class="nothingyet">Nothing scheduled on ${fmtDate(anchor)}.</p>`;
-  // One column per crew-day, nights included -- the axis stretches past
-  // midnight for them rather than shunting them into a text band. No `date`
-  // on the columns: the header IS this day, so making it clickable would only
-  // re-render the view you are already on. noSplit keeps a night shift whole,
-  // since the crew column it belongs to is the only one on screen.
+  // One column per crew-day, nights included. No `date` on the columns: the
+  // header IS this day, so making it clickable would only re-render the view
+  // you are already on.
   return gridHTML(ds.map(d=>({days:[d], dropDayId:d.id,
       sub:d.crew.toUpperCase()+(d.win===K.NIGHT?' · NIGHT':''),
       title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`
-           + (approved.has(d.id)?' <span class="apprtag">APPROVED</span>':'')})),
-    {noSplit:true});
+           + (approved.has(d.id)?' <span class="apprtag">APPROVED</span>':'')})));
 }
 function agendaHTML(){
   let h='', last='';
@@ -2989,6 +3012,7 @@ function renderCalendar(){
   };
   if(nav){ document.getElementById('calprev').onclick=()=>calShift(-1);
            document.getElementById('calnext').onclick=()=>calShift(1); }
+  initCylinder(wrap);
   wrap.querySelectorAll('.calcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
     c.onclick=()=>{ calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
@@ -3019,11 +3043,6 @@ function renderCalendar(){
   wrap.querySelectorAll('.agday').forEach(el=>{
     const dt=el.querySelector('.agdate'); if(!dt) return;
     dropOn(el, row=>openMoveDlg(row, dt.dataset.date));
-  });
-  wrap.querySelectorAll('.calnight[data-dayid]').forEach(el=>{
-    el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.dayid);
-                     if(!d) return;
-                     selDate=d.date; focusDayId=d.id; setView('days'); };
   });
 }
 /** Google-Cal-style event peek: the stop's real detail, plus the two actions
