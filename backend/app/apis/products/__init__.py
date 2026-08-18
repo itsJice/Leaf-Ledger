@@ -586,42 +586,21 @@ async def page_products(
     finally:
         await conn.close()
 
-# ─── Fast in-memory catalog search ────────────────────────────────────────────
-# Filtering the raw_data JSONB in SQL scans 88k rows per request (~2-8s). Since
-# the app DB role can't create indexes, we instead load a lightweight index of
-# the catalog into memory ONCE (cached with a TTL) and filter it in Python —
-# instant after the first load. Same pattern as the ornament matcher above.
-_SEARCH_CACHE: dict = {"ts": 0.0, "rows": None}
-# The catalog only changes when someone runs an import, so an hour was needlessly
-# short: every expiry re-reads the whole catalog out of Supabase. Egress is the
-# binding constraint (a single rebuild moves tens of MB), not staleness.
+# ─── Catalog search (SQL) ─────────────────────────────────────────────────────
+# Served by _search_products_db over product_facets + trigram indexes. The old
+# in-memory index (~892 MB resident, OOM-killed the web service, re-read the
+# catalog on every restart) was deleted after the SQL path matched it on the
+# parity matrix (20 queries x 2 paths, 0 defects). These caches hold the cheap
+# leftovers: the unfiltered facet baseline and the typo-correction vocabulary.
+# The catalog only changes when someone runs an import.
 _SEARCH_TTL = int(os.environ.get("SEARCH_INDEX_TTL", 24 * 3600))
 
-# Rebuilding the index on every process start is the single largest source of
-# database egress: each build streams the whole catalog. Persisting it means a
-# restart reloads from local disk and reads nothing. Set SEARCH_INDEX_CACHE_DIR
-# to a persistent volume in production; on an ephemeral filesystem this still
-# covers in-place restarts, just not brand-new containers.
+# Facet baseline + vocabulary persist here so a restart re-reads nothing. Point
+# SEARCH_INDEX_CACHE_DIR at a persistent volume in production.
 _SEARCH_DISK_CACHE = os.environ.get("SEARCH_INDEX_CACHE_DIR") or os.path.join(
     tempfile.gettempdir(), "leaf-ledger-index"
 )
-_SEARCH_DISK_VERSION = 2  # bump whenever the row shape below changes
-# Rows pulled per cursor round trip. At 1,000 a 166k-row catalog needed 166
-# round trips, which dominates the build wherever latency to the database is
-# non-trivial (a laptop, or a host in a different region). Larger batches trade
-# a little peak memory for far fewer trips.
-_INDEX_PREFETCH = int(os.environ.get("SEARCH_INDEX_PREFETCH", 10000))
 
-# SQL is the search path. The in-memory index (~892 MB resident, ~1.3 GB peak
-# while building) OOM-killed the web service, and every crash-restart re-read
-# the whole catalog - the loop that exhausted the org's bandwidth quota. It
-# also serves data up to SEARCH_INDEX_TTL stale, which a mid-day supplier
-# import turned into 14 phantom parity defects. The SQL path now returns
-# identical answers (parity gate: 20 queries x 2 paths, 0 defects, fresh
-# reference) with facets, drill-down, typo tolerance and exact totals.
-# SEARCH_INDEX_ENABLED=1 re-enables the index as a temporary escape hatch;
-# it is slated for deletion after the SQL path has soaked in production.
-_INDEX_ENABLED = os.environ.get("SEARCH_INDEX_ENABLED", "0").lower() not in ("0", "false", "no")
 # Warm-up fallback only: how far we will count before reporting "N+".
 _DB_COUNT_CAP = 5000
 
@@ -632,249 +611,35 @@ _DB_COUNT_CAP = 5000
 # risk an out-of-memory kill, so only one ever runs.
 import asyncio as _asyncio
 
-_INDEX_BUILD_LOCK = _asyncio.Lock()
-_index_build_task = None  # the in-flight background build, if any
 
 
-def _index_ready() -> bool:
-    if not _INDEX_ENABLED:
-        return False
-    rows = _SEARCH_CACHE.get("rows")
-    return rows is not None and (_time.time() - _SEARCH_CACHE["ts"]) < _SEARCH_TTL
 
 
-def _ensure_index_building() -> None:
-    """Start the background index build if it isn't ready and none is running.
-
-    Non-blocking: it schedules the work and returns immediately so the caller can
-    serve from the database meanwhile. The lock inside _load_search_index keeps
-    this from ever building a second copy concurrently.
-    """
-    global _index_build_task
-    if not _INDEX_ENABLED:
-        return  # SQL-only mode: never read the whole catalog
-    if _index_ready():
-        return
-    if _index_build_task is not None and not _index_build_task.done():
-        return
-
-    async def _bg():
-        conn = await get_conn()
-        try:
-            await _load_search_index(conn)
-        finally:
-            await conn.close()
-
-    _index_build_task = _asyncio.create_task(_bg())
 
 
-def _avail_bucket_py(v) -> Optional[str]:
-    t = str(v or "").strip().lower()
-    if not t:
-        return None
-    if t.replace(".", "", 1).isdigit():
-        return "In stock" if float(t) > 0 else "Out of stock"
-    if t in ("in_stock", "available", "in stock", "today", "yes"):
-        return "In stock"
-    if t in ("out_of_stock", "sold out", "unavailable", "no"):
-        return "Out of stock"
-    return None
 
 
-def _searchable_values(value, out: list) -> None:
-    """Collect the human-meaningful values out of a raw_data blob.
-
-    Keeping the raw JSON *text* in the search blob cost ~1.7 KB per product
-    (~179 MB across the catalogue) — most of it braces, quotes, key names and
-    image URLs that nobody searches for. Walking the values instead keeps every
-    searchable term (material, finish, collection, UPC …) for about a third of
-    the memory.
-    """
-    if isinstance(value, str):
-        # Long prose and URLs add weight without adding search terms.
-        if value and len(value) < 200 and not value.startswith("http"):
-            out.append(value)
-    elif isinstance(value, (int, float)):
-        out.append(str(value))
-    elif isinstance(value, dict):
-        for v in value.values():
-            _searchable_values(v, out)
-    elif isinstance(value, list):
-        for v in value:
-            _searchable_values(v, out)
 
 
-def _build_blob(*parts: str) -> str:
-    """Lowercased keyword blob with duplicate words removed."""
-    seen: set[str] = set()
-    words: list[str] = []
-    for word in " ".join(p for p in parts if p).lower().split():
-        if word not in seen:
-            seen.add(word)
-            words.append(word)
-    return " ".join(words)
 
 
-async def _load_search_index(conn):
-    if _index_ready():
-        return _SEARCH_CACHE["rows"]
-
-    # Single-flight: if another caller is already building, wait for it and use
-    # its result rather than building a second copy (which would double memory).
-    async with _INDEX_BUILD_LOCK:
-        if _index_ready():
-            return _SEARCH_CACHE["rows"]
-        # Prefer a warm index left on disk by an earlier run: reading it costs
-        # nothing from the database, where a rebuild streams the whole catalog.
-        cached = _load_index_from_disk()
-        if cached:
-            _SEARCH_CACHE.update(ts=_time.time(), rows=cached)
-            return cached
-        return await _build_search_index(conn)
 
 
-def _loads_obj(value) -> dict:
-    """asyncpg hands back jsonb as text; tolerate either, never raise."""
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str) and value:
-        try:
-            parsed = json.loads(value)
-            return parsed if isinstance(parsed, dict) else {}
-        except json.JSONDecodeError:
-            return {}
-    return {}
 
 
-def _loads_list(value) -> list:
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str) and value:
-        try:
-            parsed = json.loads(value)
-            return parsed if isinstance(parsed, list) else []
-        except json.JSONDecodeError:
-            return []
-    return []
 
 
-def _disk_cache_path() -> str:
-    return os.path.join(_SEARCH_DISK_CACHE, f"search-index-v{_SEARCH_DISK_VERSION}.json.gz")
 
 
-def _load_index_from_disk():
-    """Return a cached index if one is on disk and still within its TTL."""
-    path = _disk_cache_path()
-    try:
-        if not os.path.exists(path):
-            return None
-        age = _time.time() - os.path.getmtime(path)
-        if age >= _SEARCH_TTL:
-            return None
-        with gzip.open(path, "rt", encoding="utf-8") as fh:
-            payload = json.load(fh)
-        rows = payload.get("rows")
-        if not isinstance(rows, list) or not rows:
-            return None
-        print(f"search index loaded from disk ({len(rows)} rows, {age/60:.0f} min old) — no catalog read")
-        return rows
-    except Exception as e:  # noqa: BLE001 — a bad cache must never block startup
-        print(f"search index disk cache unreadable, rebuilding: {e}")
-        return None
 
 
-def _save_index_to_disk(rows) -> None:
-    path = _disk_cache_path()
-    try:
-        os.makedirs(_SEARCH_DISK_CACHE, exist_ok=True)
-        tmp = f"{path}.{os.getpid()}.tmp"
-        with gzip.open(tmp, "wt", encoding="utf-8") as fh:
-            json.dump({"rows": rows}, fh)
-        os.replace(tmp, path)  # atomic: readers never see a half-written file
-    except Exception as e:  # noqa: BLE001 — caching is an optimisation, not a requirement
-        print(f"could not persist search index: {e}")
 
 
-async def _build_search_index(conn):
-    now = _time.time()
-
-    # Only the pieces of raw_data the index actually uses are pulled, and the
-    # searchable text is flattened server-side. Shipping whole raw_data
-    # documents for 166k rows meant transferring 237 MB (compressed on disk,
-    # more on the wire) and the warm-up ran for over nine minutes; extracting
-    # here costs ~400 chars a row instead. The WHERE clauses mirror
-    # _searchable_values(): no URLs, nothing longer than prose.
-    query = f"""
-        SELECT p.id, p.name, s.name AS supplier_name, p.supplier_id, p.supplier_sku,
-               p.current_price, p.image_urls, p.photo_url, p.availability, p.description,
-               {PRODUCT_TYPE_SQL} AS product_type,
-               p.raw_data->'normalized'       AS norm_json,
-               p.raw_data->'color_families'   AS color_families_json,
-               p.raw_data->>'category_group'  AS category_group,
-               p.raw_data->>'source_photo_url' AS source_photo_url,
-               (SELECT string_agg(v.value, ' ')
-                  FROM jsonb_each_text(CASE WHEN jsonb_typeof(p.raw_data) = 'object'
-                                            THEN p.raw_data ELSE '{{}}'::jsonb END) AS v(key, value)
-                 WHERE v.value <> '' AND length(v.value) < 200
-                   AND v.value NOT LIKE 'http%%') AS raw_blob
-        FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
-        WHERE p.is_active = TRUE
-    """
-
-    idx = []
-    # Streamed with a server-side cursor rather than one big fetch(). Pulling
-    # ~95k rows (each carrying its raw_data) in a single round trip both spiked
-    # peak memory to roughly double the finished index and got the connection
-    # torn down by Supabase's transaction pooler mid-read.
-    async with conn.transaction():
-        async for r in conn.cursor(query, prefetch=_INDEX_PREFETCH):
-            norm = _loads_obj(r["norm_json"])
-            cf = [c for c in (_loads_list(r["color_families_json"])) if isinstance(c, str)]
-            # All candidate images (deduped) so the card can fall back URL→URL when
-            # one 404s, instead of showing a broken/empty tile.
-            images: list[str] = []
-            for u in list(r["image_urls"] or []) + [r["photo_url"], r["source_photo_url"]]:
-                if u and u not in images:
-                    images.append(u)
-            image = images[0] if images else None
-            size = norm.get("size_in")
-            try: size = float(size) if size is not None else None
-            except (TypeError, ValueError): size = None
-            color, finish = norm.get("color"), norm.get("finish")
-            # full-breadth keyword blob: name + sku + description + every
-            # searchable value captured in raw_data (see _searchable_values).
-            blob = _build_blob(r["name"], r["supplier_sku"], r["description"],
-                               r["supplier_name"], r["raw_blob"] or "")
-            idx.append({
-                "id": r["id"], "name": r["name"], "supplier_name": r["supplier_name"],
-                "supplier_id": r["supplier_id"], "supplier_sku": r["supplier_sku"],
-                "price": float(r["current_price"]) if r["current_price"] is not None else None,
-                "image": image, "images": images[:6], "class": norm.get("class"), "color": color, "finish": finish,
-                "size": size, "size_bucket": (f"{round(size * 2) / 2:g}" if size is not None else None),
-                "product_type": r["product_type"], "color_families": cf,
-                "category": r["category_group"],
-                "avail": _avail_bucket_py(r["availability"]),
-                "blob": blob,
-            })
-    _SEARCH_CACHE.update(ts=now, rows=idx)
-    _save_index_to_disk(idx)
-    return idx
 
 
 _VOCAB_CACHE: dict = {"ts": -1.0, "vocab": None}
 
 
-def _get_search_vocab(idx) -> set:
-    """≥4-letter words from product names — the vocabulary a misspelled query
-    word is matched back against. Rebuilt only when the search index reloads."""
-    if _VOCAB_CACHE["vocab"] is not None and _VOCAB_CACHE["ts"] == _SEARCH_CACHE["ts"]:
-        return _VOCAB_CACHE["vocab"]
-    vocab: set = set()
-    for it in idx:
-        for w in re.findall(r"[a-z]{4,}", (it["name"] or "").lower()):
-            vocab.add(w)
-    _VOCAB_CACHE.update(ts=_SEARCH_CACHE["ts"], vocab=vocab)
-    return vocab
 
 
 def _bounded_distance(a: str, b: str, maxd: int) -> Optional[int]:
@@ -1013,8 +778,8 @@ async def _facet_source_probe(conn) -> tuple[bool, bool]:
 def _facet_exprs(has_pf: bool, has_new_cols: bool = False) -> dict:
     """SQL for each faceted value, keyed by the short name used everywhere below.
 
-    These must agree value-for-value with what _build_search_index puts in the
-    in-memory rows, or the two paths disagree on counts. Note `categories` reads
+    These must agree value-for-value with what the retired in-memory index
+    used to serve, since the UI contract was pinned against it. Note `categories` reads
     category_group with NO fallback to the (much sparser, slug-shaped) category
     column, and `colors` reads the multi-valued color_families — not
     normalized.color, which is a different, single-valued thing.
@@ -1695,9 +1460,9 @@ async def _search_products_db(conn, *, search, price_min, price_max,
         })
 
     resp = {"items": items, "total": total or 0, "limit": limit, "offset": offset,
-            # Only a real warm-up when an index is coming. With SEARCH_INDEX_ENABLED=0
-            # this IS the search, and a permanent "still loading" hint would be a lie.
-            "warming": _INDEX_ENABLED, "total_is_capped": total_is_capped}
+            # This IS the search, not a warm-up window; a permanent
+            # "still loading" hint would be a lie.
+            "warming": False, "total_is_capped": total_is_capped}
     if build_facets:
         resp["facets"] = facets if facets is not None else _empty_facets()
     return resp
@@ -1781,161 +1546,33 @@ async def search_products(
     limit: int = 48,
     offset: int = 0,
 ):
-    """Fast faceted search served from the in-memory catalog index.
+    """Faceted catalog search, served from Postgres.
 
     Alongside the page of results it returns `facets` — the values still
-    available *within the current query* (search + price + favorites + the other
-    filters), each with a live count. Every facet is computed with drill-down: a
-    facet is counted ignoring its OWN selection, so picking one Color doesn't
-    collapse the Color list — you can still add a second. This is what makes the
-    sidebar responsive to whatever was searched (e.g. "ornaments" surfaces the
-    ornament sizes/colors/finishes actually present). Facets are only built on a
-    fresh load (offset == 0); infinite-scroll pages skip the extra pass.
+    available *within the current query*, each with a live count and computed
+    with drill-down: a facet is counted ignoring its OWN selection, so picking
+    one Color doesn't collapse the Color list. Facets are only built on a fresh
+    load (offset == 0); infinite-scroll pages skip the extra pass.
+
+    This used to be answered from an in-memory index of the whole catalog
+    (~892 MB resident, ~1.3 GB peak while building). At 166k products it
+    OOM-killed the web service, and every crash-restart re-read the catalog —
+    the loop that exhausted the org's bandwidth quota. It also served data up
+    to a day stale. The SQL path was proven identical first (parity gate:
+    20 queries x 2 paths, 0 defects) and the index then deleted; the parity
+    harness went with it, since there is no longer a reference to diff against.
     """
-    # A warm request opens no connection at all — it filters the in-memory index,
-    # so it isn't paying the DB round trip. Until that index is ready (fresh boot
-    # or just after a deploy) we answer from the database instead of blocking this
-    # request for the whole ~30s build, so the catalog is never empty.
-    if not _index_ready():
-        _ensure_index_building()
-        conn = await get_conn()
-        try:
-            return await _search_products_db(
-                conn, search=search, price_min=price_min, price_max=price_max,
-                supplier_ids=supplier_ids, ids=ids, limit=limit, offset=offset,
-                build_facets=offset <= 0,
-                categories=categories, colors=colors, sizes=sizes, finishes=finishes,
-                availability=availability, product_types=product_types,
-            )
-        finally:
-            await conn.close()
-    idx = _SEARCH_CACHE["rows"]
-
-    col = set(_csv_list(colors)); sz = set(_csv_list(sizes)); fin = set(_csv_list(finishes))
-    pt = set(_csv_list(product_types)); avail = set(_csv_list(availability))
-    cat = set(_csv_list(categories))
-    sup = {int(x) for x in _csv_list(supplier_ids) if x.isdigit()}
-    id_filter = {int(x) for x in _csv_list(ids) if x.lstrip("-").isdigit()} if ids is not None else None
-    terms = [w for w in (search or "").lower().split() if w]
-
-    # Typo tolerance: a query word not in the catalog vocabulary is expanded to
-    # near-spellings (edit distance 1, or 2 for long words) so "blossum" still
-    # finds "blossom". Correctly-spelled words skip this entirely (no slowdown),
-    # and exact matches rank ahead of fuzzy ones.
-    term_variants: list[tuple[str, set]] = []
-    if terms:
-        vocab = _get_search_vocab(idx)
-        for t in terms:
-            variants = {t}
-            if len(t) >= 4 and t not in vocab:
-                variants |= set(_fuzzy_variants(t, vocab, 2 if len(t) >= 7 else 1))
-            term_variants.append((t, variants))
-
-    # Base set: the always-on filters (favorites ids, price, keyword). Facets and
-    # results are both derived from here, so the sidebar reflects the search.
-    match_score: dict = {}
-    base = []
-    for it in idx:
-        if id_filter is not None and it["id"] not in id_filter: continue
-        if price_min is not None and (it["price"] is None or it["price"] < price_min): continue
-        if price_max is not None and (it["price"] is None or it["price"] > price_max): continue
-        if term_variants:
-            blob = it["blob"]; exact = 0; ok = True
-            for t, variants in term_variants:
-                if t in blob:
-                    exact += 1
-                elif not any(v in blob for v in variants):
-                    ok = False; break
-            if not ok: continue
-            match_score[it["id"]] = exact
-        base.append(it)
-
-    # Faceted dimensions: (key, current selection, value-extractor). An item
-    # "passes" a dimension when its selection is empty OR intersects the item's
-    # values (colors are multi-valued; the rest single).
-    def _one(v):
-        return [v] if v else []
-    dim_defs = [
-        ("categories",   cat,   lambda it: _one(it["category"])),
-        ("colors",       col,   lambda it: it["color_families"]),
-        ("sizes",        sz,    lambda it: _one(it["size_bucket"])),
-        ("finishes",     fin,   lambda it: _one(it["finish"])),
-        ("availability", avail, lambda it: _one(it["avail"])),
-        ("suppliers",    sup,   lambda it: [it["supplier_id"]] if it["supplier_id"] is not None else []),
-        ("product_types", pt,   lambda it: _one(it["product_type"])),
-    ]
-    build_facets = offset <= 0
-    counters = {key: Counter() for key, _, _ in dim_defs} if build_facets else None
-    sup_names: dict = {}
-
-    out = []
-    for it in base:
-        vals = [get(it) for _, _, get in dim_defs]
-        fails = []
-        for j, (_, selset, _get) in enumerate(dim_defs):
-            if selset and not (selset & set(vals[j])):
-                fails.append(j)
-                if len(fails) > 1:
-                    break
-        nfail = len(fails)
-        if nfail == 0:
-            out.append(it)
-        if not build_facets:
-            continue
-        # Count each facet over items that pass every OTHER facet (drill-down):
-        # nfail==0 counts everywhere; nfail==1 counts only its single failing dim.
-        if nfail == 0:
-            for (key, _s, _g), v in zip(dim_defs, vals):
-                for x in v:
-                    counters[key][x] += 1
-        elif nfail == 1:
-            key = dim_defs[fails[0]][0]
-            for x in vals[fails[0]]:
-                counters[key][x] += 1
-        if it["supplier_id"] is not None:
-            sup_names[it["supplier_id"]] = it["supplier_name"]
-
-    # Exact keyword matches first (fuzzy-only matches after), then by name.
-    out.sort(key=lambda x: (-match_score.get(x["id"], 0), (x["name"] or "").lower()))
-    total = len(out)
-    page = out[max(0, offset): max(0, offset) + max(1, min(limit, 500))]
-    items = [{
-        "id": it["id"], "name": it["name"], "supplier_name": it["supplier_name"],
-        "supplier_sku": it["supplier_sku"], "current_price": it["price"],
-        "image_urls": it.get("images") or ([it["image"]] if it["image"] else []),
-        "raw_data": {"normalized": {"color": it["color"], "finish": it["finish"],
-                                    "size_in": it["size"], "class": it["class"]}},
-    } for it in page]
-
-    resp = {"items": items, "total": total, "limit": limit, "offset": offset}
-    if build_facets:
-        def _by_count(c):
-            return [{"value": v, "count": n} for v, n in sorted(c.items(), key=lambda kv: (-kv[1], str(kv[0]).lower()))[:80]]
-        # sizes read as numbers so 10" sorts after 9", not after 1"
-        def _by_size(c):
-            def num(v):
-                try: return float(v)
-                except (TypeError, ValueError): return 1e9
-            items_ = [(v, n) for v, n in c.items() if num(v) > 0]  # drop the 0" noise bucket
-            return [{"value": v, "count": n} for v, n in sorted(items_, key=lambda kv: num(kv[0]))[:80]]
-        resp["facets"] = {
-            "categories": _by_count(counters["categories"]),
-            "colors": _by_count(counters["colors"]),
-            "sizes": _by_size(counters["sizes"]),
-            "finishes": _by_count(counters["finishes"]),
-            "availability": _by_count(counters["availability"]),
-            "product_types": _by_count(counters["product_types"]),
-            # most_common() leaves equal-count suppliers in arbitrary order, which
-            # made this the one dimension whose ordering was not reproducible.
-            # Tie-break on the name, like every other dimension does.
-            "suppliers": [
-                {"value": sup_names.get(sid, str(sid)), "id": sid, "count": n}
-                for sid, n in sorted(
-                    counters["suppliers"].items(),
-                    key=lambda kv: (-kv[1], str(sup_names.get(kv[0], kv[0])).lower()))[:80]
-            ],
-        }
-    return resp
+    conn = await get_conn()
+    try:
+        return await _search_products_db(
+            conn, search=search, price_min=price_min, price_max=price_max,
+            supplier_ids=supplier_ids, ids=ids, limit=limit, offset=offset,
+            build_facets=offset <= 0,
+            categories=categories, colors=colors, sizes=sizes, finishes=finishes,
+            availability=availability, product_types=product_types,
+        )
+    finally:
+        await conn.close()
 
 
 @router.get("/detail/{product_id}", response_model=ProductOut)
