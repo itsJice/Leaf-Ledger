@@ -590,7 +590,27 @@ async def run_matrix(args) -> int:
         await conn.close()
     index_bytes = os.path.getsize(disk) if os.path.exists(disk) else 0
     print(f"reference index ready: {len(rows):,} rows in {build_s:.1f}s "
-          f"(on-disk gzip {index_bytes / 1e6:.1f} MB)\n")
+          f"(on-disk gzip {index_bytes / 1e6:.1f} MB)")
+
+    # The reference is only a reference while it matches the live catalog. A
+    # cached index survives up to SEARCH_INDEX_TTL, and one mid-day import is
+    # enough to make every facet count differ — a run against a stale reference
+    # once reported 14 phantom "defects" that were really 129 newly imported
+    # products the index had not seen. One COUNT(*) is cheap insurance.
+    conn = await products.get_conn()
+    try:
+        live = await conn.fetchval("SELECT COUNT(*) FROM products WHERE is_active = TRUE")
+    finally:
+        await conn.close()
+    if live != len(rows):
+        print(f"\n{'!' * 78}\n"
+              f"!! STALE REFERENCE: the index holds {len(rows):,} rows but the live catalog\n"
+              f"!! has {live:,}. The catalog changed after the cached index was built, so\n"
+              f"!! facet/total mismatches below are the INDEX being out of date, not SQL\n"
+              f"!! defects. Delete {disk}\n"
+              f"!! and re-run to compare against a fresh reference.\n{'!' * 78}\n")
+    else:
+        print("reference freshness: index rows == live catalog rows\n")
 
     sample = _sample_from_index(rows)
     cases = build_matrix(sample)
