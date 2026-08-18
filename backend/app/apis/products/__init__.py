@@ -474,9 +474,39 @@ async def _build_product_filter_metadata(conn) -> dict[str, Any]:
 
 @router.get("/filter-metadata", response_model=ProductFilterMetadata)
 async def get_product_filter_metadata():
+    """Sidebar filter vocabulary, served from the facet baseline cache.
+
+    This used to run seven full-table JSONB aggregates per call (16-19s EACH on
+    this instance). The Catalog Search page calls it on every mount, so a few
+    concurrent users saturated the instance's IO and every other query - search
+    included - queued behind it: the app looked completely down. The facet
+    baseline computes the same numbers in one pass and is cached in memory and
+    on disk; suppliers/countries are cheap small-table reads."""
     conn = await get_conn()
     try:
-        return await _build_product_filter_metadata(conn)
+        if not _facets_fresh():
+            await _build_unfiltered_facets(conn)
+        facets = (_FACET_CACHE["facets"] or {}) if _facets_fresh() else {}
+        def opts(dim):
+            return [FilterOption(value=str(e["value"]), count=int(e["count"]),
+                                 id=e.get("id")) for e in facets.get(dim, [])]
+        suppliers = opts("suppliers")
+        if not suppliers:
+            rows = await conn.fetch("""SELECT s.id, s.name AS value, COUNT(f.product_id)::int AS count
+                FROM suppliers s LEFT JOIN product_facets f ON f.supplier_id = s.id
+                GROUP BY s.id, s.name ORDER BY count DESC""")
+            suppliers = [FilterOption(value=r["value"], count=r["count"], id=r["id"]) for r in rows]
+        countries = await conn.fetch("""SELECT COALESCE(NULLIF(country_of_origin,''),'Unknown') AS value,
+                COUNT(*)::int AS count FROM products WHERE is_active
+                GROUP BY 1 ORDER BY count DESC LIMIT 40""")
+        return ProductFilterMetadata(
+            generated_at=datetime.utcnow().isoformat() + "Z",
+            categories=opts("categories"), suppliers=suppliers,
+            product_types=opts("product_types"),
+            countries=[FilterOption(value=r["value"], count=r["count"]) for r in countries],
+            colors=opts("colors"), availability=opts("availability"),
+            finishes=opts("finishes"), sizes=opts("sizes"),
+        )
     finally:
         await conn.close()
 
@@ -1133,23 +1163,49 @@ def _save_facets_to_disk() -> None:
         print(f"could not persist facet cache: {e}")
 
 
+# A Postgres advisory lock key, so the guard holds DB-wide rather than only
+# within one Python process. asyncio.Lock only ever coordinated one process:
+# if Render runs (or scales to) more than one instance, each boots with its own
+# empty local disk cache — an ephemeral filesystem, not shared — and every one
+# of them independently decided the baseline was cold and launched its own
+# ~15-50s aggregate at once. Ten of those piling up on one small instance
+# queued out every other query behind them, including plain browsing, which is
+# what "catalog search isn't working, nothing populates" looks like from a
+# user's chair.
+_FACET_LOCK_KEY = int.from_bytes(hashlib.sha1(b"ll_facet_baseline").digest()[:8], "big", signed=True)
+
+
 async def _build_unfiltered_facets(conn) -> Optional[dict]:
     """The no-search, nothing-selected counts. The one pass nothing can narrow
-    (~15 s), so it is computed once and cached hard — memory plus disk, the same
-    way the search index is, so a restart does not re-read the catalog."""
-    has_pf, has_blob = await _facet_source_probe(conn)
-    exprs = _facet_exprs(has_pf, has_blob)
-    sql, args = _facet_query(exprs, "TRUE" if has_pf else "p.is_active = TRUE",
-                             [], {}, _FACET_DIMS)
-    started = _time.time()
-    rows = await conn.fetch(sql, *args)
-    if not rows:
-        return None  # a stub or a failure — never cache an empty sidebar
-    facets, total = _shape_facets(rows, _FACET_DIMS)
-    _FACET_CACHE.update(ts=_time.time(), facets=facets, total=int(total or 0))
-    _save_facets_to_disk()
-    print(f"unfiltered facets built in {_time.time() - started:.1f}s ({total} products)")
-    return facets
+    (~15 s, more under contention), so it is computed once and cached hard —
+    memory plus disk — and guarded DB-wide so only one process anywhere ever
+    runs it at a time. A process that loses the race does not fall back to
+    running its own copy: it returns None immediately, at the cost of one
+    request seeing an empty sidebar rather than adding a second expensive query
+    on top of the one already running.
+    """
+    got_lock = await conn.fetchval("SELECT pg_try_advisory_lock($1)", _FACET_LOCK_KEY)
+    if not got_lock:
+        print("unfiltered facet build already running elsewhere — skipping")
+        return None
+    try:
+        if _facets_fresh():  # someone else finished while we waited for the lock
+            return _FACET_CACHE["facets"]
+        has_pf, has_blob = await _facet_source_probe(conn)
+        exprs = _facet_exprs(has_pf, has_blob)
+        sql, args = _facet_query(exprs, "TRUE" if has_pf else "p.is_active = TRUE",
+                                 [], {}, _FACET_DIMS)
+        started = _time.time()
+        rows = await conn.fetch(sql, *args)
+        if not rows:
+            return None  # a stub or a failure — never cache an empty sidebar
+        facets, total = _shape_facets(rows, _FACET_DIMS)
+        _FACET_CACHE.update(ts=_time.time(), facets=facets, total=int(total or 0))
+        _save_facets_to_disk()
+        print(f"unfiltered facets built in {_time.time() - started:.1f}s ({total} products)")
+        return facets
+    finally:
+        await conn.execute("SELECT pg_advisory_unlock($1)", _FACET_LOCK_KEY)
 
 
 def _ensure_facets_building() -> None:
@@ -1314,13 +1370,22 @@ async def _search_products_db(conn, *, search, price_min, price_max,
             alts = []
             for v in variants:
                 ph = add(f"%{v}%")
-                cols = [f"p.name ILIKE {ph}", f"p.description ILIKE {ph}",
-                        f"p.supplier_sku ILIKE {ph}"]
                 if blob_search:
-                    # The flattened raw_data values the index folds into its blob
-                    # — material, collection, type, UPC and so on. Without this
-                    # the SQL path loses ~30-70% of the rows on a keyword query.
-                    cols.append(f"pf.search_blob ILIKE {ph}")
+                    # search_blob is built from name + supplier_sku + description
+                    # + supplier name + the flattened raw_data values (see the
+                    # product_facets_blob trigger), so it is a strict superset of
+                    # matching those three columns separately - keeping the
+                    # per-column OR alongside it forced Postgres to evaluate the
+                    # filter across BOTH products and product_facets post-join,
+                    # which no index can satisfy: a plain keyword query fell back
+                    # to a parallel seq scan of both tables (289 MB+ read, spilling
+                    # to disk) instead of the trigram index, 18.5s measured for one
+                    # word. search_blob alone lets the planner use the GIN index:
+                    # 1.9s measured on the same query.
+                    cols = [f"pf.search_blob ILIKE {ph}"]
+                else:
+                    cols = [f"p.name ILIKE {ph}", f"p.description ILIKE {ph}",
+                            f"p.supplier_sku ILIKE {ph}"]
                 alts.append("(" + " OR ".join(cols) + ")")
             base.append(f"({' OR '.join(alts)})")
             if len(alts) > 1:
