@@ -535,6 +535,23 @@ dialog option:disabled{color:#b6b3ae}
 .stfedit button{flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--line);background:#fff;
   cursor:pointer;font-weight:700;font-size:12px;font-family:'Montserrat',sans-serif;color:var(--ink)}
 .stfedit button.danger{color:var(--danger);border-color:#f3d4d4}
+/* shift list */
+.shifthdr{font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.5}
+.shiftdate{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:16px 0 6px}
+.shiftdate:first-of-type{margin-top:0}
+.shiftrow{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:9px;margin-bottom:6px;font-size:12.5px;
+  cursor:pointer;flex-wrap:wrap;border-left:4px solid var(--line)}
+.shiftrow:hover{border-color:var(--brand)}
+.shiftrow.none{border-left-color:var(--faint);background:#faf9f7}
+.shiftrow.bad{border-left-color:var(--danger)}
+.shiftrow.short{border-left-color:var(--warn)}
+.shiftrow.ok{border-left-color:var(--ok)}
+.shiftrow .cdot{width:9px;height:9px;border-radius:50%;flex:none}
+.shname{font-weight:700;min-width:150px}
+.shwhen{display:block;font-weight:500;color:var(--mut);font-size:11px}
+.shwho{color:var(--mut);font-size:11.5px;flex:1 1 200px;min-width:0}
+.shwho b{color:var(--ink)}
 /* coverage rollup */
 .covday{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
   margin-bottom:10px}
@@ -1417,6 +1434,78 @@ function routeDay(d){
 function effH(d,r){
   return (d.half||[]).includes(r) ? (C[r].h26||0)/2 : (C[r].h26||0);
 }
+// ---------- shifts ----------
+// A SHIFT is what a person actually signs up for, and it is not always one
+// crew-day:
+//   * A normal shift is one crew-day, and it is the WHOLE day. There are no
+//     half days -- if you are Crew 2 on 11/27 you are on every job Crew 2
+//     works that day (user, 2026-08-18).
+//   * The Dallas run is staffed a WEEK at a time, not a night at a time.
+//     Whoever works the Mi Cocina nights works all of them, so one crew's
+//     whole run of Dallas nights is a single shift.
+// `staffing` stays keyed by crew-day id -- assigning a block just writes the
+// same people to each of its days -- so the day cards, run sheets and the
+// per-day coverage maths all keep working unchanged.
+const DALLAS_DATES = new Set(SPEC.calendar.filter(c=>c.kind==='dallas_night').map(c=>c.date));
+function isDallasNight(d){ return DALLAS_DATES.has(d.date) && d.win===K.NIGHT; }
+function shiftKeyOf(d){ return isDallasNight(d) ? 'dallas|'+d.crew : d.id; }
+function buildShifts(){
+  const map=new Map();
+  days.forEach(d=>{
+    const k=shiftKeyOf(d);
+    if(!map.has(k)) map.set(k,{key:k, crew:d.crew, dallas:isDallasNight(d), days:[]});
+    map.get(k).days.push(d);
+  });
+  const out=[...map.values()];
+  out.forEach(sh=>{
+    sh.days.sort((a,b)=>a.date.localeCompare(b.date));
+    sh.date  = sh.days[0].date;                       // where it sorts/appears
+    sh.night = sh.days.some(x=>x.win===K.NIGHT);
+    sh.stops = sh.days.reduce((a,x)=>a+x.stops.length,0);
+    sh.hours = sh.days.reduce((a,x)=>a+dayCalc(x).total/60,0);
+    sh.label = sh.dallas
+      ? `${sh.crew} · Dallas week`
+      : `${sh.crew}${sh.night?' · night':''}`;
+    sh.when = sh.dallas
+      ? `${fmtMDYYYY(sh.days[0].date)} – ${fmtMDYYYY(sh.days[sh.days.length-1].date)}`
+        + ` · ${sh.days.length} night${sh.days.length===1?'':'s'}`
+      : fmtMDYYYY(sh.date);
+  });
+  return out.sort((a,b)=>a.date.localeCompare(b.date)||a.crew.localeCompare(b.crew)
+                        ||(a.night?1:0)-(b.night?1:0));
+}
+function shiftFor(key){ return buildShifts().find(s=>s.key===key) || null; }
+function shiftOfDay(d){ return shiftFor(shiftKeyOf(d)); }
+/** A block is staffed as one unit, so its need is the biggest single night in
+ *  it -- the crew that shows up has to cover the heaviest one. */
+function shiftNeed(sh){
+  return sh.days.map(dayNeed).reduce((a,n)=>({
+    lead:Math.max(a.lead,n.lead), assist:Math.max(a.assist,n.assist),
+    gen:Math.max(a.gen,n.gen), total:Math.max(a.total,n.total)}),
+    {lead:0,assist:0,gen:0,total:0});
+}
+function shiftCoverage(sh){
+  // Assignment always writes every member day, but a union keeps this honest
+  // if state ever arrives half-written from an older build.
+  const ids=[...new Set(sh.days.flatMap(d=>staffing[d.id]||[]))];
+  const need=shiftNeed(sh);
+  const fake={id:sh.key, stops:[], half:[]};
+  // reuse dayCoverage's fill-down logic against the block's own need
+  const who=ids.map(personById).filter(p=>p&&p.active);
+  const lead=who.filter(p=>p.title==='Lead').length;
+  const assist=who.filter(p=>p.title==='Lead Assist').length;
+  const gen=who.filter(p=>p.title==='General Installer').length;
+  const shortLead=Math.max(0,need.lead-lead);
+  let spareLead=Math.max(0,lead-need.lead);
+  let shortAssist=Math.max(0,need.assist-assist);
+  const u=Math.min(spareLead,shortAssist); spareLead-=u; shortAssist-=u;
+  const spareAssist=Math.max(0,assist-need.assist);
+  let shortGen=Math.max(0,need.gen-gen);
+  shortGen-=Math.min(spareAssist+spareLead,shortGen);
+  const short=shortLead+shortAssist+shortGen;
+  return {need, who, lead, assist, gen, shortLead, shortAssist, shortGen, short,
+          state: !who.length ? 'none' : shortLead ? 'bad' : short ? 'short' : 'ok'};
+}
 // ---------- staffing need & coverage ----------
 /** What this crew-day needs, by title.
  *  The binding number is the MAX over the day's stops, not the sum: a crew
@@ -1486,10 +1575,11 @@ function clashesFor(id){
   return Object.entries(byDate).filter(([,ds])=>
     new Set(ds.map(d=>d.crew)).size>1).map(([dt,ds])=>({date:dt,crews:ds.map(d=>d.crew)}));
 }
+/** The shifts a person is on. A Dallas week counts as ONE shift, not five --
+ *  that is how it is worked and how it should read on their card. */
 function shiftsFor(id){
-  return Object.entries(staffing).filter(([,l])=>l.includes(id))
-    .map(([dayId])=>days.find(d=>d.id===dayId)).filter(Boolean)
-    .sort((a,b)=>a.date.localeCompare(b.date)||a.crew.localeCompare(b.crew));
+  const on=new Set(Object.entries(staffing).filter(([,l])=>l.includes(id)).map(([k])=>k));
+  return buildShifts().filter(sh=>sh.days.some(d=>on.has(d.id)));
 }
 // PURE. This used to assign d.stops, and it runs during paint (from both
 // buildDayCard and drawDate) -- so merely previewing a candidate day would
@@ -2132,9 +2222,11 @@ function buildDayCard(d){
       <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
-    ${(()=>{ const cv=dayCoverage(d);
-       return `<span class="stfchip ${cv.state}" title="Click to staff this crew-day">`
-            + `${IC.users}${coverageLabel(cv)}</span>`; })()}
+    ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
+       return `<span class="stfchip ${cv.state}" title="Click to staff this shift`
+            + `${sh&&sh.dallas?' (the whole Dallas week)':''}">`
+            + `${IC.users}${coverageLabel(cv)}`
+            + `${sh&&sh.dallas?' · week':''}</span>`; })()}
     <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>`;
@@ -3336,7 +3428,9 @@ function openStopPeek(row,dayId){
 }
 let viewMode='days';
 // ---------- staffing UI ----------
-let staffTab='roster', selPerson=null;
+// Shifts first: the question people open this on is "who is working what",
+// and with an empty roster that is a screen full of unstaffed shifts.
+let staffTab='shifts', selPerson=null;
 let stfFilter={title:'',lang:'',gender:'',active:'1'};
 const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','General Installer':'gen'};
 const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','General Installer':'General'};
@@ -3394,22 +3488,33 @@ function deletePerson(pn){
 }
 
 // ---- assign people to a crew-day ----
-let stfDayId=null;
-function openStaffDlg(dayId){
-  const d=days.find(x=>x.id===dayId); if(!d) return;
-  stfDayId=dayId;
-  document.getElementById('stftitle').textContent=
-    `${d.crew}${d.win===K.NIGHT?' · night':''} — ${fmtDate(d.date)}`;
+let stfKey=null;
+/** Takes a crew-day id OR a shift key. A Dallas night resolves to its whole
+ *  week, so there is exactly one way to staff it and the block cannot be
+ *  half-assigned by going in through a day card. */
+function openStaffDlg(idOrKey){
+  const d=days.find(x=>x.id===idOrKey);
+  const sh=d ? shiftOfDay(d) : shiftFor(idOrKey);
+  if(!sh) return;
+  stfKey=sh.key;
+  document.getElementById('stftitle').textContent=`${sh.label} — ${sh.when}`;
   drawStaffDlg();
   stfdlg.showModal();
 }
+function shiftAssigned(sh){ return new Set(sh.days.flatMap(x=>staffing[x.id]||[])); }
 function drawStaffDlg(){
-  const d=days.find(x=>x.id===stfDayId); if(!d) return;
-  const cv=dayCoverage(d), on=new Set(staffing[stfDayId]||[]);
+  const sh=shiftFor(stfKey); if(!sh) return;
+  const d=sh.days[0];
+  const cv=shiftCoverage(sh), on=shiftAssigned(sh);
   document.getElementById('stfneed').innerHTML =
     `Needs <b>${cv.need.lead} lead</b>${cv.need.assist?` · ${cv.need.assist} assist`:''}`
     + `${cv.need.gen?` · ${cv.need.gen} general`:''} — <b>${cv.need.total} on site</b>. `
-    + `<span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>`;
+    + `<span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span><br>`
+    + (sh.dallas
+        ? `Staffed as a block — whoever works Dallas works all `
+          + `${sh.days.length} nights.`
+        : `Whole day — all ${sh.stops} job${sh.stops===1?'':'s'}, `
+          + `${sh.hours.toFixed(1)}h. No half days.`);
   const avail=roster.filter(p=>p.active||on.has(p.id));
   let h='';
   if(!avail.length) h='<div class="stfnone">No installers on the roster yet — '
@@ -3419,11 +3524,14 @@ function drawStaffDlg(){
     if(!grp.length) return;
     h+=`<div class="asghdr">${esc(t)}</div>`;
     grp.sort((a,b)=>(b.homeCrew===d.crew)-(a.homeCrew===d.crew)||a.name.localeCompare(b.name));
+    const mine=new Set(sh.days.map(x=>x.id));
+    const myDates=new Set(sh.days.map(x=>x.date));
     grp.forEach(p=>{
-      // Booked on a DIFFERENT crew the same date -- one body, two places.
+      // Booked on a DIFFERENT crew on a date this shift covers -- one body,
+      // two places. For a Dallas block that means any night of the week.
       const clash=Object.entries(staffing).some(([k,l])=>{
-        if(k===stfDayId||!l.includes(p.id)) return false;
-        const o=days.find(x=>x.id===k); return o&&o.date===d.date;
+        if(mine.has(k)||!l.includes(p.id)) return false;
+        const o=days.find(x=>x.id===k); return o && myDates.has(o.date);
       });
       h+=`<label class="asgrow${on.has(p.id)?' on':''}">`
        + `<input type="checkbox" data-pid="${p.id}"${on.has(p.id)?' checked':''}>`
@@ -3431,7 +3539,7 @@ function drawStaffDlg(){
        + `${p.homeCrew===d.crew?' <span class="pill gen">usual</span>':''}</span>`
        + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
        + (clash?`<span class="asgclash">ALSO ${esc(
-            (days.find(x=>x.id!==stfDayId&&x.date===d.date
+            (days.find(x=>!mine.has(x.id)&&myDates.has(x.date)
               &&(staffing[x.id]||[]).includes(p.id))||{}).crew||'')}</span>`:'')
        + `</label>`;
     });
@@ -3441,9 +3549,12 @@ function drawStaffDlg(){
   list.querySelectorAll('input[data-pid]').forEach(cb=>{
     cb.onchange=()=>{
       pushUndo();
-      const cur=new Set(staffing[stfDayId]||[]);
-      cb.checked ? cur.add(cb.dataset.pid) : cur.delete(cb.dataset.pid);
-      if(cur.size) staffing[stfDayId]=[...cur]; else delete staffing[stfDayId];
+      // Write every day in the shift, so a block is all-or-nothing.
+      sh.days.forEach(x=>{
+        const cur=new Set(staffing[x.id]||[]);
+        cb.checked ? cur.add(cb.dataset.pid) : cur.delete(cb.dataset.pid);
+        if(cur.size) staffing[x.id]=[...cur]; else delete staffing[x.id];
+      });
       persist(); drawStaffDlg(); render();
     };
   });
@@ -3494,8 +3605,9 @@ function personDetailHTML(){
   const p=personById(selPerson);
   if(!p) return `<div class="stfnone">Pick someone to see their days, jobs and crews.</div>`;
   const sh=shiftsFor(p.id), clash=clashesFor(p.id);
-  const hrs=sh.reduce((a,d)=>a+dayCalc(d).total/60,0);
-  const stops=sh.reduce((a,d)=>a+d.stops.length,0);
+  const hrs=sh.reduce((a,x)=>a+x.hours,0);
+  const stops=sh.reduce((a,x)=>a+x.stops,0);
+  const dayCount=sh.reduce((a,x)=>a+x.days.length,0);
   let h=`<div class="stfdetail"><h3>${esc(p.name)}</h3>
     <div class="stfdmeta">
       <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
@@ -3505,58 +3617,61 @@ function personDetailHTML(){
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
     </div>
     <div class="stfdstat">
-      <div><b>${sh.length}</b>days</div><div><b>${stops}</b>jobs</div>
+      <div><b>${sh.length}</b>shift${sh.length===1?'':'s'}</div>
+      <div><b>${dayCount}</b>days</div><div><b>${stops}</b>jobs</div>
       <div><b>${hrs.toFixed(1)}</b>hours</div>
     </div>`;
   if(clash.length) h+=`<div class="cvchip bad" style="display:block;margin-bottom:10px;padding:6px 9px">
       Double-booked ${clash.map(c=>fmtMDYYYY(c.date)+' ('+c.crews.join(' + ')+')').join(', ')}</div>`;
   h+= sh.length
-    ? sh.map(d=>`<div class="stfshift" data-goday="${d.id}">
-        <span class="sdot" style="background:${CREW_COLORS[d.crew]||'#555'}"></span>
-        <span><span class="sd">${fmtMDYYYY(d.date)} · ${esc(d.crew)}${
-          d.win===K.NIGHT?' · night':''}</span>
-        <span class="sj">${d.stops.map(r=>esc((C[r].name||'').split('|')[0].trim())).join(', ')||'no stops'}</span></span>
+    ? sh.map(x=>`<div class="stfshift" data-goday="${x.days[0].id}">
+        <span class="sdot" style="background:${CREW_COLORS[x.crew]||'#555'}"></span>
+        <span><span class="sd">${esc(x.when)} · ${esc(x.label)}</span>
+        <span class="sj">${x.days.flatMap(d=>d.stops.map(r=>
+            esc((C[r].name||'').split('|')[0].trim()))).join(', ')||'no stops'}</span></span>
       </div>`).join('')
-    : `<div class="stfnone" style="padding:12px">Not on any crew-day yet.</div>`;
+    : `<div class="stfnone" style="padding:12px">Not on any shift yet.</div>`;
   h+=`<div class="stfedit">
       <button data-act="edit">Edit</button>
       <button data-act="toggle">${p.active?'Mark inactive':'Reactivate'}</button>
       <button data-act="del" class="danger">Remove</button></div></div>`;
   return h;
 }
-function coverageHTML(){
-  const dates=[...new Set(days.map(d=>d.date))].sort();
-  if(!roster.length) return `<div class="stfnone">Add installers to the roster first —
-    coverage is measured against who you have, so with an empty roster every day reads unstaffed.</div>`;
-  return dates.map(dt=>{
-    const ds=days.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
-    const cvs=ds.map(d=>({d,cv:dayCoverage(d)}));
-    const need=cvs.reduce((a,x)=>a+x.cv.need.total,0);
-    const have=cvs.reduce((a,x)=>a+x.cv.who.length,0);
-    const worst=cvs.some(x=>x.cv.state==='bad')?'bad'
-              :cvs.some(x=>x.cv.state==='none')?'none'
-              :cvs.some(x=>x.cv.state==='short')?'short':'ok';
-    return `<div class="covday"><h4>
-        <span class="cvchip ${worst}">${have}/${need}</span> ${fmtDate(dt)}
-        <span class="cvtot">${ds.length} crew${ds.length===1?'':'s'}</span></h4>`
-      + cvs.map(({d,cv})=>`<div class="covrow" data-goday="${d.id}" data-staff="${d.id}">
-          <span class="cdot" style="background:${CREW_COLORS[d.crew]||'#555'}"></span>
-          <span class="cvcrew">${esc(d.crew)}${d.win===K.NIGHT?' <span class="pill gen">NIGHT</span>':''}</span>
-          <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
-          <span class="cvwho">${cv.who.map(p=>esc(p.name)).join(', ')
-            ||'<i>nobody assigned</i>'}</span></div>`).join('')
-      + `</div>`;
-  }).join('');
+function shiftsHTML(){
+  const shifts=buildShifts();
+  const unstaffed=shifts.filter(sh=>!shiftCoverage(sh).who.length).length;
+  let h=`<div class="shifthdr">${shifts.length} shifts this season · `
+      + `<b>${unstaffed} with nobody on them</b>. A shift is the whole day — `
+      + `everyone on it works every job that day. Dallas is staffed as one week.</div>`;
+  let lastDate='';
+  shifts.forEach(sh=>{
+    const cv=shiftCoverage(sh);
+    if(sh.date!==lastDate){
+      lastDate=sh.date;
+      h+=`<div class="shiftdate">${fmtDate(sh.date)}</div>`;
+    }
+    h+=`<div class="shiftrow ${cv.state}" data-shift="${esc(sh.key)}">
+      <span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>
+      <span class="shname">${esc(sh.label)}
+        <span class="shwhen">${esc(sh.when)} · ${sh.stops} job${sh.stops===1?'':'s'}
+          · ${sh.hours.toFixed(1)}h</span></span>
+      <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
+      <span class="shwho">${cv.who.length
+        ? cv.who.map(pn=>`${esc(pn.name)}${pn.title==='Lead'?' <b>(lead)</b>'
+            :pn.title==='Lead Assist'?' (assist)':''}`).join(' · ')
+        : '<i>no one assigned</i>'}</span></div>`;
+  });
+  return h;
 }
 function renderStaffing(){
   const wrap=document.getElementById('staffwrap');
-  const short=days.filter(d=>{const c=dayCoverage(d); return c.state!=='ok';}).length;
+  const short=buildShifts().filter(sh=>shiftCoverage(sh).state!=='ok').length;
   wrap.innerHTML=`<div class="stfbar">
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
-      <button class="stftab${staffTab==='coverage'?' sel':''}" data-tab="coverage">Coverage${
+      <button class="stftab${staffTab==='shifts'?' sel':''}" data-tab="shifts">Shifts${
         short?` (${short})`:''}</button>
       <button class="stfadd" id="addperson">+ Add installer</button>
-    </div>${staffTab==='roster'?rosterHTML():coverageHTML()}`;
+    </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   wrap.querySelectorAll('.stftab').forEach(b=>
     b.onclick=()=>{ staffTab=b.dataset.tab; renderStaffing(); });
   document.getElementById('addperson').onclick=()=>openPersonDlg(null);
@@ -3571,8 +3686,8 @@ function renderStaffing(){
       else if(a==='toggle') togglePersonActive(pn);
       else deletePerson(pn); };
   });
-  wrap.querySelectorAll('[data-staff]').forEach(el=>
-    el.onclick=()=>openStaffDlg(el.dataset.staff));
+  wrap.querySelectorAll('[data-shift]').forEach(el=>
+    el.onclick=()=>openStaffDlg(el.dataset.shift));
   wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
                      selDate=d.date; focusDayId=d.id; setView('days'); });
@@ -3628,7 +3743,7 @@ function manifestHTML(d){
       <div><h1>${esc(d.crew)} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
         <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
         ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
-        ${(()=>{ const cv=dayCoverage(d);
+        ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
           // Who is actually on this truck, printed where the crew will see it.
           const who=cv.who.map(pn=>esc(pn.name)
               +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':'')).join(' · ');
