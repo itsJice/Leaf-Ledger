@@ -385,11 +385,17 @@ def parse():
         else:
             crew_size_2025 = None
 
-        # staffing asks
-        staff = [x for x in (as_int(h(r, "# CREW LEADS NEEDED")),
-                             as_int(h(r, "# SPECIALTY LABOR (SCAFFOLDING EXTRA TALL LADDER)")),
-                             as_int(h(r, "# DESIGNER / ART DIRECTOR")),
-                             as_int(h(r, "# GENERAL INSTALLERS NEEDED"))) if x]
+        # Staffing asks. The SUM is what routing/pricing use, but the
+        # breakdown is what actually staffs a crew -- "8 people" does not
+        # say whether the missing one is a lead (nobody can run the job) or
+        # a general installer (slower day). Kept per-role as well as summed.
+        role_need = {
+            "leads": as_int(h(r, "# CREW LEADS NEEDED")),
+            "specialty": as_int(h(r, "# SPECIALTY LABOR (SCAFFOLDING EXTRA TALL LADDER)")),
+            "designer": as_int(h(r, "# DESIGNER / ART DIRECTOR")),
+            "general": as_int(h(r, "# GENERAL INSTALLERS NEEDED")),
+        }
+        staff = [x for x in role_need.values() if x]
         people_needed = sum(staff) if staff else None
 
         box = h(r, "BOX COUNT")
@@ -447,6 +453,7 @@ def parse():
             "crew_2025": crew_2025,
             "crew_size_2025": crew_size_2025,
             "people_needed": people_needed,
+            "role_need": role_need,
             "est_hours": est,
             "real_hours": real,
             "prior_install_date": prior_date,

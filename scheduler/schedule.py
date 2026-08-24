@@ -544,6 +544,10 @@ def main():
             "phone": "", "email": "", "storage": "", "date_2024": "",
             "crew_2025": "", "crew_size_2025": None,
             "people_needed": nc.get("people"),
+            # A hand-added client has a headcount but no role breakdown --
+            # assume 1 lead and the rest general, same shape prep.py emits.
+            "role_need": {"leads": 1, "specialty": 0, "designer": 0,
+                          "general": max((nc.get("people") or 1) - 1, 0)},
             "est_hours": None, "real_hours": None,
             "prior_install_date": nc.get("prior_install_date", ""),
             "business": nc.get("business") or "Business",

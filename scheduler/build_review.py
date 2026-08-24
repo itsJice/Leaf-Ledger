@@ -64,6 +64,9 @@ for c in sched["all_clients"]:
         "d25": c.get("prior_install_date", ""),
         "real25": c.get("real_hours"), "crew25": c.get("crew_2025", ""),
         "size25": c.get("crew_size_2025"), "people": c.get("people_needed"),
+        # Per-role staffing ask, so a crew-day can be judged on whether it has
+        # a LEAD -- not merely enough bodies. See prep.py.
+        "roleNeed": c.get("role_need") or {},
         "h26": c.get("cal_hours"), "basis": c.get("hours_basis", ""),
         "zone": c["zone"], "area": c["area"], "cat": c["category"],
         "bus": c["business"], "lat": c["lat"], "lon": c["lon"],
@@ -477,6 +480,101 @@ dialog option:disabled{color:#b6b3ae}
 .calbox{color:#8a5a00}
 .caltag{display:inline-block;padding:0 5px;border-radius:4px;background:#7c3aed;color:#fff;
   font-size:9px;font-weight:800;margin-left:4px;vertical-align:2px}
+/* ---------- staffing ---------- */
+#staffwrap{padding:16px 20px 40px;width:100%;box-sizing:border-box;
+  align-self:stretch;overflow-y:auto;min-height:0}
+.stfbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stftab{padding:7px 14px;border:1.5px solid var(--line);border-radius:9px;background:#fff;
+  cursor:pointer;font-weight:700;font-size:12.5px;color:var(--mut);font-family:'Montserrat',sans-serif}
+.stftab.sel{background:var(--brand);color:#fff;border-color:var(--brand)}
+.stfadd{margin-left:auto;padding:7px 14px;border-radius:9px;border:1.5px solid var(--brand);
+  background:#fff;color:var(--brand);font-weight:700;font-size:12.5px;cursor:pointer;
+  font-family:'Montserrat',sans-serif}
+.stfadd:hover{background:var(--brand-soft)}
+.stffilters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.stffilters select{padding:6px 9px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
+  font-size:12px;font-weight:600;font-family:'Montserrat',sans-serif;color:var(--ink)}
+.stfsplit{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:900px){.stfsplit{grid-template-columns:1fr}}
+.stftable{width:100%;border-collapse:collapse;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stftable th{text-align:left;font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);font-weight:800;padding:9px 10px;border-bottom:1px solid var(--line)}
+.stftable td{padding:9px 10px;font-size:12.5px;border-bottom:1px solid var(--line);vertical-align:middle}
+.stftable tr:last-child td{border-bottom:0}
+.stftable tbody tr{cursor:pointer}
+.stftable tbody tr:hover{background:var(--brand-soft)}
+.stftable tbody tr.sel{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
+.stftable tr.inactive td{opacity:.5}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;
+  letter-spacing:.03em;white-space:nowrap}
+.pill.lead{background:#1f3d2b;color:#fff}
+.pill.assist{background:var(--brand-soft);color:var(--brand-deep)}
+.pill.gen{background:#f1efec;color:var(--mut)}
+.pill.en{background:#eef2ff;color:#3730a3}
+.pill.es{background:#fff1e7;color:#9a3412}
+.pill.both{background:#ecfdf5;color:#065f46}
+.stfnone{color:var(--mut);font-size:12.5px;padding:18px;text-align:center;
+  background:var(--surface);border:1px dashed var(--line);border-radius:10px}
+.stfdetail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;
+  position:sticky;top:0}
+.stfdetail h3{font-family:Georgia,serif;font-size:19px;margin:0 0 2px}
+.stfdmeta{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 12px}
+.stfdstat{display:flex;gap:16px;padding:10px 0;border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);margin-bottom:12px}
+.stfdstat div{font-size:11px;color:var(--mut);font-weight:600}
+.stfdstat b{display:block;font-size:19px;color:var(--ink);font-family:Georgia,serif;font-weight:600}
+.stfshift{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;
+  cursor:pointer}
+.stfshift:hover{background:var(--brand-soft)}
+.stfshift:last-child{border-bottom:0}
+.stfshift .sdot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:4px}
+.stfshift .sd{font-weight:700;white-space:nowrap}
+.stfshift .sj{color:var(--mut);display:block;font-size:11px}
+.stfedit{margin-top:12px;display:flex;gap:8px}
+.stfedit button{flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--line);background:#fff;
+  cursor:pointer;font-weight:700;font-size:12px;font-family:'Montserrat',sans-serif;color:var(--ink)}
+.stfedit button.danger{color:var(--danger);border-color:#f3d4d4}
+/* coverage rollup */
+.covday{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  margin-bottom:10px}
+.covday h4{margin:0 0 8px;font-size:13px;font-family:Georgia,serif;font-weight:600;
+  display:flex;align-items:center;gap:8px}
+.covday h4 .cvtot{margin-left:auto;font-family:'Montserrat',sans-serif;font-size:11px;
+  font-weight:700;color:var(--mut)}
+.covrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--line);
+  font-size:12px;cursor:pointer;flex-wrap:wrap}
+.covrow:hover{background:var(--brand-soft)}
+.covrow .cdot{width:9px;height:9px;border-radius:50%;flex:none}
+.covrow .cvcrew{font-weight:700;min-width:52px}
+.covrow .cvwho{color:var(--mut);font-size:11px;flex:1 1 160px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvchip{padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.cvchip.ok{background:#eaf5ec;color:var(--ok-ink)}
+.cvchip.short{background:var(--warn-soft);color:var(--warn-ink)}
+.cvchip.bad{background:var(--danger-soft);color:var(--danger)}
+.cvchip.none{background:#f1efec;color:var(--mut)}
+/* the chip that lives on a day card */
+.stfchip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+  font-size:10.5px;font-weight:800;cursor:pointer;border:1px solid transparent;white-space:nowrap}
+.stfchip.ok{background:#eaf5ec;color:var(--ok-ink)}
+.stfchip.short{background:var(--warn-soft);color:var(--warn-ink)}
+.stfchip.bad{background:var(--danger-soft);color:var(--danger)}
+.stfchip.none{background:#f1efec;color:var(--mut);border-color:var(--line)}
+.stfchip:hover{filter:brightness(.96)}
+/* assign dialog */
+#stfdlg{max-width:430px}
+.asgneed{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
+.asglist{max-height:44vh;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.asgrow{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:7px;font-size:12.5px;
+  cursor:pointer;border:1px solid transparent}
+.asgrow:hover{background:var(--brand-soft)}
+.asgrow.on{background:var(--brand-soft);border-color:var(--brand)}
+.asgrow input{margin:0;flex:none;accent-color:var(--brand)}
+.asgrow .asgn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asgclash{color:var(--danger);font-size:10px;font-weight:800}
+.asghdr{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
+  font-weight:800;margin:10px 0 3px}
 .printbtn{margin-left:auto;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut)}
 .printbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
@@ -601,6 +699,7 @@ dialog option:disabled{color:#b6b3ae}
   <div class="viewtog">
     <button id="viewdays" class="sel" type="button">Days</button>
     <button id="viewcal" type="button">Calendar</button>
+    <button id="viewstaff" type="button">Staffing</button>
   </div>
   <button id="newclientbtn" type="button">+ New client</button>
   <button id="billexportbtn" type="button">⬇ Export</button>
@@ -609,11 +708,38 @@ dialog option:disabled{color:#b6b3ae}
   <div id="datestrip"></div>
 </header>
 <div id="calwrap" style="display:none"></div>
+<div id="staffwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
   <div id="map"></div>
 </div>
 </div>
+<dialog id="perdlg">
+  <b id="pertitle">Add installer</b>
+  <span class="nclabel">Name</span>
+  <input id="pername" type="text" autocomplete="off" placeholder="First and last name">
+  <span class="nclabel">Title</span>
+  <select id="pertitle2">
+    <option>Lead</option><option>Lead Assist</option>
+    <option selected>General Installer</option>
+  </select>
+  <span class="nclabel">Language</span>
+  <select id="perlang">
+    <option>English</option><option>Spanish</option><option selected>Both</option>
+  </select>
+  <span class="nclabel">Gender</span>
+  <select id="pergender"><option>Female</option><option>Male</option></select>
+  <span class="nclabel">Usual crew</span>
+  <select id="percrew"></select>
+  <div class="btns"><button onclick="perdlg.close()">Cancel</button>
+  <button class="go" id="pergo">Save</button></div>
+</dialog>
+<dialog id="stfdlg">
+  <b id="stftitle">Staff this crew-day</b>
+  <div class="asgneed" id="stfneed"></div>
+  <div class="asglist" id="stflist"></div>
+  <div class="btns"><button onclick="stfdlg.close()">Done</button></div>
+</dialog>
 <dialog id="mvdlg">
   <b id="mvtitle">Move stop</b>
   <select id="mvdate"></select>
@@ -865,6 +991,46 @@ let days = DATA.days.map(hydrate);
 const BASELINE_STOPS = {};
 DATA.days.forEach(d=>{ BASELINE_STOPS[d.id] = [...d.stops].sort((a,b)=>a-b); });
 let approved = new Set(), moves = [], selDate = null;
+// ---------- staffing ----------
+// The pipeline packs stops into LOGISTICS crews (Crew 1/2/3) by route; it has
+// no idea who those crews are made of. `roster` is the people, `staffing` maps
+// a crew-day id -> the installer ids working it. Both start empty and are
+// filled in the tool, and both ride along in the same shared state as
+// placements/approvals, so they undo, sync and version identically.
+const TITLES = ['Lead','Lead Assist','General Installer'];
+const LANGS  = ['English','Spanish','Both'];
+let roster = [], staffing = {};
+let nextPersonId = 1;
+function personById(id){ return roster.find(p=>p.id===id) || null; }
+function crewOptions(){ return [...new Set(days.map(d=>d.crew))].sort(); }
+function normRoster(list){
+  // Defensive: state can arrive from another device, an older build, or a
+  // restored history entry. Anything unrecognised gets a sane default rather
+  // than rendering as `undefined` in a crew list someone dispatches from.
+  const out = (Array.isArray(list)?list:[]).map(p=>({
+    id: String(p&&p.id||''),
+    name: String(p&&p.name||'').trim(),
+    title: TITLES.includes(p&&p.title) ? p.title : 'General Installer',
+    lang: LANGS.includes(p&&p.lang) ? p.lang : 'Both',
+    gender: (p&&p.gender)==='Male' ? 'Male' : 'Female',
+    homeCrew: String(p&&p.homeCrew||''),
+    active: (p&&p.active)!==false,
+  })).filter(p=>p.id && p.name);
+  nextPersonId = out.reduce((m,p)=>Math.max(m, (+String(p.id).replace(/\D/g,'')||0)+1), 1);
+  return out;
+}
+function normStaffing(obj, rost){
+  // Drop assignments pointing at people or crew-days that no longer exist --
+  // the same reconcile the placement snapshot already does.
+  const ids = new Set((rost||roster).map(p=>p.id));
+  const out = {};
+  Object.entries(obj||{}).forEach(([dayId,list])=>{
+    if(!days.some(d=>d.id===dayId)) return;
+    const keep = [...new Set((Array.isArray(list)?list:[]).map(String))].filter(x=>ids.has(x));
+    if(keep.length) out[dayId] = keep;
+  });
+  return out;
+}
 let focusDayId = null;   // click a crew header to zoom the map to just their day
 let stateWarning = null;
 
@@ -937,6 +1103,7 @@ try{
     const missing = applyPlacement(s.placement);
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+    roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
   } else if(s.moves && s.moves.length){
@@ -944,6 +1111,7 @@ try{
     s.moves.forEach(m=>{ try{ applyMove(m.row, m.to, false); }catch(e){} });
     moves = s.moves;
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+    roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     stateWarning = 'Migrated saved changes to the new format — please review.';
   }
 }catch(e){}
@@ -954,7 +1122,8 @@ function snapshot(){
      people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
-          moves, approved:[...approved], newClients, savedAt:Date.now()};
+          moves, approved:[...approved], newClients,
+          roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -998,6 +1167,7 @@ async function pullShared(){
       const missing = applyPlacement(j.state.placement);
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
+      roster = normRoster(j.state.roster); staffing = normStaffing(j.state.staffing);
       syncState = 'shared';
       stateWarning = missing
         ? missing+' shared stop(s) pointed at days that no longer exist.'
@@ -1104,6 +1274,7 @@ async function restoreHistoryEntry(entryId, btn){
     applyPlacement(st.placement);
     moves = st.moves || [];
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
+    roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
     localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
@@ -1126,13 +1297,14 @@ const UNDO_LIMIT = 100;
 let undoStack = [], redoStack = [];
 function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
-                         approved:[...approved], moves});
+                         approved:[...approved], moves, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
   applyPlacement(s.placement);
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   moves = s.moves || [];
+  roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
 }
 /** Call immediately BEFORE mutating, so the stack holds the prior state. */
 function pushUndo(){
@@ -1244,6 +1416,80 @@ function routeDay(d){
 }
 function effH(d,r){
   return (d.half||[]).includes(r) ? (C[r].h26||0)/2 : (C[r].h26||0);
+}
+// ---------- staffing need & coverage ----------
+/** What this crew-day needs, by title.
+ *  The binding number is the MAX over the day's stops, not the sum: a crew
+ *  does not re-staff between jobs, so it must be big enough for its biggest
+ *  one. A stop in d.half is shared with another crew, so this crew supplies
+ *  half of it -- the same rule effH() already uses for hours. */
+function dayNeed(d){
+  let lead=0, assist=0, gen=0;
+  (d.stops||[]).forEach(r=>{
+    const rn=(C[r]||{}).roleNeed||{}, share=(d.half||[]).includes(r)?2:1;
+    const up=x=>Math.ceil((x||0)/share);
+    lead   = Math.max(lead,   up(rn.leads));
+    // Specialty labour and the designer/art director are the experienced
+    // hands on site -- they map to Lead Assist, the only roster title that
+    // covers "more than a general installer, not running the day".
+    assist = Math.max(assist, up(rn.specialty)+up(rn.designer));
+    gen    = Math.max(gen,    up(rn.general));
+  });
+  return {lead:Math.max(lead,1), assist, gen,     // every crew-day needs a lead
+          total:Math.max(lead,1)+assist+gen};
+}
+/** Who is on this crew-day, and whether that covers the need.
+ *  People fill DOWN but never up: a Lead can stand in for an assist or a
+ *  general installer, an assist for a general, but nobody covers a lead they
+ *  are not. A missing lead is therefore a different kind of problem from
+ *  being one pair of hands short, and is reported as one. */
+function dayCoverage(d){
+  const need=dayNeed(d);
+  const who=(staffing[d.id]||[]).map(personById).filter(p=>p&&p.active);
+  let lead=who.filter(p=>p.title==='Lead').length;
+  let assist=who.filter(p=>p.title==='Lead Assist').length;
+  let gen=who.filter(p=>p.title==='General Installer').length;
+  const shortLead=Math.max(0,need.lead-lead);
+  let spareLead=Math.max(0,lead-need.lead);
+  let shortAssist=Math.max(0,need.assist-assist);
+  const useLeadForAssist=Math.min(spareLead,shortAssist);
+  spareLead-=useLeadForAssist; shortAssist-=useLeadForAssist;
+  let spareAssist=Math.max(0,assist-need.assist);
+  let shortGen=Math.max(0,need.gen-gen);
+  const fillGen=Math.min(spareAssist+spareLead,shortGen);
+  shortGen-=fillGen;
+  const short=shortLead+shortAssist+shortGen;
+  return {need, who, lead, assist, gen, shortLead, shortAssist, shortGen, short,
+          state: !who.length ? 'none' : shortLead ? 'bad' : short ? 'short' : 'ok'};
+}
+function coverageLabel(cv){
+  if(cv.state==='none') return 'Unstaffed · needs '+cv.need.total;
+  if(cv.shortLead){
+    // "NO LEAD" only when there genuinely isn't one -- a day that needs two
+    // and has one is short a lead, which is a different conversation.
+    const head = cv.lead ? 'SHORT '+cv.shortLead+' LEAD' : 'NO LEAD';
+    return head + (cv.short>cv.shortLead ? ' · short '+cv.short+' total' : '');
+  }
+  if(cv.short)          return 'Short '+cv.short+' of '+cv.need.total;
+  return 'Staffed '+cv.who.length+'/'+cv.need.total;
+}
+/** Someone booked onto two different crews the same date. Not a blocker --
+ *  a name can legitimately be entered before the day is split -- but it is
+ *  always worth surfacing, because one body cannot be in two places. */
+function clashesFor(id){
+  const byDate={};
+  Object.entries(staffing).forEach(([dayId,list])=>{
+    if(!list.includes(id)) return;
+    const d=days.find(x=>x.id===dayId); if(!d) return;
+    (byDate[d.date]=byDate[d.date]||[]).push(d);
+  });
+  return Object.entries(byDate).filter(([,ds])=>
+    new Set(ds.map(d=>d.crew)).size>1).map(([dt,ds])=>({date:dt,crews:ds.map(d=>d.crew)}));
+}
+function shiftsFor(id){
+  return Object.entries(staffing).filter(([,l])=>l.includes(id))
+    .map(([dayId])=>days.find(d=>d.id===dayId)).filter(Boolean)
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.crew.localeCompare(b.crew));
 }
 // PURE. This used to assign d.stops, and it runs during paint (from both
 // buildDayCard and drawDate) -- so merely previewing a candidate day would
@@ -1886,6 +2132,9 @@ function buildDayCard(d){
       <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
+    ${(()=>{ const cv=dayCoverage(d);
+       return `<span class="stfchip ${cv.state}" title="Click to staff this crew-day">`
+            + `${IC.users}${coverageLabel(cv)}</span>`; })()}
     <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>`;
@@ -1893,6 +2142,7 @@ function buildDayCard(d){
     e.stopPropagation();
     printManifests([d], `${d.crew} — ${fmtMDYYYY(d.date)}`);
   };
+  card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
   card.querySelector('.chead-crew').onclick=()=>{
     focusDayId=d.id;
     document.querySelectorAll('.card.focused').forEach(c=>c.classList.remove('focused'));
@@ -2663,6 +2913,7 @@ function pick(group, val, key){
 }
 document.getElementById('viewdays').onclick = ()=> setView('days');
 document.getElementById('viewcal').onclick  = ()=> setView('cal');
+document.getElementById('viewstaff').onclick= ()=> setView('staff');
 document.getElementById('billexportbtn').onclick = ()=>{ syncBillBtn(); billdlg.showModal(); };
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
   b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
@@ -3084,13 +3335,257 @@ function openStopPeek(row,dayId){
   peekdlg.showModal();
 }
 let viewMode='days';
+// ---------- staffing UI ----------
+let staffTab='roster', selPerson=null;
+let stfFilter={title:'',lang:'',gender:'',active:'1'};
+const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','General Installer':'gen'};
+const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','General Installer':'General'};
+const LANG_CLS={'English':'en','Spanish':'es','Both':'both'};
+const LANG_ABBR={'English':'EN','Spanish':'ES','Both':'EN/ES'};
+function esc(x){ return String(x==null?'':x)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ---- add / edit a person ----
+let editingPerson=null;
+function openPersonDlg(person){
+  editingPerson = person || null;
+  document.getElementById('pertitle').textContent = person ? 'Edit installer' : 'Add installer';
+  document.getElementById('pername').value    = person ? person.name : '';
+  document.getElementById('pertitle2').value  = person ? person.title : 'General Installer';
+  document.getElementById('perlang').value    = person ? person.lang : 'Both';
+  document.getElementById('pergender').value  = person ? person.gender : 'Female';
+  const cs=document.getElementById('percrew');
+  cs.innerHTML='<option value="">— no usual crew —</option>'
+    + crewOptions().map(c=>`<option${person&&person.homeCrew===c?' selected':''}>${esc(c)}</option>`).join('');
+  perdlg.showModal();
+  document.getElementById('pername').focus();
+}
+document.getElementById('pergo').onclick=()=>{
+  const name=document.getElementById('pername').value.trim();
+  if(!name){ document.getElementById('pername').focus(); return; }
+  const fields={name,
+    title:document.getElementById('pertitle2').value,
+    lang:document.getElementById('perlang').value,
+    gender:document.getElementById('pergender').value,
+    homeCrew:document.getElementById('percrew').value};
+  pushUndo();
+  if(editingPerson) Object.assign(editingPerson, fields);
+  else {
+    const p={id:'p'+(nextPersonId++), active:true, ...fields};
+    roster.push(p); selPerson=p.id;
+  }
+  perdlg.close(); persist(); render();
+};
+function togglePersonActive(pn){
+  pushUndo(); pn.active=!pn.active; persist(); render();
+}
+function deletePerson(pn){
+  const sh=shiftsFor(pn.id).length;
+  if(!confirm(`Remove ${pn.name} from the roster`
+    + (sh?` and from ${sh} scheduled crew-day${sh===1?'':'s'}`:'')+'?')) return;
+  pushUndo();
+  roster=roster.filter(x=>x.id!==pn.id);
+  Object.keys(staffing).forEach(k=>{
+    staffing[k]=staffing[k].filter(x=>x!==pn.id);
+    if(!staffing[k].length) delete staffing[k];
+  });
+  if(selPerson===pn.id) selPerson=null;
+  persist(); render();
+}
+
+// ---- assign people to a crew-day ----
+let stfDayId=null;
+function openStaffDlg(dayId){
+  const d=days.find(x=>x.id===dayId); if(!d) return;
+  stfDayId=dayId;
+  document.getElementById('stftitle').textContent=
+    `${d.crew}${d.win===K.NIGHT?' · night':''} — ${fmtDate(d.date)}`;
+  drawStaffDlg();
+  stfdlg.showModal();
+}
+function drawStaffDlg(){
+  const d=days.find(x=>x.id===stfDayId); if(!d) return;
+  const cv=dayCoverage(d), on=new Set(staffing[stfDayId]||[]);
+  document.getElementById('stfneed').innerHTML =
+    `Needs <b>${cv.need.lead} lead</b>${cv.need.assist?` · ${cv.need.assist} assist`:''}`
+    + `${cv.need.gen?` · ${cv.need.gen} general`:''} — <b>${cv.need.total} on site</b>. `
+    + `<span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>`;
+  const avail=roster.filter(p=>p.active||on.has(p.id));
+  let h='';
+  if(!avail.length) h='<div class="stfnone">No installers on the roster yet — '
+                    + 'add them from the Staffing tab.</div>';
+  TITLES.forEach(t=>{
+    const grp=avail.filter(p=>p.title===t);
+    if(!grp.length) return;
+    h+=`<div class="asghdr">${esc(t)}</div>`;
+    grp.sort((a,b)=>(b.homeCrew===d.crew)-(a.homeCrew===d.crew)||a.name.localeCompare(b.name));
+    grp.forEach(p=>{
+      // Booked on a DIFFERENT crew the same date -- one body, two places.
+      const clash=Object.entries(staffing).some(([k,l])=>{
+        if(k===stfDayId||!l.includes(p.id)) return false;
+        const o=days.find(x=>x.id===k); return o&&o.date===d.date;
+      });
+      h+=`<label class="asgrow${on.has(p.id)?' on':''}">`
+       + `<input type="checkbox" data-pid="${p.id}"${on.has(p.id)?' checked':''}>`
+       + `<span class="asgn">${esc(p.name)}`
+       + `${p.homeCrew===d.crew?' <span class="pill gen">usual</span>':''}</span>`
+       + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
+       + (clash?`<span class="asgclash">ALSO ${esc(
+            (days.find(x=>x.id!==stfDayId&&x.date===d.date
+              &&(staffing[x.id]||[]).includes(p.id))||{}).crew||'')}</span>`:'')
+       + `</label>`;
+    });
+  });
+  const list=document.getElementById('stflist');
+  list.innerHTML=h;
+  list.querySelectorAll('input[data-pid]').forEach(cb=>{
+    cb.onchange=()=>{
+      pushUndo();
+      const cur=new Set(staffing[stfDayId]||[]);
+      cb.checked ? cur.add(cb.dataset.pid) : cur.delete(cb.dataset.pid);
+      if(cur.size) staffing[stfDayId]=[...cur]; else delete staffing[stfDayId];
+      persist(); drawStaffDlg(); render();
+    };
+  });
+}
+
+// ---- the Staffing view ----
+function personRow(p){
+  const sh=shiftsFor(p.id).length;
+  return `<tr class="${p.active?'':'inactive'}${selPerson===p.id?' sel':''}" data-pid="${p.id}">
+    <td><b>${esc(p.name)}</b>${p.homeCrew?`<br><span style="color:var(--mut);font-size:11px">${esc(p.homeCrew)}</span>`:''}</td>
+    <td><span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span></td>
+    <td><span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></td>
+    <td>${p.gender==='Male'?'M':'F'}</td>
+    <td>${sh||'—'}</td></tr>`;
+}
+function rosterHTML(){
+  const f=stfFilter;
+  const list=roster.filter(p=>
+    (!f.title||p.title===f.title) && (!f.lang||p.lang===f.lang)
+    && (!f.gender||p.gender===f.gender)
+    && (f.active===''||String(p.active?1:0)===f.active))
+    .sort((a,b)=>TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name));
+  const sel=(id,val,opts,lbl)=>`<select data-f="${id}">`
+    + `<option value="">${lbl}</option>`
+    + opts.map(o=>`<option value="${esc(o[0])}"${val===o[0]?' selected':''}>${esc(o[1])}</option>`).join('')
+    + `</select>`;
+  let h=`<div class="stffilters">
+    ${sel('title',f.title,TITLES.map(t=>[t,t]),'All titles')}
+    ${sel('lang',f.lang,LANGS.map(t=>[t,t]),'All languages')}
+    ${sel('gender',f.gender,[['Female','Female'],['Male','Male']],'All')}
+    ${sel('active',f.active,[['1','Active'],['0','Inactive']],'Active + inactive')}
+  </div>`;
+  h+=`<div class="stfsplit"><div>`;
+  if(!roster.length){
+    h+=`<div class="stfnone">No installers yet. <b>+ Add installer</b> to start building the roster —
+        then staff each crew-day from its card or from Coverage.</div>`;
+  } else if(!list.length){
+    h+=`<div class="stfnone">No installers match those filters.</div>`;
+  } else {
+    h+=`<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>
+        <th>M/F</th><th>Shifts</th></tr></thead><tbody>`
+      + list.map(personRow).join('')+`</tbody></table>`;
+  }
+  h+=`</div><div>${personDetailHTML()}</div></div>`;
+  return h;
+}
+function personDetailHTML(){
+  const p=personById(selPerson);
+  if(!p) return `<div class="stfnone">Pick someone to see their days, jobs and crews.</div>`;
+  const sh=shiftsFor(p.id), clash=clashesFor(p.id);
+  const hrs=sh.reduce((a,d)=>a+dayCalc(d).total/60,0);
+  const stops=sh.reduce((a,d)=>a+d.stops.length,0);
+  let h=`<div class="stfdetail"><h3>${esc(p.name)}</h3>
+    <div class="stfdmeta">
+      <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
+      <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
+      <span class="pill gen">${esc(p.gender)}</span>
+      ${p.homeCrew?`<span class="pill gen">usually ${esc(p.homeCrew)}</span>`:''}
+      ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
+    </div>
+    <div class="stfdstat">
+      <div><b>${sh.length}</b>days</div><div><b>${stops}</b>jobs</div>
+      <div><b>${hrs.toFixed(1)}</b>hours</div>
+    </div>`;
+  if(clash.length) h+=`<div class="cvchip bad" style="display:block;margin-bottom:10px;padding:6px 9px">
+      Double-booked ${clash.map(c=>fmtMDYYYY(c.date)+' ('+c.crews.join(' + ')+')').join(', ')}</div>`;
+  h+= sh.length
+    ? sh.map(d=>`<div class="stfshift" data-goday="${d.id}">
+        <span class="sdot" style="background:${CREW_COLORS[d.crew]||'#555'}"></span>
+        <span><span class="sd">${fmtMDYYYY(d.date)} · ${esc(d.crew)}${
+          d.win===K.NIGHT?' · night':''}</span>
+        <span class="sj">${d.stops.map(r=>esc((C[r].name||'').split('|')[0].trim())).join(', ')||'no stops'}</span></span>
+      </div>`).join('')
+    : `<div class="stfnone" style="padding:12px">Not on any crew-day yet.</div>`;
+  h+=`<div class="stfedit">
+      <button data-act="edit">Edit</button>
+      <button data-act="toggle">${p.active?'Mark inactive':'Reactivate'}</button>
+      <button data-act="del" class="danger">Remove</button></div></div>`;
+  return h;
+}
+function coverageHTML(){
+  const dates=[...new Set(days.map(d=>d.date))].sort();
+  if(!roster.length) return `<div class="stfnone">Add installers to the roster first —
+    coverage is measured against who you have, so with an empty roster every day reads unstaffed.</div>`;
+  return dates.map(dt=>{
+    const ds=days.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
+    const cvs=ds.map(d=>({d,cv:dayCoverage(d)}));
+    const need=cvs.reduce((a,x)=>a+x.cv.need.total,0);
+    const have=cvs.reduce((a,x)=>a+x.cv.who.length,0);
+    const worst=cvs.some(x=>x.cv.state==='bad')?'bad'
+              :cvs.some(x=>x.cv.state==='none')?'none'
+              :cvs.some(x=>x.cv.state==='short')?'short':'ok';
+    return `<div class="covday"><h4>
+        <span class="cvchip ${worst}">${have}/${need}</span> ${fmtDate(dt)}
+        <span class="cvtot">${ds.length} crew${ds.length===1?'':'s'}</span></h4>`
+      + cvs.map(({d,cv})=>`<div class="covrow" data-goday="${d.id}" data-staff="${d.id}">
+          <span class="cdot" style="background:${CREW_COLORS[d.crew]||'#555'}"></span>
+          <span class="cvcrew">${esc(d.crew)}${d.win===K.NIGHT?' <span class="pill gen">NIGHT</span>':''}</span>
+          <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
+          <span class="cvwho">${cv.who.map(p=>esc(p.name)).join(', ')
+            ||'<i>nobody assigned</i>'}</span></div>`).join('')
+      + `</div>`;
+  }).join('');
+}
+function renderStaffing(){
+  const wrap=document.getElementById('staffwrap');
+  const short=days.filter(d=>{const c=dayCoverage(d); return c.state!=='ok';}).length;
+  wrap.innerHTML=`<div class="stfbar">
+      <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
+      <button class="stftab${staffTab==='coverage'?' sel':''}" data-tab="coverage">Coverage${
+        short?` (${short})`:''}</button>
+      <button class="stfadd" id="addperson">+ Add installer</button>
+    </div>${staffTab==='roster'?rosterHTML():coverageHTML()}`;
+  wrap.querySelectorAll('.stftab').forEach(b=>
+    b.onclick=()=>{ staffTab=b.dataset.tab; renderStaffing(); });
+  document.getElementById('addperson').onclick=()=>openPersonDlg(null);
+  wrap.querySelectorAll('select[data-f]').forEach(sl=>
+    sl.onchange=()=>{ stfFilter[sl.dataset.f]=sl.value; renderStaffing(); });
+  wrap.querySelectorAll('tr[data-pid]').forEach(tr=>
+    tr.onclick=()=>{ selPerson=tr.dataset.pid; renderStaffing(); });
+  wrap.querySelectorAll('[data-act]').forEach(b=>{
+    const pn=personById(selPerson); if(!pn) return;
+    b.onclick=()=>{ const a=b.dataset.act;
+      if(a==='edit') openPersonDlg(pn);
+      else if(a==='toggle') togglePersonActive(pn);
+      else deletePerson(pn); };
+  });
+  wrap.querySelectorAll('[data-staff]').forEach(el=>
+    el.onclick=()=>openStaffDlg(el.dataset.staff));
+  wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>
+    el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
+                     selDate=d.date; focusDayId=d.id; setView('days'); });
+}
 function setView(v){
   viewMode=v;
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
   document.getElementById('viewcal').classList.toggle('sel',v==='cal');
-  document.getElementById('calwrap').style.display = v==='cal' ? 'block':'none';
-  document.getElementById('main').style.display   = v==='cal' ? 'none':'';
-  document.getElementById('datestrip').style.display = v==='cal' ? 'none':'';
+  document.getElementById('viewstaff').classList.toggle('sel',v==='staff');
+  document.getElementById('calwrap').style.display   = v==='cal'   ? 'block':'none';
+  document.getElementById('staffwrap').style.display = v==='staff' ? 'block':'none';
+  document.getElementById('main').style.display   = (v==='cal'||v==='staff') ? 'none':'';
+  document.getElementById('datestrip').style.display = v==='days' ? '':'none';
   render();
 }
 
@@ -3132,7 +3627,15 @@ function manifestHTML(d){
     <div class="shead">
       <div><h1>${esc(d.crew)} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
         <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
-        ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p></div>
+        ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
+        ${(()=>{ const cv=dayCoverage(d);
+          // Who is actually on this truck, printed where the crew will see it.
+          const who=cv.who.map(pn=>esc(pn.name)
+              +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':'')).join(' · ');
+          // Same wording as the on-screen chip -- coverageLabel is the one
+          // place that decides "no lead" vs "short a lead".
+          return `<p class="crew">${who||'<i>nobody assigned yet</i>'}`
+               + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}</div>
       <div class="stot"><b>${(calc.total/60).toFixed(1)}h</b><span>total day</span></div>
     </div>
     <table><thead><tr><th></th><th>Client</th><th class="c">Boxes</th>
@@ -3152,6 +3655,7 @@ function printManifests(list, title){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>
     @page{size:portrait;margin:12mm}
     body{font:12px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
+    .shead p.crew{margin:3px 0 0;font-size:11px;color:#444}
     .sheet{page-break-after:always;break-after:page}
     .sheet:last-child{page-break-after:auto;break-after:auto}
     .shead{display:flex;justify-content:space-between;align-items:flex-start;
@@ -3191,6 +3695,7 @@ function render(){
   // paint can no longer mutate the schedule as a side effect of drawing.
   days.forEach(d=>{ if(d.edited) d.stops = dayCalc(d).order; });
   if(viewMode==='cal'){ renderCalendar(); }
+  else if(viewMode==='staff'){ renderStaffing(); }
   else { renderStrip(); renderCards(); drawDate(selDate); }
   const n=days.reduce((a,d)=>a+d.stops.length,0);
   document.getElementById('summarybar').textContent=
