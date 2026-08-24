@@ -535,23 +535,40 @@ dialog option:disabled{color:#b6b3ae}
 .stfedit button{flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--line);background:#fff;
   cursor:pointer;font-weight:700;font-size:12px;font-family:'Montserrat',sans-serif;color:var(--ink)}
 .stfedit button.danger{color:var(--danger);border-color:#f3d4d4}
-/* shift list */
+/* shift cards */
 .shifthdr{font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.5}
-.shiftdate{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:16px 0 6px}
+.shiftdate{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:18px 0 8px}
 .shiftdate:first-of-type{margin-top:0}
-.shiftrow{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);
-  border:1px solid var(--line);border-radius:9px;margin-bottom:6px;font-size:12.5px;
-  cursor:pointer;flex-wrap:wrap;border-left:4px solid var(--line)}
-.shiftrow:hover{border-color:var(--brand)}
-.shiftrow.none{border-left-color:var(--faint);background:#faf9f7}
-.shiftrow.bad{border-left-color:var(--danger)}
-.shiftrow.short{border-left-color:var(--warn)}
-.shiftrow.ok{border-left-color:var(--ok)}
-.shiftrow .cdot{width:9px;height:9px;border-radius:50%;flex:none}
-.shname{font-weight:700;min-width:150px}
-.shwhen{display:block;font-weight:500;color:var(--mut);font-size:11px}
-.shwho{color:var(--mut);font-size:11.5px;flex:1 1 200px;min-width:0}
-.shwho b{color:var(--ink)}
+.shiftgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px}
+.shcard{background:var(--surface);border:1px solid var(--line);border-radius:11px;
+  border-left:4px solid var(--line);padding:12px 14px;font-size:12.5px}
+.shcard.none{border-left-color:var(--faint);background:#faf9f7}
+.shcard.bad{border-left-color:var(--danger)}
+.shcard.short{border-left-color:var(--warn)}
+.shcard.ok{border-left-color:var(--ok)}
+.shchead{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.shchead .cdot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:4px}
+.shcname{font-weight:800;font-size:13.5px;flex:1;min-width:0}
+.shcwhen{display:block;font-weight:500;color:var(--mut);font-size:11px;margin-top:1px}
+.shcsec{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+  font-weight:800;margin:11px 0 4px;display:flex;align-items:center;gap:6px}
+.shcsec:after{content:'';flex:1;height:1px;background:var(--line)}
+.shcnight{font-size:10.5px;font-weight:800;color:var(--mut);margin:7px 0 2px}
+.shcjob{display:flex;gap:7px;padding:3px 0;line-height:1.35}
+.shcjob .jn{color:var(--faint);font-weight:800;font-size:10.5px;min-width:14px;
+  text-align:right;padding-top:1px}
+.shcjob .jb{flex:1;min-width:0}
+.shcjob .jm{color:var(--mut);font-size:11px}
+.shcrew{display:flex;flex-wrap:wrap;gap:4px}
+.shcp{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;
+  background:#f1efec;color:var(--ink)}
+.shcp.lead{background:#1f3d2b;color:#fff;font-weight:800}
+.shcp.assist{background:var(--brand-soft);color:var(--brand-deep);font-weight:700}
+.shcempty{color:var(--mut);font-style:italic;font-size:11.5px}
+.shcbtn{margin-top:10px;width:100%;padding:6px;border-radius:7px;border:1.5px solid var(--line);
+  background:#fff;cursor:pointer;font-weight:700;font-size:11.5px;color:var(--ink);
+  font-family:'Montserrat',sans-serif}
+.shcbtn:hover{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-deep)}
 /* coverage rollup */
 .covday{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
   margin-bottom:10px}
@@ -3637,6 +3654,51 @@ function personDetailHTML(){
       <button data-act="del" class="danger">Remove</button></div></div>`;
   return h;
 }
+/** One card per shift: the jobs that shift covers at the top, then who is
+ *  on the crew. Multi-night shifts (the Dallas week) list their jobs night
+ *  by night, since that is how the crew works them. */
+function jobLineHTML(d, r, n){
+  const c=C[r]||{};
+  const where=c.zone||c.city||'';
+  const hrs=effH(d,r);
+  const bits=[where, hrs?(+hrs.toFixed(2))+'h':'',
+              c.boxes?c.boxes+' box':''].filter(Boolean).join(' · ');
+  return `<div class="shcjob"><span class="jn">${n}</span><span class="jb">`
+       + `${esc((c.name||'').split('|')[0].trim())}`
+       + (bits?`<span class="jm"><br>${esc(bits)}</span>`:'')+`</span></div>`;
+}
+function shiftCardHTML(sh){
+  const cv=shiftCoverage(sh);
+  let jobs='', n=0;
+  sh.days.forEach(d=>{
+    const order=dayCalc(d).order.length?dayCalc(d).order:d.stops;
+    if(sh.days.length>1)
+      jobs+=`<div class="shcnight">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}</div>`;
+    if(!order.length) jobs+=`<div class="shcempty">no jobs</div>`;
+    order.forEach(r=>{ jobs+=jobLineHTML(d, r, ++n); });
+  });
+  const crew=cv.who.length
+    ? `<div class="shcrew">${cv.who.slice().sort((a,b)=>
+         TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
+        .map(pn=>`<span class="shcp ${TITLE_CLS[pn.title]}">${esc(pn.name)}`
+          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':''}</span>`)
+        .join('')}</div>`
+    : `<div class="shcempty">No one assigned yet.</div>`;
+  return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
+    <div class="shchead">
+      <span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>
+      <span class="shcname">${esc(sh.label)}
+        <span class="shcwhen">${esc(sh.when)}</span></span>
+      <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
+    </div>
+    <div class="shcsec">${n} job${n===1?'':'s'} · ${sh.hours.toFixed(1)}h</div>
+    ${jobs}
+    <div class="shcsec">Crew${cv.who.length?' ('+cv.who.length+')':''}</div>
+    ${crew}
+    <button class="shcbtn" data-shift="${esc(sh.key)}">${
+      cv.who.length?'Edit crew':'Staff this shift'}</button>
+  </div>`;
+}
 function shiftsHTML(){
   const shifts=buildShifts();
   const unstaffed=shifts.filter(sh=>!shiftCoverage(sh).who.length).length;
@@ -3645,23 +3707,14 @@ function shiftsHTML(){
       + `everyone on it works every job that day. Dallas is staffed as one week.</div>`;
   let lastDate='';
   shifts.forEach(sh=>{
-    const cv=shiftCoverage(sh);
     if(sh.date!==lastDate){
+      if(lastDate) h+=`</div>`;
       lastDate=sh.date;
-      h+=`<div class="shiftdate">${fmtDate(sh.date)}</div>`;
+      h+=`<div class="shiftdate">${fmtDate(sh.date)}</div><div class="shiftgrid">`;
     }
-    h+=`<div class="shiftrow ${cv.state}" data-shift="${esc(sh.key)}">
-      <span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>
-      <span class="shname">${esc(sh.label)}
-        <span class="shwhen">${esc(sh.when)} · ${sh.stops} job${sh.stops===1?'':'s'}
-          · ${sh.hours.toFixed(1)}h</span></span>
-      <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
-      <span class="shwho">${cv.who.length
-        ? cv.who.map(pn=>`${esc(pn.name)}${pn.title==='Lead'?' <b>(lead)</b>'
-            :pn.title==='Lead Assist'?' (assist)':''}`).join(' · ')
-        : '<i>no one assigned</i>'}</span></div>`;
+    h+=shiftCardHTML(sh);
   });
-  return h;
+  return h + (lastDate?`</div>`:'');
 }
 function renderStaffing(){
   const wrap=document.getElementById('staffwrap');
