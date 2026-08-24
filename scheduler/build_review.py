@@ -539,7 +539,23 @@ dialog option:disabled{color:#b6b3ae}
 .shifthdr{font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.5}
 .shiftdate{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:18px 0 8px}
 .shiftdate:first-of-type{margin-top:0}
-.shiftgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px}
+/* cards on the left, a map of that date's crews on the right */
+.shiftday{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start;
+  margin-bottom:6px}
+@media(max-width:1100px){.shiftday{grid-template-columns:1fr}}
+.shiftgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.shmapbox{background:var(--surface);border:1px solid var(--line);border-radius:11px;
+  overflow:hidden;position:sticky;top:0}
+.shmaphd{padding:8px 11px;font-size:11.5px;font-weight:700;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:7px}
+.shmaphd .cdot{width:9px;height:9px;border-radius:50%;flex:none}
+.shmaphd .shmapall{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--brand);
+  cursor:pointer;border:0;background:none;font-family:'Montserrat',sans-serif;padding:0}
+.shmaphd .shmapall[disabled]{color:var(--faint);cursor:default}
+.shmap{height:300px;background:#eee}
+.shmap .leaflet-container{font-family:'Montserrat',sans-serif}
+.shcard{cursor:pointer}
+.shcard.focus{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
 .shcard{background:var(--surface);border:1px solid var(--line);border-radius:11px;
   border-left:4px solid var(--line);padding:12px 14px;font-size:12.5px}
 .shcard.none{border-left-color:var(--faint);background:#faf9f7}
@@ -3695,7 +3711,7 @@ function shiftCardHTML(sh){
     ${jobs}
     <div class="shcsec">Crew${cv.who.length?' ('+cv.who.length+')':''}</div>
     ${crew}
-    <button class="shcbtn" data-shift="${esc(sh.key)}">${
+    <button class="shcbtn" data-staff="${esc(sh.key)}">${
       cv.who.length?'Edit crew':'Staff this shift'}</button>
   </div>`;
 }
@@ -3708,16 +3724,123 @@ function shiftsHTML(){
   let lastDate='';
   shifts.forEach(sh=>{
     if(sh.date!==lastDate){
-      if(lastDate) h+=`</div>`;
+      if(lastDate) h+=shiftDayClose(lastDate);
       lastDate=sh.date;
-      h+=`<div class="shiftdate">${fmtDate(sh.date)}</div><div class="shiftgrid">`;
+      h+=`<div class="shiftdate">${fmtDate(sh.date)}</div>`
+       + `<div class="shiftday"><div class="shiftgrid">`;
     }
     h+=shiftCardHTML(sh);
   });
-  return h + (lastDate?`</div>`:'');
+  return h + (lastDate?shiftDayClose(lastDate):'');
+}
+/** Closes a date's card grid and hangs the map panel beside it. */
+function shiftDayClose(date){
+  return `</div><div class="shmapbox">`
+       + `<div class="shmaphd" data-maphd="${date}">Crews on this date`
+       + `<button class="shmapall" data-mapall="${date}" disabled>show all</button></div>`
+       + `<div class="shmap" data-shmap="${date}"></div></div></div>`;
+}
+// ---------- per-date shift maps ----------
+// One small map beside each date's cards, showing where that date's crews
+// actually go. Built lazily: there are 24 dates and standing up 24 Leaflet
+// instances on render would cost far more than it is worth, so a map is
+// created the first time its panel scrolls into view.
+const shMaps = new Map();       // date -> {map, layer}
+let shFocus = {};               // date -> shift key currently focused (or null)
+let shObserver = null;
+function shiftMapDraw(date){
+  const rec = shMaps.get(date); if(!rec) return;
+  const {map:m, layer} = rec;
+  layer.clearLayers();
+  const all = buildShifts().filter(sh=>sh.date===date);
+  const key = shFocus[date];
+  const shown = key ? all.filter(sh=>sh.key===key) : all;
+  const bounds = [];
+  shown.forEach(sh=>{
+    const col = CREW_COLORS[sh.crew]||'#555';
+    sh.days.forEach(d=>{
+      const rg = routeGeom(d);
+      if(rg.pts.length>1)
+        layer.addLayer(L.polyline(rg.pts,{color:col,weight:rg.real?3:2.5,opacity:.65,
+          dashArray:rg.real?null:'6 6'}));
+      const order = dayCalc(d).order.length?dayCalc(d).order:d.stops;
+      order.forEach((r,i)=>{
+        const c=C[r]; if(c.lat==null||c.lon==null) return;
+        bounds.push([c.lat,c.lon]);
+        layer.addLayer(L.circleMarker([c.lat,c.lon],
+          {radius:7,color:'#222',weight:1.5,fillColor:col,fillOpacity:.95})
+          .bindTooltip(`<b>${i+1}. ${c.name}</b><br>${sh.label}`
+            + `${sh.days.length>1?'<br>'+fmtMDYYYY(d.date):''}`,
+            {direction:'top',offset:[0,-8]}));
+      });
+      if(d.anchored) bounds.push([DATA.depot.lat,DATA.depot.lon]);
+    });
+  });
+  m.invalidateSize();
+  if(bounds.length>1) m.fitBounds(bounds,{padding:[28,28]});
+  else if(bounds.length===1) m.setView(bounds[0],12);
+  // header reflects what is on screen
+  const hd=document.querySelector(`[data-maphd="${date}"]`);
+  if(hd){
+    const sh = key && all.find(x=>x.key===key);
+    hd.innerHTML = (sh
+        ? `<span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>`
+          + esc(sh.label)
+        : `${all.length} crew${all.length===1?'':'s'} on this date`)
+      + `<button class="shmapall" data-mapall="${date}"${key?'':' disabled'}>show all</button>`;
+    const btn=hd.querySelector('[data-mapall]');
+    if(btn) btn.onclick=e=>{ e.stopPropagation(); focusShift(date,null); };
+  }
+}
+function shiftMapInit(el){
+  const date = el.dataset.shmap;
+  if(shMaps.has(date)) return;
+  const m = L.map(el,{zoomSnap:.5, attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(m);
+  shMaps.set(date,{map:m, layer:L.layerGroup().addTo(m)});
+  shiftMapDraw(date);
+}
+/** Focus one crew on that date's map, or null for all of them. Deliberately
+ *  does NOT re-render the whole view -- that would tear down every map. */
+function focusShift(date, key){
+  shFocus[date] = (shFocus[date]===key) ? null : key;
+  document.querySelectorAll(`.shcard`).forEach(el=>
+    el.classList.toggle('focus', !!shFocus[date] && el.dataset.shift===shFocus[date]));
+  shiftMapDraw(date);
+}
+function teardownShiftMaps(){
+  shMaps.forEach(rec=>{ try{ rec.map.remove(); }catch(e){} });
+  shMaps.clear();
+  if(shObserver){ shObserver.disconnect(); shObserver=null; }
+}
+/** Mount maps as they come into reach. IntersectionObserver is the good
+ *  path, but it silently reports nothing when the viewport measures zero
+ *  (some embedded/headless hosts do exactly that) and a blank grey box is a
+ *  worse outcome than an eager map -- so a scroll check backs it up, and the
+ *  top of the list is mounted unconditionally. */
+function shiftMapsInReach(wrap){
+  const sc=wrap, top=sc.scrollTop, bot=top+(sc.clientHeight||900);
+  wrap.querySelectorAll('[data-shmap]').forEach(el=>{
+    if(shMaps.has(el.dataset.shmap)) return;
+    const y=el.offsetTop;
+    if(y < bot+300 && y+el.offsetHeight > top-300) shiftMapInit(el);
+  });
+}
+function wireShiftMaps(wrap){
+  const slots=[...wrap.querySelectorAll('[data-shmap]')];
+  if('IntersectionObserver' in window){
+    shObserver = new IntersectionObserver(entries=>{
+      entries.forEach(en=>{ if(en.isIntersecting) shiftMapInit(en.target); });
+    },{rootMargin:'200px'});
+    slots.forEach(el=>shObserver.observe(el));
+  }
+  slots.slice(0,2).forEach(shiftMapInit);      // the top of the list, always
+  wrap.onscroll=()=>shiftMapsInReach(wrap);
+  shiftMapsInReach(wrap);
 }
 function renderStaffing(){
   const wrap=document.getElementById('staffwrap');
+  teardownShiftMaps();   // innerHTML below destroys their containers
   const short=buildShifts().filter(sh=>shiftCoverage(sh).state!=='ok').length;
   wrap.innerHTML=`<div class="stfbar">
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
@@ -3739,8 +3862,27 @@ function renderStaffing(){
       else if(a==='toggle') togglePersonActive(pn);
       else deletePerson(pn); };
   });
-  wrap.querySelectorAll('[data-shift]').forEach(el=>
-    el.onclick=()=>openStaffDlg(el.dataset.shift));
+  // Clicking a card focuses that crew on the date's map; the button also
+  // opens the staffing dialog.
+  wrap.querySelectorAll('.shcard[data-shift]').forEach(el=>{
+    const date=el.closest('.shiftday').querySelector('[data-shmap]').dataset.shmap;
+    el.onclick=()=>focusShift(date, el.dataset.shift);
+  });
+  wrap.querySelectorAll('[data-staff]').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      const wrapEl=el.closest('.shiftday');
+      if(wrapEl){
+        const date=wrapEl.querySelector('[data-shmap]').dataset.shmap;
+        shFocus[date]=el.dataset.staff;
+        document.querySelectorAll('.shcard').forEach(c=>
+          c.classList.toggle('focus', c.dataset.shift===el.dataset.staff));
+        shiftMapDraw(date);
+      }
+      openStaffDlg(el.dataset.staff);
+    };
+  });
+  if(staffTab==='shifts') wireShiftMaps(wrap);
   wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
                      selDate=d.date; focusDayId=d.id; setView('days'); });
@@ -3862,6 +4004,9 @@ function render(){
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
   days.forEach(d=>{ if(d.edited) d.stops = dayCalc(d).order; });
+  // Leaving Staffing must drop its maps -- renderStaffing() is the only
+  // other thing that tears them down, and it does not run from here.
+  if(viewMode!=='staff') teardownShiftMaps();
   if(viewMode==='cal'){ renderCalendar(); }
   else if(viewMode==='staff'){ renderStaffing(); }
   else { renderStrip(); renderCards(); drawDate(selDate); }
