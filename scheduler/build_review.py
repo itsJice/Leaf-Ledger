@@ -631,6 +631,8 @@ dialog option:disabled{color:#b6b3ae}
 .bub.preset{font-size:10.5px;padding:3px 9px;color:var(--brand);border-style:dashed}
 .bub.preset:hover{background:var(--brand-soft)}
 .bub .bd{display:block;font-size:9px;font-weight:800;opacity:.7;letter-spacing:.04em}
+.availwarn{background:var(--warn-soft);color:var(--warn-ink);border-radius:7px;
+  padding:7px 9px;font-size:11px;font-weight:600;line-height:1.4;margin-top:2px}
 .asgrow.unavail{opacity:.55}
 .asgunavail{color:var(--warn-ink);font-size:9.5px;font-weight:800;white-space:nowrap}
 #stfdlg{max-width:430px}
@@ -826,6 +828,9 @@ dialog option:disabled{color:#b6b3ae}
     <button type="button" class="bub preset" data-preset="wknd">Weekends</button>
   </div>
   <div class="bubrow" id="perdays"></div>
+  <div id="peravailwarn" class="availwarn">Nothing marked yet — until a shift
+    time and at least one day are picked, this person shows as unavailable
+    for every shift.</div>
   <div class="btns"><button onclick="perdlg.close()">Cancel</button>
   <button class="go" id="pergo">Save</button></div>
 </dialog>
@@ -1098,9 +1103,14 @@ let roster = [], staffing = {};
 let nextPersonId = 1;
 function personById(id){ return roster.find(p=>p.id===id) || null; }
 function crewOptions(){ return [...new Set(days.map(d=>d.crew))].sort(); }
-// Every date that actually has crew-days -- the set availability is picked
-// from. Offering the whole calendar would list dates nobody can be booked on.
-function workDates(){ return [...new Set(days.map(d=>d.date))].sort(); }
+// Every date in the season, not just the ones that currently have crew-days
+// (user, 2026-08-18): work moves, and someone's availability is a fact about
+// them, not about today's schedule. Marking a person free on a date nobody is
+// booked on yet is exactly how you find out you can use that date.
+// Reads SPEC (line ~937), NOT the SEASON const further down: normRoster runs
+// during bootstrap, and touching a `const` before its declaration throws --
+// inside a try/catch that would have swallowed it and silently lost the roster.
+function workDates(){ return SPEC.calendar.map(c=>c.date).sort(); }
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
   // restored history entry. Anything unrecognised gets a sane default rather
@@ -3559,6 +3569,8 @@ function drawPerAvail(){
          + `${d.getMonth()+1}/${d.getDate()}</button>`;
   }).join('');
   document.getElementById('peravailn').textContent = `${perDates.size} of ${all.length}`;
+  const warn=document.getElementById('peravailwarn');
+  if(warn) warn.style.display = (perTimes.size && perDates.size) ? 'none' : 'block';
   document.querySelectorAll('#pertimes .bub').forEach(b=>
     b.classList.toggle('on', perTimes.has(b.dataset.time)));
   document.querySelectorAll('#perdays .bub').forEach(b=>
@@ -3590,10 +3602,12 @@ function openPersonDlg(person){
   document.getElementById('pergender').value  = person ? person.gender : 'Female';
   document.getElementById('peremail').value   = person ? person.email : '';
   document.getElementById('perphone').value   = person ? person.phone : '';
-  // New people default to fully available -- the common case, and it means
-  // an unstaffable roster is never the silent result of skipping this.
-  perTimes = new Set(person ? person.times : ['day','night']);
-  perDates = new Set(person ? person.dates : workDates());
+  // Nothing is selected by default (user, 2026-08-18): availability is
+  // something you mark, not something assumed. Until it is marked the
+  // person is unavailable everywhere, which the assign list says out loud
+  // rather than quietly dropping them.
+  perTimes = new Set(person ? person.times : []);
+  perDates = new Set(person ? person.dates : []);
   drawPerAvail();
   perdlg.showModal();
   document.getElementById('perfirst').focus();
