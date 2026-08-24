@@ -519,7 +519,9 @@ dialog option:disabled{color:#b6b3ae}
 .stfdetail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;
   position:sticky;top:0}
 .stfdetail h3{font-family:Georgia,serif;font-size:19px;margin:0 0 2px}
-.stfdmeta{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 12px}
+.stfdmeta{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}
+.stfcontact{font-size:11.5px;color:var(--mut);margin-bottom:4px}
+.stfcontact svg{width:11px;height:11px;vertical-align:-1px}
 .stfdstat{display:flex;gap:16px;padding:10px 0;border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);margin-bottom:12px}
 .stfdstat div{font-size:11px;color:var(--mut);font-weight:600}
@@ -613,6 +615,24 @@ dialog option:disabled{color:#b6b3ae}
 .stfchip.none{background:#f1efec;color:var(--mut);border-color:var(--line)}
 .stfchip:hover{filter:brightness(.96)}
 /* assign dialog */
+#perdlg{max-width:520px}
+.perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.availhd{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:14px 0 2px;
+  padding-top:12px;border-top:1px solid var(--line)}
+.availcount{float:right;color:var(--faint);font-weight:700;letter-spacing:0;
+  text-transform:none;font-size:10px}
+.bubrow{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 8px}
+.bubrow.presets{margin-bottom:6px}
+.bub{padding:4px 11px;border:1.5px solid var(--line);border-radius:999px;background:#fff;
+  cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut);
+  font-family:'Montserrat',sans-serif}
+.bub:hover{border-color:var(--brand)}
+.bub.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.bub.preset{font-size:10.5px;padding:3px 9px;color:var(--brand);border-style:dashed}
+.bub.preset:hover{background:var(--brand-soft)}
+.bub .bd{display:block;font-size:9px;font-weight:800;opacity:.7;letter-spacing:.04em}
+.asgrow.unavail{opacity:.55}
+.asgunavail{color:var(--warn-ink);font-size:9.5px;font-weight:800;white-space:nowrap}
 #stfdlg{max-width:430px}
 .asgneed{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
 .asglist{max-height:44vh;overflow-y:auto;margin:0 -4px;padding:0 4px}
@@ -766,21 +786,46 @@ dialog option:disabled{color:#b6b3ae}
 </div>
 <dialog id="perdlg">
   <b id="pertitle">Add installer</b>
-  <span class="nclabel">Name</span>
-  <input id="pername" type="text" autocomplete="off" placeholder="First and last name">
-  <span class="nclabel">Title</span>
-  <select id="pertitle2">
-    <option>Lead</option><option>Lead Assist</option>
-    <option selected>General Installer</option>
-  </select>
-  <span class="nclabel">Language</span>
-  <select id="perlang">
-    <option>English</option><option>Spanish</option><option selected>Both</option>
-  </select>
-  <span class="nclabel">Gender</span>
-  <select id="pergender"><option>Female</option><option>Male</option></select>
-  <span class="nclabel">Usual crew</span>
-  <select id="percrew"></select>
+  <div class="perrow">
+    <div><span class="nclabel">First name</span>
+      <input id="perfirst" type="text" autocomplete="off" placeholder="First"></div>
+    <div><span class="nclabel">Last name</span>
+      <input id="perlast" type="text" autocomplete="off" placeholder="Last"></div>
+  </div>
+  <div class="perrow">
+    <div><span class="nclabel">Title</span>
+      <select id="pertitle2">
+        <option>Lead</option><option>Lead Assist</option>
+        <option selected>General Installer</option>
+      </select></div>
+    <div><span class="nclabel">Language</span>
+      <select id="perlang">
+        <option>English</option><option>Spanish</option><option selected>Both</option>
+      </select></div>
+  </div>
+  <div class="perrow">
+    <div><span class="nclabel">Gender</span>
+      <select id="pergender"><option>Female</option><option>Male</option></select></div>
+    <div><span class="nclabel">Phone</span>
+      <input id="perphone" type="text" autocomplete="off" placeholder="(555) 555-5555"></div>
+  </div>
+  <span class="nclabel">Email</span>
+  <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com">
+  <div class="availhd">Availability</div>
+  <span class="nclabel">Shift times they can work</span>
+  <div class="bubrow" id="pertimes">
+    <button type="button" class="bub" data-time="day">Day</button>
+    <button type="button" class="bub" data-time="night">Night</button>
+  </div>
+  <span class="nclabel">Days they can work
+    <span class="availcount" id="peravailn"></span></span>
+  <div class="bubrow presets">
+    <button type="button" class="bub preset" data-preset="all">All</button>
+    <button type="button" class="bub preset" data-preset="none">None</button>
+    <button type="button" class="bub preset" data-preset="week">Weekdays</button>
+    <button type="button" class="bub preset" data-preset="wknd">Weekends</button>
+  </div>
+  <div class="bubrow" id="perdays"></div>
   <div class="btns"><button onclick="perdlg.close()">Cancel</button>
   <button class="go" id="pergo">Save</button></div>
 </dialog>
@@ -1053,21 +1098,52 @@ let roster = [], staffing = {};
 let nextPersonId = 1;
 function personById(id){ return roster.find(p=>p.id===id) || null; }
 function crewOptions(){ return [...new Set(days.map(d=>d.crew))].sort(); }
+// Every date that actually has crew-days -- the set availability is picked
+// from. Offering the whole calendar would list dates nobody can be booked on.
+function workDates(){ return [...new Set(days.map(d=>d.date))].sort(); }
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
   // restored history entry. Anything unrecognised gets a sane default rather
   // than rendering as `undefined` in a crew list someone dispatches from.
-  const out = (Array.isArray(list)?list:[]).map(p=>({
-    id: String(p&&p.id||''),
-    name: String(p&&p.name||'').trim(),
-    title: TITLES.includes(p&&p.title) ? p.title : 'General Installer',
-    lang: LANGS.includes(p&&p.lang) ? p.lang : 'Both',
-    gender: (p&&p.gender)==='Male' ? 'Male' : 'Female',
-    homeCrew: String(p&&p.homeCrew||''),
-    active: (p&&p.active)!==false,
-  })).filter(p=>p.id && p.name);
+  const all = workDates();
+  const out = (Array.isArray(list)?list:[]).map(p=>{
+    p = p || {};
+    // Older records carried a single `name`; split it so first/last exist.
+    let first = String(p.first||'').trim(), last = String(p.last||'').trim();
+    if(!first && !last){
+      const parts = String(p.name||'').trim().split(/\s+/);
+      first = parts.shift()||''; last = parts.join(' ');
+    }
+    return {
+      id: String(p.id||''),
+      first, last,
+      name: [first,last].filter(Boolean).join(' '),
+      title: TITLES.includes(p.title) ? p.title : 'General Installer',
+      lang: LANGS.includes(p.lang) ? p.lang : 'Both',
+      gender: p.gender==='Male' ? 'Male' : 'Female',
+      email: String(p.email||'').trim(),
+      phone: String(p.phone||'').trim(),
+      // No stored availability (an older record) means no restriction --
+      // treat them as available rather than silently unstaffable.
+      times: Array.isArray(p.times) ? p.times.filter(t=>t==='day'||t==='night')
+                                    : ['day','night'],
+      dates: Array.isArray(p.dates) ? p.dates.filter(d=>all.includes(d)) : all.slice(),
+      active: p.active!==false,
+    };
+  }).filter(p=>p.id && p.name);
   nextPersonId = out.reduce((m,p)=>Math.max(m, (+String(p.id).replace(/\D/g,'')||0)+1), 1);
   return out;
+}
+/** Can this person work this shift? A shift is all-or-nothing, so being off
+ *  any one of its days (a single Dallas night, say) rules out the block. */
+function availFor(p, sh){
+  const t = sh.night ? 'night' : 'day';
+  if(!(p.times||[]).includes(t)) return {ok:false, why:'no '+t+' shifts'};
+  const miss = sh.days.filter(d=>!(p.dates||[]).includes(d.date));
+  if(miss.length) return {ok:false,
+    why:'off '+miss.slice(0,2).map(d=>fmtMDYYYY(d.date).slice(0,5)).join(', ')
+        +(miss.length>2?` +${miss.length-2}`:'')};
+  return {ok:true, why:''};
 }
 function normStaffing(obj, rost){
   // Drop assignments pointing at people or crew-days that no longer exist --
@@ -3473,28 +3549,66 @@ function esc(x){ return String(x==null?'':x)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ---- add / edit a person ----
-let editingPerson=null;
+let editingPerson=null, perDates=new Set(), perTimes=new Set();
+function drawPerAvail(){
+  const all=workDates();
+  document.getElementById('perdays').innerHTML = all.map(dt=>{
+    const d=dateOf(dt);
+    return `<button type="button" class="bub${perDates.has(dt)?' on':''}" data-date="${dt}">`
+         + `<span class="bd">${DOW3[d.getDay()].toUpperCase()}</span>`
+         + `${d.getMonth()+1}/${d.getDate()}</button>`;
+  }).join('');
+  document.getElementById('peravailn').textContent = `${perDates.size} of ${all.length}`;
+  document.querySelectorAll('#pertimes .bub').forEach(b=>
+    b.classList.toggle('on', perTimes.has(b.dataset.time)));
+  document.querySelectorAll('#perdays .bub').forEach(b=>
+    b.onclick=()=>{ perDates.has(b.dataset.date)?perDates.delete(b.dataset.date)
+                                                :perDates.add(b.dataset.date);
+                    drawPerAvail(); });
+}
+document.querySelectorAll('#pertimes .bub').forEach(b=>
+  b.onclick=()=>{ perTimes.has(b.dataset.time)?perTimes.delete(b.dataset.time)
+                                              :perTimes.add(b.dataset.time);
+                  drawPerAvail(); });
+document.querySelectorAll('.bub.preset').forEach(b=>
+  b.onclick=()=>{
+    const all=workDates(), k=b.dataset.preset;
+    perDates = new Set(
+      k==='all'  ? all :
+      k==='none' ? [] :
+      k==='week' ? all.filter(dt=>{const w=dateOf(dt).getDay(); return w>=1&&w<=5;})
+                 : all.filter(dt=>{const w=dateOf(dt).getDay(); return w===0||w===6;}));
+    drawPerAvail();
+  });
 function openPersonDlg(person){
   editingPerson = person || null;
   document.getElementById('pertitle').textContent = person ? 'Edit installer' : 'Add installer';
-  document.getElementById('pername').value    = person ? person.name : '';
+  document.getElementById('perfirst').value   = person ? person.first : '';
+  document.getElementById('perlast').value    = person ? person.last : '';
   document.getElementById('pertitle2').value  = person ? person.title : 'General Installer';
   document.getElementById('perlang').value    = person ? person.lang : 'Both';
   document.getElementById('pergender').value  = person ? person.gender : 'Female';
-  const cs=document.getElementById('percrew');
-  cs.innerHTML='<option value="">— no usual crew —</option>'
-    + crewOptions().map(c=>`<option${person&&person.homeCrew===c?' selected':''}>${esc(c)}</option>`).join('');
+  document.getElementById('peremail').value   = person ? person.email : '';
+  document.getElementById('perphone').value   = person ? person.phone : '';
+  // New people default to fully available -- the common case, and it means
+  // an unstaffable roster is never the silent result of skipping this.
+  perTimes = new Set(person ? person.times : ['day','night']);
+  perDates = new Set(person ? person.dates : workDates());
+  drawPerAvail();
   perdlg.showModal();
-  document.getElementById('pername').focus();
+  document.getElementById('perfirst').focus();
 }
 document.getElementById('pergo').onclick=()=>{
-  const name=document.getElementById('pername').value.trim();
-  if(!name){ document.getElementById('pername').focus(); return; }
-  const fields={name,
+  const first=document.getElementById('perfirst').value.trim();
+  const last =document.getElementById('perlast').value.trim();
+  if(!first && !last){ document.getElementById('perfirst').focus(); return; }
+  const fields={first, last, name:[first,last].filter(Boolean).join(' '),
     title:document.getElementById('pertitle2').value,
     lang:document.getElementById('perlang').value,
     gender:document.getElementById('pergender').value,
-    homeCrew:document.getElementById('percrew').value};
+    email:document.getElementById('peremail').value.trim(),
+    phone:document.getElementById('perphone').value.trim(),
+    times:[...perTimes], dates:[...perDates]};
   pushUndo();
   if(editingPerson) Object.assign(editingPerson, fields);
   else {
@@ -3556,7 +3670,9 @@ function drawStaffDlg(){
     const grp=avail.filter(p=>p.title===t);
     if(!grp.length) return;
     h+=`<div class="asghdr">${esc(t)}</div>`;
-    grp.sort((a,b)=>(b.homeCrew===d.crew)-(a.homeCrew===d.crew)||a.name.localeCompare(b.name));
+    // Available first, then by name -- someone who cannot work this shift
+    // should not sit at the top of the list you are picking from.
+    grp.sort((a,b)=>(availFor(b,sh).ok-availFor(a,sh).ok)||a.name.localeCompare(b.name));
     const mine=new Set(sh.days.map(x=>x.id));
     const myDates=new Set(sh.days.map(x=>x.date));
     grp.forEach(p=>{
@@ -3566,10 +3682,11 @@ function drawStaffDlg(){
         if(mine.has(k)||!l.includes(p.id)) return false;
         const o=days.find(x=>x.id===k); return o && myDates.has(o.date);
       });
-      h+=`<label class="asgrow${on.has(p.id)?' on':''}">`
+      const av=availFor(p,sh);
+      h+=`<label class="asgrow${on.has(p.id)?' on':''}${av.ok?'':' unavail'}">`
        + `<input type="checkbox" data-pid="${p.id}"${on.has(p.id)?' checked':''}>`
-       + `<span class="asgn">${esc(p.name)}`
-       + `${p.homeCrew===d.crew?' <span class="pill gen">usual</span>':''}</span>`
+       + `<span class="asgn">${esc(p.name)}</span>`
+       + (av.ok?'':`<span class="asgunavail">${esc(av.why.toUpperCase())}</span>`)
        + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
        + (clash?`<span class="asgclash">ALSO ${esc(
             (days.find(x=>!mine.has(x.id)&&myDates.has(x.date)
@@ -3597,10 +3714,14 @@ function drawStaffDlg(){
 function personRow(p){
   const sh=shiftsFor(p.id).length;
   return `<tr class="${p.active?'':'inactive'}${selPerson===p.id?' sel':''}" data-pid="${p.id}">
-    <td><b>${esc(p.name)}</b>${p.homeCrew?`<br><span style="color:var(--mut);font-size:11px">${esc(p.homeCrew)}</span>`:''}</td>
+    <td><b>${esc(p.name)}</b>${p.phone||p.email
+        ? `<br><span style="color:var(--mut);font-size:10.5px">${
+            esc(p.phone||p.email)}</span>`:''}</td>
     <td><span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span></td>
     <td><span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></td>
     <td>${p.gender==='Male'?'M':'F'}</td>
+    <td>${(p.dates||[]).length}d${(p.times||[]).length===1
+        ? ' <span class="pill gen">'+p.times[0]+'</span>':''}</td>
     <td>${sh||'—'}</td></tr>`;
 }
 function rosterHTML(){
@@ -3628,7 +3749,7 @@ function rosterHTML(){
     h+=`<div class="stfnone">No installers match those filters.</div>`;
   } else {
     h+=`<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>
-        <th>M/F</th><th>Shifts</th></tr></thead><tbody>`
+        <th>M/F</th><th>Free</th><th>Shifts</th></tr></thead><tbody>`
       + list.map(personRow).join('')+`</tbody></table>`;
   }
   h+=`</div><div>${personDetailHTML()}</div></div>`;
@@ -3646,9 +3767,14 @@ function personDetailHTML(){
       <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
       <span class="pill gen">${esc(p.gender)}</span>
-      ${p.homeCrew?`<span class="pill gen">usually ${esc(p.homeCrew)}</span>`:''}
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
     </div>
+    ${(p.phone||p.email)?`<div class="stfcontact">${
+        [p.phone?`${IC.phone} ${esc(p.phone)}`:'',
+         p.email?esc(p.email):''].filter(Boolean).join(' · ')}</div>`:''}
+    <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
+      · ${(p.times||[]).length===2?'day + night'
+          :(p.times||[]).length?esc(p.times[0])+' only':'<b>no shift times set</b>'}</div>
     <div class="stfdstat">
       <div><b>${sh.length}</b>shift${sh.length===1?'':'s'}</div>
       <div><b>${dayCount}</b>days</div><div><b>${stops}</b>jobs</div>
