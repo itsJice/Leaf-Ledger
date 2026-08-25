@@ -288,17 +288,22 @@ header h1 svg{color:var(--brand)}
 .card.overwin{border:2px solid var(--danger)}
 .card.dragover{outline:3px dashed var(--brand);outline-offset:-3px}
 .card.focused{box-shadow:0 0 0 2px var(--brand)}
-.chead{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line);background:linear-gradient(#fff,#fbfaf8)}
+/* Wraps, and the crew name is the only thing allowed to shrink -- Print and
+   Approve must never be pushed off the right edge of a narrow side panel.
+   (The staffing chip used to live here and did exactly that.) */
+.chead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 14px;
+  border-bottom:1px solid var(--line);background:linear-gradient(#fff,#fbfaf8)}
 .chead-crew{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:5px;padding:2px 5px;margin:-2px -5px}
 .chead-crew:hover{background:var(--brand-soft)}
 .cdot{width:13px;height:13px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.4)}
-.cname{font-family:Georgia,serif;letter-spacing:.03em;font-weight:600;font-size:15px;flex:1;color:var(--ink)}
+.cname{font-family:Georgia,serif;letter-spacing:.03em;font-weight:600;font-size:15px;
+  flex:1 1 auto;min-width:0;color:var(--ink)}
 .cpeople{font-size:11.5px;color:var(--mut);white-space:nowrap;font-weight:500}
 .sched{display:flex;gap:16px;padding:8px 14px;font-size:11.5px;color:var(--mut);
   background:var(--brand-soft);border-bottom:1px solid var(--line)}
 .sched b{color:var(--ink);font-weight:700}
 .sched .ic{width:12px;height:12px;vertical-align:-1.5px;margin-right:2px}
-.okbtn{border:1.5px solid var(--ok);color:var(--ok);background:#fff;border-radius:6px;font-family:'Montserrat',sans-serif;
+.okbtn{flex:none;border:1.5px solid var(--ok);color:var(--ok);background:#fff;border-radius:6px;font-family:'Montserrat',sans-serif;
   padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.02em;transition:all .15s}
 .okbtn:hover{background:#f0fdf4}
 .okbtn.on{background:var(--ok);color:#fff}
@@ -607,6 +612,7 @@ dialog option:disabled{color:#b6b3ae}
 .cvchip.bad{background:var(--danger-soft);color:var(--danger)}
 .cvchip.none{background:#f1efec;color:var(--mut)}
 /* the chip that lives on a day card */
+.cstaff{padding:7px 14px;border-bottom:1px solid var(--line);background:#fbfaf8}
 .stfchip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
   font-size:10.5px;font-weight:800;cursor:pointer;border:1px solid transparent;white-space:nowrap}
 .stfchip.ok{background:#eaf5ec;color:var(--ok-ink)}
@@ -647,7 +653,7 @@ dialog option:disabled{color:#b6b3ae}
 .asgclash{color:var(--danger);font-size:10px;font-weight:800}
 .asghdr{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin:10px 0 3px}
-.printbtn{margin-left:auto;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
+.printbtn{margin-left:auto;flex:none;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut)}
 .printbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
 /* ---- Google-Cal-style toolbar ---- */
@@ -2341,14 +2347,15 @@ function buildDayCard(d){
       <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
-    ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
-       return `<span class="stfchip ${cv.state}" title="Click to staff this shift`
-            + `${sh&&sh.dallas?' (the whole Dallas week)':''}">`
-            + `${IC.users}${coverageLabel(cv)}`
-            + `${sh&&sh.dallas?' · week':''}</span>`; })()}
     <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
-  </div>`;
+  </div>
+  ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
+     return `<div class="cstaff"><span class="stfchip ${cv.state}" `
+          + `title="Click to staff this shift`
+          + `${sh&&sh.dallas?' (the whole Dallas week)':''}">`
+          + `${IC.users}${coverageLabel(cv)}`
+          + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}`;
   card.querySelector('.printbtn').onclick=(e)=>{
     e.stopPropagation();
     printManifests([d], `${d.crew} — ${fmtMDYYYY(d.date)}`);
