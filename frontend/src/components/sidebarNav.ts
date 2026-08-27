@@ -6,6 +6,7 @@ import {
   FileText,
   Heart,
   LayoutGrid,
+  MessageSquare,
   Search,
   Settings,
   Shapes,
@@ -66,6 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/install-schedule", label: "Install Schedule", icon: TreePine },
       { path: "/favorites", label: "Favorites", icon: Heart },
       { path: "/invoice", label: "Invoices", icon: FileText },
+      { path: "/comments", label: "Comments", icon: MessageSquare },
     ],
   },
   {

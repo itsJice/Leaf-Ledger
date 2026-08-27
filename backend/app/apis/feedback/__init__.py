@@ -151,6 +151,45 @@ async def list_feedback(limit: int = 100) -> Any:
     ]
 
 
+ALLOWED_STATUSES = {"new", "done"}
+
+
+class StatusIn(BaseModel):
+    status: str
+
+
+@router.put("/{feedback_id}", response_model=FeedbackRow)
+async def update_feedback_status(feedback_id: int, body: StatusIn) -> Any:
+    """Check/uncheck a submission. This is a shared team list (Comments tab,
+    every signed-in user), so it's a plain status flip rather than a
+    per-user completion record -- one person checking something off marks
+    it done for everyone, the same way any of them can see it in the first
+    place."""
+    if body.status not in ALLOWED_STATUSES:
+        raise HTTPException(status_code=400, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}")
+    try:
+        conn = await get_conn()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Feedback storage unavailable") from exc
+    try:
+        await ensure_schema(conn)
+        row = await conn.fetchrow(
+            "UPDATE ll_app.feature_requests SET status = $2 WHERE id = $1 "
+            "RETURNING id, message, (screenshot IS NOT NULL) AS has_screenshot, "
+            "page_path, submitted_name, status, created_at",
+            feedback_id, body.status,
+        )
+    finally:
+        await conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="No submission with that id")
+    return FeedbackRow(
+        id=row["id"], message=row["message"], has_screenshot=row["has_screenshot"],
+        page_path=row["page_path"], submitted_name=row["submitted_name"],
+        status=row["status"], created_at=row["created_at"].isoformat(),
+    )
+
+
 @router.get("/{feedback_id}/screenshot")
 async def get_feedback_screenshot(feedback_id: int) -> dict:
     try:

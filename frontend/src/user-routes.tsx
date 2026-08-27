@@ -10,6 +10,7 @@ import Arrangements from "./pages/Arrangements.tsx";
 import Clients from "./pages/Clients.tsx";
 import Designs from "./pages/Designs.tsx";
 import Favorites from "./pages/Favorites.tsx";
+import Comments from "./pages/Comments.tsx";
 import Invoice from "./pages/Invoice.tsx";
 import Mockups from "./pages/Mockups.tsx";
 import Orders from "./pages/Orders.tsx";
@@ -33,6 +34,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/designs/new", element: <Designs /> },
 	{ path: "/projects", element: <Arrangements /> },
 	{ path: "/favorites", element: <Favorites /> },
+	{ path: "/comments", element: <Comments /> },
 	{ path: "/invoice", element: <Invoice /> },
 	{ path: "/mockups", element: <Mockups /> },
 	{ path: "/orders", element: <Orders /> },
