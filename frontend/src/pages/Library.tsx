@@ -32,6 +32,7 @@ import Layout from "components/Layout";
 import { apiClient } from "app";
 import { formatCurrency, formatDate, categoryLabel, unitLabel } from "utils/format";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
+import { loadSupplierDirectory, type SupplierLoginInfo } from "utils/supplierDirectory";
 import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 import {
   addToOrder, listOrders, createOrder, ensureActiveOrder, setActiveOrderId,
@@ -1538,19 +1539,10 @@ function ImageLightbox({ images, index, onIndex, onClose }: {
 }
 
 // ── Supplier link + login helper ───────────────────────────────────────────
-interface SupplierLoginInfo { id: number; name?: string; login_url?: string; has_credentials?: boolean; login_username?: string }
-// Cache the supplier directory once per session so opening a product modal
-// doesn't refetch every time.
-let _supplierDirCache: Promise<Record<number, SupplierLoginInfo>> | null = null;
-function loadSupplierDirectory(): Promise<Record<number, SupplierLoginInfo>> {
-  if (!_supplierDirCache) {
-    _supplierDirCache = apiFetch("/api/suppliers/list", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows: SupplierLoginInfo[]) => Object.fromEntries((rows || []).map((s) => [s.id, s])))
-      .catch(() => ({}));
-  }
-  return _supplierDirCache;
-}
+// The directory cache itself (and its invalidation) lives in
+// utils/supplierDirectory -- shared with anywhere else that needs to show a
+// supplier's saved login, so a credentials save on the Suppliers page is
+// visible here without a reload. See that file for why.
 
 function CopyChip({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);

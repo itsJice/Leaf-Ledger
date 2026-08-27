@@ -7,6 +7,7 @@ import {
   Circle, BookOpen, FileUp, Database, Copy, Check,
 } from "lucide-react";
 import Layout from "components/Layout";
+import { SUPPLIER_CREDENTIALS_CHANGED_EVENT } from "utils/supplierDirectory";
 import { apiClient } from "app";
 import { toast } from "sonner";
 
@@ -109,6 +110,11 @@ function SupplierModal({
       onSave(saved);
       onClose();
       toast.success(form.id ? "Supplier updated" : "Supplier added");
+      // Every other open tab/page's supplier-directory cache (Catalog
+      // Search, Library's "Log in" helper, ...) is now stale -- tell it to
+      // forget itself so the credentials just saved actually show up
+      // there instead of needing a reload. See utils/supplierDirectory.
+      window.dispatchEvent(new Event(SUPPLIER_CREDENTIALS_CHANGED_EVENT));
     } catch {
       toast.error("Failed to save supplier");
     } finally {

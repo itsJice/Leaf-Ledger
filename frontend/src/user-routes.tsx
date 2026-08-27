@@ -11,7 +11,6 @@ import Clients from "./pages/Clients.tsx";
 import Designs from "./pages/Designs.tsx";
 import Favorites from "./pages/Favorites.tsx";
 import Invoice from "./pages/Invoice.tsx";
-import Library from "./pages/Library.tsx";
 import Mockups from "./pages/Mockups.tsx";
 import Orders from "./pages/Orders.tsx";
 import OrnamentCalculator from "./pages/OrnamentCalculator.tsx";
@@ -35,7 +34,6 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/projects", element: <Arrangements /> },
 	{ path: "/favorites", element: <Favorites /> },
 	{ path: "/invoice", element: <Invoice /> },
-	{ path: "/library", element: <Library /> },
 	{ path: "/mockups", element: <Mockups /> },
 	{ path: "/orders", element: <Orders /> },
 	{ path: "/install-schedule", element: <InstallSchedule /> },

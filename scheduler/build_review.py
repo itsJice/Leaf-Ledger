@@ -26,6 +26,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 OUT = os.path.join(HERE, "review.html")
 
+# Real installers (names + personal phone numbers) -- same PII rule as
+# client_config.json, gitignored, loaded defensively so a fresh checkout
+# without the file still builds. Applied client-side as the roster's
+# starting point only when nobody has saved a real roster yet (see the
+# `rosterSeed` / normRoster wiring below) -- never overwrites an edit.
+try:
+    with open(os.path.join(HERE, "roster_seed.json")) as f:
+        ROSTER_SEED = json.load(f)
+except FileNotFoundError:
+    ROSTER_SEED = []
+# normRoster() (build_review.py's JS, further down) drops any record with no
+# `id` -- assign the same "p<n>" ids the tool itself hands out, so the file
+# on disk can stay plain names/phones.
+for _i, _p in enumerate(ROSTER_SEED, 1):
+    _p["id"] = f"p{_i}"
+
 sched = json.load(open(os.path.join(CACHE, "schedule.json")))
 mat = json.load(open(os.path.join(CACHE, "matrix.json")))
 
@@ -191,6 +207,7 @@ spec = {
     "eligibility": elig,
     "codes": {k: {"rule": v[0], "msg": v[1], "soft": v[2]}
               for k, v in rules.CODES.items()},
+    "rosterSeed": ROSTER_SEED,
 }
 
 payload_obj = {
@@ -527,6 +544,15 @@ dialog option:disabled{color:#b6b3ae}
 .stfdmeta{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}
 .stfcontact{font-size:11.5px;color:var(--mut);margin-bottom:4px}
 .stfcontact svg{width:11px;height:11px;vertical-align:-1px}
+.stfcard{display:flex;flex-direction:column;gap:3px;margin:6px 0 10px}
+.stfphone{font-size:16px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px}
+.stfphone svg{width:15px;height:15px;flex:none;color:var(--brand)}
+.stfmail{font-size:12px;font-weight:500;color:var(--mut);display:flex;align-items:center;gap:7px}
+.stfmail svg{width:11px;height:11px;flex:none}
+.stfnotes{background:var(--brand-soft);border-radius:7px;padding:8px 10px;
+  font-size:11.5px;color:var(--ink);margin-bottom:8px;white-space:pre-wrap}
+.stfnotes b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--mut);margin-bottom:2px;font-weight:800}
 .stfdstat{display:flex;gap:16px;padding:10px 0;border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);margin-bottom:12px}
 .stfdstat div{font-size:11px;color:var(--mut);font-weight:600}
@@ -636,7 +662,12 @@ dialog option:disabled{color:#b6b3ae}
 .bub.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .bub.preset{font-size:10.5px;padding:3px 9px;color:var(--brand);border-style:dashed}
 .bub.preset:hover{background:var(--brand-soft)}
+.bub.preset:disabled{color:var(--faint);cursor:default;background:#fff}
+.bub.preset:disabled:hover{background:#fff}
 .bub .bd{display:block;font-size:9px;font-weight:800;opacity:.7;letter-spacing:.04em}
+.bub.ro{cursor:default;padding:3px 8px}
+.bub.ro:hover{border-color:var(--line)}
+.bub.ro.weekend{border-style:dashed}
 .availwarn{background:var(--warn-soft);color:var(--warn-ink);border-radius:7px;
   padding:7px 9px;font-size:11px;font-weight:600;line-height:1.4;margin-top:2px}
 .asgrow.unavail{opacity:.55}
@@ -778,6 +809,7 @@ dialog option:disabled{color:#b6b3ae}
     <button id="viewdays" class="sel" type="button">Days</button>
     <button id="viewcal" type="button">Calendar</button>
     <button id="viewstaff" type="button">Staffing</button>
+    <button id="viewroster" type="button">Roster</button>
   </div>
   <button id="newclientbtn" type="button">+ New client</button>
   <button id="billexportbtn" type="button">⬇ Export</button>
@@ -819,6 +851,8 @@ dialog option:disabled{color:#b6b3ae}
   </div>
   <span class="nclabel">Email</span>
   <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com">
+  <span class="nclabel">Notes</span>
+  <input id="pernotes" type="text" autocomplete="off" placeholder="Anything worth remembering">
   <div class="availhd">Availability</div>
   <span class="nclabel">Shift times they can work</span>
   <div class="bubrow" id="pertimes">
@@ -829,9 +863,11 @@ dialog option:disabled{color:#b6b3ae}
     <span class="availcount" id="peravailn"></span></span>
   <div class="bubrow presets">
     <button type="button" class="bub preset" data-preset="all">All</button>
-    <button type="button" class="bub preset" data-preset="none">None</button>
+    <button type="button" class="bub preset" data-preset="none">Clear selection</button>
     <button type="button" class="bub preset" data-preset="week">Weekdays</button>
     <button type="button" class="bub preset" data-preset="wknd">Weekends</button>
+    <button type="button" class="bub preset" id="perundo" disabled>&#8630; Undo</button>
+    <button type="button" class="bub preset" id="perredo" disabled>&#8631; Redo</button>
   </div>
   <div class="bubrow" id="perdays"></div>
   <div id="peravailwarn" class="availwarn">Nothing marked yet — until a shift
@@ -935,6 +971,7 @@ const IC={
  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
+ mail:'<svg class="ic" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
  home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
  clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
@@ -1139,6 +1176,7 @@ function normRoster(list){
       gender: p.gender==='Male' ? 'Male' : 'Female',
       email: String(p.email||'').trim(),
       phone: String(p.phone||'').trim(),
+      notes: String(p.notes||'').trim(),
       // No stored availability (an older record) means no restriction --
       // treat them as available rather than silently unstaffable.
       times: Array.isArray(p.times) ? p.times.filter(t=>t==='day'||t==='night')
@@ -1235,6 +1273,19 @@ function restoreSyntheticClients(list){
     if(def.row >= nextSyntheticRow) nextSyntheticRow = def.row + 1;
   });
 }
+// A brand-new deployment (or a save that predates staffing) has an empty
+// roster -- fall back to the real installer list baked in at build time
+// (SPEC.rosterSeed, from the gitignored roster_seed.json) so the Staffing
+// tab isn't blank until someone happens to type all 10 names in by hand.
+// Only fires when the roster is EMPTY: a single real edit anywhere -- this
+// device, another device, the shared server copy -- permanently replaces
+// the seed as far as every load after that is concerned; it never merges
+// back in or overwrites what staff actually entered.
+function applyRosterSeedFallback(){
+  if(roster.length) return false;
+  roster = normRoster(SPEC.rosterSeed || []);
+  return roster.length > 0;
+}
 try{
   const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
   if(s.version && SPEC.version && s.version !== SPEC.version){
@@ -1257,6 +1308,7 @@ try{
     stateWarning = 'Migrated saved changes to the new format — please review.';
   }
 }catch(e){}
+applyRosterSeedFallback();
 function snapshot(){
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
     {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
@@ -1316,6 +1368,11 @@ async function pullShared(){
         : null;
       render();
     } else { syncState = 'shared'; }
+    // The shared copy can be genuinely empty (a fresh deployment, or the
+    // very first person to open it before anyone has a local save) --
+    // same fallback as the synchronous bootstrap, so the Staffing tab
+    // isn't blank while everyone waits for someone to type the roster in.
+    if(applyRosterSeedFallback()) render();
   }catch(e){ syncState = 'local'; }
 }
 let pushTimer = null;
@@ -3131,7 +3188,8 @@ function pick(group, val, key){
 }
 document.getElementById('viewdays').onclick = ()=> setView('days');
 document.getElementById('viewcal').onclick  = ()=> setView('cal');
-document.getElementById('viewstaff').onclick= ()=> setView('staff');
+document.getElementById('viewstaff').onclick= ()=>{ staffTab='shifts'; setView('staff'); };
+document.getElementById('viewroster').onclick=()=>{ staffTab='roster'; setView('staff'); };
 document.getElementById('billexportbtn').onclick = ()=>{ syncBillBtn(); billdlg.showModal(); };
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
   b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
@@ -3567,6 +3625,17 @@ function esc(x){ return String(x==null?'':x)
 
 // ---- add / edit a person ----
 let editingPerson=null, perDates=new Set(), perTimes=new Set();
+// Undo/redo for the day-picker only, scoped to this one dialog session --
+// separate from the app-wide pushUndo() (that one is for saved changes;
+// this is for backing out clicks before you've even hit Save). Reset
+// whenever the dialog opens so history never leaks between people.
+let perUndo=[], perRedo=[];
+function pushPerHist(){ perUndo.push([...perDates]); perRedo=[]; }
+function updatePerHistBtns(){
+  const u=document.getElementById('perundo'), r=document.getElementById('perredo');
+  if(u) u.disabled = !perUndo.length;
+  if(r) r.disabled = !perRedo.length;
+}
 function drawPerAvail(){
   const all=workDates();
   document.getElementById('perdays').innerHTML = all.map(dt=>{
@@ -3578,10 +3647,12 @@ function drawPerAvail(){
   document.getElementById('peravailn').textContent = `${perDates.size} of ${all.length}`;
   const warn=document.getElementById('peravailwarn');
   if(warn) warn.style.display = (perTimes.size && perDates.size) ? 'none' : 'block';
+  updatePerHistBtns();
   document.querySelectorAll('#pertimes .bub').forEach(b=>
     b.classList.toggle('on', perTimes.has(b.dataset.time)));
   document.querySelectorAll('#perdays .bub').forEach(b=>
-    b.onclick=()=>{ perDates.has(b.dataset.date)?perDates.delete(b.dataset.date)
+    b.onclick=()=>{ pushPerHist();
+                    perDates.has(b.dataset.date)?perDates.delete(b.dataset.date)
                                                 :perDates.add(b.dataset.date);
                     drawPerAvail(); });
 }
@@ -3589,8 +3660,9 @@ document.querySelectorAll('#pertimes .bub').forEach(b=>
   b.onclick=()=>{ perTimes.has(b.dataset.time)?perTimes.delete(b.dataset.time)
                                               :perTimes.add(b.dataset.time);
                   drawPerAvail(); });
-document.querySelectorAll('.bub.preset').forEach(b=>
+document.querySelectorAll('.bub.preset[data-preset]').forEach(b=>
   b.onclick=()=>{
+    pushPerHist();
     const all=workDates(), k=b.dataset.preset;
     perDates = new Set(
       k==='all'  ? all :
@@ -3599,6 +3671,18 @@ document.querySelectorAll('.bub.preset').forEach(b=>
                  : all.filter(dt=>{const w=dateOf(dt).getDay(); return w===0||w===6;}));
     drawPerAvail();
   });
+document.getElementById('perundo').onclick=()=>{
+  if(!perUndo.length) return;
+  perRedo.push([...perDates]);
+  perDates = new Set(perUndo.pop());
+  drawPerAvail();
+};
+document.getElementById('perredo').onclick=()=>{
+  if(!perRedo.length) return;
+  perUndo.push([...perDates]);
+  perDates = new Set(perRedo.pop());
+  drawPerAvail();
+};
 function openPersonDlg(person){
   editingPerson = person || null;
   document.getElementById('pertitle').textContent = person ? 'Edit installer' : 'Add installer';
@@ -3609,12 +3693,14 @@ function openPersonDlg(person){
   document.getElementById('pergender').value  = person ? person.gender : 'Female';
   document.getElementById('peremail').value   = person ? person.email : '';
   document.getElementById('perphone').value   = person ? person.phone : '';
+  document.getElementById('pernotes').value   = person ? person.notes : '';
   // Nothing is selected by default (user, 2026-08-18): availability is
   // something you mark, not something assumed. Until it is marked the
   // person is unavailable everywhere, which the assign list says out loud
   // rather than quietly dropping them.
   perTimes = new Set(person ? person.times : []);
   perDates = new Set(person ? person.dates : []);
+  perUndo=[]; perRedo=[];
   drawPerAvail();
   perdlg.showModal();
   document.getElementById('perfirst').focus();
@@ -3629,6 +3715,7 @@ document.getElementById('pergo').onclick=()=>{
     gender:document.getElementById('pergender').value,
     email:document.getElementById('peremail').value.trim(),
     phone:document.getElementById('perphone').value.trim(),
+    notes:document.getElementById('pernotes').value.trim(),
     times:[...perTimes], dates:[...perDates]};
   pushUndo();
   if(editingPerson) Object.assign(editingPerson, fields);
@@ -3790,12 +3877,20 @@ function personDetailHTML(){
       <span class="pill gen">${esc(p.gender)}</span>
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
     </div>
-    ${(p.phone||p.email)?`<div class="stfcontact">${
-        [p.phone?`${IC.phone} ${esc(p.phone)}`:'',
-         p.email?esc(p.email):''].filter(Boolean).join(' · ')}</div>`:''}
+    <div class="stfcard">
+      <div class="stfphone">${IC.phone} ${p.phone?esc(p.phone):'no phone on file'}</div>
+      <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
+    </div>
+    ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
     <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
       · ${(p.times||[]).length===2?'day + night'
           :(p.times||[]).length?esc(p.times[0])+' only':'<b>no shift times set</b>'}</div>
+    <div class="bubrow">${workDates().map(dt=>{
+        const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
+        return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
+              title="${fmtMDYYYY(dt)}${wk?' · weekend':''} — ${has?'available':'not marked available'}">
+            <span class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
+      }).join('')}</div>
     <div class="stfdstat">
       <div><b>${sh.length}</b>shift${sh.length===1?'':'s'}</div>
       <div><b>${dayCount}</b>days</div><div><b>${stops}</b>jobs</div>
@@ -3987,6 +4082,10 @@ function wireShiftMaps(wrap){
 }
 function renderStaffing(){
   const wrap=document.getElementById('staffwrap');
+  // Keep the top-nav Staffing/Roster buttons in sync even when the tab
+  // changes via the in-page sub-tabs rather than the top nav itself.
+  document.getElementById('viewstaff').classList.toggle('sel',staffTab!=='roster');
+  document.getElementById('viewroster').classList.toggle('sel',staffTab==='roster');
   teardownShiftMaps();   // innerHTML below destroys their containers
   const short=buildShifts().filter(sh=>shiftCoverage(sh).state!=='ok').length;
   wrap.innerHTML=`<div class="stfbar">
@@ -4038,7 +4137,8 @@ function setView(v){
   viewMode=v;
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
   document.getElementById('viewcal').classList.toggle('sel',v==='cal');
-  document.getElementById('viewstaff').classList.toggle('sel',v==='staff');
+  document.getElementById('viewstaff').classList.toggle('sel',v==='staff'&&staffTab!=='roster');
+  document.getElementById('viewroster').classList.toggle('sel',v==='staff'&&staffTab==='roster');
   document.getElementById('calwrap').style.display   = v==='cal'   ? 'block':'none';
   document.getElementById('staffwrap').style.display = v==='staff' ? 'block':'none';
   document.getElementById('main').style.display   = (v==='cal'||v==='staff') ? 'none':'';

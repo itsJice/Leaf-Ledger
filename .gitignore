@@ -134,3 +134,9 @@ scheduler/client_config.json
 # schedule.py reads on rebuild -- not a source artifact, and also client
 # data (see above).
 scheduler/overrides.json
+
+# Installer roster seed: real employee names + personal phone numbers.
+# Same rule as client_config.json above -- build_review.py reads this at
+# build time and bakes it into the shared state's default roster; it never
+# belongs in the codebase itself (user, 2026-08-02).
+scheduler/roster_seed.json

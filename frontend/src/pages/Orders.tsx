@@ -261,7 +261,7 @@ function Empty() {
       </div>
       <p className="mb-1 text-base font-medium text-stone-600">No order selected</p>
       <p className="max-w-xs text-sm leading-relaxed text-stone-400">
-        Open a product in Catalog Search or the Library and use “Add to order”, or start a new one.
+        Open a product in Catalog Search and use “Add to order”, or start a new one.
       </p>
     </div>
   );

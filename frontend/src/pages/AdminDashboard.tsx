@@ -613,7 +613,7 @@ function BackfillCard() {
               <p className="text-sm font-semibold text-stone-800">Product Image Library</p>
               <p className="text-xs text-stone-500">
                 {!bf || bf.status === "idle"
-                  ? "Download all product images to permanent storage so they load reliably in the Library."
+                  ? "Download all product images to permanent storage so they load reliably in Catalog Search."
                   : isRunning
                   ? `Downloading images… ${bf.done.toLocaleString()} / ${bf.total.toLocaleString()}`
                   : isDone

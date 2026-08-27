@@ -56,6 +56,23 @@ const GRID_COLS: Record<CardSize, string> = {
 const IMG_HEIGHT: Record<CardSize, string> = { 1: "h-24", 2: "h-32", 3: "h-40", 4: "h-56" };
 const VIEW_KEY = "leaf-ledger:catalog-view:v1";
 const SIZE_KEY = "leaf-ledger:catalog-size:v1";
+// Filters + scroll position, restored when navigating back to this page
+// (e.g. Catalog Search -> Suppliers -> back). sessionStorage, not
+// localStorage: this is "where I was in this browsing session," not a
+// permanent saved search -- it should fall away once the tab closes.
+const SEARCH_STATE_KEY = "leaf-ledger:catalog-search-state:v1";
+type SavedSearchState = {
+  sel: Selection; favOnly: boolean; priceMin: number | ""; priceMax: number | "";
+  search: string; scrollTop?: number;
+};
+function readSavedSearchState(): SavedSearchState | null {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch { return null; }
+}
 
 // Map natural-language words → a Category filter value (matches our taxonomy).
 const CATEGORY_HINTS: [RegExp, string][] = [
@@ -76,14 +93,46 @@ const CATEGORY_HINTS: [RegExp, string][] = [
 ];
 
 export default function CatalogSearch() {
+  // Lazy initializers so this only ever reads sessionStorage once, on the
+  // very first render -- not on every render, and not fighting the effect
+  // below that writes back out whenever these change.
   const [metadata, setMetadata] = useState<FilterMetadata>({});
   const [facets, setFacets] = useState<FilterMetadata>({});
-  const [sel, setSel] = useState<Selection>(EMPTY);
-  const [favOnly, setFavOnly] = useState(false);
-  const [priceMin, setPriceMin] = useState<number | "">("");
-  const [priceMax, setPriceMax] = useState<number | "">("");
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sel, setSel] = useState<Selection>(() => readSavedSearchState()?.sel || EMPTY);
+  const [favOnly, setFavOnly] = useState(() => readSavedSearchState()?.favOnly || false);
+  const [priceMin, setPriceMin] = useState<number | "">(() => readSavedSearchState()?.priceMin ?? "");
+  const [priceMax, setPriceMax] = useState<number | "">(() => readSavedSearchState()?.priceMax ?? "");
+  const [search, setSearch] = useState(() => readSavedSearchState()?.search || "");
+  // Restoring a saved keyword shouldn't wait through the debounce below --
+  // the very first query fires with it immediately.
+  const [debouncedSearch, setDebouncedSearch] = useState(() => (readSavedSearchState()?.search || "").trim());
+  // What the LAST smart-search parse itself checked/set, as opposed to
+  // anything the user clicked by hand in the sidebar. Search text is meant to
+  // behave like a search bar -- each parse should replace what the previous
+  // one applied, not pile on top of it, and clearing the box should undo it
+  // entirely. Without this, "green" then "blue" left both boxes checked
+  // (facet values only ever got added, never removed), and clearing the text
+  // back to empty didn't touch the sidebar at all.
+  const autoAppliedRef = useRef<{
+    categories: string[]; colors: string[]; sizes: string[];
+    priceMin: number | null; priceMax: number | null;
+  }>({ categories: [], colors: [], sizes: [], priceMin: null, priceMax: null });
+  const revertAutoApplied = useCallback(() => {
+    const applied = autoAppliedRef.current;
+    if (!applied.categories.length && !applied.colors.length && !applied.sizes.length
+        && applied.priceMin === null && applied.priceMax === null) return;
+    setSel((prev) => ({
+      ...prev,
+      categories: prev.categories.filter((v) => !applied.categories.includes(v)),
+      colors: prev.colors.filter((v) => !applied.colors.includes(v)),
+      sizes: prev.sizes.filter((v) => !applied.sizes.includes(v)),
+    }));
+    // Only clear a price bound if it still holds the value THIS parse set --
+    // if the user has since typed their own min/max by hand, leave it alone.
+    setPriceMin((prev) => (prev === applied.priceMin ? "" : prev));
+    setPriceMax((prev) => (prev === applied.priceMax ? "" : prev));
+    autoAppliedRef.current = { categories: [], colors: [], sizes: [], priceMin: null, priceMax: null };
+  }, []);
   const [items, setItems] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -170,6 +219,51 @@ export default function CatalogSearch() {
   // item refreshes the list while "favorites only" is on)
   useEffect(() => { load(0, false); }, [sel, favOnly, favIds, priceMin, priceMax, debouncedSearch, load]);
 
+  // Persist filters/search whenever they change, merging over rather than
+  // clobbering the scroll position the listener below writes independently.
+  useEffect(() => {
+    try {
+      const prev = readSavedSearchState();
+      const next: SavedSearchState = { sel, favOnly, priceMin, priceMax, search, scrollTop: prev?.scrollTop };
+      sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(next));
+    } catch { /* sessionStorage unavailable (private mode, quota) -- fine to skip */ }
+  }, [sel, favOnly, priceMin, priceMax, search]);
+
+  // Scroll lives on Layout's own scrolling div, not the window (see
+  // data-scroll-root in components/Layout.tsx) -- restore it once, after
+  // the first page of results has actually rendered (restoring against an
+  // empty list is a no-op that then gets clobbered by the real content's
+  // height), and keep saving it as the user scrolls so leaving for another
+  // tab and coming back lands in the same spot.
+  const scrollRestored = useRef(false);
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>("[data-scroll-root]");
+    if (!root) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        try {
+          const prev = readSavedSearchState();
+          sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify({ ...prev, scrollTop: root.scrollTop }));
+        } catch { /* ignore */ }
+      });
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+  useEffect(() => {
+    if (scrollRestored.current || items.length === 0) return;
+    const saved = readSavedSearchState();
+    const root = document.querySelector<HTMLElement>("[data-scroll-root]");
+    if (root && saved?.scrollTop) root.scrollTop = saved.scrollTop;
+    scrollRestored.current = true;
+  }, [items.length]);
+
   const toggle = (group: keyof Selection, value: string) =>
     setSel((prev) => {
       const has = prev[group].includes(value);
@@ -212,17 +306,31 @@ export default function CatalogSearch() {
   };
 
   const runSmartSearch = () => {
+    // Undo whatever the PREVIOUS parse checked before this one applies
+    // anything -- a search bar shows the result of what's in it now, not an
+    // accumulation of everything ever typed into it.
+    revertAutoApplied();
+
     if (looksLikeProductNumber(search)) {
       setSearch(search.trim());
       return;
     }
     let text = ` ${search.toLowerCase()} `;
-    const add = (group: keyof Selection, val: string) =>
+    const justApplied: { categories: string[]; colors: string[]; sizes: string[] } =
+      { categories: [], colors: [], sizes: [] };
+    const add = (group: "categories" | "colors" | "sizes", val: string) => {
       setSel((prev) => (prev[group].includes(val) ? prev : { ...prev, [group]: [...prev[group], val] }));
+      justApplied[group].push(val);
+    };
+    let appliedPriceMin: number | null = null;
+    let appliedPriceMax: number | null = null;
     let m: RegExpMatchArray | null;
-    if ((m = text.match(/(?:under|below|less than|cheaper than|<)\s*\$?\s*(\d+(?:\.\d+)?)/))) setPriceMax(parseFloat(m[1]));
-    if ((m = text.match(/(?:over|above|more than|>)\s*\$?\s*(\d+(?:\.\d+)?)/))) setPriceMin(parseFloat(m[1]));
-    if ((m = text.match(/\$?\s*(\d+(?:\.\d+)?)\s*(?:-|to)\s*\$?\s*(\d+(?:\.\d+)?)/))) { setPriceMin(parseFloat(m[1])); setPriceMax(parseFloat(m[2])); }
+    if ((m = text.match(/(?:under|below|less than|cheaper than|<)\s*\$?\s*(\d+(?:\.\d+)?)/)))
+      { appliedPriceMax = parseFloat(m[1]); setPriceMax(appliedPriceMax); }
+    if ((m = text.match(/(?:over|above|more than|>)\s*\$?\s*(\d+(?:\.\d+)?)/)))
+      { appliedPriceMin = parseFloat(m[1]); setPriceMin(appliedPriceMin); }
+    if ((m = text.match(/\$?\s*(\d+(?:\.\d+)?)\s*(?:-|to)\s*\$?\s*(\d+(?:\.\d+)?)/)))
+      { appliedPriceMin = parseFloat(m[1]); appliedPriceMax = parseFloat(m[2]); setPriceMin(appliedPriceMin); setPriceMax(appliedPriceMax); }
     text = text.replace(/(?:under|below|less than|cheaper than|over|above|more than)\s*\$?\s*\d+(?:\.\d+)?/g, " ").replace(/\$\s*\d+(?:\.\d+)?/g, " ");
     for (const sm of text.matchAll(/(\d+(?:\.\d+)?)\s*(?:inch|inches|in\b|")/g)) {
       const v = Math.round(parseFloat(sm[1]) * 2) / 2;
@@ -247,6 +355,7 @@ export default function CatalogSearch() {
     // drop generic filler words so the leftover keyword doesn't over-constrain
     const STOP = /\b(the|and|with|for|an?|of|in|on|my|me|some|please|show|find|all|that|are|is|me)\b/g;
     const residual = text.replace(STOP, " ").replace(/\s+/g, " ").trim();
+    autoAppliedRef.current = { ...justApplied, priceMin: appliedPriceMin, priceMax: appliedPriceMax };
     setSearch(residual);
   };
 
@@ -281,13 +390,23 @@ export default function CatalogSearch() {
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSearch(next);
+                // Reaching empty by backspacing is the same "clear it" intent
+                // as the X button below -- undo what the last search applied
+                // right away, don't wait for another Enter.
+                if (!next) revertAutoApplied();
+              }}
               onKeyDown={(e) => { if (e.key === "Enter") runSmartSearch(); }}
               placeholder="Item number, or: green wreaths under $20"
               className="w-full rounded-lg border border-stone-300 py-2 pl-9 pr-8 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
             />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+              <button
+                onClick={() => { setSearch(""); revertAutoApplied(); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+              >
                 <X size={15} />
               </button>
             )}

@@ -75,7 +75,7 @@ export default function Favorites() {
         return;
       }
       // Fetch full data for every favorited id, so items favorited anywhere
-      // (Catalog Search, Product Library) show up — not just cached ones.
+      // (Catalog Search) show up — not just cached ones.
       const res = await apiFetch(`/api/products/by-ids?ids=${favoriteIds.join(",")}`, { credentials: "include" });
       const data = await res.json();
       const nextProducts = (Array.isArray(data) ? data : []).map((product: Product) => ({ ...product, is_favorited: true }));
@@ -162,7 +162,7 @@ export default function Favorites() {
             </div>
             <p className="mb-1 text-base font-medium text-stone-600">No favorites yet</p>
             <p className="max-w-xs text-sm leading-relaxed text-stone-400">
-              Heart products in Product Library to save them here.
+              Heart products in Catalog Search to save them here.
             </p>
           </div>
         ) : (

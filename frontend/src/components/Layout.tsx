@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Leaf,
   Package,
@@ -20,6 +20,7 @@ import {
   SIDEBAR_PREFS_EVENT,
 } from "components/sidebarNav";
 import type { ResolvedNavItem, SidebarPrefsEventDetail } from "components/sidebarNav";
+import FeedbackWidget from "components/FeedbackWidget";
 
 // NAV_GROUPS, the pinned-path list and the ordering helpers live in
 // components/sidebarNav.ts so that this sidebar and the Settings > Appearance
@@ -287,15 +288,15 @@ export default function Layout({ children }: Props) {
       <p className={GROUP_LABEL}>Clients &amp; Projects</p>
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate("/clients")}
+          <Link
+            to="/clients"
             className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
               isActive("/clients") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
           >
             <Users size={16} strokeWidth={1.8} />
             Clients
-          </button>
+          </Link>
           <button
             onClick={() => setClientsOpen((open) => !open)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-all hover:bg-white/5 hover:text-white"
@@ -310,9 +311,9 @@ export default function Layout({ children }: Props) {
             {projectClients.slice(0, 12).map((client) => {
               const active = isActive("/clients") && activeClientName === client.name;
               return (
-                <button
+                <Link
                   key={client.name}
-                  onClick={() => navigate(`/clients?client=${encodeURIComponent(client.name)}`)}
+                  to={`/clients?client=${encodeURIComponent(client.name)}`}
                   className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition-all ${
                     active ? SUBTREE_ITEM_ACTIVE : SUBTREE_ITEM_IDLE
                   }`}
@@ -320,7 +321,7 @@ export default function Layout({ children }: Props) {
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
                   <span className="truncate">{client.name}</span>
-                </button>
+                </Link>
               );
             })}
             {projectsLoading ? (
@@ -328,25 +329,25 @@ export default function Layout({ children }: Props) {
                 Loading clients...
               </div>
             ) : projectClients.length === 0 && (
-              <button
-                onClick={() => navigate("/clients")}
+              <Link
+                to="/clients"
                 className="rounded-lg px-2 py-1.5 text-left text-xs text-white/45 hover:bg-white/5 hover:text-white"
               >
                 No clients yet
-              </button>
+              </Link>
             )}
           </div>
         )}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate("/projects")}
+          <Link
+            to="/projects"
             className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
               isActive("/projects") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
           >
             <Package size={16} strokeWidth={1.8} />
             All Projects
-          </button>
+          </Link>
           <button
             onClick={() => setProjectsOpen((open) => !open)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-all hover:bg-white/5 hover:text-white"
@@ -361,9 +362,9 @@ export default function Layout({ children }: Props) {
             {sidebarProjects.map((project) => {
               const active = isActive("/projects") && activeProjectId === String(project.id);
               return (
-                <button
+                <Link
                   key={project.id}
-                  onClick={() => navigate(`/projects?id=${project.id}`)}
+                  to={`/projects?id=${project.id}`}
                   className={`rounded-lg px-2 py-1.5 text-left text-xs transition-all ${
                     active ? SUBTREE_ITEM_ACTIVE : SUBTREE_ITEM_IDLE
                   }`}
@@ -371,7 +372,7 @@ export default function Layout({ children }: Props) {
                 >
                   <span className="block truncate font-medium">{project.name}</span>
                   <span className="block truncate text-[10px] opacity-60">{project.client_name || "No client"}</span>
-                </button>
+                </Link>
               );
             })}
             {projectsLoading ? (
@@ -379,12 +380,12 @@ export default function Layout({ children }: Props) {
                 Loading projects...
               </div>
             ) : sidebarProjects.length === 0 && (
-              <button
-                onClick={() => navigate("/projects")}
+              <Link
+                to="/projects"
                 className="rounded-lg px-2 py-1.5 text-left text-xs text-white/45 hover:bg-white/5 hover:text-white"
               >
                 No projects yet
-              </button>
+              </Link>
             )}
           </div>
         )}
@@ -430,9 +431,9 @@ export default function Layout({ children }: Props) {
                   {run.items.map(({ path, label, icon: Icon }) => {
                     const active = isActive(path);
                     return (
-                      <button
+                      <Link
                         key={path}
-                        onClick={() => navigate(path)}
+                        to={path}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left w-full ${
                           active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
                         }`}
@@ -440,7 +441,7 @@ export default function Layout({ children }: Props) {
                         <Icon size={16} strokeWidth={1.8} />
                         {label}
                         {active && <ChevronRight size={12} className="ml-auto opacity-60" />}
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
@@ -490,10 +491,13 @@ export default function Layout({ children }: Props) {
         </div>
       </aside>
 
-      {/* Main content offset for sidebar */}
-      <div className="flex-1 ml-60 min-h-screen overflow-auto">
+      {/* Main content offset for sidebar. data-scroll-root: this div, not
+          window, is what actually scrolls -- pages that restore a saved
+          scroll position (Catalog Search) select it by that attribute. */}
+      <div data-scroll-root className="flex-1 ml-60 min-h-screen overflow-auto">
         {children}
       </div>
+      <FeedbackWidget />
     </div>
   );
 }
