@@ -772,12 +772,25 @@ dialog option:disabled{color:#b6b3ae}
 .agn{font-weight:600}
 .agm{margin-left:auto;color:var(--mut);font-size:11px;white-space:nowrap}
 /* ---- event peek ---- */
-#peekdlg{max-width:390px}
+#peekdlg{max-width:390px;max-height:85vh;overflow-y:auto}
 #peekbody h3{margin:0 0 3px;font-size:16px}
 .pkwhen{margin:0 0 10px;color:var(--mut);font-size:12px}
 .pkrow{margin:4px 0;font-size:12.5px}
 .pknote{margin:8px 0 0;padding:7px 9px;background:var(--warn-soft);border-radius:6px;
   font-size:11.5px;color:var(--warn-ink);line-height:1.45}
+.pkloading{color:var(--mut);font-style:italic}
+.pkprofile{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.pksec{margin:0 0 6px;font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--brand-deep)}
+.pkhist{margin-top:8px}
+.pkhrow{display:flex;gap:8px;padding:4px 0;border-top:1px solid #f0ede8;font-size:11.5px}
+.pkhrow:first-child{border-top:none}
+.pkhyear{flex:none;width:34px;font-weight:800;color:var(--brand)}
+.pkhtext{color:var(--ink);flex:1;min-width:0}
+.pkfull{margin-top:12px;width:100%;padding:7px;border-radius:7px;border:1.5px solid var(--brand);
+  background:#fff;color:var(--brand);font-weight:700;font-size:12px;cursor:pointer;
+  font-family:'Montserrat',sans-serif}
+.pkfull:hover{background:var(--brand-soft)}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
@@ -1353,8 +1366,35 @@ window.addEventListener('message', e=>{
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
     pullShared();
+    loadClientDirectory();
   }
 });
+// ---------- app-side client profile (Clients tab, same Postgres) ----------
+// The scheduler's own client data (baked in at build time from the season
+// spreadsheet) and the app's `clients` table are two views of the same
+// people now -- sync_clients.py keeps them in sync. This fetches the app's
+// copy ONCE per session (293 rows, cheap) so a stop's popup can show the
+// full cross-season history and any contact edits made in the Clients tab,
+// not just what got baked into this build. Same auth token, same origin
+// (srcDoc), same graceful-degrade-to-nothing philosophy as pullShared --
+// no AUTH (standalone/offline) or a failed fetch just means the popup
+// shows what it already has.
+let clientDirectory = null;      // Map<normalizedName, appClientRecord>
+let clientDirectoryPromise = null;
+function normName(s){ return String(s||'').trim().toLowerCase(); }
+function loadClientDirectory(){
+  if(!AUTH || clientDirectoryPromise) return clientDirectoryPromise;
+  clientDirectoryPromise = fetch('/api/clients/list', {headers:{Authorization:AUTH}})
+    .then(r=>r.ok?r.json():[])
+    .then(rows=>{
+      clientDirectory = new Map((Array.isArray(rows)?rows:[]).map(c=>[normName(c.name), c]));
+    })
+    .catch(()=>{ clientDirectory = null; });
+  return clientDirectoryPromise;
+}
+function appClientFor(row){
+  return clientDirectory ? (clientDirectory.get(normName(C[row].name)) || null) : null;
+}
 async function pullShared(){
   if(!AUTH) return;
   try{
@@ -3631,11 +3671,66 @@ function renderCalendar(){
 }
 /** Google-Cal-style event peek: the stop's real detail, plus the two actions
  *  that already exist elsewhere in the tool (open the day, print the sheet). */
+let peekRow=null;   // which row's popup is (or was last) open -- guards a
+                     // late-arriving directory fetch from writing into a
+                     // dialog the user has since closed or reused for someone else
+function peekEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/** The "full profile" section: contact card + cross-season history from the
+ *  app's Clients tab (see loadClientDirectory). Renders three states --
+ *  no AUTH at all (standalone/offline, says nothing), still loading, and
+ *  loaded-but-no-match (this client hasn't been synced into the app yet). */
+function profileSectionHTML(row){
+  if(!AUTH) return '';
+  const ac = appClientFor(row);
+  if(!clientDirectory) return `<p class="pkrow pkloading">Loading full client profile…</p>`;
+  if(!ac) return `<p class="pkrow pkloading">Not yet synced to the Clients tab.</p>`;
+  const addr=[ac.street,[ac.city,ac.state].filter(Boolean).join(', '),ac.zip]
+             .filter(Boolean).join(', ');
+  const activity=(ac.activity||[]).slice()
+    .sort((a,b)=> (b.season||'').localeCompare(a.season||''));
+  const history = activity.length ? `
+    <div class="pkhist">
+      <p class="pksec">Install history</p>
+      ${activity.map(en=>`<div class="pkhrow">
+          <span class="pkhyear">${peekEsc(en.season)}</span>
+          <span class="pkhtext">${peekEsc(en.summary)}</span>
+        </div>`).join('')}
+    </div>` : '';
+  const projectLine = ac.project_count > 0
+    ? `<p class="pkrow">🌿 ${ac.project_count} design project${ac.project_count===1?'':'s'}`
+      +`${ac.selected_cost?` · ${fmtUSD(ac.selected_cost)}`:''}</p>`
+    : '';
+  return `
+    <div class="pkprofile">
+      <p class="pksec">Full client profile</p>
+      ${addr && addr!==C[row].zone ? `<p class="pkrow">📍 ${peekEsc(addr)}</p>` : ''}
+      ${ac.phone?`<p class="pkrow">📞 ${peekEsc(ac.phone)}</p>`:''}
+      ${ac.email?`<p class="pkrow">✉ ${peekEsc(ac.email)}</p>`:''}
+      ${ac.notes?`<p class="pknote">${peekEsc(ac.notes)}</p>`:''}
+      ${projectLine}
+      ${history}
+      <button class="pkfull" id="pkfullprofile">Open full client profile ↗</button>
+    </div>`;
+}
+function fmtUSD(n){ return '$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function wireProfileLink(row){
+  const btn=document.getElementById('pkfullprofile');
+  if(!btn) return;
+  btn.onclick=()=>{
+    const ac=appClientFor(row);
+    const name=ac?ac.name:C[row].name;
+    // srcDoc keeps the parent's origin, so this opens the real app's
+    // Clients page (not a bare filesystem path) in a new tab -- the
+    // scheduler stays open exactly where it was.
+    window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
+  };
+}
 function openStopPeek(row,dayId){
   const c=C[row], d=days.find(x=>x.id===dayId);
   if(!c||!d) return;            // stale id after an edit -- fail quiet, not throw
+  peekRow=row;
   const t=(stopTimes(d).find(x=>x.row===row))||{};
-  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc=peekEsc;
   // addrParts() repairs the six source rows that jam the whole address into
   // one cell -- using c.street raw duplicates the state on those.
   const ap=addrParts(c);
@@ -3653,7 +3748,26 @@ function openStopPeek(row,dayId){
        ${c.people?` · ${c.people} people`:''}</p>
     ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
-    ${confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}`;
+    ${confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
+    ${profileSectionHTML(row)}`;
+  wireProfileLink(row);
+  if(AUTH && !clientDirectory){
+    loadClientDirectory().then(()=>{
+      if(peekRow!==row || !peekdlg.open) return;   // stale by the time it lands
+      const el=document.querySelector('#peekbody .pkprofile, #peekbody .pkloading');
+      const holder=document.getElementById('peekbody');
+      if(!holder) return;
+      // Replace just the profile block, not the whole popup (keeps the
+      // day/crew/approve controls above it untouched).
+      const old=holder.querySelector('.pkprofile, .pkloading');
+      const html=profileSectionHTML(row);
+      if(old){
+        const tmp=document.createElement('div'); tmp.innerHTML=html;
+        old.replaceWith(...tmp.childNodes);
+      } else holder.insertAdjacentHTML('beforeend', html);
+      wireProfileLink(row);
+    });
+  }
   document.getElementById('peekopen').onclick=()=>{
     peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
   document.getElementById('peekprint').onclick=()=>{

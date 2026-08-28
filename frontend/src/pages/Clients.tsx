@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Briefcase,
+  Check,
   ChevronDown,
   FolderOpen,
   Mail,
@@ -518,6 +519,98 @@ function DeleteClientDialog({
   );
 }
 
+// Filter chip: which line of work touched this client. Ported from
+// Designs.tsx's FilterChip (same visual language across the app) --
+// there's no shared component to import, it's page-local there too.
+// "Christmas" and "Green Products" are what the client mentally means by
+// them (2026-08-28): Christmas install history vs. a saved design/
+// arrangement project. Product-CATEGORY based tagging was considered and
+// rejected -- the catalog is almost entirely holiday decor even in
+// "Florals"/"Greenery & Plants" (poinsettia, holly, pine everywhere), so
+// category alone can't reliably separate the two the way workflow can.
+type ClientTypeTag = "christmas" | "greenery";
+type TypeFacet = { value: ClientTypeTag; label: string; count: number };
+
+function clientHasTag(client: ClientGroup, tag: ClientTypeTag): boolean {
+  if (tag === "christmas") return client.activity.length > 0;
+  return client.projectCount > 0;
+}
+
+function TypeFilterChip({ options, selected, onToggle, onClear }: {
+  options: TypeFacet[];
+  selected: ClientTypeTag[];
+  onToggle: (value: ClientTypeTag) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const active = selected.length > 0;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+          active
+            ? "border-emerald-600 bg-emerald-700 text-white"
+            : "border-stone-300 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-900"
+        }`}
+        title="Filter by type of work"
+      >
+        Type
+        {active && (
+          <span className="rounded-full bg-white/25 px-1.5 text-[10px] leading-4">{selected.length}</span>
+        )}
+        <ChevronDown size={12} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1.5 w-64 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
+          <div className="flex items-center justify-between px-2 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">Type</span>
+            {selected.length > 0 && (
+              <button onClick={onClear} className="text-[11px] font-medium text-emerald-700 hover:text-emerald-900">Clear</button>
+            )}
+          </div>
+          {options.map((o) => {
+            const on = selected.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                onClick={() => onToggle(o.value)}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-stone-100"
+              >
+                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                  on ? "border-emerald-700 bg-emerald-700 text-white" : "border-stone-300"
+                }`}>
+                  {on && <Check size={11} strokeWidth={3} />}
+                </span>
+                <span className={`flex-1 truncate ${on ? "font-medium text-emerald-900" : "text-stone-600"}`}>{o.label}</span>
+                <span className="shrink-0 text-xs text-stone-400">{o.count.toLocaleString()}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Clients() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -555,10 +648,18 @@ export default function Clients() {
   };
 
   const clients = useMemo(() => buildClientGroups(clientRows, projects), [clientRows, projects]);
+  const [typeFilter, setTypeFilter] = useState<ClientTypeTag[]>([]);
+  const typeFacets = useMemo<TypeFacet[]>(() => [
+    { value: "christmas", label: "Christmas", count: clients.filter((c) => clientHasTag(c, "christmas")).length },
+    { value: "greenery", label: "Green Products", count: clients.filter((c) => clientHasTag(c, "greenery")).length },
+  ], [clients]);
+  const toggleTypeFilter = (tag: ClientTypeTag) =>
+    setTypeFilter((current) => current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]);
   const visibleClients = useMemo(() => {
-    if (!focusedClient) return clients;
-    return clients.filter((client) => client.name === focusedClient);
-  }, [clients, focusedClient]);
+    let list = focusedClient ? clients.filter((client) => client.name === focusedClient) : clients;
+    if (typeFilter.length > 0) list = list.filter((c) => typeFilter.some((tag) => clientHasTag(c, tag)));
+    return list;
+  }, [clients, focusedClient, typeFilter]);
 
   useEffect(() => {
     let mounted = true;
@@ -724,6 +825,22 @@ export default function Clients() {
         </button>
       </header>
 
+      {!focusedClient && (
+        <div className="flex items-center gap-2 border-b border-stone-100 px-10 py-3" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+          <TypeFilterChip
+            options={typeFacets}
+            selected={typeFilter}
+            onToggle={toggleTypeFilter}
+            onClear={() => setTypeFilter([])}
+          />
+          {typeFilter.length > 0 && (
+            <button onClick={() => setTypeFilter([])} className="text-xs font-medium text-stone-400 hover:text-stone-600">
+              Reset
+            </button>
+          )}
+        </div>
+      )}
+
       <main className="px-10 py-6">
         {loading || (!initialDataSettled && visibleClients.length === 0) ? (
           <div className="flex items-center justify-center py-24">
@@ -731,6 +848,16 @@ export default function Clients() {
               <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
               <p className="mt-3 text-sm text-stone-400">Checking clients...</p>
             </div>
+          </div>
+        ) : visibleClients.length === 0 && typeFilter.length > 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
+              <Users size={28} className="text-emerald-600" strokeWidth={1.5} />
+            </div>
+            <p className="mb-1 text-base font-medium text-stone-600">No clients match that filter</p>
+            <button onClick={() => setTypeFilter([])} className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700">
+              Clear filter
+            </button>
           </div>
         ) : visibleClients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
