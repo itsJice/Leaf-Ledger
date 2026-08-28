@@ -150,7 +150,7 @@ export default function FeedbackWidget() {
               className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />
 
-            {!hasShot ? (
+            {!hasShot && (
               <button
                 type="button"
                 onClick={captureScreenshot}
@@ -160,27 +160,31 @@ export default function FeedbackWidget() {
                 {capturing ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                 {capturing ? "Capturing…" : "Attach a screenshot of this page"}
               </button>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-[11px] text-stone-400">Draw on it to point something out.</p>
-                <canvas
-                  ref={canvasRef}
-                  className="w-full touch-none rounded-lg border border-stone-200"
-                  style={{ maxHeight: 220, objectFit: "contain", cursor: "crosshair" }}
-                  onPointerDown={annotate.onPointerDown}
-                  onPointerMove={annotate.onPointerMove}
-                  onPointerUp={annotate.onPointerUp}
-                  onPointerLeave={annotate.onPointerLeave}
-                />
-                <button
-                  type="button"
-                  onClick={() => { setHasShot(false); }}
-                  className="flex w-fit items-center gap-1.5 text-[11px] font-medium text-stone-400 hover:text-red-600"
-                >
-                  <Eraser size={11} /> Remove screenshot
-                </button>
-              </div>
             )}
+            {/* Always mounted, not just once hasShot flips -- captureScreenshot
+                draws into this element BEFORE setting hasShot, so a canvas that
+                only rendered in the `hasShot` branch was never there yet to draw
+                into (canvasRef.current was null, and the capture silently
+                no-opped). Hidden rather than unmounted while empty. */}
+            <div className={hasShot ? "flex flex-col gap-1.5" : "hidden"}>
+              <p className="text-[11px] text-stone-400">Draw on it to point something out.</p>
+              <canvas
+                ref={canvasRef}
+                className="w-full touch-none rounded-lg border border-stone-200"
+                style={{ maxHeight: 220, objectFit: "contain", cursor: "crosshair" }}
+                onPointerDown={annotate.onPointerDown}
+                onPointerMove={annotate.onPointerMove}
+                onPointerUp={annotate.onPointerUp}
+                onPointerLeave={annotate.onPointerLeave}
+              />
+              <button
+                type="button"
+                onClick={() => { setHasShot(false); }}
+                className="flex w-fit items-center gap-1.5 text-[11px] font-medium text-stone-400 hover:text-red-600"
+              >
+                <Eraser size={11} /> Remove screenshot
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t border-stone-100 px-4 py-3">
