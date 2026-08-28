@@ -2409,6 +2409,26 @@ searchBox.addEventListener('keydown', e=>{
 document.addEventListener('click', e=>{
   if(!e.target.closest('#searchwrap')) searchResults.style.display='none';
 });
+// Click anywhere that is NOT inside an open dialog's content and it
+// closes -- checked by DOM containment (dlg.contains(e.target)), not by
+// e.target===dlg / the native ::backdrop click trick. Tried that first;
+// a real click on the map behind the popup panned the map instead of
+// closing it, meaning the click was reaching page content the backdrop
+// was supposed to be blocking. Containment doesn't depend on that at all
+// -- it only asks "was the click inside this dialog's own markup."
+//
+// mousedown, not click, and for the same reason the FilterChip outside-
+// click handler above uses it: mousedown fires BEFORE the click event
+// that opens a *different* stop's popup. Listening on click would close
+// the dialog this same click just opened (row's onclick runs first
+// during the bubble phase and calls showModal(), then this handler would
+// see it open and immediately close it again) -- mousedown runs first,
+// so a stale dialog is already closed by the time a fresh one opens.
+document.addEventListener('mousedown', e=>{
+  document.querySelectorAll('dialog[open]').forEach(dlg=>{
+    if(!dlg.contains(e.target)) dlg.close();
+  });
+});
 
 // ---------- UI ----------
 const strip = document.getElementById('datestrip');
