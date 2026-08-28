@@ -2976,7 +2976,9 @@ function buildBillingRows(scope){
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
   // 2025 total sits immediately right of the 2026 total so the year-over-year
   // comparison is a single glance, with the basis right after it.
-  const rows = [['Client name','Bill-to name/company','ADDRESS','CITY','ST','ZIP','Install date',
+  // PHONE/EMAIL sit right next to the mailing address -- a crew or office
+  // call needs both together, not address alone (user, 2026-08-28).
+  const rows = [['Client name','Bill-to name/company','PHONE','EMAIL','ADDRESS','CITY','ST','ZIP','Install date',
     '2026 install price','2026 takedown price','2026 storage price','2026 TOTAL invoice',
     '2025 total invoice (actual)','Pricing basis',
     'Repairs & install notes','Billing notes']];
@@ -2985,7 +2987,7 @@ function buildBillingRows(scope){
     .forEach(([r,date])=>{
       const c = C[r], a = addrParts(c), p = price2026(c);
       rows.push([
-        c.name, c.name, a.street, a.city, a.st, a.zip, fmtMDYYYY(date),
+        c.name, c.name, c.phone || '', c.email || '', a.street, a.city, a.st, a.zip, fmtMDYYYY(date),
         p.inst ?? '', p.tdwn ?? '', p.stor ?? '', p.total ?? '',
         c.invoice25 ?? '', p.basis,
         c.repairNotes || '', '',
@@ -2994,11 +2996,11 @@ function buildBillingRows(scope){
   // Footer: column totals, blank-separated so a spreadsheet's own SUM over
   // the data range doesn't swallow the total row. Only the money columns
   // add up; the rest stay blank rather than showing a meaningless count.
-  const MONEY=[7,8,9,10,11];
+  const MONEY=[9,10,11,12,13];
   const body=rows.slice(1);
   const sums={};
   MONEY.forEach(i=>{ sums[i]=body.reduce((s,r)=>s+(typeof r[i]==='number'?r[i]:0),0); });
-  const priced=body.filter(r=>typeof r[10]==='number').length;
+  const priced=body.filter(r=>typeof r[12]==='number').length;
   const foot=rows[0].map(()=>'');
   foot[0]=`TOTAL — ${body.length} clients (${priced} priced)`;
   MONEY.forEach(i=>{ foot[i]=Math.round(sums[i]*100)/100; });
@@ -3152,7 +3154,7 @@ function openPrintView(rows, moneyCols, title){
 }
 function runExport(scope, fmt){
   const rows = buildBillingRows(scope);
-  const MONEY=[7,8,9,10,11];
+  const MONEY=[9,10,11,12,13];
   const label = scope==='houston' ? 'Houston' : scope==='dallas' ? 'Dallas' : 'All clients';
   const base = `TBDG 2026 install billing — ${label}`;
   const file = `tbdg-2026-billing-${scope}`;

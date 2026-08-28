@@ -7,9 +7,10 @@ every change), and a hosted restart wiped the disk. They now live in the
 with one row per client and a unique index on the normalised name.
 """
 
-from datetime import datetime
+from datetime import date, datetime
+import json
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Request
@@ -23,11 +24,37 @@ async def get_conn():
     return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
+ADDRESS_FIELDS = ("street", "city", "state", "zip")
+
+
 async def load_saved_clients(conn) -> List[dict]:
     rows = await conn.fetch(
-        "SELECT id, name, email, phone, notes, created_at, updated_at FROM clients"
+        "SELECT id, name, email, phone, notes, street, city, state, zip, "
+        "created_at, updated_at FROM clients"
     )
     return [dict(r) for r in rows]
+
+
+async def load_activity_by_client(conn) -> dict:
+    """Every client's activity feed (Christmas install history today), one
+    query -- grouped in Python rather than a SQL json_agg so a NULL detail
+    or an odd jsonb decode doesn't need its own SQL-side special case."""
+    rows = await conn.fetch(
+        "SELECT client_id, id, kind, season, summary, detail, occurred_at, created_at "
+        "FROM client_activity ORDER BY occurred_at DESC NULLS LAST, season DESC"
+    )
+    by_client: dict = {}
+    for r in rows:
+        detail = r["detail"]
+        if isinstance(detail, str):
+            detail = json.loads(detail)
+        by_client.setdefault(r["client_id"], []).append({
+            "id": r["id"], "kind": r["kind"], "season": r["season"],
+            "summary": r["summary"], "detail": detail,
+            "occurred_at": r["occurred_at"].isoformat() if r["occurred_at"] else None,
+            "created_at": r["created_at"],
+        })
+    return by_client
 
 
 async def has_item_status_column(conn) -> bool:
@@ -47,6 +74,37 @@ class ClientCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+
+
+class ClientUpdate(BaseModel):
+    """Same shape as ClientCreate -- every field optional-to-change, name
+    included (fixing a typo in a saved client's name is a normal edit).
+    Deliberately does NOT touch christmas_synced_snapshot/christmas_synced_at
+    -- those belong to sync_clients.py alone; a human editing a field here
+    is exactly the case that snapshot exists to protect from being
+    silently overwritten by the next sync."""
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    notes: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+
+
+class ActivityOut(BaseModel):
+    id: int
+    kind: str
+    season: str
+    summary: str
+    detail: Optional[Any] = None
+    occurred_at: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 class ClientOut(BaseModel):
@@ -55,6 +113,10 @@ class ClientOut(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     project_count: int = 0
@@ -62,6 +124,7 @@ class ClientOut(BaseModel):
     selected_cost: float = 0.0
     last_project_at: Optional[datetime] = None
     source: str = "saved"
+    activity: List[ActivityOut] = []
 
 
 def clean_name(name: Optional[str]) -> str:
@@ -71,6 +134,7 @@ def clean_name(name: Optional[str]) -> str:
 async def build_client_list(conn) -> List[dict]:
     """Saved clients plus rollups from every project the team has."""
     saved_clients = await load_saved_clients(conn)
+    activity_by_client = await load_activity_by_client(conn)
     status_expression = (
         "CASE WHEN ci.status = 'selected' THEN ci.quantity * p.current_price ELSE 0 END"
         if await has_item_status_column(conn)
@@ -105,6 +169,7 @@ async def build_client_list(conn) -> List[dict]:
             "selected_cost": stats.get("selected_cost", 0.0),
             "last_project_at": stats.get("last_project_at"),
             "source": "saved",
+            "activity": activity_by_client.get(data["id"], []),
         })
 
     for stats in stats_by_name.values():
@@ -114,6 +179,7 @@ async def build_client_list(conn) -> List[dict]:
             "email": None,
             "phone": None,
             "notes": None,
+            "street": None, "city": None, "state": None, "zip": None,
             "created_at": None,
             "updated_at": stats.get("last_project_at"),
             "project_count": stats.get("project_count", 0),
@@ -121,6 +187,7 @@ async def build_client_list(conn) -> List[dict]:
             "selected_cost": stats.get("selected_cost", 0.0),
             "last_project_at": stats.get("last_project_at"),
             "source": "from_projects",
+            "activity": [],  # no `clients` row -- nothing to have synced onto
         })
 
     return sorted(clients, key=lambda item: item["name"].lower())
@@ -151,15 +218,19 @@ async def create_client(body: ClientCreate, request: Request):
         # of one silently overwriting the other.
         row = await conn.fetchrow(
             """
-            INSERT INTO clients (name, email, phone, notes, created_by)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
-            RETURNING id, name, email, phone, notes, created_at, updated_at
+            RETURNING id, name, email, phone, notes, street, city, state, zip, created_at, updated_at
             """,
             name,
             clean_name(body.email) or None,
             clean_name(body.phone) or None,
             clean_name(body.notes) or None,
+            clean_name(body.street) or None,
+            clean_name(body.city) or None,
+            clean_name(body.state) or None,
+            clean_name(body.zip) or None,
             signed_in.email if signed_in else None,
         )
         if row is None:
@@ -172,6 +243,51 @@ async def create_client(body: ClientCreate, request: Request):
             "selected_cost": 0.0,
             "last_project_at": None,
             "source": "saved",
+            "activity": [],
+        }
+    finally:
+        await conn.close()
+
+
+@router.put("/update/{client_id}", response_model=ClientOut)
+async def update_client(client_id: int, body: ClientUpdate, request: Request):
+    """Edit an existing client. Every field is optional-to-change -- only
+    what's actually present in the body gets written, via COALESCE, so a
+    partial edit (just fixing a phone number) can't accidentally blank out
+    everything else. There was no way to edit a saved client at all before
+    this -- create and delete were the only two operations."""
+    conn = await get_conn()
+    try:
+        try:
+            row = await conn.fetchrow(
+                """
+                UPDATE clients SET
+                    name = COALESCE(NULLIF(TRIM($2), ''), name),
+                    email = CASE WHEN $3::text IS NOT NULL THEN NULLIF(TRIM($3), '') ELSE email END,
+                    phone = CASE WHEN $4::text IS NOT NULL THEN NULLIF(TRIM($4), '') ELSE phone END,
+                    notes = CASE WHEN $5::text IS NOT NULL THEN NULLIF(TRIM($5), '') ELSE notes END,
+                    street = CASE WHEN $6::text IS NOT NULL THEN NULLIF(TRIM($6), '') ELSE street END,
+                    city = CASE WHEN $7::text IS NOT NULL THEN NULLIF(TRIM($7), '') ELSE city END,
+                    state = CASE WHEN $8::text IS NOT NULL THEN NULLIF(TRIM($8), '') ELSE state END,
+                    zip = CASE WHEN $9::text IS NOT NULL THEN NULLIF(TRIM($9), '') ELSE zip END,
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING id, name, email, phone, notes, street, city, state, zip, created_at, updated_at
+                """,
+                client_id, body.name, body.email, body.phone, body.notes,
+                body.street, body.city, body.state, body.zip,
+            )
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(status_code=409, detail="Another client already has that name")
+        if row is None:
+            raise HTTPException(status_code=404, detail="No client with that id")
+
+        activity_by_client = await load_activity_by_client(conn)
+        return {
+            **dict(row),
+            "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
+            "last_project_at": None, "source": "saved",
+            "activity": activity_by_client.get(client_id, []),
         }
     finally:
         await conn.close()

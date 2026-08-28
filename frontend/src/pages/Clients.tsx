@@ -5,8 +5,13 @@ import {
   Briefcase,
   ChevronDown,
   FolderOpen,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
   Plus,
   Trash2,
+  TreePine,
   X,
   Users,
 } from "lucide-react";
@@ -41,12 +46,26 @@ type ProjectDetail = ProjectSummary & {
   containers: Bucket[];
 };
 
+type ActivityEntry = {
+  id: number;
+  kind: string;
+  season: string;
+  summary: string;
+  detail?: Record<string, unknown> | null;
+  occurred_at?: string | null;
+  created_at?: string | null;
+};
+
 type ClientRecord = {
   id?: number | null;
   name: string;
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   project_count: number;
@@ -54,6 +73,7 @@ type ClientRecord = {
   selected_cost: number;
   last_project_at?: string | null;
   source: "saved" | "from_projects";
+  activity?: ActivityEntry[];
 };
 
 type ClientGroup = {
@@ -62,6 +82,11 @@ type ClientGroup = {
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  activity: ActivityEntry[];
   source: "saved" | "from_projects";
   projects: ProjectSummary[];
   projectCount: number;
@@ -137,6 +162,10 @@ function makeLocalClient(payload: { name: string; email: string; phone: string; 
     email: payload.email || null,
     phone: payload.phone || null,
     notes: payload.notes || null,
+    street: null,
+    city: null,
+    state: null,
+    zip: null,
     created_at: now,
     updated_at: now,
     project_count: 0,
@@ -144,6 +173,7 @@ function makeLocalClient(payload: { name: string; email: string; phone: string; 
     selected_cost: 0,
     last_project_at: null,
     source: "saved",
+    activity: [],
   };
 }
 
@@ -215,6 +245,11 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       email: client.email,
       phone: client.phone,
       notes: client.notes,
+      street: client.street,
+      city: client.city,
+      state: client.state,
+      zip: client.zip,
+      activity: client.activity || [],
       source: client.source,
       projects: stats?.projects || [],
       projectCount: stats ? stats.projectCount : client.project_count || 0,
@@ -228,6 +263,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
     if (groups.has(key)) return;
     groups.set(key, {
       name: stats.name,
+      activity: [],
       source: "from_projects" as const,
       projects: stats.projects,
       projectCount: stats.projectCount,
@@ -240,24 +276,41 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
   return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated: (client: ClientRecord) => void }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
+function NewClientModal({ client, onClose, onSaved }: {
+  client?: ClientGroup | null;
+  onClose: () => void;
+  onSaved: (client: ClientRecord) => void;
+}) {
+  const editing = Boolean(client?.id);
+  const [form, setForm] = useState({
+    name: client?.name || "", email: client?.email || "", phone: client?.phone || "",
+    notes: client?.notes || "", street: client?.street || "", city: client?.city || "",
+    state: client?.state || "", zip: client?.zip || "",
+  });
   const [saving, setSaving] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
+  const streetRef = useRef<HTMLInputElement>(null);
+  const cityRef = useRef<HTMLInputElement>(null);
+  const stateRef = useRef<HTMLInputElement>(null);
+  const zipRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
 
   const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
-  const createClient = async () => {
+  const saveClient = async () => {
     if (savingRef.current) return;
     const payload = {
       name: (nameRef.current?.value || form.name).trim(),
       email: (emailRef.current?.value || form.email).trim(),
       phone: (phoneRef.current?.value || form.phone).trim(),
       notes: (notesRef.current?.value || form.notes).trim(),
+      street: (streetRef.current?.value || form.street).trim(),
+      city: (cityRef.current?.value || form.city).trim(),
+      state: (stateRef.current?.value || form.state).trim(),
+      zip: (zipRef.current?.value || form.zip).trim(),
     };
     if (!payload.name) {
       toast.error("Client name required");
@@ -266,6 +319,29 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
     savingRef.current = true;
     setSaving(true);
     try {
+      if (editing) {
+        const res = await withClientTimeout(apiClient.request<ClientRecord>({
+          path: `/routes/clients/update/${client!.id}`,
+          method: "PUT",
+          body: {
+            name: payload.name,
+            email: payload.email || undefined,
+            phone: payload.phone || undefined,
+            notes: payload.notes || undefined,
+            street: payload.street || undefined,
+            city: payload.city || undefined,
+            state: payload.state || undefined,
+            zip: payload.zip || undefined,
+          },
+          type: ContentType.Json,
+        }), 4000);
+        if (!res.ok) throw new Error("Could not save client");
+        const updated = await res.json();
+        onSaved(updated);
+        toast.success("Client updated");
+        onClose();
+        return;
+      }
       const res = await withClientTimeout(apiClient.request<ClientRecord>({
         path: "/routes/clients/create",
         method: "POST",
@@ -274,19 +350,27 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
           email: payload.email || undefined,
           phone: payload.phone || undefined,
           notes: payload.notes || undefined,
+          street: payload.street || undefined,
+          city: payload.city || undefined,
+          state: payload.state || undefined,
+          zip: payload.zip || undefined,
         },
         type: ContentType.Json,
       }), 4000);
       if (!res.ok) throw new Error("Could not create client");
-      const client = await res.json();
-      onCreated(client);
+      const createdClient = await res.json();
+      onSaved(createdClient);
       window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
       toast.success("Client created");
       onClose();
     } catch {
+      if (editing) {
+        toast.error("Couldn't save that change -- try again in a moment.");
+        return;
+      }
       const localClient = makeLocalClient(payload);
       writeLocalClients(mergeClients([localClient], readLocalClients()));
-      onCreated(localClient);
+      onSaved(localClient);
       window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
       toast.success("Client created locally");
       onClose();
@@ -300,10 +384,10 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40">
       <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-100 px-6 py-4">
-          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>New Client</h2>
+          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{editing ? "Edit Client" : "New Client"}</h2>
           <button type="button" onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={18} /></button>
         </div>
-        <form onSubmit={(event) => { event.preventDefault(); void createClient(); }}>
+        <form onSubmit={(event) => { event.preventDefault(); void saveClient(); }}>
           <div className="space-y-4 px-6 py-5">
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-stone-600">Client name *</span>
@@ -320,6 +404,24 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
               </label>
             </div>
             <label className="block">
+              <span className="mb-1 block text-xs font-medium text-stone-600">Street address</span>
+              <input ref={streetRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.street} onChange={(e) => set("street", e.target.value)} placeholder="Optional" />
+            </label>
+            <div className="grid gap-3 grid-cols-[2fr_1fr_1fr]">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-stone-600">City</span>
+                <input ref={cityRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Optional" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-stone-600">State</span>
+                <input ref={stateRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.state} onChange={(e) => set("state", e.target.value)} placeholder="TX" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-stone-600">ZIP</span>
+                <input ref={zipRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.zip} onChange={(e) => set("zip", e.target.value)} placeholder="Optional" />
+              </label>
+            </div>
+            <label className="block">
               <span className="mb-1 block text-xs font-medium text-stone-600">Notes</span>
               <textarea ref={notesRef} rows={3} className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Designer, house, preferences, install notes..." />
             </label>
@@ -328,12 +430,12 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700">Cancel</button>
             <button
               type="button"
-              onClick={() => void createClient()}
+              onClick={() => void saveClient()}
               disabled={saving}
               className="rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:opacity-90"
               style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
-              {saving ? "Creating..." : "Create client"}
+              {saving ? "Saving..." : editing ? "Save changes" : "Create client"}
             </button>
           </div>
         </form>
@@ -433,8 +535,24 @@ export default function Clients() {
   const [summaryCachedAt, setSummaryCachedAt] = useState<number | null>(() => cachedPage?.cachedAt || null);
   const [detailsLoadingClient, setDetailsLoadingClient] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<ClientGroup | null>(null);
   const [projectClientName, setProjectClientName] = useState<string | null>(null);
   const [deleteClientTarget, setDeleteClientTarget] = useState<ClientGroup | null>(null);
+
+  // Shared by both create and edit: replace by id first (so a rename can
+  // never leave a stale duplicate under the old name), THEN merge -- plain
+  // name-keyed merging alone would add the renamed client as a second row
+  // while the original name's now-stale row stayed put.
+  const upsertClientRow = (saved: ClientRecord) => {
+    setClientRows((current) => {
+      const withoutOld = current.filter((row) => row.id == null || row.id !== saved.id);
+      const next = mergeClients([saved], withoutOld);
+      writeClientsPageCache(next, projects);
+      return next;
+    });
+    setInitialDataSettled(true);
+    setSummaryCachedAt(Date.now());
+  };
 
   const clients = useMemo(() => buildClientGroups(clientRows, projects), [clientRows, projects]);
   const visibleClients = useMemo(() => {
@@ -672,6 +790,13 @@ export default function Clients() {
                           Add project for this client
                         </button>
                         <button
+                          onClick={() => setEditingClient(client)}
+                          className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
+                        >
+                          <Pencil size={14} />
+                          Edit client
+                        </button>
+                        <button
                           onClick={() => setDeleteClientTarget(client)}
                           className="ml-auto flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-400 hover:border-stone-300 hover:text-stone-600"
                         >
@@ -679,6 +804,42 @@ export default function Clients() {
                           Delete client
                         </button>
                       </div>
+
+                      {(client.phone || client.email || client.street || client.city) && (
+                        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-1.5 rounded-xl border border-stone-200 bg-white px-4 py-3 text-xs text-stone-600">
+                          {client.phone && (
+                            <span className="flex items-center gap-1.5"><Phone size={12} className="text-stone-400" />{client.phone}</span>
+                          )}
+                          {client.email && (
+                            <span className="flex items-center gap-1.5"><Mail size={12} className="text-stone-400" />{client.email}</span>
+                          )}
+                          {(client.street || client.city) && (
+                            <span className="flex items-center gap-1.5">
+                              <MapPin size={12} className="text-stone-400" />
+                              {[client.street, [client.city, client.state].filter(Boolean).join(", "), client.zip].filter(Boolean).join(" · ")}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {client.activity.length > 0 && (
+                        <div className="mb-5">
+                          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
+                            <TreePine size={12} />
+                            Christmas install history
+                          </p>
+                          <div className="grid gap-1.5">
+                            {client.activity.map((entry) => (
+                              <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
+                                <span className="rounded-full px-2 py-0.5 font-semibold" style={{ backgroundColor: "rgb(var(--ll-brand-soft))", color: "rgb(var(--ll-brand))" }}>
+                                  {entry.season}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate text-stone-700">{entry.summary}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid gap-3">
                         {client.projects.map((project) => {
@@ -754,16 +915,23 @@ export default function Clients() {
       {showNewClientModal && (
         <NewClientModal
           onClose={() => setShowNewClientModal(false)}
-          onCreated={(client) => {
-            setClientRows((current) => {
-              const next = mergeClients([client], current);
-              writeClientsPageCache(next, projects);
-              return next;
-            });
-            setInitialDataSettled(true);
-            setSummaryCachedAt(Date.now());
+          onSaved={(client) => {
+            upsertClientRow(client);
             setSearchParams({ client: client.name });
             setExpandedClient(client.name);
+          }}
+        />
+      )}
+      {editingClient && (
+        <NewClientModal
+          client={editingClient}
+          onClose={() => setEditingClient(null)}
+          onSaved={(client) => {
+            upsertClientRow(client);
+            if (focusedClient === editingClient.name || expandedClient === editingClient.name) {
+              setSearchParams(focusedClient ? { client: client.name } : {});
+              setExpandedClient(client.name);
+            }
           }}
         />
       )}
