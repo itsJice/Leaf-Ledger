@@ -2545,14 +2545,20 @@ function buildDayCard(d){
         <button class="mv find"${isConfirmed?' disabled':''}>find date</button>
         <button class="mv"${isConfirmed?' disabled':''}>move ▾</button>
       </div>`;
+    // Clicking the row itself (name, zone, box count -- anywhere that isn't
+    // one of the buttons below) opens the same client-profile popup the
+    // Calendar/Agenda views already open on click. The buttons stop the
+    // click from bubbling up to this, so pressing "move" doesn't ALSO pop
+    // the peek dialog underneath it.
+    el.onclick=()=>openStopPeek(r, d.id);
     el.querySelector('.mv.confirm').onclick=(e)=>{
       e.stopPropagation();
       pushUndo();
       confirmed.has(r)?confirmed.delete(r):confirmed.add(r);
       persist(); render();
     };
-    el.querySelector('.find').onclick=()=>{ if(!isConfirmed) openSlotFinder(r); };
-    el.querySelector('.mv:not(.find):not(.confirm)').onclick=()=>{ if(!isConfirmed) openMoveDlg(r,null); };
+    el.querySelector('.find').onclick=(e)=>{ e.stopPropagation(); if(!isConfirmed) openSlotFinder(r); };
+    el.querySelector('.mv:not(.find):not(.confirm)').onclick=(e)=>{ e.stopPropagation(); if(!isConfirmed) openMoveDlg(r,null); };
     el.ondragstart=e=>{
       if(isConfirmed){ e.preventDefault(); return; }
       e.dataTransfer.setData('row',r);
