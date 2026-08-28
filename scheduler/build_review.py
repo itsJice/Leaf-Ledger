@@ -336,8 +336,13 @@ header h1 svg{color:var(--brand)}
   background:var(--brand-soft);color:var(--brand-deep);font-weight:600;letter-spacing:.01em}
 .badge.store{background:var(--brand-soft);color:var(--ok-ink)}
 .badge.approx{background:var(--warn-soft);color:var(--warn-ink)}
+.badge.confirm{background:#dcfce7;color:#15803d;font-weight:800}
+.stop.confirmed{border-left:3px solid #15803d}
 .mv{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;
   padding:3px 8px;cursor:pointer;color:var(--brand);font-weight:600}
+.mv.confirm{color:#15803d;display:flex;align-items:center;gap:4px;justify-content:center}
+.mv.confirm.on{background:#15803d;color:#fff;border-color:#15803d}
+.mv.confirm .ic{width:11px;height:11px}
 .mv:hover{background:var(--brand-soft)}
 .leg{font-size:10.5px;color:var(--faint);padding:1px 14px 1px 44px;background:var(--surface)}
 .cfoot{padding:10px 14px;font-size:12px;background:#fbfaf8;border-top:1px solid #f5f5f4;border-radius:0 0 var(--radius) var(--radius)}
@@ -750,6 +755,7 @@ dialog option:disabled{color:#b6b3ae}
 .calev.clipped{border-bottom:2px dashed var(--warn-ink)}
 /* ---- operational: drag to reschedule, approval state ---- */
 .calev{cursor:grab}
+.calev.confirmed,.agrow.confirmed{cursor:default;box-shadow:inset 3px 0 0 #15803d}
 .calev:active{cursor:grabbing}
 .calev.dragging,.agrow.dragging{opacity:.4}
 .calev.appr{background:#f2fbf4;border-color:var(--ok)}
@@ -931,6 +937,7 @@ dialog option:disabled{color:#b6b3ae}
 <dialog id="peekdlg">
   <div id="peekbody"></div>
   <div class="btns"><button onclick="peekdlg.close()">Close</button>
+  <button class="mv confirm" id="peekconfirm">confirm date</button>
   <button class="okbtn" id="peekappr">Approve day</button>
   <button id="peekprint">Print sheet</button>
   <button id="peekmove">Reschedule</button>
@@ -973,7 +980,9 @@ const IC={
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
  mail:'<svg class="ic" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
  home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
- clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'};
+ clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+ lock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+ unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
@@ -1134,6 +1143,14 @@ let days = DATA.days.map(hydrate);
 const BASELINE_STOPS = {};
 DATA.days.forEach(d=>{ BASELINE_STOPS[d.id] = [...d.stops].sort((a,b)=>a-b); });
 let approved = new Set(), moves = [], selDate = null;
+// A STAFF-set per-stop confirmation ("this client's date is locked in,
+// they called and confirmed it") -- distinct from `c.locked`, which is the
+// spreadsheet's own deposit-date flag and isn't staff-editable here. Keyed
+// by client row, not day id, since the point is the CLIENT's date, not
+// which crew-day card happens to hold them today. Blocks every move path
+// (drag, move dialog, slot finder) via checkPlan until explicitly
+// unlocked -- see the CONFIRMED check there.
+let confirmed = new Set();
 // ---------- staffing ----------
 // The pipeline packs stops into LOGISTICS crews (Crew 1/2/3) by route; it has
 // no idea who those crews are made of. `roster` is the people, `staffing` maps
@@ -1296,6 +1313,7 @@ try{
     const missing = applyPlacement(s.placement);
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+    confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
@@ -1304,6 +1322,7 @@ try{
     s.moves.forEach(m=>{ try{ applyMove(m.row, m.to, false); }catch(e){} });
     moves = s.moves;
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+    confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     stateWarning = 'Migrated saved changes to the new format — please review.';
   }
@@ -1316,7 +1335,7 @@ function snapshot(){
      people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
-          moves, approved:[...approved], newClients,
+          moves, approved:[...approved], confirmed:[...confirmed], newClients,
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -1361,6 +1380,7 @@ async function pullShared(){
       const missing = applyPlacement(j.state.placement);
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
+      confirmed = new Set((j.state.confirmed||[]).filter(row=>C[row]));
       roster = normRoster(j.state.roster); staffing = normStaffing(j.state.staffing);
       syncState = 'shared';
       stateWarning = missing
@@ -1473,6 +1493,7 @@ async function restoreHistoryEntry(entryId, btn){
     applyPlacement(st.placement);
     moves = st.moves || [];
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
+    confirmed = new Set((st.confirmed||[]).filter(row=>C[row]));
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
@@ -1496,12 +1517,14 @@ const UNDO_LIMIT = 100;
 let undoStack = [], redoStack = [];
 function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
-                         approved:[...approved], moves, roster, staffing});
+                         approved:[...approved], confirmed:[...confirmed],
+                         moves, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
   applyPlacement(s.placement);
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
+  confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
 }
@@ -1899,6 +1922,13 @@ function checkPlan(ops){
   ops.forEach(op=>{
     const [date, crew] = op.to.split('|');
     const c = C[op.row];
+    // Staff-set confirmation: unlike everything else here, this has
+    // nothing to do with WHERE the row is going -- it's confirmed, full
+    // stop, until someone unlocks it. Checked before the date/crew even
+    // matters.
+    if(confirmed.has(op.row))
+      blockers.push({code:'CONFIRMED', msg:`${c.name}'s date is confirmed with `
+        +`them — unlock it first (on their stop) if it needs to move`});
     // static
     staticBlockers(op.row, date).forEach(code=>
       (codeSoft(code)?warnings:blockers).push(
@@ -2448,7 +2478,12 @@ function buildDayCard(d){
       legIdx++;
     }
     const el=document.createElement('div');
-    el.className='stop'; el.draggable=true; el.dataset.row=r;
+    const isConfirmed=confirmed.has(r);
+    el.className='stop'+(isConfirmed?' confirmed':''); el.dataset.row=r;
+    // A confirmed stop simply doesn't pick up on drag -- draggable=false
+    // gives an immediate not-allowed cursor rather than letting the drag
+    // start and only rejecting it on drop.
+    el.draggable=!isConfirmed;
     const approx=!['street','manual','census'].includes(c.geo);
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
@@ -2456,6 +2491,7 @@ function buildDayCard(d){
       <div class="body"><div class="nm">${c.name}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
+        ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
         ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
@@ -2464,12 +2500,23 @@ function buildDayCard(d){
       <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
       ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
       <div class="stopbtns">
-        <button class="mv find">find date</button>
-        <button class="mv">move ▾</button>
+        <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
+          ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
+        <button class="mv find"${isConfirmed?' disabled':''}>find date</button>
+        <button class="mv"${isConfirmed?' disabled':''}>move ▾</button>
       </div>`;
-    el.querySelector('.find').onclick=()=>openSlotFinder(r);
-    el.querySelector('.mv:not(.find)').onclick=()=>openMoveDlg(r,null);
-    el.ondragstart=e=>e.dataTransfer.setData('row',r);
+    el.querySelector('.mv.confirm').onclick=(e)=>{
+      e.stopPropagation();
+      pushUndo();
+      confirmed.has(r)?confirmed.delete(r):confirmed.add(r);
+      persist(); render();
+    };
+    el.querySelector('.find').onclick=()=>{ if(!isConfirmed) openSlotFinder(r); };
+    el.querySelector('.mv:not(.find):not(.confirm)').onclick=()=>{ if(!isConfirmed) openMoveDlg(r,null); };
+    el.ondragstart=e=>{
+      if(isConfirmed){ e.preventDefault(); return; }
+      e.dataTransfer.setData('row',r);
+    };
     card.appendChild(el);
     const nxt=d.stops[i+1];
     if(nxt!==undefined){
@@ -2644,6 +2691,11 @@ function commitPlan(ops, {force=false}={}){
 const mvdlg=document.getElementById('mvdlg');
 let mvRow=null;
 function openMoveDlg(row,presetDate){
+  if(confirmed.has(row)){
+    alert(`${C[row].name}'s date is confirmed with them.\n\n`
+      +`Unlock it first (the lock button on their stop) if the date needs to change.`);
+    return;
+  }
   mvRow=row;
   const c=C[row];
   document.getElementById('mvtitle').textContent='Move: '+c.name;
@@ -3546,10 +3598,13 @@ function renderCalendar(){
     c.onclick=()=>{ calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
+    if(confirmed.has(+el.dataset.row)) el.classList.add('confirmed');
     el.onclick=e=>{ e.stopPropagation(); openStopPeek(+el.dataset.row, el.dataset.dayid); };
-    el.ondragstart=e=>{ e.dataTransfer.setData('row', el.dataset.row);
-                        e.dataTransfer.effectAllowed='move';
-                        el.classList.add('dragging'); };
+    el.ondragstart=e=>{
+      if(confirmed.has(+el.dataset.row)){ e.preventDefault(); return; }
+      e.dataTransfer.setData('row', el.dataset.row);
+      e.dataTransfer.effectAllowed='move';
+      el.classList.add('dragging'); };
     el.ondragend=()=>el.classList.remove('dragging');
   });
   // Dropping reuses the SAME guarded paths as the Days view -- nothing here
@@ -3597,13 +3652,21 @@ function openStopPeek(row,dayId){
        this crew${(d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}
        ${c.people?` · ${c.people} people`:''}</p>
     ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
-    ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}`;
+    ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
+    ${confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}`;
   document.getElementById('peekopen').onclick=()=>{
     peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
   document.getElementById('peekprint').onclick=()=>{
     peekdlg.close(); printManifests([d],`${d.crew} — ${fmtMDYYYY(d.date)}`); };
   const mv=document.getElementById('peekmove');
+  mv.disabled = confirmed.has(row);
   mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
+  const cfBtn=document.getElementById('peekconfirm');
+  cfBtn.innerHTML = confirmed.has(row) ? `${IC.unlock} unlock` : `${IC.lock} confirm date`;
+  cfBtn.classList.toggle('on', confirmed.has(row));
+  cfBtn.onclick=()=>{ pushUndo();
+    confirmed.has(row)?confirmed.delete(row):confirmed.add(row);
+    persist(); peekdlg.close(); render(); };
   const apBtn=document.getElementById('peekappr');
   apBtn.textContent = approved.has(d.id) ? '✓ Approved' : 'Approve day';
   apBtn.classList.toggle('on', approved.has(d.id));
