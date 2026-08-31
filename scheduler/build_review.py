@@ -319,7 +319,7 @@ header h1 svg{color:var(--brand)}
 .sched{display:flex;gap:16px;padding:8px 14px;font-size:11.5px;color:var(--mut);
   background:var(--brand-soft);border-bottom:1px solid var(--line)}
 .sched b{color:var(--ink);font-weight:700}
-.sched .ic{width:12px;height:12px;vertical-align:-1.5px;margin-right:2px}
+.sched .ic{width:12px;height:12px;vertical-align:-1.5px;margin-right:2px;flex:none}
 .okbtn{flex:none;border:1.5px solid var(--ok);color:var(--ok);background:#fff;border-radius:6px;font-family:'Montserrat',sans-serif;
   padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.02em;transition:all .15s}
 .okbtn:hover{background:#f0fdf4}
@@ -332,7 +332,7 @@ header h1 svg{color:var(--brand)}
   font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:none;font-weight:700}
 .ordbtn{width:16px;height:12px;border:1px solid var(--line);border-radius:3px;background:#fff;
   color:var(--mut);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
-.ordbtn .ic{width:9px;height:9px}
+.ordbtn .ic{width:9px;height:9px;flex:none}
 .ordbtn.up .ic{transform:rotate(180deg)}
 .ordbtn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
 .ordbtn:disabled{opacity:.3;cursor:default}
@@ -356,7 +356,7 @@ header h1 svg{color:var(--brand)}
   padding:3px 8px;cursor:pointer;color:var(--brand);font-weight:600}
 .mv.confirm{color:#15803d;display:flex;align-items:center;gap:4px;justify-content:center}
 .mv.confirm.on{background:#15803d;color:#fff;border-color:#15803d}
-.mv.confirm .ic{width:11px;height:11px}
+.mv.confirm .ic{width:11px;height:11px;flex:none}
 .mv:hover{background:var(--brand-soft)}
 .leg{font-size:10.5px;color:var(--faint);padding:1px 14px 1px 44px;background:var(--surface)}
 .cfoot{padding:10px 14px;font-size:12px;background:#fbfaf8;border-top:1px solid #f5f5f4}
@@ -366,7 +366,7 @@ header h1 svg{color:var(--brand)}
 .cshifthd:hover{background:#f5f3ef}
 .cshifttitle{font-size:11.5px;font-weight:700;color:var(--mut)}
 .cshiftarrow{margin-left:auto;display:flex;color:var(--mut);transition:transform .15s}
-.cshiftarrow .ic{width:13px;height:13px}
+.cshiftarrow .ic{width:13px;height:13px;flex:none}
 .cshiftarrow.open{transform:rotate(180deg)}
 .cshiftbody{flex-wrap:wrap;align-items:center;gap:6px;padding:10px 14px 12px;background:#fff}
 .cshiftperson{display:inline-flex;align-items:center;gap:5px;padding:3px 4px 3px 10px;
@@ -378,6 +378,7 @@ header h1 svg{color:var(--brand)}
   border-radius:50%;cursor:pointer;font-size:12px;line-height:1;display:flex;
   align-items:center;justify-content:center;padding:0}
 .cshiftrm:hover{background:rgba(0,0,0,.18)}
+.cshiftrm .ic{width:9px;height:9px;flex:none}
 .cshiftnone{font-size:11.5px;color:var(--mut);font-style:italic}
 .cshiftadd{width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;
   font-size:11.5px;font-family:'Montserrat',sans-serif;background:#fff;color:var(--ink)}
@@ -807,7 +808,12 @@ dialog option:disabled{color:#b6b3ae}
 .agn{font-weight:600}
 .agm{margin-left:auto;color:var(--mut);font-size:11px;white-space:nowrap}
 /* ---- event peek ---- */
-#peekdlg{max-width:390px;max-height:85vh;overflow-y:auto}
+#peekdlg{max-width:390px;max-height:85vh;overflow-y:auto;position:relative}
+.pkclose{position:absolute;top:12px;right:12px;width:26px;height:26px;border:none;
+  border-radius:50%;background:transparent;color:var(--mut);cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.pkclose:hover{background:#f1efec;color:var(--ink)}
+.pkclose .ic{width:15px;height:15px;flex:none}
 #peekbody h3{margin:0 0 3px;font-size:16px}
 .pkwhen{margin:0 0 10px;color:var(--mut);font-size:12px}
 .pkrow{margin:4px 0;font-size:12.5px}
@@ -983,6 +989,9 @@ dialog option:disabled{color:#b6b3ae}
   <div class="btns"><button onclick="histdlg.close()">Close</button></div>
 </dialog>
 <dialog id="peekdlg">
+  <button type="button" class="pkclose" onclick="peekdlg.close()" aria-label="Close" title="Close">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+  </button>
   <div id="peekbody"></div>
   <div class="btns"><button onclick="peekdlg.close()">Close</button>
   <button class="mv confirm" id="peekconfirm">confirm date</button>
@@ -1029,6 +1038,7 @@ const IC={
  mail:'<svg class="ic" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
  home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
  clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+ close:'<svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
  lock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
  unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
@@ -4071,7 +4081,7 @@ function crewShiftSection(d){
           TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
         .map(p=>`<span class="cshiftperson ${TITLE_CLS[p.title]}" data-pid="${p.id}">`
           +`${esc(p.name)}<button type="button" class="cshiftrm" data-pid="${p.id}" `
-          +`title="Remove from this shift">${IC.close||'×'}</button></span>`).join('')
+          +`title="Remove from this shift">${IC.close}</button></span>`).join('')
         : `<span class="cshiftnone">No one assigned yet.</span>`}
       <select class="cshiftadd">
         <option value="">+ add to shift…</option>
