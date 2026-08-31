@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Mail,
   MapPin,
+  MessageSquare,
   Pencil,
   Phone,
   Plus,
@@ -532,7 +533,10 @@ type ClientTypeTag = "christmas" | "greenery";
 type TypeFacet = { value: ClientTypeTag; label: string; count: number };
 
 function clientHasTag(client: ClientGroup, tag: ClientTypeTag): boolean {
-  if (tag === "christmas") return client.activity.length > 0;
+  // Comments now live in the same `activity` array (kind: "comment") --
+  // a client with only a note on file, no real install history, must not
+  // count as a "Christmas" client just because activity.length > 0.
+  if (tag === "christmas") return client.activity.some((a) => a.kind !== "comment");
   return client.projectCount > 0;
 }
 
@@ -626,6 +630,8 @@ export default function Clients() {
   const [initialDataSettled, setInitialDataSettled] = useState(() => Boolean(cachedPage));
   const [refreshingSummary, setRefreshingSummary] = useState(() => Boolean(cachedPage || localClientsOnLoad.length));
   const [summaryCachedAt, setSummaryCachedAt] = useState<number | null>(() => cachedPage?.cachedAt || null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [postingComment, setPostingComment] = useState<string | null>(null);
   const [detailsLoadingClient, setDetailsLoadingClient] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientGroup | null>(null);
@@ -791,6 +797,55 @@ export default function Clients() {
     }
   };
 
+  // Comments share client_activity with the Christmas-install history
+  // (kind distinguishes them) -- the same feed the install-schedule tool's
+  // client popup reads and writes, so a note added on either side shows up
+  // on both without a second store to keep in sync.
+  const patchClientActivity = (clientId: number | null | undefined, updater: (activity: ActivityEntry[]) => ActivityEntry[]) => {
+    if (clientId == null) return;
+    setClientRows((rows) => rows.map((row) =>
+      row.id === clientId ? { ...row, activity: updater(row.activity || []) } : row));
+  };
+
+  const addComment = async (client: ClientGroup) => {
+    if (client.id == null) { toast.error("Save this client before adding comments"); return; }
+    const text = (commentDrafts[client.name] || "").trim();
+    if (!text) return;
+    setPostingComment(client.name);
+    try {
+      const res = await apiClient.request<ActivityEntry>({
+        path: `/routes/clients/${client.id}/comments`,
+        method: "POST",
+        body: { text },
+        type: ContentType.Json,
+      });
+      if (!res.ok) throw new Error("Failed to add comment");
+      const entry = await res.json();
+      patchClientActivity(client.id, (activity) => [entry, ...activity]);
+      setCommentDrafts((d) => ({ ...d, [client.name]: "" }));
+    } catch {
+      toast.error("Couldn't save that comment — try again.");
+    } finally {
+      setPostingComment(null);
+    }
+  };
+
+  const removeComment = async (client: ClientGroup, entry: ActivityEntry) => {
+    if (client.id == null) return;
+    const prev = client.activity;
+    patchClientActivity(client.id, (activity) => activity.filter((a) => a.id !== entry.id));
+    try {
+      const res = await apiClient.request({
+        path: `/routes/clients/${client.id}/comments/${entry.id}`,
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete comment");
+    } catch {
+      patchClientActivity(client.id, () => prev);
+      toast.error("Couldn't delete that comment — try again.");
+    }
+  };
+
   return (
     <Layout>
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
@@ -949,14 +1004,14 @@ export default function Clients() {
                         </div>
                       )}
 
-                      {client.activity.length > 0 && (
+                      {client.activity.some((a) => a.kind !== "comment") && (
                         <div className="mb-5">
                           <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
                             <TreePine size={12} />
                             Christmas install history
                           </p>
                           <div className="grid gap-1.5">
-                            {client.activity.map((entry) => (
+                            {client.activity.filter((a) => a.kind !== "comment").map((entry) => (
                               <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
                                 <span className="rounded-full px-2 py-0.5 font-semibold" style={{ backgroundColor: "rgb(var(--ll-brand-soft))", color: "rgb(var(--ll-brand))" }}>
                                   {entry.season}
@@ -967,6 +1022,54 @@ export default function Clients() {
                           </div>
                         </div>
                       )}
+
+                      <div className="mb-5">
+                        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
+                          <MessageSquare size={12} />
+                          Comments
+                        </p>
+                        {/* Same feed the install-schedule tool's client popup reads and
+                            writes -- a note added on either side shows up on both. */}
+                        <div className="grid gap-1.5">
+                          {client.activity.filter((a) => a.kind === "comment").length === 0 && (
+                            <p className="text-xs italic text-stone-400">No comments yet.</p>
+                          )}
+                          {client.activity.filter((a) => a.kind === "comment").map((entry) => (
+                            <div key={entry.id} className="flex items-start gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
+                              <span className="min-w-0 flex-1 text-stone-700">{entry.summary}</span>
+                              <span className="shrink-0 text-[10px] text-stone-400">
+                                {entry.created_at ? new Date(entry.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}
+                              </span>
+                              <button
+                                onClick={() => removeComment(client, entry)}
+                                className="shrink-0 text-stone-300 hover:text-red-500"
+                                title="Delete comment"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            type="text"
+                            value={commentDrafts[client.name] || ""}
+                            onChange={(e) => setCommentDrafts((d) => ({ ...d, [client.name]: e.target.value }))}
+                            onKeyDown={(e) => { if (e.key === "Enter") addComment(client); }}
+                            placeholder="Add a note…"
+                            maxLength={2000}
+                            className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-1.5 text-xs outline-none focus:border-emerald-500"
+                          />
+                          <button
+                            onClick={() => addComment(client)}
+                            disabled={postingComment === client.name || !(commentDrafts[client.name] || "").trim()}
+                            className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            style={{ backgroundColor: "rgb(var(--ll-brand))" }}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
 
                       <div className="grid gap-3">
                         {client.projects.map((project) => {

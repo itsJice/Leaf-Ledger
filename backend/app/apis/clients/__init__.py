@@ -325,3 +325,66 @@ async def delete_client(client_name: str, request: Request, delete_projects: boo
         return {"deleted": deleted, "projects_updated": count}
     finally:
         await conn.close()
+
+
+class CommentIn(BaseModel):
+    text: str
+
+
+# Comments share client_activity with the Christmas-install history (kind
+# distinguishes them: 'christmas_install' vs 'comment'), so a comment added
+# from the install-schedule tool's popup shows up in the same activity feed
+# the Clients tab already renders -- one timeline, not a second parallel
+# store. `season` is unused for a comment's own meaning; it only needs to
+# be *something*, since the column is NOT NULL, and giving it the comment's
+# own timestamp keeps every row's key unique on its own without leaning on
+# the migration 009 partial-index carve-out to do that work implicitly.
+@router.post("/{client_id}/comments", response_model=ActivityOut)
+async def add_client_comment(client_id: int, body: CommentIn, request: Request):
+    from app.auth.supabase_auth import get_optional_user
+
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Comment text is required")
+    if len(text) > 2000:
+        raise HTTPException(status_code=413, detail="Comment is too long")
+
+    signed_in = get_optional_user(request)
+    conn = await get_conn()
+    try:
+        exists = await conn.fetchval("SELECT 1 FROM clients WHERE id = $1", client_id)
+        if not exists:
+            raise HTTPException(status_code=404, detail="No client with that id")
+        now = datetime.utcnow()
+        row = await conn.fetchrow(
+            """
+            INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at)
+            VALUES ($1, 'comment', $2, $3, $4, NULL)
+            RETURNING id, kind, season, summary, detail, occurred_at, created_at
+            """,
+            client_id,
+            now.isoformat(),
+            text,
+            json.dumps({"author": signed_in.email if signed_in else None}),
+        )
+        return dict(row)
+    finally:
+        await conn.close()
+
+
+@router.delete("/{client_id}/comments/{activity_id}")
+async def delete_client_comment(client_id: int, activity_id: int, request: Request):
+    conn = await get_conn()
+    try:
+        # kind='comment' scopes this to comments only -- this route can
+        # never be used to delete a real Christmas-install history row.
+        result = await conn.execute(
+            "DELETE FROM client_activity WHERE id = $1 AND client_id = $2 AND kind = 'comment'",
+            activity_id, client_id,
+        )
+        deleted = int(result.split()[-1]) if result else 0
+        if not deleted:
+            raise HTTPException(status_code=404, detail="No such comment")
+        return {"deleted": True}
+    finally:
+        await conn.close()

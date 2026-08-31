@@ -3852,7 +3852,7 @@ function profileSectionHTML(row){
   if(!ac) return `<p class="pkrow pkloading">Not yet synced to the Clients tab.</p>`;
   const addr=[ac.street,[ac.city,ac.state].filter(Boolean).join(', '),ac.zip]
              .filter(Boolean).join(', ');
-  const activity=(ac.activity||[]).slice()
+  const activity=(ac.activity||[]).filter(a=>a.kind!=='comment').slice()
     .sort((a,b)=> (b.season||'').localeCompare(a.season||''));
   const history = activity.length ? `
     <div class="pkhist">
@@ -3891,26 +3891,54 @@ function wireProfileLink(row){
     window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
   };
 }
+/** Merges two comment sources into one timeline: server-backed ones from
+ *  the app's client_activity (kind='comment' -- same feed the Clients tab
+ *  reads and writes, so a note added on either side shows up on both), and
+ *  local-only ones from `comments[row]` -- the fallback for offline use or
+ *  a client that hasn't been synced into the app yet. A server entry is
+ *  tagged with its real activity id so delete can route to the DELETE
+ *  endpoint; a local one has no id and deletes out of `comments[row]`
+ *  directly. */
+function mergedComments(row){
+  const ac=appClientFor(row);
+  const server=(ac?.activity||[]).filter(a=>a.kind==='comment')
+    .map(a=>({text:a.summary, atMs:new Date(a.created_at).getTime(), serverId:a.id}));
+  const local=(comments[row]||[]).map((cm,i)=>({text:cm.text, atMs:cm.at, localIdx:i}));
+  return [...server, ...local].sort((a,b)=>b.atMs-a.atMs);
+}
 function commentListHTML(row){
-  const list=comments[row]||[];
+  const list=mergedComments(row);
   if(!list.length) return `<p class="pknone">No comments yet.</p>`;
-  return list.map((cm,i)=>`<div class="pkcomment">
-      <button type="button" class="pkcommentrm" data-i="${i}" title="Delete">${IC.close}</button>
+  return list.map(cm=>`<div class="pkcomment">
+      <button type="button" class="pkcommentrm" ${cm.serverId!=null?`data-server="${cm.serverId}"`:`data-local="${cm.localIdx}"`} title="Delete">${IC.close}</button>
       <span class="pkctext">${peekEsc(cm.text)}</span>
-      <span class="pkcwhen">${new Date(cm.at).toLocaleString('en-US',
+      <span class="pkcwhen">${new Date(cm.atMs).toLocaleString('en-US',
         {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>
     </div>`).join('');
 }
-document.addEventListener('click', e=>{
+document.addEventListener('click', async e=>{
   const btn=e.target.closest('.pkcommentrm');
   if(!btn) return;
   const row=peekRow;
-  if(row==null || !comments[row]) return;
+  if(row==null) return;
+  const list=document.getElementById('pkcommentlist');
+  if(btn.dataset.server!=null){
+    const ac=appClientFor(row);
+    if(!AUTH || !ac) return;
+    btn.disabled=true;
+    try{
+      const r=await fetch(`/api/clients/${ac.id}/comments/${btn.dataset.server}`,
+        {method:'DELETE', headers:{Authorization:AUTH}});
+      if(!r.ok) throw new Error(r.status);
+      ac.activity=(ac.activity||[]).filter(a=>String(a.id)!==btn.dataset.server);
+      if(list) list.innerHTML=commentListHTML(row);
+    }catch(err){ btn.disabled=false; alert('Could not delete that comment -- try again.'); }
+    return;
+  }
   pushUndo();
-  comments[row].splice(+btn.dataset.i, 1);
+  comments[row].splice(+btn.dataset.local, 1);
   if(!comments[row].length) delete comments[row];
   persist();
-  const list=document.getElementById('pkcommentlist');
   if(list) list.innerHTML=commentListHTML(row);
 });
 function openStopPeek(row,dayId){
@@ -3947,10 +3975,35 @@ function openStopPeek(row,dayId){
       </div>
     </div>`;
   wireProfileLink(row);
-  const addComment=()=>{
+  const addComment=async()=>{
     const inp=document.getElementById('pkcommenttext');
+    const btn=document.getElementById('pkcommentadd');
     const text=inp.value.trim();
     if(!text) return;
+    const ac=appClientFor(row);
+    // Synced to the app AND online: write through to client_activity, the
+    // same feed the Clients tab reads -- this is what makes the comment
+    // show up there too, not just in this tool's own saved state.
+    if(AUTH && ac){
+      btn.disabled=true;
+      try{
+        const r=await fetch(`/api/clients/${ac.id}/comments`, {
+          method:'POST', headers:{'Content-Type':'application/json', Authorization:AUTH},
+          body:JSON.stringify({text}),
+        });
+        if(!r.ok) throw new Error(r.status);
+        const entry=await r.json();
+        ac.activity=[entry, ...(ac.activity||[])];
+        document.getElementById('pkcommentlist').innerHTML=commentListHTML(row);
+        inp.value='';
+      }catch(err){
+        alert('Could not save that comment to the client profile -- try again.');
+      }finally{ btn.disabled=false; }
+      return;
+    }
+    // Offline, or this client isn't synced into the app yet: keep it in
+    // this tool's own saved state so it's never silently lost -- just not
+    // yet visible on the Clients tab side.
     pushUndo();
     (comments[row]=comments[row]||[]).unshift({text, at:Date.now()});
     persist();
