@@ -832,6 +832,23 @@ dialog option:disabled{color:#b6b3ae}
   background:#fff;color:var(--brand);font-weight:700;font-size:12px;cursor:pointer;
   font-family:'Montserrat',sans-serif}
 .pkfull:hover{background:var(--brand-soft)}
+.pkcomments{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.pknone{color:var(--mut);font-size:11.5px;font-style:italic;margin:0 0 8px}
+.pkcomment{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-top:1px solid #f0ede8;font-size:12px}
+.pkcomment:first-child{border-top:none}
+.pkctext{flex:1;min-width:0;color:var(--ink);word-break:break-word}
+.pkcwhen{flex:none;color:var(--mut);font-size:10px}
+.pkcommentrm{flex:none;width:14px;height:14px;border:none;background:rgba(0,0,0,.08);
+  color:var(--mut);border-radius:50%;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;padding:0}
+.pkcommentrm .ic{width:8px;height:8px;flex:none}
+.pkcommentrm:hover{background:rgba(185,28,28,.15);color:var(--danger)}
+.pkaddc{display:flex;gap:6px;margin-top:8px}
+.pkaddc input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:6px;
+  font-size:12px;font-family:'Montserrat',sans-serif}
+.pkaddc button{flex:none;padding:6px 12px;border:none;border-radius:6px;background:var(--brand);
+  color:#fff;font-weight:700;font-size:12px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.pkaddc button:hover{background:var(--brand-hover)}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
@@ -1209,6 +1226,19 @@ let approved = new Set(), moves = [], selDate = null;
 // (drag, move dialog, slot finder) via checkPlan until explicitly
 // unlocked -- see the CONFIRMED check there.
 let confirmed = new Set();
+// Per-client notes, timestamped, newest first: {row: [{text, at}]}
+let comments = {};
+function normComments(obj){
+  const out = {};
+  Object.entries(obj||{}).forEach(([row,list])=>{
+    if(!C[row]) return;
+    const items=(Array.isArray(list)?list:[])
+      .map(x=>({text:String(x&&x.text||'').trim(), at:Number(x&&x.at)||0}))
+      .filter(x=>x.text);
+    if(items.length) out[row]=items;
+  });
+  return out;
+}
 // Manual stop-order pin, per day: {dayId: [row, row, ...]}. Order was
 // never persisted before this -- an edited day's sequence is always
 // re-optimized for drive time on every render (see routeDay/render), so
@@ -1389,6 +1419,7 @@ try{
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
     confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
+    comments = normComments(s.comments);
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
@@ -1399,6 +1430,7 @@ try{
     moves = s.moves;
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
     confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
+    comments = normComments(s.comments);
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     stateWarning = 'Migrated saved changes to the new format — please review.';
@@ -1412,7 +1444,7 @@ function snapshot(){
      people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
-          moves, approved:[...approved], confirmed:[...confirmed], manualOrder, newClients,
+          moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -1486,6 +1518,7 @@ async function pullShared(){
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
       confirmed = new Set((j.state.confirmed||[]).filter(row=>C[row]));
       manualOrder = normManualOrder(j.state.manualOrder);
+      comments = normComments(j.state.comments);
       roster = normRoster(j.state.roster); staffing = normStaffing(j.state.staffing);
       syncState = 'shared';
       stateWarning = missing
@@ -1600,6 +1633,7 @@ async function restoreHistoryEntry(entryId, btn){
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
     confirmed = new Set((st.confirmed||[]).filter(row=>C[row]));
     manualOrder = normManualOrder(st.manualOrder);
+    comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
@@ -1623,7 +1657,7 @@ const UNDO_LIMIT = 100;
 let undoStack = [], redoStack = [];
 function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
-                         approved:[...approved], confirmed:[...confirmed], manualOrder,
+                         approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, roster, staffing});
 }
 function restoreBlob(blob){
@@ -1632,6 +1666,7 @@ function restoreBlob(blob){
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
   manualOrder = normManualOrder(s.manualOrder);
+  comments = normComments(s.comments);
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
 }
@@ -3856,6 +3891,28 @@ function wireProfileLink(row){
     window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
   };
 }
+function commentListHTML(row){
+  const list=comments[row]||[];
+  if(!list.length) return `<p class="pknone">No comments yet.</p>`;
+  return list.map((cm,i)=>`<div class="pkcomment">
+      <button type="button" class="pkcommentrm" data-i="${i}" title="Delete">${IC.close}</button>
+      <span class="pkctext">${peekEsc(cm.text)}</span>
+      <span class="pkcwhen">${new Date(cm.at).toLocaleString('en-US',
+        {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>
+    </div>`).join('');
+}
+document.addEventListener('click', e=>{
+  const btn=e.target.closest('.pkcommentrm');
+  if(!btn) return;
+  const row=peekRow;
+  if(row==null || !comments[row]) return;
+  pushUndo();
+  comments[row].splice(+btn.dataset.i, 1);
+  if(!comments[row].length) delete comments[row];
+  persist();
+  const list=document.getElementById('pkcommentlist');
+  if(list) list.innerHTML=commentListHTML(row);
+});
 function openStopPeek(row,dayId){
   const c=C[row], d=days.find(x=>x.id===dayId);
   if(!c||!d) return;            // stale id after an edit -- fail quiet, not throw
@@ -3880,8 +3937,28 @@ function openStopPeek(row,dayId){
     ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
     ${confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
-    ${profileSectionHTML(row)}`;
+    ${profileSectionHTML(row)}
+    <div class="pkcomments">
+      <p class="pksec">Comments</p>
+      <div id="pkcommentlist">${commentListHTML(row)}</div>
+      <div class="pkaddc">
+        <input type="text" id="pkcommenttext" placeholder="Add a note…" maxlength="500">
+        <button type="button" id="pkcommentadd">Add</button>
+      </div>
+    </div>`;
   wireProfileLink(row);
+  const addComment=()=>{
+    const inp=document.getElementById('pkcommenttext');
+    const text=inp.value.trim();
+    if(!text) return;
+    pushUndo();
+    (comments[row]=comments[row]||[]).unshift({text, at:Date.now()});
+    persist();
+    document.getElementById('pkcommentlist').innerHTML=commentListHTML(row);
+    inp.value='';
+  };
+  document.getElementById('pkcommentadd').onclick=addComment;
+  document.getElementById('pkcommenttext').onkeydown=e=>{ if(e.key==='Enter') addComment(); };
   if(AUTH && !clientDirectory){
     loadClientDirectory().then(()=>{
       if(peekRow!==row || !peekdlg.open) return;   // stale by the time it lands
