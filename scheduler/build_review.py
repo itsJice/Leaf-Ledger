@@ -345,7 +345,28 @@ header h1 svg{color:var(--brand)}
 .mv.confirm .ic{width:11px;height:11px}
 .mv:hover{background:var(--brand-soft)}
 .leg{font-size:10.5px;color:var(--faint);padding:1px 14px 1px 44px;background:var(--surface)}
-.cfoot{padding:10px 14px;font-size:12px;background:#fbfaf8;border-top:1px solid #f5f5f4;border-radius:0 0 var(--radius) var(--radius)}
+.cfoot{padding:10px 14px;font-size:12px;background:#fbfaf8;border-top:1px solid #f5f5f4}
+.cshift{border-top:1px solid #f5f5f4;border-radius:0 0 var(--radius) var(--radius);overflow:hidden}
+.cshifthd{display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;border:none;
+  background:#fbfaf8;cursor:pointer;font-family:'Montserrat',sans-serif;text-align:left}
+.cshifthd:hover{background:#f5f3ef}
+.cshifttitle{font-size:11.5px;font-weight:700;color:var(--mut)}
+.cshiftarrow{margin-left:auto;display:flex;color:var(--mut);transition:transform .15s}
+.cshiftarrow .ic{width:13px;height:13px}
+.cshiftarrow.open{transform:rotate(180deg)}
+.cshiftbody{flex-wrap:wrap;align-items:center;gap:6px;padding:10px 14px 12px;background:#fff}
+.cshiftperson{display:inline-flex;align-items:center;gap:5px;padding:3px 4px 3px 10px;
+  border-radius:999px;font-size:11.5px;font-weight:700;background:#f1efec;color:var(--mut)}
+.cshiftperson.lead{background:#1f3d2b;color:#fff}
+.cshiftperson.assist{background:var(--brand-soft);color:var(--brand-deep)}
+.cshiftperson.gen{background:#f1efec;color:var(--mut)}
+.cshiftrm{border:none;background:rgba(0,0,0,.08);color:inherit;width:16px;height:16px;
+  border-radius:50%;cursor:pointer;font-size:12px;line-height:1;display:flex;
+  align-items:center;justify-content:center;padding:0}
+.cshiftrm:hover{background:rgba(0,0,0,.18)}
+.cshiftnone{font-size:11.5px;color:var(--mut);font-style:italic}
+.cshiftadd{width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;
+  font-size:11.5px;font-family:'Montserrat',sans-serif;background:#fff;color:var(--ink)}
 .bar{height:7px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;border-radius:4px}
 .tot{display:flex;justify-content:space-between;color:var(--mut);font-weight:500}
@@ -2606,6 +2627,7 @@ function buildDayCard(d){
     <div class="tot"><span>Total Drive Time:</span><b>${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</b></div>
     <div class="tot"><span>Total Day Work Time (estimated):</span><b style="color:${barcol}">${fmtH(calc.total)} · ${shiftTxt}</b></div>
   </div>`);
+  card.appendChild(crewShiftSection(d));
   card.ondragover=e=>{e.preventDefault();card.classList.add('dragover');};
   card.ondragleave=()=>card.classList.remove('dragover');
   card.ondrop=e=>{e.preventDefault();card.classList.remove('dragover');
@@ -3952,6 +3974,73 @@ let stfKey=null;
 /** Takes a crew-day id OR a shift key. A Dallas night resolves to its whole
  *  week, so there is exactly one way to staff it and the block cannot be
  *  half-assigned by going in through a day card. */
+// ---- inline crew-shift staffing (bottom of each Days-view card) ----
+// The same assignment underneath the full Staffing-tab dialog (shiftAssigned,
+// availFor, "write every day in the block" for a Dallas week) -- this is a
+// quicker way to reach it from the card you're already looking at, not a
+// second, different way to staff someone. Toggle state is session-only
+// (not part of saved state) -- purely which cards you have open right now.
+let openShiftCards=new Set();
+function crewShiftSection(d){
+  const sh=shiftOfDay(d);
+  const wrap=document.createElement('div');
+  wrap.className='cshift';
+  if(!sh){ wrap.style.display='none'; return wrap; }   // no matching shift block -- nothing to show
+  const isOpen=openShiftCards.has(sh.key);
+  const cv=shiftCoverage(sh), on=shiftAssigned(sh);
+  wrap.innerHTML=`<button type="button" class="cshifthd">
+      <span class="cvchip ${cv.state}">${IC.users}${esc(coverageLabel(cv))}</span>
+      <span class="cshifttitle">Crew shift${sh.dallas?' — whole week':''}</span>
+      <span class="cshiftarrow${isOpen?' open':''}">${IC.down}</span>
+    </button>
+    <div class="cshiftbody" style="display:${isOpen?'flex':'none'}">
+      ${cv.who.length ? cv.who.slice().sort((a,b)=>
+          TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
+        .map(p=>`<span class="cshiftperson ${TITLE_CLS[p.title]}" data-pid="${p.id}">`
+          +`${esc(p.name)}<button type="button" class="cshiftrm" data-pid="${p.id}" `
+          +`title="Remove from this shift">${IC.close||'×'}</button></span>`).join('')
+        : `<span class="cshiftnone">No one assigned yet.</span>`}
+      <select class="cshiftadd">
+        <option value="">+ add to shift…</option>
+        ${roster.filter(p=>p.active && !on.has(p.id))
+          .sort((a,b)=>(availFor(b,sh).ok-availFor(a,sh).ok)||a.name.localeCompare(b.name))
+          .map(p=>{ const av=availFor(p,sh);
+            return `<option value="${p.id}">${esc(p.name)} — ${esc(TITLE_ABBR[p.title])}`
+                 + `${av.ok?'':' (off: '+esc(av.why)+')'}</option>`; }).join('')}
+      </select>
+    </div>`;
+  wrap.querySelector('.cshifthd').onclick=()=>{
+    isOpen ? openShiftCards.delete(sh.key) : openShiftCards.add(sh.key);
+    render();
+  };
+  wrap.querySelectorAll('.cshiftrm').forEach(btn=>{
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      pushUndo();
+      sh.days.forEach(x=>{
+        const cur=new Set(staffing[x.id]||[]);
+        cur.delete(btn.dataset.pid);
+        if(cur.size) staffing[x.id]=[...cur]; else delete staffing[x.id];
+      });
+      persist(); render();
+    };
+  });
+  const sel=wrap.querySelector('.cshiftadd');
+  sel.onclick=e=>e.stopPropagation();
+  sel.onchange=()=>{
+    if(!sel.value) return;
+    pushUndo();
+    // Write every day in the shift, same as the full dialog -- a Dallas
+    // block is staffed as one unit, not one night at a time.
+    sh.days.forEach(x=>{
+      const cur=new Set(staffing[x.id]||[]);
+      cur.add(sel.value);
+      staffing[x.id]=[...cur];
+    });
+    persist(); render();
+  };
+  return wrap;
+}
 function openStaffDlg(idOrKey){
   const d=days.find(x=>x.id===idOrKey);
   const sh=d ? shiftOfDay(d) : shiftFor(idOrKey);
