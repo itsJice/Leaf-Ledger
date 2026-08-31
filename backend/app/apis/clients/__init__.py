@@ -30,9 +30,15 @@ ADDRESS_FIELDS = ("street", "city", "state", "zip")
 async def load_saved_clients(conn) -> List[dict]:
     rows = await conn.fetch(
         "SELECT id, name, email, phone, notes, street, city, state, zip, "
-        "created_at, updated_at FROM clients"
+        "secondary_contacts, created_at, updated_at FROM clients"
     )
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        data = dict(r)
+        sc = data.get("secondary_contacts")
+        data["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
+        out.append(data)
+    return out
 
 
 async def load_activity_by_client(conn) -> dict:
@@ -69,6 +75,12 @@ async def has_item_status_column(conn) -> bool:
     """))
 
 
+class SecondaryContact(BaseModel):
+    label: str = ""       # free text: "Debbie's cell", "Wife", "Assistant"
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+
 class ClientCreate(BaseModel):
     name: str
     email: Optional[str] = None
@@ -78,6 +90,7 @@ class ClientCreate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip: Optional[str] = None
+    secondary_contacts: Optional[List[SecondaryContact]] = None
 
 
 class ClientUpdate(BaseModel):
@@ -86,7 +99,12 @@ class ClientUpdate(BaseModel):
     Deliberately does NOT touch christmas_synced_snapshot/christmas_synced_at
     -- those belong to sync_clients.py alone; a human editing a field here
     is exactly the case that snapshot exists to protect from being
-    silently overwritten by the next sync."""
+    silently overwritten by the next sync.
+
+    secondary_contacts is whole-array-replace, not a per-contact patch --
+    there's no id to patch against (a label is free text, not a stable
+    key), and the edit UI always has the full current list in hand
+    already, so sending it back whole is simpler than diffing it."""
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -95,6 +113,7 @@ class ClientUpdate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip: Optional[str] = None
+    secondary_contacts: Optional[List[SecondaryContact]] = None
 
 
 class ActivityOut(BaseModel):
@@ -117,6 +136,7 @@ class ClientOut(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip: Optional[str] = None
+    secondary_contacts: List[SecondaryContact] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     project_count: int = 0
@@ -218,10 +238,10 @@ async def create_client(body: ClientCreate, request: Request):
         # of one silently overwriting the other.
         row = await conn.fetchrow(
             """
-            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
             ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
-            RETURNING id, name, email, phone, notes, street, city, state, zip, created_at, updated_at
+            RETURNING id, name, email, phone, notes, street, city, state, zip, secondary_contacts, created_at, updated_at
             """,
             name,
             clean_name(body.email) or None,
@@ -231,13 +251,17 @@ async def create_client(body: ClientCreate, request: Request):
             clean_name(body.city) or None,
             clean_name(body.state) or None,
             clean_name(body.zip) or None,
+            json.dumps([c.dict() for c in body.secondary_contacts]) if body.secondary_contacts is not None else "[]",
             signed_in.email if signed_in else None,
         )
         if row is None:
             raise HTTPException(status_code=409, detail="Client already exists")
 
+        result = dict(row)
+        sc = result.get("secondary_contacts")
+        result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
         return {
-            **dict(row),
+            **result,
             "project_count": 0,
             "bucket_count": 0,
             "selected_cost": 0.0,
@@ -259,6 +283,10 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
     conn = await get_conn()
     try:
         try:
+            sc_json = (
+                json.dumps([c.dict() for c in body.secondary_contacts])
+                if body.secondary_contacts is not None else None
+            )
             row = await conn.fetchrow(
                 """
                 UPDATE clients SET
@@ -270,12 +298,13 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                     city = CASE WHEN $7::text IS NOT NULL THEN NULLIF(TRIM($7), '') ELSE city END,
                     state = CASE WHEN $8::text IS NOT NULL THEN NULLIF(TRIM($8), '') ELSE state END,
                     zip = CASE WHEN $9::text IS NOT NULL THEN NULLIF(TRIM($9), '') ELSE zip END,
+                    secondary_contacts = CASE WHEN $10::jsonb IS NOT NULL THEN $10::jsonb ELSE secondary_contacts END,
                     updated_at = NOW()
                 WHERE id = $1
-                RETURNING id, name, email, phone, notes, street, city, state, zip, created_at, updated_at
+                RETURNING id, name, email, phone, notes, street, city, state, zip, secondary_contacts, created_at, updated_at
                 """,
                 client_id, body.name, body.email, body.phone, body.notes,
-                body.street, body.city, body.state, body.zip,
+                body.street, body.city, body.state, body.zip, sc_json,
             )
         except asyncpg.UniqueViolationError:
             raise HTTPException(status_code=409, detail="Another client already has that name")
@@ -283,8 +312,11 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
             raise HTTPException(status_code=404, detail="No client with that id")
 
         activity_by_client = await load_activity_by_client(conn)
+        result = dict(row)
+        sc = result.get("secondary_contacts")
+        result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
         return {
-            **dict(row),
+            **result,
             "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
             "last_project_at": None, "source": "saved",
             "activity": activity_by_client.get(client_id, []),

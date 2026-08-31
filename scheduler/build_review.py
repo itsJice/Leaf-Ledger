@@ -849,6 +849,27 @@ dialog option:disabled{color:#b6b3ae}
 .pkaddc button{flex:none;padding:6px 12px;border:none;border-radius:6px;background:var(--brand);
   color:#fff;font-weight:700;font-size:12px;cursor:pointer;font-family:'Montserrat',sans-serif}
 .pkaddc button:hover{background:var(--brand-hover)}
+.pksecrow{padding-left:2px}
+.pkeditbtn{margin-top:6px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;color:var(--brand);font-weight:700;font-size:11px;cursor:pointer;
+  font-family:'Montserrat',sans-serif}
+.pkeditbtn:hover{background:var(--brand-soft);border-color:var(--brand)}
+.pkce{margin:4px 0 2px}
+.pkce input[type=text]{margin:0 0 6px;padding:6px 8px;font-size:12px}
+.pkce-row{display:flex;gap:6px}
+.pkce-row input[type=text]:nth-child(1){flex:2}
+.pkce-row input[type=text]:nth-child(2){flex:1;text-transform:uppercase}
+.pkce-row input[type=text]:nth-child(3){flex:1}
+.pkhint{text-transform:none;font-weight:500;color:var(--mut);letter-spacing:0}
+.pksecedit{display:flex;gap:5px;align-items:center;margin-bottom:6px}
+.pksecedit input[type=text]{margin:0;padding:5px 7px;font-size:11.5px;flex:1;min-width:0}
+.pksec-rm{flex:none;width:18px;height:18px;border:none;background:rgba(0,0,0,.08);
+  color:var(--mut);border-radius:50%;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;padding:0}
+.pksec-rm .ic{width:9px;height:9px;flex:none}
+.pksec-rm:hover{background:rgba(185,28,28,.15);color:var(--danger)}
+#pkcontact .btns{justify-content:flex-start}
+#billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
@@ -3850,8 +3871,6 @@ function profileSectionHTML(row){
   const ac = appClientFor(row);
   if(!clientDirectory) return `<p class="pkrow pkloading">Loading full client profile…</p>`;
   if(!ac) return `<p class="pkrow pkloading">Not yet synced to the Clients tab.</p>`;
-  const addr=[ac.street,[ac.city,ac.state].filter(Boolean).join(', '),ac.zip]
-             .filter(Boolean).join(', ');
   const activity=(ac.activity||[]).filter(a=>a.kind!=='comment').slice()
     .sort((a,b)=> (b.season||'').localeCompare(a.season||''));
   const history = activity.length ? `
@@ -3866,12 +3885,12 @@ function profileSectionHTML(row){
     ? `<p class="pkrow">🌿 ${ac.project_count} design project${ac.project_count===1?'':'s'}`
       +`${ac.selected_cost?` · ${fmtUSD(ac.selected_cost)}`:''}</p>`
     : '';
+  // Address/phone/email moved to the editable #pkcontact block above --
+  // this section is what's left: internal notes, project rollup, install
+  // history, and the link out to the full record.
   return `
     <div class="pkprofile">
       <p class="pksec">Full client profile</p>
-      ${addr && addr!==C[row].zone ? `<p class="pkrow">📍 ${peekEsc(addr)}</p>` : ''}
-      ${ac.phone?`<p class="pkrow">📞 ${peekEsc(ac.phone)}</p>`:''}
-      ${ac.email?`<p class="pkrow">✉ ${peekEsc(ac.email)}</p>`:''}
       ${ac.notes?`<p class="pknote">${peekEsc(ac.notes)}</p>`:''}
       ${projectLine}
       ${history}
@@ -3941,24 +3960,171 @@ document.addEventListener('click', async e=>{
   persist();
   if(list) list.innerHTML=commentListHTML(row);
 });
+let pkEditingContact=false;
+/** What to show/prefill: the app's live, editable record when synced,
+ *  else the baked spreadsheet snapshot as a starting point for a client
+ *  that doesn't have an app record yet (editing will create one). */
+function contactFieldsFor(row){
+  const c=C[row], ac=appClientFor(row);
+  if(ac) return {street:ac.street||'', city:ac.city||'', state:ac.state||'',
+    zip:ac.zip||'', phone:ac.phone||'', email:ac.email||'',
+    secondary:(ac.secondary_contacts||[]).map(x=>({...x}))};
+  const ap=addrParts(c);
+  return {street:ap.street||'', city:ap.city||'', state:ap.st||'', zip:ap.zip||'',
+    phone:c.phone||'', email:c.email||'', secondary:[]};
+}
+function contactBlockHTML(row){
+  if(!AUTH) return contactViewHTML(row, false);   // offline: read-only, nothing to save to
+  if(!clientDirectory) return `<p class="pkrow pkloading">Loading contact info…</p>`;
+  return pkEditingContact ? contactEditHTML(row) : contactViewHTML(row, true);
+}
+function contactViewHTML(row, editable){
+  const f=contactFieldsFor(row);
+  const addr=[f.street,[f.city,f.state].filter(Boolean).join(', '),f.zip].filter(Boolean).join(', ');
+  const secondary=f.secondary.map(s=>`<p class="pkrow pksecrow">👤 ${peekEsc(s.label||'Contact')}`
+      +`${s.phone?': '+peekEsc(s.phone):''}${s.email?(s.phone?' · ':': ')+peekEsc(s.email):''}</p>`).join('');
+  return `
+    ${addr?`<p class="pkrow">📍 ${peekEsc(addr)}</p>`:''}
+    ${f.phone?`<p class="pkrow">📞 ${peekEsc(f.phone)}</p>`:''}
+    ${f.email?`<p class="pkrow">✉ ${peekEsc(f.email)}</p>`:''}
+    ${secondary}
+    ${!addr && !f.phone && !f.email && !secondary?`<p class="pknone">No contact info on file.</p>`:''}
+    ${editable?`<button type="button" class="pkeditbtn" id="pkcontactedit">Edit contact info</button>`:''}`;
+}
+function contactEditHTML(row){
+  const f=contactFieldsForEdit || contactFieldsFor(row);
+  const s=x=>peekEsc(x||'');
+  return `
+    <div class="pkce">
+      <input id="pkf-street" type="text" placeholder="Street address" value="${s(f.street)}">
+      <div class="pkce-row">
+        <input id="pkf-city" type="text" placeholder="City" value="${s(f.city)}">
+        <input id="pkf-state" type="text" placeholder="ST" maxlength="2" value="${s(f.state)}">
+        <input id="pkf-zip" type="text" placeholder="Zip" value="${s(f.zip)}">
+      </div>
+      <input id="pkf-phone" type="text" placeholder="Phone" value="${s(f.phone)}">
+      <input id="pkf-email" type="text" placeholder="Email" value="${s(f.email)}">
+      <p class="pksec" style="margin-top:10px">Additional contacts <span class="pkhint">— spouse, assistant, another number</span></p>
+      <div id="pksecondary">${secondaryRowsHTML(f.secondary)}</div>
+      <button type="button" class="pkeditbtn" id="pkaddsecondary">+ add another contact</button>
+      <div class="btns" style="margin-top:10px">
+        <button type="button" id="pkcontactcancel">Cancel</button>
+        <button type="button" class="go" id="pkcontactsave">Save</button>
+      </div>
+    </div>`;
+}
+function secondaryRowsHTML(list){
+  return (list||[]).map((sctc,i)=>`<div class="pksecedit" data-i="${i}">
+      <input class="pksec-label" type="text" placeholder="Label (wife, assistant…)" value="${peekEsc(sctc.label||'')}">
+      <input class="pksec-phone" type="text" placeholder="Phone" value="${peekEsc(sctc.phone||'')}">
+      <input class="pksec-email" type="text" placeholder="Email" value="${peekEsc(sctc.email||'')}">
+      <button type="button" class="pksec-rm" data-i="${i}" title="Remove">${IC.close}</button>
+    </div>`).join('');
+}
+// Edit-buffer for secondary contacts -- kept separate from the DOM so
+// add/remove rows don't need to be re-read-and-diffed against inputs that
+// may have unsaved keystrokes in them.
+let contactFieldsForEdit=null;
+function wireContactBlock(row){
+  const holder=document.getElementById('pkcontact');
+  const editBtn=document.getElementById('pkcontactedit');
+  if(editBtn) editBtn.onclick=()=>{
+    pkEditingContact=true;
+    contactFieldsForEdit=contactFieldsFor(row);
+    holder.innerHTML=contactEditHTML(row);
+    wireContactBlock(row);
+  };
+  const cancelBtn=document.getElementById('pkcontactcancel');
+  if(cancelBtn) cancelBtn.onclick=()=>{
+    pkEditingContact=false; contactFieldsForEdit=null;
+    holder.innerHTML=contactBlockHTML(row);
+    wireContactBlock(row);
+  };
+  const addSecBtn=document.getElementById('pkaddsecondary');
+  if(addSecBtn) addSecBtn.onclick=()=>{
+    contactFieldsForEdit.secondary.push({label:'', phone:'', email:''});
+    document.getElementById('pksecondary').innerHTML=secondaryRowsHTML(contactFieldsForEdit.secondary);
+    wireSecondaryRows();
+  };
+  wireSecondaryRows();
+  function wireSecondaryRows(){
+    document.querySelectorAll('.pksec-rm').forEach(btn=>{
+      btn.onclick=()=>{
+        contactFieldsForEdit.secondary.splice(+btn.dataset.i, 1);
+        document.getElementById('pksecondary').innerHTML=secondaryRowsHTML(contactFieldsForEdit.secondary);
+        wireSecondaryRows();
+      };
+    });
+  }
+  const saveBtn=document.getElementById('pkcontactsave');
+  if(saveBtn) saveBtn.onclick=async()=>{
+    saveBtn.disabled=true; saveBtn.textContent='Saving…';
+    const secondary=[...document.querySelectorAll('.pksecedit')].map(el=>({
+      label:el.querySelector('.pksec-label').value.trim(),
+      phone:el.querySelector('.pksec-phone').value.trim(),
+      email:el.querySelector('.pksec-email').value.trim(),
+    })).filter(x=>x.label||x.phone||x.email);
+    const body={
+      street:document.getElementById('pkf-street').value.trim(),
+      city:document.getElementById('pkf-city').value.trim(),
+      state:document.getElementById('pkf-state').value.trim(),
+      zip:document.getElementById('pkf-zip').value.trim(),
+      phone:document.getElementById('pkf-phone').value.trim(),
+      email:document.getElementById('pkf-email').value.trim(),
+      secondary_contacts:secondary,
+    };
+    try{
+      const ac=appClientFor(row);
+      let entry;
+      if(ac){
+        const r=await fetch(`/api/clients/update/${ac.id}`, {
+          method:'PUT', headers:{'Content-Type':'application/json', Authorization:AUTH},
+          body:JSON.stringify(body),
+        });
+        if(!r.ok) throw new Error(r.status);
+        entry=await r.json();
+      } else {
+        // Not synced into the app yet -- creating it here is what makes
+        // editing work regardless of sync state, not just for clients
+        // sync_clients.py already knows about.
+        const r=await fetch(`/api/clients/create`, {
+          method:'POST', headers:{'Content-Type':'application/json', Authorization:AUTH},
+          body:JSON.stringify({name:C[row].name, ...body}),
+        });
+        if(!r.ok) throw new Error(r.status);
+        entry=await r.json();
+      }
+      clientDirectory.set(normName(entry.name), entry);
+      pkEditingContact=false; contactFieldsForEdit=null;
+      holder.innerHTML=contactBlockHTML(row);
+      wireContactBlock(row);
+      // The "Full client profile" section (notes/history/project line)
+      // reads the same cached record -- refresh it too so a first-time
+      // create doesn't leave it stuck on "Not yet synced."
+      const profileHolder=document.querySelector('#peekbody .pkprofile, #peekbody .pkloading');
+      if(profileHolder){
+        const tmp=document.createElement('div'); tmp.innerHTML=profileSectionHTML(row);
+        profileHolder.replaceWith(...tmp.childNodes);
+        wireProfileLink(row);
+      }
+    }catch(err){
+      alert('Could not save that contact info -- try again.');
+      saveBtn.disabled=false; saveBtn.textContent='Save';
+    }
+  };
+}
 function openStopPeek(row,dayId){
   const c=C[row], d=days.find(x=>x.id===dayId);
   if(!c||!d) return;            // stale id after an edit -- fail quiet, not throw
   peekRow=row;
+  pkEditingContact=false;
   const t=(stopTimes(d).find(x=>x.row===row))||{};
   const esc=peekEsc;
-  // addrParts() repairs the six source rows that jam the whole address into
-  // one cell -- using c.street raw duplicates the state on those.
-  const ap=addrParts(c);
-  const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
-             .filter(Boolean).join(', ');
   document.getElementById('peekbody').innerHTML=`
     <h3>${esc(c.name)}</h3>
     <p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
        ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(d.crew)}</p>
-    ${addr?`<p class="pkrow">📍 ${esc(addr)}</p>`:''}
-    ${c.phone?`<p class="pkrow">📞 ${esc(c.phone)}</p>`:''}
-    ${c.email?`<p class="pkrow">✉ ${esc(c.email)}</p>`:''}
+    <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes · ⏱ ${(effH(d,row)/(d.stacked||1)).toFixed(2)}h
        this crew${(d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}
        ${c.people?` · ${c.people} people`:''}</p>
@@ -3974,6 +4140,7 @@ function openStopPeek(row,dayId){
         <button type="button" id="pkcommentadd">Add</button>
       </div>
     </div>`;
+  wireContactBlock(row);
   wireProfileLink(row);
   const addComment=async()=>{
     const inp=document.getElementById('pkcommenttext');

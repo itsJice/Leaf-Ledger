@@ -58,6 +58,12 @@ type ActivityEntry = {
   created_at?: string | null;
 };
 
+type SecondaryContact = {
+  label: string;
+  phone?: string | null;
+  email?: string | null;
+};
+
 type ClientRecord = {
   id?: number | null;
   name: string;
@@ -68,6 +74,7 @@ type ClientRecord = {
   city?: string | null;
   state?: string | null;
   zip?: string | null;
+  secondary_contacts?: SecondaryContact[];
   created_at?: string | null;
   updated_at?: string | null;
   project_count: number;
@@ -88,6 +95,7 @@ type ClientGroup = {
   city?: string | null;
   state?: string | null;
   zip?: string | null;
+  secondaryContacts: SecondaryContact[];
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
   projects: ProjectSummary[];
@@ -251,6 +259,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       city: client.city,
       state: client.state,
       zip: client.zip,
+      secondaryContacts: client.secondary_contacts || [],
       activity: client.activity || [],
       source: client.source,
       projects: stats?.projects || [],
@@ -265,6 +274,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
     if (groups.has(key)) return;
     groups.set(key, {
       name: stats.name,
+      secondaryContacts: [],
       activity: [],
       source: "from_projects" as const,
       projects: stats.projects,
@@ -289,6 +299,9 @@ function NewClientModal({ client, onClose, onSaved }: {
     notes: client?.notes || "", street: client?.street || "", city: client?.city || "",
     state: client?.state || "", zip: client?.zip || "",
   });
+  const [secondaryContacts, setSecondaryContacts] = useState<SecondaryContact[]>(
+    () => (client?.secondaryContacts || []).map((c) => ({ ...c }))
+  );
   const [saving, setSaving] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -334,6 +347,7 @@ function NewClientModal({ client, onClose, onSaved }: {
             city: payload.city || undefined,
             state: payload.state || undefined,
             zip: payload.zip || undefined,
+            secondary_contacts: secondaryContacts.filter((c) => c.label.trim() || c.phone?.trim() || c.email?.trim()),
           },
           type: ContentType.Json,
         }), 4000);
@@ -356,6 +370,7 @@ function NewClientModal({ client, onClose, onSaved }: {
           city: payload.city || undefined,
           state: payload.state || undefined,
           zip: payload.zip || undefined,
+          secondary_contacts: secondaryContacts.filter((c) => c.label.trim() || c.phone?.trim() || c.email?.trim()),
         },
         type: ContentType.Json,
       }), 4000);
@@ -422,6 +437,45 @@ function NewClientModal({ client, onClose, onSaved }: {
                 <span className="mb-1 block text-xs font-medium text-stone-600">ZIP</span>
                 <input ref={zipRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.zip} onChange={(e) => set("zip", e.target.value)} placeholder="Optional" />
               </label>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs font-medium text-stone-600">
+                Additional contacts <span className="font-normal text-stone-400">— spouse, assistant, another number</span>
+              </span>
+              <div className="grid gap-2">
+                {secondaryContacts.map((contact, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      className="w-28 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={contact.label}
+                      onChange={(e) => setSecondaryContacts((rows) => rows.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
+                      placeholder="Label"
+                    />
+                    <input
+                      className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={contact.phone || ""}
+                      onChange={(e) => setSecondaryContacts((rows) => rows.map((r, j) => j === i ? { ...r, phone: e.target.value } : r))}
+                      placeholder="Phone"
+                    />
+                    <input
+                      className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={contact.email || ""}
+                      onChange={(e) => setSecondaryContacts((rows) => rows.map((r, j) => j === i ? { ...r, email: e.target.value } : r))}
+                      placeholder="Email"
+                    />
+                    <button type="button" onClick={() => setSecondaryContacts((rows) => rows.filter((_, j) => j !== i))} className="shrink-0 text-stone-300 hover:text-red-500">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSecondaryContacts((rows) => [...rows, { label: "", phone: "", email: "" }])}
+                className="mt-2 text-xs font-medium text-emerald-700 hover:text-emerald-900"
+              >
+                + add another contact
+              </button>
             </div>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-stone-600">Notes</span>
@@ -987,7 +1041,7 @@ export default function Clients() {
                         </button>
                       </div>
 
-                      {(client.phone || client.email || client.street || client.city) && (
+                      {(client.phone || client.email || client.street || client.city || client.secondaryContacts.length > 0) && (
                         <div className="mb-4 flex flex-wrap gap-x-5 gap-y-1.5 rounded-xl border border-stone-200 bg-white px-4 py-3 text-xs text-stone-600">
                           {client.phone && (
                             <span className="flex items-center gap-1.5"><Phone size={12} className="text-stone-400" />{client.phone}</span>
@@ -1001,6 +1055,13 @@ export default function Clients() {
                               {[client.street, [client.city, client.state].filter(Boolean).join(", "), client.zip].filter(Boolean).join(" · ")}
                             </span>
                           )}
+                          {client.secondaryContacts.map((contact, i) => (
+                            <span key={i} className="flex items-center gap-1.5">
+                              <Users size={12} className="text-stone-400" />
+                              <span className="font-medium text-stone-500">{contact.label || "Contact"}</span>
+                              {[contact.phone, contact.email].filter(Boolean).join(" · ")}
+                            </span>
+                          ))}
                         </div>
                       )}
 
