@@ -327,8 +327,22 @@ header h1 svg{color:var(--brand)}
 .stop{display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f5f5f4;cursor:grab;background:var(--surface)}
 .stop:hover{background:#fafaf9}
 .stop:active{cursor:grabbing}
+.numwrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
 .stop .num{width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
   font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:none;font-weight:700}
+.ordbtn{width:16px;height:12px;border:1px solid var(--line);border-radius:3px;background:#fff;
+  color:var(--mut);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+.ordbtn .ic{width:9px;height:9px}
+.ordbtn.up .ic{transform:rotate(180deg)}
+.ordbtn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.ordbtn:disabled{opacity:.3;cursor:default}
+.badge.order{background:var(--warn-soft);color:var(--warn-ink)}
+.cordernote{padding:6px 14px;font-size:11px;color:var(--warn-ink);background:var(--warn-soft);
+  display:flex;align-items:center;gap:8px}
+.cautoorder{margin-left:auto;border:1px solid var(--warn-ink);background:transparent;
+  color:var(--warn-ink);border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;
+  cursor:pointer;font-family:'Montserrat',sans-serif}
+.cautoorder:hover{background:#fff}
 .stop .nm{font-weight:600;font-size:13px;color:var(--ink)}
 .stop .sub{font-size:11px;color:var(--mut);margin-top:1px}
 .stop .body{flex:1;min-width:0}
@@ -1185,6 +1199,23 @@ let approved = new Set(), moves = [], selDate = null;
 // (drag, move dialog, slot finder) via checkPlan until explicitly
 // unlocked -- see the CONFIRMED check there.
 let confirmed = new Set();
+// Manual stop-order pin, per day: {dayId: [row, row, ...]}. Order was
+// never persisted before this -- an edited day's sequence is always
+// re-optimized for drive time on every render (see routeDay/render), so
+// there was no way to say "this stop needs to be second" and have it
+// stick. Once a day has an entry here, routeDay trusts it exactly (same
+// as an untouched day trusts the pipeline's order) instead of
+// re-permuting for the shortest route.
+let manualOrder = {};
+function normManualOrder(obj){
+  const out = {};
+  Object.entries(obj||{}).forEach(([dayId,list])=>{
+    if(!days.some(d=>d.id===dayId)) return;
+    const rows = (Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]);
+    if(rows.length) out[dayId] = rows;
+  });
+  return out;
+}
 // ---------- staffing ----------
 // The pipeline packs stops into LOGISTICS crews (Crew 1/2/3) by route; it has
 // no idea who those crews are made of. `roster` is the people, `staffing` maps
@@ -1348,6 +1379,7 @@ try{
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
     confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
+    manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
@@ -1357,6 +1389,7 @@ try{
     moves = s.moves;
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
     confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
+    manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     stateWarning = 'Migrated saved changes to the new format — please review.';
   }
@@ -1369,7 +1402,7 @@ function snapshot(){
      people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
-          moves, approved:[...approved], confirmed:[...confirmed], newClients,
+          moves, approved:[...approved], confirmed:[...confirmed], manualOrder, newClients,
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -1442,6 +1475,7 @@ async function pullShared(){
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
       confirmed = new Set((j.state.confirmed||[]).filter(row=>C[row]));
+      manualOrder = normManualOrder(j.state.manualOrder);
       roster = normRoster(j.state.roster); staffing = normStaffing(j.state.staffing);
       syncState = 'shared';
       stateWarning = missing
@@ -1555,6 +1589,7 @@ async function restoreHistoryEntry(entryId, btn){
     moves = st.moves || [];
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
     confirmed = new Set((st.confirmed||[]).filter(row=>C[row]));
+    manualOrder = normManualOrder(st.manualOrder);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
@@ -1578,7 +1613,7 @@ const UNDO_LIMIT = 100;
 let undoStack = [], redoStack = [];
 function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
-                         approved:[...approved], confirmed:[...confirmed],
+                         approved:[...approved], confirmed:[...confirmed], manualOrder,
                          moves, roster, staffing});
 }
 function restoreBlob(blob){
@@ -1586,6 +1621,7 @@ function restoreBlob(blob){
   applyPlacement(s.placement);
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
+  manualOrder = normManualOrder(s.manualOrder);
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
 }
@@ -1620,12 +1656,15 @@ function leg(a,b){ return D[a][b]||0; }
 function routeDay(d){
   const idx = d.stops.map(r=>N[r]).filter(i=>i!==undefined);
   if(!idx.length) return {order:[],drive:0};
-  if(!d.edited){
+  if(!d.edited || manualOrder[d.id]){
     // Unedited day: trust the server's planned order as-is. It's already
     // exhaustively optimal (route_exact) and may carry a hard ordering
     // requirement (e.g. a joint job's lead stop, or a client's "X must go
     // first" note) that this client-side NN+2-opt has no way to know about.
-    // Only an edited day (stops changed via drag) needs a fresh recompute.
+    // Only an edited day (stops changed via drag) needs a fresh recompute
+    // -- UNLESS a stop's position was manually pinned (the reorder arrows
+    // on a stop row), in which case that pin overrides the optimizer the
+    // same way: trust d.stops's order exactly, don't re-permute it away.
     let drive=0;
     const seq=(d.anchored?[0]:[]).concat(d.stops.map(r=>N[r])).concat(d.anchored?[0]:[]);
     for(let i=0;i<seq.length-1;i++) drive+=leg(seq[i],seq[i+1]);
@@ -1870,6 +1909,29 @@ function dayById(id, create){
                stops:[], geom:null, mi:null, legMi:null});
   days.push(d);
   return d;
+}
+/** Swap a stop with its neighbour and pin the result. dir=-1 up, +1 down.
+ *  Pinning captures the WHOLE day's current order, not just this one
+ *  stop -- routeDay trusts an all-or-nothing sequence (see the
+ *  manualOrder branch there), so a partial pin isn't a thing it
+ *  understands; recording the full order after every swap is what makes
+ *  repeated clicks compose the way you'd expect. */
+function reorderStop(d, row, dir){
+  const i = d.stops.indexOf(row);
+  const j = i + dir;
+  if(i<0 || j<0 || j>=d.stops.length) return;
+  pushUndo();
+  const next = [...d.stops];
+  [next[i], next[j]] = [next[j], next[i]];
+  d.stops = next;
+  manualOrder[d.id] = [...next];
+  persist(); render();
+}
+/** Drop the pin and let routeDay optimize this day's order again. */
+function clearManualOrder(dayId){
+  pushUndo();
+  delete manualOrder[dayId];
+  persist(); render();
 }
 function applyMove(row, toId, record=true){
   // A brand-new client (just created, never placed anywhere) has no
@@ -2518,6 +2580,8 @@ function buildDayCard(d){
     <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
+  ${manualOrder[d.id] ? `<div class="cordernote">Stop order set manually
+      <button type="button" class="cautoorder">reset to shortest route</button></div>` : ''}
   ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
           + `title="Click to staff this shift`
@@ -2538,6 +2602,8 @@ function buildDayCard(d){
   card.querySelector('.okbtn').onclick=()=>{
     pushUndo();
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
+  const autoBtn=card.querySelector('.cautoorder');
+  if(autoBtn) autoBtn.onclick=()=>clearManualOrder(d.id);
   if(d.anchored){
     const finishMin=DEPART_MIN+calc.total;
     card.insertAdjacentHTML('beforeend',`<div class="sched">
@@ -2568,14 +2634,19 @@ function buildDayCard(d){
     const approx=!['street','manual','census'].includes(c.geo);
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
-    el.innerHTML=`<span class="num" style="background:${col}">${i+1}</span>
+    el.innerHTML=`<div class="numwrap">
+        <button type="button" class="ordbtn up" ${i===0?'disabled':''} title="Move up one stop">${IC.down}</button>
+        <span class="num" style="background:${col}">${i+1}</span>
+        <button type="button" class="ordbtn down" ${i===d.stops.length-1?'disabled':''} title="Move down one stop">${IC.down}</button>
+      </div>
       <div class="body"><div class="nm">${c.name}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
         ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
-        ${approx?'<span class="badge approx">approx pin</span>':''}</div>
+        ${approx?'<span class="badge approx">approx pin</span>':''}
+        ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
       <div class="sub">${c.zone}</div>
       <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
       <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
@@ -2592,6 +2663,8 @@ function buildDayCard(d){
     // click from bubbling up to this, so pressing "move" doesn't ALSO pop
     // the peek dialog underneath it.
     el.onclick=()=>openStopPeek(r, d.id);
+    el.querySelector('.ordbtn.up').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, -1); };
+    el.querySelector('.ordbtn.down').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, 1); };
     el.querySelector('.mv.confirm').onclick=(e)=>{
       e.stopPropagation();
       pushUndo();
@@ -4544,7 +4617,17 @@ function printDate(dt){
 function render(){
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
-  days.forEach(d=>{ if(d.edited) d.stops = dayCalc(d).order; });
+  days.forEach(d=>{
+    const mo = manualOrder[d.id];
+    if(mo){
+      // Manually pinned: apply the saved sequence to the rows still on
+      // this day. A row the pin doesn't mention (added since, or a stop
+      // that arrived from a move) goes on the end rather than vanishing.
+      const known = mo.filter(r=>d.stops.includes(r));
+      const extra = d.stops.filter(r=>!known.includes(r));
+      d.stops = [...known, ...extra];
+    } else if(d.edited) d.stops = dayCalc(d).order;
+  });
   // Leaving Staffing must drop its maps -- renderStaffing() is the only
   // other thing that tears them down, and it does not run from here.
   if(viewMode!=='staff') teardownShiftMaps();
