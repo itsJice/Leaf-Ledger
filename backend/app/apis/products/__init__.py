@@ -1316,6 +1316,103 @@ def _looks_like_identifier(term: str) -> bool:
     return len(n) >= 3 and any(ch.isdigit() for ch in n)
 
 
+# How close a dictionary word has to be before it is worth offering. 0.4 keeps
+# poinsetia -> poinsettia (0.75) and wreathe -> wreath (0.67) while dropping the
+# long tail that shares a couple of trigrams and nothing else.
+_SIMILAR_MIN = float(os.environ.get("SEARCH_SIMILAR_MIN", 0.4))
+
+
+async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> dict:
+    """Near spellings for each term, from search_vocab. One round trip.
+
+    Corrections come from the 18k-row dictionary, never from the product table:
+    matching a typo against 166k product names measured 3.4-3.9 s cold, against
+    the dictionary ~110 ms. Terms that are already real words are left alone, and
+    identifiers are skipped entirely — see _WORD_RE for why an edit-distance
+    correction is the wrong tool for a style number.
+
+    skip_known controls what "worth correcting" means. The exact search wants
+    True: a term already in the catalog's vocabulary is spelled fine and must
+    not be quietly widened to its neighbours. The approximate band wants False,
+    because there "wreath -> wreaths" is exactly the extra reach being asked for.
+    """
+    words = [t for t in terms if _WORD_RE.match(t)]
+    if not words:
+        return {}
+    try:
+        rows = await conn.fetch(
+            """
+            WITH q AS (
+                SELECT t.term
+                  FROM unnest($1::text[]) AS t(term)
+                 WHERE NOT $3
+                    OR NOT EXISTS (SELECT 1 FROM search_vocab k WHERE k.word = t.term)
+            )
+            SELECT q.term, v.word, v.freq, similarity(v.word, q.term) AS sim
+              FROM q
+              JOIN LATERAL (
+                   SELECT word, freq
+                     FROM search_vocab
+                    WHERE word %% q.term
+                      AND similarity(word, q.term) >= $2
+                    ORDER BY similarity(word, q.term) DESC, freq DESC
+                    LIMIT 4
+              ) v ON TRUE
+            """.replace("%%", "%"),
+            words, _SIMILAR_MIN, skip_known,
+        )
+    except Exception as e:  # noqa: BLE001 — suggestions are a bonus, not a gate
+        print(f"search_vocab unavailable, approximate matching off: {e}")
+        return {}
+    out: dict = {}
+    for r in rows:
+        if r["word"] != r["term"]:
+            out.setdefault(r["term"], []).append(r["word"])
+    return out
+
+
+async def _similar_identifiers(conn, terms: list[str], limit: int = 6) -> list:
+    """Style numbers close to a typed one — as suggestions, never substitutions.
+
+    Deliberately separate from the word path. N592522DCV and N592522DA are
+    different colours of the same item and score 0.692 against 0.615, so nothing
+    here is safe to fold silently into results; the caller shows these with the
+    identifier visible so a person decides.
+    """
+    idents = [t for t in terms if _looks_like_identifier(t)]
+    if not idents or not _has_ident():
+        return []
+    try:
+        # LATERAL with the LIMIT *inside* it. The obvious shape -- join, then
+        # DISTINCT ON (supplier_sku) ORDER BY sim -- has to materialise and sort
+        # every trigram candidate before it can discard any: 39.5 s measured.
+        # Bounding each term's scan lets idx_products_sku_trgm drive it instead:
+        # 0.24 s on the same query.
+        rows = await conn.fetch(
+            """
+            SELECT v.id, v.supplier_sku, v.name, v.sim
+              FROM unnest($1::text[]) AS t(term)
+              JOIN LATERAL (
+                   SELECT p.id, p.supplier_sku, p.name,
+                          similarity(p.supplier_sku, t.term) AS sim
+                     FROM products p
+                    WHERE p.is_active
+                      AND p.supplier_sku %% t.term
+                      AND similarity(p.supplier_sku, t.term) >= $3
+                    ORDER BY similarity(p.supplier_sku, t.term) DESC
+                    LIMIT $2
+              ) v ON TRUE
+            """.replace("%%", "%"),
+            idents, limit, _SIMILAR_MIN,
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"identifier suggestions unavailable: {e}")
+        return []
+    return [{"id": r["id"], "supplier_sku": r["supplier_sku"],
+             "name": r["name"], "similarity": round(float(r["sim"]), 3)}
+            for r in sorted(rows, key=lambda r: -r["sim"])]
+
+
 async def _expand_terms(conn, terms: list[str]) -> tuple[list[tuple[str, list[str]]], bool]:
     """Map each query term to the spellings worth matching.
 
@@ -1326,18 +1423,25 @@ async def _expand_terms(conn, terms: list[str]) -> tuple[list[tuple[str, list[st
     words = [t for t in terms if _WORD_RE.match(t)]
     if not words:
         return [(t, [t]) for t in terms], False
-    vocab = await _load_sql_vocab(conn)
-    if not vocab:
+
+    # Corrections come from search_vocab, which carries an occurrence count and
+    # so can prefer the spelling people actually use. Edit distance alone could
+    # not: "wreathe" is one edit from both "wreath" and "wreathx" — the latter a
+    # typo sitting in one vendor's own product name — and with nothing to break
+    # the tie the junk word won, so a search for "wreathe" reported itself as a
+    # search for "wreathx". Frequency settles it.
+    corrections = await _correct_terms(conn, terms)
+    if not corrections:
         return [(t, [t]) for t in terms], False
+
     expanded = False
     out: list[tuple[str, list[str]]] = []
     for t in terms:
         variants = [t]
-        if _WORD_RE.match(t) and t not in vocab:
-            near = [w for w in _fuzzy_variants(t, vocab, 2 if len(t) >= 7 else 1) if w != t]
-            if near:
-                variants += near[:8]  # a huge correction set would be noise, not recall
-                expanded = True
+        near = corrections.get(t)
+        if near:
+            variants += near[:8]  # a huge correction set would be noise, not recall
+            expanded = True
         out.append((t, variants))
     return out, expanded
 
@@ -1345,7 +1449,8 @@ async def _expand_terms(conn, terms: list[str]) -> tuple[list[tuple[str, list[st
 async def _search_products_db(conn, *, search, price_min, price_max,
                               supplier_ids, ids, limit, offset, build_facets,
                               categories=None, colors=None, sizes=None, finishes=None,
-                              availability=None, product_types=None):
+                              availability=None, product_types=None,
+                              exclude_ids=None):
     """Answer a faceted catalog search from Postgres.
 
     This is a full replacement for the in-memory index, not just a warm-up
@@ -1356,6 +1461,17 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     lim = max(1, min(limit, 500))
     off = max(0, offset)
     terms = [w for w in (search or "").lower().split() if w]
+    # Spellings the caller has already shown. Used by the approximate pass so
+    # its band contains only products the exact pass did not already return.
+    # Rows the caller has already put on screen. An id list, deliberately: the
+    # first attempt at this negated the original query as a predicate, which
+    # cost 6.6 s against 760 ms for the same search without it, because NOT
+    # (blob ILIKE ...) cannot use the trigram index and forces a scan. It also
+    # over-excluded — "wreath" subsumes "wreaths" under substring matching, so
+    # the band came back empty. A bounded array of ids the client actually
+    # rendered is both cheap and exactly the question being asked.
+    ex_ids = [int(x) for x in _csv_list(exclude_ids) if str(x).lstrip("-").isdigit()] \
+        if exclude_ids else []
 
     sel: dict = {}
     for dim, raw in (("categories", categories), ("colors", colors),
@@ -1464,6 +1580,8 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                 # row jumped ahead of correctly-ranked ones, which is exactly
                 # the page swap the parity gate caught on the typo query.
                 scores.append(f"COALESCE(({alts[0]})::int, 0)")
+        if ex_ids:
+            base.append(f"p.id <> ALL({add(ex_ids)}::int[])")
         if price_min is not None:
             base.append(f"p.current_price >= {add(price_min)}")
         if price_max is not None:
@@ -1551,10 +1669,20 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     # back nearly empty goes looking for near spellings, and even then only for
     # terms that are words. A short page is proof the match set is small, so this
     # decision costs no extra query.
+    searched_for = None
     if terms and len(rows) < lim and off + len(rows) < _FUZZY_MIN_HITS:
         term_variants, expanded = await _expand_terms(conn, terms)
         if expanded:
             rows, wsql, args, base_where, base_args = await _page(term_variants)
+            # Report what was actually matched. This pass quietly substitutes
+            # corrected spellings, so without saying so the caller cannot tell
+            # the user why they are looking at results for a word they did not
+            # type -- and /similar cannot know which query to exclude when it
+            # goes looking for the *next* ring of near matches.
+            # variants always lead with the term as typed, so v[0] would just
+            # echo the query back; the correction is the next one.
+            searched_for = " ".join((v[1] if len(v) > 1 else t)
+                                    for t, v in term_variants)
 
     facets, exact_total = None, None
     if build_facets:
@@ -1597,6 +1725,9 @@ async def _search_products_db(conn, *, search, price_min, price_max,
             # This IS the search, not a warm-up window; a permanent
             # "still loading" hint would be a lie.
             "warming": False, "total_is_capped": total_is_capped}
+    if searched_for and searched_for != (search or "").lower().strip():
+        resp["searched_for"] = searched_for
+        resp["corrected"] = True
     if build_facets:
         resp["facets"] = facets if facets is not None else _empty_facets()
     return resp
@@ -1705,6 +1836,78 @@ async def search_products(
             categories=categories, colors=colors, sizes=sizes, finishes=finishes,
             availability=availability, product_types=product_types,
         )
+    finally:
+        await conn.close()
+
+
+@router.get("/similar")
+async def search_similar(
+    search: str,
+    colors: Optional[str] = None,
+    categories: Optional[str] = None,
+    sizes: Optional[str] = None,
+    finishes: Optional[str] = None,
+    product_types: Optional[str] = None,
+    supplier_ids: Optional[str] = None,
+    availability: Optional[str] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
+    exclude_ids: Optional[str] = None,
+    limit: int = 24,
+    offset: int = 0,
+):
+    """Near matches, for after the exact results have been shown or exhausted.
+
+    Deliberately a second request rather than part of /search. The exact page
+    is what the user is waiting on, and it must not pay for this: a correctly
+    spelled query never calls here at all, and when it is called the work is a
+    ~110 ms dictionary lookup plus one ordinary keyword search, not a fuzzy scan
+    of the catalog.
+
+    Pass `exclude_ids` — the ids already on screen — to keep the band from
+    repeating them. That is an id array rather than a re-statement of the
+    original query as a NOT: the predicate form measured 6.6 s against 760 ms,
+    because NOT (blob ILIKE ...) cannot use the trigram index, and it also
+    over-excluded, since "wreath" subsumes "wreaths" under substring matching
+    and left the band empty.
+
+    `corrections` says what was reinterpreted, so the UI can be honest about it
+    ("showing results for wreath"), and `identifier_suggestions` carries near
+    style numbers, which are offered for a person to pick rather than folded
+    into the results. N592522DCV and N592522DA are different colours of one
+    item; nothing here decides that on the buyer's behalf.
+    """
+    terms = [w for w in (search or "").lower().split() if w]
+    if not terms:
+        return {"items": [], "total": 0, "limit": limit, "offset": offset,
+                "corrections": {}, "identifier_suggestions": []}
+
+    conn = await get_conn()
+    try:
+        await _facet_source_probe(conn)
+        corrections = await _correct_terms(conn, terms, skip_known=False)
+        idents = await _similar_identifiers(conn, terms)
+
+        if not corrections:
+            return {"items": [], "total": 0, "limit": limit, "offset": offset,
+                    "corrections": {}, "identifier_suggestions": idents}
+
+        # One corrected spelling per term -- the best the dictionary offered.
+        # Searching every combination would multiply the term set out for very
+        # little extra recall.
+        corrected = " ".join(corrections.get(t, [t])[0] for t in terms)
+        result = await _search_products_db(
+            conn, search=corrected, price_min=price_min, price_max=price_max,
+            supplier_ids=supplier_ids, ids=None, limit=limit, offset=offset,
+            build_facets=False,
+            categories=categories, colors=colors, sizes=sizes, finishes=finishes,
+            availability=availability, product_types=product_types,
+            exclude_ids=exclude_ids,
+        )
+        result["corrections"] = corrections
+        result["identifier_suggestions"] = idents
+        result["searched_for"] = corrected
+        return result
     finally:
         await conn.close()
 
