@@ -714,7 +714,38 @@ export interface SupplierCategoryIndex {
 }
 
 /** SupplierCreate */
-export interface SupplierCreate {
+/** SupplierContact -- an extra person at a vendor beyond the primary rep. */
+export interface SupplierContact {
+  /** Label */
+  label?: string;
+  /** Name */
+  name?: string | null;
+  /** Phone */
+  phone?: string | null;
+  /** Email */
+  email?: string | null;
+}
+
+/** Trade/ops terms shared by SupplierCreate and SupplierOut. */
+export interface SupplierTermsFields {
+  /** Shipping Speed */
+  shipping_speed?: string | null;
+  /** Shipping Notes */
+  shipping_notes?: string | null;
+  /** Net Terms */
+  net_terms?: string | null;
+  /** Credit Limit */
+  credit_limit?: number | null;
+  /** Payment Process */
+  payment_process?: string | null;
+  /**
+   * Secondary Contacts
+   * @default []
+   */
+  secondary_contacts?: SupplierContact[];
+}
+
+export interface SupplierCreate extends SupplierTermsFields {
   /** Name */
   name: string;
   /** Scraper Key */
@@ -777,7 +808,7 @@ export interface SupplierHealth {
 }
 
 /** SupplierOut */
-export interface SupplierOut {
+export interface SupplierOut extends SupplierTermsFields {
   /** Id */
   id: number;
   /** Name */
@@ -847,6 +878,18 @@ export interface SupplierUpdate {
   notes?: string | null;
   /** Categories */
   categories?: string[] | null;
+  /** Shipping Speed */
+  shipping_speed?: string | null;
+  /** Shipping Notes */
+  shipping_notes?: string | null;
+  /** Net Terms */
+  net_terms?: string | null;
+  /** Credit Limit */
+  credit_limit?: number | null;
+  /** Payment Process */
+  payment_process?: string | null;
+  /** Secondary Contacts */
+  secondary_contacts?: SupplierContact[] | null;
 }
 
 /** SyncLogEntry */

@@ -7,9 +7,19 @@ import {
   Circle, BookOpen, FileUp, Database, Copy, Check,
 } from "lucide-react";
 import Layout from "components/Layout";
+import {
+  formatPhone, telHref, gmailComposeHref, SHIPPING_SPEEDS, shippingSpeedLabel,
+} from "utils/contactFormat";
 import { SUPPLIER_CREDENTIALS_CHANGED_EVENT } from "utils/supplierDirectory";
 import { apiClient } from "app";
 import { toast } from "sonner";
+
+type SupplierContact = {
+  label: string;
+  name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
 
 type Supplier = {
   id: number;
@@ -24,6 +34,13 @@ type Supplier = {
   contact_email?: string;
   contact_phone?: string;
   notes?: string;
+  // Trade/ops terms -- hand-entered, none of it lives on a vendor's website
+  shipping_speed?: string | null;
+  shipping_notes?: string | null;
+  net_terms?: string | null;
+  credit_limit?: number | null;
+  payment_process?: string | null;
+  secondary_contacts?: SupplierContact[];
   product_count: number;
   last_price_synced_at?: string | null;
   last_full_sync_at?: string | null;
@@ -55,6 +72,12 @@ function SupplierModal({
   const [savedPassword, setSavedPassword] = useState<string | null>(null);
   const [revealingSavedPassword, setRevealingSavedPassword] = useState(false);
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  // Extra people at the vendor (AP, credit, shipping, alternate). Edited as a
+  // whole array, same shape the clients page uses for its secondary contacts.
+  const contacts: SupplierContact[] = form.secondary_contacts || [];
+  const setContacts = (rows: SupplierContact[]) => set("secondary_contacts", rows);
+  const patchContact = (i: number, patch: Partial<SupplierContact>) =>
+    setContacts(contacts.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const scraperKey = String(form.scraper_key || "").toLowerCase();
   const isAccentDecor = scraperKey === "accent" || scraperKey === "accent_decor" || /accent decor/i.test(String(form.name || ""));
   const isRegency = scraperKey === "regency" || /regency/i.test(String(form.name || ""));
@@ -131,7 +154,9 @@ function SupplierModal({
           </h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={18} /></button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        {/* terms, contacts and shipping make this form far taller than the
+            viewport on a laptop -- scroll the body, keep header/footer fixed */}
+        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Supplier name *</label>
             <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Allstate Floral" />
@@ -242,20 +267,129 @@ function SupplierModal({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1">Contact name</label>
-              <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.contact_name || ""} onChange={(e) => set("contact_name", e.target.value)} placeholder="Jane Smith" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1">Phone</label>
-              <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.contact_phone || ""} onChange={(e) => set("contact_phone", e.target.value)} placeholder="(555) 000-0000" />
-            </div>
-          </div>
+          {/* ── Account rep ── */}
           <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Contact email</label>
-            <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.contact_email || ""} onChange={(e) => set("contact_email", e.target.value)} placeholder="orders@supplier.com" />
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-2">Account rep</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">Name</label>
+                <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.contact_name || ""} onChange={(e) => set("contact_name", e.target.value)} placeholder="Jane Smith" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">Phone</label>
+                <input
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  value={form.contact_phone || ""}
+                  onChange={(e) => set("contact_phone", e.target.value)}
+                  onBlur={(e) => set("contact_phone", formatPhone(e.target.value))}
+                  placeholder="(555) 000-0000"
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-stone-600 mb-1">Email</label>
+              <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.contact_email || ""} onChange={(e) => set("contact_email", e.target.value)} placeholder="orders@supplier.com" />
+            </div>
           </div>
+
+          {/* ── Other contacts: AP / credit / shipping / alternate ── */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-2">Other contacts</p>
+            <div className="space-y-2">
+              {contacts.map((c, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <div className="grid flex-1 grid-cols-2 gap-2">
+                    <input
+                      className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={c.label || ""}
+                      onChange={(e) => patchContact(i, { label: e.target.value })}
+                      placeholder="Accounts payable"
+                    />
+                    <input
+                      className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={c.name || ""}
+                      onChange={(e) => patchContact(i, { name: e.target.value })}
+                      placeholder="Name"
+                    />
+                    <input
+                      className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={c.phone || ""}
+                      onChange={(e) => patchContact(i, { phone: e.target.value })}
+                      onBlur={(e) => patchContact(i, { phone: formatPhone(e.target.value) })}
+                      placeholder="(555) 000-0000"
+                    />
+                    <input
+                      className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      value={c.email || ""}
+                      onChange={(e) => patchContact(i, { email: e.target.value })}
+                      placeholder="ap@supplier.com"
+                    />
+                  </div>
+                  <button type="button" onClick={() => setContacts(contacts.filter((_, j) => j !== i))}
+                    className="shrink-0 mt-1.5 text-stone-300 hover:text-red-500" title="Remove contact">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setContacts([...contacts, { label: "", name: "", phone: "", email: "" }])}
+                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900"
+              >
+                <Plus size={12} /> Add contact
+              </button>
+            </div>
+          </div>
+
+          {/* ── Terms & payment ── */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-2">Terms &amp; payment</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">Net terms</label>
+                <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.net_terms || ""} onChange={(e) => set("net_terms", e.target.value)} placeholder="Net 30 / COD / Prepay" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">Credit limit</label>
+                <input
+                  type="number" min="0" step="0.01"
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  value={form.credit_limit ?? ""}
+                  onChange={(e) => set("credit_limit", e.target.value === "" ? null : Number(e.target.value))}
+                  placeholder="5000"
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-stone-600 mb-1">How payment is taken</label>
+              <textarea rows={2} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none" value={form.payment_process || ""} onChange={(e) => set("payment_process", e.target.value)} placeholder="e.g. site can't take payment — call in or email to authorize after ordering; card kept on file" />
+            </div>
+          </div>
+
+          {/* ── Shipping ── */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-2">Shipping</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">Promptness</label>
+                <select
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  value={form.shipping_speed || ""}
+                  onChange={(e) => set("shipping_speed", e.target.value || null)}
+                >
+                  <option value="">Not recorded</option>
+                  {SHIPPING_SPEEDS.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">Shipping notes</label>
+                <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.shipping_notes || ""} onChange={(e) => set("shipping_notes", e.target.value)} placeholder="must be prompted or it sits" />
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Notes</label>
             <textarea rows={2} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none" value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} placeholder="Any notes about this supplier..." />
@@ -364,8 +498,32 @@ function SupplierCard({
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-stone-400">
               {supplier.contact_name && <span>{supplier.contact_name}</span>}
-              {supplier.contact_email && <span className="break-all">{supplier.contact_email}</span>}
-              {supplier.contact_phone && <span>{supplier.contact_phone}</span>}
+              {supplier.contact_email && (
+                <a
+                  href={gmailComposeHref(supplier.contact_email)}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="break-all hover:text-emerald-700 hover:underline"
+                  title={`Email ${supplier.contact_email}`}
+                >
+                  {supplier.contact_email}
+                </a>
+              )}
+              {supplier.contact_phone && (
+                <a href={telHref(supplier.contact_phone)} onClick={(e) => e.stopPropagation()}
+                  className="hover:text-emerald-700">{formatPhone(supplier.contact_phone)}</a>
+              )}
+              {supplier.net_terms && (
+                <span className="text-stone-500">{supplier.net_terms}</span>
+              )}
+              {supplier.shipping_speed && (
+                <span
+                  className={supplier.shipping_speed === "2_weeks_plus" ? "text-amber-700" : "text-stone-500"}
+                  title="Shipping promptness"
+                >
+                  {shippingSpeedLabel(supplier.shipping_speed)}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -460,6 +618,72 @@ function SupplierCard({
             <div className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
               <p className="text-sm text-stone-500">No login credentials saved for this supplier.</p>
               <button onClick={onEdit} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-stone-200 text-stone-600 hover:border-emerald-300 hover:text-emerald-700"><Pencil size={12} /> Add login</button>
+            </div>
+          )}
+
+          {/* ── Trade terms, shipping and the people to call ── */}
+          {(supplier.net_terms || supplier.credit_limit != null || supplier.payment_process ||
+            supplier.shipping_speed || supplier.shipping_notes ||
+            (supplier.secondary_contacts?.length ?? 0) > 0) && (
+            <div className="space-y-3 border-t border-stone-100 pt-3">
+              {(supplier.net_terms || supplier.credit_limit != null || supplier.shipping_speed || supplier.shipping_notes) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {supplier.net_terms && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Net terms</p>
+                      <p className="text-sm text-stone-700">{supplier.net_terms}</p>
+                    </div>
+                  )}
+                  {supplier.credit_limit != null && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Credit limit</p>
+                      <p className="text-sm text-stone-700">
+                        {Number(supplier.credit_limit).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  )}
+                  {(supplier.shipping_speed || supplier.shipping_notes) && (
+                    <div className="sm:col-span-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Shipping</p>
+                      <p className="text-sm text-stone-700">
+                        {shippingSpeedLabel(supplier.shipping_speed)}
+                        {supplier.shipping_speed && supplier.shipping_notes ? " — " : ""}
+                        {supplier.shipping_notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {supplier.payment_process && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">How payment is taken</p>
+                  <p className="text-sm text-stone-700 whitespace-pre-line">{supplier.payment_process}</p>
+                </div>
+              )}
+
+              {(supplier.secondary_contacts?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1">Other contacts</p>
+                  <div className="space-y-1">
+                    {supplier.secondary_contacts!.map((c, i) => (
+                      <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
+                        {c.label && <span className="text-stone-500">{c.label}</span>}
+                        {c.name && <span className="text-stone-700">{c.name}</span>}
+                        {c.email && (
+                          <a href={gmailComposeHref(c.email)} target="_blank" rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-stone-500 break-all hover:text-emerald-700 hover:underline">{c.email}</a>
+                        )}
+                        {c.phone && (
+                          <a href={telHref(c.phone)} onClick={(e) => e.stopPropagation()}
+                            className="text-stone-500 hover:text-emerald-700">{formatPhone(c.phone)}</a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
