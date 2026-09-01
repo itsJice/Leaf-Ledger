@@ -17,9 +17,18 @@ import { apiFetch } from "utils/apiFetch";
  *
  * The tool also saves reschedule decisions to a SHARED server document so
  * two staff working client requests don't silently diverge. srcDoc content
- * has no Supabase session of its own, so we postMessage the token in once
- * the iframe has loaded; without it the tool degrades to localStorage only,
- * which is exactly how the standalone file behaves.
+ * has no Supabase session of its own, so we postMessage the token in;
+ * without it the tool degrades to localStorage only, which is exactly how
+ * the standalone file behaves.
+ *
+ * Sending on the iframe's `onLoad` alone was a one-shot guess at timing: if
+ * that fires (or the token fetch resolves) even slightly out of step with
+ * the tool's own message listener registering, the token is dropped with no
+ * retry, and every server-backed feature (contact edits, comments, shared
+ * reschedule state) silently falls back to read-only/local-only for the
+ * rest of that page load. The tool now posts `tbdg-ready` the moment its
+ * listener exists; sending in direct response to that is what actually
+ * guarantees delivery. `onLoad` stays wired too, as a second attempt.
  */
 export default function InstallSchedule() {
   const [html, setHtml] = useState<string | null>(null);
@@ -58,6 +67,16 @@ export default function InstallSchedule() {
       /* tool falls back to localStorage */
     }
   };
+
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.source !== frameRef.current?.contentWindow) return;
+      if (e.data?.type === "tbdg-ready") sendToken();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   return (
     <Layout>

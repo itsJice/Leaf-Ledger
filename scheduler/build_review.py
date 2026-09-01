@@ -210,11 +210,35 @@ spec = {
     "rosterSeed": ROSTER_SEED,
 }
 
+def _with_place(rows):
+    """Attach the address/coords a dropped client already has.
+
+    schedule.py emits these as {name, reason} only -- they never entered the
+    router, so they carried no geometry. But they ARE geocoded (they sit in
+    all_clients), and staff want them as pins on the not-installing map
+    (user, 2026-08-31). Joined here rather than upstream so this needs no
+    optimizer re-run: the build version hashes `days` and `clients`, which
+    this doesn't touch, so saved reschedule state stays valid.
+
+    A client with no address (the whole reason some are flagged) simply
+    comes back without lat/lon and the map skips it -- the panel says so.
+    """
+    out = []
+    for r in rows:
+        c = _by_name.get(r["name"]) or {}
+        out.append({**r,
+                    "lat": c.get("lat"), "lon": c.get("lon"),
+                    "street": c.get("street", ""), "city": c.get("city", ""),
+                    "zip": c.get("zip", ""), "phone": c.get("phone", ""),
+                    "zone": c.get("zone", "")})
+    return out
+
+
 payload_obj = {
     "depot": {"lat": sched["depot"]["lat"], "lon": sched["depot"]["lon"]},
     "clients": clients, "days": days, "node": node, "durs": durs,
-    "noaddr": sched.get("flagged_noaddr", []),
-    "dropped": sched.get("dropped", []),
+    "noaddr": _with_place(sched.get("flagged_noaddr", [])),
+    "dropped": _with_place(sched.get("dropped", [])),
     "spec": spec,
 }
 # Version stamps the inputs, so saved state from before a regeneration is
@@ -283,6 +307,11 @@ header h1 svg{color:var(--brand)}
 .dchip.empty:hover{background:#ecebe8;color:var(--mut)}
 .dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand);border-style:solid}
 .dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
+.dchipwrap{position:relative;display:inline-flex}
+.dchiprm{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
+  border:1px solid var(--line);background:#fff;color:var(--mut);font-size:12px;line-height:1;
+  padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.dchiprm:hover{background:var(--bad-ink);border-color:var(--bad-ink);color:#fff}
 .nothingyet{font-size:12.5px;color:var(--mut);margin:2px 2px 12px}
 .emptycrew{display:flex;align-items:center;gap:9px;border:1.5px dashed var(--line);border-radius:10px;
   padding:16px 14px;margin-bottom:10px;font-size:12.5px;color:var(--mut);
@@ -481,6 +510,39 @@ dialog option:disabled{color:#b6b3ae}
   background:#fff;color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:700;
   font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
 #newclientbtn:hover{background:var(--brand);color:#fff}
+#newdatebtn{align-self:center;padding:8px 14px;border-radius:8px;border:1.5px solid var(--brand);
+  background:#fff;color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:700;
+  font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+#newdatebtn:hover{background:var(--brand);color:#fff}
+#newdatedlg{max-width:340px}
+#newdatedlg input[type=date]{width:100%;padding:9px 10px;border-radius:8px;
+  border:1.5px solid var(--line);font-family:'Montserrat',sans-serif;font-size:13px}
+#newdatedlg .ndhint{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
+#newdatedlg .nderr{font-size:12px;color:var(--bad-ink);margin-top:8px;font-weight:600;display:none}
+#newdatedlg .ndadded{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+#newdatedlg .ndadded b{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+#newdatedlg .ndchip{display:inline-flex;align-items:center;gap:6px;margin:6px 6px 0 0;padding:4px 8px;
+  border-radius:999px;border:1px solid var(--line);background:var(--brand-soft);font-size:12px}
+#newdatedlg .ndchip button{border:0;background:none;cursor:pointer;color:var(--mut);
+  font-size:14px;line-height:1;padding:0}
+.dchip.added{border-style:dashed;border-color:var(--brand)}
+.dchip.noinstall{margin-left:auto;border-color:var(--mut);color:var(--mut);font-style:italic}
+.chead-crew[draggable=true]{cursor:grab}
+.chead-crew[draggable=true]:active{cursor:grabbing}
+.card.dragging-day{opacity:.55;outline:2px dashed var(--brand)}
+.name-label.noinstall-label{color:#7f1d1d;border-color:#7f1d1d}
+.nidot{width:10px;height:10px;border-radius:50%;background:#7f1d1d;flex:none;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.nirow .nileft{flex-direction:row;align-items:center;gap:8px}
+.nirow .nitext{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nirow .nomap{font-style:italic}
+.dchip.noinstall.sel{background:var(--mut);color:#fff;font-style:normal}
+.nirow{display:flex;align-items:center;gap:10px;justify-content:space-between;
+  padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;background:#fff}
+.nirow.ro{background:var(--brand-soft);border-style:dashed}
+.nirow .nileft{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nirow .nisub{font-size:11.5px;color:var(--mut)}
+.nirow .printbtn{margin:0;width:auto;white-space:nowrap;flex:none}
 #billexportbtn{align-self:center;padding:8px 14px;border-radius:8px;border:1.5px solid var(--line);
   background:#fff;color:var(--ink);font-family:'Montserrat',sans-serif;font-weight:700;
   font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s}
@@ -819,7 +881,7 @@ dialog option:disabled{color:#b6b3ae}
 .pkrow{margin:4px 0;font-size:12.5px}
 .pknote{margin:8px 0 0;padding:7px 9px;background:var(--warn-soft);border-radius:6px;
   font-size:11.5px;color:var(--warn-ink);line-height:1.45}
-.pkloading{color:var(--mut);font-style:italic}
+.pkloading,.pkcontactloading{color:var(--mut);font-style:italic}
 .pkprofile{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
 .pksec{margin:0 0 6px;font-size:10px;font-weight:800;text-transform:uppercase;
   letter-spacing:.05em;color:var(--brand-deep)}
@@ -910,6 +972,7 @@ dialog option:disabled{color:#b6b3ae}
     <button id="viewroster" type="button">Roster</button>
   </div>
   <button id="newclientbtn" type="button">+ New client</button>
+  <button id="newdatebtn" type="button">+ New date</button>
   <button id="billexportbtn" type="button">⬇ Export</button>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
@@ -1019,6 +1082,18 @@ dialog option:disabled{color:#b6b3ae}
   <div id="ncerr" class="ncerr"></div>
   <div class="btns"><button onclick="ncdlg.close()">Cancel</button>
   <button class="go" id="ncgo">Look up &amp; add</button></div>
+</dialog>
+<dialog id="newdatedlg">
+  <b>Add a date</b>
+  <p class="ndhint">Puts another day on the strip so you can drag stops onto it.
+    The optimizer never fills an added date on its own &mdash; it stays empty
+    until you move someone there.</p>
+  <label class="nclabel">Date</label>
+  <input id="nddate" type="date" min="2026-10-01" max="2026-12-24">
+  <div id="nderr" class="nderr"></div>
+  <div id="ndadded" class="ndadded"></div>
+  <div class="btns"><button onclick="newdatedlg.close()">Cancel</button>
+  <button class="go" id="ndgo">Add date</button></div>
 </dialog>
 <dialog id="histdlg">
   <b>Change history</b>
@@ -1247,6 +1322,31 @@ let approved = new Set(), moves = [], selDate = null;
 // (drag, move dialog, slot finder) via checkPlan until explicitly
 // unlocked -- see the CONFIRMED check there.
 let confirmed = new Set();
+// Dates staff added with "+ New date". SPEC.calendar carries every date
+// Oct 1 - Dec 24 so the eligibility table has already judged them, but the
+// ones flagged `optional` stay hidden until they show up here -- otherwise
+// the strip would be 80 bubbles of mostly-empty days. Declared above
+// workDates() because bootstrap calls that before this block would
+// otherwise run.
+let newDates = new Set();
+/** Calendar entries actually on the board: the working calendar, plus any
+ *  optional date staff explicitly added. */
+function activeCalendar(){
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date));
+}
+function normDates(list){
+  const ok = new Set(SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date));
+  return new Set((Array.isArray(list)?list:[]).filter(d=>ok.has(d)));
+}
+// Clients staff took out of the season by dropping them on the trailing
+// "Not installing this year" bubble (user, 2026-08-31). Distinct from
+// DATA.dropped, which is the spreadsheet's own "No 2026 Install" rows --
+// those were never on the board and can't be put back from here. Keyed by
+// client row.
+let notInstalling = new Set();
+function normNotInstalling(list){
+  return new Set((Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]));
+}
 // Per-client notes, timestamped, newest first: {row: [{text, at}]}
 let comments = {};
 function normComments(obj){
@@ -1289,6 +1389,25 @@ let roster = [], staffing = {};
 let nextPersonId = 1;
 function personById(id){ return roster.find(p=>p.id===id) || null; }
 function crewOptions(){ return [...new Set(days.map(d=>d.crew))].sort(); }
+/** What staff READ on a crew card, print sheet, map pin or picker.
+ *
+ *  Crew numbers are POSITIONAL PER DAY, not season-long identities (user,
+ *  2026-08-31): "if I only have two crews going out, it's crew one and crew
+ *  two ... there's no significance of who is on crew one or crew two for
+ *  the whole season." So a day covering the stored Crew 1 + Crew 3 reads as
+ *  Crew 1 + Crew 2, and a day covering only Crew 3 reads as Crew 1.
+ *
+ *  Only the LABEL changes. d.crew, day ids, staffing keys, moves and every
+ *  rule check keep the stored crew, so nothing downstream shifts when the
+ *  count on a day changes. */
+function crewLabel(d){
+  if(!d || !d.crew) return '';
+  const onDate = [...new Set(days.filter(x=>x.date===d.date).map(x=>x.crew))].sort();
+  const i = onDate.indexOf(d.crew);
+  return i < 0 ? d.crew : 'Crew ' + (i + 1);
+}
+/** Short form for the dense month/calendar chips: "C1", "C2". */
+function crewLabelShort(d){ return crewLabel(d).replace('Crew ','C'); }
 // Every date in the season, not just the ones that currently have crew-days
 // (user, 2026-08-18): work moves, and someone's availability is a fact about
 // them, not about today's schedule. Marking a person free on a date nobody is
@@ -1296,7 +1415,7 @@ function crewOptions(){ return [...new Set(days.map(d=>d.crew))].sort(); }
 // Reads SPEC (line ~937), NOT the SEASON const further down: normRoster runs
 // during bootstrap, and touching a `const` before its declaration throws --
 // inside a try/catch that would have swallowed it and silently lost the roster.
-function workDates(){ return SPEC.calendar.map(c=>c.date).sort(); }
+function workDates(){ return activeCalendar().map(c=>c.date).sort(); }
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
   // restored history entry. Anything unrecognised gets a sane default rather
@@ -1436,6 +1555,10 @@ try{
                  + 'They have NOT been applied — re-check them before saving.';
   } else if(s.placement){
     restoreSyntheticClients(s.newClients);
+    // Before applyPlacement: a stop saved onto an added date needs that
+    // date on the board, or its placement silently drops as unknown.
+    newDates = normDates(s.newDates);
+    notInstalling = normNotInstalling(s.notInstalling);
     const missing = applyPlacement(s.placement);
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -1466,6 +1589,7 @@ function snapshot(){
      outRow:c.outRow, inCol:c.inCol}));
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
+          newDates:[...newDates], notInstalling:[...notInstalling],
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -1475,17 +1599,56 @@ function snapshot(){
 // localStorage alone, which is what the standalone file does.
 let AUTH = null, syncState = 'local';
 window.addEventListener('message', e=>{
-  // Only ever accept a token from our own origin. srcDoc inherits the
-  // parent's origin, so a same-origin check is the right gate; anything
-  // cross-origin trying to hand us a bearer token is not the host app.
-  if(e.origin !== window.location.origin) return;
+  // Only ever accept a token from the actual parent window. That alone is
+  // the real check here -- e.source can only equal window.parent if this
+  // event genuinely came from the frame that's hosting us, and nothing
+  // else can forge that object reference.
+  //
+  // A `window.location.origin` comparison looks like the obvious extra
+  // check, but it's actively wrong for THIS document: a srcDoc iframe's
+  // self-reported location.origin is the literal string "null" (its
+  // location.href is "about:srcdoc"), not the origin it actually inherits
+  // from the parent for security purposes. Comparing e.origin (the
+  // parent's real origin) against that always fails, silently dropping
+  // every message -- this was live for a while before being caught.
   if(e.source !== window.parent) return;
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
     pullShared();
-    loadClientDirectory();
+    loadClientDirectory().then(()=>{
+      // A stop popup opened BEFORE this token landed rendered itself
+      // read-only (no Edit button, no full profile) with nothing to
+      // refresh it later -- do that now instead of leaving it stuck
+      // looking permanently offline until closed and reopened.
+      if(peekdlg.open && peekRow!=null){
+        const holder=document.getElementById('peekbody');
+        const contactHolder=document.getElementById('pkcontact');
+        if(holder && contactHolder){
+          contactHolder.innerHTML=contactBlockHTML(peekRow);
+          wireContactBlock(peekRow);
+          const old=holder.querySelector('.pkprofile, .pkloading');
+          const html=profileSectionHTML(peekRow);
+          if(old){ const tmp=document.createElement('div'); tmp.innerHTML=html; old.replaceWith(...tmp.childNodes); }
+          else holder.insertAdjacentHTML('beforeend', html);
+          wireProfileLink(peekRow);
+        }
+      }
+    });
   }
 });
+// The parent posts the auth token in reaction to THIS iframe's load event
+// firing -- fragile if anything (a slow parse, a delayed listener) shifts
+// that timing. Announcing readiness the moment this listener exists lets
+// the parent send the token in direct response instead of guessing when
+// it's safe to. InstallSchedule.tsx listens for this and keeps its
+// load-triggered send too, as a second attempt.
+//
+// Target origin is '*', not window.location.origin -- see the note above
+// the message listener above: that's "null" here, and passing it throws
+// (postMessage rejects "null" as a target origin outright). There's
+// nothing sensitive in a readiness ping, and window.parent is guaranteed
+// to be the one page that embedded us, so a wildcard target costs nothing.
+window.parent.postMessage({type:'tbdg-ready'}, '*');
 // ---------- app-side client profile (Clients tab, same Postgres) ----------
 // The scheduler's own client data (baked in at build time from the season
 // spreadsheet) and the app's `clients` table are two views of the same
@@ -1534,6 +1697,8 @@ async function pullShared(){
         return;
       }
       restoreSyntheticClients(j.state.newClients);
+      newDates = normDates(j.state.newDates);
+      notInstalling = normNotInstalling(j.state.notInstalling);
       const missing = applyPlacement(j.state.placement);
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -1649,6 +1814,8 @@ async function restoreHistoryEntry(entryId, btn){
     const st=j.state;
     if(!st || !st.placement) throw new Error('empty state');
     restoreSyntheticClients(st.newClients);
+    newDates = normDates(st.newDates);
+    notInstalling = normNotInstalling(st.notInstalling);
     applyPlacement(st.placement);
     moves = st.moves || [];
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
@@ -1679,10 +1846,15 @@ let undoStack = [], redoStack = [];
 function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
-                         moves, roster, staffing});
+                         moves, newDates:[...newDates],
+                         notInstalling:[...notInstalling], roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
+  // Restored before applyPlacement so undoing past an added date still has
+  // somewhere to put the stops that were sitting on it.
+  newDates = normDates(s.newDates);
+  notInstalling = normNotInstalling(s.notInstalling);
   applyPlacement(s.placement);
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
@@ -1836,7 +2008,7 @@ function buildShifts(){
     sh.hours = sh.days.reduce((a,x)=>a+dayCalc(x).total/60,0);
     sh.label = sh.dallas
       ? `${sh.crew} · Dallas week`
-      : `${sh.crew}${sh.night?' · night':''}`;
+      : `${crewLabel(sh.days[0])}${sh.night?' · night':''}`;
     sh.when = sh.dallas
       ? `${fmtMDYYYY(sh.days[0].date)} – ${fmtMDYYYY(sh.days[sh.days.length-1].date)}`
         + ` · ${sh.days.length} night${sh.days.length===1?'':'s'}`
@@ -2013,6 +2185,10 @@ function applyMove(row, toId, record=true){
   to.stops.push(row);
   to.edited = true;
   approved.delete(to.id);
+  // Putting someone on a crew-day means they ARE installing after all --
+  // covers every path in (drag, move dialog, find-a-date), so the bubble
+  // can never disagree with the board.
+  notInstalling.delete(row);
   if(record){
     moves.push({row, name:C[row].name, from: from?from.id:null, to:to.id});
     persist();
@@ -2091,6 +2267,7 @@ function checkPlan(ops){
   const byId = new Map(sim.map(d=>[d.id,d]));
   const blockers=[], warnings=[];
   const touched = new Set();
+  const bundleWarned = new Set();
 
   ops.forEach(op=>{
     const from = sim.find(d=>d.stops.includes(op.row));
@@ -2134,13 +2311,20 @@ function checkPlan(ops){
         blockers.push({code:'JOINT', msg:`${c.name} is a two-crew job shared with `
           +`${src.joint||'another crew'} — move the whole day, not one card`});
     }
-    // same-day group cohesion
+    // same-day group pairing: advisory only. These are logistics pairings
+    // (save a depot round-trip), not data-integrity constraints like JOINT
+    // above -- so a lone drag moves just that one stop, never the partner,
+    // and the user gets a heads up if that breaks the pairing.
     const g = GROUP_OF[op.row];
-    if(g){
+    if(g && g.rows.length>1 && !bundleWarned.has(g.id)){
       const dates = new Set();
       g.rows.forEach(r=>{ const d=sim.find(x=>x.stops.includes(r)); if(d) dates.add(d.date); });
-      if(dates.size>1)
-        blockers.push({code:'GROUP', msg:`${g.label} must stay on one day — ${g.why}`});
+      if(dates.size>1){
+        bundleWarned.add(g.id);
+        warnings.push({code:'GROUP_SPLIT',
+          msg:`${g.label} are usually paired same-day (${g.why}) — this splits them onto different days`,
+          short:`splits ${g.label} onto different days`});
+      }
     }
     // geography
     const tgt = byId.get(op.to);
@@ -2151,12 +2335,17 @@ function checkPlan(ops){
         short:'30+ min from the rest of that day'});
   });
 
-  // R2 coverage: a club stop needs Crew 1 among the crews working it.
+  // R2 coverage, now ADVISORY rather than blocking (see rules.CODES
+  // CLUB_CREW): crew numbers are positional per day, so "needs Crew 1"
+  // stopped naming a real team and was refusing placements staff wanted.
+  // Still surfaced, because clubs have historically run with the day's
+  // first crew and that is worth knowing before you override it.
   sim.forEach(d=>d.stops.forEach(r=>{
     if(C[r].cat!=='Country Club') return;
     const crews = sim.filter(x=>x.date===d.date && x.stops.includes(r)).map(x=>x.crew);
     if(!crews.some(c2=>c2.includes('Crew 1')))
-      blockers.push({code:'CLUB_CREW', msg:`${C[r].name}: ${codeMsg('CLUB_CREW')}`});
+      warnings.push({code:'CLUB_CREW', msg:`${C[r].name}: ${codeMsg('CLUB_CREW')}`,
+                     short:'not the day\'s first crew'});
   }));
 
   // capacity + shape, on every day the plan disturbed
@@ -2212,23 +2401,18 @@ function checkPlan(ops){
   return {blockers:uniq(blockers), warnings:uniq(warnings), deltas, ok:!blockers.length};
 }
 
-/** Everything that moving `row` implies -- groups and joint days travel together. */
+/** A single stop, moved. Same-day pairings (GROUP_OF) are a logistics
+ * preference, not a rule -- dragging one client never drags their pair
+ * along; checkPlan just flags it if the move splits the pairing. */
 function planFor(row, toId){
-  const g = GROUP_OF[row];
-  const src = days.find(d=>d.stops.includes(row));
-  const rows = new Set([row]);
-  if(g && g.rows.every(r=>{
-      const d=days.find(x=>x.stops.includes(r));
-      return d && src && d.date===src.date; }))
-    g.rows.forEach(r=>rows.add(r));
-  return [...rows].map(r=>({row:r, to:toId}));
+  return [{row, to:toId}];
 }
 
 // ---------- slot finder ----------
 // "This client wants Nov 18" -> ranked legal (date, crew) options.
 function candidateSlots(){
   const out = [];
-  SPEC.calendar.forEach(ci=>{
+  activeCalendar().forEach(ci=>{
     const existing = days.filter(d=>d.date===ci.date);
     existing.forEach(d=>out.push({id:d.id, date:d.date, crew:d.crew, day:d, isNew:false}));
     BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
@@ -2382,8 +2566,9 @@ L.marker([DATA.depot.lat,DATA.depot.lon],{icon:depotIcon,zIndexOffset:1000}).add
   .bindPopup('<b>DEPOT</b><br>2860 Antoine Dr, Houston 77092');
 let layerGroup = L.layerGroup().addTo(map);
 
-function isOverview(sel){ return ['ALL','ALL-HOU','ALL-DAL'].includes(sel); }
+function isOverview(sel){ return ['ALL','ALL-HOU','ALL-DAL','NOINSTALL'].includes(sel); }
 function daysFor(sel){
+  if(sel==='NOINSTALL') return [];
   if(sel==='ALL') return days;
   if(sel==='ALL-HOU') return days.filter(d=>d.cat!=='M Crowd');
   if(sel==='ALL-DAL') return days.filter(d=>d.cat==='M Crowd');
@@ -2441,6 +2626,33 @@ function pastBlockers(row, date){
 }
 function drawDate(date){
   layerGroup.clearLayers();
+  // Not-installing clients still belong on the map -- staff want to see
+  // WHERE the hole in the season is -- but they are on nobody's run, so
+  // drawing legs between them would imply a trip that isn't happening
+  // (user, 2026-08-31: "dots on the map, just without the routes").
+  if(date==='NOINSTALL'){
+    const pts=[];
+    notInstallingPins().forEach(pin=>{
+      if(pin.lat==null || pin.lon==null) return;   // no address -> nothing to pin
+      pts.push([pin.lat,pin.lon]);
+      const mk=L.circleMarker([pin.lat,pin.lon],{radius:8,color:'#4a0d14',weight:1.5,
+        fillColor:NOINSTALL_COLOR,fillOpacity:.95});
+      const addr=[pin.street,[pin.city,pin.zip].filter(Boolean).join(' ')]
+                   .filter(Boolean).join(', ');
+      mk.bindPopup(`<b>${esc(pin.name)}</b>${addr?`<br>${esc(addr)}`:''}`
+        + `<br>${IC.phone} ${esc(pin.phone||'—')}`
+        + (pin.hours!=null?`<br>2026: ${pin.hours}h`:'')
+        + `<br><i>${esc(pin.reason)}</i>`);
+      // Permanent labels: this view has no route to read, so the names ARE
+      // the content (user, 2026-08-31: "dots with names").
+      mk.bindTooltip(pin.name,{permanent:true,direction:'right',
+                               offset:[9,0],className:'name-label noinstall-label'});
+      layerGroup.addLayer(mk);
+    });
+    map.invalidateSize();
+    if(pts.length) map.fitBounds(pts,{padding:[50,50]});
+    return;
+  }
   let todays = daysFor(date);
   // A crew header was clicked: zoom to just that one crew-day instead of
   // the whole date/pool (cleared back to the full view by picking a date
@@ -2465,7 +2677,7 @@ function drawDate(date){
       if(rg.pts.length>1)
         layerGroup.addLayer(L.polyline(rg.pts,{color:col,weight:rg.real?3.5:2.5,
           opacity:.7,dashArray:rg.real?null:'6 6'})
-          .bindPopup(`${d.crew}<br><b>${miTxt(rg.mi,rg.pending)}</b>`));
+          .bindPopup(`${crewLabel(d)}<br><b>${miTxt(rg.mi,rg.pending)}</b>`));
     }
     d.stops.forEach((r,i)=>{
       const c=C[r]; bounds.push([c.lat,c.lon]);
@@ -2475,14 +2687,14 @@ function drawDate(date){
       mk.bindPopup(`<b>${c.name}</b><br>${c.street}, ${c.city} ${c.zip}`+
         `<br>${IC.phone} ${c.phone||'—'}<br>2026: ${c.h26}h · 2025 real: ${c.real25??'—'}h`+
         `<br>Storage: ${c.storage||'—'} ${c.boxes?('· '+c.boxes+' boxes'):''}`+
-        `<br><i>${d.crew} · stop ${i+1}${approx?' · approx pin':''}</i>`);
+        `<br><i>${crewLabel(d)} · stop ${i+1}${approx?' · approx pin':''}</i>`);
       if(!isOverview(date)){
         mk.bindTooltip(`${i+1}. ${c.name}`,{permanent:true,direction:'right',
           offset:[9,0],className:'name-label'});
       } else {
         const isHalf=(d.half||[]).includes(r);
         const estH=isHalf?(c.h26/2).toFixed(1):c.h26;
-        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${d.crew}`+
+        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${crewLabel(d)}`+
           `<br>Est. time: ${estH}h · Box count: ${c.boxes||'—'}`,
           {direction:'top',offset:[0,-8]});
       }
@@ -2539,7 +2751,7 @@ function renderSearch(q){
   if(!q.trim()){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
   searchResults.innerHTML = results.length ? results.map(r=>{
     const d = days.find(x=>x.stops.includes(r.row));
-    const where = d ? `${fmtDate(d.date)} · ${d.crew}` : 'not scheduled';
+    const where = d ? `${fmtDate(d.date)} · ${crewLabel(d)}` : 'not scheduled';
     return `<div class="srow" data-row="${r.row}">
       <span class="srname">${r.name}</span>
       <span class="srwhere">${where}</span></div>`;
@@ -2585,14 +2797,122 @@ const side = document.getElementById('side');
 // Every date on the working calendar, not just ones that happen to have a
 // crew-day -- an empty date used to be invisible in the strip, which meant
 // there was nowhere to drag a stop TO if you wanted to start a fresh day.
-function allDates(){ return SPEC.calendar.map(ci=>ci.date); }
+function allDates(){ return activeCalendar().map(ci=>ci.date); }
 
+const NOINSTALL_COLOR = '#7f1d1d';   // maroon -- distinct from every crew colour
+/** Everyone not getting an install this year, from all three sources, in one
+ *  shape the map and the panel can both use. `lat`/`lon` may be null (a
+ *  client flagged precisely because they have no address); callers skip those
+ *  rather than dropping a pin at 0,0. */
+function notInstallingPins(){
+  const out=[];
+  [...notInstalling].forEach(r=>{
+    const c=C[r]; if(!c) return;
+    out.push({name:c.name, lat:c.lat, lon:c.lon, street:c.street, city:c.city,
+              zip:c.zip, phone:c.phone, hours:c.h26, zone:c.zone,
+              reason:'Taken out by staff', source:'staff', row:r});
+  });
+  (DATA.dropped||[]).forEach(d=>out.push({...d, source:'sheet',
+              reason:d.reason||'No 2026 install (source sheet)'}));
+  (DATA.noaddr||[]).forEach(d=>out.push({...d, source:'noaddr',
+              reason:d.reason||'Needs an address'}));
+  return out;
+}
+/** Move an ENTIRE crew-day to another date, stops and order intact.
+ *
+ *  Dragging a single stop moves just that stop -- that's deliberate, and
+ *  stays. This is the other gesture staff asked for (user, 2026-08-31):
+ *  grab the crew header and the whole itinerary travels together, for when
+ *  a whole day slips rather than one client. */
+function moveWholeDay(dayId, toDate){
+  const src = days.find(d=>d.id===dayId);
+  if(!src || !toDate || isOverview(toDate) || src.date===toDate) return;
+  if(src.joint){
+    alert(`${crewLabel(src)} works this day jointly with ${src.joint}.\n\n`
+      + `Move both crews' cards, or split the job first — moving one side `
+      + `alone would leave the other short-handed.`);
+    return;
+  }
+  const label = crewLabel(src), n = src.stops.length;
+  const locked = src.stops.filter(r=>confirmed.has(r)).map(r=>C[r].name);
+  if(locked.length){
+    alert(`Can't move the whole day — these have confirmed dates:\n\n`
+      + locked.join('\n') + `\n\nUnlock them first, or move the rest one at a time.`);
+    return;
+  }
+  const blocked = src.stops.filter(r=>dateBlockers(r,toDate).length)
+                           .map(r=>`${C[r].name} — ${codeMsg(dateBlockers(r,toDate)[0])}`);
+  if(blocked.length){
+    alert(`Can't move the whole day to ${fmtDate(toDate)}:\n\n`+blocked.join('\n'));
+    return;
+  }
+  // Keep the same crew slot if it's free on the target date, else take the
+  // first one that is. The LABEL staff read is positional per day, so which
+  // stored slot it lands on doesn't change what the card says.
+  const taken = new Set(days.filter(d=>d.date===toDate).map(d=>d.crew));
+  const crew = !taken.has(src.crew) ? src.crew : BASE_CREWS.find(cr=>!taken.has(cr));
+  if(!crew){
+    alert(`Every crew already has a day on ${fmtDate(toDate)}.`);
+    return;
+  }
+  const toId = `${toDate}|${crew}|0`;
+  if(!confirm(`Move all ${n} stop${n===1?'':'s'} from ${label} on `
+      + `${fmtDate(src.date)} to ${fmtDate(toDate)}?`)) return;
+  pushUndo();
+  const order = [...src.stops];
+  const wasManual = manualOrder[dayId];
+  const wasStaffed = staffing[dayId];
+  order.forEach(r=>applyMove(r, toId, false));
+  // Carry the day's own settings across, so a hand-ordered run and its
+  // crew don't silently reset just because the date changed.
+  //
+  // The ORDER is pinned even when the source wasn't hand-ordered: this
+  // gesture moves an itinerary, and an itinerary is a sequence. Without
+  // this the day lands `edited` and dayCalc re-routes it from scratch,
+  // which quietly drops any "goes first" stop out of position (SPEC
+  // .forceFirst is only a badge in this tool -- schedule.py is what
+  // actually enforces it). Staff can still hit "reset to shortest route".
+  if(wasStaffed){ staffing[toId] = [...wasStaffed]; delete staffing[dayId]; }
+  manualOrder[toId] = wasManual ? [...wasManual] : order;
+  if(wasManual) delete manualOrder[dayId];
+  moves.push({row:null, name:`${label} — whole day (${n} stop${n===1?'':'s'})`,
+              from:dayId, to:toId});
+  persist(); render();
+}
+/** Take a client out of the season. Pulls them off whatever crew-day
+ *  they're on (dropping the card if that empties it) and remembers them, so
+ *  a cancellation stops printing on a crew sheet instead of being parked on
+ *  some far-off date. */
+function markNotInstalling(row){
+  if(!C[row] || notInstalling.has(row)) return;
+  const cur = days.find(d=>d.stops.includes(row));
+  if(confirmed.has(row) &&
+     !confirm(`${C[row].name} has a confirmed date. Take them out of the season anyway?`))
+    return;
+  pushUndo();
+  days.forEach(d=>{ d.stops = d.stops.filter(r=>r!==row); if(cur&&d===cur) d.edited=true; });
+  days = days.filter(d=>d.stops.length);
+  confirmed.delete(row);
+  notInstalling.add(row);
+  moves.push({row, name:C[row].name, from: cur?cur.id:'', to:'NOINSTALL'});
+  persist(); render();
+}
+/** Undo the above. They come back UNSCHEDULED -- there's no sensible day to
+ *  guess -- so the panel points staff at "find date". */
+function putBackOnSchedule(row){
+  if(!notInstalling.has(row)) return;
+  pushUndo();
+  notInstalling.delete(row);
+  moves.push({row, name:C[row].name, from:'NOINSTALL', to:''});
+  persist(); render();
+  openSlotFinder(row);
+}
 function renderStrip(){
   strip.innerHTML='';
   const mk=(label,val,wknd,empty,tag)=>{
     const b=document.createElement('button');
     b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
-             +(tag?' tagged':'');
+             +(tag?' tagged':'')+(newDates.has(val)?' added':'');
     b.textContent=label; b.dataset.val=val;
     if(tag){
       const s=document.createElement('span'); s.className='dtag'; s.textContent=tag;
@@ -2600,11 +2920,33 @@ function renderStrip(){
       b.title=`${tag} — still bookable, just flagged`;
     }
     b.onclick=()=>{selDate=val; focusDayId=null; render();};
+    // returned so callers can tag a specific chip (see the NOINSTALL bubble)
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
     b.ondragleave=()=>b.classList.remove('dragover');
     b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
-      const row=+e.dataTransfer.getData('row'); if(row&&!isOverview(val)) openMoveDlg(row,val);};
+      const dayid=e.dataTransfer.getData('dayid');
+      if(dayid){ if(!isOverview(val)) moveWholeDay(dayid,val); return; }
+      const row=+e.dataTransfer.getData('row'); if(!row) return;
+      if(val==='NOINSTALL'){ markNotInstalling(row); return; }
+      if(!isOverview(val)) openMoveDlg(row,val);};
+    // A date THIS session added gets its own remove button, right on the
+    // strip -- no need to reopen "Add a date" and hunt for it in the
+    // "Added" list to take it back off.
+    if(newDates.has(val)){
+      const wrap=document.createElement('span');
+      wrap.className='dchipwrap';
+      wrap.appendChild(b);
+      const rm=document.createElement('button');
+      rm.type='button'; rm.className='dchiprm'; rm.title='Remove this added date';
+      rm.setAttribute('aria-label','Remove this added date');
+      rm.textContent='×';
+      rm.onclick=e=>{ e.stopPropagation(); removeAddedDate(val); };
+      wrap.appendChild(rm);
+      strip.appendChild(wrap);
+      return b;
+    }
     strip.appendChild(b);
+    return b;
   };
   mk('All','ALL',false);
   mk('All Houston','ALL-HOU',false);
@@ -2616,6 +2958,13 @@ function renderStrip(){
     const empty=!days.some(x=>x.date===dt);
     mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
   });
+  // Trailing bubble, deliberately AFTER every date (user, 2026-08-31):
+  // everyone who isn't getting an install this year. Drag a stop onto it to
+  // take them out of the season -- the place for a cancellation, instead of
+  // parking them on a real date where they'd still print on a crew sheet.
+  const outCount = notInstallingPins().length;
+  const nb = mk(`Not installing this year${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
+  if(nb) nb.classList.add('noinstall');
 }
 
 function fmtH(m){ return (m/60).toFixed(1)+'h'; }
@@ -2638,9 +2987,9 @@ function buildDayCard(d){
     (focusDayId===d.id?' focused':'');
   card.dataset.dayid=d.id;
   card.innerHTML=`<div class="chead">
-    <span class="chead-crew" title="Click to zoom the map to just ${d.crew}'s stops">
+    <span class="chead-crew" draggable="true" title="Click to zoom the map to just ${crewLabel(d)}'s stops — or drag this onto a date to move the whole day">
       <span class="cdot" style="background:${col}"></span>
-      <span class="cname">${d.crew}${d.edited?'<span class="edited">EDITED</span>':''}</span>
+      <span class="cname">${crewLabel(d)}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
     <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
@@ -2656,15 +3005,25 @@ function buildDayCard(d){
           + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}`;
   card.querySelector('.printbtn').onclick=(e)=>{
     e.stopPropagation();
-    printManifests([d], `${d.crew} — ${fmtMDYYYY(d.date)}`);
+    printManifests([d], `${crewLabel(d)} — ${fmtMDYYYY(d.date)}`);
   };
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
-  card.querySelector('.chead-crew').onclick=()=>{
+  const chead = card.querySelector('.chead-crew');
+  chead.onclick=()=>{
     focusDayId=d.id;
     document.querySelectorAll('.card.focused').forEach(c=>c.classList.remove('focused'));
     card.classList.add('focused');
     drawDate(selDate);
   };
+  // Drag the header (not a stop) to take the whole itinerary somewhere else.
+  // `dayid` rather than `row` is what tells the date chip's drop handler
+  // which gesture this is.
+  chead.ondragstart=e=>{
+    e.dataTransfer.setData('dayid', d.id);
+    e.dataTransfer.effectAllowed='move';
+    card.classList.add('dragging-day');
+  };
+  chead.ondragend=()=>card.classList.remove('dragging-day');
   card.querySelector('.okbtn').onclick=()=>{
     pushUndo();
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
@@ -2774,8 +3133,94 @@ function buildDayCard(d){
     if(row && !d.stops.includes(row)) commitPlan(planFor(row, d.id));};
   return card;
 }
+/** The "Not installing this year" panel: two lists that mean different
+ *  things. The spreadsheet's own no-install rows are a fact from the source
+ *  data and read-only here; the ones staff dropped on the bubble are an
+ *  editable decision and can go back on the board. */
+function renderNotInstalling(){
+  const hdr=document.createElement('h3'); hdr.className='ovtitle';
+  hdr.textContent='Not installing this year';
+  side.appendChild(hdr);
+
+  const pins=notInstallingPins();
+  const mapped=pins.filter(p=>p.lat!=null&&p.lon!=null).length;
+  const note=document.createElement('p'); note.className='nothingyet';
+  note.style.cssText='margin:0 0 12px';
+  note.textContent='Drag any stop onto this bubble to take that client out of '
+    + 'the season. They stop appearing on crew sheets and day counts. '
+    + `All ${mapped} with an address are maroon pins on the map — no routes `
+    + 'drawn between them, because nobody is driving this run.';
+  side.appendChild(note);
+
+  const staff=[...notInstalling];
+  const sh=document.createElement('div'); sh.className='ovdate';
+  sh.textContent=`Taken out by staff — ${staff.length}`;
+  side.appendChild(sh);
+  if(!staff.length){
+    const p=document.createElement('p'); p.className='nothingyet';
+    p.textContent='Nobody yet.'; side.appendChild(p);
+  }
+  staff.sort((a,b)=>C[a].name.localeCompare(C[b].name)).forEach(row=>{
+    const c=C[row];
+    const el=document.createElement('div'); el.className='nirow';
+    const noMap = c.lat==null || c.lon==null;
+    el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
+      + `<b>${esc(c.name)}</b>`
+      + `<span class="nisub${noMap?' nomap':''}">`
+      + (noMap ? 'no address — not on the map'
+               : esc(c.zone||'') + (c.h26?` · est ${(+c.h26).toFixed(2).replace(/\.?0+$/,'')}h`:''))
+      + `</span></div></div>`;
+    el.draggable=true;
+    el.ondragstart=e=>{ e.dataTransfer.setData('row',row); };
+    el.title='Drag onto any date to put this client back on the schedule';
+    const back=document.createElement('button');
+    back.className='printbtn'; back.textContent='Put back';
+    back.title='Removes them from this list and opens find-a-date';
+    back.onclick=()=>putBackOnSchedule(row);
+    el.appendChild(back);
+    side.appendChild(el);
+  });
+
+  const dropped=DATA.dropped||[];
+  const dh=document.createElement('div'); dh.className='ovdate';
+  dh.textContent=`From the spreadsheet — ${dropped.length}`;
+  side.appendChild(dh);
+  const dn=document.createElement('p'); dn.className='nothingyet';
+  dn.style.cssText='margin:0 0 8px';
+  dn.textContent='These say "No 2026 Install" in the source sheet. '
+               + 'Change it there, not here.';
+  side.appendChild(dn);
+  dropped.forEach(d=>{
+    const el=document.createElement('div'); el.className='nirow ro';
+    const noMap = d.lat==null || d.lon==null;
+    el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
+               + `<b>${esc(d.name)}</b>`
+               + `<span class="nisub${noMap?' nomap':''}">`
+               + esc(d.reason||'') + (noMap?' · no address — not on the map':'')
+               + `</span></div></div>`;
+    side.appendChild(el);
+  });
+  const na=DATA.noaddr||[];
+  if(na.length){
+    const nh=document.createElement('div'); nh.className='ovdate';
+    nh.textContent=`Missing an address — ${na.length}`;
+    side.appendChild(nh);
+    na.forEach(d=>{
+      const el=document.createElement('div'); el.className='nirow ro';
+      const noMap = d.lat==null || d.lon==null;
+      el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
+                 + `<b>${esc(d.name)}</b>`
+                 + `<span class="nisub${noMap?' nomap':''}">`
+                 + esc(d.reason||'needs address')
+                 + (noMap?' · nothing to pin until there is an address':'')
+                 + `</span></div></div>`;
+      side.appendChild(el);
+    });
+  }
+}
 function renderCards(){
   side.innerHTML='';
+  if(selDate==='NOINSTALL'){ renderNotInstalling(); return; }
   if(isOverview(selDate)){
     // Full detail, every crew-day in the pool, long-form list grouped by
     // date (client request: same crew/stop detail as a single day, just
@@ -2987,7 +3432,7 @@ function openMoveDlg(row,presetDate){
       const chk=checkPlan(planFor(row, d.id));
       const tag=d.win===480?' (day shift 9-5)':(d.win===K.NIGHT?' (night)':'');
       const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
-      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${d.crew}${tag}${dupe}`
+      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${crewLabel(d)}${tag}${dupe}`
            + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
     BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
       const id=`${dt}|${cr}|0`;
@@ -3013,6 +3458,77 @@ document.getElementById('mvgo').onclick=()=>{
 // its own date), and a callback add-on (bought more / broke something /
 // didn't finish). All three are just "a new addressable stop" underneath.
 const ncdlg=document.getElementById('ncdlg');
+// ---------- add a date ----------
+// Only dates SPEC.calendar already carries as `optional` can be added: the
+// eligibility table was built over exactly those, so anything else would
+// come back NO_DATE for every client and land as a bubble nothing can be
+// dropped on. That set is Oct 1 - Dec 24 minus the working calendar
+// (schedule.py's EXTRA_DOW).
+function optionalDates(){
+  return SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date);
+}
+/** Remove a date this session added to the strip. Blocked (with an explicit
+ * reason, not a silently-missing button) while stops are still parked on
+ * it -- deleting the date out from under them would leave those clients
+ * with no scheduled day at all. */
+function removeAddedDate(date){
+  const used=days.filter(d=>d.date===date && d.stops.length);
+  if(used.length){
+    const names=used.flatMap(d=>d.stops.map(r=>C[r].name));
+    alert(`Can't remove ${dowOf(date)} ${fmtMDYYYY(date)} yet -- `
+      +`${names.length} stop${names.length===1?' is':'s are'} still on it `
+      +`(${names.slice(0,5).join(', ')}${names.length>5?', …':''}). `
+      +`Move ${names.length===1?'it':'them'} to another date first, then remove it.`);
+    return false;
+  }
+  pushUndo();
+  newDates.delete(date);
+  // Drop the empty crew-day card that was sitting on it, if any.
+  days = days.filter(d=>!(d.date===date && !d.stops.length));
+  if(selDate===date) selDate=(days.map(d=>d.date).sort()[0])||allDates()[0];
+  persist(); render();
+  return true;
+}
+function renderAddedDates(){
+  const box=document.getElementById('ndadded');
+  const list=[...newDates].sort();
+  if(!list.length){ box.innerHTML=''; return; }
+  box.innerHTML='<b>Added</b><br>'+list.map(d=>
+    `<span class="ndchip">${dowOf(d)} ${fmtMDYYYY(d)}`
+    +`<button data-rm="${d}" title="Remove">&times;</button></span>`
+  ).join('');
+  box.querySelectorAll('[data-rm]').forEach(b=>{
+    b.onclick=()=>{ if(removeAddedDate(b.dataset.rm)) renderAddedDates(); };
+  });
+}
+document.getElementById('newdatebtn').onclick=()=>{
+  document.getElementById('nddate').value='';
+  const err=document.getElementById('nderr'); err.style.display='none'; err.textContent='';
+  renderAddedDates();
+  newdatedlg.showModal();
+};
+document.getElementById('ndgo').onclick=()=>{
+  const v=document.getElementById('nddate').value;
+  const err=document.getElementById('nderr');
+  const fail=m=>{ err.textContent=m; err.style.display='block'; };
+  if(!v) return fail('Pick a date first.');
+  if(newDates.has(v)) return fail('That date is already on the strip.');
+  const onBoard=SPEC.calendar.find(ci=>ci.date===v && !ci.optional);
+  if(onBoard) return fail(`${dowOf(v)} ${fmtMDYYYY(v)} is already on the calendar.`);
+  if(!optionalDates().includes(v)){
+    const all=optionalDates();
+    return fail(`Outside the range this build can schedule `
+      + `(${fmtMDYYYY(all[0])} – ${fmtMDYYYY(all[all.length-1])}).`);
+  }
+  pushUndo();
+  newDates.add(v);
+  persist();
+  selDate=v; focusDayId=null;
+  render(); renderAddedDates();
+  err.style.display='none';
+  document.getElementById('nddate').value='';
+};
+
 document.getElementById('newclientbtn').onclick=()=>{
   ['ncname','ncaddr','ncnotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nchours').value='1';
@@ -3085,7 +3601,7 @@ function openSlotFinder(row){
     // option is chosen -- state them once.
     const sw = res.length ? res[0].sourceWarnings : [];
     if(sw.length && cur)
-      head += `<div class="sfsrc"><b>Leaving ${cur.crew} on ${fmtDate(cur.date)}:</b> `
+      head += `<div class="sfsrc"><b>Leaving ${crewLabel(cur)} on ${fmtDate(cur.date)}:</b> `
             + sw.map(w=>w.short||w.msg).join(' · ')+`</div>`;
     body.innerHTML = head + (res.length? res.map((r,i)=>{
       // deltas are already in MINUTES (dayCalc divides seconds by 60)
@@ -3132,13 +3648,13 @@ function openSlotFinder(row){
 
 // ---------- export ----------
 function exportJSON(){
-  const out={approved:[...approved],moves,final:days.map(d=>({date:d.date,crew:d.crew,
+  const out={approved:[...approved],moves,final:days.map(d=>({date:d.date,crew:crewLabel(d),
     stops:d.stops.map(r=>C[r].name)}))};
   dl('tbdg-2026-review-changes.json',JSON.stringify(out,null,2));
 }
 function exportCSV(){
   let rows=[['Client','Date','Crew','Order']];
-  days.forEach(d=>d.stops.forEach((r,i)=>rows.push([C[r].name,d.date,d.crew,i+1])));
+  days.forEach(d=>d.stops.forEach((r,i)=>rows.push([C[r].name,d.date,crewLabel(d),i+1])));
   dl('tbdg-2026-assignments.csv',rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n'));
 }
 function dl(name,text){const a=document.createElement('a');
@@ -3590,7 +4106,7 @@ function monthHTML(anchor){
         ? `${gridHourLabel(ts[0].start)}–${gridHourLabel(ts[ts.length-1].end)}` : '';
       inner+=`<div class="calchip${night?' night':''}${approved.has(d.id)?' appr':''}" `
            + `style="--cc:${CREW_COLORS[d.crew]||'#555'}">`
-           + `<b>${d.crew.replace('Crew ','C')}</b> `
+           + `<b>${crewLabelShort(d)}</b> `
            + (span?`<span class="cctime">${span}</span> · `:'')
            + `${d.stops.length} stop${d.stops.length===1?'':'s'}`
            + `${approved.has(d.id)?' <span class="apprdot">✓</span>':''}`
@@ -3685,7 +4201,7 @@ function gridHTML(cols){
           + `data-row="${b.row}" data-dayid="${b.d.id}" `
           + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
           + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
-          + `<span class="cevt">${gridHourLabel(b.start)} · ${b.d.crew}</span></div>`;
+          + `<span class="cevt">${gridHourLabel(b.start)} · ${crewLabel(b.d)}</span></div>`;
       }
     });
     body+=`<div class="calgcol${col.today?' today':''}"`
@@ -3736,7 +4252,7 @@ function dayHTML(anchor){
   // header IS this day, so making it clickable would only re-render the view
   // you are already on.
   return gridHTML(ds.map(d=>({days:[d], dropDayId:d.id,
-      sub:d.crew.toUpperCase()+(d.win===K.NIGHT?' · NIGHT':''),
+      sub:crewLabel(d).toUpperCase()+(d.win===K.NIGHT?' · NIGHT':''),
       title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`
            + (approved.has(d.id)?' <span class="apprtag">APPROVED</span>':'')})));
 }
@@ -3760,7 +4276,7 @@ function agendaHTML(){
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
          + `<span class="agn">${C[t.row].name}</span>`
-         + `<span class="agm">${d.crew}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
+         + `<span class="agm">${crewLabel(d)}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
       });
     h+=`</div></div>`;
   });
@@ -3975,7 +4491,11 @@ function contactFieldsFor(row){
 }
 function contactBlockHTML(row){
   if(!AUTH) return contactViewHTML(row, false);   // offline: read-only, nothing to save to
-  if(!clientDirectory) return `<p class="pkrow pkloading">Loading contact info…</p>`;
+  // Own class (not .pkloading) -- profileSectionHTML has its own loading
+  // placeholder with that class, and the post-load refresh below picks its
+  // target by class name. Sharing one name meant querySelector could grab
+  // this element instead of that one, since this one sits earlier in the DOM.
+  if(!clientDirectory) return `<p class="pkrow pkcontactloading">Loading contact info…</p>`;
   return pkEditingContact ? contactEditHTML(row) : contactViewHTML(row, true);
 }
 function contactViewHTML(row, editable){
@@ -4123,7 +4643,7 @@ function openStopPeek(row,dayId){
   document.getElementById('peekbody').innerHTML=`
     <h3>${esc(c.name)}</h3>
     <p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
-       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(d.crew)}</p>
+       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes · ⏱ ${(effH(d,row)/(d.stacked||1)).toFixed(2)}h
        this crew${(d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}
@@ -4182,10 +4702,16 @@ function openStopPeek(row,dayId){
   if(AUTH && !clientDirectory){
     loadClientDirectory().then(()=>{
       if(peekRow!==row || !peekdlg.open) return;   // stale by the time it lands
-      const el=document.querySelector('#peekbody .pkprofile, #peekbody .pkloading');
       const holder=document.getElementById('peekbody');
       if(!holder) return;
-      // Replace just the profile block, not the whole popup (keeps the
+      // Contact block: was showing "Loading contact info..." -- now that
+      // the directory's in, swap in the real (editable) view.
+      const contactHolder=document.getElementById('pkcontact');
+      if(contactHolder){
+        contactHolder.innerHTML=contactBlockHTML(row);
+        wireContactBlock(row);
+      }
+      // Profile block: replace just it, not the whole popup (keeps the
       // day/crew/approve controls above it untouched).
       const old=holder.querySelector('.pkprofile, .pkloading');
       const html=profileSectionHTML(row);
@@ -4199,7 +4725,7 @@ function openStopPeek(row,dayId){
   document.getElementById('peekopen').onclick=()=>{
     peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
   document.getElementById('peekprint').onclick=()=>{
-    peekdlg.close(); printManifests([d],`${d.crew} — ${fmtMDYYYY(d.date)}`); };
+    peekdlg.close(); printManifests([d],`${crewLabel(d)} — ${fmtMDYYYY(d.date)}`); };
   const mv=document.getElementById('peekmove');
   mv.disabled = confirmed.has(row);
   mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
@@ -4856,7 +5382,7 @@ function manifestHTML(d){
   const boxes=dayBoxes(d);
   return `<section class="sheet">
     <div class="shead">
-      <div><h1>${esc(d.crew)} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
+      <div><h1>${esc(crewLabel(d))} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
         <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
         ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
