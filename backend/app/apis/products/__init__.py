@@ -761,7 +761,8 @@ _SQL_VOCAB_CACHE: dict = {"ts": 0.0, "vocab": None}
 # or a category from it costs an index lookup instead of detoasting raw_data for
 # 166k rows. The JSONB expressions below stay correct if it is absent, so this
 # file works on either schema and just gets faster when the migration lands.
-_FACET_SOURCE: dict = {"probed": False, "has_pf": False, "has_blob": False}
+_FACET_SOURCE: dict = {"probed": False, "has_pf": False, "has_blob": False,
+                       "has_ident": False}
 # The dimensions product_facets actually covers. supplier_id and availability are
 # plain products columns (no TOAST, already indexed) and product_type falls back
 # to raw_data on 82% of rows, so none of those three gain anything from the join.
@@ -781,6 +782,9 @@ _SIZE_LABEL_SQL = "rtrim(rtrim(to_char({v}, 'FM9999990.0'), '0'), '.')"
 async def _facet_source_probe(conn) -> tuple[bool, bool]:
     """(product_facets exists, it carries search_blob). Probed once per process.
 
+    Also records whether ident_norm is present (migrations/011) — read through
+    `_has_ident()` rather than returned, so every existing caller is unchanged.
+
     `search_blob` is the flattened raw_data text the in-memory index searches.
     Until it exists the SQL path can only match name/description/sku, which is
     the one real recall gap between the two paths; the moment the column and its
@@ -788,21 +792,32 @@ async def _facet_source_probe(conn) -> tuple[bool, bool]:
     """
     if _FACET_SOURCE["probed"]:
         return _FACET_SOURCE["has_pf"], _FACET_SOURCE["has_blob"]
-    has = blob = False
+    has = blob = ident = False
     try:
         row = await conn.fetchrow("""
             SELECT to_regclass('public.product_facets') AS t,
                    EXISTS (SELECT 1 FROM information_schema.columns
                             WHERE table_schema = 'public' AND table_name = 'product_facets'
-                              AND column_name = 'search_blob') AS blob""")
+                              AND column_name = 'search_blob') AS blob,
+                   EXISTS (SELECT 1 FROM information_schema.columns
+                            WHERE table_schema = 'public' AND table_name = 'product_facets'
+                              AND column_name = 'ident_norm') AS ident""")
         has = bool(row and row["t"])
         blob = has and bool(row["blob"])
+        ident = has and bool(row["ident"])
     except Exception as e:  # noqa: BLE001 — a failed probe just means "use raw_data"
         print(f"facet source probe failed, using raw_data paths: {e}")
-    _FACET_SOURCE.update(probed=True, has_pf=has, has_blob=blob)
+        ident = False
+    _FACET_SOURCE.update(probed=True, has_pf=has, has_blob=blob, has_ident=ident)
     print(f"facets reading from {'product_facets' if has else 'products.raw_data'}"
-          f"{'; keyword search includes search_blob' if blob else ''}")
+          f"{'; keyword search includes search_blob' if blob else ''}"
+          f"{'; style numbers matched punctuation-blind' if ident else ''}")
     return has, blob
+
+
+def _has_ident() -> bool:
+    """Whether product_facets.ident_norm is available (migrations/011)."""
+    return bool(_FACET_SOURCE.get("has_ident"))
 
 
 def _facet_exprs(has_pf: bool, has_new_cols: bool = False) -> dict:
@@ -1276,6 +1291,31 @@ async def _load_sql_vocab(conn) -> set:
 _WORD_RE = re.compile(r"^[a-z]{4,}$")
 
 
+# The other side of that coin. An identifier stays exact in *spelling*, but its
+# punctuation is not part of its identity: vendors write B1670-BU, ROT.20.TA and
+# X1923/75, and nobody quoting one from an invoice reproduces the separators
+# reliably. Stripping them from both sides matches the same product without ever
+# matching a different one — unlike an edit-distance correction, which turns
+# N592522DCV into N592522DA, a different colour of the same item.
+_IDENT_STRIP_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _ident_norm(term: str) -> str:
+    """Lowercase, alphanumerics only — mirrors public.product_facets_ident()."""
+    return _IDENT_STRIP_RE.sub("", term.lower())
+
+
+def _looks_like_identifier(term: str) -> bool:
+    """Whether a term is worth checking against the identifier column.
+
+    Any digit makes it a candidate: style numbers are alphanumeric (B1670-BU,
+    4611386, N592522DCV) while product words are not. Two characters is too
+    short to be a useful identifier probe and would match most of the catalog.
+    """
+    n = _ident_norm(term)
+    return len(n) >= 3 and any(ch.isdigit() for ch in n)
+
+
 async def _expand_terms(conn, terms: list[str]) -> tuple[list[tuple[str, list[str]]], bool]:
     """Map each query term to the spellings worth matching.
 
@@ -1347,8 +1387,13 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     # on, or when the keyword has to search its blob. On a plain browse the extra
     # join would only get in the way of the index-ordered scan.
     blob_search = bool(has_blob and terms)
+    # Identifier terms are matched against product_facets.ident_norm, so they
+    # need the same join even in the (unlikely) case that search_blob is absent.
+    ident_search = bool(has_pf and _has_ident()
+                        and any(_looks_like_identifier(t) for t in terms))
     item_join = (exprs["join"]
-                 if (has_pf and (set(sel) & set(exprs.get("pf_dims", _PF_DIMS)) or blob_search))
+                 if (has_pf and (set(sel) & set(exprs.get("pf_dims", _PF_DIMS))
+                                 or blob_search or ident_search))
                  else "")
 
     def _build(term_variants):
@@ -1387,7 +1432,31 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                     cols = [f"p.name ILIKE {ph}", f"p.description ILIKE {ph}",
                             f"p.supplier_sku ILIKE {ph}"]
                 alts.append("(" + " OR ".join(cols) + ")")
-            base.append(f"({' OR '.join(alts)})")
+
+            parts = list(alts)
+            if ident_search and _looks_like_identifier(term):
+                # Same identifier, different punctuation. OR'd in, so this only
+                # ever adds recall — a spelling that already matched still does.
+                n = _ident_norm(term)
+                ph_ident = add('%' + n + '%')
+                parts.append(f"pf.ident_norm LIKE {ph_ident}")
+                # And rank it: the product whose style number IS the query comes
+                # before one that merely contains it (B1670 inside B1670703),
+                # and both come before an incidental keyword hit. Only identifier
+                # queries add a score, and those match few rows, so the cost of
+                # sorting on it instead of the name index stays negligible.
+                #
+                # The score reuses ph_ident rather than binding its own copy:
+                # `scores` is spliced into the SELECT while the count query is
+                # built from `base` alone, so a placeholder that appears only in
+                # a score would leave the count with more arguments than its SQL
+                # references. The regex is inlined instead of bound for the same
+                # reason, and is injection-safe because _ident_norm() has already
+                # reduced the term to [a-z0-9].
+                scores.append(
+                    f"(CASE WHEN pf.ident_norm ~ '(^| ){n}( |$)' THEN 8 "
+                    f"WHEN pf.ident_norm LIKE {ph_ident} THEN 4 ELSE 0 END)")
+            base.append(f"({' OR '.join(parts)})")
             if len(alts) > 1:
                 # alts[0] is the literal spelling. COALESCE matters: a NULL
                 # description or sku makes the OR-group NULL, not false, and
