@@ -287,7 +287,12 @@ header h1{display:flex;align-items:center;gap:8px;font-family:Georgia,serif;font
   font-size:20px;margin:0;white-space:nowrap;color:var(--ink)}
 header h1 svg{color:var(--brand)}
 #headtitle p{margin:2px 0 0;font-size:12px;color:var(--mut)}
-#datestrip{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 100%;margin-top:12px}
+#datestrip{display:flex;flex-direction:column;gap:6px;flex:1 1 100%;margin-top:12px}
+/* One real Sunday-Saturday calendar week per row (so "the 2nd week of
+   November" is a row you can point at), packed left at each chip's own
+   natural pill width -- not stretched into equal-width calendar cells,
+   which reads bulkier than this tool's normal compact chip style. */
+.dstriprow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .dchip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;
   font-family:'Montserrat',sans-serif;background:#fff;color:#57534e;font-weight:600;
   letter-spacing:.01em;transition:all .15s}
@@ -381,6 +386,11 @@ header h1 svg{color:var(--brand)}
 .badge.approx{background:var(--warn-soft);color:var(--warn-ink)}
 .badge.confirm{background:#dcfce7;color:#15803d;font-weight:800}
 .stop.confirmed{border-left:3px solid #15803d}
+/* The hidden attribute only works through the UA stylesheet's display:none,
+   which any class setting display beats on specificity -- .mv.confirm{display:flex}
+   left a "confirm date" button visible on a popup that had explicitly hidden it.
+   Make hidden mean hidden. */
+[hidden]{display:none!important}
 .mv{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;
   padding:3px 8px;cursor:pointer;color:var(--brand);font-weight:600}
 .mv.confirm{color:#15803d;display:flex;align-items:center;gap:4px;justify-content:center}
@@ -533,6 +543,12 @@ dialog option:disabled{color:#b6b3ae}
 .name-label.noinstall-label{color:#7f1d1d;border-color:#7f1d1d}
 .nidot{width:10px;height:10px;border-radius:50%;background:#7f1d1d;flex:none;
   box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+/* The "not installing" cards are ordinary .stop cards with no stop number and
+   no drive legs, so they need the number column's space back and a marker for
+   why they are here. */
+.nistop{cursor:pointer}
+.nistop .body{padding-left:2px}
+.badge.niout{background:#fdeaea;color:#8a1c1c}
 .nirow .nileft{flex-direction:row;align-items:center;gap:8px}
 .nirow .nitext{display:flex;flex-direction:column;gap:2px;min-width:0}
 .nirow .nomap{font-style:italic}
@@ -774,6 +790,11 @@ dialog option:disabled{color:#b6b3ae}
   text-transform:none;font-size:10px}
 .bubrow{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 8px}
 .bubrow.presets{margin-bottom:6px}
+/* Read-only per-person availability grid: one real Sunday-Saturday week
+ * per row, chips at their own compact size (same reasoning as .dstriprow
+ * on the date strip). */
+.bubweeks{display:flex;flex-direction:column;gap:5px;margin:4px 0 8px}
+.bubweekrow{display:flex;flex-wrap:wrap;gap:5px}
 .bub{padding:4px 11px;border:1.5px solid var(--line);border-radius:999px;background:#fff;
   cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut);
   font-family:'Montserrat',sans-serif}
@@ -2615,6 +2636,35 @@ function dowOf(iso){
   const d=days.find(x=>x.date===iso);
   return d?d.dow:'';
 }
+/** Buckets a list of ISO dates into real Sunday-Saturday weeks, sorted
+ * chronologically -- each entry is a 7-slot array (Sun..Sat), null where
+ * this set of dates had nothing that day. Keyed by the week's own Sunday
+ * rather than each date's weekday, so a Wednesday always lands in the
+ * same slot as every other week's Wednesday regardless of what else did
+ * or didn't make it into `dates`. Shared by the date strip and any other
+ * view that wants "one row per calendar week" instead of a wrapped list. */
+function bucketByWeek(dates){
+  const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const weeks=new Map();
+  dates.forEach(dt=>{
+    const d=dateOf(dt);
+    const sun=new Date(d); sun.setDate(d.getDate()-d.getDay());
+    const key=ymd(sun);
+    if(!weeks.has(key)) weeks.set(key, Array(7).fill(null));
+    weeks.get(key)[d.getDay()]=dt;
+  });
+  return [...weeks.keys()].sort().map(key=>weeks.get(key));
+}
+/** Combines each pair of adjacent weeks from bucketByWeek into one flat,
+ * null-free list of dates -- two calendar weeks per row instead of one,
+ * for views that want a shorter strip without giving up the "row = real
+ * calendar time" anchor entirely. An odd week out at the end rides alone. */
+function pairWeeks(weeks){
+  const out=[];
+  for(let i=0;i<weeks.length;i+=2)
+    out.push([...weeks[i], ...(weeks[i+1]||[])].filter(Boolean));
+  return out;
+}
 /** "Mon 11/23/26" -- weekday first, because staff think in weekdays. */
 function fmtDate(iso){
   const dw=dowOf(iso);
@@ -2936,9 +2986,23 @@ function putBackOnSchedule(row){
   persist(); render();
   openSlotFinder(row);
 }
+/** The date strip, laid out so a week reads as a row, not wherever the
+ * flex-wrap happened to break the line (user, 2026-09-02: staff navigate
+ * by "the 2nd week of November", which only means something if there's an
+ * actual row that IS that week):
+ *   1. All + everything before the Dallas run (usually a short lead-in,
+ *      not worth its own weekly breakdown).
+ *   2. All Dallas + the Dallas week's nights.
+ *   3. All Houston, alone, heading the Houston stretch.
+ *   4. One row per real Sunday-Saturday calendar week from there to the
+ *      end of the season.
+ *   5. Not installing this year, trailing on its own.
+ * A build with no Dallas nights configured collapses 1-3 into a single
+ * row of the three All-chips, same as before this existed.
+ */
 function renderStrip(){
   strip.innerHTML='';
-  const mk=(label,val,wknd,empty,tag)=>{
+  const mk=(container,label,val,wknd,empty,tag)=>{
     const b=document.createElement('button');
     b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
              +(tag?' tagged':'')+(newDates.has(val)?' added':'');
@@ -2971,28 +3035,60 @@ function renderStrip(){
       rm.textContent='×';
       rm.onclick=e=>{ e.stopPropagation(); removeAddedDate(val); };
       wrap.appendChild(rm);
-      strip.appendChild(wrap);
+      container.appendChild(wrap);
       return b;
     }
-    strip.appendChild(b);
+    container.appendChild(b);
     return b;
   };
-  mk('All','ALL',false);
-  mk('All Houston','ALL-HOU',false);
-  mk('All Dallas','ALL-DAL',false);
-  allDates().forEach(dt=>{
+  const newRow=cls=>{ const r=document.createElement('div');
+    r.className='dstriprow'+(cls?' '+cls:''); strip.appendChild(r); return r; };
+  const dateChip=(container,dt)=>{
     const ci=SPEC.calendar.find(x=>x.date===dt);
     const dow=dowOf(dt);
     const wknd=['Sat','Sun'].includes(dow);
     const empty=!days.some(x=>x.date===dt);
-    mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
+    return mk(container,`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
+  };
+
+  const sorted=[...allDates()].sort();
+  const isDallas=dt=>{ const ci=SPEC.calendar.find(x=>x.date===dt); return ci&&ci.kind==='dallas_night'; };
+  const dallasDates=sorted.filter(isDallas);
+
+  let rest=sorted;
+  if(dallasDates.length){
+    const first=dallasDates[0], last=dallasDates[dallasDates.length-1];
+    const r1=newRow();
+    mk(r1,'All','ALL',false);
+    sorted.filter(dt=>dt<first).forEach(dt=>dateChip(r1,dt));
+
+    const r2=newRow();
+    mk(r2,'All Dallas','ALL-DAL',false);
+    dallasDates.forEach(dt=>dateChip(r2,dt));
+
+    const r3=newRow();
+    mk(r3,'All Houston','ALL-HOU',false);
+
+    rest=sorted.filter(dt=>dt>last && !isDallas(dt));
+  } else {
+    const r1=newRow();
+    mk(r1,'All','ALL',false);
+    mk(r1,'All Houston','ALL-HOU',false);
+    mk(r1,'All Dallas','ALL-DAL',false);
+  }
+
+  pairWeeks(bucketByWeek(rest)).forEach(datesInRow=>{
+    const row=newRow();
+    datesInRow.forEach(dt=>dateChip(row,dt));
   });
+
   // Trailing bubble, deliberately AFTER every date (user, 2026-08-31):
   // everyone who isn't getting an install this year. Drag a stop onto it to
   // take them out of the season -- the place for a cancellation, instead of
   // parking them on a real date where they'd still print on a crew sheet.
+  const r4=newRow();
   const outCount = notInstallingPins().length;
-  const nb = mk(`Not installing this year${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
+  const nb = mk(r4, `Not installing this year${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
   if(nb) nb.classList.add('noinstall');
 }
 
@@ -3189,24 +3285,39 @@ function renderNotInstalling(){
     const p=document.createElement('p'); p.className='nothingyet';
     p.textContent='Nobody yet.'; side.appendChild(p);
   }
+  // Rendered as the same .stop card a crew day uses, not a reduced one-liner:
+  // these are the same clients, with the same hours, box counts, notes and
+  // history, and staff need all of it to decide whether to put one back. The
+  // only differences are the ones that follow from having no day -- no stop
+  // number, no drive legs, and no "confirm date", since there is no date to
+  // confirm. "find date" and "move" stay live.
   staff.sort((a,b)=>C[a].name.localeCompare(C[b].name)).forEach(row=>{
     const c=C[row];
-    const el=document.createElement('div'); el.className='nirow';
+    const el=document.createElement('div');
+    el.className='stop nistop'; el.dataset.row=row;
     const noMap = c.lat==null || c.lon==null;
-    el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
-      + `<b>${esc(c.name)}</b>`
-      + `<span class="nisub${noMap?' nomap':''}">`
-      + (noMap ? 'no address — not on the map'
-               : esc(c.zone||'') + (c.h26?` · est ${(+c.h26).toFixed(2).replace(/\.?0+$/,'')}h`:''))
-      + `</span></div></div>`;
+    const approx = !noMap && !['street','manual','census'].includes(c.geo);
+    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+        <span class="badge niout">not installing</span>
+        ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
+        ${noMap?'<span class="badge approx">no address — not on the map</span>'
+               :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
+      <div class="sub">${esc(c.zone||'—')}</div>
+      <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
+      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+      ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+      <div class="stopbtns">
+        <button class="mv find">find date</button>
+        <button class="mv">move ▾</button>
+      </div>`;
     el.draggable=true;
     el.ondragstart=e=>{ e.dataTransfer.setData('row',row); };
     el.title='Drag onto any date to put this client back on the schedule';
-    const back=document.createElement('button');
-    back.className='printbtn'; back.textContent='Put back';
-    back.title='Removes them from this list and opens find-a-date';
-    back.onclick=()=>putBackOnSchedule(row);
-    el.appendChild(back);
+    // Same as a scheduled stop: the card opens the client popup, the buttons
+    // stop the click so they don't pop the dialog underneath themselves.
+    el.onclick=()=>openStopPeek(row, null);
+    el.querySelector('.find').onclick=e=>{ e.stopPropagation(); putBackOnSchedule(row); };
+    el.querySelector('.mv:not(.find)').onclick=e=>{ e.stopPropagation(); openMoveDlg(row, null); };
     side.appendChild(el);
   });
 
@@ -4735,25 +4846,39 @@ function wireContactBlock(row){
     }
   };
 }
+// Why a client is off the schedule, for the popup's header line.
+function notInstallReason(row){
+  return notInstalling.has(row) ? 'taken out by staff' : 'from the spreadsheet';
+}
+
+// dayId === null means the client is on the roster but not on the schedule --
+// the "not installing this year" list. Everything that describes the CLIENT
+// still applies there (contact details, hours, box count, history, comments);
+// only the parts that describe a DAY -- arrival time, crew, approve, print,
+// confirm -- have nothing to point at. So the popup is the same popup, with
+// those controls dropped, rather than a second thinner one that would drift.
 function openStopPeek(row,dayId){
-  const c=C[row], d=days.find(x=>x.id===dayId);
-  if(!c||!d) return;            // stale id after an edit -- fail quiet, not throw
+  const c=C[row];
+  const d = dayId==null ? null : days.find(x=>x.id===dayId);
+  if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row;
   pkEditingContact=false;
-  const t=(stopTimes(d).find(x=>x.row===row))||{};
+  const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   document.getElementById('peekbody').innerHTML=`
     <h3>${esc(c.name)}</h3>
-    <p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
-       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>
+    ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
+       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
+        : `<p class="pkwhen">Not installing this year · ${esc(notInstallReason(row))}</p>`}
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes</p>
-    <p class="pkrow">⏱ ${(effH(d,row)/(d.stacked||1)).toFixed(2)}h${
-      (d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}</p>
+    <p class="pkrow">⏱ ${d ? (effH(d,row)/(d.stacked||1)).toFixed(2)
+                              : (+(c.h26||0)).toFixed(2)}h${
+      d && (d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}</p>
     ${c.people?`<p class="pkrow">${c.people} people</p>`:''}
     ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
-    ${confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
+    ${d && confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
     ${profileSectionHTML(row)}
     <div class="pkcomments">
       <p class="pksec">Comments</p>
@@ -4825,25 +4950,46 @@ function openStopPeek(row,dayId){
       wireProfileLink(row);
     });
   }
-  document.getElementById('peekopen').onclick=()=>{
-    peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
-  document.getElementById('peekprint').onclick=()=>{
-    peekdlg.close(); printManifests([d],`${crewLabel(d)} — ${fmtMDYYYY(d.date)}`); };
+  const openBtn=document.getElementById('peekopen');
+  const prBtn=document.getElementById('peekprint');
   const mv=document.getElementById('peekmove');
-  mv.disabled = confirmed.has(row);
-  mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
   const cfBtn=document.getElementById('peekconfirm');
-  cfBtn.innerHTML = confirmed.has(row) ? `${IC.unlock} unlock` : `${IC.lock} confirm date`;
-  cfBtn.classList.toggle('on', confirmed.has(row));
-  cfBtn.onclick=()=>{ pushUndo();
-    confirmed.has(row)?confirmed.delete(row):confirmed.add(row);
-    persist(); peekdlg.close(); render(); };
   const apBtn=document.getElementById('peekappr');
-  apBtn.textContent = approved.has(d.id) ? '✓ Approved' : 'Approve day';
-  apBtn.classList.toggle('on', approved.has(d.id));
-  apBtn.onclick=()=>{ pushUndo();
-    approved.has(d.id)?approved.delete(d.id):approved.add(d.id);
-    persist(); peekdlg.close(); render(); };
+  // Approve, print and confirm all act on a day. Off the schedule there is no
+  // day to act on, so they are hidden rather than shown disabled -- a greyed
+  // "Approve day" invites a click that can never do anything.
+  [prBtn, cfBtn, apBtn].forEach(b=>{ b.hidden = !d; });
+  if(d){
+    openBtn.hidden=false;
+    openBtn.textContent='Open day';
+    openBtn.onclick=()=>{
+      peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
+    prBtn.onclick=()=>{
+      peekdlg.close(); printManifests([d],`${crewLabel(d)} — ${fmtMDYYYY(d.date)}`); };
+    mv.disabled = confirmed.has(row);
+    mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
+    cfBtn.innerHTML = confirmed.has(row) ? `${IC.unlock} unlock` : `${IC.lock} confirm date`;
+    cfBtn.classList.toggle('on', confirmed.has(row));
+    cfBtn.onclick=()=>{ pushUndo();
+      confirmed.has(row)?confirmed.delete(row):confirmed.add(row);
+      persist(); peekdlg.close(); render(); };
+    apBtn.textContent = approved.has(d.id) ? '✓ Approved' : 'Approve day';
+    apBtn.classList.toggle('on', approved.has(d.id));
+    apBtn.onclick=()=>{ pushUndo();
+      approved.has(d.id)?approved.delete(d.id):approved.add(d.id);
+      persist(); peekdlg.close(); render(); };
+  } else {
+    // Off the schedule the two useful actions are the same two the row itself
+    // offers: pick a date, or open the mover.
+    mv.disabled=false;
+    mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, null); };
+    openBtn.hidden=false;
+    openBtn.textContent='Find a date';
+    openBtn.onclick=()=>{
+      peekdlg.close();
+      if(notInstalling.has(row)) putBackOnSchedule(row); else openSlotFinder(row);
+    };
+  }
   peekdlg.showModal();
 }
 let viewMode='days';
@@ -5236,12 +5382,13 @@ function personDetailHTML(){
     <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
       · ${(p.times||[]).length===2?'day + night'
           :(p.times||[]).length?esc(p.times[0])+' only':'<b>no shift times set</b>'}</div>
-    <div class="bubrow">${workDates().map(dt=>{
+    <div class="bubweeks">${pairWeeks(bucketByWeek(workDates())).map(datesInRow=>
+      `<div class="bubweekrow">${datesInRow.map(dt=>{
         const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
         return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
               title="${fmtMDYYYY(dt)}${wk?' · weekend':''} — ${has?'available':'not marked available'}">
             <span class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
-      }).join('')}</div>
+      }).join('')}</div>`).join('')}</div>
     <div class="stfdstat">
       <div><b>${sh.length}</b>shift${sh.length===1?'':'s'}</div>
       <div><b>${dayCount}</b>days</div><div><b>${stops}</b>jobs</div>
