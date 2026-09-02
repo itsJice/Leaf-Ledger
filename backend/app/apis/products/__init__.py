@@ -1581,7 +1581,7 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                                  or blob_search or ident_search))
                  else "")
 
-    def _build(term_variants):
+    def _build(term_variants, extra_ex=None):
         """WHERE clauses + args for a given keyword expansion.
 
         `base` is everything that is not a facet dimension (it narrows the facet
@@ -1649,8 +1649,9 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                 # row jumped ahead of correctly-ranked ones, which is exactly
                 # the page swap the parity gate caught on the typo query.
                 scores.append(f"COALESCE(({alts[0]})::int, 0)")
-        if ex_ids:
-            base.append(f"p.id <> ALL({add(ex_ids)}::int[])")
+        ex = [*ex_ids, *(extra_ex or [])]
+        if ex:
+            base.append(f"p.id <> ALL({add(ex)}::int[])")
         if price_min is not None:
             base.append(f"p.current_price >= {add(price_min)}")
         if price_max is not None:
@@ -1687,8 +1688,9 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                  + (id_list is not None) + len(sel))
     fenced = narrowers >= 2
 
-    async def _page(term_variants):
-        conds, base_args, dim_where, args, scores = _build(term_variants)
+    async def _page(term_variants, *, lim_=None, off_=None, extra_ex=None):
+        l, o = (lim if lim_ is None else lim_), (off if off_ is None else off_)
+        conds, base_args, dim_where, args, scores = _build(term_variants, extra_ex)
         wsql = _where([*conds, *dim_where], scoped=bool(item_join))
         base_where = _where(conds, scoped=has_pf)
         # Exact spellings rank ahead of corrected ones. Only sorted by relevance
@@ -1710,11 +1712,11 @@ async def _search_products_db(conn, *, search, price_min, price_max,
         if fenced:
             order = (f"ORDER BY t._rank DESC, {name_key('t')}" if rank
                      else f"ORDER BY {name_key('t')}")
-            sql = f"SELECT * FROM ({select} OFFSET 0) t {order} LIMIT {lim} OFFSET {off}"
+            sql = f"SELECT * FROM ({select} OFFSET 0) t {order} LIMIT {l} OFFSET {o}"
         else:
             order = (f"ORDER BY {rank} DESC, {name_key('p')}" if rank
                      else f"ORDER BY {name_key('p')}")
-            sql = f"{select} {order} LIMIT {lim} OFFSET {off}"
+            sql = f"{select} {order} LIMIT {l} OFFSET {o}"
         rows = await conn.fetch(sql, *args)
         return rows, wsql, args, base_where, base_args
 
@@ -1736,22 +1738,47 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     # Typo tolerance, second attempt only. A correctly spelled query fills its
     # page and stops here, paying nothing at all for this; only a query that came
     # back nearly empty goes looking for near spellings, and even then only for
-    # terms that are words. A short page is proof the match set is small, so this
-    # decision costs no extra query.
+    # terms that are words.
+    #
+    # The result is the exact-spelling rows (fewer than _FUZZY_MIN_HITS of them,
+    # by construction) followed by the corrected query in name order, and the
+    # two are joined here rather than in SQL. The earlier shape -- one query
+    # OR'ing the typed word with four corrections, ORDER BY "typed spelling
+    # first" -- measured 6.4 s warm and 15 s cold for "ornamnet": five OR'd
+    # patterns made the planner give up the trigram index for a sequential scan
+    # of all 166k facet rows, and the rank sort then spilled every one of the
+    # 22k matches to disk before the first 48 could be returned. One pattern per
+    # term keeps the index and lets ORDER BY name stop at the page: 0.35 s warm,
+    # the same as a correctly spelled query.
+    #
+    # Paging counts the exact rows as the head of the list, so page two of a
+    # corrected search continues where page one left off. (It used to return
+    # nothing: the "is the exact set small?" test was made against the page
+    # offset, which is never small on page two.)
     searched_for = None
-    if terms and len(rows) < lim and off + len(rows) < _FUZZY_MIN_HITS:
-        term_variants, expanded = await _expand_terms(conn, terms)
-        if expanded:
-            rows, wsql, args, base_where, base_args = await _page(term_variants)
-            # Report what was actually matched. This pass quietly substitutes
-            # corrected spellings, so without saying so the caller cannot tell
-            # the user why they are looking at results for a word they did not
-            # type -- and /similar cannot know which query to exclude when it
-            # goes looking for the *next* ring of near matches.
-            # variants always lead with the term as typed, so v[0] would just
-            # echo the query back; the correction is the next one.
-            searched_for = " ".join((v[1] if len(v) > 1 else t)
-                                    for t, v in term_variants)
+    n_exact = 0
+    if terms and len(rows) < lim:
+        if off == 0:
+            exact = list(rows)                      # a short first page is the whole set
+        elif not rows:
+            exact = list((await _page(term_variants, lim_=_FUZZY_MIN_HITS, off_=0))[0])
+        else:
+            exact = None                            # a later page with rows: the set is big
+        if exact is not None and len(exact) < _FUZZY_MIN_HITS:
+            expanded_variants, expanded = await _expand_terms(conn, terms)
+            if expanded:
+                # variants always lead with the term as typed; the best
+                # correction is the next one. Only that one is searched.
+                corrected = [(t, [v[1]] if len(v) > 1 else [t]) for t, v in expanded_variants]
+                n_exact = len(exact)
+                head = exact[off:off + lim]
+                c_rows, wsql, args, base_where, base_args = await _page(
+                    corrected, lim_=lim - len(head), off_=max(0, off - n_exact),
+                    extra_ex=[r["id"] for r in exact] or None)
+                rows = head + list(c_rows)
+                # Report what was actually matched, so the caller can say so
+                # instead of showing results for a word the user did not type.
+                searched_for = " ".join(v[0] for _, v in corrected)
 
     facets, exact_total = None, None
     if build_facets:
@@ -1768,6 +1795,8 @@ async def _search_products_db(conn, *, search, price_min, price_max,
         total, total_is_capped = exact_total, False
     else:
         total, total_is_capped = await _count(wsql, args)
+    if n_exact:
+        total = (total or 0) + n_exact  # the exact rows lead the list; count them in
 
     items = []
     for r in rows:
