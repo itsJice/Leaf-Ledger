@@ -231,10 +231,12 @@ export default function CatalogSearch() {
         .then((r) => r.json())
         .then((data) => {
           if (g !== queryGen.current) return;
+          // Neither list should repeat a product already on screen: a style
+          // number the exact pass found is not a "did you mean".
           const seen = new Set(excludeIds);
           setSimilar({
             items: ((data?.items ?? []) as Product[]).filter((x) => !seen.has(x.id)),
-            identifier_suggestions: data?.identifier_suggestions ?? [],
+            identifier_suggestions: ((data?.identifier_suggestions ?? []) as IdentSuggestion[]).filter((x) => !seen.has(x.id)),
             searched_for: data?.searched_for ?? null,
           });
         })
