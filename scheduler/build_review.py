@@ -629,6 +629,22 @@ dialog option:disabled{color:#b6b3ae}
 .stftable tr:last-child td{border-bottom:0}
 .stftable tbody tr{cursor:pointer}
 .stftable tbody tr:hover{background:var(--brand-soft)}
+/* Each completeness group is its own collapsible block with its own column
+   headers, rather than one long table with heading rows inside it. The gap
+   between blocks is what makes the grouping read at a glance -- which is the
+   entire point of ordering by it. Inactive people get the same treatment,
+   collapsed by default. */
+.stfsec{margin-top:16px}
+.stfsec:first-of-type{margin-top:0}
+.stfsec>summary{cursor:pointer;font-size:10px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--mut);font-weight:600;padding:7px 2px;
+  list-style:none;user-select:none}
+.stfsec>summary::-webkit-details-marker{display:none}
+.stfsec>summary:before{content:"\25B8";display:inline-block;margin-right:6px;
+  transition:transform .12s}
+.stfsec[open]>summary:before{transform:rotate(90deg)}
+.stfsec>summary:hover{color:var(--ink)}
+.stfsecn{font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)}
 .stftable tbody tr.sel{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
 .stftable tr.inactive td{opacity:.5}
 .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;
@@ -1633,6 +1649,11 @@ window.addEventListener('message', e=>{
           wireProfileLink(peekRow);
         }
       }
+      // Same idea for the "not installing" panel: its "missing an
+      // address" / "from the spreadsheet" rows check clientDirectory for
+      // an address the Clients tab already has, which wasn't loaded yet
+      // if this is what the page opened to.
+      if(selDate==='NOINSTALL') render();
     });
   }
 });
@@ -1661,7 +1682,15 @@ window.parent.postMessage({type:'tbdg-ready'}, '*');
 // shows what it already has.
 let clientDirectory = null;      // Map<normalizedName, appClientRecord>
 let clientDirectoryPromise = null;
-function normName(s){ return String(s||'').trim().toLowerCase(); }
+// Strips commas/periods too, not just case+whitespace -- "Lastname,
+// Firstname" (this build's own convention, from the spreadsheet) and
+// "Lastname Firstname" (however a client got typed into the Clients tab)
+// need to match here for the same reason sync_clients.py's own name
+// lookup does the same normalization: without it, a real punctuation-only
+// difference makes appClientFor() miss a client who's actually right
+// there, and every AUTH-gated feature for them quietly acts like they've
+// never been synced.
+function normName(s){ return String(s||'').trim().toLowerCase().replace(/[,.]/g,'').replace(/\s+/g,' '); }
 function loadClientDirectory(){
   if(!AUTH || clientDirectoryPromise) return clientDirectoryPromise;
   clientDirectoryPromise = fetch('/api/clients/list', {headers:{Authorization:AUTH}})
@@ -3181,23 +3210,62 @@ function renderNotInstalling(){
     side.appendChild(el);
   });
 
+  // A "dropped" client with an address on file already has a full row in
+  // C -- the client roster (C) is every geocoded client from the sheet,
+  // full stop; schedule.py's own optimizer is what left them off `days`,
+  // not any filtering here. So there's real hours/geometry to schedule
+  // against already -- no need to re-create them via "add a client", just
+  // send that existing row straight to the slot finder. Only a client
+  // with genuinely no address (no_install AND no coords, or the "missing
+  // an address" list) has no row yet and needs the full create flow.
+  const putBackRow = (d, addr)=>{
+    const existing = Object.values(C).find(c=>normName(c.name)===normName(d.name));
+    if(existing){ openSlotFinder(existing.row); return; }
+    openPutBackDialog(d.name, addr);
+  };
+  // This build's own geocoding is frozen at whatever prep.py saw in the
+  // spreadsheet -- it has no idea an address got typed into the Clients
+  // tab since. clientDirectory (the app's live copy, loaded once AUTH is
+  // in) does, so a "missing an address" entry checks there before saying
+  // so: the app already speaking to itself beats making staff retype
+  // something that's sitting right there on the client's profile.
+  const liveAddrFor = name=>{
+    const ac = clientDirectory && clientDirectory.get(normName(name));
+    if(!ac || !ac.street) return null;
+    return [ac.street, [ac.city, ac.state].filter(Boolean).join(', '), ac.zip]
+      .filter(Boolean).join(', ');
+  };
   const dropped=DATA.dropped||[];
   const dh=document.createElement('div'); dh.className='ovdate';
   dh.textContent=`From the spreadsheet — ${dropped.length}`;
   side.appendChild(dh);
   const dn=document.createElement('p'); dn.className='nothingyet';
   dn.style.cssText='margin:0 0 8px';
-  dn.textContent='These say "No 2026 Install" in the source sheet. '
-               + 'Change it there, not here.';
+  dn.textContent='These say "No 2026 Install" in the source sheet -- fix it '
+               + 'there for next season. Need one on the schedule anyway? '
+               + '"Put back" below adds them like any other new client, '
+               + 'then suggests a date.';
   side.appendChild(dn);
   dropped.forEach(d=>{
-    const el=document.createElement('div'); el.className='nirow ro';
-    const noMap = d.lat==null || d.lon==null;
+    const el=document.createElement('div'); el.className='nirow';
+    const sheetAddr=[d.street,d.city,d.zip].filter(Boolean).join(', ');
+    const live=!sheetAddr && liveAddrFor(d.name);
+    const addr=sheetAddr||live||'';
+    const noMap = !addr;
     el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
                + `<b>${esc(d.name)}</b>`
                + `<span class="nisub${noMap?' nomap':''}">`
-               + esc(d.reason||'') + (noMap?' · no address — not on the map':'')
+               + esc(d.reason||'')
+               + (noMap ? ' · no address — not on the map'
+                        : live ? ' · address on file in the Clients tab' : '')
                + `</span></div></div>`;
+    const back=document.createElement('button');
+    back.className='printbtn'; back.textContent='Put back';
+    back.title=noMap
+      ? 'No address on file yet -- opens "add a client" so you can enter one'
+      : `Adds them as a client using ${live?"the Clients tab's":"the sheet's"} address, then suggests a date`;
+    back.onclick=()=>putBackRow(d, addr);
+    el.appendChild(back);
     side.appendChild(el);
   });
   const na=DATA.noaddr||[];
@@ -3206,14 +3274,23 @@ function renderNotInstalling(){
     nh.textContent=`Missing an address — ${na.length}`;
     side.appendChild(nh);
     na.forEach(d=>{
-      const el=document.createElement('div'); el.className='nirow ro';
-      const noMap = d.lat==null || d.lon==null;
+      const el=document.createElement('div'); el.className='nirow';
+      const live=liveAddrFor(d.name);
+      const noMap = d.lat==null && d.lon==null && !live;
       el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
                  + `<b>${esc(d.name)}</b>`
                  + `<span class="nisub${noMap?' nomap':''}">`
-                 + esc(d.reason||'needs address')
-                 + (noMap?' · nothing to pin until there is an address':'')
+                 + (live ? 'address on file in the Clients tab'
+                         : esc(d.reason||'needs address')
+                           + (noMap?' · nothing to pin until there is an address':''))
                  + `</span></div></div>`;
+      const back=document.createElement('button');
+      back.className='printbtn'; back.textContent='Put back';
+      back.title=live
+        ? "Adds them as a client using the Clients tab's address, then suggests a date"
+        : 'Opens "add a client" -- enter their address to place them';
+      back.onclick=()=>putBackRow(d, live||'');
+      el.appendChild(back);
       side.appendChild(el);
     });
   }
@@ -3458,6 +3535,10 @@ document.getElementById('mvgo').onclick=()=>{
 // its own date), and a callback add-on (bought more / broke something /
 // didn't finish). All three are just "a new addressable stop" underneath.
 const ncdlg=document.getElementById('ncdlg');
+// What to do with the row once "Add a client" finishes creating it. null
+// (the default, "+ New client" button) means the plain move dialog; the
+// put-back flow below points this at the slot finder instead.
+let ncAfterCreate=null;
 // ---------- add a date ----------
 // Only dates SPEC.calendar already carries as `optional` can be added: the
 // eligibility table was built over exactly those, so anything else would
@@ -3535,8 +3616,28 @@ document.getElementById('newclientbtn').onclick=()=>{
   document.getElementById('ncpeople').value='';
   document.getElementById('nctype').value='Standard';
   document.getElementById('ncerr').textContent='';
+  ncAfterCreate=null;
   ncdlg.showModal();
 };
+/** Put a spreadsheet-excluded client (dropped, or missing an address) back
+ * on the schedule. They never got a row in C -- no hours estimate, no
+ * geometry -- so this runs them through the exact same "new client" flow
+ * as any other ad-hoc addition, just pre-filled with whatever the sheet
+ * already had (name, and address/coords if it wasn't the reason they're
+ * on this list). Confirming opens the slot finder instead of the plain
+ * move dialog -- "AI suggest a date" IS this feature for a client with no
+ * existing day to reason about. */
+function openPutBackDialog(name, addr){
+  document.getElementById('ncname').value=name||'';
+  document.getElementById('ncaddr').value=addr||'';
+  document.getElementById('ncnotes').value='';
+  document.getElementById('nchours').value='1';
+  document.getElementById('ncpeople').value='';
+  document.getElementById('nctype').value='Standard';
+  document.getElementById('ncerr').textContent='';
+  ncAfterCreate=row=>openSlotFinder(row);
+  ncdlg.showModal();
+}
 async function geocodeAddress(q){
   const res = await fetch(`https://nominatim.openstreetmap.org/search`
     + `?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`);
@@ -3568,7 +3669,8 @@ document.getElementById('ncgo').onclick=async()=>{
       hours, visitType, notes, people});
     persist();
     ncdlg.close();
-    openMoveDlg(row, null);
+    (ncAfterCreate || (r=>openMoveDlg(r, null)))(row);
+    ncAfterCreate=null;
   }catch(e){
     err.textContent='Address lookup failed (network error) -- try again.';
   }finally{
@@ -4645,9 +4747,10 @@ function openStopPeek(row,dayId){
     <p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
        ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
-    <p class="pkrow">📦 ${c.boxes||'—'} boxes · ⏱ ${(effH(d,row)/(d.stacked||1)).toFixed(2)}h
-       this crew${(d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}
-       ${c.people?` · ${c.people} people`:''}</p>
+    <p class="pkrow">📦 ${c.boxes||'—'} boxes</p>
+    <p class="pkrow">⏱ ${(effH(d,row)/(d.stacked||1)).toFixed(2)}h${
+      (d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}</p>
+    ${c.people?`<p class="pkrow">${c.people} people</p>`:''}
     ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
     ${confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
@@ -4748,7 +4851,9 @@ let viewMode='days';
 // Shifts first: the question people open this on is "who is working what",
 // and with an empty roster that is a screen full of unstaffed shifts.
 let staffTab='shifts', selPerson=null;
-let stfFilter={title:'',lang:'',gender:'',active:'1'};
+// Inactive people have their own collapsed section now, so the default view
+// is both -- 'Active' as a default would have hidden that section entirely.
+let stfFilter={title:'',lang:'',gender:'',active:''};
 const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','General Installer':'gen'};
 const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','General Installer':'General'};
 const LANG_CLS={'English':'en','Spanish':'es','Both':'both'};
@@ -5032,13 +5137,52 @@ function personRow(p){
         ? ' <span class="pill gen">'+p.times[0]+'</span>':''}</td>
     <td>${sh||'—'}</td></tr>`;
 }
+// How usable a person's record is, which is what the default order sorts on.
+// Availability is what decides it: someone with no dates set cannot be put on a
+// crew-day at all, however complete the rest of their record looks, so they
+// belong below the people who can -- not scattered alphabetically among them.
+// Phone breaks the tie within a tier; it is what you need to actually reach
+// someone once they are schedulable.
+function rosterRank(p){
+  const dates = (p.dates||[]).length > 0;
+  const phone = String(p.phone||'').trim() !== '';
+  if(dates && phone) return 0;   // complete
+  if(dates)          return 1;   // schedulable, no number on file
+  if(phone)          return 2;   // contact details only, no availability yet
+  return 3;                      // name and not much else
+}
+const RANK_LBL = ['Ready to schedule', 'Ready to schedule \u2014 no phone number',
+                  'Needs availability', 'Needs availability and a phone number'];
+
+// A roster block: heading with a count, its own column headers, collapsible.
+function rosterSection(label, people, open){
+  if(!people.length) return '';
+  return `<details class="stfsec"${open?' open':''}>`
+    + `<summary>${esc(label)}<span class="stfsecn"> \u00b7 ${people.length}</span></summary>`
+    + `<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>`
+    + `<th>M/F</th><th>Free</th><th>Shifts</th></tr></thead><tbody>`
+    + people.map(personRow).join('')
+    + `</tbody></table></details>`;
+}
+
 function rosterHTML(){
   const f=stfFilter;
-  const list=roster.filter(p=>
+  const matches=p=>
     (!f.title||p.title===f.title) && (!f.lang||p.lang===f.lang)
-    && (!f.gender||p.gender===f.gender)
-    && (f.active===''||String(p.active?1:0)===f.active))
-    .sort((a,b)=>TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name));
+    && (!f.gender||p.gender===f.gender);
+  // Ordered by how complete the record is, then by title, then by name. The
+  // old order was title-then-name alone, which buried the people who still
+  // need availability among the ones already working.
+  const byRank=(a,b)=>rosterRank(a)-rosterRank(b)
+    || TITLES.indexOf(a.title)-TITLES.indexOf(b.title)
+    || a.name.localeCompare(b.name);
+  const wanted=p=>f.active===''||String(p.active?1:0)===f.active;
+  const list=roster.filter(p=>matches(p)&&wanted(p)&&p.active!==false).sort(byRank);
+  // Inactive people are kept out of the main table entirely and shown in their
+  // own collapsed section: they are still on the roster for next season, but
+  // they are not staffing decisions this one.
+  const off=(f.active===''||f.active==='0')
+    ? roster.filter(p=>matches(p)&&p.active===false).sort(byRank) : [];
   const sel=(id,val,opts,lbl)=>`<select data-f="${id}">`
     + `<option value="">${lbl}</option>`
     + opts.map(o=>`<option value="${esc(o[0])}"${val===o[0]?' selected':''}>${esc(o[1])}</option>`).join('')
@@ -5054,12 +5198,19 @@ function rosterHTML(){
     h+=`<div class="stfnone">No installers yet. <b>+ Add installer</b> to start building the roster —
         then staff each crew-day from its card or from Coverage.</div>`;
   } else if(!list.length){
-    h+=`<div class="stfnone">No installers match those filters.</div>`;
+    if(!off.length) h+=`<div class="stfnone">No installers match those filters.</div>`;
   } else {
-    h+=`<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>
-        <th>M/F</th><th>Free</th><th>Shifts</th></tr></thead><tbody>`
-      + list.map(personRow).join('')+`</tbody></table>`;
+    // One block per completeness tier, each with its own column headers, so the
+    // groups are visually separate rather than divided by a row inside a single
+    // table. Empty tiers render nothing at all -- a roster where everyone is
+    // ready should read as one list, not a stack of labelled empties.
+    RANK_LBL.forEach((lbl, r) => {
+      h += rosterSection(lbl, list.filter(pp => rosterRank(pp) === r), true);
+    });
   }
+  // Still on the roster, just not this season -- collapsed, since they are not
+  // a staffing decision right now.
+  h += rosterSection('Not working this year', off, false);
   h+=`</div><div>${personDetailHTML()}</div></div>`;
   return h;
 }
