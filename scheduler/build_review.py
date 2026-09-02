@@ -287,12 +287,7 @@ header h1{display:flex;align-items:center;gap:8px;font-family:Georgia,serif;font
   font-size:20px;margin:0;white-space:nowrap;color:var(--ink)}
 header h1 svg{color:var(--brand)}
 #headtitle p{margin:2px 0 0;font-size:12px;color:var(--mut)}
-#datestrip{display:flex;flex-direction:column;gap:6px;flex:1 1 100%;margin-top:12px}
-/* One real Sunday-Saturday calendar week per row (so "the 2nd week of
-   November" is a row you can point at), packed left at each chip's own
-   natural pill width -- not stretched into equal-width calendar cells,
-   which reads bulkier than this tool's normal compact chip style. */
-.dstriprow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#datestrip{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 100%;margin-top:12px}
 .dchip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;
   font-family:'Montserrat',sans-serif;background:#fff;color:#57534e;font-weight:600;
   letter-spacing:.01em;transition:all .15s}
@@ -391,6 +386,7 @@ header h1 svg{color:var(--brand)}
    left a "confirm date" button visible on a popup that had explicitly hidden it.
    Make hidden mean hidden. */
 [hidden]{display:none!important}
+.pkhstale{display:block;font-size:10.5px;color:var(--mut);font-style:italic;margin-top:2px}
 .mv{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;
   padding:3px 8px;cursor:pointer;color:var(--brand);font-weight:600}
 .mv.confirm{color:#15803d;display:flex;align-items:center;gap:4px;justify-content:center}
@@ -790,11 +786,6 @@ dialog option:disabled{color:#b6b3ae}
   text-transform:none;font-size:10px}
 .bubrow{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 8px}
 .bubrow.presets{margin-bottom:6px}
-/* Read-only per-person availability grid: one real Sunday-Saturday week
- * per row, chips at their own compact size (same reasoning as .dstriprow
- * on the date strip). */
-.bubweeks{display:flex;flex-direction:column;gap:5px;margin:4px 0 8px}
-.bubweekrow{display:flex;flex-wrap:wrap;gap:5px}
 .bub{padding:4px 11px;border:1.5px solid var(--line);border-radius:999px;background:#fff;
   cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut);
   font-family:'Montserrat',sans-serif}
@@ -2616,12 +2607,30 @@ L.marker([DATA.depot.lat,DATA.depot.lon],{icon:depotIcon,zIndexOffset:1000}).add
   .bindPopup('<b>DEPOT</b><br>2860 Antoine Dr, Houston 77092');
 let layerGroup = L.layerGroup().addTo(map);
 
-function isOverview(sel){ return ['ALL','ALL-HOU','ALL-DAL','NOINSTALL'].includes(sel); }
+const MONTH_OVERVIEWS={'ALL-OCT':'10','ALL-NOV':'11','ALL-DEC':'12','ALL-JAN':'01'};
+// Install vs takedown isn't a field on any client -- it's purely the
+// calendar (user, 2026-09-02): Oct 1 through Christmas is install season,
+// anything after is takedown. A plain date-string cutoff, so it needs no
+// new data and works the moment takedown dates exist on the calendar.
+const TAKEDOWN_CUTOFF='2026-12-25';
+const OVERVIEW_TITLE={
+  'ALL':'Overview', 'ALL-HOU':'Houston — all days', 'ALL-DAL':'Dallas — all nights (Mi Cocina)',
+  'ALL-OCT':'October — all days', 'ALL-NOV':'November — all days',
+  'ALL-DEC':'December — all days', 'ALL-JAN':'January — all days',
+  'ALL-INSTALL':'Install — all days', 'ALL-TAKEDOWN':'Takedown — all days',
+};
+function isOverview(sel){
+  return ['ALL','ALL-HOU','ALL-DAL','ALL-INSTALL','ALL-TAKEDOWN','NOINSTALL'].includes(sel)
+    || sel in MONTH_OVERVIEWS;
+}
 function daysFor(sel){
   if(sel==='NOINSTALL') return [];
   if(sel==='ALL') return days;
   if(sel==='ALL-HOU') return days.filter(d=>d.cat!=='M Crowd');
   if(sel==='ALL-DAL') return days.filter(d=>d.cat==='M Crowd');
+  if(sel==='ALL-INSTALL') return days.filter(d=>d.date<=TAKEDOWN_CUTOFF);
+  if(sel==='ALL-TAKEDOWN') return days.filter(d=>d.date>TAKEDOWN_CUTOFF);
+  if(sel in MONTH_OVERVIEWS) return days.filter(d=>d.date.slice(5,7)===MONTH_OVERVIEWS[sel]);
   return days.filter(d=>d.date===sel);
 }
 // US format throughout -- this is a Houston crew reading it. Anything
@@ -2635,35 +2644,6 @@ function dowOf(iso){
   if(ci) return ci.dow;
   const d=days.find(x=>x.date===iso);
   return d?d.dow:'';
-}
-/** Buckets a list of ISO dates into real Sunday-Saturday weeks, sorted
- * chronologically -- each entry is a 7-slot array (Sun..Sat), null where
- * this set of dates had nothing that day. Keyed by the week's own Sunday
- * rather than each date's weekday, so a Wednesday always lands in the
- * same slot as every other week's Wednesday regardless of what else did
- * or didn't make it into `dates`. Shared by the date strip and any other
- * view that wants "one row per calendar week" instead of a wrapped list. */
-function bucketByWeek(dates){
-  const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const weeks=new Map();
-  dates.forEach(dt=>{
-    const d=dateOf(dt);
-    const sun=new Date(d); sun.setDate(d.getDate()-d.getDay());
-    const key=ymd(sun);
-    if(!weeks.has(key)) weeks.set(key, Array(7).fill(null));
-    weeks.get(key)[d.getDay()]=dt;
-  });
-  return [...weeks.keys()].sort().map(key=>weeks.get(key));
-}
-/** Combines each pair of adjacent weeks from bucketByWeek into one flat,
- * null-free list of dates -- two calendar weeks per row instead of one,
- * for views that want a shorter strip without giving up the "row = real
- * calendar time" anchor entirely. An odd week out at the end rides alone. */
-function pairWeeks(weeks){
-  const out=[];
-  for(let i=0;i<weeks.length;i+=2)
-    out.push([...weeks[i], ...(weeks[i+1]||[])].filter(Boolean));
-  return out;
 }
 /** "Mon 11/23/26" -- weekday first, because staff think in weekdays. */
 function fmtDate(iso){
@@ -2986,23 +2966,13 @@ function putBackOnSchedule(row){
   persist(); render();
   openSlotFinder(row);
 }
-/** The date strip, laid out so a week reads as a row, not wherever the
- * flex-wrap happened to break the line (user, 2026-09-02: staff navigate
- * by "the 2nd week of November", which only means something if there's an
- * actual row that IS that week):
- *   1. All + everything before the Dallas run (usually a short lead-in,
- *      not worth its own weekly breakdown).
- *   2. All Dallas + the Dallas week's nights.
- *   3. All Houston, alone, heading the Houston stretch.
- *   4. One row per real Sunday-Saturday calendar week from there to the
- *      end of the season.
- *   5. Not installing this year, trailing on its own.
- * A build with no Dallas nights configured collapses 1-3 into a single
- * row of the three All-chips, same as before this existed.
- */
+/** The date strip: All, All Dallas, All Houston, then every Dallas date,
+ * then every Houston date -- one flowing wrapped row, chip width sized to
+ * its own label (user, 2026-09-02: back to this after a detour through
+ * grouping it into calendar-week rows). */
 function renderStrip(){
   strip.innerHTML='';
-  const mk=(container,label,val,wknd,empty,tag)=>{
+  const mk=(label,val,wknd,empty,tag)=>{
     const b=document.createElement('button');
     b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
              +(tag?' tagged':'')+(newDates.has(val)?' added':'');
@@ -3035,60 +3005,47 @@ function renderStrip(){
       rm.textContent='×';
       rm.onclick=e=>{ e.stopPropagation(); removeAddedDate(val); };
       wrap.appendChild(rm);
-      container.appendChild(wrap);
+      strip.appendChild(wrap);
       return b;
     }
-    container.appendChild(b);
+    strip.appendChild(b);
     return b;
   };
-  const newRow=cls=>{ const r=document.createElement('div');
-    r.className='dstriprow'+(cls?' '+cls:''); strip.appendChild(r); return r; };
-  const dateChip=(container,dt)=>{
+  const dateChip=dt=>{
     const ci=SPEC.calendar.find(x=>x.date===dt);
     const dow=dowOf(dt);
     const wknd=['Sat','Sun'].includes(dow);
     const empty=!days.some(x=>x.date===dt);
-    return mk(container,`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
+    return mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
   };
 
-  const sorted=[...allDates()].sort();
-  const isDallas=dt=>{ const ci=SPEC.calendar.find(x=>x.date===dt); return ci&&ci.kind==='dallas_night'; };
-  const dallasDates=sorted.filter(isDallas);
+  mk('All','ALL',false);
+  mk('All Dallas','ALL-DAL',false);
+  mk('All Houston','ALL-HOU',false);
+  mk('All October','ALL-OCT',false);
+  mk('All November','ALL-NOV',false);
+  mk('All December','ALL-DEC',false);
+  mk('All January','ALL-JAN',false);
+  mk('All Install','ALL-INSTALL',false);
+  mk('All Takedown','ALL-TAKEDOWN',false);
+  // A flex-basis:100% item forces the wrap here even when the header
+  // chips above don't fill the line -- the actual dates always start on
+  // their own row (user, 2026-09-02), not wherever they happened to fit.
+  const brk=document.createElement('div'); brk.style.flexBasis='100%'; strip.appendChild(brk);
 
-  let rest=sorted;
-  if(dallasDates.length){
-    const first=dallasDates[0], last=dallasDates[dallasDates.length-1];
-    const r1=newRow();
-    mk(r1,'All','ALL',false);
-    sorted.filter(dt=>dt<first).forEach(dt=>dateChip(r1,dt));
-
-    const r2=newRow();
-    mk(r2,'All Dallas','ALL-DAL',false);
-    dallasDates.forEach(dt=>dateChip(r2,dt));
-
-    const r3=newRow();
-    mk(r3,'All Houston','ALL-HOU',false);
-
-    rest=sorted.filter(dt=>dt>last && !isDallas(dt));
-  } else {
-    const r1=newRow();
-    mk(r1,'All','ALL',false);
-    mk(r1,'All Houston','ALL-HOU',false);
-    mk(r1,'All Dallas','ALL-DAL',false);
-  }
-
-  pairWeeks(bucketByWeek(rest)).forEach(datesInRow=>{
-    const row=newRow();
-    datesInRow.forEach(dt=>dateChip(row,dt));
-  });
+  // One plain chronological pass -- the Dallas nights (Nov 2-6) are already
+  // five consecutive calendar days, so this reads as "Dallas week, then
+  // Houston" on its own without splitting the list; splitting it instead
+  // pulled the Dallas block ahead of any earlier date (like an added
+  // October date), landing it out of order.
+  [...allDates()].sort().forEach(dateChip);
 
   // Trailing bubble, deliberately AFTER every date (user, 2026-08-31):
   // everyone who isn't getting an install this year. Drag a stop onto it to
   // take them out of the season -- the place for a cancellation, instead of
   // parking them on a real date where they'd still print on a crew sheet.
-  const r4=newRow();
   const outCount = notInstallingPins().length;
-  const nb = mk(r4, `Not installing this year${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
+  const nb = mk(`Not installing this year${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
   if(nb) nb.classList.add('noinstall');
 }
 
@@ -3414,7 +3371,7 @@ function renderCards(){
     // date (client request: same crew/stop detail as a single day, just
     // stacked for the whole Houston or Dallas run).
     const pool=daysFor(selDate);
-    const title=selDate==='ALL'?'Overview':(selDate==='ALL-HOU'?'Houston — all days':'Dallas — all nights (Mi Cocina)');
+    const title=OVERVIEW_TITLE[selDate]||'Overview';
     const hdr=document.createElement('h3'); hdr.className='ovtitle'; hdr.textContent=title;
     side.appendChild(hdr);
     const dates=[...new Set(pool.map(d=>d.date))].sort();
@@ -4602,13 +4559,30 @@ function profileSectionHTML(row){
   if(!ac) return `<p class="pkrow pkloading">Not yet synced to the Clients tab.</p>`;
   const activity=(ac.activity||[]).filter(a=>a.kind!=='comment').slice()
     .sort((a,b)=> (b.season||'').localeCompare(a.season||''));
+  // The current season's row comes from client_activity, which sync_clients.py
+  // wrote when the schedule was built. Taking someone out of the season happens
+  // here, in this tool's own state, and nothing pushes that back -- so a client
+  // sitting in "not installing this year" still had a history row reading
+  // "Scheduled 2026-11-25", directly contradicting the header two inches above
+  // it. Show the live decision, and keep what the synced record still says
+  // rather than hiding it: the Clients tab is showing that same stale line, and
+  // whoever is looking at this needs to know that.
+  const seasonYear = String((SEASON[0]||'')).slice(0,4);
+  const offSchedule = notInstalling.has(row)
+    || !days.some(dd=>(dd.stops||[]).includes(row));
   const history = activity.length ? `
     <div class="pkhist">
       <p class="pksec">Install history</p>
-      ${activity.map(en=>`<div class="pkhrow">
+      ${activity.map(en=>{
+        const stale = offSchedule && String(en.season)===seasonYear
+                      && /^Scheduled/.test(en.summary||'');
+        return `<div class="pkhrow">
           <span class="pkhyear">${peekEsc(en.season)}</span>
-          <span class="pkhtext">${peekEsc(en.summary)}</span>
-        </div>`).join('')}
+          <span class="pkhtext">${stale
+            ? `Not installing this year`
+              + `<span class="pkhstale">client record still says “${peekEsc(en.summary)}”</span>`
+            : peekEsc(en.summary)}</span>
+        </div>`;}).join('')}
     </div>` : '';
   const projectLine = ac.project_count > 0
     ? `<p class="pkrow">🌿 ${ac.project_count} design project${ac.project_count===1?'':'s'}`
@@ -5382,13 +5356,12 @@ function personDetailHTML(){
     <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
       · ${(p.times||[]).length===2?'day + night'
           :(p.times||[]).length?esc(p.times[0])+' only':'<b>no shift times set</b>'}</div>
-    <div class="bubweeks">${pairWeeks(bucketByWeek(workDates())).map(datesInRow=>
-      `<div class="bubweekrow">${datesInRow.map(dt=>{
+    <div class="bubrow">${workDates().map(dt=>{
         const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
         return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
               title="${fmtMDYYYY(dt)}${wk?' · weekend':''} — ${has?'available':'not marked available'}">
             <span class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
-      }).join('')}</div>`).join('')}</div>
+      }).join('')}</div>
     <div class="stfdstat">
       <div><b>${sh.length}</b>shift${sh.length===1?'':'s'}</div>
       <div><b>${dayCount}</b>days</div><div><b>${stops}</b>jobs</div>
