@@ -1580,6 +1580,16 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                  if (has_pf and (set(sel) & set(exprs.get("pf_dims", _PF_DIMS))
                                  or blob_search or ident_search))
                  else "")
+    # When product_facets is in play it is the *driving* table: the candidate
+    # set is found, filtered and sorted there, and products is joined only for
+    # the page that comes out (see _page). Everything in the WHERE therefore
+    # names pf columns, so the inner query never touches products at all.
+    # The one exception is a price bound, which only products carries.
+    pf_first = bool(item_join)
+    id_col = "pf.product_id" if pf_first else "p.id"
+    if pf_first:
+        item_ref["sid"] = "pf.supplier_id"
+    needs_products = (not pf_first) or price_min is not None or price_max is not None
 
     def _build(term_variants, extra_ex=None):
         """WHERE clauses + args for a given keyword expansion.
@@ -1651,13 +1661,13 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                 scores.append(f"COALESCE(({alts[0]})::int, 0)")
         ex = [*ex_ids, *(extra_ex or [])]
         if ex:
-            base.append(f"p.id <> ALL({add(ex)}::int[])")
+            base.append(f"{id_col} <> ALL({add(ex)}::int[])")
         if price_min is not None:
             base.append(f"p.current_price >= {add(price_min)}")
         if price_max is not None:
             base.append(f"p.current_price <= {add(price_max)}")
         if id_list is not None:
-            base.append(f"p.id = ANY({add(id_list)}::int[])")
+            base.append(f"{id_col} = ANY({add(id_list)}::int[])")
 
         base_args = list(args)
         dim_where = [_dim_predicate(d, item_ref, add(v)) for d, v in sel.items()]
@@ -1704,6 +1714,31 @@ async def _search_products_db(conn, *, search, price_min, price_max,
         # the moment the backend flips paths — duplicates and skipped rows — so
         # SQL has to reproduce the codepoint order exactly, NULL names included.
         name_key = lambda t: f"""lower(coalesce({t}.name, '')) COLLATE "C" """
+        if pf_first:
+            # Find, filter and sort in product_facets alone -- its rows are a
+            # tenth the width of products' -- and fetch the wide product rows
+            # for the page only. Sorting 22k "ornament" matches by name used
+            # to mean 22k random reads into the 355 MB products heap just to
+            # learn each name; pg_stat_statements put that at 631 MB read per
+            # call and a 42 s mean on this database, whose cache is 224 MB.
+            # pf.name is trigger-maintained from products.name (0 mismatches
+            # across 166k rows when this was written), so the order is the
+            # same. The id tie-break makes paging deterministic among equal
+            # names, which the previous shape left to the plan.
+            frm = ("product_facets pf JOIN products p ON p.id = pf.product_id"
+                   if needs_products else "product_facets pf")
+            order = (f"{rank} DESC, {name_key('pf')}, pf.product_id" if rank
+                     else f"{name_key('pf')}, pf.product_id")
+            inner = (f"SELECT pf.product_id AS id{(', ' + rank + ' AS _rank') if rank else ''} "
+                     f"FROM {frm} WHERE {wsql} ORDER BY {order} LIMIT {l} OFFSET {o}")
+            sql = f"""SELECT p.id, p.name, s.name AS supplier_name, p.supplier_sku,
+                       p.current_price, p.image_urls, p.photo_url, p.raw_data
+                  FROM ({inner}) t
+                  JOIN products p ON p.id = t.id
+                  LEFT JOIN suppliers s ON s.id = p.supplier_id
+                  ORDER BY {'t._rank DESC, ' if rank else ''}{name_key('p')}, p.id"""
+            rows = await conn.fetch(sql, *args)
+            return rows, wsql, args, base_where, base_args
         select = f"""SELECT p.id, p.name, s.name AS supplier_name, p.supplier_sku,
                    p.current_price, p.image_urls, p.photo_url, p.raw_data
                    {(', ' + rank + ' AS _rank') if rank else ''}
@@ -1725,9 +1760,12 @@ async def _search_products_db(conn, *, search, price_min, price_max,
         # planner to materialise every matching row just to number them - 13s+
         # once the catalog passed 166k rows. Counted separately with a cap, so an
         # unfiltered browse never pays for a full scan.
+        count_from = (("product_facets pf JOIN products p ON p.id = pf.product_id"
+                       if needs_products else "product_facets pf")
+                      if pf_first else f"products p {item_join}")
         capped = int(await conn.fetchval(f"""
             SELECT COUNT(*) FROM (
-                SELECT 1 FROM products p {item_join} WHERE {wsql} LIMIT {_DB_COUNT_CAP + 1}
+                SELECT 1 FROM {count_from} WHERE {wsql} LIMIT {_DB_COUNT_CAP + 1}
             ) x
         """, *args) or 0)
         return (_DB_COUNT_CAP, True) if capped > _DB_COUNT_CAP else (capped, False)
