@@ -104,6 +104,41 @@ DOW = {  # for labels, and the full set of dates the review tool can show.
     "2026-12-24": "Thu",
 }
 
+# Dates staff can ADD from the review tool ("+ New date"), on top of the
+# working calendar above (user, 2026-08-31: "I like all the dates that are
+# there, but I wanna be able to add a new date, and then it populates as a
+# bubble"). Every date Oct 1, 2026 - Jan 31, 2027 that DOW doesn't already
+# carry. The Jan 2027 tail (user, 2026-09-02) is takedown season -- nothing
+# in DOW reaches past Dec 24, so all of January comes through here the same
+# way the Oct-Dec "extra" dates always have.
+#
+# Precomputed here, not invented in the browser, for one reason: a date's
+# legality per client comes out of rules.static_blockers() via the
+# eligibility table build_review.py bakes in. A date that table has never
+# seen returns NO_DATE for everyone -- a browser-invented date would show
+# up as a bubble nothing could be dropped onto. Widening the table here
+# keeps one source of truth for the rules.
+#
+# calendar() classifies anything outside the named pools (DALLAS_DAYS,
+# STD_WEEKDAYS, BANK_FRIDAY, ROTARY_SUNDAY, SATURDAYS...) as kind
+# "weekday" -- workable, but never auto-filled by the optimizer. That is
+# exactly what an added date should be, so these need no special-casing
+# beyond staying out of those pools. calendar() flags them `optional` so
+# the review tool hides them until staff add one.
+def _extra_dow():
+    out, d = {}, datetime.date(2026, 10, 1)
+    end = datetime.date(2027, 1, 31)
+    names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    while d <= end:
+        iso = d.isoformat()
+        if iso not in DOW:
+            out[iso] = names[d.weekday()]
+        d += datetime.timedelta(days=1)
+    return out
+
+
+EXTRA_DOW = _extra_dow()
+
 
 import client_config_loader
 CLIENT_CONFIG = client_config_loader.load()

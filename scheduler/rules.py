@@ -48,12 +48,20 @@ CODES = {
     # an option in the review tool's date pickers, only warns before commit.
     # What stays a hard block is scoped to physical/data-integrity breaks
     # the tool can't meaningfully ask "are you sure?" about (a stop that
-    # needs 2 crews, a same-day group split apart, crew coverage on a
-    # club job) -- those are still blockers, defined further down.
+    # needs 2 crews, a same-day group split apart) -- those are still
+    # blockers, defined further down. Club crew coverage USED to be one of
+    # them; see CLUB_CREW below for why it is now an advisory.
     "MC_DATE":    ("R1",  "Dallas restaurant -- normally only the Nov 2-6 nights", True),
     "MC_ONLY":    ("R1",  "Nov 2-6 is normally Dallas-only", True),
     "NOT_MC":     ("R1",  "Dallas night -- normally Mi Cocina restaurants only", True),
-    "CLUB_CREW":  ("R2",  "Country club jobs need Crew 1", False),
+    # Was a hard blocker while "Crew 1" named a specific lead's team. It no
+    # longer names anything: crew numbers are POSITIONAL PER DAY (user,
+    # 2026-08-31 -- "there's no significance of who is on crew one or crew
+    # two for the whole season"), so "needs Crew 1" had no referent left and
+    # was blocking legitimate placements. Kept as an ADVISORY: clubs have
+    # historically gone out with the day's first crew, which is worth
+    # surfacing, but it is staff's call now.
+    "CLUB_CREW":  ("R2",  "Country clubs have historically gone out with the day's first crew", True),
     "BANK_DATE":  ("R3",  "Capital Banks are normally all pinned to Fri Nov 27", True),
     "BANK_ONLY":  ("R3",  "Fri Nov 27 is normally the Capital Bank run", True),
     "ROTARY":     ("R4",  "Rotary House is normally the Sunday exception", True),
@@ -96,8 +104,14 @@ def calendar():
     those could not be accommodated because the UI had no way to express it.
     """
     out = []
-    for date in sorted(S.DOW):
-        dow = S.DOW[date]
+    # S.EXTRA_DOW carries the Oct 1 - Dec 24 dates that aren't on the
+    # working calendar. They ride through the same classification below and
+    # come out `optional` -- present in the eligibility table (so a stop can
+    # legally be dropped on one) but hidden in the review tool until staff
+    # add it with "+ New date".
+    all_dow = {**S.DOW, **S.EXTRA_DOW}
+    for date in sorted(all_dow):
+        dow = all_dow[date]
         if date in S.DALLAS_DAYS:
             kind = "dallas_night"
         elif date == S.BANK_FRIDAY:
@@ -122,9 +136,12 @@ def calendar():
             # window schedule.py filled first). Staff can still place a
             # client here; see the override-capability note below.
             kind = "weekday"
-        out.append({"date": date, "dow": dow, "kind": kind,
-                    "label": S.DATE_LABELS.get(date, ""),
-                    "crews": list(S.CREWS)})
+        entry = {"date": date, "dow": dow, "kind": kind,
+                 "label": S.DATE_LABELS.get(date, ""),
+                 "crews": list(S.CREWS)}
+        if date in S.EXTRA_DOW:
+            entry["optional"] = True
+        out.append(entry)
     return out
 
 
@@ -148,7 +165,7 @@ def static_blockers(c, date, crew, dow=None, kind=None):
     dynamic check on the target day's contents still applies).
     """
     if dow is None:
-        dow = S.DOW.get(date, "?")
+        dow = S.DOW.get(date) or S.EXTRA_DOW.get(date, "?")
     if kind is None:
         kind = next((d["kind"] for d in calendar() if d["date"] == date), "unused")
 
