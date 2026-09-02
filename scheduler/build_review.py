@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-TBDG 2026 — interactive team-review page (review.html).
+TBDG — interactive team-review page (review.html) for one Christmas season.
+
+The season is derived (see SEASON below), never hard-coded: every year-shaped
+string in the generated page comes from it.
 
 Single self-contained HTML file (Leaflet from CDN, OSM tiles) with:
   - date strip -> day-by-day navigation, crew-by-crew cards
   - exact, name-labeled pins colored by crew; routes drawn depot->stops->depot
-  - per-card: people needed, 2025 real hours, storage/boxes, route legs, 10h bar
+  - per-card: people needed, last season's real hours, storage/boxes, legs, 10h bar
   - approve toggle per crew-day
   - drag-and-drop (or Move dialog) to move a stop to another crew/day;
     routes + times recompute instantly from the embedded OSRM matrix
@@ -17,6 +20,45 @@ import os
 
 import rules
 import schedule as S
+import season as season_lib
+
+# ---------------------------------------------------------------------------
+# Which season this build is for.
+#
+# Nothing about the page is allowed to hard-code a year: the same source
+# builds every autumn's tool, and a baked "2026" is silently wrong from 1
+# February onward. Everything year-shaped below (the title, the takedown
+# cutoff, the month chips, the January picker, export filenames, the
+# localStorage key) is derived from this one number and substituted into the
+# HTML/JS template through the __SEASON__ family of tokens.
+#
+# Read the same way schedule.py reads it -- its value if it exposes one,
+# otherwise TBDG_SEASON, otherwise the calendar rule -- so a build of an
+# out-of-cycle season (TBDG_SEASON=2027 ./build_review.py) agrees end to end
+# rather than pairing next year's calendar with this year's labels.
+SEASON = getattr(S, "SEASON", None)
+if not isinstance(SEASON, int):
+    SEASON = int(os.environ.get("TBDG_SEASON") or season_lib.season_for())
+SEASON_NEXT = SEASON + 1          # January's calendar year
+SEASON_PREV = SEASON - 1          # last season -- the invoice/hours comparison year
+SPAN_START, SPAN_END = season_lib.season_span(SEASON)
+TAKEDOWN_CUTOFF = season_lib.takedown_cutoff(SEASON)
+MONTH_YEAR = {m: season_lib.year_of_month(SEASON, m) for m in (10, 11, 12, 1)}
+
+#: Literal -> value substitutions applied to the HTML template at write time
+#: (before __DATA__, so nothing in the client payload is ever rescanned).
+SUBS = {
+    "__SEASON__": str(SEASON),
+    "__SEASON_NEXT__": str(SEASON_NEXT),
+    "__SEASON_PREV__": str(SEASON_PREV),
+    "__SPAN_START__": SPAN_START.isoformat(),
+    "__SPAN_END__": SPAN_END.isoformat(),
+    "__CUTOFF__": TAKEDOWN_CUTOFF.isoformat(),
+    "__Y_OCT__": str(MONTH_YEAR[10]),
+    "__Y_NOV__": str(MONTH_YEAR[11]),
+    "__Y_DEC__": str(MONTH_YEAR[12]),
+    "__Y_JAN__": str(MONTH_YEAR[1]),
+}
 
 # Clients installed at no charge (donations). Kept in client_config.json with
 # every other named-client rule so no name is hard-coded here.
@@ -251,7 +293,7 @@ payload = json.dumps(payload_obj, separators=(",", ":"))
 
 HTML = r"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<title>TBDG 2026 Install Review</title>
+<title>TBDG __SEASON__ Install Review</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -576,6 +618,34 @@ dialog option:disabled{color:#b6b3ae}
 #billdlg .billfmt button.sel{border-color:var(--brand);border-width:2px;
   background:var(--brand-soft);box-shadow:inset 0 0 0 1px var(--brand-soft)}
 #billdlg .billfmt button.sel small{color:var(--brand)}
+/* ---- season picker + archive (read-only) mode ---- */
+.seasonpick{align-self:center;padding:7px 10px;border-radius:8px;
+  border:1.5px solid var(--line);background:#fff;color:var(--ink);
+  font-family:'Montserrat',sans-serif;font-weight:700;font-size:12.5px;
+  cursor:pointer;max-width:230px}
+.seasonpick:hover{border-color:var(--brand)}
+.seasonpick.archived{border-color:var(--warn-ink);color:var(--warn-ink);
+  background:var(--warn-soft)}
+#robanner{grid-column:1/-1;flex:1 1 100%;margin-top:10px;padding:10px 14px;
+  border-radius:8px;background:var(--warn-soft);color:var(--warn-ink);
+  border:1px solid rgba(0,0,0,.06);font-size:12.5px;line-height:1.5}
+#robanner b{font-weight:700}
+#robanner .rosub{display:block;color:var(--mut);margin-top:2px;font-size:11.5px}
+@keyframes roflash{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}
+  35%{box-shadow:0 0 0 4px rgba(202,138,4,.35)}}
+#robanner.flash{animation:roflash .7s ease-in-out 2}
+/* Belt to the JS braces: anything still wired to change state is visibly
+   dead, not just quietly ignored. */
+body.readonly .okbtn,body.readonly .mv,body.readonly .ordbtn,
+body.readonly .cshiftrm,body.readonly .cshiftadd,body.readonly .shcbtn,
+body.readonly .dchiprm,body.readonly .janpick,body.readonly .stfadd,
+body.readonly #newclientbtn,body.readonly #newdatebtn,
+body.readonly .cautoorder,body.readonly .undobar button,
+body.readonly [data-act],body.readonly .pkeditbtn,body.readonly .pkcommentrm,
+body.readonly #pkcommentadd,body.readonly #pkcommenttext,
+body.readonly #peekmove,body.readonly #stflist input[data-pid]{
+  opacity:.4;pointer-events:none;cursor:not-allowed}
+body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:default}
 /* ---- view toggle + calendar ---- */
 .viewtog{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden;
   margin-right:10px;vertical-align:middle}
@@ -987,13 +1057,16 @@ dialog option:disabled{color:#b6b3ae}
 <body><div id="app">
 <header>
   <div id="headtitle">
-    <h1><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 7 9h2.5L5 15h3l-3.5 5h15L16 15h3l-4.5-6H17L12 2Z"/><path d="M12 22v-2"/></svg>TBDG · 2026 Install Schedule</h1>
+    <h1><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 7 9h2.5L5 15h3l-3.5 5h15L16 15h3l-4.5-6H17L12 2Z"/><path d="M12 22v-2"/></svg>TBDG · __SEASON__ Install Schedule</h1>
     <p>Crew routes, drive times &amp; approvals for every install day — drag a stop to reschedule it.</p>
   </div>
   <div id="searchwrap">
     <input id="searchbox" type="text" placeholder="Find a client… (which day are they on?)" autocomplete="off">
     <div id="searchresults"></div>
   </div>
+  <!-- Populated (and un-hidden) only if the backend can list published
+       seasons. No endpoint, no seasons, one season: no control. -->
+  <select id="seasonpick" class="seasonpick" hidden aria-label="Season"></select>
   <div class="viewtog">
     <button id="viewdays" class="sel" type="button">Days</button>
     <button id="viewcal" type="button">Calendar</button>
@@ -1005,6 +1078,7 @@ dialog option:disabled{color:#b6b3ae}
   <button id="billexportbtn" type="button">⬇ Export</button>
   <div id="summarybar"></div>
   <div id="statewarn" style="display:none"></div>
+  <div id="robanner" hidden></div>
   <div id="datestrip"></div>
 </header>
 <div id="calwrap" style="display:none"></div>
@@ -1118,7 +1192,7 @@ dialog option:disabled{color:#b6b3ae}
     The optimizer never fills an added date on its own &mdash; it stays empty
     until you move someone there.</p>
   <label class="nclabel">Date</label>
-  <input id="nddate" type="date" min="2026-10-01" max="2027-01-31">
+  <input id="nddate" type="date" min="__SPAN_START__" max="__SPAN_END__">
   <div id="nderr" class="nderr"></div>
   <div id="ndadded" class="ndadded"></div>
   <div class="btns"><button onclick="newdatedlg.close()">Cancel</button>
@@ -1145,9 +1219,9 @@ dialog option:disabled{color:#b6b3ae}
 <dialog id="billdlg">
   <b>Export</b>
   <p class="billnote">One row per client: name, bill-to, address / city / state /
-    zip, install date, and 2026 install / takedown / storage priced off the
-    client's real 2025 invoice +5% (storage carried over flat). Shows the 2025
-    figure it was derived from, so every number is checkable. Contract accounts
+    zip, install date, and __SEASON__ install / takedown / storage priced off
+    the client's real __SEASON_PREV__ invoice +5% (storage carried over flat).
+    Shows the __SEASON_PREV__ figure it was derived from, so every number is checkable. Contract accounts
     are marked, not guessed. Column totals at the bottom.</p>
   <label class="nclabel">Who</label>
   <div class="billscope">
@@ -1166,6 +1240,42 @@ dialog option:disabled{color:#b6b3ae}
 </dialog>
 <script>
 const DATA = __DATA__;
+// ---------- which season this page IS ----------
+// Baked in at build time, because the page cannot look it up: it runs inside
+// a srcDoc iframe and so has no URL, no query string and no location of its
+// own to read `?season=` out of. The backend keeps one published page per
+// season and serves whichever one was asked for; this constant is that
+// answer, and everything year-shaped on screen is derived from it.
+const PAGE_SEASON='__SEASON__';
+const SEASON_SPAN_LABEL='Oct __SEASON__ – Jan __SEASON_NEXT__';
+// ARCHIVE MODE. A past season is a record, not a schedule: it can be read,
+// searched, printed and exported, but nothing may change it. Stays false
+// until the server tells us this page is not the live season, so a
+// standalone copy, an offline load, or a deployment whose backend has no
+// /seasons endpoint behaves exactly as it always has.
+let READONLY=false;
+const RO_MSG='This is an archived season — it is kept as a record and cannot be changed.';
+/** The one gate every mutating path goes through. True means "don't".
+ *  Callers `if(roBlocked()) return;` FIRST, before pushUndo() or any state
+ *  change, so an archived season never even shows a change it can't keep. */
+function roBlocked(){
+  if(!READONLY) return false;
+  roFlash();
+  return true;
+}
+let roFlashTimer=null;
+/** Draw attention to the banner rather than firing an alert() per click --
+ *  the explanation is already on screen; this just says "yes, that was the
+ *  reason nothing happened". */
+function roFlash(){
+  const b=document.getElementById('robanner');
+  if(!b) return;
+  b.classList.remove('flash');
+  void b.offsetWidth;              // restart the animation on a repeat click
+  b.classList.add('flash');
+  clearTimeout(roFlashTimer);
+  roFlashTimer=setTimeout(()=>b.classList.remove('flash'), 1400);
+}
 const IC={
  users:'<svg class="ic" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
  link:'<svg class="ic" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
@@ -1308,6 +1418,7 @@ function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visit
 /** Create a new client row from the "add a client" dialog: live-fetches
  * real OSRM legs first, then registers the row. */
 async function createSyntheticClient(def){
+  if(roBlocked()) return null;
   const legs = await fetchRealLegs(def.lat, def.lon);
   return addSyntheticClientSync({...def, outRow: legs?legs.outRow:null, inCol: legs?legs.inCol:null});
 }
@@ -1352,7 +1463,7 @@ let approved = new Set(), moves = [], selDate = null;
 // unlocked -- see the CONFIRMED check there.
 let confirmed = new Set();
 // Dates staff added with "+ New date". SPEC.calendar carries every date
-// Oct 1, 2026 - Jan 31, 2027 so the eligibility table has already judged them, but the
+// __SPAN_START__ - __SPAN_END__ so the eligibility table has already judged them, but the
 // ones flagged `optional` stay hidden until they show up here -- otherwise
 // the strip would be 80 bubbles of mostly-empty days. Declared above
 // workDates() because bootstrap calls that before this block would
@@ -1368,8 +1479,8 @@ function normDates(list){
   return new Set((Array.isArray(list)?list:[]).filter(d=>ok.has(d)));
 }
 // Clients staff took out of the season by dropping them on the trailing
-// "Not installing this year" bubble (user, 2026-08-31). Distinct from
-// DATA.dropped, which is the spreadsheet's own "No 2026 Install" rows --
+// "Not installing" bubble (user, 2026-08-31). Distinct from
+// DATA.dropped, which is the spreadsheet's own "No __SEASON__ Install" rows --
 // those were never on the board and can't be put back from here. Keyed by
 // client row.
 let notInstalling = new Set();
@@ -1509,7 +1620,10 @@ let stateWarning = null;
 // log. Replaying a move list was order-dependent and broke outright when a
 // pipeline re-run shifted day ids; a snapshot is idempotent and can be
 // reconciled against a regenerated baseline.
-const LS_KEY = 'tbdg2026review';
+// Season-scoped: two seasons open in the same browser are two separate
+// schedules, and a shared slot would let an archived season's snapshot be
+// restored over the live one on the next page load.
+const LS_KEY = 'tbdg__SEASON__review';
 function baselinePlacement(){
   const m = {};
   DATA.days.forEach(d=>d.stops.forEach(r=>{ (m[r] = m[r] || []).push(d.id); }));
@@ -1654,6 +1768,7 @@ window.addEventListener('message', e=>{
   if(e.source !== window.parent) return;
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
+    loadSeasons();
     pullShared();
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
@@ -1694,6 +1809,172 @@ window.addEventListener('message', e=>{
 // nothing sensitive in a readiness ping, and window.parent is guaranteed
 // to be the one page that embedded us, so a wildcard target costs nothing.
 window.parent.postMessage({type:'tbdg-ready'}, '*');
+
+// ---------- season picker + archive (read-only) mode ----------
+// The tool is published per season and every published season stays
+// openable, so the header carries a switcher. It is populated from the
+// backend and hidden until that succeeds: an older deployment has no
+// /seasons endpoint, a standalone copy of this file has no backend at all,
+// and in both cases a dropdown that cannot list anything is worse than no
+// dropdown. Degrade to silence.
+/** "2026–27 season" -- both calendar years, because a season straddles them. */
+function seasonLabel(y){ return `${y}–${String(+y+1).slice(2)} season`; }
+/** The season TODAY falls in, by the same rule as scheduler/season.py and
+ *  the backend's app.libs.season: October through January belong to the
+ *  season named for that October, and 1 February is the rollover.
+ *
+ *  Computed locally so archive mode can engage IMMEDIATELY on load, without
+ *  waiting for the auth token and the /seasons round-trip. The server's
+ *  answer (same rule, its clock) refines it a moment later. */
+function seasonForToday(){
+  const d = new Date();
+  return String(d.getMonth() + 1 >= 2 ? d.getFullYear() : d.getFullYear() - 1);
+}
+async function loadSeasons(){
+  if(!AUTH) return;
+  let j = null;
+  try{
+    const r = await fetch('/api/install-schedule/seasons', {headers:{Authorization:AUTH}});
+    if(!r.ok) return;                        // no endpoint / not allowed: stay hidden
+    j = await r.json();
+  }catch(e){ return; }                       // offline or blocked: stay hidden
+  const list = Array.isArray(j && j.seasons) ? j.seasons : [];
+  if(!list.length) return;                   // nothing published: nothing to offer
+  const current = String(j.currentSeason || '');
+  renderSeasonPicker(list, current);
+  // The season this page IS, versus the season the calendar is in. Anything
+  // else is a past season -- a record, not a schedule.
+  if(current && String(PAGE_SEASON) !== current) enterReadOnly(current);
+}
+function renderSeasonPicker(list, current){
+  const sel = document.getElementById('seasonpick');
+  if(!sel) return;
+  const known = list.some(x => String(x.season) === String(PAGE_SEASON));
+  // One published season, and it's this one: there is nowhere to switch to.
+  if(list.length < 2 && known) return;
+  const rows = known ? list
+    : [{season: PAGE_SEASON, publishedAt: null}, ...list];   // this build isn't in the list yet
+  const pub = {};
+  sel.innerHTML = rows.map(x=>{
+    const y = String(x.season);
+    pub[y] = x.publishedAt || null;
+    // The backend flags the live season as `current`; accept `is_current`
+    // too rather than depending on which spelling shipped.
+    const isCur = current ? y === current : !!(x.current || x.is_current);
+    const tag = isCur ? ' · current' : ' · archived';
+    return `<option value="${y}"${y === String(PAGE_SEASON) ? ' selected' : ''}>`
+         + `${seasonLabel(y)}${tag}</option>`;
+  }).join('');
+  const stamp = t => { try{ return new Date(t).toLocaleDateString(undefined,
+      {year:'numeric', month:'short', day:'numeric'}); }catch(e){ return ''; } };
+  const setTitle = () => {
+    const when = pub[sel.value];
+    sel.title = when ? `Published ${stamp(when)}` : 'Not published yet';
+  };
+  setTitle();
+  sel.onchange = () => {
+    const y = sel.value;
+    setTitle();
+    if(!y || y === String(PAGE_SEASON)) return;
+    gotoSeason(y);
+  };
+  sel.hidden = false;
+}
+/** Switch to another season's page.
+ *
+ *  Not a navigation, because there is nothing to navigate: this document runs
+ *  from srcDoc, so it has no URL of its own, and the page endpoint is
+ *  authenticated -- a plain `location.href = ...` would send no Authorization
+ *  header and land on a 401. (document.write of the fetched page doesn't work
+ *  either: document.open() resets the DOM but keeps the JS realm, so the new
+ *  page's top-level `const`s collide with ours and it dies on load.)
+ *
+ *  So: fetch the season's page with the token we were handed and mount it in
+ *  a same-origin frame that replaces this one's content. Fresh realm, same
+ *  origin, same localStorage, and the token gets forwarded down exactly the
+ *  way the host app forwards it to us. */
+let hostingSeason = false;
+function showSeasonPage(html){
+  let f = document.getElementById('seasonframe');
+  if(!f){
+    f = document.createElement('iframe');
+    f.id = 'seasonframe';
+    f.title = 'Install schedule';
+    f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0';
+    // The nested copy has no auth token of its own, for the same reason we
+    // don't: srcDoc content carries no session. Hand ours down when it says
+    // it's listening.
+    window.addEventListener('message', ev=>{
+      if(!f.contentWindow || ev.source !== f.contentWindow) return;
+      if(ev.data && ev.data.type === 'tbdg-ready' && AUTH)
+        f.contentWindow.postMessage({type:'tbdg-auth', token:AUTH}, '*');
+    });
+  }
+  hostingSeason = true;       // stop our own timers repainting a dead DOM
+  teardownShiftMaps();
+  document.body.replaceChildren(f);
+  f.srcdoc = html;
+}
+/** The copy of this tool hosting us, if we are the frame one mounted -- so a
+ *  second switch replaces that frame instead of nesting another one inside
+ *  it. Same origin, so this is a plain property read, not a message. */
+function seasonHost(){
+  try{
+    const p = window.parent;
+    if(p && p !== window && typeof p.showSeasonPage === 'function'
+       && p.document.getElementById('seasonframe') === window.frameElement) return p;
+  }catch(e){}
+  return null;
+}
+async function gotoSeason(y){
+  const url = `/api/install-schedule/page?season=${encodeURIComponent(y)}&file=index.html`;
+  // Told first, so the host app can take this over cleanly if it ever learns
+  // to reload the frame itself. Nothing listens today; nothing breaks either.
+  try{ window.parent.postMessage({type:'tbdg-season', season:String(y), url}, '*'); }catch(e){}
+  const sel = document.getElementById('seasonpick');
+  if(sel) sel.disabled = true;
+  try{
+    const r = await fetch(url, AUTH ? {headers:{Authorization:AUTH}} : undefined);
+    if(!r.ok) throw new Error(r.status);
+    const html = await r.text();
+    (seasonHost() || window).showSeasonPage(html);
+  }catch(e){
+    if(sel){ sel.disabled = false; sel.value = String(PAGE_SEASON); }
+    alert(`Could not open the ${seasonLabel(y)}.\n\n`
+        + `It may not be published yet — run scheduler/publish_pages.py for that season.`);
+  }
+}
+/** Turn this page into a record. One-way: nothing switches it back, because
+ *  the only correct way out is to open the live season's own page. */
+function enterReadOnly(current){
+  if(READONLY) return;
+  READONLY = true;
+  document.body.classList.add('readonly');
+  const b = document.getElementById('robanner');
+  if(b){
+    b.innerHTML = `<b>${seasonLabel(PAGE_SEASON)} — archived.</b> `
+      + `You are looking at what was scheduled, kept as a record. Nothing on this `
+      + `page can be changed: moves, approvals, confirmations, added dates, `
+      + `staffing, roster and comments are all switched off. Printing and the `
+      + `Export downloads still work.`
+      + `<span class="rosub">${current
+          ? `The ${seasonLabel(current)} is the live one — switch to it with the season picker in the header to make changes.`
+          : `Open the current season to make changes.`}</span>`;
+    b.hidden = false;
+  }
+  const sel = document.getElementById('seasonpick');
+  if(sel) sel.classList.add('archived');
+  // Drag is not a button, so disabling buttons does not touch it. Capture
+  // phase, so these run BEFORE the element handlers that would otherwise
+  // start or complete a move -- stopPropagation means those never fire at
+  // all, rather than being asked politely not to.
+  const kill = e => { e.preventDefault(); e.stopPropagation(); roFlash(); };
+  document.addEventListener('dragstart', kill, true);
+  document.addEventListener('drop', kill, true);
+  // Repaint so `draggable` attributes and the disabled styling apply to
+  // everything already on screen.
+  render();
+}
 // ---------- app-side client profile (Clients tab, same Postgres) ----------
 // The scheduler's own client data (baked in at build time from the season
 // spreadsheet) and the app's `clients` table are two views of the same
@@ -1777,11 +2058,16 @@ let pushTimer = null;
 // one request, not so long that a quick refresh can race past it (see
 // pullShared's local-wins guard above for the remaining edge of that).
 function pushShared(){
-  if(!AUTH) return;
+  if(!AUTH || READONLY) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(pushSharedNow, 200);
 }
 function persist(){
+  // The hard stop for an archived season. Every mutating path is also gated
+  // at its entry point (roBlocked), but this is the one that matters: even a
+  // path nobody remembered to guard, or a stray call from the console, still
+  // cannot write -- not to localStorage, not to the shared document.
+  if(READONLY) return;
   localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
   pushShared();
 }
@@ -1789,7 +2075,7 @@ function persist(){
  * history restore, where the user is waiting on a deliberate action and
  * needs to know whether it actually landed before the dialog closes. */
 async function pushSharedNow(){
-  if(!AUTH) return false;
+  if(!AUTH || READONLY) return false;
   clearTimeout(pushTimer);
   try{
     const r = await fetch('/api/install-schedule/state', {
@@ -1853,6 +2139,7 @@ async function openHistory(){
   }
 }
 async function restoreHistoryEntry(entryId, btn){
+  if(roBlocked()) return;
   const row=document.querySelector(`.histrow[data-id="${entryId}"]`);
   const when=row?.querySelector('.histwhen')?.textContent||'this version';
   if(!confirm(`Restore to ${when}?\n\nThis replaces the current shared schedule state with `
@@ -1923,12 +2210,14 @@ function pushUndo(){
   redoStack = [];      // a fresh edit invalidates the redo branch
 }
 function undo(){
+  if(roBlocked()) return;
   if(!undoStack.length) return;
   redoStack.push(stateBlob());
   restoreBlob(undoStack.pop());
   persist(); render();
 }
 function redo(){
+  if(roBlocked()) return;
   if(!redoStack.length) return;
   undoStack.push(stateBlob());
   restoreBlob(redoStack.pop());
@@ -2208,6 +2497,7 @@ function dayById(id, create){
  *  understands; recording the full order after every swap is what makes
  *  repeated clicks compose the way you'd expect. */
 function reorderStop(d, row, dir){
+  if(roBlocked()) return;
   const i = d.stops.indexOf(row);
   const j = i + dir;
   if(i<0 || j<0 || j>=d.stops.length) return;
@@ -2220,11 +2510,13 @@ function reorderStop(d, row, dir){
 }
 /** Drop the pin and let routeDay optimize this day's order again. */
 function clearManualOrder(dayId){
+  if(roBlocked()) return;
   pushUndo();
   delete manualOrder[dayId];
   persist(); render();
 }
 function applyMove(row, toId, record=true){
+  if(roBlocked()) return;
   // A brand-new client (just created, never placed anywhere) has no
   // "from" day -- that's a real case, not a bug: just add it to `to`
   // without touching a nonexistent source day.
@@ -2624,11 +2916,16 @@ const MONTH_OVERVIEWS={'ALL-OCT':'10','ALL-NOV':'11','ALL-DEC':'12','ALL-JAN':'0
 // calendar (user, 2026-09-02): Oct 1 through Christmas is install season,
 // anything after is takedown. A plain date-string cutoff, so it needs no
 // new data and works the moment takedown dates exist on the calendar.
-const TAKEDOWN_CUTOFF='2026-12-25';
+const TAKEDOWN_CUTOFF='__CUTOFF__';
+// Which calendar year each month of THIS season falls in -- October through
+// December are the season year, January is the one after. Used for the chip
+// labels and the January takedown picker, so nothing on screen leaves you
+// guessing which January is meant.
+const MONTH_YEAR={'10':'__Y_OCT__','11':'__Y_NOV__','12':'__Y_DEC__','01':'__Y_JAN__'};
 const OVERVIEW_TITLE={
   'ALL':'Overview', 'ALL-HOU':'Houston — all days', 'ALL-DAL':'Dallas — all nights (Mi Cocina)',
-  'ALL-OCT':'October — all days', 'ALL-NOV':'November — all days',
-  'ALL-DEC':'December — all days', 'ALL-JAN':'January — all days',
+  'ALL-OCT':`October ${MONTH_YEAR['10']} — all days`, 'ALL-NOV':`November ${MONTH_YEAR['11']} — all days`,
+  'ALL-DEC':`December ${MONTH_YEAR['12']} — all days`, 'ALL-JAN':`January ${MONTH_YEAR['01']} — all days`,
   'ALL-INSTALL':'Install — all days', 'ALL-TAKEDOWN':'Takedown — all days',
 };
 function isOverview(sel){
@@ -2712,7 +3009,7 @@ function drawDate(date){
                    .filter(Boolean).join(', ');
       mk.bindPopup(`<b>${esc(pin.name)}</b>${addr?`<br>${esc(addr)}`:''}`
         + `<br>${IC.phone} ${esc(pin.phone||'—')}`
-        + (pin.hours!=null?`<br>2026: ${pin.hours}h`:'')
+        + (pin.hours!=null?`<br>__SEASON__: ${pin.hours}h`:'')
         + `<br><i>${esc(pin.reason)}</i>`);
       // Permanent labels: this view has no route to read, so the names ARE
       // the content (user, 2026-08-31: "dots with names").
@@ -2756,7 +3053,7 @@ function drawDate(date){
       const mk=L.circleMarker([c.lat,c.lon],{radius:8,color:'#222',weight:1.5,
         fillColor:col,fillOpacity:.95,dashArray:approx?'3 3':null});
       mk.bindPopup(`<b>${c.name}</b><br>${c.street}, ${c.city} ${c.zip}`+
-        `<br>${IC.phone} ${c.phone||'—'}<br>2026: ${c.h26}h · 2025 real: ${c.real25??'—'}h`+
+        `<br>${IC.phone} ${c.phone||'—'}<br>__SEASON__: ${c.h26}h · __SEASON_PREV__ real: ${c.real25??'—'}h`+
         `<br>Storage: ${c.storage||'—'} ${c.boxes?('· '+c.boxes+' boxes'):''}`+
         `<br><i>${crewLabel(d)} · stop ${i+1}${approx?' · approx pin':''}</i>`);
       if(!isOverview(date)){
@@ -2871,7 +3168,7 @@ const side = document.getElementById('side');
 function allDates(){ return activeCalendar().map(ci=>ci.date); }
 
 const NOINSTALL_COLOR = '#7f1d1d';   // maroon -- distinct from every crew colour
-/** Everyone not getting an install this year, from all three sources, in one
+/** Everyone not getting an install this season, from all three sources, in one
  *  shape the map and the panel can both use. `lat`/`lon` may be null (a
  *  client flagged precisely because they have no address); callers skip those
  *  rather than dropping a pin at 0,0. */
@@ -2884,7 +3181,7 @@ function notInstallingPins(){
               reason:'Taken out by staff', source:'staff', row:r});
   });
   (DATA.dropped||[]).forEach(d=>out.push({...d, source:'sheet',
-              reason:d.reason||'No 2026 install (source sheet)'}));
+              reason:d.reason||'No __SEASON__ install (source sheet)'}));
   (DATA.noaddr||[]).forEach(d=>out.push({...d, source:'noaddr',
               reason:d.reason||'Needs an address'}));
   return out;
@@ -2896,6 +3193,7 @@ function notInstallingPins(){
  *  grab the crew header and the whole itinerary travels together, for when
  *  a whole day slips rather than one client. */
 function moveWholeDay(dayId, toDate){
+  if(roBlocked()) return;
   const src = days.find(d=>d.id===dayId);
   if(!src || !toDate || isOverview(toDate) || src.date===toDate) return;
   if(src.joint){
@@ -2955,6 +3253,7 @@ function moveWholeDay(dayId, toDate){
  *  a cancellation stops printing on a crew sheet instead of being parked on
  *  some far-off date. */
 function markNotInstalling(row){
+  if(roBlocked()) return;
   if(!C[row] || notInstalling.has(row)) return;
   const cur = days.find(d=>d.stops.includes(row));
   if(confirmed.has(row) &&
@@ -2971,6 +3270,7 @@ function markNotInstalling(row){
 /** Undo the above. They come back UNSCHEDULED -- there's no sensible day to
  *  guess -- so the panel points staff at "find date". */
 function putBackOnSchedule(row){
+  if(roBlocked()) return;
   if(!notInstalling.has(row)) return;
   pushUndo();
   notInstalling.delete(row);
@@ -3034,10 +3334,15 @@ function renderStrip(){
   mk('All','ALL',false);
   mk('All Dallas','ALL-DAL',false);
   mk('All Houston','ALL-HOU',false);
-  mk('All October','ALL-OCT',false);
-  mk('All November','ALL-NOV',false);
-  mk('All December','ALL-DEC',false);
-  mk('All January','ALL-JAN',false);
+  // The year is on the label, not just in the filter: October-December and
+  // January are different calendar years, and "All January" alone reads as
+  // this year's January to anyone glancing at it. daysFor() still matches on
+  // the MONTH portion only (see MONTH_OVERVIEWS) -- the label says which year
+  // that month belongs to, it doesn't narrow the filter.
+  mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
+  mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
+  mk(`All Dec ${MONTH_YEAR['12']}`,'ALL-DEC',false);
+  mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
   mk('All Install','ALL-INSTALL',false);
   mk('All Takedown','ALL-TAKEDOWN',false);
   // A flex-basis:100% item forces the wrap here even when the header
@@ -3058,16 +3363,19 @@ function renderStrip(){
   // "+ New date" -- it just turns into a normal chip from here on, same
   // as any other added date. Shrinks and disappears once every day in
   // January has been added.
-  const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)==='2027-01'
+  const JAN_PREFIX=`${MONTH_YEAR['01']}-01`;
+  const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)===JAN_PREFIX
     && !newDates.has(ci.date));
   if(janLeft.length){
     const sel=document.createElement('select');
     sel.className='dchip janpick';
-    sel.innerHTML=`<option value="">+ January takedown date…</option>`
+    sel.innerHTML=`<option value="">+ January ${MONTH_YEAR['01']} takedown date…</option>`
       + janLeft.map(ci=>`<option value="${ci.date}">${ci.dow} ${fmtMDYYYY(ci.date)}</option>`).join('');
     sel.onchange=()=>{
       const v=sel.value;
       if(!v) return;
+      sel.value='';
+      if(roBlocked()) return;
       const result=addDate(v);
       if(!result.ok) alert(result.msg);
     };
@@ -3075,11 +3383,11 @@ function renderStrip(){
   }
 
   // Trailing bubble, deliberately AFTER every date (user, 2026-08-31):
-  // everyone who isn't getting an install this year. Drag a stop onto it to
+  // everyone who isn't getting an install this season. Drag a stop onto it to
   // take them out of the season -- the place for a cancellation, instead of
   // parking them on a real date where they'd still print on a crew sheet.
   const outCount = notInstallingPins().length;
-  const nb = mk(`Not installing this year${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
+  const nb = mk(`Not installing${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
   if(nb) nb.classList.add('noinstall');
 }
 
@@ -3103,7 +3411,7 @@ function buildDayCard(d){
     (focusDayId===d.id?' focused':'');
   card.dataset.dayid=d.id;
   card.innerHTML=`<div class="chead">
-    <span class="chead-crew" draggable="true" title="Click to zoom the map to just ${crewLabel(d)}'s stops — or drag this onto a date to move the whole day">
+    <span class="chead-crew" draggable="${READONLY?'false':'true'}" title="Click to zoom the map to just ${crewLabel(d)}'s stops — or drag this onto a date to move the whole day">
       <span class="cdot" style="background:${col}"></span>
       <span class="cname">${crewLabel(d)}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
@@ -3141,6 +3449,7 @@ function buildDayCard(d){
   };
   chead.ondragend=()=>card.classList.remove('dragging-day');
   card.querySelector('.okbtn').onclick=()=>{
+    if(roBlocked()) return;
     pushUndo();
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
   const autoBtn=card.querySelector('.cautoorder');
@@ -3171,7 +3480,7 @@ function buildDayCard(d){
     // A confirmed stop simply doesn't pick up on drag -- draggable=false
     // gives an immediate not-allowed cursor rather than letting the drag
     // start and only rejecting it on drop.
-    el.draggable=!isConfirmed;
+    el.draggable=!READONLY && !isConfirmed;
     const approx=!['street','manual','census'].includes(c.geo);
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
@@ -3208,6 +3517,7 @@ function buildDayCard(d){
     el.querySelector('.ordbtn.down').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, 1); };
     el.querySelector('.mv.confirm').onclick=(e)=>{
       e.stopPropagation();
+      if(roBlocked()) return;
       pushUndo();
       confirmed.has(r)?confirmed.delete(r):confirmed.add(r);
       persist(); render();
@@ -3249,13 +3559,13 @@ function buildDayCard(d){
     if(row && !d.stops.includes(row)) commitPlan(planFor(row, d.id));};
   return card;
 }
-/** The "Not installing this year" panel: two lists that mean different
+/** The "Not installing" panel: two lists that mean different
  *  things. The spreadsheet's own no-install rows are a fact from the source
  *  data and read-only here; the ones staff dropped on the bubble are an
  *  editable decision and can go back on the board. */
 function renderNotInstalling(){
   const hdr=document.createElement('h3'); hdr.className='ovtitle';
-  hdr.textContent='Not installing this year';
+  hdr.textContent='Not installing';
   side.appendChild(hdr);
 
   const pins=notInstallingPins();
@@ -3301,7 +3611,7 @@ function renderNotInstalling(){
         <button class="mv find">find date</button>
         <button class="mv">move ▾</button>
       </div>`;
-    el.draggable=true;
+    el.draggable=!READONLY;
     el.ondragstart=e=>{ e.dataTransfer.setData('row',row); };
     el.title='Drag onto any date to put this client back on the schedule';
     // Same as a scheduled stop: the card opens the client popup, the buttons
@@ -3343,7 +3653,7 @@ function renderNotInstalling(){
   side.appendChild(dh);
   const dn=document.createElement('p'); dn.className='nothingyet';
   dn.style.cssText='margin:0 0 8px';
-  dn.textContent='These say "No 2026 Install" in the source sheet -- fix it '
+  dn.textContent='These say "No __SEASON__ Install" in the source sheet -- fix it '
                + 'there for next season. Need one on the schedule anyway? '
                + '"Put back" below adds them like any other new client, '
                + 'then suggests a date.';
@@ -3523,6 +3833,7 @@ function renderLog(){
 // applyMove: loading saved state replays through applyMove and must not be
 // re-validated against intermediate states.
 function commitPlan(ops, {force=false}={}){
+  if(roBlocked()) return false;
   const chk = checkPlan(ops);
   if(chk.blockers.length && !force){
     alert('Cannot make this change:\n\n'
@@ -3542,6 +3853,7 @@ function commitPlan(ops, {force=false}={}){
 const mvdlg=document.getElementById('mvdlg');
 let mvRow=null;
 function openMoveDlg(row,presetDate){
+  if(roBlocked()) return;
   if(confirmed.has(row)){
     alert(`${C[row].name}'s date is confirmed with them.\n\n`
       +`Unlock it first (the lock button on their stop) if the date needs to change.`);
@@ -3645,7 +3957,7 @@ let ncAfterCreate=null;
 // Only dates SPEC.calendar already carries as `optional` can be added: the
 // eligibility table was built over exactly those, so anything else would
 // come back NO_DATE for every client and land as a bubble nothing can be
-// dropped on. That set is Oct 1, 2026 - Jan 31, 2027 minus the working
+// dropped on. That set is __SPAN_START__ - __SPAN_END__ minus the working
 // calendar (schedule.py's EXTRA_DOW).
 function optionalDates(){
   return SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date);
@@ -3655,6 +3967,7 @@ function optionalDates(){
  * it -- deleting the date out from under them would leave those clients
  * with no scheduled day at all. */
 function removeAddedDate(date){
+  if(roBlocked()) return;
   const used=days.filter(d=>d.date===date && d.stops.length);
   if(used.length){
     const names=used.flatMap(d=>d.stops.map(r=>C[r].name));
@@ -3685,6 +3998,7 @@ function renderAddedDates(){
   });
 }
 document.getElementById('newdatebtn').onclick=()=>{
+  if(roBlocked()) return;
   document.getElementById('nddate').value='';
   const err=document.getElementById('nderr'); err.style.display='none'; err.textContent='';
   renderAddedDates();
@@ -3694,6 +4008,7 @@ document.getElementById('newdatebtn').onclick=()=>{
  * validate a candidate date, add it, and select it. Returns {ok:true} or
  * {ok:false, msg}. */
 function addDate(v){
+  if(READONLY){ roFlash(); return {ok:false, msg:RO_MSG}; }
   if(!v) return {ok:false, msg:'Pick a date first.'};
   if(newDates.has(v)) return {ok:false, msg:'That date is already on the strip.'};
   const onBoard=SPEC.calendar.find(ci=>ci.date===v && !ci.optional);
@@ -3721,6 +4036,7 @@ document.getElementById('ndgo').onclick=()=>{
 };
 
 document.getElementById('newclientbtn').onclick=()=>{
+  if(roBlocked()) return;
   ['ncname','ncaddr','ncnotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nchours').value='1';
   document.getElementById('ncpeople').value='';
@@ -3738,6 +4054,7 @@ document.getElementById('newclientbtn').onclick=()=>{
  * move dialog -- "AI suggest a date" IS this feature for a client with no
  * existing day to reason about. */
 function openPutBackDialog(name, addr){
+  if(roBlocked()) return;
   document.getElementById('ncname').value=name||'';
   document.getElementById('ncaddr').value=addr||'';
   document.getElementById('ncnotes').value='';
@@ -3756,6 +4073,7 @@ async function geocodeAddress(q){
   return {lat:+j[0].lat, lon:+j[0].lon, display:j[0].display_name};
 }
 document.getElementById('ncgo').onclick=async()=>{
+  if(roBlocked()) return;
   const name=document.getElementById('ncname').value.trim();
   const addr=document.getElementById('ncaddr').value.trim();
   const hours=+document.getElementById('nchours').value || 0;
@@ -3791,6 +4109,7 @@ document.getElementById('ncgo').onclick=async()=>{
 // ---------- slot finder ----------
 const sfdlg=document.getElementById('sfdlg');
 function openSlotFinder(row){
+  if(roBlocked()) return;
   const c=C[row];
   document.getElementById('sftitle').textContent='Find a new date: '+c.name;
   const wsel=document.getElementById('sfwant');
@@ -3862,12 +4181,12 @@ function openSlotFinder(row){
 function exportJSON(){
   const out={approved:[...approved],moves,final:days.map(d=>({date:d.date,crew:crewLabel(d),
     stops:d.stops.map(r=>C[r].name)}))};
-  dl('tbdg-2026-review-changes.json',JSON.stringify(out,null,2));
+  dl('tbdg-__SEASON__-review-changes.json',JSON.stringify(out,null,2));
 }
 function exportCSV(){
   let rows=[['Client','Date','Crew','Order']];
   days.forEach(d=>d.stops.forEach((r,i)=>rows.push([C[r].name,d.date,crewLabel(d),i+1])));
-  dl('tbdg-2026-assignments.csv',rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n'));
+  dl('tbdg-__SEASON__-assignments.csv',rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n'));
 }
 function dl(name,text){const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([text]));a.download=name;a.click();}
@@ -3959,18 +4278,18 @@ function price2026(c){
   if(/carlton woods|woodlands cc/i.test(c.name))
                             return {basis:'Club contract — priced separately'};
   if(typeof R==='number'){
-    if(R - S < 0)           return {basis:'MANUAL — 2025 invoice below storage owed', stor:S};
+    if(R - S < 0)           return {basis:'MANUAL — __SEASON_PREV__ invoice below storage owed', stor:S};
     const inst = Math.round(((R - S) / 2) * UPLIFT * 100) / 100;
     return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
-            basis:'2025 invoice +5% (storage flat)'};
+            basis:'__SEASON_PREV__ invoice +5% (storage flat)'};
   }
   if(typeof c.installFee==='number'){
     const inst = c.installFee;
     const tdwn = typeof c.takedownFee==='number' ? c.takedownFee : inst;
     return {inst, tdwn, stor:S, total:Math.round((inst + tdwn + S)*100)/100,
-            basis:'IDEAL TOTAL — no 2025 install, preferred rate not carried forward'};
+            basis:'IDEAL TOTAL — no __SEASON_PREV__ install, preferred rate not carried forward'};
   }
-  return {basis:'MANUAL — no 2025 invoice and no rate-card estimate'};
+  return {basis:'MANUAL — no __SEASON_PREV__ invoice and no rate-card estimate'};
 }
 function buildBillingRows(scope){
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
@@ -3981,13 +4300,13 @@ function buildBillingRows(scope){
   // like two separate charges.
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
-  // 2025 total sits immediately right of the 2026 total so the year-over-year
-  // comparison is a single glance, with the basis right after it.
+  // Last season's total sits immediately right of this season's so the
+  // year-over-year comparison is a single glance, with the basis after it.
   // PHONE/EMAIL sit right next to the mailing address -- a crew or office
   // call needs both together, not address alone (user, 2026-08-28).
   const rows = [['Client name','Bill-to name/company','PHONE','EMAIL','ADDRESS','CITY','ST','ZIP','Install date',
-    '2026 install price','2026 takedown price','2026 storage price','2026 TOTAL invoice',
-    '2025 total invoice (actual)','Pricing basis',
+    '__SEASON__ install price','__SEASON__ takedown price','__SEASON__ storage price','__SEASON__ TOTAL invoice',
+    '__SEASON_PREV__ total invoice (actual)','Pricing basis',
     'Repairs & install notes','Billing notes']];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
@@ -4153,7 +4472,7 @@ function openPrintView(rows, moneyCols, title){
     tr{break-inside:avoid}
   </style></head><body>
   <h1>${esc(title)}</h1>
-  <p class="sub">TBDG 2026 Christmas installs · ${rows.length-3} clients</p>
+  <p class="sub">TBDG __SEASON__ Christmas installs · ${rows.length-3} clients</p>
   <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
   <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
   </body></html>`);
@@ -4163,8 +4482,8 @@ function runExport(scope, fmt){
   const rows = buildBillingRows(scope);
   const MONEY=[9,10,11,12,13];
   const label = scope==='houston' ? 'Houston' : scope==='dallas' ? 'Dallas' : 'All clients';
-  const base = `TBDG 2026 install billing — ${label}`;
-  const file = `tbdg-2026-billing-${scope}`;
+  const base = `TBDG __SEASON__ install billing — ${label}`;
+  const file = `tbdg-__SEASON__-billing-${scope}`;
   if(fmt==='csv'){
     dl(`${file}.csv`, rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
   } else if(fmt==='pdf'){
@@ -4209,8 +4528,9 @@ billdlg.querySelectorAll('.billfmt button').forEach(b=>{
 document.getElementById('billgo').onclick = ()=>{ runExport(billScope, billFmt); billdlg.close(); };
 // Back-compat for anything still calling the old name.
 function exportBilling(scope){ runExport(scope||'all','csv'); }
-function resetAll(){ if(confirm('Discard all moves & approvals?')){
-  localStorage.removeItem('tbdg2026review'); location.reload(); }}
+function resetAll(){ if(roBlocked()) return;
+  if(confirm('Discard all moves & approvals?')){
+  localStorage.removeItem(LS_KEY); location.reload(); }}
 
 // ---------- the notebook ----------
 // Freezes the schedule as promised to clients, so re-running the pipeline
@@ -4407,7 +4727,7 @@ function gridHTML(cols){
         const top=(b.start+r*PERIOD)*PXM;
         if(top>=H*PXM) break;
         ev+=`<div class="calev${b.night?' night':''}${approved.has(b.d.id)?' appr':''}"`
-          + ` draggable="true" style="top:${top}px;height:${hgt}px;`
+          + ` draggable="${READONLY?'false':'true'}" style="top:${top}px;height:${hgt}px;`
           + `left:calc(${left}% + 2px);width:calc(${w}% - 4px);`
           + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
           + `data-row="${b.row}" data-dayid="${b.d.id}" `
@@ -4483,7 +4803,7 @@ function agendaHTML(){
     calDaysOn(dt).flatMap(d=>stopTimes(d).map(t=>({t,d})))
       .sort((a,b)=>a.t.start-b.t.start)
       .forEach(({t,d})=>{
-        h+=`<div class="agrow${approved.has(d.id)?' appr':''}" draggable="true" `
+        h+=`<div class="agrow${approved.has(d.id)?' appr':''}" draggable="${READONLY?'false':'true'}" `
          + `data-row="${t.row}" data-dayid="${d.id}">`
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
@@ -4604,7 +4924,7 @@ function profileSectionHTML(row){
   // The current season's row comes from client_activity, which sync_clients.py
   // wrote when the schedule was built. Taking someone out of the season happens
   // here, in this tool's own state, and nothing pushes that back -- so a client
-  // sitting in "not installing this year" still had a history row reading
+  // sitting in "not installing" still had a history row reading
   // "Scheduled 2026-11-25", directly contradicting the header two inches above
   // it. Show the live decision, and keep what the synced record still says
   // rather than hiding it: the Clients tab is showing that same stale line, and
@@ -4621,7 +4941,7 @@ function profileSectionHTML(row){
         return `<div class="pkhrow">
           <span class="pkhyear">${peekEsc(en.season)}</span>
           <span class="pkhtext">${stale
-            ? `Not installing this year`
+            ? `Not installing`
               + `<span class="pkhstale">client record still says “${peekEsc(en.summary)}”</span>`
             : peekEsc(en.summary)}</span>
         </div>`;}).join('')}
@@ -4683,6 +5003,7 @@ function commentListHTML(row){
 document.addEventListener('click', async e=>{
   const btn=e.target.closest('.pkcommentrm');
   if(!btn) return;
+  if(roBlocked()) return;
   const row=peekRow;
   if(row==null) return;
   const list=document.getElementById('pkcommentlist');
@@ -4719,7 +5040,10 @@ function contactFieldsFor(row){
     phone:c.phone||'', email:c.email||'', secondary:[]};
 }
 function contactBlockHTML(row){
-  if(!AUTH) return contactViewHTML(row, false);   // offline: read-only, nothing to save to
+  // Offline: read-only, nothing to save to. Archived season: read-only on
+  // purpose -- editing a client's contact details from a past season's page
+  // would write through to the LIVE client record.
+  if(!AUTH || READONLY) return contactViewHTML(row, false);
   // Own class (not .pkloading) -- profileSectionHTML has its own loading
   // placeholder with that class, and the post-load refresh below picks its
   // target by class name. Sharing one name meant querySelector could grab
@@ -4868,7 +5192,7 @@ function notInstallReason(row){
 }
 
 // dayId === null means the client is on the roster but not on the schedule --
-// the "not installing this year" list. Everything that describes the CLIENT
+// the "not installing" list. Everything that describes the CLIENT
 // still applies there (contact details, hours, box count, history, comments);
 // only the parts that describe a DAY -- arrival time, crew, approve, print,
 // confirm -- have nothing to point at. So the popup is the same popup, with
@@ -4885,7 +5209,7 @@ function openStopPeek(row,dayId){
     <h3>${esc(c.name)}</h3>
     ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
        ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
-        : `<p class="pkwhen">Not installing this year · ${esc(notInstallReason(row))}</p>`}
+        : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes</p>
     <p class="pkrow">⏱ ${d ? (effH(d,row)/(d.stacked||1)).toFixed(2)
@@ -4907,6 +5231,7 @@ function openStopPeek(row,dayId){
   wireContactBlock(row);
   wireProfileLink(row);
   const addComment=async()=>{
+    if(roBlocked()) return;
     const inp=document.getElementById('pkcommenttext');
     const btn=document.getElementById('pkcommentadd');
     const text=inp.value.trim();
@@ -4986,12 +5311,14 @@ function openStopPeek(row,dayId){
     mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
     cfBtn.innerHTML = confirmed.has(row) ? `${IC.unlock} unlock` : `${IC.lock} confirm date`;
     cfBtn.classList.toggle('on', confirmed.has(row));
-    cfBtn.onclick=()=>{ pushUndo();
+    cfBtn.onclick=()=>{ if(roBlocked()) return;
+      pushUndo();
       confirmed.has(row)?confirmed.delete(row):confirmed.add(row);
       persist(); peekdlg.close(); render(); };
     apBtn.textContent = approved.has(d.id) ? '✓ Approved' : 'Approve day';
     apBtn.classList.toggle('on', approved.has(d.id));
-    apBtn.onclick=()=>{ pushUndo();
+    apBtn.onclick=()=>{ if(roBlocked()) return;
+      pushUndo();
       approved.has(d.id)?approved.delete(d.id):approved.add(d.id);
       persist(); peekdlg.close(); render(); };
   } else {
@@ -5084,6 +5411,7 @@ document.getElementById('perredo').onclick=()=>{
   drawPerAvail();
 };
 function openPersonDlg(person){
+  if(roBlocked()) return;
   editingPerson = person || null;
   document.getElementById('pertitle').textContent = person ? 'Edit installer' : 'Add installer';
   document.getElementById('perfirst').value   = person ? person.first : '';
@@ -5106,6 +5434,7 @@ function openPersonDlg(person){
   document.getElementById('perfirst').focus();
 }
 document.getElementById('pergo').onclick=()=>{
+  if(roBlocked()) return;
   const first=document.getElementById('perfirst').value.trim();
   const last =document.getElementById('perlast').value.trim();
   if(!first && !last){ document.getElementById('perfirst').focus(); return; }
@@ -5126,9 +5455,11 @@ document.getElementById('pergo').onclick=()=>{
   perdlg.close(); persist(); render();
 };
 function togglePersonActive(pn){
+  if(roBlocked()) return;
   pushUndo(); pn.active=!pn.active; persist(); render();
 }
 function deletePerson(pn){
+  if(roBlocked()) return;
   const sh=shiftsFor(pn.id).length;
   if(!confirm(`Remove ${pn.name} from the roster`
     + (sh?` and from ${sh} scheduled crew-day${sh===1?'':'s'}`:'')+'?')) return;
@@ -5189,6 +5520,7 @@ function crewShiftSection(d){
   wrap.querySelectorAll('.cshiftrm').forEach(btn=>{
     btn.onclick=(e)=>{
       e.stopPropagation();
+      if(roBlocked()) return;
       pushUndo();
       sh.days.forEach(x=>{
         const cur=new Set(staffing[x.id]||[]);
@@ -5202,6 +5534,7 @@ function crewShiftSection(d){
   sel.onclick=e=>e.stopPropagation();
   sel.onchange=()=>{
     if(!sel.value) return;
+    if(roBlocked()){ sel.value=''; return; }
     pushUndo();
     // Write every day in the shift, same as the full dialog -- a Dallas
     // block is staffed as one unit, not one night at a time.
@@ -5215,6 +5548,7 @@ function crewShiftSection(d){
   return wrap;
 }
 function openStaffDlg(idOrKey){
+  if(roBlocked()) return;
   const d=days.find(x=>x.id===idOrKey);
   const sh=d ? shiftOfDay(d) : shiftFor(idOrKey);
   if(!sh) return;
@@ -5273,6 +5607,7 @@ function drawStaffDlg(){
   list.innerHTML=h;
   list.querySelectorAll('input[data-pid]').forEach(cb=>{
     cb.onchange=()=>{
+      if(roBlocked()){ cb.checked=!cb.checked; return; }
       pushUndo();
       // Write every day in the shift, so a block is all-or-nothing.
       sh.days.forEach(x=>{
@@ -5372,7 +5707,7 @@ function rosterHTML(){
   }
   // Still on the roster, just not this season -- collapsed, since they are not
   // a staffing decision right now.
-  h += rosterSection('Not working this year', off, false);
+  h += rosterSection('Not working this season', off, false);
   h+=`</div><div>${personDetailHTML()}</div></div>`;
   return h;
 }
@@ -5761,6 +6096,7 @@ function printDate(dt){
 }
 
 function render(){
+  if(hostingSeason) return;      // our DOM belongs to a hosted season now
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
   days.forEach(d=>{
@@ -5789,11 +6125,31 @@ function render(){
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.
 selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
+// Archive mode, decided locally and applied before anything can be touched.
+// The season this page was built for is either the one we are in or it is
+// already over -- and if it is over, nobody should be able to edit it in the
+// window between load and the auth token arriving. loadSeasons() confirms it
+// against the server's clock a moment later; this is what makes the
+// guarantee immediate rather than eventual.
+if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
 render();
 </script></body></html>"""
 
+# A token that no longer appears in the template is a rename that silently
+# left a hard-coded year behind -- exactly the failure this whole mechanism
+# exists to prevent, so fail the build rather than ship it.
+_unused = [t for t in SUBS if t not in HTML]
+if _unused:
+    raise SystemExit(f"season token(s) no longer used in the template: {_unused}")
+html = HTML
+for _tok, _val in SUBS.items():
+    html = html.replace(_tok, _val)
+# __DATA__ last, so a client name that happened to contain a token spelling
+# can't be rewritten by the pass above.
+html = html.replace("__DATA__", payload)
+
 with open(OUT, "w") as f:
-    f.write(HTML.replace("__DATA__", payload))
+    f.write(html)
 print("Wrote", OUT, f"({os.path.getsize(OUT)//1024} KB)")
 print("Run publish_pages.py to push this to the deployed tool "
       "(it's served from Postgres now, not a file -- see RULES.md \xa712).")

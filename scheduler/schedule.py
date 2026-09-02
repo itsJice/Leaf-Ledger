@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
 """
-TBDG 2026 Christmas install schedule -- SCHEDULE stage.
+TBDG Christmas install schedule -- SCHEDULE stage.
 
 Loads the enriched clients + OSRM drive matrix from prep.py, applies every
 non-negotiable rule, packs standard Houston clients into crew-days, routes
 each crew-day with real OSRM drive time, validates the 8am-8pm window, and
 writes the Excel workbook + interactive Leaflet map.
+
+The calendar is GENERATED from the season (see SEASON / SEASON_CONFIG
+below), not typed out: day-of-week labels, Thanksgiving, Black Friday, the
+Sunday after it and the addable Oct-Jan date range all come from season.py.
+Only genuine business decisions -- which week the Dallas run is, which
+Mondays are clubs, which weekdays are staffed, event blackouts, and the
+manual client pins further down -- are configured per season.
 """
 import datetime
 import json
 import os
 from collections import defaultdict
+
+import season          # the one season/date-arithmetic rule (see season.py)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -30,87 +39,224 @@ RADIUS_S = 1800       # every stop must be within 30 min drive of its day-group
 # Crews are named by their lead: Crew 1, Crew 2, Crew 3
 CREWS = ["Crew 1", "Crew 2", "Crew 3"]
 
-# 2026 November calendar (Thanksgiving = Thu Nov 26).
-DALLAS_DAYS = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"]
-CLUB_MONDAYS = ["2026-11-09", "2026-11-16"]
-BANK_FRIDAY = "2026-11-27"
-ROTARY_SUNDAY = "2026-11-29"
-HOU_WEEKDAYS = ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13",
-                "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20",
-                "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-30"]
-SATURDAYS = []   # no standard Saturday capacity -- see STD_WEEKDAYS note
-# Round-1 Houston weekday slots (user, 2026-08-01): teams work consecutive
-# Mon-Fri only, nothing on Saturday/Sunday except named exceptions (Rotary
-# House's Sunday, one club's client-requested Saturday -- both pinned
-# individually below, independent of this pool). The window runs forward
-# from Thanksgiving through a deposited client's confirmed Dec 2 (this
-# round's last date), and back from Thanksgiving only as far as needed to
-# fit everyone -- that floor is Nov 12, one crew-day of slack short of
-# exactly filling this round's Houston need (41 crew-days into 42 slots).
-# The wider Nov 9-Dec 10 calendar the review tool shows (see DOW below)
-# stays available for later manual reschedule accommodation; it's just no
-# longer where the INITIAL round automatically lands people.
-STD_WEEKDAYS = ["2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17",
-                "2026-11-18", "2026-11-19", "2026-11-23",
-                "2026-11-24", "2026-11-25", "2026-11-27", "2026-11-30",
-                "2026-12-01", "2026-12-02"]
-FORCE_START = set()          # no forced first day -- balance fills naturally
-OVERFLOW_TAIL = set()        # no auto-assigned overflow tail this round
+# ---------------------------------------------------------------------------
+# SEASON -- which Christmas this build is for.
+#
+# season.py owns the one rule (a season runs Oct(Y)..Jan(Y+1) and is named Y;
+# the rollover boundary is 1 Feb), so no year is hand-typed anywhere below.
+# TBDG_SEASON overrides it when rebuilding a PAST season's schedule.
+# ---------------------------------------------------------------------------
+SEASON = int(os.environ.get("TBDG_SEASON") or season.season_for())
+SEASON_FIRST, SEASON_LAST = season.season_span(SEASON)
 
-# Dates carrying a standing commitment. These are LABELS, not blocks: the
-# review tool shows the tag on the date chip and the day card so nobody
-# schedules over one by accident, but staff can still place work there
-# (user, 2026-08-12). Nov 20 was additionally pulled out of STD_WEEKDAYS
-# above so the optimizer stops auto-filling it -- its 5 stops were
-# redistributed to Nov 9-11.
-DATE_LABELS = {
-    "2026-11-20": "HYROX",
-    "2026-11-21": "HYROX",
-    "2026-11-22": "HYROX",
-    "2026-11-26": "THANKSGIVING",
-    # Prospective, not booked: the 7/15 email calls it a "New opportunity"
-    # with Leigh Redmond (Dir. of Catering) still owed a call from TBDG
-    # (voicemail 7/16, no follow-up). Labelled so nobody reads it as sold work.
-    "2026-12-23": "EVENT — UNCONFIRMED",
-    "2026-12-24": "EVENT — UNCONFIRMED",
+DOW_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _d(month, day):
+    """A (month, day) inside SEASON as a real date -- January is NEXT year."""
+    return datetime.date(season.year_of_month(SEASON, month), month, day)
+
+
+def _iso(month, day):
+    return _d(month, day).isoformat()
+
+
+def _isos(month_days):
+    return [_iso(m, dd) for (m, dd) in month_days]
+
+
+def same_point_in_season(iso):
+    """A prior season's date shifted to the SAME POINT in the current season.
+
+    Prior-year dates and this season's slots are years apart, so they can
+    only be compared after one is moved onto the other's calendar. Shift the
+    prior date forward by the whole number of SEASONS between it and SEASON
+    -- season_of_date() handles the January wrap, so a takedown on
+    2026-01-05 belongs to season 2025 and lands on 2027-01-05, not
+    2026-01-05 (which would read as eleven months too early).
+
+    Returns None if the date is unparseable.
+    """
+    try:
+        d = datetime.date.fromisoformat(iso[:10])
+        delta = SEASON - season.season_of_date(iso)
+    except ValueError:
+        return None
+    if not delta:
+        return d
+    try:
+        return d.replace(year=d.year + delta)
+    except ValueError:              # 29 Feb in a non-leap target year
+        return d.replace(year=d.year + delta, month=2, day=28)
+
+
+# ---------------------------------------------------------------------------
+# PER-SEASON CONFIG -- business decisions, NOT calendar facts.
+#
+# Everything derivable from the season is derived below and must never be
+# typed here: Thanksgiving, Black Friday, the Sunday after it, every
+# day-of-week label, and the Oct-Jan span the review tool can add dates
+# from. What lives in this block is only the handful of choices somebody
+# actually makes each year:
+#
+#   dallas_week   which Monday of November the Dallas (Mi Cocina) run starts
+#                 on -- 1 = the first Monday. The run is that Mon-Fri.
+#   club_mondays  which Mondays of November are the country-club days
+#                 (1 = the first Monday).
+#   hou_weekdays  the Houston weekday capacity for the season.
+#   std_weekdays  the subset THIS round's optimizer may auto-fill.
+#   saturdays     standard Saturday capacity, if any.
+#   force_start   dates that must be filled before any other.
+#   overflow_tail last-resort dates, used only if November runs out of room.
+#   labels        standing commitments / event blackouts. These are LABELS,
+#                 not blocks (see below).
+#   dow_spans     the stretch of the season the review tool shows as real
+#                 date bubbles: ("all" = every day incl. weekends,
+#                 "weekdays" = Mon-Fri only). Everything else in the season
+#                 arrives via EXTRA_DOW as an addable/optional date.
+#   dow_omit      dates deliberately held out of dow_spans.
+#
+# Dates are (month, day) pairs; the calendar year comes from the season, so
+# a January date lands in the following year automatically and no entry can
+# drift to the wrong year. Add next season as a NEW key beside 2026 rather
+# than editing 2026 in place -- that keeps last season reproducible.
+# ---------------------------------------------------------------------------
+SEASON_CONFIG = {
+    2026: {
+        # Mi Cocina/Dallas: Mon-Fri of the 1st Monday of November (Nov 2-6).
+        "dallas_week": 1,
+        # Country-club Mondays: the 2nd and 3rd of November (Nov 9, 16).
+        "club_mondays": [2, 3],
+        "hou_weekdays": [(11, 10), (11, 11), (11, 12), (11, 13),
+                         (11, 17), (11, 18), (11, 19), (11, 20),
+                         (11, 23), (11, 24), (11, 25), (11, 30)],
+        # Round-1 Houston weekday slots (user, 2026-08-01): teams work
+        # consecutive Mon-Fri only, nothing on Saturday/Sunday except named
+        # exceptions (Rotary House's Sunday, one club's client-requested
+        # Saturday -- both pinned individually below, independent of this
+        # pool). The window runs forward from Thanksgiving through a
+        # deposited client's confirmed Dec 2 (this round's last date), and
+        # back from Thanksgiving only as far as needed to fit everyone --
+        # that floor is Nov 12, one crew-day of slack short of exactly
+        # filling this round's Houston need (41 crew-days into 42 slots).
+        # The wider Nov 9-Dec 10 calendar the review tool shows (dow_spans
+        # below) stays available for later manual reschedule
+        # accommodation; it's just no longer where the INITIAL round
+        # automatically lands people. Nov 20 is additionally out because of
+        # the HYROX label -- its 5 stops were redistributed to Nov 9-11.
+        "std_weekdays": [(11, 12), (11, 13), (11, 16), (11, 17),
+                         (11, 18), (11, 19), (11, 23),
+                         (11, 24), (11, 25), (11, 27), (11, 30),
+                         (12, 1), (12, 2)],
+        # No standard Saturday capacity this season -- see std_weekdays.
+        "saturdays": [],
+        "force_start": [],      # no forced first day -- balance fills naturally
+        "overflow_tail": [],    # no auto-assigned overflow tail this round
+        # Dates carrying a standing commitment. LABELS, not blocks: the
+        # review tool shows the tag on the date chip and the day card so
+        # nobody schedules over one by accident, but staff can still place
+        # work there (user, 2026-08-12).
+        "labels": {
+            (11, 20): "HYROX",
+            (11, 21): "HYROX",
+            (11, 22): "HYROX",
+            # Prospective, not booked: the 7/15 email calls it a "New
+            # opportunity" with Leigh Redmond (Dir. of Catering) still owed
+            # a call from TBDG (voicemail 7/16, no follow-up). Labelled so
+            # nobody reads it as sold work.
+            (12, 23): "EVENT — UNCONFIRMED",
+            (12, 24): "EVENT — UNCONFIRMED",
+        },
+        # Nov 1 - Dec 11 shows every day, weekends included: Sundays and
+        # Thanksgiving are not workable (see rules.py's SUNDAY/THANKS
+        # blockers) but the date strip should show a real, explained gray
+        # bubble rather than not mentioning the day at all.
+        #
+        # Dec 14 - Dec 24 is weekdays only -- extended past the install
+        # window for the Carlton Woods 12/23 Signature Event (set up 12/23,
+        # tear down 12/24). These are NOT part of the standard install pool
+        # (they are absent from std_weekdays, so the optimizer will never
+        # place a regular client there); they exist only so the event has
+        # real dates to sit on and shows up on the calendar.
+        "dow_spans": [((11, 1), (12, 11), "all"),
+                      ((12, 14), (12, 24), "weekdays")],
+        # Sun Nov 8 was missing from the hand-typed 2026 calendar this
+        # config replaced. Kept out deliberately so the generated calendar
+        # is identical to the one already in production -- it still reaches
+        # the review tool through EXTRA_DOW as an addable date, exactly as
+        # it does today. Delete this entry once someone confirms it should
+        # be an ordinary gray Sunday bubble like the other Sundays.
+        "dow_omit": [(11, 8)],
+    },
 }
-DOW = {  # for labels, and the full set of dates the review tool can show.
-    # Sundays/Thanksgiving are included too (not workable -- see rules.py's
-    # SUNDAY/THANKS blockers) so the date strip can show a real, explained
-    # gray bubble instead of just not mentioning that day at all.
-    "2026-11-01": "Sun", "2026-11-02": "Mon", "2026-11-03": "Tue",
-    "2026-11-04": "Wed", "2026-11-05": "Thu", "2026-11-06": "Fri",
-    "2026-11-07": "Sat", "2026-11-09": "Mon", "2026-11-10": "Tue",
-    "2026-11-11": "Wed", "2026-11-12": "Thu", "2026-11-13": "Fri",
-    "2026-11-14": "Sat", "2026-11-15": "Sun",
-    "2026-11-16": "Mon", "2026-11-17": "Tue",
-    "2026-11-18": "Wed", "2026-11-19": "Thu", "2026-11-20": "Fri",
-    "2026-11-21": "Sat", "2026-11-22": "Sun",
-    "2026-11-23": "Mon", "2026-11-24": "Tue",
-    "2026-11-25": "Wed", "2026-11-26": "Thu",   # Thanksgiving
-    "2026-11-27": "Fri", "2026-11-28": "Sat",
-    "2026-11-29": "Sun", "2026-11-30": "Mon", "2026-12-01": "Tue",
-    "2026-12-02": "Wed", "2026-12-03": "Thu", "2026-12-04": "Fri",
-    "2026-12-05": "Sat", "2026-12-06": "Sun", "2026-12-07": "Mon",
-    "2026-12-08": "Tue", "2026-12-09": "Wed", "2026-12-10": "Thu",
-    # Extended past the install window for the Carlton Woods 12/23 Signature
-    # Event (set up 12/23, tear down 12/24). These are NOT part of the standard
-    # install pool -- they are absent from STD_WEEKDAYS, so the optimizer will
-    # never place a regular client here; they exist only so the event has real
-    # dates to sit on and shows up on the calendar.
-    "2026-12-11": "Fri", "2026-12-14": "Mon", "2026-12-15": "Tue",
-    "2026-12-16": "Wed", "2026-12-17": "Thu", "2026-12-18": "Fri",
-    "2026-12-21": "Mon", "2026-12-22": "Tue", "2026-12-23": "Wed",
-    "2026-12-24": "Thu",
-}
+
+if SEASON not in SEASON_CONFIG:
+    raise SystemExit(
+        f"schedule.py: no SEASON_CONFIG entry for season {SEASON} "
+        f"(configured: {sorted(SEASON_CONFIG)}). Add a block for it, or set "
+        f"TBDG_SEASON=<year> to rebuild a past season.")
+CFG = SEASON_CONFIG[SEASON]
+
+# ---------------------------------------------------------------------------
+# DERIVED CALENDAR -- computed from SEASON + CFG. Nothing here is typed.
+# ---------------------------------------------------------------------------
+THANKSGIVING = season.thanksgiving(SEASON).isoformat()
+BANK_FRIDAY = season.black_friday(SEASON).isoformat()
+ROTARY_SUNDAY = season.sunday_after_thanksgiving(SEASON).isoformat()
+
+_DALLAS_MON = season.nth_weekday(SEASON, 11, 0, CFG["dallas_week"])
+DALLAS_DAYS = [(_DALLAS_MON + datetime.timedelta(days=i)).isoformat()
+               for i in range(5)]                       # Mon-Fri
+# The whole Sun-Sat week the Dallas run owns. R1 is a closed system in both
+# directions -- nothing else is booked anywhere in this week -- and rules.py
+# needs the boundary, so it is derived here instead of being restated as a
+# string comparison that silently stops matching in any other year.
+DALLAS_WEEK_SPAN = ((_DALLAS_MON - datetime.timedelta(days=1)).isoformat(),
+                    (_DALLAS_MON + datetime.timedelta(days=5)).isoformat())
+
+CLUB_MONDAYS = [season.nth_weekday(SEASON, 11, 0, n).isoformat()
+                for n in CFG["club_mondays"]]
+HOU_WEEKDAYS = _isos(CFG["hou_weekdays"])
+STD_WEEKDAYS = _isos(CFG["std_weekdays"])
+SATURDAYS = _isos(CFG["saturdays"])
+FORCE_START = set(_isos(CFG["force_start"]))
+OVERFLOW_TAIL = set(_isos(CFG["overflow_tail"]))
+
+DATE_LABELS = {_iso(m, dd): text for (m, dd), text in CFG["labels"].items()}
+DATE_LABELS[THANKSGIVING] = "THANKSGIVING"
+
+
+def _build_dow():
+    """Day-of-week labels for every date the review tool shows as a bubble.
+
+    COMPUTED from weekday(), never written down. S.DOW is the only
+    day-of-week source in the system -- rules.py reads S.DOW.get(date) to
+    decide Saturday/Sunday rules -- so one mistyped label would silently
+    break every weekday rule for that date. Deriving it removes the class.
+    """
+    omit = {_iso(m, dd) for (m, dd) in CFG["dow_omit"]}
+    out = {}
+    for (m1, d1), (m2, d2), mode in CFG["dow_spans"]:
+        d, end = _d(m1, d1), _d(m2, d2)
+        while d <= end:
+            iso = d.isoformat()
+            if iso not in omit and (mode == "all" or d.weekday() < 5):
+                out[iso] = DOW_NAMES[d.weekday()]
+            d += datetime.timedelta(days=1)
+    return dict(sorted(out.items()))
+
+
+DOW = _build_dow()
+
 
 # Dates staff can ADD from the review tool ("+ New date"), on top of the
 # working calendar above (user, 2026-08-31: "I like all the dates that are
 # there, but I wanna be able to add a new date, and then it populates as a
-# bubble"). Every date Oct 1, 2026 - Jan 31, 2027 that DOW doesn't already
-# carry. The Jan 2027 tail (user, 2026-09-02) is takedown season -- nothing
-# in DOW reaches past Dec 24, so all of January comes through here the same
-# way the Oct-Dec "extra" dates always have.
+# bubble"). Every date in the season (Oct 1 - Jan 31, from season_span) that
+# DOW doesn't already carry. The January tail (user, 2026-09-02) is takedown
+# season -- nothing in DOW reaches past the install window, so all of
+# January comes through here the same way the Oct-Dec "extra" dates always
+# have.
 #
 # Precomputed here, not invented in the browser, for one reason: a date's
 # legality per client comes out of rules.static_blockers() via the
@@ -126,18 +272,27 @@ DOW = {  # for labels, and the full set of dates the review tool can show.
 # beyond staying out of those pools. calendar() flags them `optional` so
 # the review tool hides them until staff add one.
 def _extra_dow():
-    out, d = {}, datetime.date(2026, 10, 1)
-    end = datetime.date(2027, 1, 31)
-    names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    while d <= end:
+    out, d = {}, SEASON_FIRST
+    while d <= SEASON_LAST:
         iso = d.isoformat()
         if iso not in DOW:
-            out[iso] = names[d.weekday()]
+            out[iso] = DOW_NAMES[d.weekday()]
         d += datetime.timedelta(days=1)
     return out
 
 
 EXTRA_DOW = _extra_dow()
+
+# Cheap guard against a config typo: every date the optimizer or a rule can
+# name must exist on the calendar the review tool renders, or it becomes a
+# slot nothing can legally be dropped onto.
+_off_calendar = sorted(
+    d for d in (set(DALLAS_DAYS) | set(CLUB_MONDAYS) | set(HOU_WEEKDAYS)
+                | set(STD_WEEKDAYS) | set(SATURDAYS) | set(OVERFLOW_TAIL)
+                | set(FORCE_START) | {BANK_FRIDAY, ROTARY_SUNDAY})
+    if d not in DOW)
+assert not _off_calendar, \
+    f"season {SEASON}: working dates missing from the DOW calendar: {_off_calendar}"
 
 
 import client_config_loader
@@ -1102,6 +1257,26 @@ def main():
     # the normal 10h cap. See pairing_notes.citizens_ingram_northside.
     citizens_ingram_northside = names(CLIENT_CONFIG["pairing_names"]["citizens_ingram_northside"])
 
+    # =======================================================================
+    # PER-SEASON CONFIG: MANUAL PIN DATES -- REVIEW EVERY YEAR.
+    #
+    # Every literal date from here to the end of the pinned-day block below
+    # (the build_day / pin_day / joint_convoy calls) is a BUSINESS decision
+    # for THIS season: a client's emailed request, a confirmed deposit, a
+    # crew's first open weekday after an earlier reshuffle. None of them is
+    # derivable from the calendar -- "Fri 11/27" here means the date this
+    # particular club asked for, not Black Friday, and moving it by the
+    # season rule would silently reschedule a client who never agreed to it.
+    # They are deliberately left as literals so a stale year FAILS LOUDLY
+    # (the date drops out of STD_WEEKDAYS / DOW) instead of quietly landing
+    # someone on the wrong weekday.
+    #
+    # Rebuilding for a new season therefore means walking this block against
+    # the season's emails and the Install Date column and re-entering each
+    # date, the same way the SEASON_CONFIG block at the top of the file is
+    # reviewed. Everything OUTSIDE this block is derived and needs no edit.
+    # =======================================================================
+
     # Rule (2026 Install Date column, client note "1/3, 2/3, 3/3 Same Day"):
     # one client's 3 locations must be worked in one visit. All 3 fit
     # comfortably inside the normal 10h cap (~7h26m total), so no exception
@@ -1321,6 +1496,7 @@ def main():
             CLIENT_CONFIG["pairing_notes"]["royal"], fill=3)
     pin_day("Crew 2", "2026-12-02", sims_darcy, "Standard",
             CLIENT_CONFIG["pairing_notes"]["sims_darcy"], fill=2)
+    # ---- end of the per-season MANUAL PIN DATES block (see banner above) ---
 
     # Rule (user, 2026-07-30): NOBODY on a Saturday unless their 2025
     # install was ALSO on a Saturday. Businesses were already weekend-
@@ -1410,6 +1586,20 @@ def main():
     # whose 2026 note flags their prior date as a mistake (installed too
     # late, etc.) is excluded from the average -- anchoring near a date we
     # already know was wrong would just repeat it.
+    #
+    # BUG (fixed): this used to average the RAW prior ordinals and then pick
+    # the slot minimising abs(slot_ordinal - target). Every slot in this
+    # season is ~365 days after a prior-season target, so that distance grew
+    # monotonically with the slot date and min() always returned the
+    # EARLIEST slot in the pool -- for every client, whatever their history.
+    # The feature silently did nothing: a client installed 2025-12-02 came
+    # out on 2026-11-02 rather than near 2026-12-02.
+    #
+    # The fix is to compare WITHIN-SEASON position, not absolute time:
+    # normalise each prior date onto the current season's calendar first
+    # (same_point_in_season), so "the same point in the season" is the thing
+    # that wins. Season-relative, so it also handles the Jan/Dec wrap -- a
+    # January date belongs to the season that started the previous October.
     def prior_target_ord(bin_stops):
         ords = []
         for s in bin_stops:
@@ -1419,10 +1609,10 @@ def main():
             d = s.get("prior_install_date") or s.get("date_2024")
             if not d or len(d) < 10:
                 continue
-            try:
-                ords.append(_ord(d[:10]))
-            except ValueError:
+            shifted = same_point_in_season(d)
+            if shifted is None:
                 continue
+            ords.append(shifted.toordinal())
         return sum(ords) / len(ords) if ords else None
 
     def place(bin_stops, slot_pool):

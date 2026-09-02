@@ -11,12 +11,24 @@ baked into the deploy image), and this router serves it only to a
 signed-in user — main.py attaches the Supabase-JWT auth dependency to
 every /api router.
 
+Pages are kept per season, keyed on (season, name) — publishing a new
+autumn's tool adds a row rather than overwriting last year's, so an old
+season's routed plan stays openable (migrations/013). /seasons lists what
+has actually been published, newest first, and /page defaults to the newest
+PUBLISHED season rather than to season_for(): between 1 February and the
+day the new season's tool is first built there is no current-season page,
+and the tool must still open last season instead of 404ing.
+
 It also stores the reschedule state (which stop sits on which crew-day,
 plus approvals). That state is deliberately SHARED, not per-user: several
 staff work through client reschedule requests over the same season, and a
 per-user document would let two people silently diverge with no merge. It
 is keyed on the schedule build version instead, so state saved against an
-older build is never applied to a regenerated schedule by accident.
+older build is never applied to a regenerated schedule by accident. The
+season is recorded alongside it purely so a season can be FOUND without
+knowing its build hash — `version` stays the primary key, and stays the
+guard that stops a 2026 placement document being replayed onto a 2027
+build (row numbers are re-assigned by each season's sheet).
 
 Storage follows the `preferences` router's convention: an app-owned table
 in the `ll_app` schema, a jsonb document, and a `FOR UPDATE` read-
@@ -32,6 +44,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.apis.user_context import get_request_user_id
+from app.libs.season import season_for
 
 router = APIRouter(prefix="/install-schedule")
 
@@ -42,10 +55,42 @@ ALLOWED = {"index.html", "map.html"}
 MAX_DOC_BYTES = 2_000_000
 
 
+def _clean_season(season: str) -> str:
+    """A season is the four-digit year its October falls in (see app.libs.season).
+
+    Validated rather than trusted so it can be interpolated into a query
+    parameter without a surprise: anything that is not four digits is a
+    client bug, not a season nobody has published yet.
+    """
+    s = (season or "").strip()
+    if len(s) != 4 or not s.isdigit():
+        raise HTTPException(status_code=400, detail="Bad season")
+    return s
+
+
+async def _latest_published_season(conn, file: str) -> str | None:
+    """The newest season with a published `file`, or None if there are none.
+
+    Deliberately NOT season_for(): the current season has no page until the
+    pipeline first publishes it, and for most of the year (Feb through the
+    autumn build) that means the newest published page is last season's. The
+    tool should open that, not an error. Seasons are four-digit years, so a
+    text sort is a chronological sort.
+    """
+    return await conn.fetchval(
+        "SELECT season FROM ll_app.install_schedule_pages "
+        " WHERE name = $1 ORDER BY season DESC LIMIT 1",
+        file,
+    )
+
+
 @router.get("/page", response_class=HTMLResponse)
-async def get_install_schedule_page(file: str = "index.html") -> str:
+async def get_install_schedule_page(
+    file: str = "index.html", season: str | None = None
+) -> str:
     if file not in ALLOWED:
         raise HTTPException(status_code=404, detail="Unknown page")
+    want = _clean_season(season) if season is not None else None
     try:
         conn = await get_conn()
     except Exception as exc:
@@ -54,17 +99,73 @@ async def get_install_schedule_page(file: str = "index.html") -> str:
         ) from exc
     try:
         await ensure_schema(conn)
-        row = await conn.fetchrow(
-            "SELECT html FROM ll_app.install_schedule_pages WHERE name = $1", file
+        if want is None:
+            want = await _latest_published_season(conn, file)
+        row = (
+            await conn.fetchrow(
+                "SELECT html FROM ll_app.install_schedule_pages "
+                " WHERE season = $1 AND name = $2",
+                want,
+                file,
+            )
+            if want
+            else None
         )
     finally:
         await conn.close()
     if not row:
         raise HTTPException(
             status_code=404,
-            detail="Schedule not published yet — run scheduler/publish_pages.py",
+            detail=(
+                f"No {season} schedule published — run scheduler/publish_pages.py"
+                if season
+                else "Schedule not published yet — run scheduler/publish_pages.py"
+            ),
         )
     return row["html"]
+
+
+@router.get("/seasons")
+async def list_seasons() -> dict:
+    """Seasons with a published page, newest first — the season picker's list.
+
+    Reports the current season separately as well as flagging it in the list,
+    because the two can disagree: right after rollover the current season has
+    nothing published yet, and the picker needs to be able to say so rather
+    than silently present last season as if it were this one.
+
+    Never 404s and degrades to an empty list on a storage outage, like
+    /state and /history: an empty picker is a better failure than a page
+    that will not render.
+    """
+    current = str(season_for())
+    try:
+        conn = await get_conn()
+    except Exception:
+        return {"seasons": [], "currentSeason": current, "storage": "unavailable"}
+    try:
+        await ensure_schema(conn)
+        rows = await conn.fetch(
+            "SELECT season, max(updated_at) AS updated_at, count(*) AS pages "
+            "  FROM ll_app.install_schedule_pages "
+            " GROUP BY season ORDER BY season DESC"
+        )
+    finally:
+        await conn.close()
+    return {
+        "currentSeason": current,
+        "seasons": [
+            {
+                "season": r["season"],
+                "publishedAt": (
+                    r["updated_at"].isoformat() if r["updated_at"] else None
+                ),
+                "pages": r["pages"],
+                "current": r["season"] == current,
+            }
+            for r in rows
+        ],
+    }
 
 
 # ─── Shared reschedule state ─────────────────────────────────────────────────
@@ -84,27 +185,48 @@ _SCHEMA_READY = False
 #: but that's still potentially hundreds of saves over several weeks).
 MAX_HISTORY_PER_VERSION = 200
 
+#: Bootstrap for a database that has never seen these tables -- a fresh dev
+#: or test instance. It describes the POST-013 shape, so a fresh database and
+#: a migrated one end up identical.
+#:
+#: It deliberately does not reproduce 013's surgery (the backfill, the NOT
+#: NULL, the primary-key swap). CREATE TABLE IF NOT EXISTS is a no-op on a
+#: database that already has the table, so on the live database this whole
+#: block does nothing and cannot fight the migration; the ADD COLUMN IF NOT
+#: EXISTS lines are likewise no-ops there. Turning an old un-migrated table
+#: into a season-keyed one is 013's job and 013's alone -- it has to move the
+#: existing rows to a season before it can key on one, and that is not
+#: something a request handler should be doing on the way past.
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
 
 -- The compiled tool itself (client names, addresses, phone numbers baked
 -- into its embedded data) -- deliberately NOT a file in the git repo or
 -- the deploy image (see the module docstring). scheduler/publish_pages.py
--- pushes a fresh build here directly; this endpoint just serves whatever
--- row is current.
+-- pushes a fresh build here directly, one row per (season, page), so
+-- publishing a new autumn adds to the archive instead of erasing it.
 CREATE TABLE IF NOT EXISTS ll_app.install_schedule_pages (
-    name       text PRIMARY KEY,
+    season     text NOT NULL,
+    name       text NOT NULL,
     html       text NOT NULL,
-    updated_at timestamptz NOT NULL DEFAULT now()
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT install_schedule_pages_pkey PRIMARY KEY (season, name)
 );
 
 CREATE TABLE IF NOT EXISTS ll_app.install_schedule_state (
     version    text PRIMARY KEY,
+    season     text,
     state      jsonb NOT NULL DEFAULT '{}'::jsonb,
     updated_by text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- version stays the primary key: it is what guarantees one season's
+-- placement document is never replayed onto another season's build. season
+-- is only here so a season can be found without knowing its build hash.
+ALTER TABLE ll_app.install_schedule_state ADD COLUMN IF NOT EXISTS season text;
+CREATE INDEX IF NOT EXISTS install_schedule_state_season_idx
+    ON ll_app.install_schedule_state (season);
 
 -- Append-only save history, so several staff working the same schedule can
 -- see who changed what and roll back a mistake -- the same shape as a
@@ -114,10 +236,12 @@ CREATE TABLE IF NOT EXISTS ll_app.install_schedule_state (
 CREATE TABLE IF NOT EXISTS ll_app.install_schedule_history (
     id         bigserial PRIMARY KEY,
     version    text NOT NULL,
+    season     text,
     state      jsonb NOT NULL,
     updated_by text,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE ll_app.install_schedule_history ADD COLUMN IF NOT EXISTS season text;
 CREATE INDEX IF NOT EXISTS install_schedule_history_version_idx
     ON ll_app.install_schedule_history (version, created_at DESC);
 """
@@ -195,16 +319,35 @@ async def get_state(version: str) -> dict:
 # and `detail` keeps the whole original record -- install_date, total, fees. So
 # marking is reversible: set the flag and rewrite the summary, and putting a
 # client back can rebuild the original line from what is still there.
-NOT_INSTALLING_SUMMARY = "Not installing this year"
+#
+# WORDING: these two strings are stored in client_activity.summary and rendered
+# verbatim by the Clients tab, next to a badge that ALREADY shows the season
+# year. They must match scheduler/sync_clients.py exactly -- both files write
+# the same rows, and a disagreement means the line silently changes wording
+# depending on which path last touched the client. Change them in both, and
+# run scheduler/backfill_summary_wording.py for the rows already stored.
+#
+# "this year" and "2026 season" were both wrong here: redundant next to the
+# badge, and actively misleading once the season turns over -- a 2026 row read
+# "Not installing this year" while the app was planning 2027.
+NOT_INSTALLING_SUMMARY = "Not installing"
+#: Fallback when no install date is on record. Not "not scheduled" -- for the
+#: older seasons the date simply was never tracked, which is a different thing.
+NO_DATE_SUMMARY = "No date recorded"
 
 
 def _restored_summary(detail: dict, season: str) -> str:
-    """Rebuild what summarize() would have produced, from the kept detail."""
+    """Rebuild what summarize() would have produced, from the kept detail.
+
+    `season` is no longer part of the text (the badge next to it already says
+    the year) but stays in the signature: the caller has it, and the summary
+    is the one place a future season-specific wording would go.
+    """
     bits = []
     if detail.get("install_date"):
         bits.append(f"Scheduled {detail['install_date']}")
     else:
-        bits.append(f"{season} season")
+        bits.append(NO_DATE_SUMMARY)
     total = detail.get("total")
     if total is None and detail.get("install_fee") is not None:
         total = round((detail.get("install_fee") or 0)
@@ -275,6 +418,14 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
     if len(encoded) > MAX_DOC_BYTES:
         raise HTTPException(status_code=413, detail="State document too large")
 
+    # Stamp the row with the season the tool says it is, so a season's saves
+    # can be found without knowing its build hash. Read tolerantly and never
+    # fatally: a page cached from before the tool sent a season still has to
+    # be able to save. `version` remains the primary key and remains the
+    # guard against cross-season replay -- season is a label, not a key.
+    raw_season = str(state.get("season") or "").strip()
+    payload_season = raw_season if (len(raw_season) == 4 and raw_season.isdigit()) else None
+
     user_id = get_request_user_id(request)
     try:
         conn = await get_conn()
@@ -286,9 +437,11 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
         await ensure_schema(conn)
         async with conn.transaction():
             await conn.execute(
-                "INSERT INTO ll_app.install_schedule_state (version, state, updated_by) "
-                "VALUES ($1, '{}'::jsonb, $2) ON CONFLICT (version) DO NOTHING",
+                "INSERT INTO ll_app.install_schedule_state "
+                "(version, season, state, updated_by) "
+                "VALUES ($1, $2, '{}'::jsonb, $3) ON CONFLICT (version) DO NOTHING",
                 v,
+                payload_season,
                 user_id,
             )
             await conn.fetchval(
@@ -297,20 +450,27 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
                 v,
             )
             await conn.execute(
+                # COALESCE, not a plain assignment: an older cached page sends
+                # no season, and letting that blank out the label a newer save
+                # already wrote would lose it for good.
                 "UPDATE ll_app.install_schedule_state "
-                "SET state = $2::jsonb, updated_by = $3, updated_at = now() "
+                "SET state = $2::jsonb, updated_by = $3, "
+                "    season = COALESCE($4, season), updated_at = now() "
                 "WHERE version = $1",
                 v,
                 encoded,
                 user_id,
+                payload_season,
             )
             # Append to history, then trim to the retention cap -- every
             # save gets a row, restoring an old one included, so the trail
             # itself is never rewritten.
             await conn.execute(
-                "INSERT INTO ll_app.install_schedule_history (version, state, updated_by) "
-                "VALUES ($1, $2::jsonb, $3)",
+                "INSERT INTO ll_app.install_schedule_history "
+                "(version, season, state, updated_by) "
+                "VALUES ($1, $2, $3::jsonb, $4)",
                 v,
+                payload_season,
                 encoded,
                 user_id,
             )
@@ -334,10 +494,9 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
             # say", which is different from "the list is empty".
             if "notInstallingNames" in state:
                 names = state.get("notInstallingNames") or []
-                season = str(state.get("season") or "").strip()
-                if season.isdigit() and isinstance(names, list):
+                if payload_season and isinstance(names, list):
                     try:
-                        await _reconcile_not_installing(conn, season, names)
+                        await _reconcile_not_installing(conn, payload_season, names)
                     except Exception as exc:  # noqa: BLE001
                         # The schedule save is the user's actual action and must
                         # not fail because the write-through did; the next save

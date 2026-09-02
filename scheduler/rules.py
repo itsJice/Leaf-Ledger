@@ -28,6 +28,7 @@ constraint-checking a proposed move is tractable in the UI.
 import datetime
 
 import schedule as S
+import season
 
 # ---------------------------------------------------------------------------
 # Blocker codes. Anything in BLOCKERS is a hard NO; WARNINGS are advisory.
@@ -92,7 +93,10 @@ def is_soft(code):
 # ---------------------------------------------------------------------------
 # Calendar
 # ---------------------------------------------------------------------------
-THANKSGIVING = "2026-11-26"
+# Derived, not pinned: the 4th Thursday of November for whichever season
+# schedule.py is building. It used to be a literal, which meant the
+# THANKS blocker quietly stopped firing the moment the season rolled over.
+THANKSGIVING = season.thanksgiving(S.SEASON).isoformat()
 
 
 def calendar():
@@ -187,7 +191,12 @@ def static_blockers(c, date, crew, dow=None, kind=None):
     else:
         if date in S.DALLAS_DAYS:
             out.append("MC_ONLY")
-        elif "2026-11-01" <= date <= "2026-11-07":
+        elif S.DALLAS_WEEK_SPAN[0] <= date <= S.DALLAS_WEEK_SPAN[1]:
+            # The Sun-Sat week around the Dallas run, derived from the
+            # season's Dallas week. Was a literal "2026-11-01".."2026-11-07"
+            # string range, which compares fine but silently stops matching
+            # anything once the season rolls over -- the whole week would
+            # quietly open up to non-M-Crowd clients.
             out.append("MC_ONLY")
     if kind == "dallas_night" and cat != "M Crowd":
         out.append("NOT_MC")

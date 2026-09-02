@@ -5,17 +5,24 @@ Push the Christmas-install client list into the main app's `clients` table
 work and their Christmas install history live in one record in the Clients
 tab instead of two disconnected systems.
 
-Run after prep.py (so cache/schedule.json is current for the 2026 season):
+Run after prep.py (so cache/schedule.json is current for this season):
 
     .venv/bin/python3 sync_clients.py
     .venv/bin/python3 sync_clients.py --file "/path/to/some/other/workbook.xlsx"
+    TBDG_SEASON=2027 .venv/bin/python3 sync_clients.py   # file under 2027
 
-2026 comes from cache/schedule.json (already parsed, already has everything,
-including the actual scheduled date from the crew-day placement). 2025/2024/
-2023/2022 come straight from the workbook's other season sheets, since the
-pipeline cache only ever holds the current season -- each of those sheets
-has its own header layout (or, for 2022, no headers at all), handled by the
-per-season extractors below.
+The CURRENT season comes from cache/schedule.json (already parsed, already
+has everything, including the actual scheduled date from the crew-day
+placement) and is labelled from season.py, not from a hardcoded year: the
+label is the `season` column on client_activity, and a 2027 run that wrote
+"2026" would land on top of the real 2026 history rather than beside it.
+TBDG_SEASON overrides it (the same variable the rest of the pipeline reads).
+
+2025/2024/2023/2022 come straight from the workbook's other season sheets,
+since the pipeline cache only ever holds the current season -- each of those
+sheets has its own header layout (or, for 2022, no headers at all), handled
+by the per-season extractors below. Those are finished history and stay
+pinned to their literal years.
 
 Mergeable-field conflict rule (phone/email/street/city/state/zip): a value
 edited in the app must survive a re-sync UNLESS the spreadsheet itself has
@@ -31,10 +38,15 @@ import os
 import re
 from typing import Any, Optional
 
+import sys
+
 import asyncpg
 import openpyxl
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)  # season.py is a sibling; this may be run from anywhere
+from season import season_for  # noqa: E402
+
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 DEFAULT_XLSX = os.path.join(
     HERE, "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx"
@@ -42,6 +54,32 @@ DEFAULT_XLSX = os.path.join(
 CACHE = os.path.join(HERE, "cache", "schedule.json")
 
 MERGE_FIELDS = ["phone", "email", "street", "city", "state", "zip"]
+
+#: Same variable the rest of the pipeline reads (schedule.py, publish_pages.py).
+SEASON_ENV = "TBDG_SEASON"
+
+#: Seasons whose sheets are finished history. These stay literal -- the 2023
+#: sheet is the 2023 season no matter what year it is read in.
+HISTORICAL_SEASONS = ("2022", "2023", "2024", "2025")
+
+
+def current_season() -> str:
+    """The season this run is filing the cached schedule under.
+
+    From season.py so it rolls over on 1 February without anyone editing a
+    literal; TBDG_SEASON overrides it for a re-run of a past season or an
+    early build of the next one. Validated, because a typo'd export would
+    otherwise create a whole phantom season of client_activity rows.
+    """
+    override = (os.environ.get(SEASON_ENV) or "").strip()
+    if override:
+        if len(override) != 4 or not override.isdigit():
+            raise SystemExit(
+                f"{SEASON_ENV}={override!r} is not a four-digit season year "
+                "(a season is named for the year its October falls in)."
+            )
+        return override
+    return str(season_for())
 
 
 def load_env(path):
@@ -127,7 +165,56 @@ def make_h(ws, col):
 # storage_fee, total, notes, install_date (ISO str or None), cancelled.
 # ---------------------------------------------------------------------------
 
-def extract_2026():
+#: Season-templated field names, remembered so each is only complained about
+#: once per run rather than once per client.
+_FIELD_WARNED: set[str] = set()
+
+
+def season_field(rec: dict, season: str, *templates, default=None):
+    """Read a field whose name has the season year baked into it.
+
+    prep.py names these `install_fee_2026`, `takedown_fee_2026`,
+    `install_2026_no_install` -- the year is part of the key. prep.py is owned
+    elsewhere in the pipeline, so this reads them by template instead of
+    depending on one spelling: `"install_fee_{}"` is tried with this season's
+    year first, then any literal alternatives given (the obvious de-year-baked
+    form, `"install_fee"`).
+
+    The failure this exists to prevent is the quiet one. If prep.py renames a
+    key and this just did `rec.get("install_fee_2026")`, every client would
+    sync with a blank fee and a summary reading "No date recorded" with no
+    dollar figure, and nothing would say why -- a whole season filed empty. So
+    a key that resolves to nothing shouts once, naming the keys the record
+    actually has, and the operator can see it in the run output.
+
+    It does NOT quietly fall back to a different year's key (`install_fee_2025`
+    is right there in every record): last season's fees filed under this
+    season's label is worse than a blank, because it looks correct.
+    """
+    keys = [t.format(season) if "{}" in t else t for t in templates]
+    for key in keys:
+        if key in rec:
+            return rec[key]
+    canonical = keys[0]
+    if canonical not in _FIELD_WARNED:
+        _FIELD_WARNED.add(canonical)
+        prefix = templates[0].split("{}")[0]
+        near = sorted(k for k in rec if k.startswith(prefix))
+        print(f"  *** WARNING: no {canonical!r} on the cached record "
+              f"(tried {keys!r}) -- prep.py may have renamed it. "
+              f"Falling back to {default!r} for every client this run.")
+        if near:
+            print(f"      similar keys present: {near}")
+    return default
+
+
+def extract_current_season(season: str):
+    """This season's clients, from the pipeline cache prep.py/schedule.py left.
+
+    `season` is the label, not a filter: the cache only ever holds one season
+    (the one prep.py was last run for), so this reads whatever is in it and
+    files it under the season the caller derived.
+    """
     with open(CACHE) as f:
         sched = json.load(f)
     row_dates = {}
@@ -136,7 +223,10 @@ def extract_2026():
             row_dates.setdefault(s["row"], day["date"])
     out = []
     for c in sched["all_clients"]:
-        if c.get("install_2026_no_install"):
+        # Default False, not None: an unresolvable key must not silently drop
+        # (or silently keep) clients -- season_field has already shouted.
+        if season_field(c, season, "install_{}_no_install", "no_install",
+                        default=False):
             continue
         name = clean_name(c.get("name"))
         if not name:
@@ -146,8 +236,10 @@ def extract_2026():
             "street": clean_str(c.get("street")), "city": clean_str(c.get("city")),
             "state": clean_str(c.get("st")), "zip": clean_str(c.get("zip")),
             "phone": clean_str(c.get("phone")), "email": clean_str(c.get("email")),
-            "install_fee": money(c.get("install_fee_2026")),
-            "takedown_fee": money(c.get("takedown_fee_2026")),
+            "install_fee": money(
+                season_field(c, season, "install_fee_{}", "install_fee")),
+            "takedown_fee": money(
+                season_field(c, season, "takedown_fee_{}", "takedown_fee")),
             "storage_fee": money(c.get("storage_fee")),
             "total": None,
             "notes": clean_str(c.get("production_notes")),
@@ -264,6 +356,23 @@ def extract_2022_cancelled(ws):
     return out
 
 
+#
+# WORDING: these two go into client_activity.summary and are rendered verbatim
+# by the Clients tab, next to a badge that ALREADY shows the season year. They
+# must match backend/app/apis/install_schedule/__init__.py exactly -- both
+# files write these same rows, and a disagreement means the line changes
+# wording depending on which path last touched the client. Change them in both,
+# and run backfill_summary_wording.py for the rows already stored.
+#
+# "this year" and "2026 season" were both wrong here: redundant next to the
+# badge, and actively misleading once the season turns over -- a 2026 row read
+# "Not installing this year" while the app was planning 2027.
+NOT_INSTALLING_SUMMARY = "Not installing"
+#: Fallback when no install date is on record. Not "not scheduled" -- for the
+#: older seasons the date simply was never tracked, which is a different thing.
+NO_DATE_SUMMARY = "No date recorded"
+
+
 def summarize(season: str, rec: dict) -> str:
     if rec.get("cancelled"):
         return "Cancelled before install"
@@ -271,7 +380,7 @@ def summarize(season: str, rec: dict) -> str:
     if rec.get("install_date"):
         bits.append(f"Scheduled {rec['install_date']}")
     else:
-        bits.append(f"{season} season")
+        bits.append(NO_DATE_SUMMARY)
     total = rec.get("total")
     if total is None and rec.get("install_fee") is not None:
         total = round((rec.get("install_fee") or 0) + (rec.get("takedown_fee") or 0)
@@ -370,7 +479,7 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
     # Staff taking a client out of the season is a decision made in the app, and
     # the app is the source of truth -- so it survives a re-sync. This script
     # builds `rec` from the schedule spreadsheet, which still lists them, and
-    # would otherwise overwrite "Not installing this year" with "Scheduled ..."
+    # would otherwise overwrite the "not installing" line with "Scheduled ..."
     # on every run, silently undoing the removal.
     #
     # The flag lives in detail.not_installing (set by the install_schedule API
@@ -385,7 +494,7 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
         prior = prior if isinstance(prior, dict) else json.loads(prior)
         if prior.get("not_installing"):
             detail["not_installing"] = True
-            summary = "Not installing this year"
+            summary = NOT_INSTALLING_SUMMARY
 
     result = await conn.execute(
         "INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at) "
@@ -411,9 +520,12 @@ async def main():
 
     seasons: list[tuple[str, list[dict]]] = []
 
-    print(f"2026: reading {CACHE}")
-    seasons_2026 = extract_2026()
-    print(f"  {len(seasons_2026)} clients")
+    season = current_season()
+    source = SEASON_ENV if os.environ.get(SEASON_ENV) else "season.py"
+    print(f"Current season: {season} (from {source})")
+    print(f"{season}: reading {CACHE}")
+    current_recs = extract_current_season(season)
+    print(f"  {len(current_recs)} clients")
 
     print(f"2025/2024/2023/2022: reading {args.file}")
     wb = openpyxl.load_workbook(args.file, data_only=True)
@@ -433,17 +545,25 @@ async def main():
     ws = sheet_or_none("Cancelled 2022")
     rec_2022 = extract_2022_cancelled(ws) if ws else []
 
-    for name, recs in [("2022", rec_2022), ("2023", rec_2023), ("2024", rec_2024),
-                        ("2025", rec_2025), ("2026", seasons_2026)]:
+    # The historical years are literals -- those sheets are finished seasons.
+    # The last entry is the CURRENT one and its label is derived, so a 2027 run
+    # writes 2027 rows beside the 2026 history instead of on top of it. (Point
+    # TBDG_SEASON at a historical year and it deliberately re-files the cache
+    # over that season -- the same override that lets you rebuild one.)
+    historical = dict(zip(HISTORICAL_SEASONS,
+                          (rec_2022, rec_2023, rec_2024, rec_2025)))
+    for name, recs in [*historical.items(), (season, current_recs)]:
         print(f"  {name}: {len(recs)} rows")
         seasons.append((name, recs))
 
     conn = await asyncpg.connect(db_url, statement_cache_size=0)
     counts = {"clients_created": 0, "clients_seen": 0, "fields_updated": 0, "activity_rows": 0}
     try:
-        for season, recs in seasons:  # ascending order: 2022 first, 2026 last
+        # Ascending order: oldest history first, the current season last, so a
+        # client's newest row is the one written most recently.
+        for season_label, recs in seasons:
             for rec in recs:
-                await upsert_client(conn, rec, season, counts)
+                await upsert_client(conn, rec, season_label, counts)
     finally:
         await conn.close()
 

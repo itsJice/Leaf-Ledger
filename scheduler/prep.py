@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-TBDG 2026 Christmas install schedule -- PREP stage.
+TBDG Christmas install schedule -- PREP stage.
 
-Parses the raw 2025 spreadsheet, excludes billing line-items, flags no-address
-clients, recomputes Area/Zone from ZIP (the file's Area/Zone columns are
-unreliable), calibrates 2026 install hours, classifies Business vs Residence,
-categorizes the special clients that drive the hard scheduling rules, then
-geocodes every address (Nominatim, cached) and builds the OSRM drive-time
-matrix (cached).
+Parses the raw client spreadsheet for the CURRENT SEASON, excludes billing
+line-items, flags no-address clients, recomputes Area/Zone from ZIP (the
+file's Area/Zone columns are unreliable), calibrates install hours off last
+season's measured hours, classifies Business vs Residence, categorizes the
+special clients that drive the hard scheduling rules, then geocodes every
+address (Nominatim, cached) and builds the OSRM drive-time matrix (cached).
+
+The season is DERIVED (see season.py / the SEASON block below), not pinned --
+nobody has to edit a year in here to run the next one. Override with
+TBDG_SEASON=2026 to rebuild a past season.
 
 Outputs (all in cache/):
   clients.json     -- fully enriched client records
@@ -25,15 +29,100 @@ import openpyxl
 import requests
 
 import client_config_loader
+import season as season_lib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 os.makedirs(CACHE, exist_ok=True)
 SRC = os.path.join(HERE, "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx")
-HIST_SRC = os.path.join(HERE, "CHRISTMAS Historical Reference (2024-2025).xlsx")
-SHEET = "2026 Christmas"
 DEPOT = "2860 Antoine Dr, Houston, TX 77092"
 UA = {"User-Agent": "TBDG-christmas-scheduler/1.0 (justice@wenzdays.com)"}
+
+
+# ---------------------------------------------------------------------------
+# SEASON.  season.py is the single definition of which season a date belongs
+# to (Oct(Y) -> Jan(Y+1), named for October's year, rolls over 1 February).
+# Everything year-shaped in this file -- the sheet name, the history file,
+# every year-named column -- is built from it, so October's rollover needs no
+# code edit. TBDG_SEASON (same env var the rest of the pipeline reads)
+# overrides it for rebuilding a closed season.
+# ---------------------------------------------------------------------------
+def _season():
+    raw = (os.environ.get("TBDG_SEASON") or "").strip()
+    if not raw:
+        return season_lib.season_for()
+    try:
+        return int(raw)
+    except ValueError:
+        raise SystemExit(f"TBDG_SEASON={raw!r} is not a 4-digit season year.")
+
+
+SEASON = _season()          # the season being built
+PRIOR = SEASON - 1          # last season: real hours, crew, invoice, notes
+PRIOR2 = SEASON - 2         # two back: install date only (history workbook)
+
+SHEET = f"{SEASON} Christmas"
+HIST_SRC = os.path.join(HERE, f"CHRISTMAS Historical Reference ({PRIOR2}-{PRIOR}).xlsx")
+HIST_SHEET_PRIOR = f"{PRIOR} Christmas"
+HIST_SHEET_PRIOR2 = f"{PRIOR2} Christmas"
+
+# Year-named headers in the source sheet. The spelling is NOT regular -- the
+# year leads on some columns, trails on others, and one is shouted -- so each
+# is written out here instead of generated from one pattern. Confirm these
+# against the new sheet's header row every October (RULES.md ss.13):
+#
+#     "2026 Install Date"             year first, title case
+#     "Install Date 2025"             year LAST
+#     "2024 INSTALL DATE"             year first, ALL CAPS
+#     "2025 Real Hours For Install"   year first, title case
+#
+# Every other column this file reads is year-free and matched literally at
+# the call site.
+COL = {
+    "install_date":     f"{SEASON} Install Date",
+    "real_hours":       f"{PRIOR} Real Hours For Install",
+    "prior_date":       f"Install Date {PRIOR}",
+    "prior2_date":      f"{PRIOR2} INSTALL DATE",
+    "crew_name":        f"{PRIOR} Crew Name",
+    "invoice_total":    f"{PRIOR} Invoice Total Actual Created",
+    "production_notes": f"{PRIOR} Production Notes",
+}
+# Year-free aliases accepted when the year-named spelling isn't there.
+COL_FALLBACK = {
+    "crew_name": ("Crew Name",),
+    "production_notes": ("Production Notes",),
+}
+
+# REQUIRED: without these the run is not degraded, it is WRONG, and silently
+# so -- h() returns None for a missing header, which for the install-date
+# column would mean every deposited/pinned date ignored, every "same day as
+# X" note lost, and every cancelled client scheduled anyway. Abort instead.
+REQUIRED_HEADERS = ["TBDG CLIENT", "ADDRESS", "ZIP", COL["install_date"]]
+
+# OPTIONAL: real data loss, but survivable and legitimately absent in a first
+# season (nothing prior to calibrate against). Each one prints a named
+# warning saying exactly what breaks -- never a quiet blank column.
+OPTIONAL_HEADERS = [
+    (COL["real_hours"],
+     "hours calibration falls back to estimate x0.81 / zone median for EVERY client"),
+    (COL["prior_date"],
+     "no client is Saturday-eligible (the rule reads last season's weekday)"),
+    (COL["prior2_date"], "two-seasons-back date column blank in the review tool"),
+    (COL["crew_name"], "last season's crew + crew size blank (crew-size default 5)"),
+    (COL["invoice_total"], "the ENTIRE billing export goes blank"),
+    (COL["production_notes"], "repair/relight flags lost from the billing export"),
+    ("ESTIMATED TOTAL HOURS FOR INSTALL", "hours fall back to the zone median"),
+    ("CITY", "street cleanup loses its city anchor; geocoding gets coarser"),
+    ("BOX COUNT", "box counts come only from the verified binder overrides"),
+    ("TBDG STORAGE YES/NO", "storage status blank except where overridden"),
+    ("INSTALL LABOR FEE", "install fee blank in the billing export"),
+    ("TAKEDOWN LABOR FEE", "takedown fee blank in the billing export"),
+    ("STORAGE FEE (BASED ON # OF BOXES)", "storage fee blank in the billing export"),
+    ("# CREW LEADS NEEDED", "staffing ask incomplete"),
+    ("# GENERAL INSTALLERS NEEDED", "staffing ask incomplete"),
+    ("PHONE", "no phone numbers on the crew cards"),
+    ("EMAIL", "no emails for client confirmations"),
+]
 
 
 def norm_name(n):
@@ -45,42 +134,70 @@ def norm_name(n):
 
 
 def load_history():
-    """2024/2025 install + storage fees, keyed by normalized name.
+    """Prior + two-back install/storage fees, keyed by normalized name.
 
     HIST_SRC's cached values (not its formulas) are the source of truth --
     it's a closed-season reference file, not live, so whatever was last
     computed there is the historical fact. Best-effort match (~85% of
-    2026's roster has a 2025 record, ~55% has 2024) -- clients missing a
+    2026's roster had a 2025 record, ~55% a 2024 one) -- clients missing a
     year just get a blank cell for it, not a fabricated number.
+
+    ALL of this is OPTIONAL: a first season has no history workbook, and a
+    given season may only have one of the two sheets. Every miss prints a
+    named warning rather than returning quietly empty -- silent history loss
+    reads downstream as "this client is new", which it usually isn't.
+
+    The two sheets are shaped differently (header row 2 vs 1, and different
+    fee-column spellings), which is why they are not one loop.
     """
     hist = {}
     if not os.path.exists(HIST_SRC):
+        print(f"  !! no history workbook {os.path.basename(HIST_SRC)!r} -- "
+              f"{PRIOR2}/{PRIOR} install + storage fee history will be blank "
+              f"(expected for a first season, suspicious otherwise)")
         return hist
     wb = openpyxl.load_workbook(HIST_SRC, data_only=True)
 
-    ws25 = wb["2025 Christmas"]
-    h25 = {str(c.value).strip(): c.column for c in ws25[2] if c.value}
-    for r in range(3, ws25.max_row + 1):
-        name = ws25.cell(r, 1).value
-        if not name:
-            continue
-        install = ws25.cell(r, h25.get("INSTALL LABOR FEE", 0)).value
-        storage = ws25.cell(r, h25.get("STORAGE FEE (BASED ON # OF BOXES)", 0)).value
-        d = hist.setdefault(norm_name(name), {})
-        d["install_2025"] = install if isinstance(install, (int, float)) else None
-        d["storage_2025"] = storage if isinstance(storage, (int, float)) else None
+    if HIST_SHEET_PRIOR not in wb.sheetnames:
+        print(f"  !! history workbook has no sheet {HIST_SHEET_PRIOR!r} "
+              f"(has: {wb.sheetnames}) -- {PRIOR} fee history blank")
+    else:
+        ws25 = wb[HIST_SHEET_PRIOR]
+        h25 = {str(c.value).strip(): c.column for c in ws25[2] if c.value}
+        for want in ("INSTALL LABOR FEE", "STORAGE FEE (BASED ON # OF BOXES)"):
+            if want not in h25:
+                print(f"  !! {HIST_SHEET_PRIOR!r} has no {want!r} column "
+                      f"(header row 2) -- that {PRIOR} fee will be blank")
+        for r in range(3, ws25.max_row + 1):
+            name = ws25.cell(r, 1).value
+            if not name:
+                continue
+            install = ws25.cell(r, h25.get("INSTALL LABOR FEE", 0)).value
+            storage = ws25.cell(r, h25.get("STORAGE FEE (BASED ON # OF BOXES)", 0)).value
+            d = hist.setdefault(norm_name(name), {})
+            d["install_prior"] = install if isinstance(install, (int, float)) else None
+            d["storage_prior"] = storage if isinstance(storage, (int, float)) else None
 
-    ws24 = wb["2024 Christmas"]
-    h24 = {str(c.value).strip(): c.column for c in ws24[1] if c.value}
-    for r in range(2, ws24.max_row + 1):
-        name = ws24.cell(r, 1).value
-        if not name:
-            continue
-        install = ws24.cell(r, h24.get("TOTAL INSTALL LABOR FEE", 0)).value
-        storage = ws24.cell(r, h24.get("TOTAL TBDG STORAGE FEE (BASED ON # OF BOXES)", 0)).value
-        d = hist.setdefault(norm_name(name), {})
-        d["install_2024"] = install if isinstance(install, (int, float)) else None
-        d["storage_2024"] = storage if isinstance(storage, (int, float)) else None
+    if HIST_SHEET_PRIOR2 not in wb.sheetnames:
+        print(f"  !! history workbook has no sheet {HIST_SHEET_PRIOR2!r} "
+              f"(has: {wb.sheetnames}) -- {PRIOR2} fee history blank")
+    else:
+        ws24 = wb[HIST_SHEET_PRIOR2]
+        h24 = {str(c.value).strip(): c.column for c in ws24[1] if c.value}
+        for want in ("TOTAL INSTALL LABOR FEE",
+                     "TOTAL TBDG STORAGE FEE (BASED ON # OF BOXES)"):
+            if want not in h24:
+                print(f"  !! {HIST_SHEET_PRIOR2!r} has no {want!r} column "
+                      f"(header row 1) -- that {PRIOR2} fee will be blank")
+        for r in range(2, ws24.max_row + 1):
+            name = ws24.cell(r, 1).value
+            if not name:
+                continue
+            install = ws24.cell(r, h24.get("TOTAL INSTALL LABOR FEE", 0)).value
+            storage = ws24.cell(r, h24.get("TOTAL TBDG STORAGE FEE (BASED ON # OF BOXES)", 0)).value
+            d = hist.setdefault(norm_name(name), {})
+            d["install_prior2"] = install if isinstance(install, (int, float)) else None
+            d["storage_prior2"] = storage if isinstance(storage, (int, float)) else None
     return hist
 
 EXCLUDE = {
@@ -302,8 +419,14 @@ def categorize(name):
 
 def parse():
     wb = openpyxl.load_workbook(SRC, data_only=True)
+    if SHEET not in wb.sheetnames:
+        raise SystemExit(
+            f"prep.py: {os.path.basename(SRC)} has no sheet {SHEET!r}.\n"
+            f"  Sheets present: {wb.sheetnames}\n"
+            f"  This season is {SEASON} (from season.py; override with "
+            f"TBDG_SEASON=<year>). Add/rename the sheet, or set TBDG_SEASON "
+            f"to the season you meant to build.")
     ws = wb[SHEET]
-    hist = load_history()
 
     # Header-name column lookup (NOT fixed indices) -- the sheet's column
     # order has already shifted once between spreadsheet revisions, and a
@@ -313,6 +436,37 @@ def parse():
         if cell.value:
             key = re.sub(r"\s+", " ", str(cell.value).strip())
             col.setdefault(key, cell.column)
+
+    # A header that isn't there resolves to None on every row, with no error
+    # -- that is how a renamed column silently empties a whole field for all
+    # 120-odd clients. Check the header row ONCE, up front, and say the exact
+    # spelling that was expected. Required aborts; optional warns loudly.
+    missing_required = [n for n in REQUIRED_HEADERS if n not in col]
+    if missing_required:
+        raise SystemExit(
+            f"prep.py: sheet {SHEET!r} is missing REQUIRED column(s):\n"
+            + "".join(f"    {n!r}\n" for n in missing_required)
+            + f"  Header row 1 has: {sorted(col)}\n"
+            f"  Building the {SEASON} season needs these -- without the "
+            f"install-date column every deposited/pinned date is ignored, "
+            f"every 'same day as X' note is lost, and every cancelled client "
+            f"gets scheduled anyway. Fix the sheet's header spelling (or "
+            f"prep.py's COL map) before re-running.")
+
+    def _absent(name):
+        alts = (name,) + tuple(
+            a for k, v in COL_FALLBACK.items() if COL.get(k) == name for a in v)
+        return not any(a in col for a in alts)
+
+    missing_optional = [(n, why) for n, why in OPTIONAL_HEADERS if _absent(n)]
+    if missing_optional:
+        print(f"  !! sheet {SHEET!r} is missing optional column(s) -- "
+              f"data WILL be blank, this is not a no-op:")
+        for n, why in missing_optional:
+            print(f"     !! {n!r} -> {why}")
+
+    # Only now (headers proven) is it worth opening the history workbook.
+    hist = load_history()
 
     def h(r, header, *fallbacks):
         for name in (header,) + fallbacks:
@@ -341,7 +495,7 @@ def parse():
             city = ""
 
         est = h(r, "ESTIMATED TOTAL HOURS FOR INSTALL")
-        real = h(r, "2025 Real Hours For Install")
+        real = h(r, COL["real_hours"])
         try:
             est = float(est) if est is not None else None
         except (ValueError, TypeError):
@@ -370,11 +524,11 @@ def parse():
             except (ValueError, TypeError):
                 return None
 
-        prior_date = as_date(h(r, "Install Date 2025"))
-        date_2024 = as_date(h(r, "2024 INSTALL DATE"))
+        prior_date = as_date(h(r, COL["prior_date"]))
+        date_2024 = as_date(h(r, COL["prior2_date"]))
 
-        # 2025 crew name — first line; size from "(6)" or roster lines
-        crew_raw_v = h(r, "2025 Crew Name", "Crew Name")
+        # last season's crew name — first line; size from "(6)" or roster lines
+        crew_raw_v = h(r, COL["crew_name"], *COL_FALLBACK["crew_name"])
         crew_raw = str(crew_raw_v).strip() if crew_raw_v else ""
         crew_2025 = crew_raw.splitlines()[0].strip() if crew_raw else ""
         m_sz = re.search(r"\((\d+)\)", crew_2025)
@@ -412,8 +566,9 @@ def parse():
         storage_fee = as_money(h(r, "STORAGE FEE (BASED ON # OF BOXES)"))
         install_fee = as_money(h(r, "INSTALL LABOR FEE"))
         takedown_fee = as_money(h(r, "TAKEDOWN LABOR FEE"))
-        invoice_2025_total = as_money(h(r, "2025 Invoice Total Actual Created"))
-        production_notes_v = h(r, "2025 Production Notes", "Production Notes")
+        invoice_2025_total = as_money(h(r, COL["invoice_total"]))
+        production_notes_v = h(r, COL["production_notes"],
+                               *COL_FALLBACK["production_notes"])
         production_notes = (str(production_notes_v).strip()
                             if production_notes_v else "")
         h_rec = hist.get(norm_name(name), {})
@@ -422,17 +577,34 @@ def parse():
         if name in STORAGE_BOX_COUNTS:
             box = STORAGE_BOX_COUNTS[name]
 
-        # 2026 Install Date column: a real date = client already deposited &
-        # reserved that date (hard pin); free text may flag "same day as X"
-        # groupings, "no install" (drop from 2026 entirely), or other notes.
-        raw_2026 = h(r, "2026 Install Date")
+        # "<season> Install Date" column: a real date = client already
+        # deposited & reserved that date (hard pin); free text may flag "same
+        # day as X" groupings, "no install" (drop from the season entirely),
+        # or other notes. This column is REQUIRED (checked above): if it ever
+        # resolves to None the whole file quietly loses every pin, every
+        # grouping note and every cancellation, and still produces a
+        # confident-looking schedule -- the worst failure this pipeline has.
+        raw_2026 = h(r, COL["install_date"])
         install_2026_confirmed = (raw_2026.date().isoformat()
                                   if hasattr(raw_2026, "date") else "")
         install_2026_note = ("" if raw_2026 is None or hasattr(raw_2026, "date")
                              else str(raw_2026).strip())
         install_2026_no_install = bool(re.search(
-            r"no\s*(?:2026\s*)?install\b", install_2026_note, re.I))
+            rf"no\s*(?:{SEASON}\s*)?install\b", install_2026_note, re.I))
 
+        # KNOWN DEBT -- the `_2026` / `_2025` / `_2024` suffixes below are now
+        # HISTORICAL NAMES, not the season they hold. Read them as:
+        #     install_2026_*  -> THIS season's install date / note / drop flag
+        #     install_fee_2026, takedown_fee_2026 -> this season's fees
+        #     invoice_2025_total, crew_2025, crew_size_2025, install_fee_2025,
+        #     storage_fee_2025                    -> LAST season (SEASON-1)
+        #     date_2024, install_fee_2024, storage_fee_2024 -> two back
+        # The values are season-derived (COL above); only the key spelling is
+        # frozen. Renaming them is a SEPARATE change that has to land in one
+        # commit across rules.py, schedule.py, validate.py, sync_clients.py and
+        # build_review.py (plus any saved overrides.json / shared state keyed
+        # on them) -- doing it here alone silently breaks all five consumers.
+        # Tracked in RULES.md ss.13 "Known debt".
         rec = {
             "row": r,
             "name": name,
@@ -468,17 +640,18 @@ def parse():
             "takedown_fee_2026": takedown_fee,
             "invoice_2025_total": invoice_2025_total,
             "production_notes": production_notes,
-            "install_fee_2024": h_rec.get("install_2024"),
-            "storage_fee_2024": h_rec.get("storage_2024"),
-            "install_fee_2025": h_rec.get("install_2025"),
-            "storage_fee_2025": h_rec.get("storage_2025"),
+            "install_fee_2024": h_rec.get("install_prior2"),
+            "storage_fee_2024": h_rec.get("storage_prior2"),
+            "install_fee_2025": h_rec.get("install_prior"),
+            "storage_fee_2025": h_rec.get("storage_prior"),
         }
         clients.append(rec)
     return clients
 
 
 def calibrate_hours(clients):
-    """1) real hours if present; 2) est * 0.81; 3) zone median real; else 2.8."""
+    """1) last season's real hours if present; 2) est * 0.81; 3) zone median
+    real; else 2.8. Estimates run ~19% high, hence the 0.81."""
     zone_reals = {}
     for c in clients:
         if c["real_hours"]:
@@ -489,7 +662,7 @@ def calibrate_hours(clients):
     for c in clients:
         if c["real_hours"]:
             c["cal_hours"] = round(c["real_hours"], 2)
-            c["hours_basis"] = "2025 real"
+            c["hours_basis"] = f"{PRIOR} real"
         elif c["est_hours"]:
             c["cal_hours"] = round(c["est_hours"] * 0.81, 2)
             c["hours_basis"] = "est x0.81"
@@ -685,6 +858,9 @@ def build_matrix(depot, clients):
 
 
 def main():
+    src_env = " (TBDG_SEASON override)" if os.environ.get("TBDG_SEASON") else ""
+    print(f"Season {SEASON}{src_env} -- sheet {SHEET!r}, "
+          f"history {os.path.basename(HIST_SRC)!r}")
     print("Parsing spreadsheet...")
     clients = parse()
     overall_median = calibrate_hours(clients)

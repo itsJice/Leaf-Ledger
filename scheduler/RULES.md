@@ -1,15 +1,21 @@
 # TBDG Christmas Install Scheduling — RULEBOOK
 *The accumulated business rules from building the 2026 schedule. Feed next
 year's raw client spreadsheet through the pipeline with these rules and the
-first pass should be ~90% right. Last updated: 2026-08-02.*
+first pass should be ~90% right. Last updated: 2026-09-02.*
+*To actually run the next season, start at §13 — it is the ordered checklist;
+the rest of this file is the WHY behind it.*
 
 ---
 
 ## 1. Reading the raw spreadsheet
-- Sheet `<year> Christmas`, header row 1. Key columns: name(1), address(2),
+- Sheet `<season> Christmas`, header row 1. Columns are looked up BY HEADER
+  NAME, never by position — the order already shifted once between file
+  revisions, and an index list misreads data silently on the next reshuffle.
+  The positions below are only where they sat in 2026: name(1), address(2),
   city(3), ZIP(5, float→5-digit string), boxes(13), staffing(16-19),
   est hours(20), prior-year install date(22), prior-year REAL hours(23),
-  storage(12), phone(8), email(9), crew name(28).
+  storage(12), phone(8), email(9), crew name(28). The exact header SPELLINGS
+  prep.py requires — and which ones abort vs. warn — are in §13.1.
 - EXCLUDE billing line-items: GENERAL INSTALL LABOR, PICKUP & DELIVERY
   (INSTALL/TAKEDOWN), SPECIALTY INSTALL LABOR, STORAGE FEE PER BOX, CREW
   LEAD, DESIGNER ART DIRECTOR LEAD.
@@ -297,3 +303,185 @@ definition of "legal," not a second implementation that can drift.
   never deletes anything — it applies the old state locally and saves
   it back as a new current version, same model as a Google Doc's
   version history.
+
+## 13. ROLLING OVER TO THE NEXT SEASON — the October checklist
+Everything year-shaped is now DERIVED from one season number; this section is
+what a human still has to do, in order. Nothing here requires reading the
+code. Skim §13.0 once, then work 1→7.
+
+### 13.0 The season model (read this first)
+- A season runs **1 Oct (Y) → 31 Jan (Y+1)** and is **named for October's
+  year**: on 15 Jan 2027 the crews are finishing the **2026** season, not
+  starting 2027 — installs are Oct–Dec, takedowns spill into January, and
+  splitting that at New Year would cut one season's work in half.
+- The rollover boundary is **1 February**. Before it, "this season" is last
+  October's; on and after it, planning has moved to the coming autumn. That
+  is what makes rollover automatic — nobody edits a year to make it happen.
+- `scheduler/season.py` is the **single definition** (`season_for`,
+  `season_of_date`, `season_span`, `year_of_month`, `takedown_cutoff`,
+  `nth_weekday`, `thanksgiving`, `black_friday`,
+  `sunday_after_thanksgiving`). `backend/app/libs/season.py` is its deployed
+  twin because the build pipeline runs outside the deployed image and can't
+  import it — **change both together**; `backend/tests/test_season.py` fails
+  if they disagree. No other file may compute a year.
+- **`TBDG_SEASON` overrides it**, everywhere (prep.py, schedule.py,
+  build_review.py, publish_pages.py all read it before falling back to
+  `season_for()`), for rebuilding a closed season or getting the coming
+  season's tool up before 1 Feb:
+  `TBDG_SEASON=2026 .venv/bin/python3 prep.py`
+  Set it for the **whole chain or none of it** — a half-set chain builds one
+  season's clients against another season's calendar, and every stage will
+  look like it worked. Each stage prints the season it is building; read that
+  line before trusting the run.
+
+### 13.1 Prepare the source workbook
+- In `CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx`, add a
+  sheet named exactly **`<season> Christmas`** (header row 1). prep.py aborts
+  with the sheet list if it isn't there.
+- Header **spelling** is load-bearing; the year-named ones are **not
+  regular** — the year leads on some, trails on another, and one is shouted.
+  Copy last season's sheet and re-year these:
+  - `<season> Install Date` — **REQUIRED**. A real date = client deposited
+    and reserved that date (hard pin); free text carries "same day as X"
+    groupings and "no install" cancellations. This was historically the most
+    dangerous cell in the pipeline: a missed header used to yield every pin
+    ignored, every grouping note lost and every cancelled client scheduled
+    anyway, with **no error**. prep.py now aborts instead.
+  - `TBDG CLIENT`, `ADDRESS`, `ZIP` — also **REQUIRED** (abort).
+  - `<season-1> Real Hours For Install` — optional; without it hours
+    calibration falls back to est×0.81 / zone median for EVERY client.
+  - `Install Date <season-1>` — **year LAST**; optional; without it nobody is
+    Saturday-eligible (§5 reads that date's actual weekday).
+  - `<season-2> INSTALL DATE` — **ALL CAPS**; optional.
+  - `<season-1> Crew Name` (falls back to `Crew Name`),
+    `<season-1> Production Notes` (falls back to `Production Notes`).
+  - `<season-1> Invoice Total Actual Created` — optional, but its absence
+    blanks the ENTIRE billing export.
+  - Year-free and unchanged: `CITY`, `ST`, `PHONE`, `EMAIL`, `BOX COUNT`,
+    `TBDG STORAGE YES/NO`, `ESTIMATED TOTAL HOURS FOR INSTALL`, the four
+    `#` staffing columns, `INSTALL LABOR FEE`, `TAKEDOWN LABOR FEE`,
+    `STORAGE FEE (BASED ON # OF BOXES)`.
+- prep.py checks the header row ONCE, up front: required → abort naming the
+  exact spelling; optional → a `!!` line per column saying what goes blank.
+  **Read those warnings.** Blank is never fine, only sometimes expected — a
+  first season legitimately has no prior-year history; a fifth one does not.
+- History workbook: `CHRISTMAS Historical Reference (<season-2>-<season-1>).xlsx`,
+  with sheets `<season-1> Christmas` (headers on **row 2**; `INSTALL LABOR
+  FEE`, `STORAGE FEE (BASED ON # OF BOXES)`) and `<season-2> Christmas`
+  (headers on **row 1**; `TOTAL INSTALL LABOR FEE`, `TOTAL TBDG STORAGE FEE
+  (BASED ON # OF BOXES)`). Two shapes, one file — that's why they're read
+  separately. Closed-season file: its CACHED VALUES are the fact, not its
+  formulas. Entirely optional, and every miss warns by name.
+- Photograph the storage binder and refresh the verified box counts (§9) —
+  the sheet's BOX COUNT column runs badly stale every year.
+
+### 13.2 Decide the per-season CONFIG (the only judgement calls left)
+All in `SEASON_CONFIG` at the top of `schedule.py`. **Add a NEW key for the
+season; never edit last season's block** — that is what keeps a past season
+reproducible. schedule.py aborts if the season has no block. Entries are
+`(month, day)` pairs, never full dates: the calendar year comes from the
+season, so a January entry lands in the following year automatically and no
+entry can drift to the wrong year.
+- `dallas_week` — which Monday of November the Dallas / Mi Cocina run starts
+  on (1 = first Monday). The run is that Mon–Fri; §6 is the trip's rules.
+- `club_mondays` — which Mondays of November are country-club days
+  (1 = first Monday). Client-emailed dates still override (§5).
+- `hou_weekdays` — Houston weekday capacity for the season.
+- `std_weekdays` — the SUBSET this round's optimizer may auto-fill. Keep it
+  narrower than `hou_weekdays` on purpose: the wider calendar stays available
+  for later manual reschedule accommodation without the optimizer
+  pre-spending it.
+- `saturdays` — standard Saturday capacity, if any (§5: Saturdays are a
+  ceiling, not a floor).
+- `force_start` — dates that must be filled before anything else.
+- `overflow_tail` — last-resort dates, used only if November runs out.
+- `labels` — standing commitments and event blackouts. **Labels, not
+  blocks**: the tag shows on the date chip and day card so nobody schedules
+  over one by accident, but staff can still place work there (§12's
+  blockers-vs-warnings rule).
+- `dow_spans` — the stretch shown as real date bubbles in the review tool
+  (`"all"` = weekends included, `"weekdays"` = Mon–Fri). Everything else in
+  the Oct–Jan span still reaches the tool through `EXTRA_DOW` as an addable
+  date.
+- `dow_omit` — dates deliberately held out of `dow_spans`.
+- Per-client rules (pins, same-day groups, drops, clubs, ZIP/storage/coord
+  overrides) do NOT live here — see §12 and §13.4.
+
+### 13.3 DERIVED — never hand-edit, never hand-type
+Computed from the season (+ CONFIG) and asserted; typing any of these back in
+is how a calendar silently drifts a year:
+- Thanksgiving (4th Thursday of Nov), **Black Friday** (bank day, §5),
+  **Rotary Sunday** (Sunday after Thanksgiving, the only Sunday, §5).
+- `DALLAS_DAYS` and `DALLAS_WEEK_SPAN` (the whole Sun–Sat week the run owns —
+  rules.py needs the boundary), `CLUB_MONDAYS`.
+- Every **day-of-week label** (`DOW`). rules.py reads `S.DOW` to decide the
+  Saturday/Sunday rules, so one mistyped label would silently break every
+  weekday rule for that date.
+- The **Oct 1 – Jan 31 span** (`season_span`) and therefore `EXTRA_DOW`, the
+  addable-date pool — including the January takedown tail.
+- The **takedown cutoff** (25 Dec; installs run through Christmas, anything
+  later is takedown).
+- A startup assertion fails the build if any working date (Dallas, clubs,
+  Houston, std, Saturdays, bank Friday, Rotary Sunday) isn't on the rendered
+  calendar — a slot nothing could legally be dropped onto.
+
+### 13.4 Refresh the per-client rule files — THEY HAVE NO SEASON STAMP
+- `client_config.json` (gitignored, required, §12) holds pins, same-day
+  groups, forced-first stops, drops/no-install, club and lead names, ZIP /
+  storage / coordinate overrides. `pins` and `force_first` are **dates for
+  one specific season**.
+- `overrides.json` is the review tool's notebook — frozen (date, crew, stops)
+  days plus manually-added clients, replayed verbatim before anything else
+  runs so a rebuild can't move people who were already told their date.
+- **Neither file records which season it belongs to**, and nothing checks:
+  a leftover file replays LAST season's dates into the new season's build and
+  the run looks entirely successful. So, as a step: archive both
+  (`client_config.<season-1>.json`, `overrides.<season-1>.json`), then start
+  the new season from a reviewed copy with last season's dated entries
+  cleared. Known debt — see §13.7.
+
+### 13.5 Run the pipeline
+- Order and per-stage detail: **§8**. Don't duplicate it here; run it there.
+- prep.py first, and check its banner line names the season and sheet you
+  meant. The geocode cache is keyed by address and the OSRM matrix by
+  coordinates, so a new season only fetches what actually changed — nothing
+  to clear, and clearing them costs an hour of rate-limited refetching.
+- `validate.py` after EVERY change, as always.
+
+### 13.6 Publish — the archive is per season
+- `publish_pages.py` pushes review.html/map.html into Postgres keyed on
+  **(season, name)**, so publishing a new autumn ADDS to the archive instead
+  of erasing last year (migration `013_season_keyed_schedule.sql`; run once
+  before the first rollover). Last season's routed plan, crews, stop order
+  and approvals stay openable — that half of the old workbook is the part
+  that had not survived the move off spreadsheets.
+- `GET /api/install-schedule/seasons` lists what's published (newest first)
+  and reports the current season separately, because the two disagree between
+  1 Feb and the day the new tool is first built: with nothing published for
+  the new season the page falls back to the newest PUBLISHED one rather than
+  404ing.
+- A past season opens **read-only**: its saved reschedule state is keyed on
+  the build version that produced it (and the tool's localStorage key is
+  season-scoped), so an archived season's snapshot can never be restored over
+  the live one — two seasons open in one browser are two separate schedules.
+- Publishing under a season you didn't mean creates a junk row that shows in
+  the picker forever, so `TBDG_SEASON` is validated as a four-digit year here
+  rather than trusted.
+
+### 13.7 Known debt to expect (not bugs — flagged so nobody "fixes" them blind)
+- **`_2026` field names.** prep.py still emits `install_2026_confirmed`,
+  `install_2026_note`, `install_2026_no_install`, `install_fee_2026`,
+  `takedown_fee_2026`, and `invoice_2025_total` / `crew_2025` /
+  `crew_size_2025` / `date_2024` / `install_fee_2025` / `storage_fee_2024`.
+  The VALUES are season-derived and correct; only the key spelling is frozen.
+  Read them as `_2026` = **this season**, `_2025` = last season, `_2024` =
+  two back. Renaming them is a separate change that must land in ONE commit
+  across `rules.py`, `schedule.py`, `validate.py`, `sync_clients.py` and
+  `build_review.py` — plus any saved `overrides.json` / shared state keyed on
+  them. Renaming in prep.py alone silently breaks all five consumers.
+- **`client_config.json` / `overrides.json` carry no season stamp** (§13.4).
+  The real fix is a `"season"` field written at export and refused on
+  mismatch at load; until then it is a manual checklist step.
+- **`dow_omit`** exists only to reproduce a Sunday that was missing from the
+  hand-typed 2026 calendar. Once someone confirms it should be an ordinary
+  gray Sunday bubble, delete the entry — don't copy it into a new season.
