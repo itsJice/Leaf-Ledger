@@ -184,6 +184,77 @@ async def get_state(version: str) -> dict:
     }
 
 
+# Leaf & Ledger is the source of truth for whether a client is installing, so a
+# removal made in the scheduler has to reach the client record -- not stay in
+# this tool's own state where the Clients tab never sees it. Before this, a
+# client pulled from the season still had a 2026 client_activity row reading
+# "Scheduled 2026-11-25", which is what the Clients tab showed and what the
+# scheduler's own popup contradicted.
+#
+# summarize() in scheduler/sync_clients.py builds that summary from `detail`,
+# and `detail` keeps the whole original record -- install_date, total, fees. So
+# marking is reversible: set the flag and rewrite the summary, and putting a
+# client back can rebuild the original line from what is still there.
+NOT_INSTALLING_SUMMARY = "Not installing this year"
+
+
+def _restored_summary(detail: dict, season: str) -> str:
+    """Rebuild what summarize() would have produced, from the kept detail."""
+    bits = []
+    if detail.get("install_date"):
+        bits.append(f"Scheduled {detail['install_date']}")
+    else:
+        bits.append(f"{season} season")
+    total = detail.get("total")
+    if total is None and detail.get("install_fee") is not None:
+        total = round((detail.get("install_fee") or 0)
+                      + (detail.get("takedown_fee") or 0)
+                      + (detail.get("storage_fee") or 0), 2)
+    if total:
+        bits.append(f"${float(total):,.0f}")
+    return " · ".join(bits)
+
+
+async def _reconcile_not_installing(conn, season: str, names: list[str]) -> dict:
+    """Make client_activity agree with the scheduler about who is installing.
+
+    Idempotent and narrow: it only ever touches this season's christmas_install
+    rows, and only the ones whose flag disagrees with `names`. Both directions
+    are handled, so putting a client back restores the line rather than leaving
+    a permanent "not installing" behind.
+    """
+    wanted = {n.strip().lower() for n in names if isinstance(n, str) and n.strip()}
+    rows = await conn.fetch(
+        "SELECT ca.id, ca.summary, ca.detail, cl.name, "
+        "       COALESCE((ca.detail->>'not_installing')::boolean, false) AS flagged "
+        "  FROM client_activity ca JOIN clients cl ON cl.id = ca.client_id "
+        " WHERE ca.season = $1 AND ca.kind = 'christmas_install'",
+        season,
+    )
+    marked = cleared = 0
+    for r in rows:
+        is_wanted = (r["name"] or "").strip().lower() in wanted
+        if is_wanted == r["flagged"]:
+            continue  # already agrees -- most rows, most saves
+        detail = _loads(r["detail"]) or {}
+        if not isinstance(detail, dict):
+            detail = {}
+        if is_wanted:
+            detail["not_installing"] = True
+            summary = NOT_INSTALLING_SUMMARY
+            marked += 1
+        else:
+            detail.pop("not_installing", None)
+            summary = _restored_summary(detail, season)
+            cleared += 1
+        await conn.execute(
+            "UPDATE client_activity SET summary = $2, detail = $3::jsonb, updated_at = now() "
+            " WHERE id = $1",
+            r["id"], summary, json.dumps(detail, default=str),
+        )
+    return {"marked": marked, "cleared": cleared}
+
+
 @router.put("/state")
 async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
     """Replace the shared state for one schedule build.
@@ -252,6 +323,26 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
                 v,
                 MAX_HISTORY_PER_VERSION,
             )
+            # Write the not-installing decision through to the client record,
+            # inside the same transaction as the state save so the two cannot
+            # disagree if one half fails.
+            #
+            # Keyed on the field being PRESENT, not on it being non-empty: a
+            # page cached from before this shipped sends no such key, and
+            # treating that as "nobody is excluded" would clear every flag the
+            # newer clients had set. Absent means "this client has nothing to
+            # say", which is different from "the list is empty".
+            if "notInstallingNames" in state:
+                names = state.get("notInstallingNames") or []
+                season = str(state.get("season") or "").strip()
+                if season.isdigit() and isinstance(names, list):
+                    try:
+                        await _reconcile_not_installing(conn, season, names)
+                    except Exception as exc:  # noqa: BLE001
+                        # The schedule save is the user's actual action and must
+                        # not fail because the write-through did; the next save
+                        # reconciles again from scratch.
+                        print(f"not-installing write-through skipped: {exc}")
     finally:
         await conn.close()
     return {"version": v, "ok": True, "updatedBy": user_id}

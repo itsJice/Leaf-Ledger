@@ -307,9 +307,18 @@ def merge_field(live: Optional[str], last_synced: Optional[str], new_value: Opti
 
 async def upsert_client(conn, rec: dict, season: str, counts: dict):
     name = rec["name"]
+    # "Beaver, Austin" (this season's sheet, comma convention) and "Beaver
+    # Austin" (an older row -- pre-Christmas-sync manual entry, or an
+    # earlier import that didn't use commas) are the same person, but a
+    # plain LOWER(TRIM(name)) match treats them as different clients and
+    # inserts a duplicate every time. Stripping commas/periods before
+    # comparing catches that; the stored `name` is left untouched either
+    # way, so this doesn't disturb arrangements.client_name's free-text
+    # matching against whichever row already exists.
     row = await conn.fetchrow(
         "SELECT id, phone, email, street, city, state, zip, christmas_synced_snapshot "
-        "FROM clients WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))",
+        "FROM clients WHERE regexp_replace(LOWER(TRIM(name)), '[,.]', '', 'g') "
+        "= regexp_replace(LOWER(TRIM($1)), '[,.]', '', 'g')",
         name,
     )
     if row is None:
@@ -357,6 +366,27 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
 
     summary = summarize(season, rec)
     detail = {k: v for k, v in rec.items() if k != "name"}
+
+    # Staff taking a client out of the season is a decision made in the app, and
+    # the app is the source of truth -- so it survives a re-sync. This script
+    # builds `rec` from the schedule spreadsheet, which still lists them, and
+    # would otherwise overwrite "Not installing this year" with "Scheduled ..."
+    # on every run, silently undoing the removal.
+    #
+    # The flag lives in detail.not_installing (set by the install_schedule API
+    # when the scheduler saves). Carry it forward and keep the summary, while
+    # still refreshing everything else the sheet is authoritative for.
+    prior = await conn.fetchval(
+        "SELECT detail FROM client_activity "
+        " WHERE client_id=$1 AND kind='christmas_install' AND season=$2",
+        row["id"], season,
+    )
+    if prior:
+        prior = prior if isinstance(prior, dict) else json.loads(prior)
+        if prior.get("not_installing"):
+            detail["not_installing"] = True
+            summary = "Not installing this year"
+
     result = await conn.execute(
         "INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at) "
         "VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date) "

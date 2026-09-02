@@ -307,6 +307,7 @@ header h1 svg{color:var(--brand)}
 .dchip.empty:hover{background:#ecebe8;color:var(--mut)}
 .dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand);border-style:solid}
 .dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
+.dchip.janpick{border-style:dashed;color:var(--mut);max-width:190px}
 .dchipwrap{position:relative;display:inline-flex}
 .dchiprm{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
   border:1px solid var(--line);background:#fff;color:var(--mut);font-size:12px;line-height:1;
@@ -1117,7 +1118,7 @@ dialog option:disabled{color:#b6b3ae}
     The optimizer never fills an added date on its own &mdash; it stays empty
     until you move someone there.</p>
   <label class="nclabel">Date</label>
-  <input id="nddate" type="date" min="2026-10-01" max="2026-12-24">
+  <input id="nddate" type="date" min="2026-10-01" max="2027-01-31">
   <div id="nderr" class="nderr"></div>
   <div id="ndadded" class="ndadded"></div>
   <div class="btns"><button onclick="newdatedlg.close()">Cancel</button>
@@ -1351,7 +1352,7 @@ let approved = new Set(), moves = [], selDate = null;
 // unlocked -- see the CONFIRMED check there.
 let confirmed = new Set();
 // Dates staff added with "+ New date". SPEC.calendar carries every date
-// Oct 1 - Dec 24 so the eligibility table has already judged them, but the
+// Oct 1, 2026 - Jan 31, 2027 so the eligibility table has already judged them, but the
 // ones flagged `optional` stay hidden until they show up here -- otherwise
 // the strip would be 80 bubbles of mostly-empty days. Declared above
 // workDates() because bootstrap calls that before this block would
@@ -1615,9 +1616,20 @@ function snapshot(){
      hours:c.h26, visitType:c.visitType, notes:c.advice,
      people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
+  // notInstalling holds scheduler row ids, which mean nothing outside this
+  // page. The backend needs client identities to write the decision through to
+  // client_activity -- Leaf & Ledger is the source of truth for whether a
+  // client is installing, so a removal made here has to reach the client
+  // record, not just this tool's own state. Prefer the app's own spelling of
+  // the name when the directory is loaded, so the match is exact.
+  const notInstallingNames=[...notInstalling].map(r=>{
+    const ac=appClientFor(r);
+    return (ac && ac.name) || (C[r] && C[r].name) || null;
+  }).filter(Boolean);
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], notInstalling:[...notInstalling],
+          notInstallingNames, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -3040,6 +3052,28 @@ function renderStrip(){
   // October date), landing it out of order.
   [...allDates()].sort().forEach(dateChip);
 
+  // January takedown dates, one at a time from a dropdown rather than 31
+  // more chips (user, 2026-09-02: "I don't want to take up space on
+  // here"). Picking one runs the exact same add-and-select path as
+  // "+ New date" -- it just turns into a normal chip from here on, same
+  // as any other added date. Shrinks and disappears once every day in
+  // January has been added.
+  const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)==='2027-01'
+    && !newDates.has(ci.date));
+  if(janLeft.length){
+    const sel=document.createElement('select');
+    sel.className='dchip janpick';
+    sel.innerHTML=`<option value="">+ January takedown date…</option>`
+      + janLeft.map(ci=>`<option value="${ci.date}">${ci.dow} ${fmtMDYYYY(ci.date)}</option>`).join('');
+    sel.onchange=()=>{
+      const v=sel.value;
+      if(!v) return;
+      const result=addDate(v);
+      if(!result.ok) alert(result.msg);
+    };
+    strip.appendChild(sel);
+  }
+
   // Trailing bubble, deliberately AFTER every date (user, 2026-08-31):
   // everyone who isn't getting an install this year. Drag a stop onto it to
   // take them out of the season -- the place for a cancellation, instead of
@@ -3611,8 +3645,8 @@ let ncAfterCreate=null;
 // Only dates SPEC.calendar already carries as `optional` can be added: the
 // eligibility table was built over exactly those, so anything else would
 // come back NO_DATE for every client and land as a bubble nothing can be
-// dropped on. That set is Oct 1 - Dec 24 minus the working calendar
-// (schedule.py's EXTRA_DOW).
+// dropped on. That set is Oct 1, 2026 - Jan 31, 2027 minus the working
+// calendar (schedule.py's EXTRA_DOW).
 function optionalDates(){
   return SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date);
 }
@@ -3656,24 +3690,32 @@ document.getElementById('newdatebtn').onclick=()=>{
   renderAddedDates();
   newdatedlg.showModal();
 };
-document.getElementById('ndgo').onclick=()=>{
-  const v=document.getElementById('nddate').value;
-  const err=document.getElementById('nderr');
-  const fail=m=>{ err.textContent=m; err.style.display='block'; };
-  if(!v) return fail('Pick a date first.');
-  if(newDates.has(v)) return fail('That date is already on the strip.');
+/** Shared by the "+ New date" dialog and the January takedown quick-pick:
+ * validate a candidate date, add it, and select it. Returns {ok:true} or
+ * {ok:false, msg}. */
+function addDate(v){
+  if(!v) return {ok:false, msg:'Pick a date first.'};
+  if(newDates.has(v)) return {ok:false, msg:'That date is already on the strip.'};
   const onBoard=SPEC.calendar.find(ci=>ci.date===v && !ci.optional);
-  if(onBoard) return fail(`${dowOf(v)} ${fmtMDYYYY(v)} is already on the calendar.`);
+  if(onBoard) return {ok:false, msg:`${dowOf(v)} ${fmtMDYYYY(v)} is already on the calendar.`};
   if(!optionalDates().includes(v)){
     const all=optionalDates();
-    return fail(`Outside the range this build can schedule `
-      + `(${fmtMDYYYY(all[0])} – ${fmtMDYYYY(all[all.length-1])}).`);
+    return {ok:false, msg:`Outside the range this build can schedule `
+      + `(${fmtMDYYYY(all[0])} – ${fmtMDYYYY(all[all.length-1])}).`};
   }
   pushUndo();
   newDates.add(v);
   persist();
   selDate=v; focusDayId=null;
-  render(); renderAddedDates();
+  render();
+  return {ok:true};
+}
+document.getElementById('ndgo').onclick=()=>{
+  const v=document.getElementById('nddate').value;
+  const err=document.getElementById('nderr');
+  const result=addDate(v);
+  if(!result.ok){ err.textContent=result.msg; err.style.display='block'; return; }
+  renderAddedDates();
   err.style.display='none';
   document.getElementById('nddate').value='';
 };
