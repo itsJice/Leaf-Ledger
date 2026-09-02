@@ -31,6 +31,18 @@ interface Product {
   raw_data?: { normalized?: { color?: string; finish?: string; size_in?: number; class?: string } } | null;
 }
 
+// A style number close to the one typed. Offered for a person to pick, never
+// folded into the results: N592522DCV and N592522DA are different colours of
+// one item and score within a hair of each other.
+interface IdentSuggestion { id: number; supplier_sku: string; name: string; similarity: number }
+// The second ring of results, from /api/products/similar: near spellings of the
+// query, fetched only once the exact matches have been shown or ran out.
+interface SimilarResult { items: Product[]; identifier_suggestions: IdentSuggestion[]; searched_for: string | null }
+const SIMILAR_LIMIT = 24;
+// exclude_ids keeps the band from repeating what's already on screen; cap it so
+// a long exact list never turns into an unbounded query string.
+const SIMILAR_EXCLUDE_CAP = 500;
+
 type Selection = {
   categories: string[];
   colors: string[];
@@ -138,6 +150,19 @@ export default function CatalogSearch() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
+  // What /search actually matched when it had to reinterpret a spelling
+  // ("wreathe" -> "wreath"). Shown so the user knows why they're looking at
+  // results for a word they did not type.
+  const [searchedFor, setSearchedFor] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<SimilarResult | null>(null);
+  const [similarLoading, setSimilarLoading] = useState(false);
+  // One /similar call per query, fired when the exact results run out -- on a
+  // short first page, or when the last page of a longer list lands. Counted
+  // per query (not per page) so an in-flight band isn't dropped by a page
+  // load, and never fetched twice for the same query.
+  const queryGen = useRef(0);
+  const similarFetched = useRef(false);
+  const seenIds = useRef<number[]>([]);
   const [detailProduct, setDetailProduct] = useState<any | null>(null);
 
   const openDetail = useCallback((id: number) => {
@@ -193,26 +218,70 @@ export default function CatalogSearch() {
     [sel, favOnly, priceMin, priceMax, debouncedSearch]
   );
 
+  const loadSimilar = useCallback(
+    (excludeIds: number[]) => {
+      const g = queryGen.current;
+      setSimilarLoading(true);
+      const p = new URLSearchParams(buildParams(0));
+      p.delete("ids");
+      p.delete("offset");
+      p.set("limit", String(SIMILAR_LIMIT));
+      if (excludeIds.length) p.set("exclude_ids", excludeIds.slice(0, SIMILAR_EXCLUDE_CAP).join(","));
+      apiFetch(`/api/products/similar?${p.toString()}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (g !== queryGen.current) return;
+          const seen = new Set(excludeIds);
+          setSimilar({
+            items: ((data?.items ?? []) as Product[]).filter((x) => !seen.has(x.id)),
+            identifier_suggestions: data?.identifier_suggestions ?? [],
+            searched_for: data?.searched_for ?? null,
+          });
+        })
+        .catch(() => { /* the band is optional; the exact results stand on their own */ })
+        .finally(() => { if (g === queryGen.current) setSimilarLoading(false); });
+    },
+    [buildParams]
+  );
+
   const load = useCallback(
     (nextOffset: number, append: boolean) => {
       const s = ++seq.current;
       setLoading(true);
+      if (!append) {
+        queryGen.current++;
+        similarFetched.current = false;
+        seenIds.current = [];
+        setSimilar(null);
+        setSearchedFor(null);
+      }
       apiFetch(`/api/products/search?${buildParams(nextOffset)}`)
         .then((r) => r.json())
         .then((data) => {
           if (s !== seq.current) return;
           const rows: Product[] = data?.items ?? [];
+          const nextTotal: number = data?.total ?? 0;
           setItems((prev) => (append ? [...prev, ...rows] : rows));
-          setTotal(data?.total ?? 0);
+          setTotal(nextTotal);
           setOffset(nextOffset);
           if (!append && data?.facets) setFacets(data.facets);
+          if (!append) setSearchedFor(data?.corrected && data?.searched_for ? String(data.searched_for) : null);
+          seenIds.current = append ? [...seenIds.current, ...rows.map((x) => x.id)] : rows.map((x) => x.id);
+          // Exact results exhausted: a short first page, or the final page of
+          // a longer list. Only a keyword query has near spellings to offer,
+          // and the favorites view is a fixed id set with nothing to approximate.
+          const exhausted = rows.length < PAGE_SIZE || seenIds.current.length >= nextTotal;
+          if (debouncedSearch && !favOnly && exhausted && !similarFetched.current) {
+            similarFetched.current = true;
+            loadSimilar(seenIds.current);
+          }
         })
         .catch(() => {
           if (s === seq.current) { setItems([]); setTotal(0); }
         })
         .finally(() => { if (s === seq.current) setLoading(false); });
     },
-    [buildParams]
+    [buildParams, debouncedSearch, favOnly, loadSimilar]
   );
 
   // reload from top whenever filters/search change (favIds so un-hearting an
@@ -276,6 +345,7 @@ export default function CatalogSearch() {
     [sel, debouncedSearch, priceMin, priceMax, favOnly]
   );
   const resetAll = () => { setSel(EMPTY); setSearch(""); setPriceMin(""); setPriceMax(""); setFavOnly(false); };
+  const hasSimilar = !!similar && (similar.items.length > 0 || similar.identifier_suggestions.length > 0);
 
   // Infinite scroll + prefetch: auto-load the next page ~800px before the
   // bottom, so the next batch is ready before you reach it.
@@ -516,13 +586,21 @@ export default function CatalogSearch() {
             </div>
           </div>
 
+          {searchedFor && (
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Few exact matches for <span className="font-semibold">“{debouncedSearch}”</span> — also showing results for <span className="font-semibold">“{searchedFor}”</span>.
+            </p>
+          )}
+
           {loading && items.length === 0 ? (
             <div className="py-20 text-center text-sm text-stone-400">Searching…</div>
           ) : items.length === 0 ? (
-            <div className="py-20 text-center">
+            <div className={hasSimilar || similarLoading ? "py-8 text-center" : "py-20 text-center"}>
               <Package className="mx-auto mb-3 text-stone-300" size={32} />
-              <p className="text-sm text-stone-500">No products match these filters.</p>
-              {activeCount > 0 && (
+              <p className="text-sm text-stone-500">
+                {debouncedSearch ? <>No exact matches for <span className="font-medium text-stone-700">“{debouncedSearch}”</span>.</> : "No products match these filters."}
+              </p>
+              {activeCount > 0 && !(hasSimilar || similarLoading) && (
                 <button onClick={resetAll} className="mt-3 text-sm font-medium text-emerald-700 hover:text-emerald-900">Clear filters</button>
               )}
             </div>
@@ -550,6 +628,49 @@ export default function CatalogSearch() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Approximate matches -- a second ring, after the exact ones */}
+          {debouncedSearch && (similarLoading || hasSimilar) && (
+            <section className={items.length > 0 ? "mt-10 border-t border-stone-200 pt-6" : "pt-2"}>
+              <div className="mb-3">
+                <h2 className="text-sm font-semibold text-stone-700">Close matches</h2>
+                <p className="text-xs text-stone-400">
+                  {similar?.searched_for
+                    ? <>Results for <span className="font-medium text-stone-600">“{similar.searched_for}”</span>, a near spelling of “{debouncedSearch}”.</>
+                    : <>Not exact matches for “{debouncedSearch}” — check the style number before ordering.</>}
+                </p>
+              </div>
+              {similarLoading && !similar && (
+                <div className="flex items-center gap-2 py-4 text-sm text-stone-400">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                  Looking for close matches…
+                </div>
+              )}
+              {(similar?.identifier_suggestions.length ?? 0) > 0 && (
+                <div className="mb-4">
+                  <p className="mb-1.5 text-xs font-medium text-stone-500">Did you mean one of these style numbers?</p>
+                  <div className="flex flex-wrap gap-2">
+                    {similar!.identifier_suggestions.map((s) => (
+                      <button
+                        key={`${s.id}-${s.supplier_sku}`}
+                        onClick={() => openDetail(s.id)}
+                        title={s.name}
+                        className="inline-flex max-w-full items-center gap-2 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs hover:border-emerald-400 hover:bg-emerald-50"
+                      >
+                        <span className="font-mono font-semibold text-stone-800">{s.supplier_sku}</span>
+                        <span className="truncate text-stone-500">{s.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(similar?.items.length ?? 0) > 0 && (
+                <div className={viewMode === "list" ? "flex flex-col gap-2" : `grid gap-4 ${GRID_COLS[cardSize]}`}>
+                  {similar!.items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} view={viewMode} size={cardSize} />)}
+                </div>
+              )}
+            </section>
           )}
         </main>
       </div>

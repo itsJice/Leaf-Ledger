@@ -1316,10 +1316,71 @@ def _looks_like_identifier(term: str) -> bool:
     return len(n) >= 3 and any(ch.isdigit() for ch in n)
 
 
-# How close a dictionary word has to be before it is worth offering. 0.4 keeps
-# poinsetia -> poinsettia (0.75) and wreathe -> wreath (0.67) while dropping the
-# long tail that shares a couple of trigrams and nothing else.
+# How close a style number has to be before it is worth offering. 0.4 keeps
+# N592522DCX -> N592522DCV (0.69) while dropping the long tail that shares a
+# couple of trigrams and nothing else.
 _SIMILAR_MIN = float(os.environ.get("SEARCH_SIMILAR_MIN", 0.4))
+
+# Words use a looser trigram gate, because trigrams punish the commonest typo
+# there is. Swapping two letters ("ornamnet") wrecks four trigrams at once, and
+# so scores "ornament" at 0.385 -- below a 0.4 cut, while the vendor typo
+# "ornamanet" sails through at 0.58. The gate only collects candidates cheaply
+# off the index; the pick is made by edit distance below, where a swap is one
+# edit like any other.
+_WORD_SIMILAR_MIN = float(os.environ.get("SEARCH_WORD_SIMILAR_MIN", 0.3))
+_WORD_CANDIDATES = 15
+# A word the catalog uses is spelled fine -- unless it is a vendor's own typo of
+# something far more common. "garlnd" appears 83 times and "garland" 3,949; the
+# person who typed "garlnd" wanted garland. Below this ratio the word stands.
+_KNOWN_RATIO = int(os.environ.get("SEARCH_KNOWN_RATIO", 20))
+_MAX_EDITS = 2
+
+
+def _edit_distance(a: str, b: str) -> int:
+    """Optimal string alignment distance: insert, delete, substitute, or swap
+    two adjacent letters. Plain Levenshtein charges a swap as two edits, which
+    is how "ornamnet" ended up nearer "ornamanet" than "ornament"."""
+    la, lb = len(a), len(b)
+    prev2: list[int] = []
+    prev = list(range(lb + 1))
+    for i in range(1, la + 1):
+        cur = [i] + [0] * lb
+        for j in range(1, lb + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 1
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                cur[j] = min(cur[j], prev2[j - 2] + 1)
+        prev2, prev = prev, cur
+    return prev[lb]
+
+
+def _rank_corrections(term: str, candidates: list[tuple[str, int]],
+                      self_freq: Optional[int], *, skip_known: bool,
+                      keep: int = 4) -> list[str]:
+    """Order near spellings of `term`: fewest edits first, then the spelling the
+    catalog uses most. Frequency breaks ties rather than leading, so a common
+    word never displaces a closer rare one, and a vendor's one-off typo never
+    beats the real word it is one edit away from.
+
+    `candidates` are (word, freq) from the trigram pass; `self_freq` is how
+    often `term` itself appears in product names, or None if never.
+    """
+    max_edits = _MAX_EDITS if len(term) > 5 else 1  # two edits on a short word is a different word
+    scored = []
+    for word, freq in candidates:
+        if word == term:
+            continue
+        d = _edit_distance(term, word)
+        if d <= max_edits:
+            scored.append((d, -freq, word))
+    if not scored:
+        return []
+    if skip_known and self_freq is not None:
+        best_freq = max(-f for _, f, _ in scored)
+        if best_freq < _KNOWN_RATIO * self_freq:
+            return []
+    scored.sort()
+    return [w for _, _, w in scored[:keep]]
 
 
 async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> dict:
@@ -1331,10 +1392,16 @@ async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> 
     identifiers are skipped entirely — see _WORD_RE for why an edit-distance
     correction is the wrong tool for a style number.
 
-    skip_known controls what "worth correcting" means. The exact search wants
-    True: a term already in the catalog's vocabulary is spelled fine and must
-    not be quietly widened to its neighbours. The approximate band wants False,
-    because there "wreath -> wreaths" is exactly the extra reach being asked for.
+    skip_known controls what "worth correcting" means. True leaves a term the
+    catalog already uses alone -- unless it is a vendor's own typo of something
+    far more common (see _KNOWN_RATIO), which is the case a buyer actually hits:
+    "ribon" is in two product names, "ribbon" in six thousand. False corrects
+    everything it can, and is only for callers that want every neighbour.
+
+    The trigram pass is a cheap, index-driven way to collect candidates; the
+    pick among them is _rank_corrections, by edit distance. Trigrams alone chose
+    badly in both directions: "ornamnet" -> "ornamanet" (a vendor typo) and
+    "burlap" -> "burl" (a real word, replaced by a shorter one).
     """
     words = [t for t in terms if _WORD_RE.match(t)]
     if not words:
@@ -1342,32 +1409,34 @@ async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> 
     try:
         rows = await conn.fetch(
             """
-            WITH q AS (
-                SELECT t.term
-                  FROM unnest($1::text[]) AS t(term)
-                 WHERE NOT $3
-                    OR NOT EXISTS (SELECT 1 FROM search_vocab k WHERE k.word = t.term)
-            )
-            SELECT q.term, v.word, v.freq, similarity(v.word, q.term) AS sim
-              FROM q
+            SELECT t.term, v.word, v.freq
+              FROM unnest($1::text[]) AS t(term)
               JOIN LATERAL (
                    SELECT word, freq
                      FROM search_vocab
-                    WHERE word %% q.term
-                      AND similarity(word, q.term) >= $2
-                    ORDER BY similarity(word, q.term) DESC, freq DESC
-                    LIMIT 4
+                    WHERE word %% t.term
+                      AND similarity(word, t.term) >= $2
+                    ORDER BY similarity(word, t.term) DESC, freq DESC
+                    LIMIT $3
               ) v ON TRUE
             """.replace("%%", "%"),
-            words, _SIMILAR_MIN, skip_known,
+            words, _WORD_SIMILAR_MIN, _WORD_CANDIDATES,
         )
     except Exception as e:  # noqa: BLE001 — suggestions are a bonus, not a gate
         print(f"search_vocab unavailable, approximate matching off: {e}")
         return {}
-    out: dict = {}
+    cands: dict[str, list[tuple[str, int]]] = {}
+    self_freq: dict[str, int] = {}
     for r in rows:
-        if r["word"] != r["term"]:
-            out.setdefault(r["term"], []).append(r["word"])
+        if r["word"] == r["term"]:
+            self_freq[r["term"]] = r["freq"]  # the term is itself a catalog word
+        else:
+            cands.setdefault(r["term"], []).append((r["word"], r["freq"]))
+    out: dict = {}
+    for term, near in cands.items():
+        ranked = _rank_corrections(term, near, self_freq.get(term), skip_known=skip_known)
+        if ranked:
+            out[term] = ranked
     return out
 
 
@@ -1885,7 +1954,11 @@ async def search_similar(
     conn = await get_conn()
     try:
         await _facet_source_probe(conn)
-        corrections = await _correct_terms(conn, terms, skip_known=False)
+        # skip_known=True here too: a word the catalog really uses is kept as
+        # typed, so "burlap ribon" becomes "burlap ribbon", not "burl ribbon".
+        # Vendor typos of common words still correct (see _KNOWN_RATIO), which
+        # is the reach this band exists for.
+        corrections = await _correct_terms(conn, terms, skip_known=True)
         idents = await _similar_identifiers(conn, terms)
 
         if not corrections:
