@@ -82,6 +82,14 @@ class OrderSummary(BaseModel):
     total_qty: int = 0
     vendor_count: int = 0
     total_cost: Optional[float] = None
+    # Set by the Jobs module (jobs/__init__.py) when a PO is created from a job.
+    supplier_id: Optional[int] = None
+    supplier_name: Optional[str] = None
+    vendor_order_no: Optional[str] = None
+    placed_at: Any = None
+    expected_arrival: Any = None
+    freight: Optional[float] = None
+    job_names: Optional[str] = None
 
 
 class AddItem(BaseModel):
@@ -142,8 +150,18 @@ async def list_orders():
     conn = await get_conn()
     try:
         await ensure_schema(conn)
-        rows = await conn.fetch("""
-            SELECT o.*,
+        # The job columns only exist once the Jobs module has run its DDL.
+        has_jobs = await conn.fetchval(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema = 'll_app' AND table_name = 'jobs'")
+        job_cols = (
+            """s.name AS supplier_name,
+               (SELECT string_agg(DISTINCT j.name, ', ') FROM ll_app.order_items oi2
+                  JOIN ll_app.jobs j ON j.id = oi2.job_id WHERE oi2.order_id = o.id) AS job_names,"""
+            if has_jobs else "NULL::text AS supplier_name, NULL::text AS job_names,"
+        )
+        join_supplier = "LEFT JOIN suppliers s ON s.id = o.supplier_id" if has_jobs else ""
+        rows = await conn.fetch(f"""
+            SELECT o.*, {job_cols}
                    COUNT(i.id)::int                              AS item_count,
                    COALESCE(SUM(i.quantity), 0)::int             AS total_qty,
                    COUNT(DISTINCT p.supplier_id)::int            AS vendor_count,
@@ -151,7 +169,8 @@ async def list_orders():
             FROM ll_app.orders o
             LEFT JOIN ll_app.order_items i ON i.order_id = o.id
             LEFT JOIN products p ON p.id = i.product_id
-            GROUP BY o.id
+            {join_supplier}
+            GROUP BY o.id{", s.name" if has_jobs else ""}
             ORDER BY o.updated_at DESC
         """)
         return [dict(r) for r in rows]

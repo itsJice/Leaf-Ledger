@@ -8,7 +8,7 @@ import Layout from "components/Layout";
 import { ProductDetailModal } from "./Library";
 import {
   listOrders, getOrder, createOrder, deleteOrder, updateItemQty, removeItem,
-  setActiveOrderId, getActiveOrderId, defaultOrderName,
+  setActiveOrderId, getActiveOrderId, defaultOrderName, setOrderStatus, ORDER_STATUSES,
   type OrderSummary, type OrderDetail,
 } from "utils/orders";
 import { toast } from "sonner";
@@ -114,10 +114,14 @@ export default function Orders() {
                 return (
                   <button key={o.id} onClick={() => setActiveId(o.id)}
                     className={`group flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
-                    <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{o.name}</span>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{o.name}</span>
+                      {o.status && o.status !== "draft" && <span className="shrink-0 rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-600">{o.status.replace("_", " ")}</span>}
+                    </span>
                     <span className="mt-0.5 text-xs text-stone-400">
                       {o.total_qty} item{o.total_qty === 1 ? "" : "s"} · {o.vendor_count} vendor{o.vendor_count === 1 ? "" : "s"} · {money(o.total_cost)}
                     </span>
+                    {o.job_names && <span className="mt-0.5 truncate text-[11px] text-emerald-700">for {o.job_names}</span>}
                   </button>
                 );
               })}
@@ -151,8 +155,15 @@ export default function Orders() {
                   <p className="text-xs text-stone-500">
                     {order.total_qty} items · {order.vendor_count} vendors · <span className="font-semibold text-emerald-800">{money(order.total_cost)}</span> total
                   </p>
+                  {(() => { const s = orders.find((o) => o.id === order.id); return s?.job_names ? (
+                    <p className="mt-0.5 text-xs text-emerald-700">For job: {s.job_names}{s.vendor_order_no ? ` · vendor order # ${s.vendor_order_no}` : ""}{s.expected_arrival ? ` · arriving ${String(s.expected_arrival).slice(0, 10)}` : ""}</p>
+                  ) : null; })()}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <select value={order.status || "draft"} onChange={async (e) => { await setOrderStatus(order.id, e.target.value); refreshList(); if (activeId) loadOrder(activeId); }}
+                    className="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs font-medium text-stone-600" title="Order status">
+                    {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                  </select>
                   <a href={exportUrl("pdf")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><FileText size={13} /> PDF</a>
                   <a href={exportUrl("docx")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><FileType size={13} /> Word</a>
                   <a href={exportUrl("xlsx")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><FileSpreadsheet size={13} /> Excel</a>

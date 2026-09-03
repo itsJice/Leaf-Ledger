@@ -15,6 +15,20 @@ export interface OrderSummary {
   total_qty: number;
   vendor_count: number;
   total_cost?: number | null;
+  supplier_name?: string | null;
+  vendor_order_no?: string | null;
+  placed_at?: string | null;
+  expected_arrival?: string | null;
+  job_names?: string | null;
+}
+
+export const ORDER_STATUSES = ["draft", "approved", "placed", "follow_up", "shipped", "arrived", "closed"];
+
+export async function setOrderStatus(id: number, status: string) {
+  return apiFetch(`/api/orders/${id}`, {
+    method: "PATCH", credentials: "include", headers: JSON_HEADERS,
+    body: JSON.stringify({ status }),
+  });
 }
 
 export interface OrderLine {
