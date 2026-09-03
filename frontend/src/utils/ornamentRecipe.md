@@ -199,45 +199,209 @@ now).
 ## Leaf & Ledger recipe mode (our design team's rules)
 
 Selectable on the calculator next to the Vickerman rules (`buildLeafLedgerRecipe` /
-`buildRecipeFor` in `ornamentRecipe.ts`). It keeps Vickerman's surface-area, 40%
-coverage, quantity-rounding, density meter and tree images unchanged — only **which
-sizes** and **how coverage is split** differ. Source: designer working session,
-2026-08-20, reconciled against Vickerman's formula.
+`buildRecipeFor` in `ornamentRecipe.ts`). Vickerman's surface area, density meter,
+quantity rounding and tree images are unchanged; what differs is where the quantities
+come from. Full reasoning: `Vickerman Ornament Rules/designer-recipe-plan.md`.
 
-### Why
+### Source of truth: the golden table
 
-Big trees have big gaps; small ornaments disappear into them (especially next to
-enhancers/picks). The team would rather fill small gaps with foliage than with small
-ornaments. Vickerman's buckets put a 12 ft tree in 4"–8" balls (~207 pieces); the
-designers use 4.75"–12" (~114 pieces) at the *same* 40% coverage.
+The recipes the designers signed off on 2026-09-03, at the default widths (height x 6.5):
 
-### Rules
+| Tree | 3" | 4" | 4.75" | 6" | 8" | 10" | 12" | Pieces |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 7.5 ft x 49 in | 25 | 12 | 16 | 16 | 8 | – | – | 77 |
+| 8 ft x 52 in | – | 25 | 30 | 20 | 10 | 8 | – | 93 |
+| 10 ft x 65 in | – | 36 | 36 | 30 | 20 | 12 | – | 134 |
+| 12 ft x 78 in | – | – | 40 | 30 | 17 | 15 | 10 | 112 |
 
-1. **Top size = tree height in feet, as inches, rounded up to a stocked size.**
-   12 ft → 12", 10 ft → 10", 9 ft → 10", 8 ft → 8", 15 ft → 15.75". Ladder:
-   2.4, 3, 4, 4.75, 6, 8, 10, 12, 15.75, 20 (capped at 20).
-2. **Five sizes**, stepping down the ladder from the top size (fewer if the ladder runs out).
-3. **Coverage split evenly** across the sizes (20% each with five).
-4. **Under 8 ft the top size is an accent** — it gets 5% of coverage and the rest is
-   split evenly across the remaining sizes ("mostly 6-inch, some 8").
-5. **Default width** = height × 6.5 in/ft (the ratio that makes the 12 ft calibration
-   land at 40%); width stays editable and stops auto-following once edited.
+An exact row at its table width and the default slider position is returned **verbatim**.
 
-### Calibration
+### Everything else
 
-Designers' 12 ft recipe: `12"×8, 10"×10, 8"×18, 6"×30, 4.75"×48` = 114 pieces. By
-Vickerman's density formula that is 40% on a 12 ft × 78 in tree, with coverage split
-21/18/21/20/20% — i.e. an even split. The rule set reproduces it as
-`12"×8, 10"×11, 8"×17, 6"×30, 4.75"×48`.
+- **Between rows** (e.g. 9 ft): interpolate each size linearly between the neighbouring
+  rows, then apply the rules below.
+- **Beyond the table** (< 7.5 ft or > 12 ft): top-heavy formula on Vickerman's surface
+  area — 5 sizes stepping down from the top size, coverage shares 25/25/20/17/13 from the
+  largest down, at 44% coverage (the 12 ft row's density).
+- **Different width**: scale the row by surface-area ratio against the table width.
+- **Coverage slider**: 40 = the recipe as approved; other positions scale it linearly.
 
-| Tree | Sizes | L&L pieces | Vickerman pieces (same tree) |
-| ---- | ----- | ---------- | ---------------------------- |
-| 12 ft × 78 in | 4.75–12" | ~114 | ~207 (4–8") |
-| 9 ft × 59 in | 4–10" | see calculator | 4–8" |
-| 7.5 ft × 55 in | 3–8" (8" accent) | see calculator | 3–6" (42/41/21/10) |
+### Designer rules applied to every derived recipe
 
-Open with the designers: the 7 ft "some 8-inch" accent share (5% is a first guess),
-and whether 4.75" belongs on 7 ft trees.
+1. **Top size** = height in feet as inches, rounded up to a stocked size — except a tree
+   of 8 ft or more never tops out at 8" (8 ft -> 10").
+2. **At least 8 of the top size.** It is the design, never an accent.
+3. **Quantities in multiples of the color count** — even by default (two-color designs);
+   see Modifiers below.
+4. **Size floor by height:** 3" only up to 7.5 ft; 4" only up to 10 ft.
+
+Why: big trees have big gaps and small ornaments disappear into them; the top two
+sizes carry about half of all ornament area in every approved recipe (Vickerman's split
+is the reverse). Coverage is *not* what the designers steer by — the approved rows run
+from 44% to 72% by Vickerman's meter.
+
+Derived examples at default widths: 9 ft -> `4"x30, 4.75"x34, 6"x26, 8"x16, 10"x10` (116);
+15 ft -> `6"x38, 8"x28, 10"x20, 12"x18, 15.75"x10` (114).
+
+### Modifiers
+
+Three modifiers sit on top of the table (designer rules 4, 6, 7). Leaf & Ledger mode
+only — the calculator hides them under the Vickerman rules. `buildLeafLedgerRecipe` /
+`buildRecipeFor` take them as `options: { style?, colorCount? }`; the width profile is a
+width, so it goes in as `widthIn`.
+
+**Width profile** (`WIDTH_PROFILES`, `widthForProfile`, `profileForWidth`) — inches of
+width per foot of height, read off the designers' enhancer table:
+
+| Profile | in / ft | From | 7.5 ft | 10 ft | 12 ft |
+| --- | --- | --- | --- | --- | --- |
+| Pencil | 4.2 | 7.5' 30–32" | 32 | 42 | 50 |
+| Slim | 5.6 | 7–7.5' 40–45" | 42 | 56 | 67 |
+| Standard | 6.5 | the golden table (`LL_WIDTH_PER_FT`) | 49 | 65 | 78 |
+| Full | 7.8 | upper ends of 9.5–10' 60–82" and 12' 73–86" | 59 | 78 | 94 |
+
+`widthForProfile` rounds to whole inches. `profileForWidth` returns the nearest profile
+when the tree's own ratio is within ±6% of it, else `null` = custom (7.5 ft x 49 in ->
+standard; 12 ft x 60 in -> custom). On the calculator the Profile control sets the width
+and keeps it following height at that ratio until a width is typed by hand (Custom).
+The recipe itself scales with width by surface area as before; the profile's real job
+is the width bucket in the enhancer lookup, which keys off the same width.
+
+**Style** (`DesignStyle`) — the golden table is *traditional*. *Contemporary* keeps the
+top two sizes as they are (they are the design) and multiplies every smaller size by
+`LL_CONTEMPORARY_FILL = 0.7` before rounding — a first guess for the designers, who only
+described it as "patterns, fewer ornaments". 12 ft x 78 in contemporary ->
+`4.75"x28, 6"x22, 8"x12, 10"x16, 12"x10` (88 vs 112).
+
+**Colors** (`colorCount`, 1–4, default `LL_DEFAULT_COLOR_COUNT = 2`) — every quantity
+rounds to the nearest multiple of the color count, and the minimum top-size count is 8
+rounded *up* to a multiple of it (`leafLedgerMinTopCount`: 8 / 8 / 9 / 8 for 1–4 colors).
+Enhancer counts and the in-enhancer split round the same way. 12 ft x 78 in with three
+colors -> `4.75"x39, 6"x30, 8"x18, 10"x15, 12"x9`. Going to Step 2 with untouched color
+blocks seeds one block per color with equal shares (34 / 33 / 33 for three).
+
+**When the verbatim row applies:** an approved height, at its table width, slider at 40,
+traditional style, two colors. Any modifier turns the row into an input to the rounding
+rules instead.
+
+### Enhancers
+
+Enhancers (picks/sprays) are a parallel bill of materials, counted from the designers'
+own table by tree height **and** width bucket (`ENHANCER_TABLE`, `enhancerLookup` /
+`enhancerCount` in `ornamentRecipe.ts`). Leaf & Ledger mode only — Vickerman's tool has
+no enhancers, so nothing changes there.
+
+| Tree (height, width) | Enhancers |
+| --- | --- |
+| 7.5' 30–32" pencil | 8 |
+| 7–7.5' 40–45" | 8 |
+| 7.5' 48–65" | 14 |
+| 8.5–9' 49–50" | 16 |
+| 8.5–9' 57–80" | 18 |
+| 9.5–10' 60–82" | 24 |
+| 12' 60–72" | 30 |
+| 12' 73–86" | 36 |
+| 14' | 48 |
+| 15' | 60 |
+
+Open conflict: the designer also said "an 8 has 24 enhancers" in conversation, which
+the table doesn't support (8 ft interpolates to 16). The table wins until she confirms.
+
+**Lookup order** (`enhancerLookup`), every result rounded to a multiple of the color
+count (even by default):
+
+1. **Table** — a row whose height range (single heights ±0.25 ft) and width bucket both fit.
+2. **Nearest width** — the height fits but no bucket does: the closest bucket at that height
+   (7.5 ft x 36 in -> pencil row, 8).
+3. **Between rows** — no height fits: interpolate linearly between the nearest rows below
+   and above, each picked by width as in 1–2 (11 ft x 72 in -> between 24 and 30 -> 28;
+   8 ft x 52 in -> between 14 and 16 -> 16).
+4. **Beyond the table** — under 7 ft or over 15 ft: the end row's count scaled by surface
+   area against the row's width (bucket edge nearest the tree, or the default width when
+   the row has no bucket), never below 0 (16 ft x 104 in -> 70).
+
+**Allocation** (`enhancerAllocation`) — a first guess for the designers to react to:
+
+```
+ENHANCER_MAX_SIZE_IN = 4.75   // sizes this big and under split between tree and enhancers
+ENHANCER_SHARE       = 0.5    // share of such a size that goes into the enhancers
+
+inEnhancers = floor(qty × ENHANCER_SHARE / 2) × 2   // even; the odd piece stays loose
+loose       = qty − inEnhancers
+```
+
+Larger sizes are all loose, and so is everything when the tree has no enhancers. The
+calculator's enhancer count follows the table until edited by hand (then the edited count
+drives the split). Example, 10 ft x 65 in (24 enhancers): `4" 18 loose / 18 in enhancers,
+4.75" 18 / 18`, 6" and up all loose. Step 2's Copy / Export CSV append a final
+`Enhancers, <count>` line when the count is above 0.
+
+### Purchase list
+
+Designer rules 8 and 9: the output is a bill of materials Charles can pull, named by its
+tree configuration, and when two adjacent sizes cost about the same per square inch of
+coverage the bigger one wins. Engine: `treeConfigLabel`, `sizeSwapSuggestions`,
+`applySizeSwap` in `ornamentRecipe.ts`; the calculator wires them into Step 2. Available
+in both modes — under the Vickerman rules the label simply has no profile or style.
+
+**Config label** (`treeConfigLabel`) — parts joined by ` · `, unknown parts left out:
+
+```
+<height> ft <profile>        // or "<height> ft × <width> in" with no profile (custom / Vickerman)
+ · <style>                   // Leaf & Ledger only
+ · <Color> + <Color> + …     // the color blocks that have a color, in order, de-duplicated
+```
+
+`9 ft standard · traditional · Red + Gold`; Vickerman mode, 7.5 ft × 55 in, Red ->
+`7.5 ft × 55 in · Red`. It heads Step 2, and every export: Copy's first line, Export CSV's
+first row as `# <label>` (columns unchanged), and Copy for Charles.
+
+**Build purchase list** — one click fills every order line that has no pick yet with its
+best catalog match: the first match with `color_match`, else the first match (the backend
+already ranks by size closeness, then color). It goes through the same picker as a manual
+pick, honours the "Vickerman only" filter, and never replaces a pick made by hand.
+
+**Catalog prices are per pack.** `price` on a catalog match is the product's
+`current_price`, which for Vickerman is the pack price (`Price` on the portal, before
+`PricePerPiece`; a 4" ball "6/Bag" lists at about $12) and `case_qty` is the pieces per
+pack (`QtyPerPack`), so `packs_needed = ceil(pieces / case_qty)` and:
+
+```
+pricePerPiece = price / max(1, case_qty)
+estimate      = Σ packs_needed × price          // shown under the picks, labelled "estimate"
+```
+
+Picks without a price are counted but left out of the estimate.
+
+**Size swaps** (`sizeSwapSuggestions`, `LL_SIZE_SWAP_TOLERANCE = 0.15` — a first guess) —
+for each pair of adjacent sizes present in the recipe (smaller → next larger), with the
+per-piece price of each size taken from its picks (weighted by pieces when a size has one
+pick per color; sizes without a pick are skipped):
+
+```
+costPerSqIn(size) = pricePerPiece / planarArea(size)
+
+suggest when  costPerSqIn(larger) ≤ costPerSqIn(smaller) × (1 + tolerance)
+toQty         = round( fromQty × planarArea(smaller) / planarArea(larger) )   // same coverage,
+                                                                              // to a multiple of
+                                                                              // the color count,
+                                                                              // never below one set
+extraCost     = toQty × price(larger) − fromQty × price(smaller)
+```
+
+The top size is never swapped away. Suggestions are independent: applying one
+(`applySizeSwap`) zeroes the smaller size, adds `toQty` to the larger one in the
+calculator's quantities (the source of truth), and clears the picks for both sizes so
+their pack counts get re-matched; the panel then recomputes. Example, the 10 ft recipe
+with per-piece prices 4" $1.00 / 4.75" $1.10 / 6" $2.50: 4" costs $0.0796/sq in and 4.75"
+$0.0621, so `4" ×36 → 4.75" ×26` is suggested (−$7.40); 6" costs $0.0884, over
+4.75"'s ×1.15, so no 4.75" → 6" swap. Under the Vickerman rules the color count for the
+rounding is the number of color blocks with a color chosen.
+
+**Copy for Charles** — plain text he can paste into a message: the label, then one line per
+size `N × size"` (with `(loose / in enhancers)` when the split applies), `Enhancers: N` when
+there are any, then a blank line and the picked lines as
+`Supplier SKU — size" Color Finish · packs pk (pieces pcs)`.
 
 ---
 

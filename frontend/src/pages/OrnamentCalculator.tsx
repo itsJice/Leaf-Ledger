@@ -18,6 +18,10 @@ import {
   Tag,
   PackageSearch,
   X,
+  Flower2,
+  ListChecks,
+  MessageSquareText,
+  ArrowUpRight,
 } from "lucide-react";
 import Layout from "components/Layout";
 import { toast } from "sonner";
@@ -32,10 +36,30 @@ import {
   treeDensityImage,
   buildOrderLines,
   totalColorPct,
-  defaultWidthForHeight,
-  leafLedgerTopSize,
+  leafLedgerSource,
+  leafLedgerMinTopCount,
+  widthForProfile,
+  profileForWidth,
+  enhancerLookup,
+  enhancerAllocation,
+  ENHANCER_MAX_SIZE_IN,
+  WIDTH_PROFILES,
+  LL_CONTEMPORARY_FILL,
+  LL_DEFAULT_COLOR_COUNT,
+  LL_MIN_COLOR_COUNT,
+  LL_MAX_COLOR_COUNT,
+  LL_SIZE_SWAP_TOLERANCE,
+  treeConfigLabel,
+  sizeSwapSuggestions,
+  applySizeSwap,
+  type SizeSwapSuggestion,
   type ColorBlock,
   type RecipeMode,
+  type RecipeLine,
+  type WidthProfile,
+  type DesignStyle,
+  type EnhancerLookup,
+  type EnhancerAllocationLine,
 } from "utils/ornamentRecipe";
 
 // Exact in-app clone of Vickerman's Ornament Calculator (both steps):
@@ -114,6 +138,67 @@ function densityLabel(density: number): string {
   return "Sparse";
 }
 
+/** The active modifiers, briefly, as " · …" suffixes (empty when the table applies as approved). */
+function describeModifiers(style: DesignStyle, colorCount: number): string {
+  const parts: string[] = [];
+  if (style === "contemporary") parts.push(`contemporary fill ×${LL_CONTEMPORARY_FILL}`);
+  if (colorCount !== LL_DEFAULT_COLOR_COUNT) parts.push(`${colorCount} color${colorCount === 1 ? "" : "s"}`);
+  return parts.map((s) => ` · ${s}`).join("");
+}
+
+/** One line on where the Leaf & Ledger recipe for this height comes from, modifiers included. */
+function describeLeafLedger(heightFt: number | "", style: DesignStyle, colorCount: number): string {
+  const modifiers = describeModifiers(style, colorCount);
+  if (typeof heightFt !== "number" || heightFt <= 0) return `Designer-approved table · interpolated between rows${modifiers}`;
+  const src = leafLedgerSource(heightFt);
+  if (src.kind === "table")
+    return `Designer-approved recipe for ${src.heightFt} ft${modifiers || ", as signed off"}`;
+  const rounding = colorCount === 1 ? "" : colorCount === 2 ? " · even counts" : ` · counts in multiples of ${colorCount}`;
+  if (src.kind === "interpolated")
+    return `Interpolated between the approved ${src.lowerFt} ft and ${src.upperFt} ft recipes${rounding} · at least ${leafLedgerMinTopCount(colorCount)} of the largest${modifiers}`;
+  return `Beyond the approved table — top-heavy formula extrapolated from the ${src.from === "above" ? "12 ft" : "7.5 ft"} recipe${modifiers}`;
+}
+
+/** Color blocks with equal shares of the tree, for seeding Step 2 from the color count. */
+function equalShareBlocks(count: number): ColorBlock[] {
+  const base = Math.floor(100 / count);
+  const extra = 100 - base * count; // the odd percent goes to the first block(s)
+  return Array.from({ length: count }, (_, i) => ({ ...newColorBlock(), sharePct: base + (i < extra ? 1 : 0) }));
+}
+
+/** One line on which enhancer-table row the count came from. */
+function describeEnhancers(lookup: EnhancerLookup | null, touched: boolean): string {
+  if (!lookup) return "Enter tree dimensions to look up the enhancer table";
+  const src = lookup.source;
+  const from =
+    src.kind === "table"
+      ? `Table row ${src.row.label} → ${src.row.count}`
+      : src.kind === "nearestWidth"
+      ? `No width bucket fits — nearest row ${src.row.label} → ${src.row.count}`
+      : src.kind === "interpolated"
+      ? `Between rows ${src.lower.label} (${src.lower.count}) and ${src.upper.label} (${src.upper.count}) → ${lookup.count}`
+      : `Beyond the table — row ${src.row.label} (${src.row.count}) scaled by surface area → ${lookup.count}`;
+  return touched ? `Edited by hand · table says ${lookup.count}: ${from}` : from;
+}
+
+/**
+ * Price of one piece from a catalog match. Catalog prices are per pack — a 4"
+ * ball "6/Bag" lists at about $12, and `packs_needed` counts packs of `case_qty`
+ * — so per piece = price ÷ case_qty. Null when the product has no price.
+ */
+const pricePerPiece = (m: CatalogMatch) => (m.price != null ? m.price / Math.max(1, m.case_qty || 1) : null);
+
+/** Money for the UI: "$1,234.50". */
+const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** One line on a size swap: `4" ×36 → 4.75" ×26 — cheaper per coverage (−$7.40 total), bigger impact`. */
+function describeSwap(s: SizeSwapSuggestion): string {
+  const verdict = s.toCostPerSqIn < s.fromCostPerSqIn ? "cheaper per coverage" : "about the same cost per coverage";
+  const delta =
+    Math.abs(s.extraCost) < 0.005 ? "same total" : `${s.extraCost > 0 ? "+" : "−"}${money(Math.abs(s.extraCost))} total`;
+  return `${s.fromSize}" ×${s.fromQty} → ${s.toSize}" ×${s.toQty} — ${verdict} (${delta}), bigger impact`;
+}
+
 let blockIdSeq = 1;
 const newColorBlock = (): ColorBlock => ({
   id: blockIdSeq++,
@@ -127,11 +212,18 @@ export default function OrnamentCalculator() {
 
   // --- Step 1 state ---
   const [heightFt, setHeightFt] = useState<number | "">(7.5);
-  const [widthIn, setWidthIn] = useState<number | "">(55);
-  const [widthTouched, setWidthTouched] = useState(false);
+  const [widthIn, setWidthIn] = useState<number | "">(widthForProfile(7.5, "standard"));
+  // Width follows height at this profile's ratio; null = custom, the user typed a width.
+  const [widthProfile, setWidthProfile] = useState<WidthProfile | null>("standard");
   const [quantities, setQuantities] = useState<QtyMap>(emptyQuantities);
   const [coverageTarget, setCoverageTarget] = useState(40); // the slider's position
   const [recipeMode, setRecipeMode] = useState<RecipeMode>("leafledger");
+  // Leaf & Ledger modifiers (ignored under the Vickerman rules).
+  const [designStyle, setDesignStyle] = useState<DesignStyle>("traditional");
+  const [colorCount, setColorCount] = useState(LL_DEFAULT_COLOR_COUNT);
+  // Enhancer count follows the designers' table until the user edits it (like width).
+  const [enhancersInput, setEnhancersInput] = useState<number | "">("");
+  const [enhancersTouched, setEnhancersTouched] = useState(false);
 
   // --- Step 2 state ---
   const [colorBlocks, setColorBlocks] = useState<ColorBlock[]>(() => [newColorBlock()]);
@@ -163,6 +255,34 @@ export default function OrnamentCalculator() {
     [qtyNumberMap]
   );
 
+  // Enhancers — only under the Leaf & Ledger rules (Vickerman's tool has none).
+  const enhancerAuto = useMemo<EnhancerLookup | null>(
+    () => (dimsValid && !tooSmall ? enhancerLookup(h, w, colorCount) : null),
+    [dimsValid, tooSmall, h, w, colorCount]
+  );
+  const enhancers =
+    recipeMode !== "leafledger" || !enhancerAuto
+      ? 0
+      : enhancersTouched
+      ? typeof enhancersInput === "number"
+        ? enhancersInput
+        : 0
+      : enhancerAuto.count;
+  // Whatever is in the table right now (edits included), as recipe lines.
+  const currentLines = useMemo<RecipeLine[]>(
+    () =>
+      ORNAMENT_OPTIONS.filter((o) => qtyNumberMap.has(o.size)).map((o) => ({
+        option: o,
+        quantity: qtyNumberMap.get(o.size)!,
+      })),
+    [qtyNumberMap]
+  );
+  // Loose vs in-enhancer split of the current lines.
+  const enhancerLines = useMemo<EnhancerAllocationLine[]>(
+    () => (dimsValid && recipeMode === "leafledger" ? enhancerAllocation(currentLines, h, enhancers, colorCount) : []),
+    [dimsValid, recipeMode, currentLines, h, enhancers, colorCount]
+  );
+
   // Quantities keyed by size CODE, for the colors step.
   const qtyByCode = useMemo(() => {
     const map = new Map<string, number>();
@@ -180,6 +300,23 @@ export default function OrnamentCalculator() {
   );
   const colorPctSum = totalColorPct(colorBlocks);
   const showPctWarning = colorBlocks.filter((b) => b.colorCode).length > 1 && colorPctSum !== 100;
+
+  // The purchase list's name — what Charles reads first. Profile and style are
+  // Leaf & Ledger modifiers, so under the Vickerman rules the label has neither.
+  const effectiveProfile = widthProfile ?? (dimsValid ? profileForWidth(h, w) : null);
+  const configLabel = useMemo(
+    () =>
+      treeConfigLabel({
+        heightFt: dimsValid ? h : null,
+        widthIn: dimsValid ? w : null,
+        profile: recipeMode === "leafledger" ? effectiveProfile : null,
+        style: recipeMode === "leafledger" ? designStyle : null,
+        colorNames: Array.from(
+          new Set(colorBlocks.map((b) => COLORS.find((c) => c.code === b.colorCode)?.name).filter((n): n is string => !!n))
+        ),
+      }),
+    [dimsValid, h, w, recipeMode, effectiveProfile, designStyle, colorBlocks]
+  );
 
   // Each order line is already a recipe line to match/pick against.
   const matchRequestLines = useMemo(
@@ -223,30 +360,72 @@ export default function OrnamentCalculator() {
     return () => clearTimeout(t);
   }, [step, matchRequestLines, onlyVickerman]);
 
-  const applyRecipeAtCoverage = (pct: number, mode: RecipeMode = recipeMode) => {
-    if (!dimsValid || surfaceArea <= 0) return;
+  // `next` carries a setting that was just changed but hasn't landed in state yet.
+  const applyRecipeAtCoverage = (
+    pct: number,
+    next: { mode?: RecipeMode; widthIn?: number; style?: DesignStyle; colorCount?: number } = {}
+  ) => {
+    const width = next.widthIn ?? w;
+    if (!Number.isFinite(h) || !Number.isFinite(width) || treeSurfaceArea(h, width) <= 0) return;
     const clamped = Math.max(0, Math.min(100, pct));
     setCoverageTarget(clamped); // keep the slider exactly where it was dragged
-    const recipe = buildRecipeFor(mode, h, w, clamped / 100);
-    const next = emptyQuantities();
-    recipe.lines.forEach((line) => {
-      next[line.option.size] = line.quantity;
+    const recipe = buildRecipeFor(next.mode ?? recipeMode, h, width, clamped / 100, {
+      style: next.style ?? designStyle,
+      colorCount: next.colorCount ?? colorCount,
     });
-    setQuantities(next);
+    const nextQuantities = emptyQuantities();
+    recipe.lines.forEach((line) => {
+      nextQuantities[line.option.size] = line.quantity;
+    });
+    setQuantities(nextQuantities);
   };
   const applyRecipe = () => applyRecipeAtCoverage(40);
   const changeRecipeMode = (mode: RecipeMode) => {
     setRecipeMode(mode);
-    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, mode);
+    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, { mode });
   };
-  // Width follows height at the calibrated ratio until the user sets it themselves.
+  const changeStyle = (style: DesignStyle) => {
+    setDesignStyle(style);
+    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, { style });
+  };
+  const changeColorCount = (count: number) => {
+    setColorCount(count);
+    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, { colorCount: count });
+  };
+  // Width follows height at the chosen profile's ratio until the user sets it themselves.
   const changeHeight = (v: number | "") => {
     setHeightFt(v);
-    if (!widthTouched && typeof v === "number" && v > 0) setWidthIn(defaultWidthForHeight(v));
+    if (widthProfile && typeof v === "number" && v > 0) setWidthIn(widthForProfile(v, widthProfile));
   };
   const changeWidth = (v: number | "") => {
-    setWidthTouched(true);
+    setWidthProfile(null);
     setWidthIn(v);
+  };
+  // Picking a profile sets the width (and keeps it following height) — a modifier, so it re-populates.
+  const changeWidthProfile = (profile: WidthProfile) => {
+    setWidthProfile(profile);
+    if (typeof heightFt !== "number" || heightFt <= 0) return;
+    const width = widthForProfile(heightFt, profile);
+    setWidthIn(width);
+    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, { widthIn: width });
+  };
+  // Step 2 starts with one block per color, equal shares — unless the user already set blocks up.
+  const goToColors = () => {
+    if (recipeMode === "leafledger") {
+      setColorBlocks((blocks) => {
+        const pristine = blocks.length === 1 && !blocks[0].colorCode && !blocks[0].finishCode && blocks[0].sharePct === 100;
+        return pristine && colorCount !== blocks.length ? equalShareBlocks(colorCount) : blocks;
+      });
+    }
+    setStep("colors");
+  };
+  const changeEnhancers = (v: number | "") => {
+    setEnhancersTouched(true);
+    setEnhancersInput(v);
+  };
+  const resetEnhancers = () => {
+    setEnhancersTouched(false);
+    setEnhancersInput("");
   };
   const clearAll = () => {
     setQuantities(emptyQuantities());
@@ -273,8 +452,10 @@ export default function OrnamentCalculator() {
     const rows = pickedRows();
     if (!rows.length) return toast.error("Pick a product for at least one size first.");
     const text =
+      (configLabel ? `${configLabel}\n` : "") +
       "Supplier\tSKU\tItem\tPacks\tPieces\n" +
-      rows.map(({ l, p }) => `${p.supplier}\t${p.sku ?? ""}\t${p.name}\t${p.packs_needed ?? ""}\t${l.quantity}`).join("\n");
+      rows.map(({ l, p }) => `${p.supplier}\t${p.sku ?? ""}\t${p.name}\t${p.packs_needed ?? ""}\t${l.quantity}`).join("\n") +
+      (enhancers > 0 ? `\nEnhancers\t${enhancers}` : "");
     try {
       await navigator.clipboard.writeText(text);
       toast.success("Order copied to clipboard");
@@ -286,10 +467,12 @@ export default function OrnamentCalculator() {
     const rows = pickedRows();
     if (!rows.length) return toast.error("Pick a product for at least one size first.");
     const csv =
+      (configLabel ? `# ${configLabel}\n` : "") +
       "Supplier,SKU,Item,Size,Color,Packs,Pieces\n" +
       rows
         .map(({ l, p }) => `${p.supplier},${p.sku ?? ""},"${(p.name || "").replace(/"/g, '""')}",${l.size},${l.color ?? ""},${p.packs_needed ?? ""},${l.quantity}`)
-        .join("\n");
+        .join("\n") +
+      (enhancers > 0 ? `\nEnhancers,${enhancers}` : "");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -368,6 +551,98 @@ export default function OrnamentCalculator() {
   );
   const pickedCount = matchRequestLines.filter((l) => picked[lineId(l.size, l.color, l.finish)]).length;
 
+  // --- Purchase list (designer rules 8 and 9) ---
+  // Per-piece price of each size from its picks, weighted by pieces (a size has one line per color).
+  const pricePerPieceBySize = useMemo(() => {
+    const totals = new Map<number, { cost: number; pieces: number }>();
+    matchRequestLines.forEach((l) => {
+      const p = picked[lineId(l.size, l.color, l.finish)];
+      const perPiece = p ? pricePerPiece(p) : null;
+      if (perPiece == null) return;
+      const t = totals.get(l.size) ?? { cost: 0, pieces: 0 };
+      totals.set(l.size, { cost: t.cost + perPiece * l.quantity, pieces: t.pieces + l.quantity });
+    });
+    const map = new Map<number, number>();
+    totals.forEach((t, size) => {
+      if (t.pieces > 0) map.set(size, t.cost / t.pieces);
+    });
+    return map;
+  }, [matchRequestLines, picked]);
+  // A swap rounds to the design's color count; under the Vickerman rules, to the colors chosen.
+  const swapColorCount =
+    recipeMode === "leafledger" ? colorCount : Math.max(1, colorBlocks.filter((b) => b.colorCode).length);
+  const swapSuggestions = useMemo(
+    () => sizeSwapSuggestions(currentLines, pricePerPieceBySize, LL_SIZE_SWAP_TOLERANCE, swapColorCount),
+    [currentLines, pricePerPieceBySize, swapColorCount]
+  );
+  // Estimated cost of the picks: packs × pack price. Lines without a price are counted, not summed.
+  const pickedEstimate = useMemo(() => {
+    let total = 0;
+    let unpriced = 0;
+    matchRequestLines.forEach((l) => {
+      const p = picked[lineId(l.size, l.color, l.finish)];
+      if (!p) return;
+      if (p.price == null || p.packs_needed == null) unpriced++;
+      else total += p.price * p.packs_needed;
+    });
+    return { total, unpriced };
+  }, [matchRequestLines, picked]);
+
+  // One click: every line without a pick gets its best catalog match — the first
+  // with the color right, else the first (the backend ranks by size closeness,
+  // then color). The matches already honour the "Vickerman only" filter.
+  const buildPurchaseList = () => {
+    let filled = 0;
+    matchLines.forEach((line) => {
+      const key = lineId(line.size, line.color, line.finish);
+      if (picked[key]) return;
+      const best = line.matches.find((m) => m.color_match) ?? line.matches[0];
+      if (!best) return;
+      pickProduct(key, best);
+      filled++;
+    });
+    if (filled) toast.success(`Filled ${filled} line${filled === 1 ? "" : "s"} from the catalog`);
+    else if (matchLines.length === 0) toast.error("No catalog matches yet — pick a color and finish first.");
+    else toast.success("Every line already has a pick");
+  };
+  // Make a swap: the calculator's quantities are the source of truth, and the
+  // picks for both sizes go stale (their pack counts were for the old quantities).
+  const applySwap = (swap: SizeSwapSuggestion) => {
+    setQuantities((prev) => applySizeSwap(prev, swap));
+    matchRequestLines.forEach((l) => {
+      if (l.size === swap.fromSize || l.size === swap.toSize) clearPick(lineId(l.size, l.color, l.finish));
+    });
+    toast.success(`Swapped ${swap.fromQty} × ${swap.fromSize}" for ${swap.toQty} × ${swap.toSize}" — re-pick those sizes`);
+  };
+  // A plain-text message Charles can pull from: the label, pieces per size (with
+  // the loose / in-enhancer split), enhancers, then the picked supplier SKUs.
+  const copyForCharles = async () => {
+    if (currentLines.length === 0) return toast.error("Populate a recipe first.");
+    const sizeLines = currentLines.map((line) => {
+      const split = enhancerLines.find((l) => l.option.size === line.option.size);
+      const note = split && split.inEnhancers > 0 ? ` (${split.loose} loose / ${split.inEnhancers} in enhancers)` : "";
+      return `${line.quantity} × ${line.option.display}"${note}`;
+    });
+    const pickLines = pickedRows().map(
+      ({ l, p }) =>
+        `${p.supplier} ${p.sku ?? "(no SKU)"} — ${l.size}" ${l.color ?? ""}${l.finish ? ` ${l.finish}` : ""} · ${
+          p.packs_needed ?? "?"
+        } pk (${l.quantity} pcs)`
+    );
+    const text = [
+      ...(configLabel ? [configLabel] : []),
+      ...sizeLines,
+      ...(enhancers > 0 ? [`Enhancers: ${enhancers}`] : []),
+      ...(pickLines.length ? ["", ...pickLines] : []),
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied for Charles");
+    } catch {
+      toast.error("Copy failed.");
+    }
+  };
+
   return (
     <Layout>
       <header
@@ -398,7 +673,7 @@ export default function OrnamentCalculator() {
             1 · Calculator
           </button>
           <button
-            onClick={() => setStep("colors")}
+            onClick={goToColors}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               step === "colors" ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-100"
             }`}
@@ -415,8 +690,14 @@ export default function OrnamentCalculator() {
             widthIn={widthIn}
             setHeightFt={changeHeight}
             setWidthIn={changeWidth}
+            widthProfile={effectiveProfile}
+            setWidthProfile={changeWidthProfile}
             recipeMode={recipeMode}
             setRecipeMode={changeRecipeMode}
+            designStyle={designStyle}
+            setDesignStyle={changeStyle}
+            colorCount={colorCount}
+            setColorCount={changeColorCount}
             quantities={quantities}
             setQty={setQty}
             applyRecipe={applyRecipe}
@@ -429,7 +710,14 @@ export default function OrnamentCalculator() {
             density={density}
             totalOrnaments={totalOrnaments}
             sizesUsed={qtyNumberMap.size}
-            goToColors={() => setStep("colors")}
+            enhancerAuto={enhancerAuto}
+            enhancers={enhancers}
+            enhancersInput={enhancersInput}
+            enhancersTouched={enhancersTouched}
+            setEnhancers={changeEnhancers}
+            resetEnhancers={resetEnhancers}
+            enhancerLines={enhancerLines}
+            goToColors={goToColors}
           />
         ) : (
           <ColorsStep
@@ -457,6 +745,13 @@ export default function OrnamentCalculator() {
             clearPick={clearPick}
             pickedPacks={pickedPacks}
             pickedCount={pickedCount}
+            configLabel={configLabel}
+            buildPurchaseList={buildPurchaseList}
+            canBuild={matchLines.length > 0 && !matchLoading}
+            swapSuggestions={swapSuggestions}
+            applySwap={applySwap}
+            copyForCharles={copyForCharles}
+            pickedEstimate={pickedEstimate}
           />
         )}
       </div>
@@ -473,8 +768,16 @@ interface CalcProps {
   widthIn: number | "";
   setHeightFt: (v: number | "") => void;
   setWidthIn: (v: number | "") => void;
+  /** The profile the width matches (null = custom). Leaf & Ledger only. */
+  widthProfile: WidthProfile | null;
+  setWidthProfile: (p: WidthProfile) => void;
   recipeMode: RecipeMode;
   setRecipeMode: (m: RecipeMode) => void;
+  /** Leaf & Ledger modifiers — hidden under the Vickerman rules. */
+  designStyle: DesignStyle;
+  setDesignStyle: (s: DesignStyle) => void;
+  colorCount: number;
+  setColorCount: (n: number) => void;
   quantities: QtyMap;
   setQty: (size: number, raw: string) => void;
   applyRecipe: () => void;
@@ -487,11 +790,22 @@ interface CalcProps {
   density: number;
   totalOrnaments: number;
   sizesUsed: number;
+  /** Table lookup for the current tree (null when dimensions are missing/too small). */
+  enhancerAuto: EnhancerLookup | null;
+  /** Effective enhancer count: the table's, or the user's once edited. */
+  enhancers: number;
+  enhancersInput: number | "";
+  enhancersTouched: boolean;
+  setEnhancers: (v: number | "") => void;
+  resetEnhancers: () => void;
+  enhancerLines: EnhancerAllocationLine[];
   goToColors: () => void;
 }
 
 function CalculatorStep(p: CalcProps) {
   const showTree = p.dimsValid && !p.tooSmall;
+  const inEnhancerLines = p.enhancerLines.filter((l) => l.inEnhancers > 0);
+  const inEnhancerTotal = inEnhancerLines.reduce((sum, l) => sum + l.inEnhancers, 0);
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
       {/* Left: inputs + table */}
@@ -524,6 +838,35 @@ function CalculatorStep(p: CalcProps) {
                 className="w-32 rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               />
             </label>
+            {/* Width profile — sets the width from the height and keeps it following (Leaf & Ledger only) */}
+            {p.recipeMode === "leafledger" && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-stone-500">Profile</span>
+                <div className="flex overflow-hidden rounded-lg border border-stone-300 text-xs font-medium">
+                  {(Object.keys(WIDTH_PROFILES) as WidthProfile[]).map((profile) => (
+                    <button
+                      key={profile}
+                      onClick={() => p.setWidthProfile(profile)}
+                      disabled={!p.dimsValid}
+                      className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        p.widthProfile === profile
+                          ? "bg-emerald-700 text-white"
+                          : "bg-white text-stone-600 hover:bg-stone-100"
+                      }`}
+                    >
+                      {WIDTH_PROFILES[profile].label}
+                    </button>
+                  ))}
+                  <span
+                    className={`px-3 py-1.5 ${
+                      p.widthProfile === null && p.dimsValid ? "bg-emerald-700 text-white" : "bg-white text-stone-400"
+                    }`}
+                  >
+                    Custom
+                  </span>
+                </div>
+              </div>
+            )}
             <button
               onClick={p.applyRecipe}
               disabled={!p.dimsValid || p.tooSmall}
@@ -567,15 +910,48 @@ function CalculatorStep(p: CalcProps) {
                 </button>
               ))}
             </div>
+            {/* Modifiers — style and color count (Leaf & Ledger only) */}
+            {p.recipeMode === "leafledger" && (
+              <>
+                <div className="flex overflow-hidden rounded-lg border border-stone-300 text-xs font-medium">
+                  {(
+                    [
+                      ["traditional", "Traditional"],
+                      ["contemporary", "Contemporary"],
+                    ] as [DesignStyle, string][]
+                  ).map(([style, label]) => (
+                    <button
+                      key={style}
+                      onClick={() => p.setDesignStyle(style)}
+                      className={`px-3 py-1.5 transition-colors ${
+                        p.designStyle === style
+                          ? "bg-emerald-700 text-white"
+                          : "bg-white text-stone-600 hover:bg-stone-100"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-stone-500">
+                  Colors
+                  <select
+                    value={p.colorCount}
+                    onChange={(e) => p.setColorCount(Number(e.target.value))}
+                    className="rounded-lg border border-stone-300 px-2 py-1.5 text-xs text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  >
+                    {Array.from({ length: LL_MAX_COLOR_COUNT - LL_MIN_COLOR_COUNT + 1 }, (_, i) => LL_MIN_COLOR_COUNT + i).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             <span className="text-xs text-stone-500">
               {p.recipeMode === "leafledger"
-                ? `Largest ornament = tree height in feet, rounded up to a stocked size${
-                    typeof p.heightFt === "number" && p.heightFt > 0
-                      ? ` (${leafLedgerTopSize(p.heightFt)}" for this tree)`
-                      : ""
-                  } · 5 sizes · equal coverage${
-                    typeof p.heightFt === "number" && p.heightFt < 8 ? " · top size as accent under 8 ft" : ""
-                  }`
+                ? describeLeafLedger(p.heightFt, p.designStyle, p.colorCount)
                 : "Vickerman's size family by coverage bucket · 4 sizes · 20/35/25/20 split"}
             </span>
           </div>
@@ -599,6 +975,8 @@ function CalculatorStep(p: CalcProps) {
                 const v = p.quantities[o.size];
                 const numeric = typeof v === "number" ? v : 0;
                 const active = numeric > 0;
+                // Leaf & Ledger only — enhancerLines is empty under the Vickerman rules.
+                const split = p.enhancerLines.find((l) => l.option.size === o.size);
                 return (
                   <tr
                     key={o.size}
@@ -620,6 +998,11 @@ function CalculatorStep(p: CalcProps) {
                     </td>
                     <td className="px-6 py-2 text-xs text-stone-500">
                       {active ? packSummary(o, numeric) : "—"}
+                      {split && split.inEnhancers > 0 && (
+                        <span className="text-stone-400">
+                          {" "}· {split.loose} loose / {split.inEnhancers} in enhancers
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -637,6 +1020,69 @@ function CalculatorStep(p: CalcProps) {
             </button>
           </div>
         </section>
+
+        {/* Enhancers — the parallel bill of materials (Leaf & Ledger rules only) */}
+        {p.recipeMode === "leafledger" && (
+          <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
+                <Flower2 size={15} className="text-emerald-700" />
+                Enhancers
+              </h2>
+              <span className="text-xs text-stone-500">
+                {inEnhancerTotal.toLocaleString()} ornament{inEnhancerTotal === 1 ? "" : "s"} in enhancers
+              </span>
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-stone-500">Enhancer count</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={2}
+                  value={p.enhancersTouched ? p.enhancersInput : showTree ? p.enhancers : ""}
+                  disabled={!showTree}
+                  onChange={(e) =>
+                    p.setEnhancers(e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value))))
+                  }
+                  className="w-32 rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:bg-stone-50 disabled:text-stone-400"
+                />
+              </label>
+              {p.enhancersTouched && (
+                <button
+                  onClick={p.resetEnhancers}
+                  className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100"
+                >
+                  <RotateCcw size={14} />
+                  Use table
+                </button>
+              )}
+            </div>
+            <p className="mt-3 text-xs text-stone-500">{describeEnhancers(p.enhancerAuto, p.enhancersTouched)}</p>
+
+            <div className="mt-4 border-t border-stone-100 pt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Ornaments going into enhancers</p>
+              {inEnhancerLines.length > 0 ? (
+                <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+                  {inEnhancerLines.map((l) => (
+                    <li key={l.option.size} className="flex items-center justify-between">
+                      <span className="font-medium text-emerald-900">{l.option.display}&quot;</span>
+                      <span className="text-stone-500">
+                        <span className="font-medium text-stone-800">{l.inEnhancers}</span> in enhancers · {l.loose} loose on the tree
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-stone-400">
+                  {p.enhancers > 0
+                    ? `Populate a recipe — sizes up to ${ENHANCER_MAX_SIZE_IN}" split half and half between the tree and the enhancers.`
+                    : "No enhancers on this tree — every ornament stays loose."}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Right: tree visualization + coverage */}
@@ -746,11 +1192,42 @@ interface ColorsProps {
   clearPick: (key: string) => void;
   pickedPacks: number;
   pickedCount: number;
+  /** The tree configuration the list is for, e.g. "9 ft standard · traditional · Red + Gold". */
+  configLabel: string;
+  buildPurchaseList: () => void;
+  /** Matches are in and not loading, so there is something to fill from. */
+  canBuild: boolean;
+  swapSuggestions: SizeSwapSuggestion[];
+  applySwap: (swap: SizeSwapSuggestion) => void;
+  copyForCharles: () => void;
+  /** Packs × pack price over the picks, plus how many picks have no price. */
+  pickedEstimate: { total: number; unpriced: number };
 }
 
 function ColorsStep(p: ColorsProps) {
   return (
     <div className="flex flex-col gap-6">
+    {/* Purchase list header — the configuration Charles reads first, and one click to fill it */}
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-6 py-4 shadow-sm">
+      <div>
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
+          <ListChecks size={14} className="text-emerald-700" />
+          Purchase list
+        </p>
+        <h2 className="mt-0.5 text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          {p.configLabel || "Enter tree dimensions and choose colors"}
+        </h2>
+      </div>
+      <button
+        onClick={p.buildPurchaseList}
+        disabled={!p.canBuild}
+        title="Fill every size that has no pick with its best catalog match"
+        className="flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <ListChecks size={15} />
+        Build purchase list
+      </button>
+    </section>
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_420px]">
       {/* Left: color blocks */}
       <div className="flex flex-col gap-6">
@@ -925,12 +1402,32 @@ function ColorsStep(p: ColorsProps) {
             </div>
           )}
 
+          {p.pickedCount > 0 && (
+            <div className="flex items-center justify-between gap-3 border-t border-stone-200 px-5 py-3 text-sm">
+              <span className="text-stone-500">
+                Estimate
+                <span className="text-xs text-stone-400">
+                  {" "}· packs × pack price
+                  {p.pickedEstimate.unpriced > 0 && ` · ${p.pickedEstimate.unpriced} without a price left out`}
+                </span>
+              </span>
+              <span className="font-semibold text-stone-800">{money(p.pickedEstimate.total)}</span>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 border-t border-stone-200 px-5 py-4">
             <button
               onClick={p.copyOrder}
               className="flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
             >
               <Copy size={14} /> Copy
+            </button>
+            <button
+              onClick={p.copyForCharles}
+              title="Plain text: the tree, pieces per size, enhancers, then the picked SKUs"
+              className="flex items-center gap-2 rounded-lg border border-emerald-600 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+            >
+              <MessageSquareText size={14} /> Copy for Charles
             </button>
             <button
               onClick={p.exportCsv}
@@ -947,10 +1444,43 @@ function ColorsStep(p: ColorsProps) {
           </div>
         </section>
 
+        {/* Price-aware size swaps (designer rule 8) — only when the picks' prices make one worth it */}
+        {p.swapSuggestions.length > 0 && (
+          <section className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
+              <ArrowUpRight size={15} className="text-emerald-700" />
+              Size swaps worth making
+            </h2>
+            <p className="mt-1 text-xs text-stone-500">
+              The same coverage from the next size up, at no more than {Math.round(LL_SIZE_SWAP_TOLERANCE * 100)}% more per
+              square inch — the designers take the bigger ornament every time.
+            </p>
+            <ul className="mt-3 flex flex-col gap-2 text-sm">
+              {p.swapSuggestions.map((s) => (
+                <li key={`${s.fromSize}-${s.toSize}`} className="flex items-center justify-between gap-3">
+                  <span
+                    className="text-stone-700"
+                    title={`${money(s.fromCostPerSqIn)}/sq in → ${money(s.toCostPerSqIn)}/sq in`}
+                  >
+                    {describeSwap(s)}
+                  </span>
+                  <button
+                    onClick={() => p.applySwap(s)}
+                    className="flex-shrink-0 rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                  >
+                    Apply
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="rounded-xl border border-stone-200 bg-stone-50 p-5">
           <p className="text-xs leading-relaxed text-stone-500">
             Click a size to <strong className="text-stone-600">pick a real product</strong> from the catalog
-            below. Each size fills in with your chosen ornament and the packs you need — from
+            below, or <strong className="text-stone-600">Build purchase list</strong> to fill every size with its
+            best match. Each size fills in with your chosen ornament and the packs you need — from
             <strong className="text-stone-600"> every supplier</strong> in your catalog.
           </p>
         </section>

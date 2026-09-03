@@ -15,6 +15,7 @@ import Invoice from "./pages/Invoice.tsx";
 import Mockups from "./pages/Mockups.tsx";
 import Orders from "./pages/Orders.tsx";
 import OrnamentCalculator from "./pages/OrnamentCalculator.tsx";
+import TreeCounts from "./pages/TreeCounts.tsx";
 import CatalogSearch from "./pages/CatalogSearch.tsx";
 import InstallSchedule from "./pages/InstallSchedule.tsx";
 import Settings from "./pages/Settings.tsx";
@@ -41,6 +42,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/install-schedule", element: <InstallSchedule /> },
 	{ path: "/ornament-calculator", element: <OrnamentCalculator /> },
 	{ path: "/ornamentcalculator", element: <OrnamentCalculator /> },
+	{ path: "/tree-counts", element: <TreeCounts /> },
 	{ path: "/search", element: <CatalogSearch /> },
 	{ path: "/settings", element: <Settings /> },
 	{ path: "/suppliers", element: <Suppliers /> },
