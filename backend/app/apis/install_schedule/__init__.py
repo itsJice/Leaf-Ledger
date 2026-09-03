@@ -275,14 +275,66 @@ def _clean_version(version: str) -> str:
     return v
 
 
+#: What survives a rebuild. The state document mixes two different things: the
+#: SCHEDULE (placement, moves, approvals, comments -- all keyed on row numbers
+#: and crew-day ids that a rebuild reassigns) and the PEOPLE (who is on the
+#: roster, when they can work, who is on which crew-day). Only the schedule is
+#: really tied to a build; the roster is a fact about the business.
+#:
+#: They lived in one document, so they shared its fate: the version is a hash of
+#: the schedule's contents, and fixing a placement bug changed the schedule,
+#: changed the hash, and left an 18-person roster stranded under a key nothing
+#: would look up again. The tool fell back to roster_seed.json -- which stores
+#: everyone with `dates: []`, meaning available never -- so the season's crew
+#: silently became unschedulable.
+CARRY_FORWARD_KEYS = ("roster", "staffing")
+
+
+async def _inheritable_people(conn, version: str, season: str | None) -> dict | None:
+    """Roster and staffing from the most recent earlier build, if any.
+
+    Only ever consulted when THIS build has no state of its own, so it can
+    never overwrite something a person saved. Staffing is included because it
+    is self-cleaning downstream -- normStaffing() drops assignments pointing at
+    crew-day ids the current build does not have -- so a rebuild keeps the
+    assignments that still make sense and quietly forgets the rest.
+    """
+    row = await conn.fetchrow(
+        """
+        SELECT version, state, updated_at
+          FROM ll_app.install_schedule_state
+         WHERE version <> $1
+           AND ($2::text IS NULL OR season IS NULL OR season = $2)
+           AND jsonb_array_length(COALESCE(state->'roster', '[]'::jsonb)) > 0
+         ORDER BY updated_at DESC
+         LIMIT 1
+        """,
+        version, season,
+    )
+    if not row:
+        return None
+    prior = _loads(row["state"]) or {}
+    carried = {k: prior[k] for k in CARRY_FORWARD_KEYS if prior.get(k)}
+    if not carried:
+        return None
+    carried["inheritedFrom"] = row["version"]
+    return carried
+
+
 @router.get("/state")
-async def get_state(version: str) -> dict:
+async def get_state(version: str, season: str | None = None) -> dict:
     """Current shared state for a schedule build.
 
     Never 404s on a missing row: no state yet is the normal case on a fresh
     build, and the tool must fall back to its own baseline rather than show
     an error. A storage outage degrades the same way — the tool keeps
     working from localStorage.
+
+    When there is no state for this build, the response carries the roster and
+    staffing from the most recent earlier one under `inherit`, so a rebuild
+    does not silently empty the crew. It is offered, not applied: the tool
+    treats it as a starting point exactly as it treats the seed file, and the
+    first real save writes it into this build's own row.
     """
     v = _clean_version(version)
     try:
@@ -296,10 +348,11 @@ async def get_state(version: str) -> dict:
             "FROM ll_app.install_schedule_state WHERE version = $1",
             v,
         )
+        inherit = None if row else await _inheritable_people(conn, v, season)
     finally:
         await conn.close()
     if not row:
-        return {"version": v, "state": None}
+        return {"version": v, "state": None, "inherit": inherit}
     return {
         "version": v,
         "state": _loads(row["state"]),

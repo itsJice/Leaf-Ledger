@@ -2046,7 +2046,8 @@ function appClientFor(row){
 async function pullShared(){
   if(!AUTH) return;
   try{
-    const r = await fetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`,
+    const r = await fetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`
+                          + `&season=${encodeURIComponent(PAGE_SEASON)}`,
                           {headers:{Authorization:AUTH}});
     if(!r.ok) throw new Error(r.status);
     const j = await r.json();
@@ -2080,10 +2081,30 @@ async function pullShared(){
         : null;
       render();
     } else { syncState = 'shared'; }
-    // The shared copy can be genuinely empty (a fresh deployment, or the
-    // very first person to open it before anyone has a local save) --
-    // same fallback as the synchronous bootstrap, so the Staffing tab
-    // isn't blank while everyone waits for someone to type the roster in.
+    // Nothing saved for THIS build yet. The server offers the roster and
+    // staffing from the most recent earlier one, which is what should fill
+    // the gap: a rebuild changes the schedule and therefore the version, but
+    // it does not change who works here. Falling straight to the seed file
+    // instead is how an 18-person roster became 11 people with no
+    // availability -- the seed stores everyone with `dates: []`, which reads
+    // as "available never", so the whole crew went unschedulable at once.
+    //
+    // Only ever applied when the roster is actually empty, so it cannot
+    // overwrite a real edit, and it is not pushed back until someone saves --
+    // an inherited roster nobody has looked at should not overwrite the
+    // build it was inherited from.
+    if(!roster.length && j.inherit && Array.isArray(j.inherit.roster) && j.inherit.roster.length){
+      roster = normRoster(j.inherit.roster);
+      staffing = normStaffing(j.inherit.staffing);
+      if(roster.length){
+        stateWarning = `Roster carried over from the previous build`
+          + `${j.inherit.inheritedFrom ? ' ('+j.inherit.inheritedFrom+')' : ''}`
+          + ` — ${roster.length} people. Check availability before staffing.`;
+        render();
+      }
+    }
+    // Still nothing (no earlier build at all -- a genuinely first deployment):
+    // the seed file is the last resort, so the Staffing tab isn't blank.
     if(applyRosterSeedFallback()) render();
   }catch(e){ syncState = 'local'; }
 }
