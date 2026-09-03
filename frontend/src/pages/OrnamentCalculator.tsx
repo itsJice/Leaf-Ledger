@@ -25,14 +25,17 @@ import {
   ORNAMENT_OPTIONS,
   COLORS,
   FINISHES,
-  buildRecipe,
+  buildRecipeFor,
   coverageDensity,
   packSummary,
   treeSurfaceArea,
   treeDensityImage,
   buildOrderLines,
   totalColorPct,
+  defaultWidthForHeight,
+  leafLedgerTopSize,
   type ColorBlock,
+  type RecipeMode,
 } from "utils/ornamentRecipe";
 
 // Exact in-app clone of Vickerman's Ornament Calculator (both steps):
@@ -125,8 +128,10 @@ export default function OrnamentCalculator() {
   // --- Step 1 state ---
   const [heightFt, setHeightFt] = useState<number | "">(7.5);
   const [widthIn, setWidthIn] = useState<number | "">(55);
+  const [widthTouched, setWidthTouched] = useState(false);
   const [quantities, setQuantities] = useState<QtyMap>(emptyQuantities);
   const [coverageTarget, setCoverageTarget] = useState(40); // the slider's position
+  const [recipeMode, setRecipeMode] = useState<RecipeMode>("leafledger");
 
   // --- Step 2 state ---
   const [colorBlocks, setColorBlocks] = useState<ColorBlock[]>(() => [newColorBlock()]);
@@ -218,11 +223,11 @@ export default function OrnamentCalculator() {
     return () => clearTimeout(t);
   }, [step, matchRequestLines, onlyVickerman]);
 
-  const applyRecipeAtCoverage = (pct: number) => {
+  const applyRecipeAtCoverage = (pct: number, mode: RecipeMode = recipeMode) => {
     if (!dimsValid || surfaceArea <= 0) return;
     const clamped = Math.max(0, Math.min(100, pct));
     setCoverageTarget(clamped); // keep the slider exactly where it was dragged
-    const recipe = buildRecipe(h, w, clamped / 100);
+    const recipe = buildRecipeFor(mode, h, w, clamped / 100);
     const next = emptyQuantities();
     recipe.lines.forEach((line) => {
       next[line.option.size] = line.quantity;
@@ -230,6 +235,19 @@ export default function OrnamentCalculator() {
     setQuantities(next);
   };
   const applyRecipe = () => applyRecipeAtCoverage(40);
+  const changeRecipeMode = (mode: RecipeMode) => {
+    setRecipeMode(mode);
+    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, mode);
+  };
+  // Width follows height at the calibrated ratio until the user sets it themselves.
+  const changeHeight = (v: number | "") => {
+    setHeightFt(v);
+    if (!widthTouched && typeof v === "number" && v > 0) setWidthIn(defaultWidthForHeight(v));
+  };
+  const changeWidth = (v: number | "") => {
+    setWidthTouched(true);
+    setWidthIn(v);
+  };
   const clearAll = () => {
     setQuantities(emptyQuantities());
     setCoverageTarget(0);
@@ -395,8 +413,10 @@ export default function OrnamentCalculator() {
           <CalculatorStep
             heightFt={heightFt}
             widthIn={widthIn}
-            setHeightFt={setHeightFt}
-            setWidthIn={setWidthIn}
+            setHeightFt={changeHeight}
+            setWidthIn={changeWidth}
+            recipeMode={recipeMode}
+            setRecipeMode={changeRecipeMode}
             quantities={quantities}
             setQty={setQty}
             applyRecipe={applyRecipe}
@@ -453,6 +473,8 @@ interface CalcProps {
   widthIn: number | "";
   setHeightFt: (v: number | "") => void;
   setWidthIn: (v: number | "") => void;
+  recipeMode: RecipeMode;
+  setRecipeMode: (m: RecipeMode) => void;
   quantities: QtyMap;
   setQty: (size: number, raw: string) => void;
   applyRecipe: () => void;
@@ -523,6 +545,40 @@ function CalculatorStep(p: CalcProps) {
               Tree is too small to calculate — width must be over 20&quot; and height over 1.7 ft.
             </p>
           )}
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-4">
+            <span className="text-xs font-medium text-stone-500">Recipe rules</span>
+            <div className="flex overflow-hidden rounded-lg border border-stone-300 text-xs font-medium">
+              {(
+                [
+                  ["leafledger", "Leaf & Ledger"],
+                  ["vickerman", "Vickerman"],
+                ] as [RecipeMode, string][]
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => p.setRecipeMode(mode)}
+                  className={`px-3 py-1.5 transition-colors ${
+                    p.recipeMode === mode
+                      ? "bg-emerald-700 text-white"
+                      : "bg-white text-stone-600 hover:bg-stone-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-stone-500">
+              {p.recipeMode === "leafledger"
+                ? `Largest ornament = tree height in feet, rounded up to a stocked size${
+                    typeof p.heightFt === "number" && p.heightFt > 0
+                      ? ` (${leafLedgerTopSize(p.heightFt)}" for this tree)`
+                      : ""
+                  } · 5 sizes · equal coverage${
+                    typeof p.heightFt === "number" && p.heightFt < 8 ? " · top size as accent under 8 ft" : ""
+                  }`
+                : "Vickerman's size family by coverage bucket · 4 sizes · 20/35/25/20 split"}
+            </span>
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">

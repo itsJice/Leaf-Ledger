@@ -138,6 +138,92 @@ export function buildRecipe(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Leaf & Ledger recipe — our design team's rules, on top of Vickerman's math.
+//
+// Same cone surface area and 40% coverage target, but the size family is not
+// picked by coverage bucket: the LARGEST ornament is the tree height in feet
+// expressed as inches, rounded up to the next size we stock (12 ft -> 12",
+// 9 ft -> 10"), with five sizes stepping down from there and the coverage split
+// evenly across them. Calibrated against the designers' 12 ft recipe
+// (12"x8, 10"x10, 8"x18, 6"x30, 4.75"x48), which scores 40% by Vickerman's own
+// density formula on a 12 ft x 78 in tree.
+//
+// Small-tree exception (designer hand rule): under 8 ft the rounded-up top size
+// is only an accent ("mostly 6-inch, some 8"), so it gets a token share.
+// ---------------------------------------------------------------------------
+
+export type RecipeMode = "vickerman" | "leafledger";
+
+/** Sizes the Leaf & Ledger recipe will auto-select, smallest -> largest. */
+const LL_SIZE_LADDER = [2.4, 3, 4, 4.75, 6, 8, 10, 12, 15.75, 20];
+/** How many sizes a recipe uses, top size included. */
+const LL_SIZE_COUNT = 5;
+/** Below this height the top size is an accent rather than a full tier. */
+const LL_ACCENT_BELOW_FT = 8;
+/** Coverage share the accent top size gets on small trees. */
+const LL_ACCENT_SHARE = 0.05;
+/** Default tree width when only height is known (12 ft -> 78 in, per the 12 ft calibration). */
+export const LL_WIDTH_PER_FT = 6.5;
+
+/** Default width (in) for a tree height when the user hasn't set one. */
+export function defaultWidthForHeight(heightFt: number): number {
+  return Math.round(heightFt * LL_WIDTH_PER_FT);
+}
+
+/** The largest ornament for a tree: height-in-feet as inches, rounded up to a stocked size. */
+export function leafLedgerTopSize(heightFt: number): number {
+  return LL_SIZE_LADDER.find((s) => s >= heightFt) ?? LL_SIZE_LADDER[LL_SIZE_LADDER.length - 1];
+}
+
+/** The sizes (smallest -> largest) the Leaf & Ledger recipe uses for a tree height. */
+export function leafLedgerSizes(heightFt: number): number[] {
+  const topIdx = LL_SIZE_LADDER.indexOf(leafLedgerTopSize(heightFt));
+  return LL_SIZE_LADDER.slice(Math.max(0, topIdx - LL_SIZE_COUNT + 1), topIdx + 1);
+}
+
+export function buildLeafLedgerRecipe(
+  heightFt: number,
+  widthIn: number,
+  targetCoverage: number = RECIPE_TARGET_COVERAGE
+): RecipeResult {
+  const surfaceArea = treeSurfaceArea(heightFt, widthIn);
+  if (surfaceArea <= 0) {
+    return { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
+  }
+
+  const recipeCoverage = surfaceArea * targetCoverage;
+  const sizes = leafLedgerSizes(heightFt);
+  const accentTop = heightFt < LL_ACCENT_BELOW_FT && sizes.length > 1;
+  const topShare = accentTop ? LL_ACCENT_SHARE : 1 / sizes.length;
+  const restShare = (1 - topShare) / (sizes.length - 1 || 1);
+
+  const lines: RecipeLine[] = sizes.map((size, i) => {
+    const option = ORNAMENT_OPTIONS.find((o) => o.size === size)!;
+    const share = i === sizes.length - 1 ? topShare : restShare;
+    return { option, quantity: quantityForCoverage(option.planarArea, recipeCoverage * share) };
+  });
+
+  return {
+    surfaceArea,
+    recipeCoverage,
+    bucketNumber: recipeBucketNumber(recipeCoverage),
+    lines,
+  };
+}
+
+/** Recipe for a tree under the chosen rule set. */
+export function buildRecipeFor(
+  mode: RecipeMode,
+  heightFt: number,
+  widthIn: number,
+  targetCoverage: number = RECIPE_TARGET_COVERAGE
+): RecipeResult {
+  return mode === "leafledger"
+    ? buildLeafLedgerRecipe(heightFt, widthIn, targetCoverage)
+    : buildRecipe(heightFt, widthIn, targetCoverage);
+}
+
 /**
  * Coverage density (%) for an arbitrary set of quantities on a tree — mirrors
  * the calculator's live meter. Capped at 100. Quantities keyed by size.

@@ -196,6 +196,51 @@ now).
 
 ---
 
+## Leaf & Ledger recipe mode (our design team's rules)
+
+Selectable on the calculator next to the Vickerman rules (`buildLeafLedgerRecipe` /
+`buildRecipeFor` in `ornamentRecipe.ts`). It keeps Vickerman's surface-area, 40%
+coverage, quantity-rounding, density meter and tree images unchanged — only **which
+sizes** and **how coverage is split** differ. Source: designer working session,
+2026-08-20, reconciled against Vickerman's formula.
+
+### Why
+
+Big trees have big gaps; small ornaments disappear into them (especially next to
+enhancers/picks). The team would rather fill small gaps with foliage than with small
+ornaments. Vickerman's buckets put a 12 ft tree in 4"–8" balls (~207 pieces); the
+designers use 4.75"–12" (~114 pieces) at the *same* 40% coverage.
+
+### Rules
+
+1. **Top size = tree height in feet, as inches, rounded up to a stocked size.**
+   12 ft → 12", 10 ft → 10", 9 ft → 10", 8 ft → 8", 15 ft → 15.75". Ladder:
+   2.4, 3, 4, 4.75, 6, 8, 10, 12, 15.75, 20 (capped at 20).
+2. **Five sizes**, stepping down the ladder from the top size (fewer if the ladder runs out).
+3. **Coverage split evenly** across the sizes (20% each with five).
+4. **Under 8 ft the top size is an accent** — it gets 5% of coverage and the rest is
+   split evenly across the remaining sizes ("mostly 6-inch, some 8").
+5. **Default width** = height × 6.5 in/ft (the ratio that makes the 12 ft calibration
+   land at 40%); width stays editable and stops auto-following once edited.
+
+### Calibration
+
+Designers' 12 ft recipe: `12"×8, 10"×10, 8"×18, 6"×30, 4.75"×48` = 114 pieces. By
+Vickerman's density formula that is 40% on a 12 ft × 78 in tree, with coverage split
+21/18/21/20/20% — i.e. an even split. The rule set reproduces it as
+`12"×8, 10"×11, 8"×17, 6"×30, 4.75"×48`.
+
+| Tree | Sizes | L&L pieces | Vickerman pieces (same tree) |
+| ---- | ----- | ---------- | ---------------------------- |
+| 12 ft × 78 in | 4.75–12" | ~114 | ~207 (4–8") |
+| 9 ft × 59 in | 4–10" | see calculator | 4–8" |
+| 7.5 ft × 55 in | 3–8" (8" accent) | see calculator | 3–6" (42/41/21/10) |
+
+Open with the designers: the 7 ft "some 8-inch" accent share (5% is a first guess),
+and whether 4.75" belongs on 7 ft trees.
+
+---
+
 ## Notes & gotchas
 
 - Everything is a pure function of `(height, width, quantities, colorBlocks)` — no
