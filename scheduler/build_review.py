@@ -1842,9 +1842,14 @@ async function loadSeasons(){
   if(!list.length) return;                   // nothing published: nothing to offer
   const current = String(j.currentSeason || '');
   renderSeasonPicker(list, current);
-  // The season this page IS, versus the season the calendar is in. Anything
-  // else is a past season -- a record, not a schedule.
-  if(current && String(PAGE_SEASON) !== current) enterReadOnly(current);
+  // Archived means "a newer season has been published", not "the calendar has
+  // moved on". Those differ for the months between 1 February and the autumn
+  // build: the calendar says the 2026 season is over, but 2026 is still the
+  // only published tool, and locking it would leave nowhere to work. The list
+  // is newest-first, so the head of it is the live document.
+  const newest = String((list[0] || {}).season || '');
+  if(newest && String(PAGE_SEASON) === newest) exitReadOnly();
+  else if(newest) enterReadOnly(current || newest);
 }
 function renderSeasonPicker(list, current){
   const sel = document.getElementById('seasonpick');
@@ -1946,6 +1951,32 @@ async function gotoSeason(y){
 }
 /** Turn this page into a record. One-way: nothing switches it back, because
  *  the only correct way out is to open the live season's own page. */
+let _roKill = null;
+
+/** Release archive mode.
+ *
+ *  Only ever called when the server confirms this page IS the newest published
+ *  season. Bootstrap is deliberately pessimistic -- it locks anything that is
+ *  not the current calendar season before the auth token has even arrived --
+ *  and that is right for a genuinely old season but wrong for the gap between
+ *  1 February and the autumn build, when the newest published tool is still
+ *  last season's and is the only place work can happen. Locking it then would
+ *  leave the team with no editable schedule for months. */
+function exitReadOnly(){
+  if(!READONLY) return;
+  READONLY = false;
+  document.body.classList.remove('readonly');
+  const b = document.getElementById('robanner');
+  if(b){ b.hidden = true; b.innerHTML = ''; }
+  const sel = document.getElementById('seasonpick');
+  if(sel) sel.classList.remove('archived');
+  if(_roKill){
+    document.removeEventListener('dragstart', _roKill, true);
+    document.removeEventListener('drop', _roKill, true);
+    _roKill = null;
+  }
+  render();
+}
 function enterReadOnly(current){
   if(READONLY) return;
   READONLY = true;
@@ -1968,9 +1999,12 @@ function enterReadOnly(current){
   // phase, so these run BEFORE the element handlers that would otherwise
   // start or complete a move -- stopPropagation means those never fire at
   // all, rather than being asked politely not to.
-  const kill = e => { e.preventDefault(); e.stopPropagation(); roFlash(); };
-  document.addEventListener('dragstart', kill, true);
-  document.addEventListener('drop', kill, true);
+  // Kept on a module-level handle so exitReadOnly() can remove them. An
+  // inline closure here could never be unregistered, which would make the
+  // Feb-1 release below impossible.
+  _roKill = e => { e.preventDefault(); e.stopPropagation(); roFlash(); };
+  document.addEventListener('dragstart', _roKill, true);
+  document.addEventListener('drop', _roKill, true);
   // Repaint so `draggable` attributes and the disabled styling apply to
   // everything already on screen.
   render();
