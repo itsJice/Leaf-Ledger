@@ -46,3 +46,23 @@ def test_short_words_allow_one_edit_only():
 def test_skip_known_false_corrects_everything():
     near = [("burl", 21), ("burled", 1)]
     assert _rank_corrections("burlap", near, 438, skip_known=False) == ["burl", "burled"]
+
+
+def test_vowelless_abbreviation_expands_to_the_real_word():
+    # "gld" is how buyers and half the vendors write gold. It is two dropped
+    # letters from "gold" -- past the one-edit cap for a short word -- but it is
+    # a subsequence with no vowels, which is an abbreviation, not a different
+    # word. It must come back first, ahead of one-edit fragments like "gls".
+    near = [("gls", 387), ("gla", 72), ("gold", 5771), ("glt", 20)]
+    assert _rank_corrections("gld", near, 33, skip_known=True)[0] == "gold"
+    # "grn" -> "green" is two insertions; frequency must carry it past gra/gre/gry.
+    near = [("gra", 40), ("gre", 30), ("gry", 25), ("green", 8480)]
+    assert _rank_corrections("grn", near, 131, skip_known=True)[0] == "green"
+
+
+def test_real_short_word_keeps_the_one_edit_cap():
+    # "gold" has a vowel, so it is a word, and is NOT an abbreviation of
+    # "golden". The vowel gate is what keeps test_short_words_allow_one_edit_only
+    # true while the abbreviation rule above exists.
+    near = [("bold", 3), ("golden", 900), ("gild", 1)]
+    assert "golden" not in _rank_corrections("gold", near, None, skip_known=True)

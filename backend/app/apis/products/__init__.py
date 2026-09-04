@@ -1288,7 +1288,10 @@ async def _load_sql_vocab(conn) -> set:
 # A term is only ever fuzzy-matched when it is a *word*. Item numbers are
 # identifiers, not spellings: correcting N590321-2 by one edit hands the user a
 # different product, so anything carrying a digit or a separator stays exact.
-_WORD_RE = re.compile(r"^[a-z]{4,}$")
+# Three letters, not four: "gld", "grn", "slvr", "wht" are how buyers (and half
+# the vendors) abbreviate colours, and they are the terms a search most needs to
+# widen. Anything shorter really is within an edit of everything.
+_WORD_RE = re.compile(r"^[a-z]{3,}$")
 
 
 # The other side of that coin. An identifier stays exact in *spelling*, but its
@@ -1354,6 +1357,12 @@ def _edit_distance(a: str, b: str) -> int:
     return prev[lb]
 
 
+def _is_subsequence(short: str, long: str) -> bool:
+    """Every letter of `short`, in order, somewhere in `long`."""
+    it = iter(long)
+    return all(ch in it for ch in short)
+
+
 def _rank_corrections(term: str, candidates: list[tuple[str, int]],
                       self_freq: Optional[int], *, skip_known: bool,
                       keep: int = 4) -> list[str]:
@@ -1371,8 +1380,27 @@ def _rank_corrections(term: str, candidates: list[tuple[str, int]],
         if word == term:
             continue
         d = _edit_distance(term, word)
-        if d <= max_edits:
-            scored.append((d, -freq, word))
+        # The one-edit cap guards against "cat" -> "cut" -> a different word.
+        # It should not guard against "grn" -> "green": every letter of the
+        # term is there, in order, and only letters were dropped. That is an
+        # abbreviation, not a different word, so pure insertions get two.
+        # An abbreviation is a term with its vowels dropped: gld, grn, wht,
+        # slvr, blk. A term that still HAS a vowel is a word, and "gold" is
+        # not an abbreviation of "golden" -- so the two-edit allowance is
+        # gated on the term being vowel-less, not merely on it being an
+        # in-order subsequence of something longer. That keeps the strict
+        # one-edit rule for real short words (bold, not golden) while letting
+        # every dropped letter of "grn" come back.
+        expansion = (d > max_edits and _is_subsequence(term, word)
+                     and not any(ch in "aeiou" for ch in term))
+        limit = 2 if expansion else max_edits
+        if d <= limit:
+            # Score the expansion as ONE edit, whatever it really cost. Ranked
+            # by raw distance, "grn" offered gra / gre / gry -- three one-edit
+            # fragments -- and cut "green" off at the keep limit. Costing the
+            # expansion the same as a substitution lets frequency decide, and
+            # 8,480 products say green.
+            scored.append((1 if expansion else d, -freq, word))
     if not scored:
         return []
     if skip_known and self_freq is not None:
@@ -1407,6 +1435,15 @@ async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> 
     if not words:
         return {}
     try:
+        # Two candidate sources in one round trip. Trigrams catch transposed
+        # and substituted letters; they miss dropped ones almost entirely --
+        # similarity("gld","gold") is 0.28, under any usable threshold, because
+        # the two share hardly a trigram. The second source is the term as an
+        # in-order subsequence of a word at most two letters longer, which is
+        # precisely the dropped-vowel abbreviation: gld -> gold, grn -> green,
+        # slvr -> silver, cne -> cone. Bounded to short terms, where it is
+        # both needed and cheap (a 3-letter subsequence over 18k words is a
+        # regex scan of ~100 KB).
         rows = await conn.fetch(
             """
             SELECT t.term, v.word, v.freq
@@ -1417,6 +1454,18 @@ async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> 
                     WHERE word %% t.term
                       AND similarity(word, t.term) >= $2
                     ORDER BY similarity(word, t.term) DESC, freq DESC
+                    LIMIT $3
+              ) v ON TRUE
+            UNION
+            SELECT t.term, v.word, v.freq
+              FROM unnest($1::text[]) AS t(term)
+              JOIN LATERAL (
+                   SELECT word, freq
+                     FROM search_vocab
+                    WHERE length(t.term) BETWEEN 3 AND 5
+                      AND word ~ ('^' || array_to_string(regexp_split_to_array(t.term, ''), '.*'))
+                      AND length(word) <= length(t.term) + 2
+                    ORDER BY freq DESC
                     LIMIT $3
               ) v ON TRUE
             """.replace("%%", "%"),
