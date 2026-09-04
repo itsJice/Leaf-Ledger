@@ -38,6 +38,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/favorites", element: <Favorites /> },
 	{ path: "/comments", element: <Comments /> },
 	{ path: "/invoice", element: <Invoice /> },
+	{ path: "/sourcing", element: <Jobs /> },
+	{ path: "/sourcing/:jobId", element: <Jobs /> },
+	// Older links used /jobs; keep them working.
 	{ path: "/jobs", element: <Jobs /> },
 	{ path: "/jobs/:jobId", element: <Jobs /> },
 	{ path: "/mockups", element: <Mockups /> },

@@ -8,6 +8,8 @@ tracking_xlsx     The buyer's binder sheet, in the layout the team already
                   allocations from existing orders.
 
 manufacturing_order_pdf
+                  FUTURE, not exposed by any endpoint while the designers keep
+                  the paper MO (scope decision, Sept 2026).
                   The TBDG Xmas Manufacturing Order: header from intake, the
                   piece specs, the PRODUCT list (manufacturer · product number
                   · description) filled from what was actually sourced, a
@@ -72,9 +74,12 @@ def tracking_xlsx(job: dict) -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "Order"
+    from openpyxl.drawing.image import Image as XLImage
+    from app.apis.orders.export import _thumb
+
     cols = ["Client", "Project", "Item", "Vendor", "Sku", "Description", "Need Qty", "O/O QTY",
-            "Unit Cost", "Adj. Unit Cost", "Freight", "Arrival", "Checked in", "Notes"]
-    widths = [14, 14, 26, 16, 16, 40, 9, 9, 10, 12, 9, 12, 11, 48]
+            "Unit Cost", "Adj. Unit Cost", "Freight", "Arrival", "Checked in", "Notes", "Picture"]
+    widths = [14, 14, 26, 16, 16, 40, 9, 9, 10, 12, 9, 12, 11, 48, 12]
     head_fill = PatternFill("solid", fgColor="A6A6A6")
     section_fill = PatternFill("solid", fgColor="FFF2A8")
     strike = Font(strike=True, color="666666")
@@ -116,7 +121,10 @@ def tracking_xlsx(job: dict) -> bytes:
                 notes.append(f"{_qty(line['overage_qty'])} extra to stock")
             if line.get("notes"):
                 notes.append(line["notes"])
-            oo = line.get("po_quantity") if line.get("order_item_id") else (line["order_qty"] or None)
+            if line["status"] in ("sold_out", "on_hold", "allocated"):
+                oo = None  # struck through on the binder sheet: nothing is on order for this line
+            else:
+                oo = line.get("po_quantity") if line.get("order_item_id") else (line["order_qty"] or None)
             ws.append([
                 client, project, need["label"], line.get("vendor_name") or "", line.get("sku") or "",
                 line.get("description") or "", float(need["need_qty"]),
@@ -136,6 +144,14 @@ def tracking_xlsx(job: dict) -> bytes:
             if line["status"] == "sold_out":
                 for c in (4, 5, 6):
                     ws.cell(row=r, column=c).font = strike
+            # The buyer pastes product pictures onto the binder sheet by hand;
+            # put them on the row instead.
+            png = _thumb(line.get("image_url")) if line.get("image_url") else None
+            if png:
+                img = XLImage(io.BytesIO(png))
+                img.width, img.height = 64, 64
+                ws.add_image(img, f"O{r}")
+                ws.row_dimensions[r].height = 52
         ws.append([])
 
     # Request sheet: the intake as the client gave it.
