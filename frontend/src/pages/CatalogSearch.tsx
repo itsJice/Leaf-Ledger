@@ -68,6 +68,10 @@ const GRID_COLS: Record<CardSize, string> = {
 const IMG_HEIGHT: Record<CardSize, string> = { 1: "h-24", 2: "h-32", 3: "h-40", 4: "h-56" };
 const VIEW_KEY = "leaf-ledger:catalog-view:v1";
 const SIZE_KEY = "leaf-ledger:catalog-size:v1";
+// sessionStorage, not localStorage: this is "where was I", not a lasting
+// preference like view/size above - it should survive clicking away to
+// another tab and back, but not resurrect a random product days later.
+const OPEN_PRODUCT_KEY = "leaf-ledger:catalog-open-product:v1";
 // Filters + scroll position, restored when navigating back to this page
 // (e.g. Catalog Search -> Suppliers -> back). sessionStorage, not
 // localStorage: this is "where I was in this browsing session," not a
@@ -165,11 +169,36 @@ export default function CatalogSearch() {
   const seenIds = useRef<number[]>([]);
   const [detailProduct, setDetailProduct] = useState<any | null>(null);
 
+  // Clicking a sidebar tab unmounts this whole page - plain component state
+  // can't survive that. Persisting which product was open (and restoring it
+  // below on mount) is what makes "expand a product, check Install Schedule,
+  // come back" land you exactly where you left off instead of a blank search.
   const openDetail = useCallback((id: number) => {
     apiFetch(`/api/products/detail/${id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setDetailProduct)
-      .catch(() => {});
+      .then((p) => {
+        setDetailProduct(p);
+        try { sessionStorage.setItem(OPEN_PRODUCT_KEY, String(id)); } catch { /* private mode etc. */ }
+      })
+      .catch(() => {
+        // The remembered product no longer resolves (deleted, bad id from a
+        // stale session) - drop the breadcrumb so we don't retry forever.
+        try { sessionStorage.removeItem(OPEN_PRODUCT_KEY); } catch { /* noop */ }
+      });
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setDetailProduct(null);
+    try { sessionStorage.removeItem(OPEN_PRODUCT_KEY); } catch { /* noop */ }
+  }, []);
+
+  // Restore on mount: if a product was open when this page was last torn
+  // down, reopen it - runs once, before the user has clicked anything.
+  useEffect(() => {
+    const saved = sessionStorage.getItem(OPEN_PRODUCT_KEY);
+    const id = saved ? Number(saved) : NaN;
+    if (Number.isFinite(id)) openDetail(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [favIds, setFavIds] = useState<Set<number>>(() => readFavoriteIds());
@@ -677,7 +706,7 @@ export default function CatalogSearch() {
         </main>
       </div>
       {detailProduct && (
-        <ProductDetailModal product={detailProduct} onClose={() => setDetailProduct(null)} />
+        <ProductDetailModal product={detailProduct} onClose={closeDetail} />
       )}
     </Layout>
   );

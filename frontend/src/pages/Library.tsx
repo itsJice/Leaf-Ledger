@@ -1812,8 +1812,17 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
     .map(([k, v]) => [prettifyKey(k), v]);
   const reviewNote = raw.needs_review ? String(raw.needs_review) : null;
 
+  // The sidebar is `fixed ... z-20` (Layout.tsx); a backdrop spanning
+  // `inset-0` at z-50 sat on top of it across its full width, so clicking a
+  // nav tab while this modal was open just hit the backdrop and closed the
+  // modal instead of navigating - the sidebar was never actually reachable.
+  // Starting the backdrop at the sidebar's right edge (w-60 = 15rem) leaves
+  // that strip fully interactive; everything to its right still dims and
+  // still closes on an outside click. The sidebar has no responsive variant
+  // (always `fixed left-0`, no mobile collapse), so this offset applies
+  // unconditionally rather than only above a breakpoint.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-y-0 left-60 right-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-stone-100 px-5 py-4">
           <div>
