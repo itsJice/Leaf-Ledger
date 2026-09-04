@@ -3633,134 +3633,111 @@ function renderNotInstalling(){
     + 'drawn between them, because nobody is driving this run.';
   side.appendChild(note);
 
-  const staff=[...notInstalling];
-  const sh=document.createElement('div'); sh.className='ovdate';
-  sh.textContent=`Taken out by staff — ${staff.length}`;
-  side.appendChild(sh);
-  if(!staff.length){
-    const p=document.createElement('p'); p.className='nothingyet';
-    p.textContent='Nobody yet.'; side.appendChild(p);
-  }
-  // Rendered as the same .stop card a crew day uses, not a reduced one-liner:
-  // these are the same clients, with the same hours, box counts, notes and
-  // history, and staff need all of it to decide whether to put one back. The
-  // only differences are the ones that follow from having no day -- no stop
-  // number, no drive legs, and no "confirm date", since there is no date to
-  // confirm. "find date" and "move" stay live.
-  staff.sort((a,b)=>C[a].name.localeCompare(C[b].name)).forEach(row=>{
-    const c=C[row];
-    const el=document.createElement('div');
-    el.className='stop nistop'; el.dataset.row=row;
-    const noMap = c.lat==null || c.lon==null;
-    const approx = !noMap && !['street','manual','census'].includes(c.geo);
-    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
-        <span class="badge niout">not installing</span>
-        ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
-        ${noMap?'<span class="badge approx">no address — not on the map</span>'
-               :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
-      <div class="sub">${esc(c.zone||'—')}</div>
-      <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
-      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
-      ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
-      <div class="stopbtns">
-        <button class="mv find">find date</button>
-        <button class="mv">move ▾</button>
-      </div>`;
-    el.draggable=!READONLY;
-    el.ondragstart=e=>{ e.dataTransfer.setData('row',row); };
-    el.title='Drag onto any date to put this client back on the schedule';
-    // Same as a scheduled stop: the card opens the client popup, the buttons
-    // stop the click so they don't pop the dialog underneath themselves.
-    el.onclick=()=>openStopPeek(row, null);
-    el.querySelector('.find').onclick=e=>{ e.stopPropagation(); putBackOnSchedule(row); };
-    el.querySelector('.mv:not(.find)').onclick=e=>{ e.stopPropagation(); openMoveDlg(row, null); };
-    side.appendChild(el);
-  });
-
-  // A "dropped" client with an address on file already has a full row in
-  // C -- the client roster (C) is every geocoded client from the sheet,
-  // full stop; schedule.py's own optimizer is what left them off `days`,
-  // not any filtering here. So there's real hours/geometry to schedule
-  // against already -- no need to re-create them via "add a client", just
-  // send that existing row straight to the slot finder. Only a client
-  // with genuinely no address (no_install AND no coords, or the "missing
-  // an address" list) has no row yet and needs the full create flow.
-  const putBackRow = (d, addr)=>{
-    const existing = Object.values(C).find(c=>normName(c.name)===normName(d.name));
-    if(existing){ openSlotFinder(existing.row); return; }
-    openPutBackDialog(d.name, addr);
-  };
   // This build's own geocoding is frozen at whatever prep.py saw in the
   // spreadsheet -- it has no idea an address got typed into the Clients
   // tab since. clientDirectory (the app's live copy, loaded once AUTH is
-  // in) does, so a "missing an address" entry checks there before saying
-  // so: the app already speaking to itself beats making staff retype
-  // something that's sitting right there on the client's profile.
+  // in) does, so a sheet/no-address entry checks there before saying it
+  // has nothing: the app already speaking to itself beats making staff
+  // retype something that's sitting right there on the client's profile.
   const liveAddrFor = name=>{
     const ac = clientDirectory && clientDirectory.get(normName(name));
     if(!ac || !ac.street) return null;
     return [ac.street, [ac.city, ac.state].filter(Boolean).join(', '), ac.zip]
       .filter(Boolean).join(', ');
   };
-  const dropped=DATA.dropped||[];
-  const dh=document.createElement('div'); dh.className='ovdate';
-  dh.textContent=`From the spreadsheet — ${dropped.length}`;
-  side.appendChild(dh);
-  const dn=document.createElement('p'); dn.className='nothingyet';
-  dn.style.cssText='margin:0 0 8px';
-  dn.textContent='These say "No __SEASON__ Install" in the source sheet -- fix it '
-               + 'there for next season. Need one on the schedule anyway? '
-               + '"Put back" below adds them like any other new client, '
-               + 'then suggests a date.';
-  side.appendChild(dn);
-  dropped.forEach(d=>{
-    const el=document.createElement('div'); el.className='nirow';
+  const existingRow = name => {
+    const c = Object.values(C).find(x=>normName(x.name)===normName(name));
+    return c ? c.row : null;
+  };
+
+  // Every reason a client isn't on the schedule -- staff pulled them off,
+  // the sheet says no install this year, or there's no address on file to
+  // place them at -- is ONE list now, sorted together (user, 2026-09-03).
+  // A "dropped"/"missing address" entry that already has a real row in C
+  // (the sheet had an address, or the Clients tab does) gets full stop-card
+  // treatment immediately: drag, find date, move, click for the full
+  // profile -- same as anyone staff pulled off by hand, because it's the
+  // same underlying data either way. Only a client with genuinely no
+  // address anywhere has nothing real to schedule against yet, so that one
+  // still falls back to "Put back", which opens "add a client" to get one.
+  const entries=[];
+  notInstalling.forEach(row=>entries.push({row, name:C[row].name, badge:'not installing'}));
+  (DATA.dropped||[]).forEach(d=>{
     const sheetAddr=[d.street,d.city,d.zip].filter(Boolean).join(', ');
     const live=!sheetAddr && liveAddrFor(d.name);
-    const addr=sheetAddr||live||'';
-    const noMap = !addr;
-    el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
-               + `<b>${esc(d.name)}</b>`
-               + `<span class="nisub${noMap?' nomap':''}">`
-               + esc(d.reason||'')
-               + (noMap ? ' · no address — not on the map'
-                        : live ? ' · address on file in the Clients tab' : '')
-               + `</span></div></div>`;
-    const back=document.createElement('button');
-    back.className='printbtn'; back.textContent='Put back';
-    back.title=noMap
-      ? 'No address on file yet -- opens "add a client" so you can enter one'
-      : `Adds them as a client using ${live?"the Clients tab's":"the sheet's"} address, then suggests a date`;
-    back.onclick=()=>putBackRow(d, addr);
-    el.appendChild(back);
+    entries.push({row:existingRow(d.name), name:d.name, badge:d.reason||'not installing',
+      addr:sheetAddr||live||''});
+  });
+  (DATA.noaddr||[]).forEach(d=>{
+    entries.push({row:existingRow(d.name), name:d.name, badge:d.reason||'needs address',
+      addr:liveAddrFor(d.name)||''});
+  });
+  entries.sort((a,b)=>a.name.localeCompare(b.name));
+
+  const sh=document.createElement('div'); sh.className='ovdate';
+  sh.textContent=`Not installing — ${entries.length}`;
+  side.appendChild(sh);
+  if(!entries.length){
+    const p=document.createElement('p'); p.className='nothingyet';
+    p.textContent='Nobody yet.'; side.appendChild(p);
+  }
+
+  entries.forEach(entry=>{
+    // Has a real row -- rendered as the same .stop card a crew day uses,
+    // not a reduced one-liner: same hours, box counts, notes and history,
+    // because staff need all of it to decide whether to put one back. The
+    // only differences from a scheduled stop are the ones that follow from
+    // having no day -- no stop number, no drive legs, no "confirm date".
+    if(entry.row!=null){
+      const row=entry.row, c=C[row];
+      const el=document.createElement('div');
+      el.className='stop nistop'; el.dataset.row=row;
+      const noMap = c.lat==null || c.lon==null;
+      const approx = !noMap && !['street','manual','census'].includes(c.geo);
+      el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+          <span class="badge niout">${esc(entry.badge)}</span>
+          ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
+          ${noMap?'<span class="badge approx">no address — not on the map</span>'
+                 :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
+        <div class="sub">${esc(c.zone||'—')}</div>
+        <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
+        <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+        ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+        <div class="stopbtns">
+          <button class="mv find">find date</button>
+          <button class="mv">move ▾</button>
+        </div>`;
+      el.draggable=!READONLY;
+      el.ondragstart=e=>{ e.dataTransfer.setData('row',row); };
+      el.title='Drag onto any date to put this client back on the schedule';
+      // Same as a scheduled stop: the card opens the client popup, the
+      // buttons stop the click so they don't pop the dialog underneath.
+      el.onclick=()=>openStopPeek(row, null);
+      el.querySelector('.find').onclick=e=>{ e.stopPropagation();
+        // Only a staff-pulled row needs the notInstalling/moves bookkeeping
+        // undone -- a sheet/no-address row was never in that set to begin
+        // with, so it goes straight to the slot finder.
+        if(notInstalling.has(row)) putBackOnSchedule(row); else openSlotFinder(row); };
+      el.querySelector('.mv:not(.find)').onclick=e=>{ e.stopPropagation(); openMoveDlg(row, null); };
+      side.appendChild(el);
+      return;
+    }
+    // No row yet -- genuinely nothing to schedule against (no address
+    // anywhere, sheet or Clients tab). Same card shape so it doesn't look
+    // like a different feature sitting in the same list, but no drag/find/
+    // move: "Put back" opens "add a client" pre-filled with what's known.
+    const el=document.createElement('div');
+    el.className='stop nistop noaddr';
+    el.innerHTML=`<div class="body"><div class="nm">${esc(entry.name)}
+        <span class="badge niout">${esc(entry.badge)}</span>
+        <span class="badge approx">no address — not on the map</span></div></div>
+      <div class="stopbtns">
+        <button class="mv putback">Put back</button>
+      </div>`;
+    el.title='Opens "add a client" -- enter their address to place them';
+    el.querySelector('.putback').onclick=e=>{ e.stopPropagation(); openPutBackDialog(entry.name, entry.addr); };
     side.appendChild(el);
   });
-  const na=DATA.noaddr||[];
-  if(na.length){
-    const nh=document.createElement('div'); nh.className='ovdate';
-    nh.textContent=`Missing an address — ${na.length}`;
-    side.appendChild(nh);
-    na.forEach(d=>{
-      const el=document.createElement('div'); el.className='nirow';
-      const live=liveAddrFor(d.name);
-      const noMap = d.lat==null && d.lon==null && !live;
-      el.innerHTML=`<div class="nileft"><span class="nidot"></span><div class="nitext">`
-                 + `<b>${esc(d.name)}</b>`
-                 + `<span class="nisub${noMap?' nomap':''}">`
-                 + (live ? 'address on file in the Clients tab'
-                         : esc(d.reason||'needs address')
-                           + (noMap?' · nothing to pin until there is an address':''))
-                 + `</span></div></div>`;
-      const back=document.createElement('button');
-      back.className='printbtn'; back.textContent='Put back';
-      back.title=live
-        ? "Adds them as a client using the Clients tab's address, then suggests a date"
-        : 'Opens "add a client" -- enter their address to place them';
-      back.onclick=()=>putBackRow(d, live||'');
-      el.appendChild(back);
-      side.appendChild(el);
-    });
-  }
 }
 function renderCards(){
   side.innerHTML='';
@@ -4120,12 +4097,32 @@ function openPutBackDialog(name, addr){
   ncAfterCreate=row=>openSlotFinder(row);
   ncdlg.showModal();
 }
-async function geocodeAddress(q){
+async function geocodeQuery(q){
   const res = await fetch(`https://nominatim.openstreetmap.org/search`
     + `?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`);
   const j = await res.json();
   if(!j.length) return null;
   return {lat:+j[0].lat, lon:+j[0].lon, display:j[0].display_name};
+}
+async function geocodeAddress(q){
+  const direct = await geocodeQuery(q);
+  if(direct) return direct;
+  // Real, recurring failure mode for this client base specifically: a
+  // Houston-area USPS address routinely names "Houston" as the city for
+  // unincorporated Harris County places that OpenStreetMap has no city
+  // name for at all (confirmed against Felecia Buenrostro's real address,
+  // user 2026-09-03 -- OSM has it as bare "Harris County, Texas", no
+  // "Houston" anywhere in the record). Full "street, city, state, zip"
+  // then matches nothing even though the address is completely real.
+  // Street + zip alone is specific enough to geocode cleanly and immune to
+  // this -- worth one retry before telling staff it's not a real address.
+  const zip = (q.match(/\b\d{5}\b/)||[])[0];
+  const street = q.split(',')[0].trim();
+  if(zip && street){
+    const fallback = `${street} ${zip}`;
+    if(fallback.toLowerCase() !== q.trim().toLowerCase()) return await geocodeQuery(fallback);
+  }
+  return null;
 }
 document.getElementById('ncgo').onclick=async()=>{
   if(roBlocked()) return;

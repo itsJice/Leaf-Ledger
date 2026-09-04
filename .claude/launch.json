@@ -11,6 +11,15 @@
       "autoPort": true
     },
     {
+      "name": "backend",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd backend && exec .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000"
+      ],
+      "port": 8000
+    },
+    {
       "name": "backend-verify",
       "runtimeExecutable": "bash",
       "runtimeArgs": [

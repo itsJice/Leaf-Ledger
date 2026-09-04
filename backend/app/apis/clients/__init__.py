@@ -420,3 +420,49 @@ async def delete_client_comment(client_id: int, activity_id: int, request: Reque
         return {"deleted": True}
     finally:
         await conn.close()
+
+
+class RecentCommentOut(BaseModel):
+    id: int
+    client_id: int
+    client_name: str
+    text: str
+    author: Optional[str] = None
+    created_at: datetime
+
+
+# Backs the sidebar's "someone added a comment" badge. Deliberately its own
+# lean query rather than reusing build_client_list -- that one joins in the
+# full project rollup for every client, which the sidebar (mounted on every
+# page) has no use for and shouldn't pay for on every poll.
+@router.get("/comments/recent", response_model=List[RecentCommentOut])
+async def recent_comments(request: Request, limit: int = 20):
+    conn = await get_conn()
+    try:
+        rows = await conn.fetch(
+            """
+            SELECT ca.id, ca.client_id, c.name AS client_name, ca.summary, ca.detail, ca.created_at
+            FROM client_activity ca
+            JOIN clients c ON c.id = ca.client_id
+            WHERE ca.kind = 'comment'
+            ORDER BY ca.created_at DESC
+            LIMIT $1
+            """,
+            limit,
+        )
+        out = []
+        for r in rows:
+            detail = r["detail"]
+            if isinstance(detail, str):
+                detail = json.loads(detail)
+            out.append({
+                "id": r["id"],
+                "client_id": r["client_id"],
+                "client_name": r["client_name"],
+                "text": r["summary"],
+                "author": (detail or {}).get("author"),
+                "created_at": r["created_at"],
+            })
+        return out
+    finally:
+        await conn.close()

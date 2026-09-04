@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "app/auth/AuthProvider";
 import { APP_BASE_PATH, apiClient } from "app";
+import { apiFetch } from "utils/apiFetch";
 import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
 import {
@@ -38,6 +39,7 @@ interface Props {
 }
 
 const SIDEBAR_PROJECTS_CACHE_KEY = "leaf-ledger-sidebar-projects-cache-v1";
+const CLIENTS_COMMENTS_SEEN_KEY = "leaf-ledger:clients-comments-seen-at";
 const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
 const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
 const SUPPLIERS_CACHE_KEY = "leaf-ledger:suppliers-cache:v1";
@@ -56,6 +58,7 @@ const THEME_MODE_OPTIONS = [
 ];
 
 type SidebarProject = { id: number; name: string; client_name?: string; updated_at?: string };
+type RecentComment = { id: number; client_id: number; client_name: string; text: string; author?: string | null; created_at: string };
 type BootstrapSummary = {
   clients?: Array<{ name: string; project_count?: number }>;
   projects?: SidebarProject[];
@@ -138,6 +141,11 @@ export default function Layout({ children }: Props) {
   // the source of truth; this only removes any wait on the debounced save, and
   // is always at least as fresh as `prefs` for the life of the page.
   const [sidebarOverride, setSidebarOverride] = useState<SidebarPrefsEventDetail | null>(null);
+  // Dot on the "Clients" tab for a comment someone else added since this
+  // account last opened it. "Seen" is a per-browser timestamp (not a server
+  // read-receipt) -- good enough for a small team, and avoids a table just
+  // for this.
+  const [hasNewClientComments, setHasNewClientComments] = useState(false);
 
   const loadSidebarProjects = useCallback((mountedRef?: { current: boolean }) => {
     if (sidebarProjects.length === 0) setProjectsLoading(true);
@@ -239,6 +247,40 @@ export default function Layout({ children }: Props) {
     } catch {}
   }, [clientsOpen]);
 
+  const checkNewClientComments = useCallback(() => {
+    apiFetch("/api/clients/comments/recent?limit=20", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: RecentComment[]) => {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        let seenAt = 0;
+        try {
+          seenAt = Number(window.localStorage.getItem(CLIENTS_COMMENTS_SEEN_KEY)) || 0;
+        } catch {}
+        const unseen = rows.some(
+          (row) => row.author !== user?.email && new Date(row.created_at).getTime() > seenAt
+        );
+        setHasNewClientComments(unseen);
+      })
+      .catch(() => {});
+  }, [user?.email]);
+
+  useEffect(() => {
+    checkNewClientComments();
+    // Same "cheap version of polling" as the Comments page -- refetch on
+    // focus rather than run an interval in every tab all day.
+    window.addEventListener("focus", checkNewClientComments);
+    return () => window.removeEventListener("focus", checkNewClientComments);
+  }, [checkNewClientComments]);
+
+  // Opening the Clients tab clears the dot -- everything up to now is "seen".
+  useEffect(() => {
+    if (!location.pathname.includes("/clients")) return;
+    try {
+      window.localStorage.setItem(CLIENTS_COMMENTS_SEEN_KEY, String(Date.now()));
+    } catch {}
+    setHasNewClientComments(false);
+  }, [location.pathname]);
+
   // Nav order / visibility come from the account's preferences. Anything the
   // saved order does not mention still lands at its default position, so tabs
   // shipped after a preference was saved are never swallowed.
@@ -294,7 +336,16 @@ export default function Layout({ children }: Props) {
               isActive("/clients") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
           >
-            <Users size={16} strokeWidth={1.8} />
+            <span className="relative flex-none">
+              <Users size={16} strokeWidth={1.8} />
+              {hasNewClientComments && (
+                <span
+                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#1c2e1e]"
+                  title="New comment"
+                  aria-label="New comment"
+                />
+              )}
+            </span>
             Clients
           </Link>
           <button
