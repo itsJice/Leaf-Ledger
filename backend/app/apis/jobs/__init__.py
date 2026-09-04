@@ -50,7 +50,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 _SCHEMA_READY = False
 
-STAGES = ["received", "scoped", "sourcing", "ordered", "receiving", "ready", "built", "installed"]
+STAGES = ["new", "sourcing", "ordered", "receiving", "complete"]
 
 PIECE_TYPES = [
     "Tree", "Tree Skirt", "Tree Decor", "Lighting", "Garland", "Wreath",
@@ -426,14 +426,11 @@ def _derive_need(need: dict, lines: List[dict]) -> dict:
 
 
 def _derive_stage(job: dict, pieces: list, needs: List[dict]) -> str:
-    if job.get("installed_at"):
-        return "installed"
-    if job.get("built_at"):
-        return "built"
+    """The buyer's view of a job. Derived from its lines, never set by hand."""
     if not needs:
-        return "scoped" if pieces else "received"
+        return "new"
     if all(n["ready"] for n in needs):
-        return "ready"
+        return "complete"
     if any(n["unsourced_qty"] > 0 or n["proposed_qty"] > 0 for n in needs):
         return "sourcing"
     if any(n["received_qty"] > 0 for n in needs):
@@ -1212,8 +1209,9 @@ async def list_stock(q: Optional[str] = None):
 # ── Exports ─────────────────────────────────────────────────────────────────
 @router.get("/{job_id}/export")
 async def export_job(job_id: int, format: str = "xlsx"):
-    """`xlsx` is the buyer's tracking sheet in the binder layout. `mo` is the
-    Xmas Manufacturing Order (PDF) with the product list filled from sourcing."""
+    """`xlsx` is the buyer's tracking sheet in the binder layout, with product
+    pictures. (A Manufacturing Order PDF exists in export.py for the future
+    in-app MO; it is deliberately not exposed while the designers use paper.)"""
     conn = await get_conn()
     try:
         await ensure_schema(conn)
@@ -1224,14 +1222,10 @@ async def export_job(job_id: int, format: str = "xlsx"):
         raise HTTPException(status_code=404, detail="Job not found")
     from app.apis.jobs import export as export_mod
     fmt = (format or "xlsx").lower()
-    if fmt == "xlsx":
-        body, media, ext = export_mod.tracking_xlsx(job), \
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"
-    elif fmt == "mo":
-        body, media, ext = export_mod.manufacturing_order_pdf(job), "application/pdf", "pdf"
-    else:
-        raise HTTPException(status_code=400, detail="format must be xlsx or mo")
+    if fmt != "xlsx":
+        raise HTTPException(status_code=400, detail="format must be xlsx")
+    body = export_mod.tracking_xlsx(job)
     slug = "".join(c if c.isalnum() or c in "-_ " else "" for c in (job["name"] or "job")).strip().replace(" ", "_")
-    suffix = "tracking" if fmt == "xlsx" else "manufacturing_order"
-    return Response(content=body, media_type=media,
-                    headers={"Content-Disposition": f'attachment; filename="{slug}_{suffix}.{ext}"'})
+    return Response(content=body,
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{slug}_tracking.xlsx"'})

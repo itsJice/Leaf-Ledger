@@ -60,7 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { path: "/jobs", label: "Jobs", icon: ClipboardList },
+      { path: "/sourcing", label: "Sourcing", icon: ClipboardList },
       { path: "/designs", label: "Designs", icon: Shapes },
       { path: "/mockups", label: "AI Mockups", icon: Sparkles },
       { path: "/ornament-calculator", label: "Ornament Calculator", icon: Calculator },

@@ -4,18 +4,17 @@ import { apiFetch } from "utils/apiFetch";
 // intake to the client shelf. Every mutating call returns the full, refreshed
 // job so the page never has to stitch partial updates together.
 
-export type Stage =
-  | "received" | "scoped" | "sourcing" | "ordered" | "receiving" | "ready" | "built" | "installed";
+// The buyer's stages. Derived on the server from the worksheet lines.
+export type Stage = "new" | "sourcing" | "ordered" | "receiving" | "complete";
+
+export const STAGES: Stage[] = ["new", "sourcing", "ordered", "receiving", "complete"];
 
 export const STAGE_LABEL: Record<Stage, string> = {
-  received: "Received",
-  scoped: "Scoped",
+  new: "New",
   sourcing: "Sourcing",
   ordered: "Ordered",
   receiving: "Receiving",
-  ready: "Ready to build",
-  built: "Built",
-  installed: "Installed",
+  complete: "Complete",
 };
 
 export type SourcingStatus =
@@ -284,18 +283,18 @@ export const updateTask = (taskId: number, body: { title?: string; assignee?: st
   patch<Job>(`/api/jobs/tasks/${taskId}`, body);
 export const deleteTask = (taskId: number) => del<Job>(`/api/jobs/tasks/${taskId}`);
 
-export const exportUrl = (jobId: number, format: "xlsx" | "mo") => `/api/jobs/${jobId}/export?format=${format}`;
+export const exportUrl = (jobId: number) => `/api/jobs/${jobId}/export?format=xlsx`;
 
 // Download through apiFetch so the Authorization header goes along (a plain
 // <a href> to /api would come back 401).
-export async function downloadExport(jobId: number, format: "xlsx" | "mo", jobName: string) {
-  const r = await apiFetch(exportUrl(jobId, format), { credentials: "include" });
+export async function downloadExport(jobId: number, jobName: string) {
+  const r = await apiFetch(exportUrl(jobId), { credentials: "include" });
   if (!r.ok) throw new Error("Export failed");
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${jobName.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "job"}_${format === "mo" ? "manufacturing_order.pdf" : "tracking.xlsx"}`;
+  a.download = `${jobName.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "job"}_tracking.xlsx`;
   document.body.appendChild(a);
   a.click();
   a.remove();
