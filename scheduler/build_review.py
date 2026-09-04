@@ -758,21 +758,36 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .stfdstat{display:flex;gap:16px;padding:10px 0;border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);margin-bottom:12px}
 .stfdstat div{font-size:11px;color:var(--mut);font-weight:600}
-/* Alberto rating: 1-10 stars, one row per season (user, 2026-09-04). The
-   same row renders read-only on the contact card and as a picker in the
-   installer dialog; hovering the picker previews the fill up to the star
-   under the cursor, which is what makes "pick 7" feel like one click. */
-.ratrow{display:flex;align-items:center;gap:8px;margin:3px 0;flex-wrap:wrap}
-.ratlbl{font-size:11px;font-weight:600;color:var(--mut);min-width:158px}
+/* Alberto rating: still 1-10 underneath (RATING_MAX, unchanged), drawn as
+   5 stars with half fills -- Letterboxd style (user, 2026-09-04) -- rather
+   than 10 separate whole stars. Each star is two half-width slots sharing
+   one glyph via ::before, positioned so slot 1 shows the glyph's left half
+   and slot 2 shows its right half; odd/even data-rv values map onto them
+   exactly like they mapped onto the old whole-star buttons, so nothing
+   downstream (storage, clear, the numeric label) had to change, only how
+   it's drawn. The same row renders read-only on the contact card and as a
+   picker in the installer dialog; hovering the picker previews the fill up
+   to the half-star under the cursor. */
+.ratrow{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap}
+.ratlbl{font-size:12.5px;font-weight:700;color:var(--mut);min-width:112px}
+/* Overall is computed (the average of whatever traits are rated), never
+   set directly -- set apart from the trait rows below it so that reads
+   clearly, not like an eighth trait alongside the other seven. */
+.ratoverall{padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.ratoverall .ratlbl{color:var(--ink);font-size:13.5px}
 .stars{display:inline-flex;gap:0;white-space:nowrap}
-.stars span,.stars button{font-size:16px;line-height:1;color:#d9d5ce;
-  background:none;border:0;padding:0 1px;margin:0;font-family:inherit}
-.stars .on{color:#e0a100}
+.stars span,.stars button{position:relative;display:inline-block;width:.5em;height:1em;
+  overflow:hidden;font-size:28px;line-height:1;color:#d9d5ce;vertical-align:top;
+  background:none;border:0;padding:0;margin:0;font-family:inherit}
+.stars span::before,.stars button::before{content:'★';position:absolute;top:0}
+.stars span:nth-child(odd)::before,.stars button:nth-child(odd)::before{left:0}
+.stars span:nth-child(even)::before,.stars button:nth-child(even)::before{left:-.5em}
+.stars .on{color:var(--brand)}
 .stars button{cursor:pointer}
-.stars.pick:hover button{color:#e0a100}
+.stars.pick:hover button{color:var(--brand)}
 .stars.pick button:hover~button{color:#d9d5ce}
-.ratn{font-size:11px;color:var(--mut);min-width:56px;font-weight:600}
-.ratclr{font-size:10px;color:var(--faint);background:none;border:0;padding:0;
+.ratn{font-size:15px;color:var(--mut);min-width:46px;font-weight:700}
+.ratclr{font-size:13px;color:var(--faint);background:none;border:0;padding:0;
   cursor:pointer;text-decoration:underline;font-family:inherit}
 .ratclr:hover{color:var(--brand)}
 .stfrating{background:var(--surface);border:1px solid var(--line);border-radius:7px;
@@ -1141,7 +1156,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
   <span class="nclabel">Notes</span>
   <input id="pernotes" type="text" autocomplete="off" placeholder="Anything worth remembering">
   <div class="availhd">Alberto rating</div>
-  <span class="nclabel">1–10 stars, one per season — click the same star again to clear</span>
+  <span class="nclabel">1–5 stars, half-star steps — click the same star again to clear. Overall is the average of whatever's rated.</span>
   <div id="perratings"></div>
   <div class="availhd">Availability</div>
   <span class="nclabel">Shift times they can work</span>
@@ -1513,6 +1528,20 @@ let notInstalling = new Set();
 function normNotInstalling(list){
   return new Set((Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]));
 }
+// The day a client was on right before being taken out of the season, so
+// the "not installing" panel can still say "was Mon 11/23/26" instead of
+// just "not installing" -- staff asked for this to compare against what
+// they remember booking before deciding whether to put someone back on
+// the same date (user, 2026-09-03). Cleared once they're put back: at
+// that point it's stale, and a future removal captures a fresh one anyway.
+let lastScheduledFrom = {};
+function normLastScheduledFrom(obj){
+  const out = {};
+  Object.entries(obj||{}).forEach(([row,v])=>{
+    if(C[row] && v && typeof v.date==='string') out[row] = {date:v.date, crew:v.crew||''};
+  });
+  return out;
+}
 // Per-client notes, timestamped, newest first: {row: [{text, at}]}
 let comments = {};
 function normComments(obj){
@@ -1551,34 +1580,52 @@ function normManualOrder(obj){
 // placements/approvals, so they undo, sync and version identically.
 const TITLES = ['Lead','Lead Assist','General Installer'];
 const LANGS  = ['English','Spanish','Both'];
-// Alberto rating (user, 2026-09-04): 1-10 stars per installer, PER SEASON,
-// so it can be compared year over year. Keyed by the season's install year:
-// 2025 means the 2025 installs and the January-2026 takedowns, which is how
-// the season model already counts (scheduler/season.py). The first rated
-// season is 2025; every season from there to this page's season gets a row.
-// Stored on the person as `ratings: {"2025": 8, "2026": 6}` and carried
-// across rebuilds with the rest of the roster.
-const RATING_FIRST=2025, RATING_MAX=10;
-function ratingLabel(y){ return `${y} Install / ${+y+1} Takedown`; }
-function ratingSeasons(){
-  let last = Math.max(+PAGE_SEASON||RATING_FIRST, RATING_FIRST);
-  roster.forEach(p=>Object.keys(p.ratings||{}).forEach(y=>{ if(+y>last) last=+y; }));
-  const out=[]; for(let y=RATING_FIRST; y<=last; y++) out.push(y);
-  return out;
-}
+// Alberto rating (user, 2026-09-04): NOT year-over-year -- that got
+// scrapped the same day it shipped. "People are who they are": one
+// current rating per installer per trait, updated whenever, with no
+// history of who they used to be. Overall is never set directly -- it's
+// the average of whatever traits ARE rated, so it moves the moment any
+// trait does.
+const RATING_DIMENSIONS=[
+  {key:'speed', label:'Speed'},
+  {key:'design', label:'Design quality', hint:'Makes beautiful things'},
+  {key:'strength', label:'Strength', hint:'Moving boxes up and down'},
+  {key:'clientRep', label:'Client-facing', hint:'How they represent themselves to clients'},
+  {key:'teamwork', label:'Teamwork', hint:'Works well with teammates'},
+  {key:'leadership', label:'Leadership'},
+  {key:'teachability', label:'Teachability'},
+];
+const RATING_KEYS=new Set(RATING_DIMENSIONS.map(d=>d.key));
+const RATING_MAX=10;
+// Stored value stays 1-10 (half-star steps -- see the .stars CSS comment),
+// but nothing outside this rendering layer should ever show that raw
+// number: staff think in "1 to 5 stars" (user, 2026-09-04), so every
+// display converts to that scale right here, in one place.
+function ratingScale(v){ return v/2; }
+function ratingText(v){ return v ? `${ratingScale(v)}/5` : 'not rated'; }
 function normRatings(obj){
   const out={};
-  Object.entries(obj&&typeof obj==='object'?obj:{}).forEach(([y,v])=>{
+  Object.entries(obj&&typeof obj==='object'?obj:{}).forEach(([k,v])=>{
     const n=Math.round(+v);
-    if(/^\d{4}$/.test(String(y)) && n>=1 && n<=RATING_MAX) out[String(y)]=n;
+    if(RATING_KEYS.has(k) && n>=1 && n<=RATING_MAX) out[k]=n;
   });
   return out;
 }
-function ratingOf(p,y){ return (p&&p.ratings&&p.ratings[String(y)])||0; }
-/** Read-only star row: "★★★★★★★☆☆☆". */
+function ratingOf(p,key){ return (p&&p.ratings&&p.ratings[key])||0; }
+/** Average of whatever traits are actually rated, rounded to the nearest
+ * half-star step -- 0 (unrated) if nobody's touched a single trait yet. A
+ * partial set of traits still produces a real average; it just isn't
+ * asking staff to rate all seven before it means anything. */
+function overallRating(p){
+  const vals=RATING_DIMENSIONS.map(d=>ratingOf(p,d.key)).filter(v=>v>0);
+  if(!vals.length) return 0;
+  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+}
+/** Read-only star row: 5 stars, half-filled up to v/10 -- see the .stars
+ * CSS comment for how a pair of these slots becomes one half-star each. */
 function starsHTML(v){
   let h='<span class="stars">';
-  for(let i=1;i<=RATING_MAX;i++) h+=`<span class="${i<=v?'on':''}">★</span>`;
+  for(let i=1;i<=RATING_MAX;i++) h+=`<span class="${i<=v?'on':''}"></span>`;
   return h+'</span>';
 }
 let roster = [], staffing = {};
@@ -1759,6 +1806,7 @@ try{
     // date on the board, or its placement silently drops as unknown.
     newDates = normDates(s.newDates);
     notInstalling = normNotInstalling(s.notInstalling);
+    lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -1797,10 +1845,21 @@ function snapshot(){
     const ac=appClientFor(r);
     return (ac && ac.name) || (C[r] && C[r].name) || null;
   }).filter(Boolean);
+  // Same idea, keyed by name instead of row (rows mean nothing outside this
+  // page): lets the backend's client_activity write-through say "not
+  // installing -- previously scheduled 2026-11-12" instead of just "not
+  // installing" with no way to compare against what staff remember booking.
+  const notInstallingDates={};
+  notInstalling.forEach(r=>{
+    const ac=appClientFor(r);
+    const name=(ac && ac.name) || (C[r] && C[r].name);
+    const info=lastScheduledFrom[r];
+    if(name && info && info.date) notInstallingDates[name]=info.date;
+  });
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
-          newDates:[...newDates], notInstalling:[...notInstalling],
-          notInstallingNames, season:String((SEASON[0]||'')).slice(0,4),
+          newDates:[...newDates], notInstalling:[...notInstalling], lastScheduledFrom,
+          notInstallingNames, notInstallingDates, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -2125,6 +2184,7 @@ async function pullShared(){
       restoreSyntheticClients(j.state.newClients);
       newDates = normDates(j.state.newDates);
       notInstalling = normNotInstalling(j.state.notInstalling);
+      lastScheduledFrom = normLastScheduledFrom(j.state.lastScheduledFrom);
       const missing = applyPlacement(j.state.placement);
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -2268,6 +2328,7 @@ async function restoreHistoryEntry(entryId, btn){
     restoreSyntheticClients(st.newClients);
     newDates = normDates(st.newDates);
     notInstalling = normNotInstalling(st.notInstalling);
+    lastScheduledFrom = normLastScheduledFrom(st.lastScheduledFrom);
     applyPlacement(st.placement);
     moves = st.moves || [];
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
@@ -2299,7 +2360,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates],
-                         notInstalling:[...notInstalling], roster, staffing});
+                         notInstalling:[...notInstalling], lastScheduledFrom, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -2307,6 +2368,7 @@ function restoreBlob(blob){
   // somewhere to put the stops that were sitting on it.
   newDates = normDates(s.newDates);
   notInstalling = normNotInstalling(s.notInstalling);
+  lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
   applyPlacement(s.placement);
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
@@ -3376,6 +3438,11 @@ function markNotInstalling(row){
   days = days.filter(d=>d.stops.length);
   confirmed.delete(row);
   notInstalling.add(row);
+  // What date/crew they were pulled off of -- shown in the "not installing"
+  // panel so staff can see what was booked before deciding whether to put
+  // someone back on that same date.
+  if(cur) lastScheduledFrom[row] = {date:cur.date, crew:cur.crew};
+  else delete lastScheduledFrom[row];
   moves.push({row, name:C[row].name, from: cur?cur.id:'', to:'NOINSTALL'});
   persist(); render();
 }
@@ -3386,6 +3453,7 @@ function putBackOnSchedule(row){
   if(!notInstalling.has(row)) return;
   pushUndo();
   notInstalling.delete(row);
+  delete lastScheduledFrom[row];   // stale once they're back on the board
   moves.push({row, name:C[row].name, from:'NOINSTALL', to:''});
   persist(); render();
   openSlotFinder(row);
@@ -3751,11 +3819,13 @@ function renderNotInstalling(){
       el.className='stop nistop'; el.dataset.row=row;
       const noMap = c.lat==null || c.lon==null;
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
+      const was=lastScheduledFrom[row];
       el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
           <span class="badge niout">${esc(entry.badge)}</span>
           ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
                  :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
+        ${was?`<div class="sub">Was scheduled <b>${esc(fmtDate(was.date))}</b>${was.crew?` · ${esc(was.crew)}`:''}</div>`:''}
         <div class="sub">${esc(c.zone||'—')}</div>
         <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
         <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
@@ -5452,15 +5522,6 @@ let staffTab='shifts', selPerson=null;
 // Inactive people have their own collapsed section now, so the default view
 // is both -- 'Active' as a default would have hidden that section entirely.
 let stfFilter={title:'',lang:'',gender:'',active:'',sort:''};
-/** Which season the roster table's Alberto column shows: the one being
- *  sorted on, else the most recent season anyone has a rating for, else
- *  this page's season. */
-function ratingColSeason(){
-  const m=/^rating:(\d{4})$/.exec(stfFilter.sort||'');
-  if(m) return +m[1];
-  const rated=ratingSeasons().filter(y=>roster.some(p=>ratingOf(p,y)));
-  return rated.length ? rated[rated.length-1] : ratingSeasons().slice(-1)[0];
-}
 const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','General Installer':'gen'};
 const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','General Installer':'General'};
 const LANG_CLS={'English':'en','Spanish':'es','Both':'both'};
@@ -5479,23 +5540,35 @@ function pushPerHist(){ perUndo.push([...perDates]); perRedo=[]; }
 // Alberto rating picker inside the installer dialog. Session-only until Save,
 // like the availability bubbles above it.
 let perRatings={};
+/** Same math as overallRating(), against the edit buffer instead of a
+ * saved person -- so Overall updates live as each trait is picked,
+ * before Save has even been clicked. */
+function overallFromDraft(){
+  const vals=RATING_DIMENSIONS.map(d=>perRatings[d.key]||0).filter(v=>v>0);
+  if(!vals.length) return 0;
+  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+}
 function drawPerRatings(){
   const box=document.getElementById('perratings');
-  box.innerHTML = ratingSeasons().map(y=>{
-    const v=perRatings[String(y)]||0;
+  const overall=overallFromDraft();
+  const overallRow=`<div class="ratrow ratoverall"><span class="ratlbl">Overall</span>`
+    + starsHTML(overall) + `<span class="ratn">${ratingText(overall)}</span></div>`;
+  const dimRows = RATING_DIMENSIONS.map(dim=>{
+    const v=perRatings[dim.key]||0;
     let stars='';
     for(let i=1;i<=RATING_MAX;i++)
-      stars+=`<button type="button" class="${i<=v?'on':''}" data-ry="${y}" data-rv="${i}"
-                title="${i}/${RATING_MAX}">★</button>`;
-    return `<div class="ratrow"><span class="ratlbl">${ratingLabel(y)}</span>`
+      stars+=`<button type="button" class="${i<=v?'on':''}" data-rk="${dim.key}" data-rv="${i}"
+                title="${ratingScale(i)}/5"></button>`;
+    return `<div class="ratrow"><span class="ratlbl"${dim.hint?` title="${esc(dim.hint)}"`:''}>${esc(dim.label)}</span>`
       + `<span class="stars pick">${stars}</span>`
-      + `<span class="ratn">${v?v+'/'+RATING_MAX:'not rated'}</span>`
-      + (v?`<button type="button" class="ratclr" data-rclr="${y}">clear</button>`:'')
+      + `<span class="ratn">${ratingText(v)}</span>`
+      + (v?`<button type="button" class="ratclr" data-rclr="${dim.key}">clear</button>`:'')
       + `</div>`;
   }).join('');
+  box.innerHTML = overallRow + dimRows;
   box.querySelectorAll('[data-rv]').forEach(b=>b.onclick=()=>{
-    const y=b.dataset.ry, v=+b.dataset.rv;
-    if(perRatings[y]===v) delete perRatings[y]; else perRatings[y]=v;
+    const k=b.dataset.rk, v=+b.dataset.rv;
+    if(perRatings[k]===v) delete perRatings[k]; else perRatings[k]=v;
     drawPerRatings();
   });
   box.querySelectorAll('[data-rclr]').forEach(b=>b.onclick=()=>{
@@ -5770,7 +5843,7 @@ function drawStaffDlg(){
 // ---- the Staffing view ----
 function personRow(p){
   const sh=shiftsFor(p.id).length;
-  const rv=ratingOf(p, ratingColSeason());
+  const rv=overallRating(p);
   return `<tr class="${p.active?'':'inactive'}${selPerson===p.id?' sel':''}" data-pid="${p.id}">
     <td><b>${esc(p.name)}</b>${p.phone||p.email
         ? `<br><span style="color:var(--mut);font-size:10.5px">${
@@ -5781,8 +5854,8 @@ function personRow(p){
     <td>${(p.dates||[]).length}d${(p.times||[]).length===1
         ? ' <span class="pill gen">'+p.times[0]+'</span>':''}</td>
     <td>${sh||'—'}</td>
-    <td class="ratcell${rv?'':' none'}" title="${ratingLabel(ratingColSeason())}">${
-        rv?rv+'★':'—'}</td></tr>`;
+    <td class="ratcell${rv?'':' none'}" title="Alberto rating (overall)">${
+        rv?ratingScale(rv)+'★':'—'}</td></tr>`;
 }
 // How usable a person's record is, which is what the default order sorts on.
 // Availability is what decides it: someone with no dates set cannot be put on a
@@ -5808,7 +5881,7 @@ function rosterSection(label, people, open){
     + `<summary>${esc(label)}<span class="stfsecn"> \u00b7 ${people.length}</span></summary>`
     + `<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>`
     + `<th>M/F</th><th>Free</th><th>Shifts</th>`
-    + `<th title="Alberto rating · ${ratingLabel(ratingColSeason())}">Alberto ${ratingColSeason()}</th></tr></thead><tbody>`
+    + `<th title="Alberto rating (overall)">Alberto</th></tr></thead><tbody>`
     + people.map(personRow).join('')
     + `</tbody></table></details>`;
 }
@@ -5826,12 +5899,11 @@ function rosterHTML(){
     || a.name.localeCompare(b.name);
   const wanted=p=>f.active===''||String(p.active?1:0)===f.active;
   // "Sort by Alberto rating" flattens the readiness tiers into one list,
-  // best first, unrated at the bottom; the tiers only break ties.
-  const rm=/^rating:(\d{4})$/.exec(f.sort||'');
-  const ratingYear=rm?+rm[1]:null;
-  const byRating=(a,b)=>ratingOf(b,ratingYear)-ratingOf(a,ratingYear) || byRank(a,b);
+  // best overall first, unrated at the bottom; the tiers only break ties.
+  const sortByRating = f.sort==='rating';
+  const byRating=(a,b)=>overallRating(b)-overallRating(a) || byRank(a,b);
   const list=roster.filter(p=>matches(p)&&wanted(p)&&p.active!==false)
-    .sort(ratingYear?byRating:byRank);
+    .sort(sortByRating?byRating:byRank);
   // Inactive people are kept out of the main table entirely and shown in their
   // own collapsed section: they are still on the roster for next season, but
   // they are not staffing decisions this one.
@@ -5846,8 +5918,7 @@ function rosterHTML(){
     ${sel('lang',f.lang,LANGS.map(t=>[t,t]),'All languages')}
     ${sel('gender',f.gender,[['Female','Female'],['Male','Male']],'All')}
     ${sel('active',f.active,[['1','Active'],['0','Inactive']],'Active + inactive')}
-    ${sel('sort',f.sort,ratingSeasons().slice().reverse()
-        .map(y=>['rating:'+y,'Alberto rating · '+ratingLabel(y)]),'Sort: readiness')}
+    ${sel('sort',f.sort,[['rating','Alberto rating (overall)']],'Sort: readiness')}
   </div>`;
   h+=`<div class="stfsplit"><div>`;
   if(!roster.length){
@@ -5855,9 +5926,9 @@ function rosterHTML(){
         then staff each crew-day from its card or from Coverage.</div>`;
   } else if(!list.length){
     if(!off.length) h+=`<div class="stfnone">No installers match those filters.</div>`;
-  } else if(ratingYear){
-    const rated=list.filter(p=>ratingOf(p,ratingYear)).length;
-    h += rosterSection(`Alberto rating · ${ratingLabel(ratingYear)}`
+  } else if(sortByRating){
+    const rated=list.filter(p=>overallRating(p)).length;
+    h += rosterSection(`Alberto rating (overall)`
       + ` · ${rated} rated, ${list.length-rated} not yet`, list, true);
   } else {
     // One block per completeness tier, each with its own column headers, so the
@@ -5893,10 +5964,13 @@ function personDetailHTML(){
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div>
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
-    <div class="stfrating"><b>Alberto rating</b>${ratingSeasons().map(y=>{
-        const v=ratingOf(p,y);
-        return `<div class="ratrow"><span class="ratlbl">${ratingLabel(y)}</span>`
-          + starsHTML(v) + `<span class="ratn">${v?v+'/'+RATING_MAX:'not rated'}</span></div>`;
+    <div class="stfrating"><b>Alberto rating</b>
+      <div class="ratrow ratoverall"><span class="ratlbl">Overall</span>
+        ${starsHTML(overallRating(p))}<span class="ratn">${ratingText(overallRating(p))}</span></div>
+      ${RATING_DIMENSIONS.map(dim=>{
+        const v=ratingOf(p,dim.key);
+        return `<div class="ratrow"><span class="ratlbl"${dim.hint?` title="${esc(dim.hint)}"`:''}>${esc(dim.label)}</span>`
+          + starsHTML(v) + `<span class="ratn">${ratingText(v)}</span></div>`;
       }).join('')}</div>
     <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
       · ${(p.times||[]).length===2?'day + night'

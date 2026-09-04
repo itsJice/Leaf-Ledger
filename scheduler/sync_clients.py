@@ -373,12 +373,25 @@ NOT_INSTALLING_SUMMARY = "Not installing"
 NO_DATE_SUMMARY = "No date recorded"
 
 
+def _mdy(iso_date: str) -> str:
+    """ISO "YYYY-MM-DD" -> "MM/DD/YYYY" -- US format, matching the rest of
+    the app (user, 2026-09-04). Duplicated in install_schedule/__init__.py,
+    same reason the two SUMMARY constants above are: no shared import path
+    between this script and the backend package, so it's kept in sync by
+    hand like everything else in this WORDING block."""
+    parts = iso_date.split("-")
+    if len(parts) != 3:
+        return iso_date
+    y, m, d = parts
+    return f"{m}/{d}/{y}"
+
+
 def summarize(season: str, rec: dict) -> str:
     if rec.get("cancelled"):
         return "Cancelled before install"
     bits = []
     if rec.get("install_date"):
-        bits.append(f"Scheduled {rec['install_date']}")
+        bits.append(f"Scheduled {_mdy(rec['install_date'])}")
     else:
         bits.append(NO_DATE_SUMMARY)
     total = rec.get("total")

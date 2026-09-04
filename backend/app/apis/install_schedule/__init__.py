@@ -389,6 +389,18 @@ NOT_INSTALLING_SUMMARY = "Not installing"
 NO_DATE_SUMMARY = "No date recorded"
 
 
+def _mdy(iso_date: str) -> str:
+    """ISO "YYYY-MM-DD" -> "MM/DD/YYYY" -- US format, matching the scheduler's
+    own fmtMDYYYY (user, 2026-09-04). Anything not cleanly YYYY-MM-DD is
+    handed back unchanged rather than raising, since this only ever formats
+    a date the scheduler itself already produced."""
+    parts = iso_date.split("-")
+    if len(parts) != 3:
+        return iso_date
+    y, m, d = parts
+    return f"{m}/{d}/{y}"
+
+
 def _restored_summary(detail: dict, season: str) -> str:
     """Rebuild what summarize() would have produced, from the kept detail.
 
@@ -398,7 +410,7 @@ def _restored_summary(detail: dict, season: str) -> str:
     """
     bits = []
     if detail.get("install_date"):
-        bits.append(f"Scheduled {detail['install_date']}")
+        bits.append(f"Scheduled {_mdy(detail['install_date'])}")
     else:
         bits.append(NO_DATE_SUMMARY)
     total = detail.get("total")
@@ -411,7 +423,9 @@ def _restored_summary(detail: dict, season: str) -> str:
     return " · ".join(bits)
 
 
-async def _reconcile_not_installing(conn, season: str, names: list[str]) -> dict:
+async def _reconcile_not_installing(
+    conn, season: str, names: list[str], dates: dict[str, str] | None = None
+) -> dict:
     """Make client_activity agree with the scheduler about who is installing.
 
     Idempotent and narrow: it only ever touches this season's christmas_install
@@ -420,6 +434,14 @@ async def _reconcile_not_installing(conn, season: str, names: list[str]) -> dict
     a permanent "not installing" behind.
     """
     wanted = {n.strip().lower() for n in names if isinstance(n, str) and n.strip()}
+    # Keyed the same way `wanted` is matched -- name, case/whitespace-folded --
+    # so a marking that also knows the date the client was pulled off of can
+    # say so, instead of just "not installing" with nothing to compare against
+    # what staff remember booking (user, 2026-09-04).
+    dates_by_name = {
+        n.strip().lower(): d for n, d in (dates or {}).items()
+        if isinstance(n, str) and n.strip() and isinstance(d, str) and d.strip()
+    }
     rows = await conn.fetch(
         "SELECT ca.id, ca.summary, ca.detail, cl.name, "
         "       COALESCE((ca.detail->>'not_installing')::boolean, false) AS flagged "
@@ -437,7 +459,9 @@ async def _reconcile_not_installing(conn, season: str, names: list[str]) -> dict
             detail = {}
         if is_wanted:
             detail["not_installing"] = True
-            summary = NOT_INSTALLING_SUMMARY
+            was_on = dates_by_name.get((r["name"] or "").strip().lower())
+            summary = f"{NOT_INSTALLING_SUMMARY} — previously scheduled {_mdy(was_on)}" if was_on \
+                else NOT_INSTALLING_SUMMARY
             marked += 1
         else:
             detail.pop("not_installing", None)
@@ -547,9 +571,11 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
             # say", which is different from "the list is empty".
             if "notInstallingNames" in state:
                 names = state.get("notInstallingNames") or []
+                raw_dates = state.get("notInstallingDates")
+                dates = raw_dates if isinstance(raw_dates, dict) else {}
                 if payload_season and isinstance(names, list):
                     try:
-                        await _reconcile_not_installing(conn, payload_season, names)
+                        await _reconcile_not_installing(conn, payload_season, names, dates)
                     except Exception as exc:  # noqa: BLE001
                         # The schedule save is the user's actual action and must
                         # not fail because the write-through did; the next save
