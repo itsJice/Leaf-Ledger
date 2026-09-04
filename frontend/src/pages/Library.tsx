@@ -787,7 +787,9 @@ function ImagePending({ compact = false, label = "Image pending" }: { compact?: 
   );
 }
 
-export function ProxiedImage({ src, fallbacks = [], alt, className }: { src: string; fallbacks?: string[]; alt: string; className?: string }) {
+export function ProxiedImage({ src, fallbacks = [], alt, className, ...rest }: {
+  src: string; fallbacks?: string[]; alt: string; className?: string;
+} & Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src" | "alt" | "className" | "onError">) {
   // Build an ordered list of URLs to attempt. Internal stored-image proxy keys
   // are tried as-is (they resolve in production); external URLs are tried
   // directly, then via the image proxy (supplier hotlink guard). When the
@@ -810,6 +812,7 @@ export function ProxiedImage({ src, fallbacks = [], alt, className }: { src: str
   if (idx >= attempts.length) return <ImagePending />;
   return (
     <img
+      {...rest}
       src={attempts[idx]}
       alt={alt}
       loading="lazy"
@@ -1489,9 +1492,6 @@ function ImageLightbox({ images, index, onIndex, onClose }: {
   }, [go, onClose]);
 
   const rawUrl = images[index] || "";
-  const src = rawUrl.startsWith("/api/") || rawUrl.startsWith("/routes/")
-    ? rawUrl.replace(/^\/routes\//, "/api/")
-    : `/api/products/image-proxy?url=${encodeURIComponent(rawUrl)}`;
 
   return (
     <div className="fixed inset-0 z-[70] flex select-none items-center justify-center bg-black/90" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -1511,8 +1511,14 @@ function ImageLightbox({ images, index, onIndex, onClose }: {
           </button>
         </>
       )}
-      <img
-        src={src}
+      {/* ProxiedImage, not a bare <img>: the plain element this replaced had no
+          retry at all, so a proxy hiccup on this one URL showed a blank black
+          screen with nothing recoverable - "Expand does nothing" - even though
+          the very same image renders fine as the thumbnail via this same
+          component's direct-URL-then-proxy retry chain. */}
+      <ProxiedImage
+        key={rawUrl}
+        src={rawUrl}
         alt=""
         draggable={false}
         onClick={(e) => { e.stopPropagation(); setZoom((z) => !z); }}
