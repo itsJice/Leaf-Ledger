@@ -1375,32 +1375,43 @@ def _rank_corrections(term: str, candidates: list[tuple[str, int]],
     often `term` itself appears in product names, or None if never.
     """
     max_edits = _MAX_EDITS if len(term) > 5 else 1  # two edits on a short word is a different word
-    scored = []
+    scored = []      # genuine near-misspellings: keep several, they add recall
+    expansions = []  # abbreviations / truncations: keep ONE, the intended word
+    vowelless = not any(ch in "aeiou" for ch in term)
     for word, freq in candidates:
         if word == term:
             continue
         d = _edit_distance(term, word)
-        # The one-edit cap guards against "cat" -> "cut" -> a different word.
-        # It should not guard against "grn" -> "green": every letter of the
-        # term is there, in order, and only letters were dropped. That is an
-        # abbreviation, not a different word, so pure insertions get two.
-        # An abbreviation is a term with its vowels dropped: gld, grn, wht,
-        # slvr, blk. A term that still HAS a vowel is a word, and "gold" is
-        # not an abbreviation of "golden" -- so the two-edit allowance is
-        # gated on the term being vowel-less, not merely on it being an
-        # in-order subsequence of something longer. That keeps the strict
-        # one-edit rule for real short words (bold, not golden) while letting
-        # every dropped letter of "grn" come back.
-        expansion = (d > max_edits and _is_subsequence(term, word)
-                     and not any(ch in "aeiou" for ch in term))
-        limit = 2 if expansion else max_edits
-        if d <= limit:
-            # Score the expansion as ONE edit, whatever it really cost. Ranked
-            # by raw distance, "grn" offered gra / gre / gry -- three one-edit
-            # fragments -- and cut "green" off at the keep limit. Costing the
-            # expansion the same as a substitution lets frequency decide, and
-            # 8,480 products say green.
-            scored.append((1 if expansion else d, -freq, word))
+        subseq = _is_subsequence(term, word)
+        # Two shapes of "the buyer typed less than the word":
+        #   dropped vowels -- gld, grn, wht, slvr, blk: the term has no vowel
+        #     left and sits in order inside the word. ANY such match counts,
+        #     whatever the edit distance: "gold" is one edit from "gld" and
+        #     "garland" is four, and both have to compete in the same pool or
+        #     garland wins the expansion slot by default while gold is filed
+        #     as a mere typo. Frequency then picks gold.
+        #   truncation -- orn, med, glit: the first letters of a word at least
+        #     THREE longer. "golden" is two past "gold" and is a different
+        #     word; "glitter" is three past "glit" and is what was meant.
+        expansion = subseq and (vowelless
+                                or (word.startswith(term) and len(word) >= len(term) + 3))
+        if expansion:
+            expansions.append((-freq, word))
+        elif d <= max_edits:
+            scored.append((d, -freq, word))
+    if expansions:
+        expansions.sort()
+        best = expansions[0]
+        if vowelless:
+            # gld means gold and nothing else. A one-edit neighbour of an
+            # abbreviation -- gls, gla, bulk for blk -- is a fragment, not an
+            # alternative reading, and OR-ing it in returns bulk products for
+            # a black search. The expansion is the whole answer.
+            scored = [(1, best[0], best[1])]
+        else:
+            # A truncation sits beside real one-edit candidates: glit -> glitter
+            # AND glitr, the vendor's own typo of it. Both add recall.
+            scored.append((1, best[0], best[1]))
     if not scored:
         return []
     if skip_known and self_freq is not None:
@@ -1464,7 +1475,23 @@ async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> 
                      FROM search_vocab
                     WHERE length(t.term) BETWEEN 3 AND 5
                       AND word ~ ('^' || array_to_string(regexp_split_to_array(t.term, ''), '.*'))
-                      AND length(word) <= length(t.term) + 2
+                      AND length(word) <= length(t.term) + 4
+                    ORDER BY freq DESC
+                    LIMIT $3
+              ) v ON TRUE
+            UNION
+            -- Truncations: orn -> ornament, med -> medium, glit -> glitter.
+            -- These keep their vowels, so the subsequence rule above never
+            -- sees them as abbreviations; they are simply the first few
+            -- letters. Prefix match, short terms only, capped at +5.
+            SELECT t.term, v.word, v.freq
+              FROM unnest($1::text[]) AS t(term)
+              JOIN LATERAL (
+                   SELECT word, freq
+                     FROM search_vocab
+                    WHERE length(t.term) BETWEEN 3 AND 4
+                      AND word LIKE t.term || '%%'
+                      AND length(word) <= length(t.term) + 5
                     ORDER BY freq DESC
                     LIMIT $3
               ) v ON TRUE
@@ -1529,6 +1556,69 @@ async def _similar_identifiers(conn, terms: list[str], limit: int = 6) -> list:
     return [{"id": r["id"], "supplier_sku": r["supplier_sku"],
              "name": r["name"], "similarity": round(float(r["sim"]), 3)}
             for r in sorted(rows, key=lambda r: -r["sim"])]
+
+
+# The handful of equivalences no rule can derive. Bidirectional: a buyer who
+# types "xmas" should see products named CHRISTMAS, and vice versa.
+_SYNONYMS = {"xmas": "christmas", "christmas": "xmas"}
+_ABBREV_CACHE: dict = {"ts": 0.0, "map": {}}
+_ABBREV_MIN_FREQ = 3  # below this it is a one-off vendor typo, not a convention
+
+
+async def _abbreviations_of(conn, terms: list[str]) -> dict:
+    """Catalog abbreviations of each real word: green -> grn, package -> pkg.
+
+    The reverse of _correct_terms. A search for "green" was missing the 333
+    products a vendor labelled only GRN, and "package" the 2,668 labelled PKG
+    -- more than use the full word. Applied on EVERY search, not only when
+    results are thin, because these are not typos: both spellings are right
+    and a query should match either. Not reported as a correction either --
+    the buyer spelled it correctly.
+
+    Only vocabulary words count, three letters or more, vowel-less, and a
+    subsequence of the term. Bare fragments would be catastrophic: "rd" is
+    inside yard, board and garden, and matched 46,052 products.
+    """
+    words = [t for t in terms if _WORD_RE.match(t) and any(ch in "aeiou" for ch in t)]
+    out = {t: [_SYNONYMS[t]] for t in terms if t in _SYNONYMS}
+    if not words:
+        return out
+    now = _time.time()
+    if (now - _ABBREV_CACHE["ts"]) >= _FACET_TTL:
+        _ABBREV_CACHE.update(ts=now, map={})
+    cache = _ABBREV_CACHE["map"]
+    need = [w for w in words if w not in cache]
+    if need:
+        try:
+            rows = await conn.fetch(
+                """
+                SELECT t.term, v.word
+                  FROM unnest($1::text[]) AS t(term)
+                  JOIN LATERAL (
+                       SELECT word
+                         FROM search_vocab
+                        WHERE length(word) >= 3
+                          AND word !~ '[aeiou]'
+                          AND word <> t.term
+                          AND freq >= $2
+                          AND t.term ~ ('^' || array_to_string(regexp_split_to_array(word, ''), '.*'))
+                        ORDER BY freq DESC
+                        LIMIT 3
+                  ) v ON TRUE
+                """,
+                need, _ABBREV_MIN_FREQ,
+            )
+        except Exception as e:  # noqa: BLE001 -- recall bonus, never a gate
+            print(f"abbreviation lookup unavailable: {e}")
+            rows = []
+        found: dict = {w: [] for w in need}
+        for r in rows:
+            found[r["term"]].append(r["word"])
+        cache.update(found)
+    for w in words:
+        if cache.get(w):
+            out.setdefault(w, []).extend(cache[w])
+    return out
 
 
 async def _expand_terms(conn, terms: list[str]) -> tuple[list[tuple[str, list[str]]], bool]:
@@ -1701,7 +1791,11 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                     f"(CASE WHEN pf.ident_norm ~ '(^| ){n}( |$)' THEN 8 "
                     f"WHEN pf.ident_norm LIKE {ph_ident} THEN 4 ELSE 0 END)")
             base.append(f"({' OR '.join(parts)})")
-            if len(alts) > 1:
+            # Rank only when a variant is a genuine correction. An abbreviation
+            # or synonym OR'd in on a plain search is as valid as the exact
+            # word, and scoring it would push the query off the name index.
+            if len(alts) > 1 and any(v != term and v not in abbrevs.get(term, ())
+                                     for v in variants):
                 # alts[0] is the literal spelling. COALESCE matters: a NULL
                 # description or sku makes the OR-group NULL, not false, and
                 # ORDER BY rank DESC puts NULLs FIRST - every NULL-description
@@ -1819,7 +1913,12 @@ async def _search_products_db(conn, *, search, price_min, price_max,
         """, *args) or 0)
         return (_DB_COUNT_CAP, True) if capped > _DB_COUNT_CAP else (capped, False)
 
-    term_variants = [(t, [t]) for t in terms]
+    # Every search matches each word AND its catalog abbreviations (green /
+    # GRN) -- and its synonym, for the few that have one. These are not
+    # corrections: both spellings are right, so they carry no relevance score
+    # and the name-index ordering of a plain browse is undisturbed.
+    abbrevs = await _abbreviations_of(conn, terms) if terms else {}
+    term_variants = [(t, [t] + abbrevs.get(t, [])) for t in terms]
     rows, wsql, args, base_where, base_args = await _page(term_variants)
 
     # Typo tolerance, second attempt only. A correctly spelled query fills its
