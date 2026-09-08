@@ -1,6 +1,24 @@
-# Sourcing worksheets (Jobs) — scope and trajectory
+# Jobs, pinboards, and the sourcing worksheet — scope and trajectory
 
-## Where the line is today (decided Sept 3, 2026)
+## Where the line is now (Sept 4, 2026)
+
+The **Jobs** tab is a pinboard: products are pinned from Catalog Search
+(the + on every card, aimed by the "Pinning to" picker in its header) into a
+job, optionally into a group such as Ornaments or Garland, and the Jobs page
+lays each group out as a side-by-side comparison (one column per option, one
+row per attribute) so the team can pick. That is deliberately all it is.
+
+The purchaser's worksheet described below still exists at `/sourcing/:id`
+(no sidebar entry, linked from a job's board) for when a job moves from
+choosing to buying. It was judged too hard to use as the main flow because the
+catalog was squeezed into a side pane; pinning from the full Catalog Search
+page fixes that.
+
+Tables: `ll_app.job_groups`, `ll_app.job_items` (one row per product per job,
+`chosen` marks the pick, `note` is free text).
+
+
+## The purchaser's worksheet (decided Sept 3, 2026; now at /sourcing)
 
 The designers keep their paper. Two artifacts are **not** replaced by the app:
 

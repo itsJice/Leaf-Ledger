@@ -178,6 +178,31 @@ CREATE TABLE IF NOT EXISTS ll_app.stock (
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Pinboard: products pinned to a job from Catalog Search, optionally in a
+-- group (Ornaments, Garland ...), compared side by side on the Jobs tab.
+CREATE TABLE IF NOT EXISTS ll_app.job_groups (
+    id          serial PRIMARY KEY,
+    job_id      integer NOT NULL REFERENCES ll_app.jobs(id) ON DELETE CASCADE,
+    name        text NOT NULL,
+    sort_order  integer NOT NULL DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS job_groups_job_idx ON ll_app.job_groups(job_id);
+
+CREATE TABLE IF NOT EXISTS ll_app.job_items (
+    id          serial PRIMARY KEY,
+    job_id      integer NOT NULL REFERENCES ll_app.jobs(id) ON DELETE CASCADE,
+    group_id    integer REFERENCES ll_app.job_groups(id) ON DELETE SET NULL,
+    product_id  integer NOT NULL,
+    note        text,
+    chosen      boolean NOT NULL DEFAULT false,
+    sort_order  integer NOT NULL DEFAULT 0,
+    added_by    text,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (job_id, product_id)
+);
+CREATE INDEX IF NOT EXISTS job_items_job_idx ON ll_app.job_items(job_id);
+
 -- Purchase orders gain a lifecycle and a link back to the job.
 ALTER TABLE ll_app.orders ADD COLUMN IF NOT EXISTS supplier_id integer;
 ALTER TABLE ll_app.orders ADD COLUMN IF NOT EXISTS vendor_order_no text;
@@ -328,6 +353,30 @@ class TaskUpdate(BaseModel):
     assignee: Optional[str] = None
     due: Optional[date] = None
     done: Optional[bool] = None
+
+
+class GroupIn(BaseModel):
+    name: str
+    sort_order: Optional[int] = None
+
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class PinIn(BaseModel):
+    product_id: int
+    group_id: Optional[int] = None
+    note: Optional[str] = None
+
+
+class PinUpdate(BaseModel):
+    group_id: Optional[int] = None
+    clear_group: Optional[bool] = None
+    note: Optional[str] = None
+    chosen: Optional[bool] = None
+    sort_order: Optional[int] = None
 
 
 class PoUpdate(BaseModel):
@@ -557,6 +606,27 @@ async def list_jobs():
                 "collection", "install_date", "order_date", "due_date", "stage", "summary",
                 "updated_at", "created_at")})
         return out
+    finally:
+        await conn.close()
+
+
+@router.get("/board-list")
+async def board_list():
+    """The Jobs rail: every job with how much is pinned. Light on purpose:
+    the worksheet loader walks every sourcing line and is too heavy for a list
+    that renders on each visit."""
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        rows = await conn.fetch("""
+            SELECT j.id, j.name, j.client_name, j.collection, j.season, j.updated_at, j.created_at,
+                   (SELECT COUNT(*) FROM ll_app.job_items i WHERE i.job_id = j.id)::int AS item_count,
+                   (SELECT COUNT(*) FROM ll_app.job_groups g WHERE g.job_id = j.id)::int AS group_count,
+                   (SELECT COUNT(*) FROM ll_app.job_items i WHERE i.job_id = j.id AND i.chosen)::int AS chosen_count
+            FROM ll_app.jobs j
+            ORDER BY j.updated_at DESC
+        """)
+        return [dict(r) for r in rows]
     finally:
         await conn.close()
 
@@ -1202,6 +1272,250 @@ async def list_stock(q: Optional[str] = None):
         else:
             rows = await conn.fetch("SELECT * FROM ll_app.stock WHERE qty > 0 ORDER BY updated_at DESC LIMIT 200")
         return [dict(r) for r in rows]
+    finally:
+        await conn.close()
+
+
+# ── Pinboard: groups and pinned products ────────────────────────────────────
+BOARD_PRODUCT_SQL = """
+    SELECT i.id AS item_id, i.job_id, i.group_id, i.product_id, i.note, i.chosen, i.sort_order,
+           i.added_by, i.created_at AS pinned_at,
+           p.name, p.supplier_sku, p.current_price, p.image_urls, p.photo_url,
+           p.height_in, p.width_in, p.length_in, p.diameter_in, p.color, p.finish, p.material,
+           p.style, p.category, p.case_qty, p.moq, p.uom, p.unit, p.availability, p.raw_data,
+           p.supplier_id, s.name AS supplier_name
+    FROM ll_app.job_items i
+    LEFT JOIN products p ON p.id = i.product_id
+    LEFT JOIN suppliers s ON s.id = p.supplier_id
+    WHERE i.job_id = $1
+    ORDER BY i.sort_order, i.created_at, i.id
+"""
+
+
+def _board_item(r) -> dict:
+    d = dict(r)
+    raw = _jsonb(d.pop("raw_data", None))
+    norm = raw.get("normalized") or {}
+    imgs = [u for u in list(d.get("image_urls") or []) + [d.get("photo_url"), raw.get("source_photo_url")] if u]
+    seen, images = set(), []
+    for u in imgs:
+        if u not in seen:
+            seen.add(u); images.append(u)
+    box = None
+    try:
+        box = int(str(raw.get("BoxQty", "")).strip())
+    except (TypeError, ValueError):
+        pass
+    for k in ("current_price", "height_in", "width_in", "length_in", "diameter_in"):
+        if d.get(k) is not None:
+            d[k] = float(d[k])
+    d["image_urls"] = images[:4]
+    d["box_qty"] = box
+    d["product_url"] = raw.get("product_url") or raw.get("detail_url") or raw.get("url") or raw.get("source_url")
+    d["norm_color"] = norm.get("color")
+    d["norm_finish"] = norm.get("finish")
+    d["norm_size_in"] = norm.get("size_in")
+    d["product_type"] = d.get("style") or raw.get("product_type")
+    d["missing"] = d.get("name") is None
+    return d
+
+
+async def _load_board(conn, job_id: int) -> Optional[dict]:
+    job = await conn.fetchrow(
+        "SELECT id, name, client_name, client_id, collection, season, notes, updated_at FROM ll_app.jobs WHERE id = $1",
+        job_id)
+    if not job:
+        return None
+    groups = [dict(r) for r in await conn.fetch(
+        "SELECT id, name, sort_order FROM ll_app.job_groups WHERE job_id = $1 ORDER BY sort_order, id", job_id)]
+    items = [_board_item(r) for r in await conn.fetch(BOARD_PRODUCT_SQL, job_id)]
+    return {**dict(job), "groups": groups, "items": items}
+
+
+async def _pins(conn, job_id: int) -> dict:
+    groups = [dict(r) for r in await conn.fetch(
+        "SELECT id, name FROM ll_app.job_groups WHERE job_id = $1 ORDER BY sort_order, id", job_id)]
+    pins = [dict(r) for r in await conn.fetch(
+        "SELECT product_id, group_id FROM ll_app.job_items WHERE job_id = $1", job_id)]
+    return {"groups": groups, "pins": pins}
+
+
+@router.get("/{job_id}/board")
+async def get_board(job_id: int):
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        board = await _load_board(conn, job_id)
+        if not board:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return board
+    finally:
+        await conn.close()
+
+
+@router.get("/{job_id}/pins")
+async def get_pins(job_id: int):
+    """What Catalog Search needs to draw the plus buttons: the groups on this
+    job and which products are already pinned (and to which group)."""
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        job = await conn.fetchrow("SELECT id, name, client_name FROM ll_app.jobs WHERE id = $1", job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return {**dict(job), **(await _pins(conn, job_id))}
+    finally:
+        await conn.close()
+
+
+@router.post("/{job_id}/groups")
+async def add_group(job_id: int, body: GroupIn):
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        name = (body.name or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Give the group a name")
+        order = body.sort_order
+        if order is None:
+            order = await conn.fetchval(
+                "SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ll_app.job_groups WHERE job_id = $1", job_id)
+        gid = await conn.fetchval(
+            "INSERT INTO ll_app.job_groups (job_id, name, sort_order) VALUES ($1, $2, $3) RETURNING id",
+            job_id, name, order)
+        await _touch(conn, job_id)
+        board = await _load_board(conn, job_id)
+        board["created_group_id"] = gid
+        return board
+    finally:
+        await conn.close()
+
+
+@router.patch("/groups/{group_id}")
+async def update_group(group_id: int, body: GroupUpdate):
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        job_id = await conn.fetchval("SELECT job_id FROM ll_app.job_groups WHERE id = $1", group_id)
+        if not job_id:
+            raise HTTPException(status_code=404, detail="Group not found")
+        fields = body.model_dump(exclude_unset=True)
+        sets, params, idx = [], [], 1
+        if "name" in fields and (fields["name"] or "").strip():
+            sets.append(f"name = ${idx}"); params.append(fields["name"].strip()); idx += 1
+        if "sort_order" in fields:
+            sets.append(f"sort_order = ${idx}"); params.append(fields["sort_order"]); idx += 1
+        if sets:
+            params.append(group_id)
+            await conn.execute(f"UPDATE ll_app.job_groups SET {', '.join(sets)} WHERE id = ${idx}", *params)
+        await _touch(conn, job_id)
+        return await _load_board(conn, job_id)
+    finally:
+        await conn.close()
+
+
+@router.delete("/groups/{group_id}")
+async def delete_group(group_id: int):
+    """Items in the group stay on the job, ungrouped (ON DELETE SET NULL)."""
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        row = await conn.fetchrow("DELETE FROM ll_app.job_groups WHERE id = $1 RETURNING job_id", group_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Group not found")
+        await _touch(conn, row["job_id"])
+        return await _load_board(conn, row["job_id"])
+    finally:
+        await conn.close()
+
+
+@router.post("/{job_id}/items")
+async def pin_item(job_id: int, body: PinIn, request: Request):
+    """Pin a catalog product to the job. Pinning something already on the job
+    moves it into the given group instead of duplicating it."""
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        if not await conn.fetchval("SELECT 1 FROM ll_app.jobs WHERE id = $1", job_id):
+            raise HTTPException(status_code=404, detail="Job not found")
+        if not await conn.fetchval("SELECT 1 FROM products WHERE id = $1", body.product_id):
+            raise HTTPException(status_code=404, detail="Product not found")
+        if body.group_id and not await conn.fetchval(
+                "SELECT 1 FROM ll_app.job_groups WHERE id = $1 AND job_id = $2", body.group_id, job_id):
+            raise HTTPException(status_code=400, detail="That group is not on this job")
+        existing = await conn.fetchrow(
+            "SELECT id FROM ll_app.job_items WHERE job_id = $1 AND product_id = $2", job_id, body.product_id)
+        if existing:
+            await conn.execute(
+                "UPDATE ll_app.job_items SET group_id = COALESCE($2, group_id), note = COALESCE($3, note) WHERE id = $1",
+                existing["id"], body.group_id, body.note)
+            item_id, created = existing["id"], False
+        else:
+            order = await conn.fetchval(
+                "SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ll_app.job_items WHERE job_id = $1", job_id)
+            item_id = await conn.fetchval("""
+                INSERT INTO ll_app.job_items (job_id, group_id, product_id, note, sort_order, added_by)
+                VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            """, job_id, body.group_id, body.product_id, body.note, order, get_request_user_id(request))
+            created = True
+        await _touch(conn, job_id)
+        return {"item_id": item_id, "created": created, "job_id": job_id, **(await _pins(conn, job_id))}
+    finally:
+        await conn.close()
+
+
+@router.patch("/items/{item_id}")
+async def update_pin(item_id: int, body: PinUpdate):
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        job_id = await conn.fetchval("SELECT job_id FROM ll_app.job_items WHERE id = $1", item_id)
+        if not job_id:
+            raise HTTPException(status_code=404, detail="Pinned item not found")
+        fields = body.model_dump(exclude_unset=True)
+        sets, params, idx = [], [], 1
+        if fields.get("clear_group"):
+            sets.append("group_id = NULL")
+        elif fields.get("group_id") is not None:
+            if not await conn.fetchval(
+                    "SELECT 1 FROM ll_app.job_groups WHERE id = $1 AND job_id = $2", fields["group_id"], job_id):
+                raise HTTPException(status_code=400, detail="That group is not on this job")
+            sets.append(f"group_id = ${idx}"); params.append(fields["group_id"]); idx += 1
+        for col in ("note", "chosen", "sort_order"):
+            if col in fields:
+                sets.append(f"{col} = ${idx}"); params.append(fields[col]); idx += 1
+        if sets:
+            params.append(item_id)
+            await conn.execute(f"UPDATE ll_app.job_items SET {', '.join(sets)} WHERE id = ${idx}", *params)
+        await _touch(conn, job_id)
+        return await _load_board(conn, job_id)
+    finally:
+        await conn.close()
+
+
+@router.delete("/items/{item_id}")
+async def unpin_item(item_id: int):
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        row = await conn.fetchrow("DELETE FROM ll_app.job_items WHERE id = $1 RETURNING job_id", item_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Pinned item not found")
+        await _touch(conn, row["job_id"])
+        return await _load_board(conn, row["job_id"])
+    finally:
+        await conn.close()
+
+
+@router.delete("/{job_id}/items/by-product/{product_id}")
+async def unpin_product(job_id: int, product_id: int):
+    """Unpin from Catalog Search, where only the product id is known."""
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        await conn.execute("DELETE FROM ll_app.job_items WHERE job_id = $1 AND product_id = $2", job_id, product_id)
+        await _touch(conn, job_id)
+        return {"job_id": job_id, **(await _pins(conn, job_id))}
     finally:
         await conn.close()
 
