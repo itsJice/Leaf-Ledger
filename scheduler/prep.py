@@ -275,6 +275,9 @@ ZIP_ZONE = {
     "77058": ("Southeast", "Clear Lake/Bay Area"),
     "77059": ("Southeast", "Clear Lake/Bay Area"),
     "77573": ("Southeast", "Clear Lake/Bay Area"),
+    # Sagemont/South Belt (unincorporated Harris County, USPS "Houston");
+    # the source sheet has always zoned this ZIP as Clear Lake/Bay Area.
+    "77089": ("Southeast", "Clear Lake/Bay Area"),
     "77505": ("Southeast", "Pasadena/Deer Park/Ship Channel"),
     "77536": ("Southeast", "Pasadena/Deer Park/Ship Channel"),
     "77029": ("Southeast", "Pasadena/Deer Park/Ship Channel"),
@@ -321,6 +324,13 @@ NO_ADDRESS = set(CLIENT_CONFIG["no_address"])
 # The binder reflects what is physically racked and OVERRIDES the sheet's
 # BOX COUNT column (which was wildly off for the clubs).
 STORAGE_BOX_COUNTS = CLIENT_CONFIG["storage_box_counts"]
+
+# Manual install-hours corrections (client, 2026-09-08): overrides
+# calibrate_hours()'s real/estimate/zone-median chain entirely for a name
+# listed here. First use: William Brothers-NRG is an event install (3
+# trees for a one-off party, not the normal season-long job the "real
+# hours" history was measured against) -- client confirmed 3h by phone.
+HOURS_OVERRIDE = CLIENT_CONFIG.get("hours_override", {})
 
 # Manual storage-status corrections (client, 2026-07-31): overrides the
 # sheet's "TBDG STORAGE YES/NO" column when a client's situation changed.
@@ -660,7 +670,10 @@ def calibrate_hours(clients):
     overall_median = statistics.median(all_reals) if all_reals else 2.8
 
     for c in clients:
-        if c["real_hours"]:
+        if c["name"] in HOURS_OVERRIDE:
+            c["cal_hours"] = round(HOURS_OVERRIDE[c["name"]], 2)
+            c["hours_basis"] = "manual override"
+        elif c["real_hours"]:
             c["cal_hours"] = round(c["real_hours"], 2)
             c["hours_basis"] = f"{PRIOR} real"
         elif c["est_hours"]:
