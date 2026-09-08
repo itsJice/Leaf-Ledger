@@ -366,6 +366,12 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
               </tr>
             </thead>
             <tbody>
+              <Row label="Link to product" items={items} render={(it) => it.product_url ? (
+                <a href={it.product_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-800">
+                  <ExternalLink size={12} /> Link to product
+                </a>
+              ) : <span className="text-stone-300">—</span>} />
               <Row label="Price" items={items} render={(it) => <span className={`font-semibold ${cheapest != null && it.current_price === cheapest ? "text-emerald-800" : "text-stone-800"}`}>{money(it.current_price)}</span>} />
               <Row label="Size" items={items} render={(it) => sizeText(it)} />
               <Row label="Color" items={items} render={(it) => it.color || it.norm_color || "—"} />
@@ -375,6 +381,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
               <Row label="Pack" items={items} render={(it) => packText(it)} />
               <Row label="Availability" items={items} render={(it) => { const a = availText(it); return <span className={a.tone}>{a.text}</span>; }} />
               <Row label="Note" items={items} render={(it) => <NoteCell item={it} run={run} />} />
+              <Row label="Qty needed" items={items} render={(it) => <QtyCell item={it} run={run} />} />
               <Row label="" items={items} render={(it) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button onClick={() => run(() => updatePin(it.item_id, { chosen: !it.chosen }))}
@@ -386,7 +393,6 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     <option value="">No group</option>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
-                  {it.product_url && <a href={it.product_url} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-emerald-700" title="View on vendor site"><ExternalLink size={13} /></a>}
                   <button onClick={() => run(() => removePin(it.item_id))} className="text-stone-300 hover:text-rose-600" aria-label="Unpin"><Trash2 size={13} /></button>
                 </div>
               )} />
@@ -416,5 +422,22 @@ function NoteCell({ item, run }: { item: BoardItem; run: Run }) {
     <input value={v} placeholder="why this one…" onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== (item.note || "") && run(() => updatePin(item.item_id, { note: v }))}
       className={`${input} w-full text-xs`} />
+  );
+}
+
+// How many of this candidate, per row — kept on every option, not only the
+// pick, so a comparison already carries what a real order would need by the
+// time you've filtered it down to a winner.
+function QtyCell({ item, run }: { item: BoardItem; run: Run }) {
+  const [v, setV] = useState(item.qty_needed == null ? "" : String(item.qty_needed));
+  useEffect(() => setV(item.qty_needed == null ? "" : String(item.qty_needed)), [item.qty_needed]);
+  const commit = () => {
+    const next = v.trim() === "" ? null : Number(v);
+    if (next !== (item.qty_needed ?? null)) run(() => updatePin(item.item_id, { qty_needed: next }));
+  };
+  return (
+    <input type="number" min={0} step="any" value={v} placeholder="0" onChange={(e) => setV(e.target.value)}
+      onBlur={commit} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      className={`${input} w-20 text-xs`} />
   );
 }
