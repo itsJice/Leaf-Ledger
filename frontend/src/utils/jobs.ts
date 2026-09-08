@@ -328,6 +328,7 @@ export interface BoardItem {
   group_id?: number | null;
   product_id: number;
   note?: string | null;
+  qty_needed?: number | null;
   chosen: boolean;
   sort_order: number;
   added_by?: string | null;
@@ -392,7 +393,7 @@ export const pinProduct = (jobId: number, body: { product_id: number; group_id?:
   post<{ item_id: number; created: boolean; job_id: number; groups: PinGroup[]; pins: Pins["pins"] }>(`/api/jobs/${jobId}/items`, body);
 export const unpinProduct = (jobId: number, productId: number) =>
   del<{ job_id: number; groups: PinGroup[]; pins: Pins["pins"] }>(`/api/jobs/${jobId}/items/by-product/${productId}`);
-export const updatePin = (itemId: number, body: { group_id?: number; clear_group?: boolean; note?: string; chosen?: boolean; sort_order?: number }) =>
+export const updatePin = (itemId: number, body: { group_id?: number; clear_group?: boolean; note?: string; qty_needed?: number | null; chosen?: boolean; sort_order?: number }) =>
   patch<Board>(`/api/jobs/items/${itemId}`, body);
 export const removePin = (itemId: number) => del<Board>(`/api/jobs/items/${itemId}`);
 

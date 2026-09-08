@@ -361,6 +361,12 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     </div>
                     <p className="mt-2 line-clamp-2 font-medium normal-case leading-snug text-stone-800" title={it.name || ""}>{it.missing ? <span className="text-rose-600">Product no longer in catalog</span> : it.name}</p>
                     <p className="text-[11px] font-normal normal-case tracking-normal text-stone-500">{it.supplier_name || "—"}{it.supplier_sku ? <span className="ml-1 font-mono text-stone-400">{it.supplier_sku}</span> : null}</p>
+                    {it.chosen && it.product_url && (
+                      <a href={it.product_url} target="_blank" rel="noopener noreferrer"
+                        className="mt-2 flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 py-1.5 text-xs font-medium text-white normal-case hover:bg-emerald-800">
+                        <ExternalLink size={12} /> View on {it.supplier_name || "site"}
+                      </a>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -375,6 +381,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
               <Row label="Pack" items={items} render={(it) => packText(it)} />
               <Row label="Availability" items={items} render={(it) => { const a = availText(it); return <span className={a.tone}>{a.text}</span>; }} />
               <Row label="Note" items={items} render={(it) => <NoteCell item={it} run={run} />} />
+              <Row label="Qty needed" items={items} render={(it) => <QtyCell item={it} run={run} />} />
               <Row label="" items={items} render={(it) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button onClick={() => run(() => updatePin(it.item_id, { chosen: !it.chosen }))}
@@ -416,5 +423,22 @@ function NoteCell({ item, run }: { item: BoardItem; run: Run }) {
     <input value={v} placeholder="why this one…" onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== (item.note || "") && run(() => updatePin(item.item_id, { note: v }))}
       className={`${input} w-full text-xs`} />
+  );
+}
+
+// How many of this candidate, per row — kept on every option, not only the
+// pick, so a comparison already carries what a real order would need by the
+// time you've filtered it down to a winner.
+function QtyCell({ item, run }: { item: BoardItem; run: Run }) {
+  const [v, setV] = useState(item.qty_needed == null ? "" : String(item.qty_needed));
+  useEffect(() => setV(item.qty_needed == null ? "" : String(item.qty_needed)), [item.qty_needed]);
+  const commit = () => {
+    const next = v.trim() === "" ? null : Number(v);
+    if (next !== (item.qty_needed ?? null)) run(() => updatePin(item.item_id, { qty_needed: next }));
+  };
+  return (
+    <input type="number" min={0} step="any" value={v} placeholder="0" onChange={(e) => setV(e.target.value)}
+      onBlur={commit} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      className={`${input} w-20 text-xs`} />
   );
 }

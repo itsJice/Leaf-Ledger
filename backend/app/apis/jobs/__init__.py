@@ -202,6 +202,10 @@ CREATE TABLE IF NOT EXISTS ll_app.job_items (
     UNIQUE (job_id, product_id)
 );
 CREATE INDEX IF NOT EXISTS job_items_job_idx ON ll_app.job_items(job_id);
+-- How many of THIS candidate you'd need if you went with it — kept per
+-- option, not only the pick, so the comparison can double as a working
+-- order sheet before a winner is even settled on.
+ALTER TABLE ll_app.job_items ADD COLUMN IF NOT EXISTS qty_needed numeric;
 
 -- Purchase orders gain a lifecycle and a link back to the job.
 ALTER TABLE ll_app.orders ADD COLUMN IF NOT EXISTS supplier_id integer;
@@ -375,6 +379,7 @@ class PinUpdate(BaseModel):
     group_id: Optional[int] = None
     clear_group: Optional[bool] = None
     note: Optional[str] = None
+    qty_needed: Optional[float] = None
     chosen: Optional[bool] = None
     sort_order: Optional[int] = None
 
@@ -1295,7 +1300,7 @@ async def list_stock(q: Optional[str] = None):
 
 # ── Pinboard: groups and pinned products ────────────────────────────────────
 BOARD_PRODUCT_SQL = """
-    SELECT i.id AS item_id, i.job_id, i.group_id, i.product_id, i.note, i.chosen, i.sort_order,
+    SELECT i.id AS item_id, i.job_id, i.group_id, i.product_id, i.note, i.qty_needed, i.chosen, i.sort_order,
            i.added_by, i.created_at AS pinned_at,
            p.name, p.supplier_sku, p.current_price, p.image_urls, p.photo_url,
            p.height_in, p.width_in, p.length_in, p.diameter_in, p.color, p.finish, p.material,
@@ -1323,7 +1328,7 @@ def _board_item(r) -> dict:
         box = int(str(raw.get("BoxQty", "")).strip())
     except (TypeError, ValueError):
         pass
-    for k in ("current_price", "height_in", "width_in", "length_in", "diameter_in"):
+    for k in ("current_price", "height_in", "width_in", "length_in", "diameter_in", "qty_needed"):
         if d.get(k) is not None:
             d[k] = float(d[k])
     d["image_urls"] = images[:4]
@@ -1498,7 +1503,7 @@ async def update_pin(item_id: int, body: PinUpdate):
                     "SELECT 1 FROM ll_app.job_groups WHERE id = $1 AND job_id = $2", fields["group_id"], job_id):
                 raise HTTPException(status_code=400, detail="That group is not on this job")
             sets.append(f"group_id = ${idx}"); params.append(fields["group_id"]); idx += 1
-        for col in ("note", "chosen", "sort_order"):
+        for col in ("note", "qty_needed", "chosen", "sort_order"):
             if col in fields:
                 sets.append(f"{col} = ${idx}"); params.append(fields[col]); idx += 1
         if sets:
