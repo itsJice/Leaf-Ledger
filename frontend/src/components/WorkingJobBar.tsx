@@ -88,7 +88,7 @@ export default function WorkingJobBar({ value, onChange }: Props) {
             <div className="flex gap-1.5">
               <select value={value.jobId ?? ""} onChange={(e) => pickJob(e.target.value ? Number(e.target.value) : null)} className={`${sel} flex-1`}>
                 <option value="">— none —</option>
-                {jobs.map((j) => <option key={j.id} value={j.id}>{j.name}{j.item_count ? ` (${j.item_count})` : ""}</option>)}
+                {jobs.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
               </select>
               <button onClick={newJob} className="rounded-md border border-stone-300 px-2 text-stone-600 hover:border-emerald-400 hover:text-emerald-700" title="New job"><Plus size={14} /></button>
             </div>
