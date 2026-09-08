@@ -232,6 +232,10 @@ export const getJob = (id: number) => call<Job>(`/api/jobs/${id}`);
 export const createJob = (body: Partial<Job>) => post<Job>("/api/jobs/create", body);
 export const updateJob = (id: number, body: Record<string, unknown>) => patch<Job>(`/api/jobs/${id}`, body);
 export const deleteJob = (id: number) => del<{ ok: boolean }>(`/api/jobs/${id}`);
+// Bumps a job's updated_at just from being opened/selected, not only when
+// it's edited — board-list already sorts by updated_at, so this is what
+// makes "the job you were just in" surface at the top of the rail.
+export const touchJob = (id: number) => post<{ ok: boolean }>(`/api/jobs/${id}/touch`, {});
 
 export const addPiece = (jobId: number, body: Partial<Piece>) => post<Job>(`/api/jobs/${jobId}/pieces`, body);
 export const updatePiece = (pieceId: number, body: Partial<Piece>) => patch<Job>(`/api/jobs/pieces/${pieceId}`, body);

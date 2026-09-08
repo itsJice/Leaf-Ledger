@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { ProductDetailModal, ProxiedImage } from "./Library";
 import { apiFetch } from "utils/apiFetch";
 import {
-  listBoards, getBoard, createJob, updateJob, deleteJob,
+  listBoards, getBoard, createJob, updateJob, deleteJob, touchJob,
   addGroup, updateGroup, deleteGroup, updatePin, removePin, writeWorkingJob,
   type Board, type BoardJob, type BoardItem, type PinGroup,
 } from "utils/jobs";
@@ -71,6 +71,19 @@ export default function Jobs() {
   }, []);
   useEffect(() => { refreshList(); }, [refreshList]);
 
+  // Opening a job (sidebar or grid) counts as "working in it" even before
+  // anything gets pinned or edited — bump it to the top right away instead
+  // of waiting for the next mutation and a full list refetch to notice.
+  const selectJob = useCallback((id: number) => {
+    setJobs((cur) => {
+      const hit = cur.find((j) => j.id === id);
+      if (!hit) return cur;
+      return [{ ...hit, updated_at: new Date().toISOString() }, ...cur.filter((j) => j.id !== id)];
+    });
+    navigate(`/jobs/${id}`);
+    touchJob(id).catch(() => {});
+  }, [navigate]);
+
   const load = useCallback(async (id: number) => {
     setLoading(true);
     try { setBoard(await getBoard(id)); }
@@ -99,6 +112,16 @@ export default function Jobs() {
       const created = await createJob({ name: name.trim() });
       await refreshList();
       navigate(`/jobs/${created.id}`);
+      // No need to touch() — creating already stamped updated_at, so it's
+      // already first; this only exists so refreshList's fetch can't put it
+      // anywhere but first if something else was touched in the same beat.
+      const summary: BoardJob = {
+        id: created.id, name: created.name, client_name: created.client_name,
+        collection: created.collection, season: created.season,
+        updated_at: created.updated_at, created_at: created.created_at,
+        item_count: 0, group_count: 0, chosen_count: 0,
+      };
+      setJobs((cur) => [summary, ...cur.filter((j) => j.id !== created.id)]);
     } catch (e: any) { toast.error(e?.message || "Could not create a job."); }
   };
 
@@ -144,7 +167,7 @@ export default function Jobs() {
               {jobs.map((j) => {
                 const active = j.id === activeId;
                 return (
-                  <button key={j.id} onClick={() => navigate(`/jobs/${j.id}`)}
+                  <button key={j.id} onClick={() => selectJob(j.id)}
                     className={`flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
                     <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
                     <span className="mt-0.5 truncate text-xs text-stone-400">{j.client_name || ""}{j.client_name && j.collection ? " · " : ""}{j.collection || ""}</span>
@@ -159,9 +182,9 @@ export default function Jobs() {
         </aside>
 
         <main className="min-w-0 flex-1 px-8 py-6">
-          {!activeId ? <Empty onNew={newJob} /> : loading && !board ? (
+          {!activeId ? <JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /> : loading && !board ? (
             <p className="py-20 text-center text-sm text-stone-400">Loading…</p>
-          ) : !board ? <Empty onNew={newJob} /> : (
+          ) : !board ? <JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /> : (
             <BoardView board={board} run={run} onDelete={removeJob} onPinMore={pinMore} onOpen={openDetail}
               onRename={(name) => updateJob(board.id, { name }).then(() => { load(board.id); refreshList(); }).catch(() => toast.error("Could not rename"))} />
           )}
@@ -173,16 +196,61 @@ export default function Jobs() {
   );
 }
 
-function Empty({ onNew }: { onNew: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
-        <ClipboardList size={28} className="text-emerald-600" strokeWidth={1.5} />
+// The landing view when no specific job is open: every job as a tile,
+// newest-worked-in first (selecting any job — here or in the rail — bumps it
+// to the front; see selectJob above). Double-click/double-tap a tile to open
+// it, the same gesture as a file browser, rather than overloading a single
+// click that the rail already uses for a one-click select.
+function JobGrid({ jobs, onOpen, onNew }: { jobs: BoardJob[]; onOpen: (id: number) => void; onNew: () => void }) {
+  if (jobs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
+          <ClipboardList size={28} className="text-emerald-600" strokeWidth={1.5} />
+        </div>
+        <p className="mb-1 text-base font-medium text-stone-600">No jobs yet</p>
+        <p className="max-w-sm text-sm leading-relaxed text-stone-400">Start one here, or from the “Pinning to” picker in Catalog Search.</p>
+        <button onClick={onNew} className={`${btnPrimary} mt-4`}><Plus size={14} /> New job</button>
       </div>
-      <p className="mb-1 text-base font-medium text-stone-600">No job selected</p>
-      <p className="max-w-sm text-sm leading-relaxed text-stone-400">Pick a job on the left, or start one. Then go to Catalog Search, choose the job at the top, and hit + on anything worth considering.</p>
-      <button onClick={onNew} className={`${btnPrimary} mt-4`}><Plus size={14} /> New job</button>
+    );
+  }
+  return (
+    <div>
+      <p className="mb-4 text-sm text-stone-500">Double-click a job to open its board.</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {jobs.map((j) => <JobTile key={j.id} job={j} onOpen={() => onOpen(j.id)} />)}
+        <button
+          onClick={onNew}
+          className="flex min-h-[168px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:border-emerald-400 hover:text-emerald-700"
+        >
+          <Plus size={20} />
+          <span className="text-sm font-medium">New job</span>
+        </button>
+      </div>
     </div>
+  );
+}
+
+function JobTile({ job, onOpen }: { job: BoardJob; onOpen: () => void }) {
+  return (
+    <button
+      onDoubleClick={onOpen}
+      title="Double-click to open"
+      className="flex min-h-[168px] flex-col rounded-xl border border-stone-200 bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <ClipboardList size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+        {job.chosen_count > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800"><Star size={9} fill="currentColor" /> {job.chosen_count} picked</span>
+        )}
+      </div>
+      <p className="mt-2 line-clamp-2 text-sm font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{job.name}</p>
+      <p className="mt-0.5 truncate text-xs text-stone-500">{job.client_name || "No client"}{job.collection ? ` · ${job.collection}` : ""}</p>
+      <div className="mt-auto flex items-center gap-1.5 pt-3 text-xs text-stone-400">
+        <Layers size={12} />
+        {job.item_count} pinned{job.group_count ? ` · ${job.group_count} group${job.group_count === 1 ? "" : "s"}` : ""}
+      </div>
+    </button>
   );
 }
 

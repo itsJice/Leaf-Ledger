@@ -653,6 +653,23 @@ async def create_job(body: JobCreate, request: Request):
         await conn.close()
 
 
+@router.post("/{job_id}/touch")
+async def touch_job(job_id: int):
+    """Bump a job's updated_at with no other change — called when a job is
+    merely opened/selected (from the board grid or the sidebar), not just
+    when it's edited, so 'the newest one you worked in' really does mean
+    the one you were just looking at, not only the one you last pinned to."""
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        if not await conn.fetchval("SELECT 1 FROM ll_app.jobs WHERE id = $1", job_id):
+            raise HTTPException(status_code=404, detail="Job not found")
+        await _touch(conn, job_id)
+        return {"ok": True}
+    finally:
+        await conn.close()
+
+
 @router.get("/{job_id}")
 async def get_job(job_id: int):
     conn = await get_conn()
