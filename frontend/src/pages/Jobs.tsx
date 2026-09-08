@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { ProductDetailModal, ProxiedImage } from "./Library";
@@ -322,8 +322,43 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
 }) {
   const [gname, setGname] = useState(group?.name || "");
   useEffect(() => setGname(group?.name || ""), [group?.id, group?.name]);
-  const chosen = items.find((i) => i.chosen);
-  const prices = items.map((i) => i.current_price).filter((p): p is number => p != null);
+
+  // Column order, dragged by the header. Mirrors `items` but reorders ahead
+  // of the server round trip so a drag feels immediate; syncs back to props
+  // whenever the underlying set changes (an option added/removed/moved
+  // group elsewhere on the page) so this never drifts from reality.
+  const [order, setOrder] = useState(items);
+  useEffect(() => setOrder(items), [items]);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [overId, setOverId] = useState<number | null>(null);
+
+  const dropOn = async (targetId: number) => {
+    const fromId = dragId;
+    setDragId(null);
+    setOverId(null);
+    if (fromId == null || fromId === targetId) return;
+    const fromIdx = order.findIndex((i) => i.item_id === fromId);
+    const toIdx = order.findIndex((i) => i.item_id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const next = [...order];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    setOrder(next); // optimistic — feels instant, corrected below if the save fails
+    const changed = next.map((it, i) => ({ it, i })).filter(({ it, i }) => it.sort_order !== i);
+    if (!changed.length) return;
+    // Persist in order so each write's response reflects every earlier one;
+    // only the last goes through run() — that's the single re-render/refresh,
+    // the rest would just be redundant toasts and board reloads mid-drag.
+    for (let k = 0; k < changed.length - 1; k++) {
+      await updatePin(changed[k].it.item_id, { sort_order: changed[k].i }).catch(() => {});
+    }
+    const last = changed[changed.length - 1];
+    const applied = await run(() => updatePin(last.it.item_id, { sort_order: last.i }));
+    if (!applied) setOrder(items); // save failed — snap back to last-known-good
+  };
+
+  const chosen = order.find((i) => i.chosen);
+  const prices = order.map((i) => i.current_price).filter((p): p is number => p != null);
   const cheapest = prices.length > 1 ? Math.min(...prices) : null;
 
   return (
@@ -336,23 +371,34 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
         ) : (
           <h3 className="text-base font-semibold text-stone-500" style={{ fontFamily: "Georgia, serif" }}>Not in a group</h3>
         )}
-        <span className="text-xs text-stone-400">{items.length} option{items.length === 1 ? "" : "s"}{chosen ? ` · picked: ${chosen.name}` : ""}</span>
+        <span className="text-xs text-stone-400">{order.length} option{order.length === 1 ? "" : "s"}{chosen ? ` · picked: ${chosen.name}` : ""}{order.length > 1 ? " · drag a column to reorder" : ""}</span>
         <button onClick={onPinMore} className={btnGhost}><Plus size={12} /> Add options</button>
         {group && (
           <button onClick={() => { if (window.confirm(`Remove the group "${group.name}"? Its pins stay on the job.`)) run(() => deleteGroup(group.id)); }} className="ml-auto text-stone-300 hover:text-rose-600" aria-label="Remove group"><Trash2 size={14} /></button>
         )}
       </div>
 
-      {items.length === 0 ? (
+      {order.length === 0 ? (
         <p className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-400">Nothing here yet. Pin options from the catalog into this group.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-          <table className="border-separate border-spacing-0 text-sm" style={{ minWidth: `${160 + items.length * 230}px` }}>
+          <table className="border-separate border-spacing-0 text-sm" style={{ minWidth: `${160 + order.length * 230}px` }}>
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 w-40 bg-white px-3 py-3 text-left align-bottom text-[11px] font-medium uppercase tracking-wide text-stone-400">Option</th>
-                {items.map((it) => (
-                  <th key={it.item_id} className={`w-[230px] min-w-[230px] px-3 py-3 text-left align-top ${it.chosen ? "bg-emerald-50/70" : ""}`}>
+                {order.map((it) => (
+                  <th key={it.item_id}
+                    draggable={order.length > 1}
+                    onDragStart={(e) => { setDragId(it.item_id); e.dataTransfer.effectAllowed = "move"; }}
+                    onDragEnd={() => { setDragId(null); setOverId(null); }}
+                    onDragOver={(e) => { e.preventDefault(); if (dragId != null && overId !== it.item_id) setOverId(it.item_id); }}
+                    onDragLeave={() => setOverId((cur) => (cur === it.item_id ? null : cur))}
+                    onDrop={(e) => { e.preventDefault(); dropOn(it.item_id); }}
+                    className={`w-[230px] min-w-[230px] px-3 py-3 text-left align-top transition-opacity ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
+                  >
+                    {order.length > 1 && (
+                      <div className="mb-1 flex items-center justify-center text-stone-300" title="Drag to reorder"><GripVertical size={13} /></div>
+                    )}
                     <div className={`relative overflow-hidden rounded-lg bg-stone-50 ${it.chosen ? "ring-2 ring-emerald-500" : "ring-1 ring-stone-200"}`}>
                       <button onClick={() => onOpen(it.product_id)} className="flex h-44 w-full items-center justify-center" title="Open product">
                         {it.image_urls.length ? <ProxiedImage src={it.image_urls[0]} fallbacks={it.image_urls.slice(1)} alt={it.name || ""} className="h-full w-full object-contain" /> : <Package size={28} className="text-stone-300" />}
@@ -366,23 +412,23 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
               </tr>
             </thead>
             <tbody>
-              <Row label="Link to product" items={items} render={(it) => it.product_url ? (
+              <Row label="Link to product" items={order} render={(it) => it.product_url ? (
                 <a href={it.product_url} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-800">
                   <ExternalLink size={12} /> Link to product
                 </a>
               ) : <span className="text-stone-300">—</span>} />
-              <Row label="Price" items={items} render={(it) => <span className={`font-semibold ${cheapest != null && it.current_price === cheapest ? "text-emerald-800" : "text-stone-800"}`}>{money(it.current_price)}</span>} />
-              <Row label="Size" items={items} render={(it) => sizeText(it)} />
-              <Row label="Color" items={items} render={(it) => it.color || it.norm_color || "—"} />
-              <Row label="Finish" items={items} render={(it) => it.finish || it.norm_finish || "—"} />
-              <Row label="Material" items={items} render={(it) => it.material || "—"} />
-              <Row label="Type" items={items} render={(it) => it.product_type || it.category || "—"} />
-              <Row label="Pack" items={items} render={(it) => packText(it)} />
-              <Row label="Availability" items={items} render={(it) => { const a = availText(it); return <span className={a.tone}>{a.text}</span>; }} />
-              <Row label="Note" items={items} render={(it) => <NoteCell item={it} run={run} />} />
-              <Row label="Qty needed" items={items} render={(it) => <QtyCell item={it} run={run} />} />
-              <Row label="" items={items} render={(it) => (
+              <Row label="Price" items={order} render={(it) => <span className={`font-semibold ${cheapest != null && it.current_price === cheapest ? "text-emerald-800" : "text-stone-800"}`}>{money(it.current_price)}</span>} />
+              <Row label="Size" items={order} render={(it) => sizeText(it)} />
+              <Row label="Color" items={order} render={(it) => it.color || it.norm_color || "—"} />
+              <Row label="Finish" items={order} render={(it) => it.finish || it.norm_finish || "—"} />
+              <Row label="Material" items={order} render={(it) => it.material || "—"} />
+              <Row label="Type" items={order} render={(it) => it.product_type || it.category || "—"} />
+              <Row label="Pack" items={order} render={(it) => packText(it)} />
+              <Row label="Availability" items={order} render={(it) => { const a = availText(it); return <span className={a.tone}>{a.text}</span>; }} />
+              <Row label="Note" items={order} render={(it) => <NoteCell item={it} run={run} />} />
+              <Row label="Qty needed" items={order} render={(it) => <QtyCell item={it} run={run} />} />
+              <Row label="" items={order} render={(it) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button onClick={() => run(() => updatePin(it.item_id, { chosen: !it.chosen }))}
                     className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${it.chosen ? "bg-emerald-700 text-white" : "border border-stone-300 text-stone-600 hover:border-emerald-400 hover:text-emerald-700"}`}>
