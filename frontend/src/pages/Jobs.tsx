@@ -361,17 +361,17 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     </div>
                     <p className="mt-2 line-clamp-2 font-medium normal-case leading-snug text-stone-800" title={it.name || ""}>{it.missing ? <span className="text-rose-600">Product no longer in catalog</span> : it.name}</p>
                     <p className="text-[11px] font-normal normal-case tracking-normal text-stone-500">{it.supplier_name || "—"}{it.supplier_sku ? <span className="ml-1 font-mono text-stone-400">{it.supplier_sku}</span> : null}</p>
-                    {it.chosen && it.product_url && (
-                      <a href={it.product_url} target="_blank" rel="noopener noreferrer"
-                        className="mt-2 flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 py-1.5 text-xs font-medium text-white normal-case hover:bg-emerald-800">
-                        <ExternalLink size={12} /> View on {it.supplier_name || "site"}
-                      </a>
-                    )}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
+              <Row label="Link to product" items={items} render={(it) => it.product_url ? (
+                <a href={it.product_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-800">
+                  <ExternalLink size={12} /> Link to product
+                </a>
+              ) : <span className="text-stone-300">—</span>} />
               <Row label="Price" items={items} render={(it) => <span className={`font-semibold ${cheapest != null && it.current_price === cheapest ? "text-emerald-800" : "text-stone-800"}`}>{money(it.current_price)}</span>} />
               <Row label="Size" items={items} render={(it) => sizeText(it)} />
               <Row label="Color" items={items} render={(it) => it.color || it.norm_color || "—"} />
@@ -393,7 +393,6 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     <option value="">No group</option>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
-                  {it.product_url && <a href={it.product_url} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-emerald-700" title="View on vendor site"><ExternalLink size={13} /></a>}
                   <button onClick={() => run(() => removePin(it.item_id))} className="text-stone-300 hover:text-rose-600" aria-label="Unpin"><Trash2 size={13} /></button>
                 </div>
               )} />
