@@ -3,9 +3,10 @@ import { ClipboardList, Plus, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  listBoards, getPins, createJob, addGroup, writeWorkingJob,
+  listBoards, createJob, addGroup, writeWorkingJob,
   type BoardJob, type PinGroup, type WorkingJob,
 } from "utils/jobs";
+import { loadPins, setCachedPins } from "utils/pinsCache";
 
 // "Pinning to: Hanover · Ornaments". Sits in the Catalog Search header so the
 // plus button on every card knows where a pin goes. The choice is remembered
@@ -31,7 +32,7 @@ export default function WorkingJobBar({ value, onChange, pinnedCount }: Props) {
 
   useEffect(() => {
     if (!value.jobId) { setGroups([]); return; }
-    getPins(value.jobId).then((p) => setGroups(p.groups)).catch(() => setGroups([]));
+    loadPins(value.jobId).then((p) => setGroups(p.groups)).catch(() => setGroups([]));
   }, [value.jobId]);
 
   const job = jobs.find((j) => j.id === value.jobId) || null;
@@ -66,6 +67,11 @@ export default function WorkingJobBar({ value, onChange, pinnedCount }: Props) {
     try {
       const board = await addGroup(value.jobId, name.trim());
       setGroups(board.groups);
+      // Keep the shared cache in step — a card's + button reads groups from
+      // here, not from this bar, so a newly made group needs to land in the
+      // cache too or the popup elsewhere on the page would still be one
+      // group short until something else forces a reload.
+      setCachedPins(value.jobId, board.items.map((i) => ({ product_id: i.product_id, group_id: i.group_id ?? null })), board.groups);
       if (board.created_group_id) pickGroup(board.created_group_id);
     } catch (e: any) { toast.error(e?.message || "Could not create the group"); }
   };

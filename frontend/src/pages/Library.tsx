@@ -35,7 +35,8 @@ import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 import { toast } from "sonner";
 import WorkingJobBar from "components/WorkingJobBar";
 import PinToggle from "components/PinToggle";
-import { getPins, readWorkingJob, type WorkingJob, type PinGroup } from "utils/jobs";
+import { readWorkingJob, type WorkingJob, type PinGroup } from "utils/jobs";
+import { loadPins, getCachedPins, setCachedPins } from "utils/pinsCache";
 
 const CATEGORIES = ["containers", "wood", "greenery", "florals", "trees"];
 const UNITS = ["stem", "pot", "flat", "bunch", "each"];
@@ -1655,14 +1656,35 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
   // never buys anything, it only saves a candidate onto a job's board.
   const [working, setWorking] = useState<WorkingJob>(() => readWorkingJob());
   const [pinGroups, setPinGroups] = useState<PinGroup[]>([]);
-  const [pinned, setPinned] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
+  // False until this job's real pins/groups have loaded at least once — see
+  // components/PinToggle.tsx for why a click can't be live before that.
+  const [pinsReady, setPinsReady] = useState(false);
+  // Reload only when the working JOB changes, not on every product this
+  // modal happens to be showing — opening a different card's detail used to
+  // refetch on every single open, which is both the visible lag and the
+  // window where a fast click raced ahead of empty just-mounted state.
   useEffect(() => {
-    if (!working.jobId) { setPinGroups([]); setPinned(false); return; }
-    getPins(working.jobId).then((p) => {
-      setPinGroups(p.groups);
-      setPinned(p.pins.some((x) => x.product_id === product.id));
-    }).catch(() => { setPinGroups([]); setPinned(false); });
-  }, [working.jobId, product.id]);
+    const jobId = working.jobId;
+    if (!jobId) { setPinGroups([]); setPinnedIds(new Set()); setPinsReady(false); return; }
+    const cached = getCachedPins(jobId);
+    if (cached) {
+      setPinGroups(cached.groups);
+      setPinnedIds(new Set(cached.pins.map((x) => x.product_id)));
+      setPinsReady(true);
+    } else {
+      setPinsReady(false);
+    }
+    let alive = true;
+    loadPins(jobId).then((r) => {
+      if (!alive || working.jobId !== jobId) return;
+      setPinGroups(r.groups);
+      setPinnedIds(new Set(r.pins.map((x) => x.product_id)));
+      setPinsReady(true);
+    }).catch(() => { if (alive) setPinsReady(false); });
+    return () => { alive = false; };
+  }, [working.jobId]);
+  const pinned = pinnedIds.has(product.id);
   const [isFav, setIsFav] = useState(() => product.is_favorited || readFavoriteIds().has(product.id));
   const toggleFav = () => {
     const next = !isFav;
@@ -1778,8 +1800,8 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white ring-1 ring-stone-200 hover:ring-rose-300">
               <Heart size={16} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
             </button>
-            <PinToggle productId={product.id} jobId={working.jobId} groupId={working.groupId} groups={pinGroups} isPinned={pinned}
-              onPinsChanged={(pins) => setPinned(pins.some((x) => x.product_id === product.id))}
+            <PinToggle productId={product.id} jobId={working.jobId} groupId={working.groupId} groups={pinGroups} isPinned={pinned} ready={pinsReady}
+              onPinsChanged={(pins) => { setPinnedIds(new Set(pins.map((x) => x.product_id))); if (working.jobId) setCachedPins(working.jobId, pins); }}
               iconSize={16}
               className={`flex h-9 w-9 items-center justify-center rounded-full ring-1 ${pinned ? "bg-emerald-700 ring-emerald-700" : "bg-white ring-stone-200 hover:ring-emerald-400"}`} />
             <button onClick={onClose} className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700">

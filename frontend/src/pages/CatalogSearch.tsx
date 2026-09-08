@@ -8,7 +8,8 @@ import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 import { toast } from "sonner";
 import WorkingJobBar from "components/WorkingJobBar";
 import PinToggle from "components/PinToggle";
-import { getPins, readWorkingJob, type WorkingJob, type PinGroup } from "utils/jobs";
+import { readWorkingJob, type WorkingJob, type PinGroup } from "utils/jobs";
+import { loadPins, getCachedPins, setCachedPins } from "utils/pinsCache";
 
 // Phase 3 — versatile catalog search. Purpose-built search over the whole
 // catalog, driven by the normalization layer's server-side facets (color, size,
@@ -119,16 +120,34 @@ export default function CatalogSearch() {
   const [working, setWorking] = useState<WorkingJob>(() => readWorkingJob());
   const [pinned, setPinned] = useState<Map<number, number | null>>(new Map());
   const [workingGroups, setWorkingGroups] = useState<PinGroup[]>([]);
+  // False until this job's real pins/groups have loaded at least once — a +
+  // click is disabled until then, so it can never mistake "still loading"
+  // for "this job has no groups" (see components/PinToggle.tsx).
+  const [pinsReady, setPinsReady] = useState(false);
   useEffect(() => {
-    if (!working.jobId) { setPinned(new Map()); setWorkingGroups([]); return; }
-    getPins(working.jobId).then((p) => {
-      setPinned(new Map(p.pins.map((x) => [x.product_id, x.group_id])));
-      setWorkingGroups(p.groups);
-    }).catch(() => { setPinned(new Map()); setWorkingGroups([]); });
+    const jobId = working.jobId;
+    if (!jobId) { setPinned(new Map()); setWorkingGroups([]); setPinsReady(false); return; }
+    const cached = getCachedPins(jobId);
+    if (cached) {
+      setPinned(new Map(cached.pins.map((x) => [x.product_id, x.group_id])));
+      setWorkingGroups(cached.groups);
+      setPinsReady(true);
+    } else {
+      setPinsReady(false);
+    }
+    let alive = true;
+    loadPins(jobId).then((r) => {
+      if (!alive || working.jobId !== jobId) return;
+      setPinned(new Map(r.pins.map((x) => [x.product_id, x.group_id])));
+      setWorkingGroups(r.groups);
+      setPinsReady(true);
+    }).catch(() => { if (alive) setPinsReady(false); });
+    return () => { alive = false; };
   }, [working.jobId]);
   const applyPins = useCallback((pins: Array<{ product_id: number; group_id: number | null }>) => {
     setPinned(new Map(pins.map((x) => [x.product_id, x.group_id])));
-  }, []);
+    if (working.jobId) setCachedPins(working.jobId, pins);
+  }, [working.jobId]);
 
   // Lazy initializers so this only ever reads sessionStorage once, on the
   // very first render -- not on every render, and not fighting the effect
@@ -660,7 +679,7 @@ export default function CatalogSearch() {
           ) : (
             <>
               <div className={viewMode === "list" ? "flex flex-col gap-2" : `grid gap-4 ${GRID_COLS[cardSize]}`}>
-                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} isPinned={pinned.has(p.id)} jobId={working.jobId} groupId={working.groupId} groups={workingGroups} onPinsChanged={applyPins} view={viewMode} size={cardSize} />)}
+                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} isPinned={pinned.has(p.id)} jobId={working.jobId} groupId={working.groupId} groups={workingGroups} pinsReady={pinsReady} onPinsChanged={applyPins} view={viewMode} size={cardSize} />)}
               </div>
               <div ref={setSentinel} className="h-px w-full" aria-hidden />
               {items.length < total && (
@@ -720,7 +739,7 @@ export default function CatalogSearch() {
               )}
               {(similar?.items.length ?? 0) > 0 && (
                 <div className={viewMode === "list" ? "flex flex-col gap-2" : `grid gap-4 ${GRID_COLS[cardSize]}`}>
-                  {similar!.items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} isPinned={pinned.has(p.id)} jobId={working.jobId} groupId={working.groupId} groups={workingGroups} onPinsChanged={applyPins} view={viewMode} size={cardSize} />)}
+                  {similar!.items.map((p) => <ProductCard key={p.id} p={p} onOpen={openDetail} isFav={favIds.has(p.id)} onToggleFav={toggleFav} isPinned={pinned.has(p.id)} jobId={working.jobId} groupId={working.groupId} groups={workingGroups} pinsReady={pinsReady} onPinsChanged={applyPins} view={viewMode} size={cardSize} />)}
                 </div>
               )}
             </section>
@@ -784,7 +803,7 @@ function CardImage({ imgs, alt, cls }: { imgs: string[]; alt: string; cls: strin
   return <ProxiedImage src={imgs[0]} fallbacks={imgs.slice(1)} alt={alt} className={cls} />;
 }
 
-function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, groups, onPinsChanged, view, size }: {
+function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, groups, pinsReady, onPinsChanged, view, size }: {
   p: Product;
   onOpen: (id: number) => void;
   isFav: boolean;
@@ -793,6 +812,7 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, 
   jobId: number | null;
   groupId: number | null;
   groups: PinGroup[];
+  pinsReady: boolean;
   onPinsChanged: (pins: Array<{ product_id: number; group_id: number | null }>) => void;
   view: ViewMode;
   size: CardSize;
@@ -822,7 +842,7 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, 
           </div>
         </div>
         <span className="shrink-0 text-sm font-semibold text-emerald-800">{price}</span>
-        <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} onPinsChanged={onPinsChanged}
+        <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} ready={pinsReady} onPinsChanged={onPinsChanged}
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 ${isPinned ? "bg-emerald-700 ring-emerald-700" : "bg-white ring-stone-200 hover:ring-emerald-400"}`} />
         <button
           onClick={(e) => { e.stopPropagation(); onToggleFav(p.id); }}
@@ -848,7 +868,7 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, 
       >
         <Heart size={14} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
       </button>
-      <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} onPinsChanged={onPinsChanged}
+      <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} ready={pinsReady} onPinsChanged={onPinsChanged}
         className={`absolute right-2 top-10 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-sm ring-1 backdrop-blur-sm ${isPinned ? "bg-emerald-700 ring-emerald-700" : "bg-white/85 ring-stone-200 hover:bg-white"}`} />
       {isPinned && <span className="pointer-events-none absolute inset-0 z-[5] rounded-xl ring-2 ring-emerald-500/70" />}
       <div className={`flex ${IMG_HEIGHT[size]} items-center justify-center overflow-hidden bg-stone-50`}>
