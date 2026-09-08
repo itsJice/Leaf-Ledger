@@ -13,6 +13,7 @@ import Favorites from "./pages/Favorites.tsx";
 import Comments from "./pages/Comments.tsx";
 import Invoice from "./pages/Invoice.tsx";
 import Jobs from "./pages/Jobs.tsx";
+import Sourcing from "./pages/Sourcing.tsx";
 import Mockups from "./pages/Mockups.tsx";
 import Orders from "./pages/Orders.tsx";
 import OrnamentCalculator from "./pages/OrnamentCalculator.tsx";
@@ -40,6 +41,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/invoice", element: <Invoice /> },
 	{ path: "/jobs", element: <Jobs /> },
 	{ path: "/jobs/:jobId", element: <Jobs /> },
+	// The purchaser's full worksheet. Not in the sidebar; reachable by link.
+	{ path: "/sourcing", element: <Sourcing /> },
+	{ path: "/sourcing/:jobId", element: <Sourcing /> },
 	{ path: "/mockups", element: <Mockups /> },
 	{ path: "/orders", element: <Orders /> },
 	{ path: "/install-schedule", element: <InstallSchedule /> },

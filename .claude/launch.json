@@ -29,6 +29,15 @@
       "port": 8199
     },
     {
+      "name": "review",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd scheduler && exec python3 -m http.server \"${PORT:-8377}\" --bind 127.0.0.1"
+      ],
+      "autoPort": true
+    },
+    {
       "name": "scrape-progress",
       "runtimeExecutable": "bash",
       "runtimeArgs": [

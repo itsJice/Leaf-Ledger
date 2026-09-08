@@ -4,18 +4,17 @@ import { apiFetch } from "utils/apiFetch";
 // intake to the client shelf. Every mutating call returns the full, refreshed
 // job so the page never has to stitch partial updates together.
 
-export type Stage =
-  | "received" | "scoped" | "sourcing" | "ordered" | "receiving" | "ready" | "built" | "installed";
+// The buyer's stages. Derived on the server from the worksheet lines.
+export type Stage = "new" | "sourcing" | "ordered" | "receiving" | "complete";
+
+export const STAGES: Stage[] = ["new", "sourcing", "ordered", "receiving", "complete"];
 
 export const STAGE_LABEL: Record<Stage, string> = {
-  received: "Received",
-  scoped: "Scoped",
+  new: "New",
   sourcing: "Sourcing",
   ordered: "Ordered",
   receiving: "Receiving",
-  ready: "Ready to build",
-  built: "Built",
-  installed: "Installed",
+  complete: "Complete",
 };
 
 export type SourcingStatus =
@@ -233,6 +232,10 @@ export const getJob = (id: number) => call<Job>(`/api/jobs/${id}`);
 export const createJob = (body: Partial<Job>) => post<Job>("/api/jobs/create", body);
 export const updateJob = (id: number, body: Record<string, unknown>) => patch<Job>(`/api/jobs/${id}`, body);
 export const deleteJob = (id: number) => del<{ ok: boolean }>(`/api/jobs/${id}`);
+// Bumps a job's updated_at just from being opened/selected, not only when
+// it's edited — board-list already sorts by updated_at, so this is what
+// makes "the job you were just in" surface at the top of the rail.
+export const touchJob = (id: number) => post<{ ok: boolean }>(`/api/jobs/${id}/touch`, {});
 
 export const addPiece = (jobId: number, body: Partial<Piece>) => post<Job>(`/api/jobs/${jobId}/pieces`, body);
 export const updatePiece = (pieceId: number, body: Partial<Piece>) => patch<Job>(`/api/jobs/pieces/${pieceId}`, body);
@@ -284,20 +287,131 @@ export const updateTask = (taskId: number, body: { title?: string; assignee?: st
   patch<Job>(`/api/jobs/tasks/${taskId}`, body);
 export const deleteTask = (taskId: number) => del<Job>(`/api/jobs/tasks/${taskId}`);
 
-export const exportUrl = (jobId: number, format: "xlsx" | "mo") => `/api/jobs/${jobId}/export?format=${format}`;
+export const exportUrl = (jobId: number) => `/api/jobs/${jobId}/export?format=xlsx`;
 
 // Download through apiFetch so the Authorization header goes along (a plain
 // <a href> to /api would come back 401).
-export async function downloadExport(jobId: number, format: "xlsx" | "mo", jobName: string) {
-  const r = await apiFetch(exportUrl(jobId, format), { credentials: "include" });
+export async function downloadExport(jobId: number, jobName: string) {
+  const r = await apiFetch(exportUrl(jobId), { credentials: "include" });
   if (!r.ok) throw new Error("Export failed");
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${jobName.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "job"}_${format === "mo" ? "manufacturing_order.pdf" : "tracking.xlsx"}`;
+  a.download = `${jobName.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "job"}_tracking.xlsx`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+
+// ── Pinboard: products pinned to a job from Catalog Search ──────────────────
+export interface BoardJob {
+  id: number;
+  name: string;
+  client_name?: string | null;
+  collection?: string | null;
+  season?: string | null;
+  updated_at?: string;
+  created_at?: string;
+  item_count: number;
+  group_count: number;
+  chosen_count: number;
+}
+
+export interface PinGroup { id: number; name: string; sort_order?: number }
+
+export interface BoardItem {
+  item_id: number;
+  job_id: number;
+  group_id?: number | null;
+  product_id: number;
+  note?: string | null;
+  chosen: boolean;
+  sort_order: number;
+  added_by?: string | null;
+  pinned_at?: string;
+  missing: boolean;
+  name?: string | null;
+  supplier_name?: string | null;
+  supplier_id?: number | null;
+  supplier_sku?: string | null;
+  current_price?: number | null;
+  image_urls: string[];
+  height_in?: number | null;
+  width_in?: number | null;
+  length_in?: number | null;
+  diameter_in?: number | null;
+  color?: string | null;
+  finish?: string | null;
+  material?: string | null;
+  product_type?: string | null;
+  category?: string | null;
+  case_qty?: number | null;
+  box_qty?: number | null;
+  moq?: number | null;
+  uom?: string | null;
+  unit?: string | null;
+  availability?: string | null;
+  product_url?: string | null;
+  norm_color?: string | null;
+  norm_finish?: string | null;
+  norm_size_in?: number | null;
+}
+
+export interface Board {
+  id: number;
+  name: string;
+  client_name?: string | null;
+  client_id?: number | null;
+  collection?: string | null;
+  season?: string | null;
+  notes?: string | null;
+  updated_at?: string;
+  groups: PinGroup[];
+  items: BoardItem[];
+  created_group_id?: number;
+}
+
+export interface Pins {
+  id: number;
+  name: string;
+  client_name?: string | null;
+  groups: PinGroup[];
+  pins: Array<{ product_id: number; group_id: number | null }>;
+}
+
+export const listBoards = () => call<BoardJob[]>("/api/jobs/board-list");
+export const getBoard = (jobId: number) => call<Board>(`/api/jobs/${jobId}/board`);
+export const getPins = (jobId: number) => call<Pins>(`/api/jobs/${jobId}/pins`);
+export const addGroup = (jobId: number, name: string) => post<Board>(`/api/jobs/${jobId}/groups`, { name });
+export const updateGroup = (groupId: number, body: { name?: string; sort_order?: number }) => patch<Board>(`/api/jobs/groups/${groupId}`, body);
+export const deleteGroup = (groupId: number) => del<Board>(`/api/jobs/groups/${groupId}`);
+export const pinProduct = (jobId: number, body: { product_id: number; group_id?: number | null; note?: string }) =>
+  post<{ item_id: number; created: boolean; job_id: number; groups: PinGroup[]; pins: Pins["pins"] }>(`/api/jobs/${jobId}/items`, body);
+export const unpinProduct = (jobId: number, productId: number) =>
+  del<{ job_id: number; groups: PinGroup[]; pins: Pins["pins"] }>(`/api/jobs/${jobId}/items/by-product/${productId}`);
+export const updatePin = (itemId: number, body: { group_id?: number; clear_group?: boolean; note?: string; chosen?: boolean; sort_order?: number }) =>
+  patch<Board>(`/api/jobs/items/${itemId}`, body);
+export const removePin = (itemId: number) => del<Board>(`/api/jobs/items/${itemId}`);
+
+// The job (and group) you are pinning to from Catalog Search. Per browser,
+// like the active purchase order; the pins themselves live on the server.
+const WORKING_KEY = "leaf-ledger:working-job:v1";
+export interface WorkingJob { jobId: number | null; groupId: number | null }
+
+export function readWorkingJob(): WorkingJob {
+  try {
+    const raw = localStorage.getItem(WORKING_KEY);
+    if (!raw) return { jobId: null, groupId: null };
+    const v = JSON.parse(raw);
+    return { jobId: v.jobId ? Number(v.jobId) : null, groupId: v.groupId ? Number(v.groupId) : null };
+  } catch {
+    return { jobId: null, groupId: null };
+  }
+}
+
+export function writeWorkingJob(v: WorkingJob) {
+  try { localStorage.setItem(WORKING_KEY, JSON.stringify(v)); } catch {}
 }
