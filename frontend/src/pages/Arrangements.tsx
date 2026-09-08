@@ -3349,7 +3349,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
         target.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // The page scrolls inside [data-scroll-root], not the window (see Layout);
+      // scrolling the window here would be a silent no-op.
+      (document.querySelector("[data-scroll-root]") ?? window).scrollTo({ top: 0, behavior: "smooth" });
     });
   };
 

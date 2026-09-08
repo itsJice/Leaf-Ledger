@@ -544,8 +544,12 @@ export default function Layout({ children }: Props) {
 
       {/* Main content offset for sidebar. data-scroll-root: this div, not
           window, is what actually scrolls -- pages that restore a saved
-          scroll position (Catalog Search) select it by that attribute. */}
-      <div data-scroll-root className="flex-1 ml-60 min-h-screen overflow-auto">
+          scroll position (Catalog Search) select it by that attribute.
+          It must be h-screen, not min-h-screen: min-h let it grow to fit its
+          content, so it never overflowed, the window scrolled instead, and
+          every `sticky top-0` page header rode away inside a container that
+          never moved -- while this comment claimed the opposite. */}
+      <div data-scroll-root className="flex-1 ml-60 h-screen overflow-auto">
         {children}
       </div>
       <FeedbackWidget />
