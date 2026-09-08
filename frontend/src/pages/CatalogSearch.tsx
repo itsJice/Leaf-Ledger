@@ -527,7 +527,7 @@ export default function CatalogSearch() {
               {total.toLocaleString()} product{total === 1 ? "" : "s"} across every supplier — filter by color, size, finish &amp; more.
             </p>
           </div>
-          <WorkingJobBar value={working} onChange={setWorking} pinnedCount={pinned.size} />
+          <WorkingJobBar value={working} onChange={setWorking} />
           <div className="relative w-96 max-w-[40vw]">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input

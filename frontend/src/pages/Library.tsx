@@ -1795,7 +1795,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <WorkingJobBar value={working} onChange={setWorking} pinnedCount={0} />
+            <WorkingJobBar value={working} onChange={setWorking} />
             <button onClick={toggleFav} title={isFav ? "Remove favorite" : "Add to favorites"}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white ring-1 ring-stone-200 hover:ring-rose-300">
               <Heart size={16} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
