@@ -290,7 +290,7 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => onPinMore(null)} className={btnPrimary}><Search size={14} /> Pin from the catalog</button>
+          <button onClick={() => onPinMore(null)} className={btnPrimary}><Search size={14} /> Pin and search more from the catalog</button>
           <button onClick={newGroup} className={btnGhost}><FolderPlus size={13} /> New group</button>
           <a href={`/sourcing/${board.id}`} className="text-[11px] text-stone-400 hover:text-emerald-700" title="The purchaser's full worksheet for this job">Worksheet</a>
           <button onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
@@ -301,7 +301,7 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
         <div className="mt-8 rounded-xl border border-dashed border-stone-300 p-10 text-center">
           <p className="text-sm font-medium text-stone-600">Nothing pinned yet.</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-stone-400">Go to Catalog Search, choose this job in “Pinning to” at the top, and hit + on anything you're considering. Make groups like Ornaments or Garland to compare like with like.</p>
-          <button onClick={() => onPinMore(null)} className={`${btnPrimary} mt-4`}><Search size={14} /> Pin from the catalog</button>
+          <button onClick={() => onPinMore(null)} className={`${btnPrimary} mt-4`}><Search size={14} /> Pin and search more from the catalog</button>
         </div>
       )}
 
