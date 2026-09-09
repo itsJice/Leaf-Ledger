@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical, NotebookPen, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { ProductDetailModal, ProxiedImage } from "./Library";
@@ -10,6 +10,7 @@ import {
   addGroup, updateGroup, deleteGroup, updatePin, removePin, writeWorkingJob,
   type Board, type BoardJob, type BoardItem, type PinGroup,
 } from "utils/jobs";
+import { listOpenRequests, linkRequestToJob, requestForJob, type OpenRequest, type ProductRequest } from "utils/requests";
 
 // Jobs: a pinboard per client job, compared side by side.
 //
@@ -23,6 +24,7 @@ import {
 
 const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
 const inch = (n?: number | null) => (n == null ? null : `${Number.isInteger(Number(n)) ? n : Number(n).toFixed(1)}"`);
+const dateStr = (d?: string | null) => (d ? String(d).slice(0, 10) : "");
 const input = "rounded-md border border-stone-300 bg-white px-2 py-1 text-sm outline-none focus:border-emerald-500";
 const btnPrimary = "inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
 const btnGhost = "inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700";
@@ -125,6 +127,21 @@ export default function Jobs() {
     } catch (e: any) { toast.error(e?.message || "Could not create a job."); }
   };
 
+  const [openReqs, setOpenReqs] = useState<OpenRequest[]>([]);
+  const refreshOpenRequests = useCallback(async () => {
+    try { setOpenReqs(await listOpenRequests()); } catch { setOpenReqs([]); }
+  }, []);
+  useEffect(() => { refreshOpenRequests(); }, [refreshOpenRequests]);
+
+  const loadRequest = async (requestId: number) => {
+    try {
+      const { job_id } = await linkRequestToJob(requestId, { create_new: true });
+      await Promise.all([refreshList(), refreshOpenRequests()]);
+      navigate(`/jobs/${job_id}`);
+      toast.success("Request loaded onto a new job.");
+    } catch (e: any) { toast.error(e?.message || "Could not load that request."); }
+  };
+
   const removeJob = async () => {
     if (!board) return;
     if (!window.confirm(`Delete "${board.name}" and everything pinned to it?`)) return;
@@ -154,7 +171,10 @@ export default function Jobs() {
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">Pin from the catalog, compare side by side, pick.</p>
         </div>
-        <button onClick={newJob} className={btnPrimary}><Plus size={15} /> New job</button>
+        <div className="flex items-center gap-2">
+          <LoadRequestPicker requests={openReqs} onPick={loadRequest} />
+          <button onClick={newJob} className={btnPrimary}><Plus size={15} /> New job</button>
+        </div>
       </header>
 
       <div className="flex">
@@ -193,6 +213,80 @@ export default function Jobs() {
 
       {detail && <ProductDetailModal product={detail} onClose={() => setDetail(null)} />}
     </Layout>
+  );
+}
+
+// A dropdown of saved, not-yet-loaded requests from the Request Form tab —
+// picking one creates a job from its client/project and drops Charles onto
+// its board, same as clicking "New job" but pre-filled by the ladies.
+function LoadRequestPicker({ requests, onPick }: { requests: OpenRequest[]; onPick: (id: number) => void }) {
+  const [open, setOpen] = useState(false);
+  if (requests.length === 0) return null;
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className={btnGhost}>
+        <NotebookPen size={13} /> Load a request ({requests.length}) <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-80 rounded-xl border border-stone-200 bg-white p-2 shadow-lg" onMouseLeave={() => setOpen(false)}>
+          {requests.map((r) => {
+            const label = [r.client_name, r.project_name].filter(Boolean).join(" · ") || "Untitled request";
+            return (
+              <button key={r.id} onClick={() => { onPick(r.id); setOpen(false); }}
+                className="flex w-full flex-col rounded-lg px-2.5 py-2 text-left hover:bg-emerald-50">
+                <span className="truncate text-sm font-medium text-stone-800">{label}</span>
+                <span className="text-[11px] text-stone-400">
+                  {r.item_count} item{r.item_count === 1 ? "" : "s"}{r.deadline ? ` · due ${dateStr(r.deadline)}` : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The read-only "what the ladies asked for" strip on a job whose products
+// were loaded from a request — every row from the Request Form, for
+// reference while Charles pins matching catalog options into groups below.
+function RequestReferencePanel({ request }: { request: ProductRequest }) {
+  const [open, setOpen] = useState(true);
+  const items = request.items.filter((i) => i.item);
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50/60">
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left">
+        <span className="flex items-center gap-2 text-sm font-semibold text-stone-700"><NotebookPen size={14} className="text-emerald-700" /> Requested by the ladies · {items.length} item{items.length === 1 ? "" : "s"}</span>
+        <ChevronDown size={14} className={`text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="overflow-x-auto border-t border-stone-200 px-4 py-3">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
+                <th className="py-1.5 pr-4 font-medium">Item</th>
+                <th className="py-1.5 pr-4 font-medium">Used on</th>
+                <th className="py-1.5 pr-4 font-medium">Qty</th>
+                <th className="py-1.5 pr-4 font-medium">Description</th>
+                <th className="py-1.5 font-medium">Most important quality</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.id} className="border-t border-stone-200/70">
+                  <td className="py-1.5 pr-4 font-medium text-stone-800">{it.item}</td>
+                  <td className="py-1.5 pr-4 text-stone-600">{it.used_on || "—"}</td>
+                  <td className="py-1.5 pr-4 text-stone-600">{it.qty || "—"}</td>
+                  <td className="py-1.5 pr-4 text-stone-600">{it.description || "—"}</td>
+                  <td className="py-1.5 text-stone-600">{it.quality || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -261,6 +355,13 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
   const [name, setName] = useState(board.name);
   useEffect(() => setName(board.name), [board.id, board.name]);
 
+  // The request that produced this job, if it was loaded from one — a
+  // read-only reference so Charles can see what the ladies asked for while
+  // he pins matching options. Not every job has one (some start straight
+  // from the catalog), so this quietly renders nothing when there isn't one.
+  const [linkedRequest, setLinkedRequest] = useState<ProductRequest | null | undefined>(undefined);
+  useEffect(() => { setLinkedRequest(undefined); requestForJob(board.id).then(setLinkedRequest).catch(() => setLinkedRequest(null)); }, [board.id]);
+
   const byGroup = useMemo(() => {
     const m = new Map<number | null, BoardItem[]>();
     for (const it of board.items) {
@@ -296,6 +397,8 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
           <button onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
         </div>
       </div>
+
+      {linkedRequest && <RequestReferencePanel request={linkedRequest} />}
 
       {board.items.length === 0 && board.groups.length === 0 && (
         <div className="mt-8 rounded-xl border border-dashed border-stone-300 p-10 text-center">
