@@ -627,8 +627,8 @@ dialog option:disabled{color:#b6b3ae}
   font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;cursor:pointer;
   text-transform:uppercase;letter-spacing:.3px}
 #billdlg .billcolall button:hover{text-decoration:underline}
-#billdlg .billcols{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;
-  margin:6px 0 4px;max-height:220px;overflow-y:auto;padding-right:2px}
+#billdlg .billcols{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;
+  gap:2px 10px;margin:6px 0 4px;max-height:220px;overflow-y:auto;padding-right:2px}
 #billdlg .billcols label{display:flex;align-items:center;gap:7px;padding:4px 2px;
   font-size:12.5px;cursor:pointer;border-radius:5px}
 #billdlg .billcols label:hover{background:var(--brand-soft)}
@@ -4869,6 +4869,10 @@ function pick(group, val, key){
 // stays correct without a second place to remember to update.
 function drawBillCols(){
   const box=document.getElementById('billcols');
+  // Column-major (fill the left column top-to-bottom, then the right), not
+  // row-major -- an explicit row count is what makes grid-auto-flow:column
+  // wrap there instead of at whatever the container's height allows.
+  box.style.gridTemplateRows = `repeat(${Math.ceil(BILL_COLUMNS.length/2)}, auto)`;
   box.innerHTML = BILL_COLUMNS.map(c=>{
     const on = billCols.has(c.key);
     return `<label class="${on?'':'off'}"><input type="checkbox" data-col="${c.key}"${on?' checked':''}>`
