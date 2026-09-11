@@ -567,6 +567,9 @@ dialog option:disabled{color:#b6b3ae}
 #newdatedlg input[type=date]{width:100%;padding:9px 10px;border-radius:8px;
   border:1.5px solid var(--line);font-family:'Montserrat',sans-serif;font-size:13px}
 #newdatedlg .ndhint{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
+#newdatedlg .ndtraining{display:flex;align-items:center;gap:7px;font-size:12.5px;
+  color:var(--ink);margin-top:10px;cursor:pointer}
+#newdatedlg .ndtraining input{margin:0}
 #newdatedlg .nderr{font-size:12px;color:var(--bad-ink);margin-top:8px;font-weight:600;display:none}
 #newdatedlg .ndadded{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 #newdatedlg .ndadded b{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
@@ -602,7 +605,7 @@ dialog option:disabled{color:#b6b3ae}
   background:#fff;color:var(--ink);font-family:'Montserrat',sans-serif;font-weight:700;
   font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .12s}
 #billexportbtn:hover{background:var(--brand-soft)}
-#billdlg{max-width:360px}
+#billdlg{max-width:420px}
 #billdlg .billscope{display:flex;flex-direction:column;gap:8px;margin:14px 0}
 #billdlg .billscope button{padding:10px 14px;border-radius:8px;border:1.5px solid var(--line);
   background:#fff;color:var(--ink);font-family:'Montserrat',sans-serif;font-weight:600;
@@ -618,6 +621,19 @@ dialog option:disabled{color:#b6b3ae}
 #billdlg .billfmt button.sel{border-color:var(--brand);border-width:2px;
   background:var(--brand-soft);box-shadow:inset 0 0 0 1px var(--brand-soft)}
 #billdlg .billfmt button.sel small{color:var(--brand)}
+#billdlg .nclabel{display:flex;align-items:center;justify-content:space-between}
+#billdlg .billcolall{display:flex;gap:10px}
+#billdlg .billcolall button{border:none;background:none;padding:0;color:var(--brand);
+  font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.3px}
+#billdlg .billcolall button:hover{text-decoration:underline}
+#billdlg .billcols{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;
+  margin:6px 0 4px;max-height:220px;overflow-y:auto;padding-right:2px}
+#billdlg .billcols label{display:flex;align-items:center;gap:7px;padding:4px 2px;
+  font-size:12.5px;cursor:pointer;border-radius:5px}
+#billdlg .billcols label:hover{background:var(--brand-soft)}
+#billdlg .billcols input{margin:0;accent-color:var(--brand)}
+#billdlg .billcols label.off{color:var(--mut)}
 /* ---- season picker + archive (read-only) mode ---- */
 .seasonpick{align-self:center;padding:7px 10px;border-radius:8px;
   border:1.5px solid var(--line);background:#fff;color:var(--ink);
@@ -914,6 +930,10 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .asgunavail{color:var(--warn-ink);font-size:9.5px;font-weight:800;white-space:nowrap}
 #stfdlg{max-width:430px}
 .asgneed{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
+.asgready{display:block;width:100%;margin:0 0 10px;padding:7px 10px;border-radius:8px;
+  border:1.5px solid var(--brand);background:none;color:var(--brand);font-weight:600;
+  font-size:12px;cursor:pointer}
+.asgready:hover{background:var(--brand);color:#fff}
 .asglist{max-height:44vh;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .asgrow{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:7px;font-size:12.5px;
   cursor:pointer;border:1px solid transparent}
@@ -1184,6 +1204,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 <dialog id="stfdlg">
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
+  <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div class="asglist" id="stflist"></div>
   <div class="btns"><button onclick="stfdlg.close()">Done</button></div>
 </dialog>
@@ -1234,6 +1255,8 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
     until you move someone there.</p>
   <label class="nclabel">Date</label>
   <input id="nddate" type="date" min="__SPAN_START__" max="__SPAN_END__">
+  <label class="ndtraining"><input type="checkbox" id="ndtrain"> Training day &mdash;
+    no client stops, just a shift to staff</label>
   <div id="nderr" class="nderr"></div>
   <div id="ndadded" class="ndadded"></div>
   <div class="btns"><button onclick="newdatedlg.close()">Cancel</button>
@@ -1276,6 +1299,11 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
     <button data-fmt="csv">CSV<small>.csv</small></button>
     <button data-fmt="pdf">PDF<small>print</small></button>
   </div>
+  <label class="nclabel">Columns
+    <span class="billcolall"><button type="button" id="billcolsall">all</button
+    ><button type="button" id="billcolsnone">none</button></span>
+  </label>
+  <div class="billcols" id="billcols"></div>
   <div class="btns"><button onclick="billdlg.close()">Cancel</button>
   <button class="go" id="billgo">Download</button></div>
 </dialog>
@@ -1408,7 +1436,14 @@ function extendMatrix(lat, lon, outRow, inCol){
 }
 // Synthetic rows live well above any real spreadsheet row so they can
 // never collide with one, now or after a future spreadsheet regeneration.
-let nextSyntheticRow = 900001 + Object.keys(C).filter(r=>C[r].synthetic).length;
+// Counted from the highest synthetic row already present, not from how many
+// carry the `synthetic` flag: a client the notebook baked into this build
+// (schedule.py's new_clients) sits at 900001+ WITHOUT that flag, and
+// counting flags alone handed the next in-tool client the same row -- a
+// collision the restore path then silently skips (the client is saved in
+// shared state but never appears).
+let nextSyntheticRow = Object.keys(C).map(Number)
+  .filter(r=>r>=900000).reduce((m,r)=>Math.max(m,r+1), 900001);
 /** Register a client row from already-known data -- restoring saved state
  * (outRow/inCol were captured once at creation and persisted, so this
  * never re-fetches) or as the final step after a live creation fetch.
@@ -1518,6 +1553,28 @@ function activeCalendar(){
 function normDates(list){
   const ok = new Set(SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date));
   return new Set((Array.isArray(list)?list:[]).filter(d=>ok.has(d)));
+}
+// Dates that are a training day, not an install day -- staff still want to
+// staff them (assign a crew, see coverage), but there are never client stops
+// on one. Kept as its own set (rather than a flag on the crew-day, which
+// applyPlacement rebuilds from scratch every load) so materializeTrainingDays
+// can recreate the empty card after every restore.
+let trainingDays = new Set();
+function normTrainingDays(list){
+  return new Set((Array.isArray(list)?list:[]).filter(d=>typeof d==='string' && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+}
+/** Training days have no client stops, so applyPlacement's stops-based
+ *  rebuild never recreates their card on its own -- do that here, right
+ *  after every applyPlacement() call. Idempotent: skips a date that already
+ *  has a card (e.g. a stop was placed on it since). */
+function materializeTrainingDays(){
+  trainingDays.forEach(date=>{
+    const id = date+'|Training';
+    if(days.some(d=>d.id===id)) return;
+    const ci = SPEC.calendar.find(x=>x.date===date);
+    days.push(hydrate({id, date, crew:'Training', dow:(ci||{}).dow||'',
+                        stops:[], geom:null, mi:null, legMi:null, training:true}));
+  });
 }
 // Clients staff took out of the season by dropping them on the trailing
 // "Not installing" bubble (user, 2026-08-31). Distinct from
@@ -1645,6 +1702,7 @@ function crewOptions(){ return [...new Set(days.map(d=>d.crew))].sort(); }
  *  count on a day changes. */
 function crewLabel(d){
   if(!d || !d.crew) return '';
+  if(d.training) return 'Training';
   const onDate = [...new Set(days.filter(x=>x.date===d.date).map(x=>x.crew))].sort();
   const i = onDate.indexOf(d.crew);
   return i < 0 ? d.crew : 'Crew ' + (i + 1);
@@ -1805,9 +1863,11 @@ try{
     // Before applyPlacement: a stop saved onto an added date needs that
     // date on the board, or its placement silently drops as unknown.
     newDates = normDates(s.newDates);
+    trainingDays = normTrainingDays(s.trainingDays);
     notInstalling = normNotInstalling(s.notInstalling);
     lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
+    materializeTrainingDays();
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
     confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
@@ -1858,7 +1918,8 @@ function snapshot(){
   });
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
-          newDates:[...newDates], notInstalling:[...notInstalling], lastScheduledFrom,
+          newDates:[...newDates], trainingDays:[...trainingDays],
+          notInstalling:[...notInstalling], lastScheduledFrom,
           notInstallingNames, notInstallingDates, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
 }
@@ -2174,7 +2235,13 @@ async function pullShared(){
       // from before a page refresh may simply not have landed yet.
       // Applying the server's older state here would silently throw away
       // a real edit -- local wins instead, and gets pushed up to match.
-      const localSaved = (JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{}).savedAt || 0;
+      // Only a local save made against THIS build can win. One made
+      // against an older build was refused at bootstrap (see the version
+      // check there), so the in-memory board is the bare baseline -- and
+      // pushing that up would overwrite the state publish_pages.py just
+      // carried across for everyone with an empty board.
+      const ls = JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{};
+      const localSaved = (ls.version === SPEC.version) ? (ls.savedAt || 0) : 0;
       const serverSaved = j.updatedAt ? new Date(j.updatedAt).getTime() : 0;
       if(localSaved > serverSaved){
         syncState = 'shared';
@@ -2183,9 +2250,11 @@ async function pullShared(){
       }
       restoreSyntheticClients(j.state.newClients);
       newDates = normDates(j.state.newDates);
+      trainingDays = normTrainingDays(j.state.trainingDays);
       notInstalling = normNotInstalling(j.state.notInstalling);
       lastScheduledFrom = normLastScheduledFrom(j.state.lastScheduledFrom);
       const missing = applyPlacement(j.state.placement);
+      materializeTrainingDays();
       moves = j.state.moves || [];
       approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
       confirmed = new Set((j.state.confirmed||[]).filter(row=>C[row]));
@@ -2327,9 +2396,11 @@ async function restoreHistoryEntry(entryId, btn){
     if(!st || !st.placement) throw new Error('empty state');
     restoreSyntheticClients(st.newClients);
     newDates = normDates(st.newDates);
+    trainingDays = normTrainingDays(st.trainingDays);
     notInstalling = normNotInstalling(st.notInstalling);
     lastScheduledFrom = normLastScheduledFrom(st.lastScheduledFrom);
     applyPlacement(st.placement);
+    materializeTrainingDays();
     moves = st.moves || [];
     approved = new Set((st.approved||[]).filter(dayId=>days.some(d=>d.id===dayId)));
     confirmed = new Set((st.confirmed||[]).filter(row=>C[row]));
@@ -2359,7 +2430,7 @@ let undoStack = [], redoStack = [];
 function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
-                         moves, newDates:[...newDates],
+                         moves, newDates:[...newDates], trainingDays:[...trainingDays],
                          notInstalling:[...notInstalling], lastScheduledFrom, roster, staffing});
 }
 function restoreBlob(blob){
@@ -2367,9 +2438,11 @@ function restoreBlob(blob){
   // Restored before applyPlacement so undoing past an added date still has
   // somewhere to put the stops that were sitting on it.
   newDates = normDates(s.newDates);
+  trainingDays = normTrainingDays(s.trainingDays);
   notInstalling = normNotInstalling(s.notInstalling);
   lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
   applyPlacement(s.placement);
+  materializeTrainingDays();
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
   manualOrder = normManualOrder(s.manualOrder);
@@ -2512,7 +2585,7 @@ function buildShifts(){
   const map=new Map();
   days.forEach(d=>{
     const k=shiftKeyOf(d);
-    if(!map.has(k)) map.set(k,{key:k, crew:d.crew, dallas:isDallasNight(d), days:[]});
+    if(!map.has(k)) map.set(k,{key:k, crew:d.crew, dallas:isDallasNight(d), training:!!d.training, days:[]});
     map.get(k).days.push(d);
   });
   const out=[...map.values()];
@@ -2572,6 +2645,9 @@ function shiftCoverage(sh){
  *  one. A stop in d.half is shared with another crew, so this crew supplies
  *  half of it -- the same rule effH() already uses for hours. */
 function dayNeed(d){
+  // A training day has no jobs to run, so it has no "needs a lead" role
+  // requirement -- whoever shows up is who shows up.
+  if(d.training) return {lead:0, assist:0, gen:0, total:0};
   let lead=0, assist=0, gen=0;
   (d.stops||[]).forEach(r=>{
     const rn=(C[r]||{}).roleNeed||{}, share=(d.half||[]).includes(r)?2:1;
@@ -2611,6 +2687,9 @@ function dayCoverage(d){
           state: !who.length ? 'none' : shortLead ? 'bad' : short ? 'short' : 'ok'};
 }
 function coverageLabel(cv){
+  // Only a training day has zero need (every real crew-day needs at least a
+  // lead) -- "needs 0" / "Staffed N/0" reads as broken, so say it plainly.
+  if(cv.need.total===0) return cv.who.length ? cv.who.length+' assigned' : 'Nobody assigned yet';
   if(cv.state==='none') return 'Unstaffed · needs '+cv.need.total;
   if(cv.shortLead){
     // "NO LEAD" only when there genuinely isn't one -- a day that needs two
@@ -3907,7 +3986,7 @@ function renderCards(){
   if(onThisDate.length>1){
     const all=document.createElement('button');
     all.className='printbtn'; all.style.cssText='margin:0 0 10px;width:100%';
-    all.textContent=`Print all ${onThisDate.length} crew sheets for ${fmtDate(selDate)}`;
+    all.textContent=`Print all ${onThisDate.length} crew sheets for ${dowOf(selDate)} ${fmtMDYYYY(selDate)}`;
     all.onclick=()=>printDate(selDate);
     side.appendChild(all);
   }
@@ -4136,9 +4215,19 @@ function removeAddedDate(date){
       +`Move ${names.length===1?'it':'them'} to another date first, then remove it.`);
     return false;
   }
+  const staffed=days.filter(d=>d.date===date && d.training && (staffing[d.id]||[]).length);
+  if(staffed.length){
+    const n=(staffing[staffed[0].id]||[]).length;
+    if(!confirm(`${dowOf(date)} ${fmtMDYYYY(date)} has ${n} `
+        +`${n===1?'person':'people'} assigned to its training shift. `
+        +`Remove the date and drop that staffing?`))
+      return false;
+  }
   pushUndo();
   newDates.delete(date);
+  trainingDays.delete(date);
   // Drop the empty crew-day card that was sitting on it, if any.
+  days.filter(d=>d.date===date).forEach(d=>{ delete staffing[d.id]; });
   days = days.filter(d=>!(d.date===date && !d.stops.length));
   if(selDate===date) selDate=(days.map(d=>d.date).sort()[0])||allDates()[0];
   persist(); render();
@@ -4149,7 +4238,7 @@ function renderAddedDates(){
   const list=[...newDates].sort();
   if(!list.length){ box.innerHTML=''; return; }
   box.innerHTML='<b>Added</b><br>'+list.map(d=>
-    `<span class="ndchip">${dowOf(d)} ${fmtMDYYYY(d)}`
+    `<span class="ndchip">${dowOf(d)} ${fmtMDYYYY(d)}${trainingDays.has(d)?' · training':''}`
     +`<button data-rm="${d}" title="Remove">&times;</button></span>`
   ).join('');
   box.querySelectorAll('[data-rm]').forEach(b=>{
@@ -4159,10 +4248,44 @@ function renderAddedDates(){
 document.getElementById('newdatebtn').onclick=()=>{
   if(roBlocked()) return;
   document.getElementById('nddate').value='';
+  document.getElementById('ndtrain').checked=false;
   const err=document.getElementById('nderr'); err.style.display='none'; err.textContent='';
   renderAddedDates();
   newdatedlg.showModal();
 };
+/** Turn an added date into a training day: a real, persistent crew-day card
+ *  with no client stops, so it shows up in Staffing and can be assigned like
+ *  any other shift. Idempotent -- re-checking the box on an already-training
+ *  date is a no-op. */
+function addTrainingDay(date){
+  if(trainingDays.has(date)) return;
+  pushUndo();
+  trainingDays.add(date);
+  materializeTrainingDays();
+  persist();
+}
+/** Every roster person who's given real availability (at least one date) and
+ *  a phone number to reach them -- what this tool already calls "Ready to
+ *  schedule" in the roster sort. Used to bulk-staff a training day where the
+ *  ask is "everyone who's responded", not a hand-picked crew. */
+function readyRoster(){
+  return roster.filter(p=>p.active && (p.dates||[]).length>0 && String(p.phone||'').trim()!=='');
+}
+/** Assign every "ready to schedule" person to a shift in one go -- writes
+ *  every day in the shift, same all-or-nothing rule as every other staffing
+ *  path here. */
+function assignReadyRosterToShift(sh){
+  if(roBlocked()) return;
+  const ids=readyRoster().map(p=>p.id);
+  if(!ids.length) return;
+  pushUndo();
+  sh.days.forEach(x=>{
+    const cur=new Set(staffing[x.id]||[]);
+    ids.forEach(id=>cur.add(id));
+    staffing[x.id]=[...cur];
+  });
+  persist();
+}
 /** Shared by the "+ New date" dialog and the January takedown quick-pick:
  * validate a candidate date, add it, and select it. Returns {ok:true} or
  * {ok:false, msg}. */
@@ -4189,9 +4312,11 @@ document.getElementById('ndgo').onclick=()=>{
   const err=document.getElementById('nderr');
   const result=addDate(v);
   if(!result.ok){ err.textContent=result.msg; err.style.display='block'; return; }
+  if(document.getElementById('ndtrain').checked) addTrainingDay(v);
   renderAddedDates();
   err.style.display='none';
   document.getElementById('nddate').value='';
+  document.getElementById('ndtrain').checked=false;
 };
 
 document.getElementById('newclientbtn').onclick=()=>{
@@ -4431,6 +4556,19 @@ function addrParts(c){
  * guessed at; a 2025 invoice smaller than the storage owed is a data gap,
  * not a $0 job, so it goes to manual review instead of a negative. */
 const UPLIFT = 1.05;
+// Storage is boxes x this rate, flat -- NOT uplifted (user, 2026-09-08: "$75
+// that's still the right rate don't add the 5% to the boxes"). This was
+// already the DOCUMENTED formula above; the code just never actually read
+// box count -- it read c.storageFee, this season's own "STORAGE FEE (BASED
+// ON # OF BOXES)" column, which is a broken formula returning 0 for
+// effectively every row (same failure mode as install/takedown labor fee,
+// just failing to 0 instead of #VALUE!). boxCount() is what actually
+// implements the formula the comment always claimed.
+const BOX_STORAGE_RATE = 75;
+function boxCount(c){
+  const n = +c.boxes;
+  return Number.isFinite(n) && n>0 ? n : 0;
+}
 /** 2026 price for one client, in preference order:
  *   1. M Crowd -- contract, billed outside this sheet entirely.
  *   2. Carlton Woods and Woodlands CC -- negotiated per club, left blank on
@@ -4438,17 +4576,20 @@ const UPLIFT = 1.05;
  *      by the "Country Club" category: Royal Oaks is also a country club but
  *      has a real 2025 invoice, and blanketing the category silently dropped
  *      it from the priced list.
- *   3. A real 2025 invoice -> that +5%. Storage carries over flat, and the
- *      remainder splits evenly between install and takedown because the
- *      2025 sheet's own takedown formula is literally "=install".
+ *   3. A real 2025 invoice -> that +5%. Storage is boxes x $75 flat (no
+ *      uplift), and the remainder (invoice minus that storage) splits evenly
+ *      between install and takedown because the 2025 sheet's own takedown
+ *      formula is literally "=install".
  *   4. Didn't install with us in 2025 -> they forfeit the historical
  *      preferred rate and slide up to the IDEAL TOTAL (crew x rate x hours
  *      off the 2026 rate card). This is the pricing policy, not a fallback
  *      guess (user, 2026-08-17). No +5% on top: that rate card is already
  *      2026 pricing, so an uplift would double-count the increase.
- *   5. Nothing to work from -> blank, flagged for manual pricing. */
+ *   5. Nothing to price install/takedown from, but box count is known ->
+ *      storage alone, install/takedown left for manual pricing.
+ *   6. Nothing to work from at all -> blank, flagged for manual pricing. */
 function price2026(c){
-  const S = typeof c.storageFee==='number' ? c.storageFee : 0;
+  const S = boxCount(c) * BOX_STORAGE_RATE;
   const R = c.invoice25;
   // A donated install is $0 on purpose -- it must read as free, never as
   // "we forgot to price this".
@@ -4460,7 +4601,7 @@ function price2026(c){
     if(R - S < 0)           return {basis:'MANUAL — __SEASON_PREV__ invoice below storage owed', stor:S};
     const inst = Math.round(((R - S) / 2) * UPLIFT * 100) / 100;
     return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
-            basis:'__SEASON_PREV__ invoice +5% (storage flat)'};
+            basis:'__SEASON_PREV__ invoice +5% (storage: boxes × $75, no uplift)'};
   }
   if(typeof c.installFee==='number'){
     const inst = c.installFee;
@@ -4468,9 +4609,48 @@ function price2026(c){
     return {inst, tdwn, stor:S, total:Math.round((inst + tdwn + S)*100)/100,
             basis:'IDEAL TOTAL — no __SEASON_PREV__ install, preferred rate not carried forward'};
   }
+  if(S)                     return {stor:S, basis:'MANUAL — storage known (boxes × $75), install/takedown need manual pricing'};
   return {basis:'MANUAL — no __SEASON_PREV__ invoice and no rate-card estimate'};
 }
-function buildBillingRows(scope){
+// One entry per exportable column: `get` reads it off a client/date/price
+// bundle, `money` marks it for currency formatting + column totals. Order
+// here is the order columns appear in, left to right, when all are on.
+const BILL_COLUMNS = [
+  {key:'name',    label:'Client name',                 width:30, get:x=>x.c.name},
+  {key:'billto',  label:'Bill-to name/company',        width:30, get:x=>x.c.name},
+  {key:'phone',   label:'PHONE',                       width:26, get:x=>x.c.phone || ''},
+  {key:'email',   label:'EMAIL',                       width:26, get:x=>x.c.email || ''},
+  {key:'address', label:'ADDRESS',                     width:26, get:x=>x.a.street},
+  {key:'city',    label:'CITY',                        width:16, get:x=>x.a.city},
+  {key:'st',      label:'ST',                          width:16, get:x=>x.a.st},
+  {key:'zip',     label:'ZIP',                         width:16, get:x=>x.a.zip},
+  {key:'date',    label:'Install date',                width:16, get:x=>fmtMDYYYY(x.date)},
+  {key:'inst',    label:'__SEASON__ install price',    width:14, money:true, get:x=>x.p.inst ?? ''},
+  {key:'tdwn',    label:'__SEASON__ takedown price',   width:14, money:true, get:x=>x.p.tdwn ?? ''},
+  {key:'stor',    label:'__SEASON__ storage price',    width:14, money:true, get:x=>x.p.stor ?? ''},
+  {key:'total',   label:'__SEASON__ TOTAL invoice',    width:14, money:true, get:x=>x.p.total ?? '', isTotal:true},
+  {key:'prev',    label:'__SEASON_PREV__ total invoice (actual)', width:14, money:true, get:x=>x.c.invoice25 ?? ''},
+  {key:'basis',   label:'Pricing basis',               width:34, get:x=>x.p.basis},
+  {key:'notes',   label:'Repairs & install notes',     width:34, get:x=>x.c.repairNotes || ''},
+  {key:'billnotes', label:'Billing notes',             width:34, get:x=>''},
+];
+const BILL_COLS_KEY = 'tbdg__SEASON__billcols';
+function normBillCols(list){
+  const known = new Set(BILL_COLUMNS.map(c=>c.key));
+  const kept = Array.isArray(list) ? list.filter(k=>known.has(k)) : null;
+  return (kept && kept.length) ? new Set(kept) : new Set(BILL_COLUMNS.map(c=>c.key));
+}
+let billCols = normBillCols((()=>{
+  try{ return JSON.parse(localStorage.getItem(BILL_COLS_KEY)||'null'); }catch(e){ return null; }
+})());
+function saveBillCols(){
+  try{ localStorage.setItem(BILL_COLS_KEY, JSON.stringify([...billCols])); }catch(e){}
+}
+// scope narrows WHO is on the sheet; cols narrows WHICH fields are on it --
+// independent choices, so a re-run with fewer columns still lists the same
+// people in the same order.
+function buildBillingRows(scope, cols){
+  const active = BILL_COLUMNS.filter(c=>(cols||billCols).has(c.key));
   const scopedDays = scope==='houston' ? days.filter(d=>d.cat!=='M Crowd')
                     : scope==='dallas'  ? days.filter(d=>d.cat==='M Crowd')
                     : days;
@@ -4479,39 +4659,29 @@ function buildBillingRows(scope){
   // like two separate charges.
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
-  // Last season's total sits immediately right of this season's so the
-  // year-over-year comparison is a single glance, with the basis after it.
-  // PHONE/EMAIL sit right next to the mailing address -- a crew or office
-  // call needs both together, not address alone (user, 2026-08-28).
-  const rows = [['Client name','Bill-to name/company','PHONE','EMAIL','ADDRESS','CITY','ST','ZIP','Install date',
-    '__SEASON__ install price','__SEASON__ takedown price','__SEASON__ storage price','__SEASON__ TOTAL invoice',
-    '__SEASON_PREV__ total invoice (actual)','Pricing basis',
-    'Repairs & install notes','Billing notes']];
+  const rows = [active.map(c=>c.label)];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
       const c = C[r], a = addrParts(c), p = price2026(c);
-      rows.push([
-        c.name, c.name, c.phone || '', c.email || '', a.street, a.city, a.st, a.zip, fmtMDYYYY(date),
-        p.inst ?? '', p.tdwn ?? '', p.stor ?? '', p.total ?? '',
-        c.invoice25 ?? '', p.basis,
-        c.repairNotes || '', '',
-      ]);
+      const x = {c, a, p, date};
+      rows.push(active.map(col=>col.get(x)));
     });
   // Footer: column totals, blank-separated so a spreadsheet's own SUM over
   // the data range doesn't swallow the total row. Only the money columns
   // add up; the rest stay blank rather than showing a meaningless count.
-  const MONEY=[9,10,11,12,13];
+  const MONEY = active.map((c,i)=>c.money?i:-1).filter(i=>i>=0);
+  const totalIx = active.findIndex(c=>c.isTotal);
   const body=rows.slice(1);
   const sums={};
   MONEY.forEach(i=>{ sums[i]=body.reduce((s,r)=>s+(typeof r[i]==='number'?r[i]:0),0); });
-  const priced=body.filter(r=>typeof r[12]==='number').length;
+  const priced = totalIx<0 ? 0 : body.filter(r=>typeof r[totalIx]==='number').length;
   const foot=rows[0].map(()=>'');
   foot[0]=`TOTAL — ${body.length} clients (${priced} priced)`;
   MONEY.forEach(i=>{ foot[i]=Math.round(sums[i]*100)/100; });
   rows.push(rows[0].map(()=>''));   // spacer
   rows.push(foot);
-  return rows;
+  return {rows, MONEY, widths:active.map(c=>c.width||16)};
 }
 
 // ---------- export writers (CSV / real .xlsx / print-to-PDF) ----------
@@ -4551,7 +4721,7 @@ function zipFile(files){
 function colLetter(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26;}return s;}
 function xesc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/\x00-\x08|\x0B|\x0C|\x0E-\x1F/g,'');}
-function rowsToXlsx(rows, moneyCols, sheetName){
+function rowsToXlsx(rows, moneyCols, sheetName, colWidths){
   const money=new Set(moneyCols);
   const body=rows.map((r,ri)=>{
     const cells=r.map((v,ci)=>{
@@ -4566,7 +4736,7 @@ function rowsToXlsx(rows, moneyCols, sheetName){
     return `<row r="${ri+1}">${cells}</row>`;
   }).join('');
   const widths=rows[0].map((h,i)=>
-    `<col min="${i+1}" max="${i+1}" width="${money.has(i)?14:(i===0||i===1?30:(i===2?26:(i>=13?34:12)))}" customWidth="1"/>`).join('');
+    `<col min="${i+1}" max="${i+1}" width="${(colWidths&&colWidths[i])||12}" customWidth="1"/>`).join('');
   const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
     +`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
     +`<sheetViews><sheetView workbookViewId="0" tabSelected="1">`
@@ -4626,7 +4796,7 @@ function openPrintView(rows, moneyCols, title){
       ? (money.has(ci) ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : v)
       : (v==null?'':v);
   const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const head=rows[0].map(h=>`<th>${esc(h)}</th>`).join('');
+  const head=rows[0].map((h,ci)=>`<th class="${money.has(ci)?'num':''}">${esc(h)}</th>`).join('');
   const body=rows.slice(1).map(r=>{
     const blank=r.every(c=>c==='');
     if(blank) return '';
@@ -4645,7 +4815,7 @@ function openPrintView(rows, moneyCols, title){
     table{border-collapse:collapse;width:100%}
     th,td{border:1px solid #ccd;padding:3px 5px;text-align:left;vertical-align:top}
     th{background:#e8efe9;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.2px}
-    td.num,th:nth-child(n+8):nth-child(-n+12){text-align:right;white-space:nowrap}
+    td.num,th.num{text-align:right;white-space:nowrap}
     tr.tot td{font-weight:800;border-top:2px solid #333;background:#f4f6f4}
     thead{display:table-header-group}
     tr{break-inside:avoid}
@@ -4658,8 +4828,7 @@ function openPrintView(rows, moneyCols, title){
   w.document.close();
 }
 function runExport(scope, fmt){
-  const rows = buildBillingRows(scope);
-  const MONEY=[9,10,11,12,13];
+  const {rows, MONEY, widths} = buildBillingRows(scope);
   const label = scope==='houston' ? 'Houston' : scope==='dallas' ? 'Dallas' : 'All clients';
   const base = `TBDG __SEASON__ install billing — ${label}`;
   const file = `tbdg-__SEASON__-billing-${scope}`;
@@ -4668,7 +4837,7 @@ function runExport(scope, fmt){
   } else if(fmt==='pdf'){
     openPrintView(rows, MONEY, base);
   } else {
-    const blob=rowsToXlsx(rows, MONEY, label);
+    const blob=rowsToXlsx(rows, MONEY, label, widths);
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob); a.download=`${file}.xlsx`; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
@@ -4684,7 +4853,9 @@ const SCOPE_LABEL={all:'everyone',houston:'Houston',dallas:'Dallas'};
 const FMT_LABEL={xlsx:'Excel',csv:'CSV',pdf:'PDF'};
 function syncBillBtn(){
   const go=document.getElementById('billgo');
-  go.textContent = billFmt==='pdf'
+  go.disabled = billCols.size===0;
+  go.textContent = billCols.size===0 ? 'Pick at least one column'
+    : billFmt==='pdf'
     ? `Open PDF — ${SCOPE_LABEL[billScope]}`
     : `Download ${FMT_LABEL[billFmt]} — ${SCOPE_LABEL[billScope]}`;
 }
@@ -4693,18 +4864,45 @@ function pick(group, val, key){
     x.classList.toggle('sel', x.dataset[key]===val));
   syncBillBtn();
 }
+// Rebuilt each time the dialog opens, not left static -- a season rollover
+// or template change could someday reorder/rename BILL_COLUMNS, and this
+// stays correct without a second place to remember to update.
+function drawBillCols(){
+  const box=document.getElementById('billcols');
+  box.innerHTML = BILL_COLUMNS.map(c=>{
+    const on = billCols.has(c.key);
+    return `<label class="${on?'':'off'}"><input type="checkbox" data-col="${c.key}"${on?' checked':''}>`
+      + `${esc(c.label)}</label>`;
+  }).join('');
+  box.querySelectorAll('input[data-col]').forEach(cb=>{
+    cb.onchange=()=>{
+      cb.checked ? billCols.add(cb.dataset.col) : billCols.delete(cb.dataset.col);
+      cb.closest('label').classList.toggle('off', !cb.checked);
+      saveBillCols(); syncBillBtn();
+    };
+  });
+}
 document.getElementById('viewdays').onclick = ()=> setView('days');
 document.getElementById('viewcal').onclick  = ()=> setView('cal');
 document.getElementById('viewstaff').onclick= ()=>{ staffTab='shifts'; setView('staff'); };
 document.getElementById('viewroster').onclick=()=>{ staffTab='roster'; setView('staff'); };
-document.getElementById('billexportbtn').onclick = ()=>{ syncBillBtn(); billdlg.showModal(); };
+document.getElementById('billexportbtn').onclick = ()=>{ drawBillCols(); syncBillBtn(); billdlg.showModal(); };
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
   b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
 });
 billdlg.querySelectorAll('.billfmt button').forEach(b=>{
   b.onclick = ()=>{ billFmt=b.dataset.fmt; pick('.billfmt', billFmt, 'fmt'); };
 });
-document.getElementById('billgo').onclick = ()=>{ runExport(billScope, billFmt); billdlg.close(); };
+document.getElementById('billcolsall').onclick = ()=>{
+  billCols = new Set(BILL_COLUMNS.map(c=>c.key)); saveBillCols(); drawBillCols(); syncBillBtn();
+};
+document.getElementById('billcolsnone').onclick = ()=>{
+  billCols = new Set(); saveBillCols(); drawBillCols(); syncBillBtn();
+};
+document.getElementById('billgo').onclick = ()=>{
+  if(!billCols.size) return;
+  runExport(billScope, billFmt); billdlg.close();
+};
 // Back-compat for anything still calling the old name.
 function exportBilling(scope){ runExport(scope||'all','csv'); }
 function resetAll(){ if(roBlocked()) return;
@@ -5782,8 +5980,10 @@ function drawStaffDlg(){
   const sh=shiftFor(stfKey); if(!sh) return;
   const d=sh.days[0];
   const cv=shiftCoverage(sh), on=shiftAssigned(sh);
-  document.getElementById('stfneed').innerHTML =
-    `Needs <b>${cv.need.lead} lead</b>${cv.need.assist?` · ${cv.need.assist} assist`:''}`
+  document.getElementById('stfneed').innerHTML = sh.training
+    ? `Training day — no jobs, no fixed headcount. Add whoever's attending.`
+    + (cv.who.length?` <b>${cv.who.length}</b> assigned so far.`:'')
+    : `Needs <b>${cv.need.lead} lead</b>${cv.need.assist?` · ${cv.need.assist} assist`:''}`
     + `${cv.need.gen?` · ${cv.need.gen} general`:''} — <b>${cv.need.total} on site</b>. `
     + `<span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span><br>`
     + (sh.dallas
@@ -5791,6 +5991,12 @@ function drawStaffDlg(){
           + `${sh.days.length} nights.`
         : `Whole day — all ${sh.stops} job${sh.stops===1?'':'s'}, `
           + `${sh.hours.toFixed(1)}h. No half days.`);
+  const readyBtn=document.getElementById('stfready');
+  readyBtn.onclick=()=>{
+    assignReadyRosterToShift(sh);
+    drawStaffDlg();
+    render();
+  };
   const avail=roster.filter(p=>p.active||on.has(p.id));
   let h='';
   if(!avail.length) h='<div class="stfnone">No installers on the roster yet — '
