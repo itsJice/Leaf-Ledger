@@ -89,6 +89,12 @@ td.g{color:var(--muted);font-family:var(--mono);font-size:12px}
 .files li{break-inside:avoid;padding:6px 0;border-bottom:1px solid var(--rule);font-size:14px}
 .files code{display:block;color:var(--green);font-size:12.5px}
 @media (max-width:720px){.files{columns:1}}
+.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.status-col{border:1px solid var(--rule);border-radius:6px;background:var(--surface);padding:14px 18px}
+.status-col h3{font-family:var(--head);font-size:15px;font-weight:600;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;text-wrap:balance}
+.status-col ul{margin:0;padding-left:18px;font-size:14.5px}
+.status-col li{margin:5px 0}
+.status-col code{font-size:.84em}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -98,6 +104,7 @@ td.g{color:var(--muted);font-family:var(--mono);font-size:12px}
   <h1>Leaf &amp; Ledger</h1>
   <p>How the catalog-and-projects app for The Branch Design Group fits together: the four folders that make one product, the single deployed service, what runs on a laptop and never ships, and how a supplier's product row travels from a website into a client's purchase order.</p>
   <nav class="toc" aria-label="Figures">
+    <a href="#status">Status</a>
     <a href="#f1">1 · Whole system</a>
     <a href="#f2">2 · One request</a>
     <a href="#f3">3 · Catalog flow</a>
@@ -107,6 +114,33 @@ td.g{color:var(--muted);font-family:var(--mono);font-size:12px}
     <a href="#files">Where to look</a>
   </nav>
 </header>
+
+<!-- ============================================================ STATUS -->
+<section id="status">
+  <h2><span class="num">STATUS</span>How current this map is</h2>
+  <p>Verified against <code>main</code> at a4e4445 on 2026-09-14. Every file the map names exists on main, and the extraction scripts exist in the catalog-extraction repo. The refactor work in progress, <code>refactor/2026-09</code> and the follow-up <code>fix/test-findings</code> branch, was checked too; it is not on main yet.</p>
+  <div class="status-grid">
+    <div class="status-col">
+      <h3><span class="pill dep">holds</span>Still true after the refactor lands</h3>
+      <ul>
+        <li>19 API routers, 22 page files and 5 in-app supplier scrapers.</li>
+        <li>Every API router sits behind sign-in, and FastAPI still serves the built frontend.</li>
+        <li>All sidebar tabs and routes are unchanged.</li>
+        <li>The page-to-router callers in the lookup table are unchanged.</li>
+        <li><code>ll_app</code> tables are still created by their own routers at runtime.</li>
+        <li>The findings load still goes through <code>findings_intake.py</code>, and mockups still use DALL·E 3.</li>
+      </ul>
+    </div>
+    <div class="status-col">
+      <h3><span class="pill loc">refresh</span>Will go stale when it lands</h3>
+      <ul>
+        <li><b>Line counts.</b> <code>Library.tsx</code> drops from 3094 to 346 and <code>Arrangements.tsx</code> from 6513 to 3916, with the rest moved into new <code>pages/library/</code> and <code>pages/arrangements/</code> folders. <code>Settings.tsx</code> drops from 1430 to 1306.</li>
+        <li><b>Continuous integration.</b> A scheduler test job is added next to the backend and frontend checks.</li>
+        <li><b>Install schedule notebook, Fig 5.</b> <code>sync_notebook.py</code> is added. It rebuilds <code>overrides.json</code> from the live board before a rerun, alongside the manual Export notebook button.</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
 <!-- ============================================================ FIGURE 1 -->
 <section id="f1">
@@ -517,7 +551,7 @@ td.g{color:var(--muted);font-family:var(--mono);font-size:12px}
       <tr><td>Catalog Search</td><td class="c">/search</td><td class="c">CatalogSearch.tsx (897) · Library.tsx (3094, shared modals)</td><td class="c">products (2624)</td><td class="g">products, product_facets, search_vocab, product_favorites</td></tr>
       <tr><td>Suppliers</td><td class="c">/suppliers</td><td class="c">Suppliers.tsx (826)</td><td class="c">suppliers (1359) · scraper (3906)</td><td class="g">suppliers, supplier_catalog_filters, scrape_jobs, scrape_sync_logs</td></tr>
       <tr><td>Purchase Orders</td><td class="c">/orders</td><td class="c">Orders.tsx (299)</td><td class="c">orders (404) + export.py</td><td class="g">ll_app.orders, order_items</td></tr>
-      <tr><td>Install Schedule</td><td class="c">/install-schedule</td><td class="c">InstallSchedule.tsx</td><td class="c">install_schedule (654)</td><td class="g">ll_app.install_schedule_pages, _state, _history</td></tr>
+      <tr><td>Install Schedule</td><td class="c">/install-schedule</td><td class="c">InstallSchedule.tsx (105)</td><td class="c">install_schedule (654)</td><td class="g">ll_app.install_schedule_pages, _state, _history</td></tr>
       <tr><td>Favorites</td><td class="c">/favorites</td><td class="c">Favorites.tsx (187)</td><td class="c">products</td><td class="g">product_favorites</td></tr>
       <tr><td>Invoices</td><td class="c">/invoice</td><td class="c">Invoice.tsx (205)</td><td class="c">arrangements · settings</td><td class="g">arrangements, container_items, markup_settings</td></tr>
       <tr><td>Comments</td><td class="c">/comments</td><td class="c">Comments.tsx (214) · FeedbackWidget.tsx</td><td class="c">feedback (208)</td><td class="g">ll_app.feature_requests</td></tr>
