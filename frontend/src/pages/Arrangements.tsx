@@ -31,7 +31,9 @@ import { ContentType } from "../apiclient/http-client";
 import { formatCurrency, unitLabel } from "utils/format";
 import { toast } from "sonner";
 import { notifyProjectsChanged } from "utils/projectsChanged";
-import { ProductDetailModal, productDisplayImageUrl, type Product as LibraryProduct } from "./Library";
+import { ProductDetailModal } from "./library/ProductDetailModal";
+import { productDisplayImageUrl } from "./library/display";
+import type { Product as LibraryProduct } from "./library/types";
 import type {
   ItemStatus,
   Container,

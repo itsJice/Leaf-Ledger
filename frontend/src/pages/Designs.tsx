@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import Layout from "components/Layout";
-import { ProxiedImage } from "./Library";
+import { ProxiedImage } from "./library/ProxiedImage";
 import { formatCurrency } from "utils/format";
 import {
   Design,
