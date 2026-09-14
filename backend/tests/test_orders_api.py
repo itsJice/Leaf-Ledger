@@ -1,7 +1,7 @@
 """Characterisation tests for the shared purchase-order API (`app.apis.orders`).
 
-Pins today's behaviour, including the `_money` / `_esc` helpers that are
-duplicated in `jobs/export.py` and `orders/export.py`.
+Pins the API's behaviour, including the `_money` / `_esc` helpers that
+`jobs/export.py` and `orders/export.py` both import from `app.libs.export_format`.
 """
 
 import asyncio
@@ -168,13 +168,22 @@ def test_add_item_upserts_with_snapshot_and_clamped_qty(fake_db):
     assert [a for _, a in fake_db.calls("UPDATE ll_app.orders SET updated_at")] == [(60,)]
 
 
-def test_update_item_zero_qty_deletes_then_still_touches(fake_db):
+def test_update_item_zero_qty_deletes_and_stops(fake_db):
     fake_db.on_fetchrow("SELECT order_id FROM ll_app.order_items WHERE id = $1", {"order_id": 60})
-    run(orders.update_item(5, orders.UpdateItem(quantity=0, variant_note="x")))
+    assert run(orders.update_item(5, orders.UpdateItem(quantity=0, variant_note="x"))) == {"ok": True}
     assert fake_db.executed[1] == ("SELECT order_id FROM ll_app.order_items WHERE id = $1", (5,))
     assert fake_db.executed[2:] == [
         ("DELETE FROM ll_app.order_items WHERE id = $1", (5,)),
-        # the variant_note UPDATE still runs against the row it just deleted
+        ("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", (60,)),
+    ]
+    assert not fake_db.seen("UPDATE ll_app.order_items")
+
+
+def test_update_item_qty_and_note(fake_db):
+    fake_db.on_fetchrow("SELECT order_id FROM ll_app.order_items WHERE id = $1", {"order_id": 60})
+    assert run(orders.update_item(5, orders.UpdateItem(quantity=4, variant_note="x"))) == {"ok": True}
+    assert fake_db.executed[2:] == [
+        ("UPDATE ll_app.order_items SET quantity = $2 WHERE id = $1", (5, 4)),
         ("UPDATE ll_app.order_items SET variant_note = $2 WHERE id = $1", (5, "x")),
         ("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", (60,)),
     ]
@@ -186,9 +195,15 @@ def test_update_item_404(fake_db):
     assert exc.value.detail == "Item not found"
 
 
-def test_delete_item_is_ok_even_when_missing(fake_db):
-    assert run(orders.delete_item(5)) == {"ok": True}
+def test_delete_item_404_when_missing(fake_db):
+    with pytest.raises(HTTPException) as exc:
+        run(orders.delete_item(5))
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Item not found"
     assert not fake_db.seen("UPDATE ll_app.orders")
+
+
+def test_delete_item_touches_order(fake_db):
     fake_db.on_fetchrow("DELETE FROM ll_app.order_items", {"order_id": 60})
     assert run(orders.delete_item(5)) == {"ok": True}
     assert [a for _, a in fake_db.calls("UPDATE ll_app.orders SET updated_at")] == [(60,)]
@@ -209,8 +224,8 @@ def _outcome(fn, value):
 @pytest.mark.parametrize(
     "value,expected",
     [(0, ("ok", "$0.00")), (1234.5, ("ok", "$1,234.50")), (1234.567, ("ok", "$1,234.57")),
-     (None, ("ok", "")), ("abc", ("raises", "ValueError")), (-5, ("ok", "$-5.00")),
-     ('<a href="x">&</a>', ("raises", "ValueError"))],
+     (None, ("ok", "")), ("abc", ("ok", "")), (-5, ("ok", "$-5.00")),
+     ('<a href="x">&</a>', ("ok", "")), (Decimal("4.5"), ("ok", "$4.50"))],
 )
 def test_money(value, expected):
     assert _outcome(orders_export._money, value) == expected
@@ -228,6 +243,19 @@ def test_esc_matches_jobs_export(value):
 
 
 def test_esc_concrete_output():
-    assert orders_export._esc('Tom & "Jerry" <b>') == 'Tom &amp; "Jerry" &lt;b&gt;'
-    assert orders_export._esc(0) == ""
-    assert jobs_export._esc('Tom & "Jerry" <b>') == 'Tom &amp; "Jerry" &lt;b&gt;'
+    assert orders_export._esc('Tom & "Jerry" <b>') == "Tom &amp; &quot;Jerry&quot; &lt;b&gt;"
+    assert orders_export._esc(0) == "0"
+    assert orders_export._esc(None) == ""
+    assert jobs_export._esc('Tom & "Jerry" <b>') == "Tom &amp; &quot;Jerry&quot; &lt;b&gt;"
+
+
+def test_pdf_link_with_quotes_and_ampersands_renders():
+    # A quote in product_url used to close href="..." early; truncating after
+    # escaping could also cut an entity in half. Both break reportlab's parser.
+    url = 'http://v/p?a=1&b="x"' + "&" * 40
+    view = {"name": 'Fall "PO"', "created_at": T0, "total_cost": 0.0, "total_qty": 0,
+            "vendors": [{"supplier_name": "V & Co", "subtotal": 0.0, "subtotal_qty": 0, "items": [
+                {"name": "Cone", "sku": None, "size": None, "quantity": 0, "unit_price": None,
+                 "line_total": None, "product_url": url, "image_url": None}]}]}
+    body, media, ext = orders_export.render(view, "pdf")
+    assert (media, ext) == ("application/pdf", "pdf") and body.startswith(b"%PDF")

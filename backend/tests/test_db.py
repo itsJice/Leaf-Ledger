@@ -403,6 +403,15 @@ def test_export_format_matches_orders_and_jobs(value):
     assert _outcome(export_format.esc, value) == _outcome(jobs_export._esc, value)
 
 
+def test_export_format_concrete_values():
+    assert export_format.esc(0) == "0"
+    assert export_format.esc(None) == ""
+    assert export_format.esc('a "b" & <c>') == "a &quot;b&quot; &amp; &lt;c&gt;"
+    assert export_format.money("abc") == ""
+    assert export_format.money(None) == ""
+    assert export_format.money(0) == "$0.00"
+
+
 @pytest.mark.parametrize(
     "value",
     [None, {"a": 1}, [1], (1,), 5, b"{}", '{"a": 1}', "{nope", "", "NaN"],

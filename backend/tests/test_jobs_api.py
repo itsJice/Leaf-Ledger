@@ -1,8 +1,9 @@
 """Characterisation tests for the Jobs API (`app.apis.jobs`) and its xlsx export.
 
-Snapshot-style: every assertion pins what the code does TODAY, including the
-query shapes (N+1 loops) that later refactors are expected to change. When a
-refactor changes one of these on purpose, update the test in the same commit.
+Snapshot-style: assertions pin the code's behaviour and query shapes (the job
+list loads in a fixed number of batched queries; send-to-po still issues
+per-line statements, pending a separate review). When a change alters one of
+these on purpose, update the test in the same commit.
 
 Endpoints are plain coroutines driven with ``asyncio.run`` against the shared
 ``fake_db`` harness from ``conftest.py``.
@@ -81,8 +82,12 @@ def task_row(**over):
 
 
 def seed_job(db, *, job=None, pieces=None, needs=None, lines=None, tasks=None, pos=None):
-    """Register every query `_load_job` issues."""
-    db.on_fetchrow("SELECT * FROM ll_app.jobs WHERE id = $1", job if job is not None else job_row())
+    """Register every query `_load_jobs` issues. The job-row query answers
+    with one copy of the job per requested id; related rows are returned
+    verbatim (their job_id decides which job they attach to)."""
+    base = job if job is not None else job_row()
+    db.on("SELECT * FROM ll_app.jobs WHERE id = ANY($1::int[])",
+          lambda sql, ids: [{**base, "id": i} for i in ids], method="fetch")
     db.on_fetch("SELECT * FROM ll_app.job_pieces WHERE job_id", pieces if pieces is not None else [piece_row()])
     db.on_fetch("SELECT * FROM ll_app.material_needs WHERE job_id",
                 needs if needs is not None else [need_row(), need_row(id=11, label="Ribbon",
@@ -92,7 +97,7 @@ def seed_job(db, *, job=None, pieces=None, needs=None, lines=None, tasks=None, p
     db.on_fetch("FROM ll_app.sourcing_lines l JOIN ll_app.material_needs n ON n.id = l.need_id LEFT JOIN",
                 lines if lines is not None else [line_row()])
     db.on_fetch("SELECT * FROM ll_app.job_tasks WHERE job_id", tasks if tasks is not None else [task_row()])
-    db.on_fetch("JOIN ll_app.order_items oi ON oi.order_id = o.id AND oi.job_id = $1", pos or [])
+    db.on_fetch("JOIN ll_app.order_items oi ON oi.order_id = o.id AND oi.job_id = ANY($1::int[])", pos or [])
 
 
 def run(coro):
@@ -129,7 +134,7 @@ def test_meta_constants():
     }
 
 
-def test_list_loads_every_job_one_by_one(fake_db):
+def test_list_loads_jobs_in_batched_queries(fake_db):
     fake_db.on_fetch("SELECT id FROM ll_app.jobs ORDER BY updated_at DESC", [{"id": 1}, {"id": 2}])
     seed_job(fake_db)
     out = run(jobs.list_jobs())
@@ -140,15 +145,50 @@ def test_list_loads_every_job_one_by_one(fake_db):
         "updated_at", "created_at",
     ]
     assert out[0]["stage"] == "sourcing"
-    # N+1: one _load_job (5 fetch + 1 fetchrow) per listed job.
-    assert [a for _, a in fake_db.calls("SELECT * FROM ll_app.jobs WHERE id = $1")] == [(1,), (2,)]
-    assert len(fake_db.calls("FROM ll_app.sourcing_lines l")) == 2
-    assert len(fake_db.executed) == 2 + 1 + 2 * 6  # DDL + id list + per-job load
+    # Batched: one load for the whole page, related rows fetched by job_id = ANY($1).
+    assert [a for _, a in fake_db.calls("SELECT * FROM ll_app.jobs WHERE id = ANY")] == [([1, 2],)]
+    assert [a for _, a in fake_db.calls("FROM ll_app.sourcing_lines l")] == [([1, 2],)]
+    assert len(fake_db.executed) == 2 + 1 + 6  # DDL + id list + batched load
+
+
+def test_list_statement_count_is_constant(fake_db):
+    def statements_for(n):
+        ids = [{"id": i} for i in range(1, n + 1)]
+        fake_db.on_fetch("SELECT id FROM ll_app.jobs ORDER BY updated_at DESC", ids)
+        fake_db.executed.clear()
+        out = run(jobs.list_jobs())
+        assert [j["id"] for j in out] == list(range(1, n + 1))
+        return [s for s, _ in fake_db.executed]
+
+    seed_job(fake_db)
+    run(jobs.ensure_schema(FakeConn(fake_db)))  # keep the one-off DDL out of the counts
+    one, five = statements_for(1), statements_for(5)
+    assert len(one) == len(five) == 7
+    assert one == five
 
 
 def test_list_skips_ids_whose_job_row_vanished(fake_db):
     fake_db.on_fetch("SELECT id FROM ll_app.jobs ORDER BY updated_at DESC", [{"id": 9}])
     assert run(jobs.list_jobs()) == []
+    # Nothing found, so no related-row queries either.
+    assert not fake_db.seen("FROM ll_app.job_pieces")
+
+
+def test_list_attaches_related_rows_to_their_own_job(fake_db):
+    fake_db.on_fetch("SELECT id FROM ll_app.jobs ORDER BY updated_at DESC", [{"id": 2}, {"id": 1}])
+    seed_job(fake_db, needs=[need_row(), need_row(id=12, job_id=2, shelf_qty=Decimal("30"))],
+             lines=[line_row()], tasks=[task_row(), task_row(id=4, job_id=2, done_at=T0)],
+             pieces=[piece_row(), piece_row(id=21, job_id=2), piece_row(id=22, job_id=2)])
+    fake_db.on_fetch("oi.job_id = ANY", [
+        {"id": 900, "name": "PO", "status": "placed", "supplier_id": 7, "vendor_order_no": None,
+         "placed_at": None, "expected_arrival": None, "freight": None, "updated_at": T0,
+         "supplier_name": "Vickerman", "line_count": 1, "total_qty": 40.0, "received_qty": 0.0, "_job_id": 1}])
+    two, one = run(jobs.list_jobs())
+    assert (two["id"], two["stage"], two["summary"]["piece_count"], two["summary"]["open_tasks"]) == (2, "complete", 2, 0)
+    assert (one["id"], one["stage"], one["summary"]["piece_count"], one["summary"]["open_tasks"]) == (1, "sourcing", 1, 1)
+    full = run(jobs.get_job(1))
+    assert [p["id"] for p in full["purchase_orders"]] == [900]
+    assert "_job_id" not in full["purchase_orders"][0]
 
 
 def test_board_list_returns_rows_verbatim(fake_db):
@@ -242,10 +282,17 @@ def test_patch_with_no_fields_issues_no_update(fake_db):
     assert not fake_db.seen("UPDATE ll_app.jobs")
 
 
-def test_delete_never_404s(fake_db):
-    fake_db.on_execute("DELETE FROM ll_app.jobs", "DELETE 0")
+def test_delete_404_when_missing(fake_db):
+    with pytest.raises(HTTPException) as exc:
+        run(jobs.delete_job(42))
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Job not found"
+    assert [a for _, a in fake_db.calls("DELETE FROM ll_app.jobs WHERE id = $1 RETURNING id")] == [(42,)]
+
+
+def test_delete_existing_job_ok(fake_db):
+    fake_db.on_fetchrow("DELETE FROM ll_app.jobs WHERE id = $1 RETURNING id", {"id": 42})
     assert run(jobs.delete_job(42)) == {"ok": True}
-    assert [a for _, a in fake_db.calls("DELETE FROM ll_app.jobs")] == [(42,)]
 
 
 # ─── Pieces / needs ──────────────────────────────────────────────────────────
@@ -384,7 +431,7 @@ def test_send_to_po_issues_per_line_statements(fake_db, fake_request):
         (100, 7001), (101, 7002)]
     assert len(fake_db.calls("UPDATE ll_app.orders SET updated_at = now()")) == 2
     # Two _load_job passes (before + after) bracket the loop.
-    assert len(fake_db.calls("SELECT * FROM ll_app.jobs WHERE id = $1")) == 2
+    assert len(fake_db.calls("SELECT * FROM ll_app.jobs WHERE id = ANY")) == 2
     inserts = [s for s, _ in fake_db.executed if s.lstrip().upper().startswith("INSERT")]
     selects = [s for s, _ in fake_db.executed if s.lstrip().upper().startswith("SELECT")]
     assert len(inserts) == 3
@@ -550,13 +597,19 @@ def test_export_xlsx_sheets_and_rows(fake_db):
     ]
 
 
-def test_export_rejects_non_xlsx_after_loading(fake_db):
+def test_export_rejects_non_xlsx_before_loading(fake_db):
     seed_job(fake_db)
     with pytest.raises(HTTPException) as exc:
         run(jobs.export_job(1, format="pdf"))
     assert exc.value.status_code == 400
     assert exc.value.detail == "format must be xlsx"
-    assert fake_db.seen("SELECT * FROM ll_app.jobs WHERE id = $1")  # loaded before the format check
+    assert not fake_db.seen("FROM ll_app.jobs")  # no job SELECT
+    assert fake_db.executed == []  # not even a connection's DDL
+
+
+def test_export_format_is_case_insensitive(fake_db):
+    seed_job(fake_db)
+    assert run(jobs.export_job(1, format="XLSX")).media_type.endswith("spreadsheetml.sheet")
 
 
 def test_export_404(fake_db):
@@ -576,22 +629,24 @@ def test_money(value, expected):
     assert jobs_export._money(value) == expected
 
 
-@pytest.mark.parametrize("value", ["abc", '<a href="x">&</a>'])
-def test_money_raises_on_non_numeric_strings(value):
-    with pytest.raises(ValueError):
-        jobs_export._money(value)
+@pytest.mark.parametrize("value", ["abc", '<a href="x">&</a>', "", object()])
+def test_money_blank_for_non_numeric(value):
+    assert jobs_export._money(value) == ""
 
 
 @pytest.mark.parametrize(
     "value,expected",
     [
-        (0, ""),  # falsy zero renders as empty
+        (0, "0"),  # zero is a value, not a blank
+        (0.0, "0.0"),
+        ("", ""),
         (1234.5, "1234.5"),
         (1234.567, "1234.567"),
         (None, ""),
         ("abc", "abc"),
         (-5, "-5"),
-        ('<a href="x">&</a>', '&lt;a href="x"&gt;&amp;&lt;/a&gt;'),  # double quotes NOT escaped
+        ('<a href="x">&</a>', "&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;"),
+        ("O'Brien", "O'Brien"),  # no single-quoted attributes in the templates
     ],
 )
 def test_esc(value, expected):
