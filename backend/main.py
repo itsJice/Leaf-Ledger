@@ -151,6 +151,12 @@ def create_app() -> FastAPI:
 
         asyncio.create_task(_warm())
 
+    @app.on_event("shutdown")
+    async def _close_db_pool():
+        from app.libs.db import close_pool
+
+        await close_pool()
+
     # Registered last: its catch-all route must not shadow the API routes.
     mount_frontend(app)
 

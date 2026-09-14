@@ -291,6 +291,13 @@ def fake_db(monkeypatch) -> FakeDB:
         for flag, value in _RESET_FLAGS.items():
             if hasattr(module, flag):
                 monkeypatch.setattr(module, flag, value)
+
+    # Modules migrated to app.libs.db share its schema registry and may call
+    # `db.get_conn()` through the module rather than a local name.
+    import app.libs.db as libs_db
+
+    libs_db.reset_schema_registry()
+    monkeypatch.setattr(libs_db, "get_conn", fake_get_conn)
     return db
 
 
