@@ -1,4 +1,6 @@
 import { apiFetch } from "utils/apiFetch";
+import { readJsonCache } from "utils/jsonCache";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   Search,
@@ -250,15 +252,9 @@ export function trimProductForCache(product: Product): Product {
 }
 
 export function readLibraryCache(): { suppliers: Supplier[]; products: Product[]; productTotal?: number } | null {
-  try {
-    const raw = localStorage.getItem(LIBRARY_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed?.products) || !Array.isArray(parsed?.suppliers)) return null;
-    return { suppliers: parsed.suppliers, products: parsed.products, productTotal: parsed.productTotal };
-  } catch {
-    return null;
-  }
+  const parsed = readJsonCache<any>(LIBRARY_CACHE_KEY, null);
+  if (!Array.isArray(parsed?.products) || !Array.isArray(parsed?.suppliers)) return null;
+  return { suppliers: parsed.suppliers, products: parsed.products, productTotal: parsed.productTotal };
 }
 
 function writeLibraryCache(suppliers: Supplier[], products: Product[], productTotal?: number) {
@@ -276,15 +272,9 @@ function writeLibraryCache(suppliers: Supplier[], products: Product[], productTo
 }
 
 export function readLibraryMetadataCache(): LibraryFilterMetadata | null {
-  try {
-    const raw = localStorage.getItem(LIBRARY_METADATA_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  const parsed = readJsonCache<any>(LIBRARY_METADATA_CACHE_KEY, null);
+  if (!parsed || typeof parsed !== "object") return null;
+  return parsed;
 }
 
 function writeLibraryMetadataCache(metadata: LibraryFilterMetadata) {
@@ -340,7 +330,11 @@ function ProductModal({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/routes/products/upload-photo-new", { method: "POST", body: fd });
+      // Fix: the old path had no /api prefix and no auth header, so it always
+      // 404'd/401'd. apiFetch adds the Bearer token and never sets a
+      // Content-Type itself, so the browser still generates the multipart
+      // boundary for this FormData body.
+      const res = await apiFetch("/api/products/upload-photo-new", { method: "POST", body: fd });
       const data = await res.json();
       set("photo_url", data.photo_url);
     } catch {
@@ -2539,33 +2533,17 @@ export function ProductView({
   // ── Infinite scroll + prefetch ──────────────────────────────────────────────
   // Reveal more cards as you scroll, and keep the NEXT server page loaded one
   // step ahead so reaching the bottom feels instant instead of blocking.
-  const infiniteStateRef = useRef({ visibleLimit, sortedLen: sorted.length, canLoadMore, pageLoading });
-  infiniteStateRef.current = { visibleLimit, sortedLen: sorted.length, canLoadMore, pageLoading };
-  const onLoadMoreRef = useRef(onLoadMore);
-  useEffect(() => { onLoadMoreRef.current = onLoadMore; }, [onLoadMore]);
-  const scrollObserverRef = useRef<IntersectionObserver | null>(null);
-
-  const setInfiniteScrollSentinel = useCallback((node: HTMLDivElement | null) => {
-    if (scrollObserverRef.current) {
-      scrollObserverRef.current.disconnect();
-      scrollObserverRef.current = null;
-    }
-    if (!node) return;
-    scrollObserverRef.current = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting) return;
-        const s = infiniteStateRef.current;
-        if (s.pageLoading) return;
-        if (s.visibleLimit < s.sortedLen) {
-          setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT);
-        } else if (s.canLoadMore) {
-          onLoadMoreRef.current?.();
-        }
-      },
-      { rootMargin: "800px 0px" }, // trigger ~800px early so the next batch is ready
-    );
-    scrollObserverRef.current.observe(node);
-  }, []);
+  const setInfiniteScrollSentinel = useInfiniteScroll({
+    enabled: !pageLoading,
+    onLoadMore: () => {
+      if (visibleLimit < sorted.length) {
+        setVisibleLimit((limit) => limit + INITIAL_CARD_RENDER_LIMIT);
+      } else if (canLoadMore) {
+        onLoadMore?.();
+      }
+    },
+    rootMargin: "800px 0px", // trigger ~800px early so the next batch is ready
+  });
 
   // Keep ~one rendered page of buffer ahead by prefetching the next server page.
   useEffect(() => {
