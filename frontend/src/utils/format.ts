@@ -58,3 +58,13 @@ export function unitLabel(unit: string): string {
   };
   return map[unit] || unit;
 }
+
+/**
+ * Short date in the machine's default locale ("Sep 13, 2026" in en-US). Unlike
+ * `formatDate`, empty/null input is NOT mapped to "—": `""` gives
+ * "Invalid Date" and null gives the epoch. Verbatim copy of the inline
+ * `formatDate` in pages/TreeCounts.tsx.
+ */
+export function formatDateShortLocale(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
