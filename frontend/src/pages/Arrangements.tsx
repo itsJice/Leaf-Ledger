@@ -5030,58 +5030,58 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               </div>
             </div>
 
-	            <div
-	              ref={splitRef}
-	              style={builderGridStyle}
-	              className={`grid overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_460px] ${
-	                catalogExpanded && builderStep === "products" ? "h-[calc(100vh-190px)] min-h-[560px]" : "h-[720px]"
-	              } ${resizingCatalog ? "select-none" : ""}`}
-	            >
-	              {showScopeCanvas && (
-	              <section className="relative h-full overflow-x-hidden overflow-y-auto border-r border-stone-100 bg-[radial-gradient(circle_at_1px_1px,rgb(var(--ns-200))_1px,transparent_0)] [background-size:22px_22px] p-6 pb-28 md:p-8 md:pb-28 lg:px-10">
-	                {builderStep === "type" ? (
-	                  <div className="mx-auto flex h-full max-w-3xl items-center">
-	                    <div className="flex max-h-full w-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white/95 p-6 shadow-sm">
-		                      <div ref={previewPartsRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" aria-label={`${activePreviewType || "Selected"} required parts`}>
-		                        {activePreviewLoading ? (
-		                          <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 px-4 py-5 text-sm font-semibold text-emerald-900">
-			                            Loading parts...
-		                          </div>
-		                        ) : (
-		                          activePreviewComponents.map((component, index) => {
-			                            const guidance = christmasPreviewGuidance(activePreviewType, component.label, treeHeight, treeCanopySize);
-			                            const isTreePreview = isChristmasTreeBuild(activePreviewType);
-			                            const isGarlandPreview = isGarlandBuild(activePreviewType);
+            <div
+              ref={splitRef}
+              style={builderGridStyle}
+              className={`grid overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_460px] ${
+                catalogExpanded && builderStep === "products" ? "h-[calc(100vh-190px)] min-h-[560px]" : "h-[720px]"
+              } ${resizingCatalog ? "select-none" : ""}`}
+            >
+              {showScopeCanvas && (
+              <section className="relative h-full overflow-x-hidden overflow-y-auto border-r border-stone-100 bg-[radial-gradient(circle_at_1px_1px,rgb(var(--ns-200))_1px,transparent_0)] [background-size:22px_22px] p-6 pb-28 md:p-8 md:pb-28 lg:px-10">
+                {builderStep === "type" ? (
+                  <div className="mx-auto flex h-full max-w-3xl items-center">
+                    <div className="flex max-h-full w-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white/95 p-6 shadow-sm">
+                      <div ref={previewPartsRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" aria-label={`${activePreviewType || "Selected"} required parts`}>
+                        {activePreviewLoading ? (
+                          <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 px-4 py-5 text-sm font-semibold text-emerald-900">
+                            Loading parts...
+                          </div>
+                        ) : (
+                          activePreviewComponents.map((component, index) => {
+                            const guidance = christmasPreviewGuidance(activePreviewType, component.label, treeHeight, treeCanopySize);
+                            const isTreePreview = isChristmasTreeBuild(activePreviewType);
+                            const isGarlandPreview = isGarlandBuild(activePreviewType);
                                       const isWreathPreview = isWreathBuild(activePreviewType);
-			                            const isEnhancersPreview = (isTreePreview || isGarlandPreview) && isEnhancersPart(component.label);
+                            const isEnhancersPreview = (isTreePreview || isGarlandPreview) && isEnhancersPart(component.label);
                                       const isWreathDecorPreview = isWreathPreview && isWreathDecorPart(component.label);
-			                            const previewRule = christmasTreeDecorRule(treeHeight, treeCanopySize);
+                            const previewRule = christmasTreeDecorRule(treeHeight, treeCanopySize);
                                       if (isWreathDecorPreview) {
                                         const wreathRows = wreathDecorPartsForSize(wreathSize).map((part) => ({
                                           label: part.label,
                                           note: part.note,
                                           target: wreathDecorPartPreviewText(part.label, wreathSize),
                                         }));
-			                              return (
-				                              <div key={`${component.label}-${index}`} className="relative rounded-[1.75rem] border border-dashed border-emerald-200 bg-white px-4 py-5 shadow-sm ring-1 ring-emerald-50">
-				                                {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[230px] h-6 border-l border-dashed border-stone-300" />}
-				                                <div className="flex items-start gap-3">
-				                                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
-				                                  <div className="min-w-0 flex-1">
-				                                    <div className="flex flex-wrap items-start justify-between gap-3">
-				                                      <div>
-				                                        <p className="text-lg font-semibold text-stone-950">Decor Package</p>
-				                                        <p className="mt-1 text-xs leading-relaxed text-stone-500">Build the wreath accents from these material lines.</p>
-				                                      </div>
+                              return (
+                              <div key={`${component.label}-${index}`} className="relative rounded-[1.75rem] border border-dashed border-emerald-200 bg-white px-4 py-5 shadow-sm ring-1 ring-emerald-50">
+                                {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[230px] h-6 border-l border-dashed border-stone-300" />}
+                                <div className="flex items-start gap-3">
+                                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                      <div>
+                                        <p className="text-lg font-semibold text-stone-950">Decor Package</p>
+                                        <p className="mt-1 text-xs leading-relaxed text-stone-500">Build the wreath accents from these material lines.</p>
+                                      </div>
                                                 <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
                                                   {wreathSize}" wreath
                                                 </span>
-				                                    </div>
+                                    </div>
                                             <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs font-medium leading-relaxed text-emerald-900">
                                               {wreathDecorCountSummary(wreathSize)}
                                             </div>
-				                                    <div className="mt-4 grid gap-2.5">
-				                                      {wreathRows.map((part) => (
+                                    <div className="mt-4 grid gap-2.5">
+                                      {wreathRows.map((part) => (
                                               <div key={part.label} className="grid items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/45 px-3 py-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_120px]">
                                                 <div className="min-w-0">
                                                   <p className="font-semibold text-emerald-950">{part.label}</p>
@@ -5093,13 +5093,13 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                                 </span>
                                               </div>
                                             ))}
-				                                    </div>
-				                                  </div>
-				                                </div>
-				                              </div>
-			                              );
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              );
                                       }
-			                            if (isEnhancersPreview) {
+                            if (isEnhancersPreview) {
                                       const activePackage = isGarlandPreview ? garlandPackage : christmasEnhancerPackage;
                                       const enhancerRows = isGarlandPreview
                                         ? garlandEnhancerPartsForPackage(garlandPackage).map((part) => ({
@@ -5112,17 +5112,17 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                             target: christmasEnhancerPartPreviewText(part.label, previewRule?.enhancers || part.fallbackQuantity, christmasEnhancerPackage),
                                             premiumOnly: christmasEnhancerPartIsOptional(part),
                                           }));
-		                              return (
-			                              <div key={`${component.label}-${index}`} className="relative rounded-[1.75rem] border border-dashed border-emerald-200 bg-white px-4 py-5 shadow-sm ring-1 ring-emerald-50">
-			                                {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[250px] h-6 border-l border-dashed border-stone-300" />}
-			                                <div className="flex items-start gap-3">
-			                                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
-			                                  <div className="min-w-0 flex-1">
-			                                    <div className="flex flex-wrap items-start justify-between gap-3">
-			                                      <div>
-			                                        <p className="text-lg font-semibold text-stone-950">Enhancers</p>
-			                                        <p className="mt-1 text-xs leading-relaxed text-stone-500">Build regular or premium enhancer sets from these material lines.</p>
-			                                      </div>
+                              return (
+                              <div key={`${component.label}-${index}`} className="relative rounded-[1.75rem] border border-dashed border-emerald-200 bg-white px-4 py-5 shadow-sm ring-1 ring-emerald-50">
+                                {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[250px] h-6 border-l border-dashed border-stone-300" />}
+                                <div className="flex items-start gap-3">
+                                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                      <div>
+                                        <p className="text-lg font-semibold text-stone-950">Enhancers</p>
+                                        <p className="mt-1 text-xs leading-relaxed text-stone-500">Build regular or premium enhancer sets from these material lines.</p>
+                                      </div>
                                                 <div className="flex flex-col items-end gap-2">
                                                   <div className="grid grid-cols-2 rounded-xl border border-emerald-100 bg-emerald-50 p-1 text-[11px] font-semibold">
                                                     {(["regular", "premium"] as const).map((packageType) => (
@@ -5137,58 +5137,58 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                                     ))}
                                                   </div>
                                                 </div>
-			                                    </div>
+                                    </div>
                                             <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs font-medium leading-relaxed text-emerald-900">
                                               {isGarlandPreview
                                                 ? garlandEnhancerCountSummary(garlandPackage, garlandLength, garlandDiameter)
                                                 : christmasEnhancerCountSummary(previewRule, treeDensity)}
                                             </div>
-			                                    <div className="mt-4 grid gap-2.5">
-			                                      {enhancerRows.map((part) => {
-			                                        return (
-			                                          <div key={part.label} className="grid items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/45 px-3 py-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_120px]">
-			                                            <div className="min-w-0">
-			                                              <div className="flex flex-wrap items-center gap-1.5">
+                                    <div className="mt-4 grid gap-2.5">
+                                      {enhancerRows.map((part) => {
+                                        return (
+                                          <div key={part.label} className="grid items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/45 px-3 py-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_120px]">
+                                            <div className="min-w-0">
+                                              <div className="flex flex-wrap items-center gap-1.5">
                                                   <p className="font-semibold text-emerald-950">{part.label}</p>
                                                   {part.premiumOnly && (
                                                     <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-100">Premium</span>
                                                   )}
                                                 </div>
-			                                              <p className="mt-0.5 text-[11px] font-medium text-emerald-800">{part.target}</p>
-			                                            </div>
-			                                            <span className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400">
-			                                              Product
-			                                            </span>
-			                                          </div>
-			                                        );
-			                                      })}
-			                                    </div>
-			                                  </div>
-			                                </div>
-			                              </div>
-		                              );
-		                            }
-		                            return (
-			                            <div key={`${component.label}-${index}`} className="relative rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-4 shadow-sm">
-			                              {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[58px] h-6 border-l border-dashed border-stone-300" />}
-			                              <div className="flex items-center gap-3">
-			                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
-			                                <div className="min-w-0 flex-1">
-			                                  <p className="font-semibold text-stone-900">{component.label}</p>
-			                                  {guidance && <p className="mt-1 text-xs text-stone-400">{guidance}</p>}
-			                                </div>
-			                                <span className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400">
-			                                  Product
-			                                </span>
-			                              </div>
-			                            </div>
-		                            );
-		                          })
-		                        )}
-		                      </div>
-	                    </div>
-	                  </div>
-	                ) : !activeBucket ? (
+                                              <p className="mt-0.5 text-[11px] font-medium text-emerald-800">{part.target}</p>
+                                            </div>
+                                            <span className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400">
+                                              Product
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              );
+                            }
+                            return (
+                            <div key={`${component.label}-${index}`} className="relative rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-4 shadow-sm">
+                              {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[58px] h-6 border-l border-dashed border-stone-300" />}
+                              <div className="flex items-center gap-3">
+                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-stone-900">{component.label}</p>
+                                  {guidance && <p className="mt-1 text-xs text-stone-400">{guidance}</p>}
+                                </div>
+                                <span className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400">
+                                  Product
+                                </span>
+                              </div>
+                            </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : !activeBucket ? (
                   <div className="flex h-full items-center justify-center text-center">
                     <div>
                       <Package className="mx-auto mb-3 text-emerald-700" size={32} />
@@ -5217,8 +5217,8 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             const selectedPart = activePart?.index === index;
                             const guidance = christmasPartGuidance(activeBucket, label) || "Add a product for this slot.";
                             const customSectionIndex = index - activeBasePartCount;
-	                            const isCustomSection = customSectionIndex >= 0;
-	                            const hasNext = index < scopePlaceholders(activeBucket).length - 1;
+                            const isCustomSection = customSectionIndex >= 0;
+                            const hasNext = index < scopePlaceholders(activeBucket).length - 1;
 
                             if (isWreathBucket(activeBucket) && isWreathDecorPart(label)) {
                               const activeSize = wreathSizeFromNotes(activeBucket.scope_notes);
@@ -5299,8 +5299,8 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               );
                             }
 
-	                            if (isEnhancersPart(label)) {
-	                              const garlandEnhancers = isGarlandBucket(activeBucket);
+                            if (isEnhancersPart(label)) {
+                              const garlandEnhancers = isGarlandBucket(activeBucket);
                               const rule = christmasTreeDecorRuleForBucket(activeBucket);
                               const activePackage = garlandEnhancers ? garlandPackage : christmasEnhancerPackage;
                               const enhancerRows = garlandEnhancers
@@ -5491,12 +5491,12 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         </div>
                       </div>
                     ) : (
-	                    scopePlaceholders(activeBucket).map((label, index) => {
-	                      const partItems = itemsForPart(activeBucket, label, index);
-	                      const selectedPart = activePart?.index === index;
-	                      const primary = partItems[0];
-	                      const primaryStatus = primary?.status || "selected";
-	                      const suggestion = suggestionForPart(activeBucket, label, index);
+                    scopePlaceholders(activeBucket).map((label, index) => {
+                      const partItems = itemsForPart(activeBucket, label, index);
+                      const selectedPart = activePart?.index === index;
+                      const primary = partItems[0];
+                      const primaryStatus = primary?.status || "selected";
+                      const suggestion = suggestionForPart(activeBucket, label, index);
                         const partGuidance = christmasPartGuidance(activeBucket, label);
                         const customSectionIndex = index - activeBasePartCount;
                         const isCustomSection = customSectionIndex >= 0;
@@ -5572,16 +5572,16 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             </div>
                           );
                         }
-	                      return (
-	                        <button
-	                          key={`${label}-${index}`}
-	                          type="button"
-	                          onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
+                      return (
+                        <button
+                          key={`${label}-${index}`}
+                          type="button"
+                          onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
                           className={`group relative flex min-h-[128px] items-center gap-4 rounded-2xl border bg-white/95 px-6 py-5 text-left shadow-sm transition-all hover:border-stone-900 hover:shadow-md ${selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-stone-300"}`}
                         >
-	                          <span className="absolute -top-3 left-5 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-	                            {label}
-	                          </span>
+                          <span className="absolute -top-3 left-5 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                            {label}
+                          </span>
                             {isCustomSection && (
                               <span className="absolute right-3 top-3 z-10 flex gap-1">
                                 <button
@@ -5619,9 +5619,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                 </button>
                               </span>
                             )}
-	                          {index < scopePlaceholders(activeBucket).length - 1 && <span className="absolute left-[47px] top-[88px] h-10 border-l border-dashed border-stone-300" />}
-	                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-stone-100 text-2xl text-stone-900 group-hover:bg-emerald-50 group-hover:text-emerald-800">+</div>
-	                          <div className="min-w-0 flex-1">
+                          {index < scopePlaceholders(activeBucket).length - 1 && <span className="absolute left-[47px] top-[88px] h-10 border-l border-dashed border-stone-300" />}
+                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-stone-100 text-2xl text-stone-900 group-hover:bg-emerald-50 group-hover:text-emerald-800">+</div>
+                          <div className="min-w-0 flex-1">
                             {primary ? (
                               <>
                                 <p className="line-clamp-2 text-sm font-semibold text-stone-900">{primary.product_name}</p>
@@ -5677,9 +5677,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           {primary?.photo_url && (
                             <img src={primary.photo_url} alt={primary.product_name} className="h-16 w-16 flex-shrink-0 rounded-xl object-contain" />
                           )}
-	                        </button>
-	                      );
-	                    })
+                        </button>
+                      );
+                    })
                     )}
                       <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 p-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Add section</p>
@@ -5703,8 +5703,8 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           </button>
                         </div>
                       </div>
-	                  </div>
-	                )}
+                  </div>
+                )}
                 <div className="mt-5 flex w-fit items-center gap-2 rounded-2xl border border-stone-200 bg-white/90 px-3 py-2 text-sm text-stone-600 shadow-sm backdrop-blur">
                   <button type="button" className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-stone-100"><Minus size={14} /></button>
                   <span className="min-w-12 text-center text-xs font-semibold">100%</span>
@@ -5730,7 +5730,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 </div>
               )}
 
-	              <aside className="flex h-full min-h-0 flex-col overflow-y-auto bg-white">
+              <aside className="flex h-full min-h-0 flex-col overflow-y-auto bg-white">
                 <div className="border-b border-stone-100 px-5 py-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
@@ -5747,9 +5747,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   </div>
                 </div>
 
-	                {builderStep === "type" && (
-	                  <div className="space-y-4 p-5">
-	                    <div>
+                {builderStep === "type" && (
+                  <div className="space-y-4 p-5">
+                    <div>
                         {renderTypeStepContinueButton("mb-4")}
                         <div className="mb-4 grid grid-cols-2 rounded-xl border border-stone-200 bg-stone-50 p-1">
                           {(["green", "christmas"] as BuilderSection[]).map((section) => (
@@ -5765,40 +5765,40 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             </button>
                           ))}
                         </div>
-	                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-	                        <p className="text-xs font-semibold text-stone-500">Select a product type</p>
-	                        {historicalProductTypeCount > 0 && (
-	                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
-	                            {historicalProductTypeCount} build types
-	                          </span>
-	                        )}
-	                      </div>
-	                      {historicalProductTypeCount > 8 && (
-	                        <label className="mb-3 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600">
-	                          <Search size={15} className="text-stone-400" />
-	                          <input
-	                            value={productTypeSearch}
-	                            onChange={(event) => setProductTypeSearch(event.target.value)}
-	                            placeholder="Search product types"
-	                            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-stone-400"
-	                          />
-	                        </label>
-	                      )}
-	                      <div className="max-h-[430px] space-y-3 overflow-y-auto pr-1" onMouseLeave={resetProductTypePreview}>
-	                        {filteredProductTypeOptions.map(({ label, icon: Icon, evidence_count }) => {
-	                          const selected = selectedScopeType === label;
-	                          return (
-	                            <button
-	                              key={label}
-	                              type="button"
-	                              onMouseEnter={() => previewProductType(label)}
-	                              onMouseLeave={resetProductTypePreview}
-	                              onFocus={() => previewProductType(label)}
-	                              onBlur={resetProductTypePreview}
-	                              onClick={() => {
-	                                previewProductType(label);
-	                                setSelectedScopeType(label);
-	                                if (label === "Custom") {
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-stone-500">Select a product type</p>
+                        {historicalProductTypeCount > 0 && (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                            {historicalProductTypeCount} build types
+                          </span>
+                        )}
+                      </div>
+                      {historicalProductTypeCount > 8 && (
+                        <label className="mb-3 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600">
+                          <Search size={15} className="text-stone-400" />
+                          <input
+                            value={productTypeSearch}
+                            onChange={(event) => setProductTypeSearch(event.target.value)}
+                            placeholder="Search product types"
+                            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-stone-400"
+                          />
+                        </label>
+                      )}
+                      <div className="max-h-[430px] space-y-3 overflow-y-auto pr-1" onMouseLeave={resetProductTypePreview}>
+                        {filteredProductTypeOptions.map(({ label, icon: Icon, evidence_count }) => {
+                          const selected = selectedScopeType === label;
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onMouseEnter={() => previewProductType(label)}
+                              onMouseLeave={resetProductTypePreview}
+                              onFocus={() => previewProductType(label)}
+                              onBlur={resetProductTypePreview}
+                              onClick={() => {
+                                previewProductType(label);
+                                setSelectedScopeType(label);
+                                if (label === "Custom") {
                                   setNewScopeName("");
                                   window.requestAnimationFrame(() => scopeNameRef.current?.focus());
                                   return;
@@ -5809,32 +5809,32 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                 }
                                 if (activeBucket) void applySelectedTypeToActiveBucket(label);
                               }}
-	                              className={`flex min-h-[58px] w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${selected ? "border-stone-900 bg-white shadow-sm" : "border-stone-200 bg-white hover:border-stone-300"}`}
+                              className={`flex min-h-[58px] w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${selected ? "border-stone-900 bg-white shadow-sm" : "border-stone-200 bg-white hover:border-stone-300"}`}
                             >
-	                              <span className="flex items-center gap-3 text-sm font-semibold text-stone-800">
-	                                <Icon size={17} strokeWidth={1.7} />
-	                                <span>
-	                                  {label}
-	                                  {typeof evidence_count === "number" && evidence_count > 0 && (
-		                                    <span className="ml-2 text-[11px] font-medium text-stone-400">{evidence_count} examples</span>
-	                                  )}
-	                                </span>
-	                              </span>
+                              <span className="flex items-center gap-3 text-sm font-semibold text-stone-800">
+                                <Icon size={17} strokeWidth={1.7} />
+                                <span>
+                                  {label}
+                                  {typeof evidence_count === "number" && evidence_count > 0 && (
+                                    <span className="ml-2 text-[11px] font-medium text-stone-400">{evidence_count} examples</span>
+                                  )}
+                                </span>
+                              </span>
                               {selected && <CheckCircle2 size={18} className="text-stone-900" />}
                             </button>
-	                          );
-	                        })}
-	                      </div>
-	                      {hiddenProductTypeCount > 0 && !productTypeSearch.trim() && (
-	                        <button
-	                          type="button"
-	                          onClick={() => setShowAllProductTypes(true)}
-	                          className="mt-3 w-full rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
-	                        >
-	                          Show {hiddenProductTypeCount} more build type{hiddenProductTypeCount === 1 ? "" : "s"}
-	                        </button>
-	                      )}
-	                      {selectedScopeType === "Custom" && (
+                          );
+                        })}
+                      </div>
+                      {hiddenProductTypeCount > 0 && !productTypeSearch.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllProductTypes(true)}
+                          className="mt-3 w-full rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+                        >
+                          Show {hiddenProductTypeCount} more build type{hiddenProductTypeCount === 1 ? "" : "s"}
+                        </button>
+                      )}
+                      {selectedScopeType === "Custom" && (
                         <div className="mt-4">
                           <label className="mb-2 block text-xs font-semibold text-stone-500">Custom product type</label>
                           <input ref={scopeNameRef} value={newScopeName} onChange={(e) => setNewScopeName(e.target.value)} placeholder="Type what you are building" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
@@ -5934,13 +5934,13 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                       ) : selectedScopeType === "Garland" ? (
                         <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
-	                            <div>
-	                              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Garland setup</p>
-	                              <p className="mt-1 text-xs text-emerald-900/70">Choose the package and width. This sets the enhancer material counts.</p>
-	                            </div>
-	                            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
-	                              4 setups
-	                            </span>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Garland setup</p>
+                              <p className="mt-1 text-xs text-emerald-900/70">Choose the package and width. This sets the enhancer material counts.</p>
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                              4 setups
+                            </span>
                           </div>
                           <div className="mt-4 grid gap-3">
                             <div>
@@ -5961,7 +5961,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                 ))}
                               </div>
                             </div>
-	                            <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="grid gap-3 sm:grid-cols-2">
                               <label className="block">
                                 <span className="mb-1 block text-xs font-semibold text-stone-600">Length</span>
                                 <input
@@ -6018,10 +6018,10 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               <p className="text-[11px] font-semibold uppercase text-stone-400">Extra ornaments</p>
                               <p className="mt-1 text-sm font-semibold text-stone-900">{activeGarlandRule?.extraOrnaments || 0}</p>
                             </div>
-	                          </div>
-		                          <div className="mt-4 rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-xs font-medium leading-relaxed text-emerald-900">
-		                            {garlandEnhancerCountSummary(garlandPackage, garlandLength, garlandDiameter)}
-		                          </div>
+                          </div>
+                          <div className="mt-4 rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-xs font-medium leading-relaxed text-emerald-900">
+                            {garlandEnhancerCountSummary(garlandPackage, garlandLength, garlandDiameter)}
+                          </div>
                         </div>
                       ) : selectedScopeType === "Wreath" ? (
                         <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
@@ -6186,16 +6186,16 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           <p className="font-semibold text-stone-900">Review {scopeTitle(activeBucket)}</p>
                           <p className="mt-1 text-xs text-stone-400">Saved ideas stay as candidates. Selected products count toward cost and purchase order.</p>
                         </div>
-	                        <div className="rounded-xl bg-emerald-50 px-3 py-2 text-right">
-	                          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Selected cost</p>
-	                          <p className="font-semibold text-emerald-900">{formatCurrency(activeBucket.subtotal)}</p>
+                        <div className="rounded-xl bg-emerald-50 px-3 py-2 text-right">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Selected cost</p>
+                          <p className="font-semibold text-emerald-900">{formatCurrency(activeBucket.subtotal)}</p>
                             {activeMechanicsEstimate > 0 && (
                               <p className="mt-1 text-[11px] font-medium text-emerald-800">+ {formatCurrency(activeMechanicsEstimate)} mechanics est.</p>
                             )}
-	                        </div>
+                        </div>
                       </div>
                     </div>
-	                    {scopePlaceholders(activeBucket).map((label, index) => {
+                    {scopePlaceholders(activeBucket).map((label, index) => {
                       if (isWreathBucket(activeBucket) && isWreathDecorPart(label)) {
                         const activeSize = wreathSizeFromNotes(activeBucket.scope_notes);
                         const wreathRows = wreathDecorPartsForSize(activeSize).map((part) => {
@@ -6263,7 +6263,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           </div>
                         );
                       }
-	                      if (isStructuredChristmasBucket(activeBucket) && isEnhancersPart(label)) {
+                      if (isStructuredChristmasBucket(activeBucket) && isEnhancersPart(label)) {
                         const garlandEnhancers = isGarlandBucket(activeBucket);
                         const packageType = garlandEnhancers
                           ? garlandPackageFromNotes(activeBucket.scope_notes)
@@ -6428,15 +6428,15 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         </div>
                       ))}
                     </div>
-	                    <div className="rounded-2xl border border-stone-200 p-4">
-	                      <div className="flex justify-between text-sm"><span>Product subtotal</span><strong>{formatCurrency(orderSubtotal)}</strong></div>
+                    <div className="rounded-2xl border border-stone-200 p-4">
+                      <div className="flex justify-between text-sm"><span>Product subtotal</span><strong>{formatCurrency(orderSubtotal)}</strong></div>
                         {activeMechanicsEstimate > 0 && (
                           <div className="mt-2 flex justify-between text-sm text-stone-500"><span>Mechanics & materials estimate</span><span>{formatCurrency(activeMechanicsEstimate)}</span></div>
                         )}
-	                      <div className="mt-2 flex justify-between text-sm text-stone-500"><span>Estimated freight</span><span>Set later</span></div>
-	                      <div className="mt-2 flex justify-between text-sm text-stone-500"><span>Tax estimate</span><span>Set later</span></div>
-	                      <div className="mt-3 flex justify-between border-t border-stone-100 pt-3 text-base"><span>Total estimate</span><strong>{formatCurrency(orderSubtotal + activeMechanicsEstimate)}</strong></div>
-	                    </div>
+                      <div className="mt-2 flex justify-between text-sm text-stone-500"><span>Estimated freight</span><span>Set later</span></div>
+                      <div className="mt-2 flex justify-between text-sm text-stone-500"><span>Tax estimate</span><span>Set later</span></div>
+                      <div className="mt-3 flex justify-between border-t border-stone-100 pt-3 text-base"><span>Total estimate</span><strong>{formatCurrency(orderSubtotal + activeMechanicsEstimate)}</strong></div>
+                    </div>
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -6446,15 +6446,15 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">Final only</span>
                       </div>
                       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-	                        <input
-	                          value={finishedSku}
-	                          onChange={(event) => {
+                        <input
+                          value={finishedSku}
+                          onChange={(event) => {
                               setSkuEdited(true);
                               setFinishedSku(event.target.value);
                             }}
-	                          placeholder={suggestedFinishedSku(activeBucket, arrangement)}
-	                          className="rounded-lg border border-emerald-100 bg-white px-3 py-2 text-sm font-semibold uppercase tracking-wide text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"
-	                        />
+                          placeholder={suggestedFinishedSku(activeBucket, arrangement)}
+                          className="rounded-lg border border-emerald-100 bg-white px-3 py-2 text-sm font-semibold uppercase tracking-wide text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                        />
                         <button
                           type="button"
                           onClick={() => void completeHistoricalBuild()}

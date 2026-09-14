@@ -44,6 +44,7 @@ if (!("use" in React)) {
       typeof promise._context !== "undefined"
     ) {
       // For React Context
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       return React.useContext(promise._context || promise);
     } else if (
       typeof promise === "object" &&
@@ -51,9 +52,11 @@ if (!("use" in React)) {
       typeof promise.$$typeof !== "undefined"
     ) {
       // For React Context (alternative check)
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       return React.useContext(promise);
     } else {
       // For other context-like objects
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       return React.useContext(promise);
     }
   };
