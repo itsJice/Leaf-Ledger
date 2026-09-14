@@ -38,10 +38,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
 
-from app.apis.user_context import get_request_user_id
 
 router = APIRouter(prefix="/designs", tags=["designs"])
 
@@ -196,11 +194,6 @@ def _material_key(material: str) -> str:
     return key
 
 
-def _f(value: Any) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def _iso(value: Any) -> Optional[str]:
@@ -666,134 +659,8 @@ async def get_hierarchy():
     }
 
 
-class DesignCreate(BaseModel):
-    name: str
-    build_type: Optional[str] = None
-    client_name: Optional[str] = None
-    project_id: Optional[int] = None
-    project_name: Optional[str] = None
-    group_id: Optional[int] = None
-    group_name: Optional[str] = None
 
 
-@router.post("/create")
-async def create_design(body: DesignCreate, request: Request):
-    """Create a design, creating its project and group on the way if needed.
-
-    The form lets you either pick an existing project/group or type a new name,
-    so this accepts `project_id` OR `project_name` (same for the group) and
-    resolves whichever arrived. Names are matched case-insensitively against
-    what already exists before inserting, so typing an existing project's name
-    joins it rather than creating a duplicate.
-    """
-    name = (body.name or "").strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="name is required")
-    if body.project_id is None and not (body.project_name or "").strip():
-        raise HTTPException(status_code=422, detail="project_id or project_name is required")
-
-    user_id = get_request_user_id(request)
-    conn = await get_conn()
-    try:
-        # ── Project ───────────────────────────────────────────────────────────
-        if body.project_id is not None:
-            project = await conn.fetchrow(
-                "SELECT id, name, client_name FROM arrangements WHERE id = $1", body.project_id
-            )
-            if not project:
-                raise HTTPException(status_code=404, detail="Project not found")
-            project_id = project["id"]
-            # An explicit client on the request updates a project that has none.
-            if (body.client_name or "").strip() and not (project["client_name"] or "").strip():
-                await conn.execute(
-                    "UPDATE arrangements SET client_name = $2, updated_at = NOW() WHERE id = $1",
-                    project_id, body.client_name.strip(),
-                )
-        else:
-            project_name = body.project_name.strip()
-            client_name = (body.client_name or "").strip() or None
-            project_id = await conn.fetchval(
-                """
-                SELECT id FROM arrangements
-                WHERE LOWER(name) = LOWER($1)
-                  AND COALESCE(LOWER(client_name), '') = COALESCE(LOWER($2), '')
-                ORDER BY id LIMIT 1
-                """,
-                project_name, client_name,
-            )
-            if project_id is None:
-                project_id = await conn.fetchval(
-                    """
-                    INSERT INTO arrangements (name, client_name, created_by)
-                    VALUES ($1, $2, $3) RETURNING id
-                    """,
-                    project_name, client_name, user_id,
-                )
-
-        # ── Group ─────────────────────────────────────────────────────────────
-        group_id: Optional[int] = None
-        if await _table_exists(conn, "project_rooms"):
-            if body.group_id is not None:
-                group_id = await conn.fetchval(
-                    "SELECT id FROM project_rooms WHERE id = $1 AND arrangement_id = $2",
-                    body.group_id, project_id,
-                )
-                if group_id is None:
-                    raise HTTPException(status_code=404, detail="Group not found in this project")
-            elif (body.group_name or "").strip():
-                group_name = body.group_name.strip()
-                group_id = await conn.fetchval(
-                    """
-                    SELECT id FROM project_rooms
-                    WHERE arrangement_id = $1 AND LOWER(name) = LOWER($2)
-                    ORDER BY sort_order, id LIMIT 1
-                    """,
-                    project_id, group_name,
-                )
-                if group_id is None:
-                    group_id = await conn.fetchval(
-                        """
-                        INSERT INTO project_rooms (arrangement_id, name, sort_order)
-                        VALUES ($1, $2, COALESCE(
-                            (SELECT MAX(sort_order) + 1 FROM project_rooms WHERE arrangement_id = $1), 0))
-                        RETURNING id
-                        """,
-                        project_id, group_name,
-                    )
-
-        # ── Design ────────────────────────────────────────────────────────────
-        # Write the normalised columns, but only the ones that exist yet — the
-        # migration adding build_type/status/hero_image_url may not have landed.
-        cols = await _existing_columns(conn, "arrangement_containers")
-        build_type = (body.build_type or "").strip() or None
-        fields: list[tuple[str, Any]] = [("arrangement_id", project_id), ("label", name)]
-        if "bucket_type" in cols:
-            fields.append(("bucket_type", build_type))
-        if "room_id" in cols:
-            fields.append(("room_id", group_id))
-        if "build_type" in cols:
-            fields.append(("build_type", build_type))
-        if "status" in cols:
-            fields.append(("status", "draft"))
-        if "sort_order" in cols:
-            fields.append(("sort_order", 0))
-
-        names = ", ".join(f for f, _ in fields)
-        placeholders = ", ".join(f"${i + 1}" for i in range(len(fields)))
-        design_id = await conn.fetchval(
-            f"INSERT INTO arrangement_containers ({names}) VALUES ({placeholders}) RETURNING id",
-            *[v for _, v in fields],
-        )
-        await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", project_id)
-
-        designs = await _load_designs(conn)
-    finally:
-        await conn.close()
-
-    created = next((d for d in designs if d["id"] == design_id), None)
-    if created is None:
-        raise HTTPException(status_code=500, detail="Design was created but could not be read back")
-    return _public(created)
 
 
 @router.get("/{design_id}")

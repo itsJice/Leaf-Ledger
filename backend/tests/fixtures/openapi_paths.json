@@ -68,16 +68,7 @@
   "/api/builder/common-builds": [
     "GET"
   ],
-  "/api/builder/density": [
-    "GET"
-  ],
-  "/api/builder/health": [
-    "GET"
-  ],
   "/api/builder/scope-filters": [
-    "GET"
-  ],
-  "/api/builder/species": [
     "GET"
   ],
   "/api/clients/comments/recent": [
@@ -106,9 +97,6 @@
   ],
   "/api/dashboard/summary": [
     "GET"
-  ],
-  "/api/designs/create": [
-    "POST"
   ],
   "/api/designs/hierarchy": [
     "GET"
@@ -197,9 +185,6 @@
   "/api/jobs/sourcing/{line_id}": [
     "DELETE",
     "PATCH"
-  ],
-  "/api/jobs/stock/list": [
-    "GET"
   ],
   "/api/jobs/tasks/{task_id}": [
     "DELETE",
@@ -305,9 +290,6 @@
   "/api/products/image-proxy": [
     "GET"
   ],
-  "/api/products/list": [
-    "GET"
-  ],
   "/api/products/ornament-match": [
     "POST"
   ],
@@ -320,9 +302,6 @@
   "/api/products/similar": [
     "GET"
   ],
-  "/api/products/stats": [
-    "GET"
-  ],
   "/api/products/sync-price/{product_id}": [
     "POST"
   ],
@@ -330,9 +309,6 @@
     "PUT"
   ],
   "/api/products/upload-photo-new": [
-    "POST"
-  ],
-  "/api/products/upload-photo/{product_id}": [
     "POST"
   ],
   "/api/recipe-intelligence/build-types": [
@@ -353,76 +329,13 @@
   "/api/recipe-intelligence/visual-references/{asset_id}/preview": [
     "GET"
   ],
-  "/api/scraper/allstate-placeholder-images/{supplier_id}/mark-reviewed": [
-    "POST"
-  ],
-  "/api/scraper/allstate-readiness/{supplier_id}": [
-    "GET"
-  ],
-  "/api/scraper/backfill-allstate-details/run-until-complete/status": [
-    "GET"
-  ],
-  "/api/scraper/backfill-allstate-details/run-until-complete/stop": [
-    "POST"
-  ],
-  "/api/scraper/backfill-allstate-details/status": [
-    "GET"
-  ],
-  "/api/scraper/backfill-allstate-details/{supplier_id}": [
-    "POST"
-  ],
-  "/api/scraper/backfill-allstate-details/{supplier_id}/run-until-complete": [
-    "POST"
-  ],
   "/api/scraper/backfill-images": [
     "POST"
   ],
   "/api/scraper/backfill-images/status": [
     "GET"
   ],
-  "/api/scraper/backfill-images/{supplier_id}": [
-    "POST"
-  ],
-  "/api/scraper/import": [
-    "POST"
-  ],
-  "/api/scraper/job/{job_id}": [
-    "GET"
-  ],
-  "/api/scraper/job/{job_id}/cancel": [
-    "POST"
-  ],
-  "/api/scraper/jobs/{supplier_id}": [
-    "GET"
-  ],
-  "/api/scraper/preview/{job_id}": [
-    "GET"
-  ],
-  "/api/scraper/price-history/{product_id}": [
-    "GET"
-  ],
-  "/api/scraper/start": [
-    "POST"
-  ],
-  "/api/scraper/supplier-enrichment-status/{supplier_id}": [
-    "GET"
-  ],
-  "/api/scraper/supplier-readiness/{supplier_id}": [
-    "GET"
-  ],
   "/api/scraper/sync-prices-bulk": [
-    "POST"
-  ],
-  "/api/scraper/sync-prices/{supplier_id}": [
-    "POST"
-  ],
-  "/api/scraper/vickerman/run-until-complete/status": [
-    "GET"
-  ],
-  "/api/scraper/vickerman/run-until-complete/stop": [
-    "POST"
-  ],
-  "/api/scraper/vickerman/{supplier_id}/run-until-complete": [
     "POST"
   ],
   "/api/settings/markup": [
@@ -432,25 +345,9 @@
   "/api/settings/markup/category/{category}": [
     "DELETE"
   ],
-  "/api/settings/my-role": [
-    "GET"
-  ],
-  "/api/settings/roles": [
-    "GET",
-    "POST"
-  ],
   "/api/sku-standards": [
     "GET",
     "PUT"
-  ],
-  "/api/suppliers/catalog-imports/{import_id}/commit": [
-    "POST"
-  ],
-  "/api/suppliers/catalog-imports/{import_id}/reprocess": [
-    "POST"
-  ],
-  "/api/suppliers/catalog-imports/{import_id}/rows": [
-    "GET"
   ],
   "/api/suppliers/create": [
     "POST"
@@ -458,31 +355,14 @@
   "/api/suppliers/delete/{supplier_id}": [
     "DELETE"
   ],
-  "/api/suppliers/get/{supplier_id}": [
-    "GET"
-  ],
   "/api/suppliers/list": [
     "GET"
   ],
   "/api/suppliers/update/{supplier_id}": [
     "PUT"
   ],
-  "/api/suppliers/{supplier_id}/catalog-filters": [
-    "DELETE",
-    "GET",
-    "PUT"
-  ],
-  "/api/suppliers/{supplier_id}/catalog-imports": [
-    "GET"
-  ],
-  "/api/suppliers/{supplier_id}/catalog-imports/upload": [
-    "POST"
-  ],
   "/api/suppliers/{supplier_id}/credentials": [
     "GET"
-  ],
-  "/api/suppliers/{supplier_id}/discover-catalog": [
-    "POST"
   ],
   "/api/tree-counts": [
     "GET",

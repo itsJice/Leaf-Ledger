@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Response
 from pydantic import BaseModel
-from typing import Any, Optional, List
+from typing import Optional, List
 from collections import Counter
 from decimal import Decimal, InvalidOperation
 import asyncpg
@@ -352,125 +352,10 @@ def _product_filters(
         idx += 1
     return conditions, params, idx
 
-def _others_last(options: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep 'Other' at the bottom of a grouped option list."""
-    return [o for o in options if o.get("value") != "Other"] + [o for o in options if o.get("value") == "Other"]
 
 
-def _option_rows(rows) -> list[dict[str, Any]]:
-    options: list[dict[str, Any]] = []
-    for row in rows:
-        data = dict(row)
-        value = data.get("value")
-        if value is None or not str(value).strip():
-            continue
-        option = {"value": str(value).strip(), "count": int(data.get("count") or 0)}
-        if data.get("id") is not None:
-            option["id"] = data["id"]
-        options.append(option)
-    return options
 
-def _availability_bucket(value: Any) -> Optional[str]:
-    text = str(value or "").lower()
-    if not text:
-        return None
-    if "within 1" in text or "1-4 month" in text or "1 4 month" in text:
-        return "Within 1-4 months"
-    if "available today" in text or "in stock" in text or "instock" in text or text.strip() in {"in_stock", "today", "available"}:
-        return "Available today"
-    if "sold out" in text or "out of stock" in text or "unavailable" in text or text.strip() == "out_of_stock":
-        return "Sold out / unavailable"
-    if "eta" in text or "expected" in text or "future" in text:
-        return "Future ETA"
-    if "over 4" in text:
-        return "Over 4 months"
-    return None
 
-async def _build_product_filter_metadata(conn) -> dict[str, Any]:
-    category_rows = await conn.fetch("""
-        SELECT COALESCE(NULLIF(raw_data->>'category_group', ''), NULLIF(category, ''), 'Home Décor') AS value,
-               COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE
-        GROUP BY 1
-        ORDER BY count DESC, value ASC
-    """)
-    supplier_rows = await conn.fetch("""
-        SELECT s.id, s.name AS value, COUNT(p.id)::int AS count
-        FROM suppliers s
-        LEFT JOIN products p ON p.supplier_id = s.id AND p.is_active = TRUE
-        GROUP BY s.id, s.name
-        ORDER BY s.name ASC
-    """)
-    country_rows = await conn.fetch("""
-        SELECT COALESCE(
-            NULLIF(country_of_origin, ''),
-            NULLIF(raw_data->>'Country of Origin', ''),
-            NULLIF(raw_data->>'Country', '')
-        ) AS value,
-        COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE
-        GROUP BY 1
-        ORDER BY count DESC, value ASC
-    """)
-    color_rows = await conn.fetch("""
-        SELECT fam AS value, COUNT(*)::int AS count
-        FROM products p,
-             LATERAL jsonb_array_elements_text(p.raw_data->'color_families') AS fam
-        WHERE p.is_active = TRUE AND p.raw_data ? 'color_families'
-        GROUP BY fam
-        ORDER BY count DESC, value ASC
-    """)
-    product_type_rows = await conn.fetch("""
-        SELECT raw_data->>'type_family' AS value, COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE AND raw_data->>'type_family' IS NOT NULL
-        GROUP BY 1
-        ORDER BY count DESC, value ASC
-    """)
-    availability_rows = await conn.fetch(f"""
-        SELECT ({_availability_bucket_sql('availability')}) AS value, COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE
-        GROUP BY 1
-    """)
-    availability_counts = {row["value"]: row["count"] for row in availability_rows if row["value"]}
-    availability_order = ["In stock", "Out of stock"]
-    # Phase 3 normalized facets: finish + size (from the normalization layer)
-    finish_rows = await conn.fetch("""
-        SELECT raw_data->'normalized'->>'finish' AS value, COUNT(*)::int AS count
-        FROM products
-        WHERE is_active = TRUE AND NULLIF(raw_data->'normalized'->>'finish','') IS NOT NULL
-        GROUP BY 1 ORDER BY count DESC, value ASC
-    """)
-    size_rows = await conn.fetch("""
-        SELECT trim(trailing '.' from trim(trailing '0' from value::text)) AS value,
-               COUNT(*)::int AS count
-        FROM (
-            SELECT round((NULLIF(raw_data->'normalized'->>'size_in','')::numeric) * 2) / 2 AS value
-            FROM products
-            WHERE is_active = TRUE
-              AND NULLIF(raw_data->'normalized'->>'size_in','') IS NOT NULL
-              AND (raw_data->'normalized'->>'size_in')::numeric BETWEEN 0.5 AND 40
-        ) t
-        GROUP BY value ORDER BY value ASC
-    """)
-    return {
-        "generated_at": datetime.utcnow().isoformat(),
-        "categories": _option_rows(category_rows),
-        "suppliers": _option_rows(supplier_rows),
-        "product_types": _others_last(_option_rows(product_type_rows)),
-        "countries": _option_rows(country_rows),
-        "colors": _others_last(_option_rows(color_rows)),
-        "availability": [
-            {"value": label, "count": availability_counts[label]}
-            for label in availability_order
-            if availability_counts.get(label)
-        ],
-        "finishes": _option_rows(finish_rows),
-        "sizes": _option_rows(size_rows),
-    }
 
 @router.get("/filter-metadata", response_model=ProductFilterMetadata)
 async def get_product_filter_metadata():
@@ -510,50 +395,6 @@ async def get_product_filter_metadata():
     finally:
         await conn.close()
 
-@router.get("/list", response_model=List[ProductOut])
-async def list_products(
-    request: Request,
-    supplier_id: Optional[int] = None,
-    supplier_ids: Optional[str] = None,
-    category: Optional[str] = None,
-    categories: Optional[str] = None,
-    product_types: Optional[str] = None,
-    colors: Optional[str] = None,
-    availability: Optional[str] = None,
-    finishes: Optional[str] = None,
-    sizes: Optional[str] = None,
-    size_min: Optional[float] = None,
-    size_max: Optional[float] = None,
-    price_min: Optional[float] = None,
-    price_max: Optional[float] = None,
-    favorites_only: Optional[bool] = None,
-    search: Optional[str] = None,
-):
-    # Resolve user ID from auth token if present, but don't require it
-    user_id: Optional[str] = extract_user_id(request)
-    if favorites_only and not user_id:
-        return []
-
-    conn = await get_conn()
-    try:
-        conditions, params, _ = _product_filters(
-            user_id, supplier_id, supplier_ids, category, favorites_only, search,
-            categories=categories, product_types=product_types, colors=colors, availability=availability,
-            finishes=finishes, sizes=sizes, size_min=size_min, size_max=size_max,
-            price_min=price_min, price_max=price_max,
-        )
-        where = " AND ".join(conditions)
-        rows = await conn.fetch(f"""
-            SELECT p.*, s.name as supplier_name,
-                   EXISTS (SELECT 1 FROM product_favorites pf WHERE pf.product_id = p.id AND pf.user_id = $1) as is_favorited
-            FROM products p
-            LEFT JOIN suppliers s ON s.id = p.supplier_id
-            WHERE {where}
-            ORDER BY is_favorited DESC, p.name ASC
-        """, *params)
-        return [_normalize_product_row(row) for row in rows]
-    finally:
-        await conn.close()
 
 @router.get("/page", response_model=ProductListPage)
 async def page_products(
@@ -667,57 +508,12 @@ import asyncio as _asyncio
 
 
 
-_VOCAB_CACHE: dict = {"ts": -1.0, "vocab": None}
 
 
 
 
-def _bounded_distance(a: str, b: str, maxd: int) -> Optional[int]:
-    """Damerau-Levenshtein (optimal string alignment) distance if ≤ maxd, else
-    None. Counts an adjacent transposition as one edit, so "ornamnet" is 1 away
-    from "ornament" — the most common real-world typo."""
-    la, lb = len(a), len(b)
-    if abs(la - lb) > maxd:
-        return None
-    prevprev = [0] * (lb + 1)
-    prev = list(range(lb + 1))
-    for i in range(1, la + 1):
-        cur = [i] + [0] * lb
-        row_best = i
-        ai = a[i - 1]
-        for j in range(1, lb + 1):
-            cost = 0 if ai == b[j - 1] else 1
-            v = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
-            if i > 1 and j > 1 and ai == b[j - 2] and a[i - 2] == b[j - 1]:
-                v = min(v, prevprev[j - 2] + 1)  # adjacent transposition
-            cur[j] = v
-            if v < row_best:
-                row_best = v
-        if row_best > maxd:
-            return None
-        prevprev, prev = prev, cur
-    return prev[lb] if prev[lb] <= maxd else None
 
 
-def _fuzzy_variants(term: str, vocab: set, maxd: int) -> list:
-    """Closest vocabulary words to a misspelled term. Only the minimal-edit
-    group is returned — so "wreathe" corrects to "wreath" (1 edit) and does NOT
-    also pull in "weather" (2 edits). Same first letter + similar length keeps
-    the scan fast."""
-    first, lt = term[0], len(term)
-    best = maxd + 1
-    hits: list = []
-    for w in vocab:
-        if w[0] != first or abs(len(w) - lt) > maxd:
-            continue
-        d = _bounded_distance(term, w, maxd)
-        if d is None:
-            continue
-        if d < best:
-            best, hits = d, [w]
-        elif d == best:
-            hits.append(w)
-    return hits
 
 
 # ─── SQL-served facets ────────────────────────────────────────────────────────
@@ -2299,20 +2095,6 @@ async def delete_product(product_id: int, user: AuthorizedUser):
     finally:
         await conn.close()
 
-@router.post("/upload-photo/{product_id}")
-async def upload_product_photo(product_id: int, file: UploadFile = File(...)):
-    contents = await file.read()
-    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    key = f"product-photos/product-{product_id}-{uuid.uuid4().hex[:8]}.{ext}"
-    db.storage.binary.put(key, contents)
-    # Build public URL
-    photo_url = f"/api/products/photo/{key.replace('/', '_')}"
-    conn = await get_conn()
-    try:
-        await conn.execute("UPDATE products SET photo_url = $1, updated_at = NOW() WHERE id = $2", photo_url, product_id)
-        return {"photo_url": photo_url, "key": key}
-    finally:
-        await conn.close()
 
 @router.post("/upload-photo-new")
 async def upload_product_photo_new(file: UploadFile = File(...)):
@@ -2385,24 +2167,6 @@ async def sync_prices2(product_id: int, body: ProductPriceUpdate):
         await conn.close()
 
 
-@router.get("/stats")
-async def get_product_stats(request: Request):
-    user_id = get_request_user_id(request)
-    conn = await get_conn()
-    try:
-        total_products = await conn.fetchval("SELECT COUNT(*) FROM products WHERE is_active = TRUE")
-        total_suppliers = await conn.fetchval("SELECT COUNT(*) FROM suppliers")
-        # Favourites are personal; projects are team-wide.
-        total_favorites = await conn.fetchval("SELECT COUNT(*) FROM product_favorites WHERE user_id = $1", user_id)
-        total_arrangements = await conn.fetchval("SELECT COUNT(*) FROM arrangements")
-        return {
-            "total_products": total_products,
-            "total_suppliers": total_suppliers,
-            "total_favorites": total_favorites,
-            "total_arrangements": total_arrangements,
-        }
-    finally:
-        await conn.close()
 
 
 # ─── Ornament catalog matcher ───────────────────────────────────────────────

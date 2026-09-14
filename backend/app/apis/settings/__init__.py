@@ -28,14 +28,7 @@ class AllMarkupSettings(BaseModel):
     global_markup: float
     category_markups: List[MarkupSettingOut]
 
-class UserRoleOut(BaseModel):
-    user_id: str
-    role: str
-    created_at: datetime
 
-class UserRoleUpdate(BaseModel):
-    user_id: str
-    role: str
 
 @router.get("/markup", response_model=AllMarkupSettings)
 async def get_markup_settings():
@@ -83,32 +76,5 @@ async def delete_category_markup(category: str, user: AuthorizedUser):
     finally:
         await conn.close()
 
-@router.get("/roles", response_model=List[UserRoleOut])
-async def list_user_roles(user: AuthorizedUser):
-    conn = await get_conn()
-    try:
-        rows = await conn.fetch("SELECT * FROM user_roles ORDER BY created_at DESC")
-        return [dict(r) for r in rows]
-    finally:
-        await conn.close()
 
-@router.post("/roles")
-async def set_user_role(body: UserRoleUpdate, user: AuthorizedUser):
-    conn = await get_conn()
-    try:
-        await conn.execute("""
-            INSERT INTO user_roles (user_id, role) VALUES ($1, $2)
-            ON CONFLICT (user_id) DO UPDATE SET role = $2
-        """, body.user_id, body.role)
-        return {"ok": True}
-    finally:
-        await conn.close()
 
-@router.get("/my-role")
-async def get_my_role(user: AuthorizedUser):
-    conn = await get_conn()
-    try:
-        row = await conn.fetchrow("SELECT role FROM user_roles WHERE user_id = $1", user.sub)
-        return {"role": row["role"] if row else "designer"}
-    finally:
-        await conn.close()
