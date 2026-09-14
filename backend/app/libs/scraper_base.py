@@ -113,14 +113,19 @@ CATEGORY_MAP: dict[str, str] = {
     "dried": "botanicals",
     "preserved": "preserved",
     "containers": "containers",
+    "container": "containers",
     "pots": "containers",
+    "pot": "containers",
     "planters": "containers",
     "vases": "vases",
+    "vase": "vases",
     "baskets": "baskets",
     "urns": "containers",
     "bowls": "containers",
     "moss": "moss",
     "branches": "branches",
+    "branch": "branches",
+    "tree": "trees",
     "filler": "filler",
     "accents": "accent",
     "decorative": "accent",
@@ -138,7 +143,7 @@ CATEGORY_MAP: dict[str, str] = {
 
 VALID_CATEGORIES = {
     'containers', 'wood', 'greenery', 'florals', 'trees', 'plant',
-    'container', 'filler', 'accent', 'other',
+    'filler', 'accent', 'other',
     'moss', 'branches', 'botanicals', 'preserved', 'seasonal',
     'stems', 'foliage', 'succulents', 'topiaries', 'wreaths',
     'baskets', 'vases', 'risers', 'pedestals', 'liners'

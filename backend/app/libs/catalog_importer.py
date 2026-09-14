@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from app.libs.scraper_base import normalize_unit, parse_price, safe_int
+from app.libs.scraper_base import normalize_category, normalize_unit, parse_price, safe_int
 
 
 @dataclass
@@ -40,38 +40,17 @@ BOX_KEYS = ("box qty", "boxqty", "box", "box/cs", "box cs")
 CASE_KEYS = ("case qty", "caseqty", "case", "case pack")
 CATEGORY_KEYS = ("category", "section", "department", "collection")
 
-# safe_int, parse_price, and normalize_unit used to be duplicated here with
-# behavior identical to app.libs.scraper_base (verified input-for-input in
-# tests/test_catalog_importer.py); they now delegate to that module so there
-# is a single implementation to maintain.
-
-
-# normalize_category differs from app.libs.scraper_base.normalize_category:
-# this version uses a small set of hardcoded substring checks with no exact
-# VALID_CATEGORIES short-circuit and no CATEGORY_MAP, so singular/alternate
-# aliases resolve differently, e.g. "pot" -> "containers" here vs "other" in
-# scraper_base, and "wood"/"wreaths"/"topiaries"/"succulents" -> "other" here
-# vs their own categories in scraper_base. Pinned in
-# tests/test_catalog_importer.py.
-def normalize_category(raw_category: Optional[str]) -> str:
-    if not raw_category:
-        return "other"
-    lower = raw_category.lower().strip()
-    if any(term in lower for term in ("holiday", "christmas", "fall", "season")):
-        return "seasonal"
-    if any(term in lower for term in ("bouquet", "flower", "floral", "dahlia", "rose", "tulip")):
-        return "florals"
-    if any(term in lower for term in ("foliage", "greenery", "leaf", "grass")):
-        return "greenery"
-    if any(term in lower for term in ("container", "vase", "pot", "planter")):
-        return "containers"
-    if "moss" in lower:
-        return "moss"
-    if "branch" in lower:
-        return "branches"
-    if "tree" in lower:
-        return "trees"
-    return "other"
+# safe_int, parse_price, normalize_unit, and normalize_category used to be
+# duplicated here -- normalize_category with genuinely different behavior
+# (a small hardcoded set of substring checks with no exact VALID_CATEGORIES
+# short-circuit and no CATEGORY_MAP, so e.g. "pot" -> "containers" here but
+# "other" in scraper_base, and "wood"/"wreaths"/"topiaries"/"succulents" ->
+# "other" here but their own categories in scraper_base). That divergence was
+# an accident of two hand-maintained lists drifting apart, not an intentional
+# difference between catalog-file categories and scraper categories, so
+# scraper_base.normalize_category was extended to cover every alias this
+# module's version understood and this module now delegates to it, same as
+# the other three helpers. See tests/test_catalog_importer.py.
 
 
 def _clean(value: Any) -> Optional[str]:

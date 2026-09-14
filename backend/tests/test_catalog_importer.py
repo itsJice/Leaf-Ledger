@@ -1,11 +1,10 @@
 """Table tests pinning behavior of catalog_importer's parsing helpers,
 and cross-checking them against the near-identical helpers in scraper_base.
 
-safe_int, parse_price, and normalize_unit agree with scraper_base on every
-input tried here (including which inputs raise), so catalog_importer now
-imports those three directly from scraper_base instead of redefining them.
-normalize_category diverges (different category buckets / no CATEGORY_MAP),
-so both versions are kept; this file pins that divergence too.
+safe_int, parse_price, normalize_unit, and normalize_category all agree with
+scraper_base on every input tried here (including which inputs raise), so
+catalog_importer now imports all four directly from scraper_base instead of
+redefining them.
 """
 
 import pytest
@@ -106,61 +105,56 @@ def test_normalize_unit_matches_scraper_base(raw, expected):
 
 
 def test_catalog_importer_reexports_scraper_base_implementations():
-    """After dedup, these three are literally the same function object."""
+    """After dedup, these four are literally the same function object."""
     assert ci.parse_price is sb.parse_price
     assert ci.safe_int is sb.safe_int
     assert ci.normalize_unit is sb.normalize_unit
+    assert ci.normalize_category is sb.normalize_category
 
 
 # ─────────────────────────────────────────────
-# normalize_category — DIVERGES between the two modules; both are kept.
-#
-# catalog_importer uses a small hardcoded set of substring checks with no
-# exact-match short circuit and no alias table. scraper_base checks
-# VALID_CATEGORIES for an exact match first, then walks CATEGORY_MAP for a
-# substring match. The two disagree on singular aliases like "pot"/"vase"/
-# "tree"/"branch"/"container" and on categories catalog_importer doesn't
-# know about at all (wood, wreaths, topiaries, succulents, "artificial
-# plants" style multi-word aliases).
+# normalize_category — used to diverge between the two modules (catalog_importer
+# used a small hardcoded set of substring checks with no exact-match short
+# circuit and no alias table; scraper_base checked VALID_CATEGORIES for an
+# exact match first, then walked CATEGORY_MAP for a substring match, and
+# lacked aliases for singulars like "pot"/"vase"/"tree"/"branch"/"container").
+# scraper_base.normalize_category now covers every alias either version
+# understood, and catalog_importer just re-exports it -- so both modules agree
+# on every input below.
 # ─────────────────────────────────────────────
 
 NORMALIZE_CATEGORY_CASES = [
-    # (raw, catalog_importer expected, scraper_base expected)
-    (None, "other", "other"),
-    ("", "other", "other"),
-    ("   ", "other", "other"),
-    ("pot", "containers", "other"),  # DIFFERS
-    ("pots", "containers", "containers"),
-    ("flowers", "florals", "florals"),
-    ("florals", "florals", "florals"),
-    ("vase", "containers", "other"),  # DIFFERS
-    ("vases", "containers", "vases"),  # DIFFERS (different bucket name)
-    ("tree", "trees", "other"),  # DIFFERS
-    ("trees", "trees", "trees"),
-    ("christmas", "seasonal", "seasonal"),
-    ("holiday", "seasonal", "seasonal"),
-    ("moss", "moss", "moss"),
-    ("branch", "branches", "other"),  # DIFFERS
-    ("branches", "branches", "branches"),
-    ("greenery", "greenery", "greenery"),
-    ("foliage", "greenery", "foliage"),  # DIFFERS (different bucket name)
-    ("container", "containers", "container"),  # DIFFERS (different bucket name)
-    ("containers", "containers", "containers"),
-    ("wood", "other", "wood"),  # DIFFERS
-    ("wreaths", "other", "wreaths"),  # DIFFERS
-    ("topiaries", "other", "topiaries"),  # DIFFERS
-    ("succulents", "other", "succulents"),  # DIFFERS
-    ("random unknown category", "other", "other"),
-    ("Artificial Plants", "other", "plant"),  # DIFFERS
+    (None, "other"),
+    ("", "other"),
+    ("   ", "other"),
+    ("pot", "containers"),
+    ("pots", "containers"),
+    ("flowers", "florals"),
+    ("florals", "florals"),
+    ("vase", "vases"),
+    ("vases", "vases"),
+    ("tree", "trees"),
+    ("trees", "trees"),
+    ("christmas", "seasonal"),
+    ("holiday", "seasonal"),
+    ("moss", "moss"),
+    ("branch", "branches"),
+    ("branches", "branches"),
+    ("greenery", "greenery"),
+    ("foliage", "foliage"),
+    ("container", "containers"),
+    ("containers", "containers"),
+    ("wood", "wood"),
+    ("wreaths", "wreaths"),
+    ("topiaries", "topiaries"),
+    ("succulents", "succulents"),
+    ("random unknown category", "other"),
+    ("Artificial Plants", "plant"),
 ]
 
 
-@pytest.mark.parametrize("raw, ci_expected, sb_expected", NORMALIZE_CATEGORY_CASES)
-def test_normalize_category_pinned_per_module(raw, ci_expected, sb_expected):
-    assert ci.normalize_category(raw) == ci_expected
-    assert sb.normalize_category(raw) == sb_expected
-
-
-def test_normalize_category_kept_separate_not_reexported():
-    """Unlike the other three helpers, normalize_category must stay distinct."""
-    assert ci.normalize_category is not sb.normalize_category
+@pytest.mark.parametrize("raw, expected", NORMALIZE_CATEGORY_CASES)
+def test_normalize_category_matches_scraper_base(raw, expected):
+    assert ci.normalize_category(raw) == expected
+    assert sb.normalize_category(raw) == expected
+    assert ci.normalize_category(raw) == sb.normalize_category(raw)

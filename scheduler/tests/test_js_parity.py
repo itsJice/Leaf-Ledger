@@ -112,16 +112,15 @@ def test_rural_radius_matches():
     assert spec_const()["RADIUS_RURAL_S"][1] == python_rural_radius() == 2700
 
 
-def test_bare_2700_literals_in_template_equal_python_rural_radius():
-    """radiusOK() compares the depot leg against a bare `2700` rather than
-    K.RADIUS_RURAL_S (Python uses the same number for the rural threshold and
-    the rural radius). That literal should become K.RADIUS_RURAL_S in a later
-    change; the template is not edited here. Until then, pin it to Python."""
+def test_no_bare_2700_literals_in_template():
+    """radiusOK() used to compare the depot leg against a bare `2700` rather
+    than K.RADIUS_RURAL_S (Python uses the same number for the rural
+    threshold and the rural radius). That literal is now K.RADIUS_RURAL_S, so
+    no bare 2700 should remain anywhere in the template."""
     literals = re.findall(r"(?<![\w.])2700(?![\w.])", TEMPLATE)
-    assert literals, "no bare 2700 left -- drop this test once K.RADIUS_RURAL_S is used"
-    assert all(int(x) == python_rural_radius() for x in literals)
+    assert not literals, f"bare 2700 literal(s) remain -- use K.RADIUS_RURAL_S: {literals}"
     # same direction as Python: rural iff depot leg is strictly greater
-    assert re.search(r"leg\(0,\s*v\)\s*>\s*2700", TEMPLATE)
+    assert re.search(r"leg\(0,\s*v\)\s*>\s*K\.RADIUS_RURAL_S", TEMPLATE)
 
 
 def test_estimate_helpers_match():
