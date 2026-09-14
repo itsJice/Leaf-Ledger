@@ -1,16 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
-import asyncpg
-import os
 from datetime import datetime
 from app.auth import AuthorizedUser
+from app.libs.db import get_conn
 
 router = APIRouter(prefix="/settings", tags=["settings"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 CATEGORIES = ["plant", "container", "filler", "accent", "other"]
 

@@ -43,12 +43,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.apis.products import get_conn
 from app.apis.user_context import get_request_user_id
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
-
-_SCHEMA_READY = False
 
 STAGES = ["new", "sourcing", "ordered", "receiving", "complete"]
 
@@ -222,14 +220,13 @@ ALTER TABLE ll_app.order_items ADD COLUMN IF NOT EXISTS follow_up_note text;
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    # orders tables must exist before we ALTER them
-    from app.apis.orders import ensure_schema as ensure_orders
-    await ensure_orders(conn)
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        # orders tables must exist before we ALTER them
+        from app.apis.orders import ensure_schema as ensure_orders
+        await ensure_orders(conn)
+        await conn.execute(DDL)
+
+    await ensure_schema_once("jobs", _ddl)
 
 
 # ── Models ──────────────────────────────────────────────────────────────────

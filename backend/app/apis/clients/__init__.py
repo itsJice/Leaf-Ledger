@@ -9,20 +9,15 @@ with one row per client and a unique index on the normalised name.
 
 from datetime import date, datetime
 import json
-import os
 from typing import Any, List, Optional
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.libs.db import get_conn, has_item_status_column
+
 router = APIRouter(prefix="/clients", tags=["clients"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
-
 
 ADDRESS_FIELDS = ("street", "city", "state", "zip")
 
@@ -61,18 +56,6 @@ async def load_activity_by_client(conn) -> dict:
             "created_at": r["created_at"],
         })
     return by_client
-
-
-async def has_item_status_column(conn) -> bool:
-    return bool(await conn.fetchval("""
-        SELECT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = 'container_items'
-              AND column_name = 'status'
-        )
-    """))
 
 
 class SecondaryContact(BaseModel):

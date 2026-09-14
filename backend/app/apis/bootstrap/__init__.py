@@ -1,19 +1,13 @@
-import os
 from datetime import datetime
 
-import asyncpg
 from fastapi import APIRouter, Request
 
 from app.apis.arrangements import ensure_project_schema, has_item_status_column
 from app.apis.clients import build_client_list
 from app.apis.user_context import get_request_user_id
+from app.libs.db import get_conn
 
 router = APIRouter(prefix="/bootstrap", tags=["bootstrap"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
 @router.get("/summary")

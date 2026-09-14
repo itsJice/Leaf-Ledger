@@ -18,11 +18,9 @@ from pydantic import BaseModel
 from typing import Any, Optional, List
 import json
 
-from app.apis.products import get_conn
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/orders", tags=["orders"])
-
-_SCHEMA_READY = False
 
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
@@ -56,11 +54,10 @@ CREATE INDEX IF NOT EXISTS order_items_order_idx ON ll_app.order_items(order_id)
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
+
+    await ensure_schema_once("orders", _ddl)
 
 
 # ── Models ──────────────────────────────────────────────────────────────────

@@ -14,6 +14,8 @@ from typing import Optional
 import requests
 from PIL import Image
 
+from app.libs.export_format import esc as _esc, money as _money
+
 _IMG_CACHE: dict[str, Optional[bytes]] = {}
 _UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
 
@@ -39,10 +41,6 @@ def _thumb(url: Optional[str], box: int = 96) -> Optional[bytes]:
         data = None
     _IMG_CACHE[url] = data
     return data
-
-
-def _money(n) -> str:
-    return "" if n is None else f"${float(n):,.2f}"
 
 
 def _date(view) -> str:
@@ -248,7 +246,3 @@ def _pdf(view: dict) -> bytes:
         f"({view['total_qty']} items)</para>", styles["Normal"]))
     doc.build(story)
     return buf.getvalue()
-
-
-def _esc(s: str) -> str:
-    return (str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
