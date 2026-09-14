@@ -76,7 +76,10 @@ def test_fixture_patches_get_conn_across_api_modules(fake_db):
     for module in (jobs, tree_counts):
         conn = _run(module.get_conn())
         assert isinstance(conn, FakeConn) and conn.db is fake_db
-    assert tree_counts._SCHEMA_READY is False
+    # tree_counts has migrated to app.libs.db's shared ensure_schema_once
+    # registry (reset via reset_schema_registry(), asserted elsewhere); jobs
+    # still carries the per-module flag this fixture resets.
+    assert jobs._SCHEMA_READY is False
 
 
 async def _txn_and_close(conn):

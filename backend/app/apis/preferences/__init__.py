@@ -37,13 +37,13 @@ choice, not a permissions one: the connection is `postgres` and could create in
 from __future__ import annotations
 
 import json
-import os
 from typing import Any, Optional
 
-import asyncpg
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from app.apis.user_context import get_request_user_id
+from app.libs.db import ensure_schema_once, get_conn
+from app.libs.jsonutil import loads_json as _loads
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 
@@ -69,14 +69,6 @@ MAX_PATH_LEN = 200
 MAX_ACCENT_LEN = 64
 
 
-async def get_conn():
-    return await asyncpg.connect(
-        os.environ.get("DATABASE_URL"), statement_cache_size=0
-    )
-
-
-_SCHEMA_READY = False
-
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
 
@@ -90,11 +82,10 @@ CREATE TABLE IF NOT EXISTS ll_app.user_preferences (
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
+
+    await ensure_schema_once("preferences", _ddl)
 
 
 # ─── Merging ─────────────────────────────────────────────────────────────────
@@ -123,19 +114,6 @@ def deep_merge(base: dict, patch: dict) -> dict:
 # database must degrade to the default, not 500 the sidebar. Writing is strict,
 # so a buggy caller hears about it instead of silently storing junk. Both drop
 # unknown keys, so an older server never chokes on a newer client's field.
-
-
-def _loads(raw: Any) -> Any:
-    """json.loads that returns None instead of raising. asyncpg may hand back
-    either a decoded object or the raw jsonb text depending on codecs."""
-    if raw is None or isinstance(raw, (dict, list)):
-        return raw
-    if not isinstance(raw, str):
-        return None
-    try:
-        return json.loads(raw)
-    except ValueError:
-        return None
 
 
 def canon_path(path: str) -> str:

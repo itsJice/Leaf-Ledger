@@ -36,14 +36,14 @@ modify-write so concurrent saves serialise rather than both landing on the
 same stale snapshot.
 """
 import json
-import os
 from typing import Any
 
-import asyncpg
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.apis.user_context import get_request_user_id
+from app.libs.db import ensure_schema_once, get_conn
+from app.libs.jsonutil import loads_json as _loads
 from app.libs.season import season_for
 
 router = APIRouter(prefix="/install-schedule")
@@ -170,15 +170,6 @@ async def list_seasons() -> dict:
 
 # ─── Shared reschedule state ─────────────────────────────────────────────────
 
-
-async def get_conn():
-    return await asyncpg.connect(
-        os.environ.get("DATABASE_URL"), statement_cache_size=0
-    )
-
-
-_SCHEMA_READY = False
-
 #: Keep at most this many history rows per schedule version -- an append-
 #: only log with no cap would grow forever across a season of frequent
 #: small saves (the tool debounces to one save per 600ms of inactivity,
@@ -248,24 +239,10 @@ CREATE INDEX IF NOT EXISTS install_schedule_history_version_idx
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
 
-
-def _loads(raw: Any) -> Any:
-    """json.loads that returns None rather than raising. asyncpg may hand back
-    a decoded object or the raw jsonb text depending on codecs."""
-    if raw is None or isinstance(raw, (dict, list)):
-        return raw
-    if not isinstance(raw, str):
-        return None
-    try:
-        return json.loads(raw)
-    except ValueError:
-        return None
+    await ensure_schema_once("install_schedule", _ddl)
 
 
 def _clean_version(version: str) -> str:
