@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from app.libs.scraper_base import normalize_unit, parse_price, safe_int
+
+
 @dataclass
 class CatalogRow:
     supplier_sku: str
@@ -37,46 +40,19 @@ BOX_KEYS = ("box qty", "boxqty", "box", "box/cs", "box cs")
 CASE_KEYS = ("case qty", "caseqty", "case", "case pack")
 CATEGORY_KEYS = ("category", "section", "department", "collection")
 
-VALID_UNITS = {
-    "stem", "pot", "flat", "bunch", "each", "box", "case", "bag", "roll",
-    "yard", "foot", "piece", "set", "pair",
-}
+# safe_int, parse_price, and normalize_unit used to be duplicated here with
+# behavior identical to app.libs.scraper_base (verified input-for-input in
+# tests/test_catalog_importer.py); they now delegate to that module so there
+# is a single implementation to maintain.
 
 
-def safe_int(raw: Any) -> Optional[int]:
-    try:
-        return int(str(raw).strip())
-    except (TypeError, ValueError, AttributeError):
-        return None
-
-
-def parse_price(raw: str) -> Optional[float]:
-    if not raw:
-        return None
-    cleaned = str(raw).replace(",", "").replace("$", "").strip()
-    match = re.search(r"\d+\.?\d*", cleaned)
-    return float(match.group(0)) if match else None
-
-
-def normalize_unit(raw_unit: Optional[str]) -> str:
-    if not raw_unit:
-        return "each"
-    lower = raw_unit.lower().strip()
-    if lower in VALID_UNITS:
-        return lower
-    if "ea" in lower or "each" in lower:
-        return "each"
-    if "stem" in lower:
-        return "stem"
-    if "bundle" in lower or "bunch" in lower:
-        return "bunch"
-    if "case" in lower:
-        return "case"
-    if "box" in lower:
-        return "box"
-    return "each"
-
-
+# normalize_category differs from app.libs.scraper_base.normalize_category:
+# this version uses a small set of hardcoded substring checks with no exact
+# VALID_CATEGORIES short-circuit and no CATEGORY_MAP, so singular/alternate
+# aliases resolve differently, e.g. "pot" -> "containers" here vs "other" in
+# scraper_base, and "wood"/"wreaths"/"topiaries"/"succulents" -> "other" here
+# vs their own categories in scraper_base. Pinned in
+# tests/test_catalog_importer.py.
 def normalize_category(raw_category: Optional[str]) -> str:
     if not raw_category:
         return "other"

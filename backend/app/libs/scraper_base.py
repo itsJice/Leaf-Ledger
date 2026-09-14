@@ -20,6 +20,8 @@ import asyncpg
 import databutton as db
 import json
 
+from app.libs.db import get_conn
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
@@ -334,7 +336,7 @@ async def update_sync_log(log_id: int, **kwargs):
     """Patch arbitrary columns on a sync log row."""
     if not kwargs:
         return
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(kwargs))
         vals = [log_id] + list(kwargs.values())
@@ -489,7 +491,7 @@ async def load_category_index(
 
     Returns None if the index is empty or all rows are stale (triggers full discovery).
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         cutoff = datetime.utcnow() - timedelta(days=max_age_days)
         rows = await conn.fetch("""
@@ -550,7 +552,7 @@ async def save_category_index(
     """
     if not categories:
         return 0
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         count = 0
         for cat in categories:
@@ -597,7 +599,7 @@ async def verify_category_index(
 
     Returns {"added": int, "removed": int, "refreshed": int}
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         existing_rows = await conn.fetch("""
             SELECT category_slug_or_url, is_active
@@ -652,7 +654,7 @@ async def rebuild_category_index(
 
     Returns number of rows deleted.
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         result = await conn.execute("""
             DELETE FROM supplier_category_index
@@ -675,7 +677,7 @@ async def get_category_index_summary(
     scraper_key: str,
 ) -> list[dict]:
     """Return all index rows for a supplier (active + inactive) for admin display."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         rows = await conn.fetch("""
             SELECT
@@ -720,7 +722,7 @@ async def load_catalog_filters(
         allowed = await load_catalog_filters(supplier_id)
         subcategories = [s for s in all_subs if allowed is None or s["ddcode"] in allowed]
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         row = await conn.fetchrow(
             "SELECT categories FROM supplier_catalog_filters WHERE supplier_id = $1",
