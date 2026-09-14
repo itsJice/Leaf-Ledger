@@ -397,12 +397,20 @@ export const removePin = (itemId: number) => del<Board>(`/api/jobs/items/${itemI
 const WORKING_KEY = "leaf-ledger:working-job:v1";
 export interface WorkingJob { jobId: number | null; groupId: number | null }
 
+// A falsy stored id (0, "", null, undefined) is treated as "none", same as
+// before; a non-numeric one (e.g. "x") must become null instead of NaN.
+function coerceStoredId(raw: unknown): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function readWorkingJob(): WorkingJob {
   try {
     const raw = localStorage.getItem(WORKING_KEY);
     if (!raw) return { jobId: null, groupId: null };
     const v = JSON.parse(raw);
-    return { jobId: v.jobId ? Number(v.jobId) : null, groupId: v.groupId ? Number(v.groupId) : null };
+    return { jobId: coerceStoredId(v.jobId), groupId: coerceStoredId(v.groupId) };
   } catch {
     return { jobId: null, groupId: null };
   }

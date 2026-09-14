@@ -6,13 +6,16 @@ import { categoryLabel, formatCurrency, formatDate, unitLabel } from "../format"
 // injected (format.ts passes an explicit "en-US" locale, which is kept).
 const origDate = Date.prototype.toLocaleDateString;
 const origDateTime = Date.prototype.toLocaleString;
-beforeAll(() => {
+function forceDates(timeZone: string, defaultLocale = "en-US") {
   vi.spyOn(Date.prototype, "toLocaleDateString").mockImplementation(function (this: Date, l?: string | string[], o?: Intl.DateTimeFormatOptions) {
-    return origDate.call(this, l ?? "en-US", { ...o, timeZone: "UTC" });
+    return origDate.call(this, l ?? defaultLocale, { ...o, timeZone });
   });
   vi.spyOn(Date.prototype, "toLocaleString").mockImplementation(function (this: Date, l?: string | string[], o?: Intl.DateTimeFormatOptions) {
-    return origDateTime.call(this, l ?? "en-US", { ...o, timeZone: "UTC" });
+    return origDateTime.call(this, l ?? defaultLocale, { ...o, timeZone });
   });
+}
+beforeAll(() => {
+  forceDates("UTC");
 });
 afterAll(() => {
   vi.restoreAllMocks();
@@ -55,6 +58,37 @@ describe("formatDate", () => {
     expect(formatDate(undefined)).toBe("—");
     expect(formatDate("not a date")).toBe("Invalid Date");
   });
+
+  // FIX: a date-only string used to parse as UTC midnight, so a viewer west
+  // of UTC saw the previous day. It must render as the same calendar day
+  // regardless of the viewer's timezone — checked at both ends of the real
+  // range: America/Chicago (west of UTC) and Pacific/Kiritimati (UTC+14, the
+  // most eastward real timezone).
+  it("a date-only string renders as the same day under America/Chicago", () => {
+    vi.restoreAllMocks();
+    forceDates("America/Chicago");
+    try {
+      expect(formatDate("2026-09-13")).toBe("Sep 13, 2026");
+    } finally {
+      vi.restoreAllMocks();
+      forceDates("UTC");
+    }
+  });
+
+  it("a date-only string renders as the same day under Pacific/Kiritimati", () => {
+    vi.restoreAllMocks();
+    forceDates("Pacific/Kiritimati");
+    try {
+      expect(formatDate("2026-09-13")).toBe("Sep 13, 2026");
+    } finally {
+      vi.restoreAllMocks();
+      forceDates("UTC");
+    }
+  });
+
+  it("a full ISO timestamp keeps its current (UTC-instant) handling", () => {
+    expect(formatDate("2026-09-13T23:59:59Z")).toBe("Sep 13, 2026");
+  });
 });
 
 describe("categoryLabel", () => {
@@ -78,9 +112,12 @@ describe("categoryLabel", () => {
     expect(categoryLabel("")).toBe("");
   });
 
-  it("BUG pinned: Object.prototype keys leak through the lookup map", () => {
-    expect(typeof categoryLabel("constructor")).toBe("function");
-    expect(typeof unitLabel("toString")).toBe("function");
+  // FIX: `map[cat]` returned an inherited Object.prototype function for keys
+  // like "constructor"/"toString"; an own-property check now makes them fall
+  // through like any other unknown key.
+  it("Object.prototype keys pass through unchanged, not the inherited function", () => {
+    expect(categoryLabel("constructor")).toBe("constructor");
+    expect(unitLabel("toString")).toBe("toString");
   });
 });
 

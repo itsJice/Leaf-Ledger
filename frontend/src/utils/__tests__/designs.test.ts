@@ -74,14 +74,21 @@ describe("fetchDesignList", () => {
     });
   });
 
-  it("falls back to items.length when total is missing, zero or non-numeric", async () => {
+  it("falls back to items.length when total is missing or non-numeric", async () => {
     const items = [{ id: 1, name: "A" }];
-    for (const total of [undefined, 0, "abc"]) {
+    for (const total of [undefined, "abc"]) {
       apiFetch.mockResolvedValueOnce(json({ items, total }));
       expect((await fetchDesignList()).total).toBe(1);
     }
     apiFetch.mockResolvedValueOnce(json({ items: "bad" }));
     expect(await fetchDesignList()).toEqual({ items: [], total: 0, facets: EMPTY_FACETS });
+  });
+
+  // FIX: a real server total of 0 used to be replaced by items.length
+  // (`Number(total) || items.length` treats 0 as falsy/missing).
+  it("keeps a real total of 0 instead of falling back to items.length", async () => {
+    apiFetch.mockResolvedValueOnce(json({ items: [{ id: 1, name: "A" }], total: 0 }));
+    expect((await fetchDesignList()).total).toBe(0);
   });
 
   it("resolves to the shared empty list on non-ok, HTML, null body or network error", async () => {
