@@ -1,5 +1,5 @@
 // Pure part, enhancer, guidance and SKU helpers for the Arrangements builder.
-import type { Product as LibraryProduct } from "../Library";
+import type { Product as LibraryProduct } from "../library/types";
 import type {
   Container,
   Arrangement,

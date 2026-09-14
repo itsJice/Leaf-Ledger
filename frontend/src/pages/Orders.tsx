@@ -5,7 +5,7 @@ import {
   FileText, FileSpreadsheet, FileType, Printer,
 } from "lucide-react";
 import Layout from "components/Layout";
-import { ProductDetailModal } from "./Library";
+import { ProductDetailModal } from "./library/ProductDetailModal";
 import {
   listOrders, getOrder, createOrder, deleteOrder, updateItemQty, removeItem,
   setActiveOrderId, getActiveOrderId, defaultOrderName, setOrderStatus, ORDER_STATUSES,

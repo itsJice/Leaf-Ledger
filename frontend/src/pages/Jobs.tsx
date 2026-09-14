@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "components/Layout";
-import { ProductDetailModal, ProxiedImage } from "./Library";
+import { ProductDetailModal } from "./library/ProductDetailModal";
+import { ProxiedImage } from "./library/ProxiedImage";
 import { apiFetch } from "utils/apiFetch";
 import {
   listBoards, getBoard, createJob, updateJob, deleteJob, touchJob,

@@ -12,8 +12,8 @@ vi.mock("utils/apiFetch", () => ({ apiFetch: vi.fn() }));
 vi.mock("components/Layout", () => ({ default: () => null }));
 
 import { clearStorage, seedStorage } from "../../test/setup";
-import * as L from "../Library";
-import type { Product } from "../Library";
+import * as L from "../library/index";
+import type { Product } from "../library/index";
 
 const p = (overrides: Partial<Product> = {}): Product => ({
   id: 1,
