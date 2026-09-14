@@ -119,12 +119,18 @@ the rest of this file is the WHY behind it.*
 
 ## 8. Process / tooling
 - Pipeline: `prep.py` (parse→zones→hours→geocode→matrix, all cached) →
+  **`sync_notebook.py`** (rewrites `overrides.json` from the LIVE board —
+  the published build plus its shared state — so the rebuild replays every
+  current assignment and only new clients get slotted; `--dry-run` to
+  preview; stops non-zero rather than re-solve if the DB is unreachable) →
   `schedule.py` (rules + routing, orders stops for minimum real DRIVE
   TIME) → `route_geometry.py` (fetches each day's real road-following
   path + actual mileage from OSRM /route, cached by stop sequence) →
   `validate.py` (27 assertions — run after EVERY change) →
   `outputs.py`, `team_review.py`, `make_updated_copy.py`,
-  `build_review.py`. Re-run `route_geometry.py` before the output
+  `build_review.py` → `publish_pages.py` (pushes the pages AND carries the
+  previous build's shared state onto the new version — see §12 "Dates
+  survive a rebuild"). Re-run `route_geometry.py` before the output
   scripts any time schedule.py changes the plan — cached, so unchanged
   days don't refetch.
 - Deliverables: schedule workbook, Team Review workbook (all history
@@ -265,12 +271,32 @@ definition of "legal," not a second implementation that can drift.
   the day's real geography, then exactly re-routed for the top candidates.
   Recommends dates before AND after the client's current one when today's
   date allows it (never a date that's already passed).
-- **Notebook** (`overrides.json`, exported from the tool) — every promised
-  (date, crew, stops) is a FROZEN assignment, replayed verbatim by
-  `schedule.py` before anything else runs, so a spreadsheet regeneration
-  doesn't silently move 30 people who were already told their date.
-  Keyed by client NAME (a sheet row insertion renumbers every row after
-  it, which would reattach dates to the wrong person otherwise).
+- **Notebook** (`overrides.json`) — every promised (date, crew, stops) is
+  a FROZEN assignment, replayed verbatim by `schedule.py` before anything
+  else runs, so a spreadsheet regeneration doesn't silently move 30 people
+  who were already told their date. Keyed by client NAME (a sheet row
+  insertion renumbers every row after it, which would reattach dates to
+  the wrong person otherwise). **It is generated, not exported**:
+  `sync_notebook.py` rebuilds it from the live board (published build +
+  shared state) as the first pipeline step, so it can never be weeks
+  behind what staff actually have on screen (the tool's "Export notebook"
+  button still works as a manual fallback). Notebook-baked clients are
+  NOT flagged `synthetic` in the build, so the sync carries the prior
+  notebook's `new_clients` by name rather than trusting the tool's export.
+- **Dates survive a rebuild (user, 2026-09-04: "make sure the app
+  preserves all of the dates as we move and change them")** — two layers,
+  both automatic. (1) The rebuild itself replays the board via the synced
+  notebook, so `schedule.py` only places clients that are NEW to the board
+  (a client just given an address, a new sheet row). (2) `publish_pages.py`
+  carries the previous build's shared state onto the new version
+  (`board_state.carry_state`): everything keyed by row is re-keyed by
+  client name through the two builds' client tables; a client the new
+  build has that the old board never placed is dropped at its baseline
+  day; roster, staffing, comments, confirmations, "not installing", manual
+  stop order and the move log all come along. It never overwrites a new
+  version that already has edits. The tool's local-wins guard only honours
+  a local save made against the SAME build, so a device still holding an
+  older build's save can't push an empty board over the carried state.
 - **Manually-added clients** (jobs never in the spreadsheet: an
   install → event-takedown → reinstall pattern, a one-day install with
   a next-day takedown, a callback because something broke or the client

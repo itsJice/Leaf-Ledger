@@ -33,6 +33,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 
 sys.path.insert(0, HERE)  # season.py is a sibling; this script may be run from anywhere
+import board_state as B  # noqa: E402
 from season import season_for  # noqa: E402
 
 #: Same variable the rest of the pipeline reads (schedule.py), so one export
@@ -91,6 +92,47 @@ def load_env(path):
             os.environ.setdefault(k, v.strip().strip('"').strip("'"))
 
 
+async def carry_board(conn, season, old_payload):
+    """Hand the just-published build the board staff were looking at.
+
+    Remaps the previous build's shared state onto the new version by client
+    name (board_state.carry_state) and writes it as the new version's first
+    save. Never overwrites a board someone has already edited on the new
+    version, and does nothing when the version did not change.
+    """
+    if not os.path.exists(PAGES["index.html"]):
+        return
+    new_payload = B.extract_payload(open(PAGES["index.html"], encoding="utf-8").read())
+    new_version = B.payload_version(new_payload)
+    old_version = B.payload_version(old_payload) if old_payload else None
+    if not old_version:
+        print("  board: no previous build for this season -- nothing to carry")
+        return
+    if old_version == new_version:
+        print(f"  board: same build version ({new_version}) -- state untouched")
+        return
+    old_state, saved_at = await B.fetch_state(conn, old_version)
+    if not old_state or not old_state.get("placement"):
+        print(f"  board: previous build {old_version} had no saved edits -- "
+              "the new build opens on its own plan")
+        return
+    state, rep = B.carry_state(old_payload, old_state, new_payload, season)
+    wrote = await B.write_state(conn, new_version, season, state,
+                                updated_by="publish_pages.py")
+    if not wrote:
+        print(f"  board: build {new_version} already has edits of its own -- "
+              "not overwriting them")
+        return
+    print(f"  board: carried {len(state['placement'])} placed client(s) from "
+          f"{old_version} (saved {saved_at:%Y-%m-%d %H:%M} UTC) onto {new_version}")
+    for n, ids in rep["added"]:
+        print(f"    + new to the board: {n} -> {', '.join(ids)}")
+    if rep["dropped"]:
+        print(f"    !! no longer in the build (dropped): {rep['dropped']}")
+    if rep["renumbered"]:
+        print(f"    rows renumbered (sheet changed): {rep['renumbered']}")
+
+
 async def main():
     load_env(ENV_FILE)
     season = current_season()
@@ -107,6 +149,18 @@ async def main():
     conn = await asyncpg.connect(db_url, statement_cache_size=0)
     try:
         await conn.execute(DDL)
+
+        # What is on the board right now, BEFORE this publish replaces it.
+        # The new build gets a different version hash, and the tool only
+        # reads shared state for its own version -- without carrying the
+        # previous build's state across, staff would open the new page to
+        # an empty board and every date they had moved would look wiped.
+        old_payload = None
+        try:
+            old_payload, _ = await B.fetch_published_payload(conn, season)
+        except ValueError as e:
+            print(f"  (previous page not readable as a review tool: {e})")
+
         for name, path in PAGES.items():
             if not os.path.exists(path):
                 print(f"  skip {name}: {path} not found (run build_review.py first)")
@@ -123,6 +177,8 @@ async def main():
                 html,
             )
             print(f"  published {season}/{name} ({len(html)/1024:.0f} KB)")
+
+        await carry_board(conn, season, old_payload)
 
         rows = await conn.fetch(
             "SELECT season, count(*) AS pages, max(updated_at) AS updated_at "

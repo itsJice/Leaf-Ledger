@@ -383,6 +383,12 @@ def load_overrides():
         return []
     out = [d for d in doc.get("days", [])
            if d.get("date") and d.get("crew") and d.get("stops")]
+    # Say where the notebook came from: a stale one (weeks older than the
+    # board) is exactly how a rebuild moves people nobody meant to move.
+    # sync_notebook.py refreshes it from the live board -- run that first.
+    print(f"  NOTEBOOK: overrides.json saved {doc.get('savedAt', '?')} "
+          f"for build {doc.get('version', '?')} "
+          f"({doc.get('source', 'exported from the tool')})")
     # Deterministic order so a rebuild is reproducible.
     out.sort(key=lambda d: (d["date"], d["crew"]))
     return out
