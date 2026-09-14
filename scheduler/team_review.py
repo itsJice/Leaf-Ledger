@@ -16,6 +16,8 @@ import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from common import merge_crew
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 OUT = os.path.join(HERE, "2026 Team Review.xlsx")
@@ -34,14 +36,6 @@ CREW_FILL = {
 DATE_BANDS = ["FFFFFF", "F2F4F4"]  # alternate per date
 OVER_FILL = PatternFill("solid", fgColor="F5B7B1")
 WEEKEND_FILL = PatternFill("solid", fgColor="FDEBD0")
-
-
-def merge_crew(prev, new):
-    """Joint stops appear on two crews' cards -> merged label."""
-    names = set()
-    for c in (prev, new):
-        names.update(x.strip() for x in c.replace(" (joint)", "").split(" + "))
-    return " + ".join(sorted(names)) + " (joint)"
 
 
 def load():

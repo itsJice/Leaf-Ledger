@@ -29,19 +29,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import board_state as B  # noqa: E402
-from season import season_for  # noqa: E402
+from common import current_season  # noqa: E402
 
 OVERRIDES = os.path.join(HERE, "overrides.json")
 CACHE = os.path.join(HERE, "cache")
-
-
-def current_season():
-    raw = (os.environ.get("TBDG_SEASON") or "").strip()
-    if raw:
-        if len(raw) != 4 or not raw.isdigit():
-            raise SystemExit(f"TBDG_SEASON={raw!r} is not a four-digit season year.")
-        return raw
-    return str(season_for())
 
 
 def read_prior():

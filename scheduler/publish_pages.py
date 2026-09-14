@@ -32,9 +32,9 @@ import asyncpg
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 
-sys.path.insert(0, HERE)  # season.py is a sibling; this script may be run from anywhere
+sys.path.insert(0, HERE)  # common.py/season.py are siblings; this script may be run from anywhere
 import board_state as B  # noqa: E402
-from season import season_for  # noqa: E402
+from common import current_season, load_env  # noqa: E402
 
 #: Same variable the rest of the pipeline reads (schedule.py), so one export
 #: steers a whole rebuild-and-publish at a non-default season.
@@ -60,36 +60,6 @@ PAGES = {
     "index.html": os.path.join(HERE, "review.html"),
     "map.html": os.path.join(HERE, "map.html"),
 }
-
-
-def current_season() -> str:
-    """Which season to publish under: TBDG_SEASON if set, else today's.
-
-    Validated rather than trusted -- a typo'd export would otherwise create a
-    junk season row that shows up in the tool's picker forever, and nothing
-    downstream would notice.
-    """
-    override = (os.environ.get(SEASON_ENV) or "").strip()
-    if override:
-        if len(override) != 4 or not override.isdigit():
-            raise SystemExit(
-                f"{SEASON_ENV}={override!r} is not a four-digit season year "
-                "(a season is named for the year its October falls in)."
-            )
-        return override
-    return str(season_for())
-
-
-def load_env(path):
-    if not os.path.exists(path):
-        return
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            os.environ.setdefault(k, v.strip().strip('"').strip("'"))
 
 
 async def carry_board(conn, season, old_payload):

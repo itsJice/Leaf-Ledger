@@ -29,7 +29,7 @@ import openpyxl
 import requests
 
 import client_config_loader
-import season as season_lib
+import common
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -46,18 +46,15 @@ UA = {"User-Agent": "TBDG-christmas-scheduler/1.0 (justice@wenzdays.com)"}
 # every year-named column -- is built from it, so October's rollover needs no
 # code edit. TBDG_SEASON (same env var the rest of the pipeline reads)
 # overrides it for rebuilding a closed season.
+#
+# common.current_season() replaces this file's old _season() helper (5.1
+# scheduler-common) -- NOTE this tightens validation: the old _season() did
+# `int(raw)` with no length check, so TBDG_SEASON=26 silently built season
+# 26. common.current_season() requires exactly four digits and raises
+# SystemExit otherwise, matching sync_clients.py/publish_pages.py/
+# sync_notebook.py's stricter (and now shared) rule.
 # ---------------------------------------------------------------------------
-def _season():
-    raw = (os.environ.get("TBDG_SEASON") or "").strip()
-    if not raw:
-        return season_lib.season_for()
-    try:
-        return int(raw)
-    except ValueError:
-        raise SystemExit(f"TBDG_SEASON={raw!r} is not a 4-digit season year.")
-
-
-SEASON = _season()          # the season being built
+SEASON = int(common.current_season())          # the season being built
 PRIOR = SEASON - 1          # last season: real hours, crew, invoice, notes
 PRIOR2 = SEASON - 2         # two back: install date only (history workbook)
 
