@@ -117,6 +117,7 @@ The codebase began as a platform-generated full-stack starter and was subsequent
 - [Project Context](PROJECT_CONTEXT.md) — product model and invariants
 - [Project Evolution](PROJECT_EVOLUTION.md) — chronological decisions and lessons
 - [Architecture](ARCHITECTURE.md) — system structure and data flow
+- [System Map](docs/SYSTEM_MAP.md) — diagrams of deployment topology, request path, catalog flow, data model, install-schedule loop, and a page-to-API-to-table lookup, with a status note on how current it is; a styled version is in [docs/SYSTEM_MAP.html](docs/SYSTEM_MAP.html)
 - [Operations](OPERATIONS.md) — ownership, recovery, and safe operation
 - [Catalog Data Strategy](CATALOG_DATA_STRATEGY.md) — source-first intake boundary
 - [Getting Started](GETTING_STARTED.md) — local setup and verification

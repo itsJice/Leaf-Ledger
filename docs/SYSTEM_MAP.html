@@ -1,0 +1,590 @@
+<title>Leaf &amp; Ledger System Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F4F7F2; --surface:#FFFFFF; --ink:#1A2620; --muted:#5C6B62; --rule:#C9D3CB; --arrow:#3D4A43;
+  --green:#2C6B4A; --green-fill:#DCEBE0;
+  --ochre:#8F6420; --ochre-fill:#F3E8CF;
+  --slate:#4A6478; --slate-fill:#E1E9EE;
+  --store:#3F5A73; --store-fill:#D6E2EC;
+  --sans:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --head:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121815; --surface:#1A221D; --ink:#E4EAE3; --muted:#96A59B; --rule:#2E3A33; --arrow:#B8C4BC;
+    --green:#7CC49A; --green-fill:#1C3729;
+    --ochre:#D8AC55; --ochre-fill:#3A2F14;
+    --slate:#9DB6C8; --slate-fill:#22313B;
+    --store:#8FB0CC; --store-fill:#1E2E3C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121815; --surface:#1A221D; --ink:#E4EAE3; --muted:#96A59B; --rule:#2E3A33; --arrow:#B8C4BC;
+  --green:#7CC49A; --green-fill:#1C3729;
+  --ochre:#D8AC55; --ochre-fill:#3A2F14;
+  --slate:#9DB6C8; --slate-fill:#22313B;
+  --store:#8FB0CC; --store-fill:#1E2E3C;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;padding-inline:20px;padding-block:32px 64px}
+.wrap{max-width:1140px;margin:0 auto}
+header{display:grid;grid-template-columns:1fr;gap:10px;padding-bottom:22px;border-bottom:1px solid var(--rule);margin-bottom:34px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--head);font-weight:700;font-size:clamp(30px,4.6vw,44px);line-height:1.05;letter-spacing:-.02em;margin:0;text-wrap:balance}
+header p{max-width:66ch;margin:0;font-size:17px;color:var(--ink)}
+.toc{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:6px;font-family:var(--mono);font-size:12.5px}
+.toc a{color:var(--green);text-decoration:none;border-bottom:1px solid transparent}
+.toc a:hover,.toc a:focus-visible{border-bottom-color:var(--green);outline:none}
+section{margin-bottom:52px}
+h2{font-family:var(--head);font-weight:600;font-size:22px;letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+h2 .num{font-family:var(--mono);font-weight:500;font-size:13px;color:var(--muted);margin-right:10px;letter-spacing:.06em}
+section>p{max-width:70ch;margin:0 0 18px;color:var(--ink)}
+figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:18px 18px 14px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;min-width:640px;font-family:var(--sans)}
+figcaption{margin-top:12px;font-size:14px;color:var(--muted);max-width:90ch;line-height:1.45}
+figcaption b{color:var(--ink);font-weight:600}
+code,.mono{font-family:var(--mono);font-size:.88em}
+p code{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:0 4px}
+/* SVG vocabulary */
+svg .zone{fill:none;stroke:var(--rule);stroke-width:1.2;stroke-dasharray:5 4;rx:8}
+svg .zl{font-family:var(--head);font-weight:600;font-size:11px;letter-spacing:.07em;text-transform:uppercase;fill:var(--muted)}
+svg .dep{fill:var(--green-fill);stroke:var(--green);stroke-width:1.3}
+svg .loc{fill:var(--ochre-fill);stroke:var(--ochre);stroke-width:1.3}
+svg .ext{fill:var(--slate-fill);stroke:var(--slate);stroke-width:1.3}
+svg .sto{fill:var(--store-fill);stroke:var(--store);stroke-width:1.3}
+svg .t{font-family:var(--cond);font-weight:600;font-size:12.5px;fill:var(--ink)}
+svg .s{font-family:var(--cond);font-size:10.5px;fill:var(--muted)}
+svg .lbl{font-family:var(--mono);font-size:10.5px;fill:var(--ink)}
+svg .lane{font-family:var(--head);font-weight:600;font-size:12px;fill:var(--ink)}
+svg .a{fill:none;stroke:var(--arrow);stroke-width:1.4;marker-end:url(#ar)}
+svg .a2{fill:none;stroke:var(--arrow);stroke-width:1.4;marker-end:url(#ar);marker-start:url(#ar-s)}
+svg .ad{fill:none;stroke:var(--ochre);stroke-width:1.4;stroke-dasharray:5 4;marker-end:url(#ar-o)}
+svg .bus{fill:none;stroke:var(--arrow);stroke-width:1.4}
+svg marker path{fill:var(--arrow)}
+svg marker.o path{fill:var(--ochre)}
+/* legend + tables */
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin:14px 2px 0;font-size:13.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.sw{width:14px;height:14px;border-radius:3px;border:1.3px solid}
+.sw.dep{background:var(--green-fill);border-color:var(--green)}
+.sw.loc{background:var(--ochre-fill);border-color:var(--ochre)}
+.sw.ext{background:var(--slate-fill);border-color:var(--slate)}
+.sw.sto{background:var(--store-fill);border-color:var(--store)}
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:760px}
+th{font-family:var(--head);font-weight:600;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:12px 14px;border-bottom:1px solid var(--rule);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.c{font-family:var(--mono);font-size:12.5px}
+td.c:nth-child(2){white-space:nowrap}
+td.g{color:var(--muted);font-family:var(--mono);font-size:12px}
+.folders td:first-child{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:10px;border:1px solid;line-height:1.5}
+.pill.dep{color:var(--green);border-color:var(--green);background:var(--green-fill)}
+.pill.loc{color:var(--ochre);border-color:var(--ochre);background:var(--ochre-fill)}
+.files{columns:2;column-gap:36px;max-width:1000px;padding-left:0;list-style:none;margin:0}
+.files li{break-inside:avoid;padding:6px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.files code{display:block;color:var(--green);font-size:12.5px}
+@media (max-width:720px){.files{columns:1}}
+.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.status-col{border:1px solid var(--rule);border-radius:6px;background:var(--surface);padding:14px 18px}
+.status-col h3{font-family:var(--head);font-size:15px;font-weight:600;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;text-wrap:balance}
+.status-col ul{margin:0;padding-left:18px;font-size:14.5px}
+.status-col li{margin:5px 0}
+.status-col code{font-size:.84em}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">System map · verified against main @ a4e4445 · 2026-09-14</div>
+  <h1>Leaf &amp; Ledger</h1>
+  <p>How the catalog-and-projects app for The Branch Design Group fits together: the four folders that make one product, the single deployed service, what runs on a laptop and never ships, and how a supplier's product row travels from a website into a client's purchase order.</p>
+  <nav class="toc" aria-label="Figures">
+    <a href="#status">Status</a>
+    <a href="#f1">1 · Whole system</a>
+    <a href="#f2">2 · One request</a>
+    <a href="#f3">3 · Catalog flow</a>
+    <a href="#f4">4 · Data model</a>
+    <a href="#f5">5 · Install schedule</a>
+    <a href="#pages">Pages ↔ API ↔ tables</a>
+    <a href="#files">Where to look</a>
+  </nav>
+</header>
+
+<!-- ============================================================ STATUS -->
+<section id="status">
+  <h2><span class="num">STATUS</span>How current this map is</h2>
+  <p>Verified against <code>main</code> at a4e4445 on 2026-09-14. Every file the map names exists on main, and the extraction scripts exist in the catalog-extraction repo. The refactor work in progress, <code>refactor/2026-09</code> and the follow-up <code>fix/test-findings</code> branch, was checked too; it is not on main yet.</p>
+  <div class="status-grid">
+    <div class="status-col">
+      <h3><span class="pill dep">holds</span>Still true after the refactor lands</h3>
+      <ul>
+        <li>19 API routers, 22 page files and 5 in-app supplier scrapers.</li>
+        <li>Every API router sits behind sign-in, and FastAPI still serves the built frontend.</li>
+        <li>All sidebar tabs and routes are unchanged.</li>
+        <li>The page-to-router callers in the lookup table are unchanged.</li>
+        <li><code>ll_app</code> tables are still created by their own routers at runtime.</li>
+        <li>The findings load still goes through <code>findings_intake.py</code>, and mockups still use DALL·E 3.</li>
+      </ul>
+    </div>
+    <div class="status-col">
+      <h3><span class="pill loc">refresh</span>Will go stale when it lands</h3>
+      <ul>
+        <li><b>Line counts.</b> <code>Library.tsx</code> drops from 3094 to 346 and <code>Arrangements.tsx</code> from 6513 to 3916, with the rest moved into new <code>pages/library/</code> and <code>pages/arrangements/</code> folders. <code>Settings.tsx</code> drops from 1430 to 1306.</li>
+        <li><b>Continuous integration.</b> A scheduler test job is added next to the backend and frontend checks.</li>
+        <li><b>Install schedule notebook, Fig 5.</b> <code>sync_notebook.py</code> is added. It rebuilds <code>overrides.json</code> from the live board before a rerun, alongside the manual Export notebook button.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FIGURE 1 -->
+<section id="f1">
+  <h2><span class="num">FIG 1</span>The whole system at rest</h2>
+  <p>Only <code>app/</code> is deployed. It is one Docker image on Render where FastAPI serves both the built React bundle and the <code>/api</code> routes on a single origin. Everything green below ships in that image. Everything ochre is a tool that runs on a laptop and talks to the same Supabase database directly.</p>
+  <figure>
+  <svg viewBox="0 0 1180 620" role="img" aria-label="Topology of Leaf and Ledger: supplier websites feed a local catalog-extraction repo that writes spreadsheets, which a manual script loads into Supabase Postgres; the deployed app on Render serves a React SPA and FastAPI that verify Supabase Auth tokens, read Postgres, and call OpenAI for mockups; a local scheduler pipeline publishes the install-schedule tool into Postgres.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ar-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M10,0 L0,5 L10,10 z"/></marker>
+      <marker id="ar-o" class="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+
+    <!-- containers -->
+    <rect class="zone" x="340" y="150" width="360" height="250" rx="8"/>
+    <text class="zl" x="352" y="172">app/ · one Docker image on Render</text>
+    <rect class="zone" x="830" y="150" width="330" height="250" rx="8"/>
+    <text class="zl" x="842" y="172">Supabase · us-east-1</text>
+
+    <!-- column A: supplier sites, extraction, findings -->
+    <rect class="ext" x="30" y="40" width="240" height="56" rx="5"/>
+    <text class="t" x="42" y="61">Supplier websites</text>
+    <text class="s" x="42" y="78">Vickerman · Allstate · Accent Decor · …</text>
+
+    <rect class="loc" x="30" y="150" width="240" height="240" rx="5"/>
+    <text class="t" x="42" y="172">catalog-extraction/</text>
+    <text class="s" x="42" y="190">own git repo · never deployed</text>
+    <text class="s" x="42" y="212">scripts/run_&lt;supplier&gt;_full.py</text>
+    <text class="s" x="42" y="228">src/catalog_extraction/*_http.py</text>
+    <text class="s" x="42" y="244">seleniumbase_runner.py (fallback)</text>
+    <text class="s" x="42" y="260">exporter.py → outputs/&lt;supplier&gt;/</text>
+    <text class="s" x="42" y="282">validate_export.py</text>
+    <text class="s" x="42" y="298">sku_grammar_learner.py</text>
+    <text class="s" x="42" y="314">normalize_catalog.py</text>
+    <text class="s" x="42" y="336">HTTP first, browser only when</text>
+    <text class="s" x="42" y="352">a portal gives no usable feed</text>
+
+    <rect class="loc" x="30" y="520" width="240" height="64" rx="5"/>
+    <text class="t" x="42" y="542">catalog-findings/THE FINDINGS/</text>
+    <text class="s" x="42" y="560">&lt;Supplier&gt;_Catalog_2026.xlsx</text>
+    <text class="s" x="42" y="574">one file per supplier per season</text>
+
+    <!-- browser -->
+    <rect class="ext" x="415" y="30" width="210" height="56" rx="5"/>
+    <text class="t" x="427" y="51">Staff browser</text>
+    <text class="s" x="427" y="68">signed-in TBDG team only</text>
+
+    <!-- app internals -->
+    <rect class="dep" x="360" y="190" width="320" height="64" rx="5"/>
+    <text class="t" x="372" y="211">React SPA · frontend/dist</text>
+    <text class="s" x="372" y="228">Vite · TypeScript · react-router · shadcn</text>
+    <text class="s" x="372" y="242">22 page files in src/pages/</text>
+
+    <rect class="dep" x="360" y="284" width="320" height="100" rx="5"/>
+    <text class="t" x="372" y="305">FastAPI · backend/main.py</text>
+    <text class="s" x="372" y="322">/api/&lt;router&gt;/* · 19 routers in app/apis/</text>
+    <text class="s" x="372" y="336">every router: Depends(get_authorized_user)</text>
+    <text class="s" x="372" y="350">catch-all serves index.html for non-/api</text>
+    <text class="s" x="372" y="364">libs/: importers, 5 supplier scrapers</text>
+    <text class="s" x="372" y="378">asyncpg · no ORM</text>
+
+    <!-- supabase internals -->
+    <rect class="ext" x="850" y="190" width="290" height="60" rx="5"/>
+    <text class="t" x="862" y="211">Supabase Auth</text>
+    <text class="s" x="862" y="228">ES256 JWT · JWKS at /auth/v1/.well-known</text>
+    <text class="s" x="862" y="242">Data API disabled: DB is not on the web</text>
+
+    <path class="sto" d="M850,278 a145,8 0 0 0 290,0 V372 a145,8 0 0 1 -290,0 Z"/>
+    <ellipse class="sto" cx="995" cy="278" rx="145" ry="8"/>
+    <text class="t" x="862" y="304">Postgres</text>
+    <text class="s" x="862" y="322">public: products, suppliers, clients,</text>
+    <text class="s" x="862" y="336">  arrangements, containers, scrape_jobs …</text>
+    <text class="s" x="862" y="352">ll_app: jobs, orders, install_schedule_*,</text>
+    <text class="s" x="862" y="366">  user_preferences, feature_requests …</text>
+
+    <!-- openai -->
+    <rect class="ext" x="440" y="460" width="160" height="56" rx="5"/>
+    <text class="t" x="452" y="481">OpenAI</text>
+    <text class="s" x="452" y="498">DALL·E 3 · AI Mockups page</text>
+
+    <!-- scheduler -->
+    <rect class="loc" x="850" y="440" width="210" height="90" rx="5"/>
+    <text class="t" x="862" y="461">scheduler/</text>
+    <text class="s" x="862" y="478">install-schedule pipeline</text>
+    <text class="s" x="862" y="492">builds review.html + map.html</text>
+    <text class="s" x="862" y="506">locally (client PII inside),</text>
+    <text class="s" x="862" y="520">never committed or baked in</text>
+
+    <!-- arrows -->
+    <path class="a" d="M150,96 V150"/>
+    <text class="lbl" x="158" y="128">login · listing · detail pages</text>
+
+    <path class="a" d="M150,390 V520"/>
+    <text class="lbl" x="158" y="460">export contract: sku, name,</text>
+    <text class="lbl" x="158" y="474">price, uom, image_url, source_url</text>
+
+    <path class="a" d="M270,68 H305 V334 H360"/>
+    <text class="lbl" transform="translate(297 210) rotate(-90)" text-anchor="middle">in-app scrapers · libs/*_scraper.py</text>
+
+    <path class="a" d="M520,86 V190"/>
+    <text class="lbl" x="530" y="142">loads the SPA shell</text>
+
+    <path class="a" d="M625,58 H990 V190"/>
+    <text class="lbl" x="800" y="50" text-anchor="middle">sign in · supabase-js → session JWT</text>
+
+    <path class="a" d="M520,254 V284"/>
+    <text class="lbl" x="530" y="273">fetch /api/* · Authorization: Bearer JWT</text>
+
+    <path class="a" d="M680,304 H755 V220 H850"/>
+    <text class="lbl" x="745" y="252" text-anchor="end">verify JWT</text>
+    <text class="lbl" x="745" y="266" text-anchor="end">via JWKS</text>
+
+    <path class="a" d="M680,350 H850"/>
+    <text class="lbl" x="765" y="342" text-anchor="middle">asyncpg · SQL</text>
+
+    <path class="a" d="M520,384 V460"/>
+    <text class="lbl" x="530" y="425">generate mockup</text>
+
+    <path class="ad" d="M270,552 H1100 V380"/>
+    <text class="lbl" x="640" y="532" text-anchor="middle">backend/scripts/load_all_findings.py --commit</text>
+    <text class="lbl" x="640" y="546" text-anchor="middle">manual · direct DB connection · then backfill_norm_to_db.py</text>
+
+    <path class="ad" d="M955,440 V380"/>
+    <text class="lbl" x="963" y="414">publish_pages.py</text>
+
+    <!-- legend -->
+    <rect class="dep" x="30" y="596" width="14" height="14" rx="3"/><text class="lbl" x="52" y="607">ships in the deploy image</text>
+    <rect class="loc" x="250" y="596" width="14" height="14" rx="3"/><text class="lbl" x="272" y="607">runs on a laptop</text>
+    <rect class="ext" x="420" y="596" width="14" height="14" rx="3"/><text class="lbl" x="442" y="607">outside service</text>
+    <rect class="sto" x="580" y="596" width="14" height="14" rx="3"/><text class="lbl" x="602" y="607">database</text>
+    <path class="ad" d="M700,603 H740"/><text class="lbl" x="750" y="607">manual step, run by a person</text>
+  </svg>
+  <figcaption><b>Supplier data arrives three ways (see Fig 3).</b> The normal one is the ochre loop on the left: a scraper in its own repo writes a spreadsheet, and a person loads it. Staff can also upload a spreadsheet on the Suppliers page, and the older in-app scrapers in <code>backend/app/libs/</code> still run price syncs and image backfills. GitHub Actions runs pytest, ESLint, tsc and the Vite build on pushes to main and on every pull request; it deploys nothing.</figcaption>
+  </figure>
+
+  <div class="tbl" style="margin-top:18px">
+  <table class="folders">
+    <thead><tr><th>Folder</th><th>Role</th><th>Ships?</th></tr></thead>
+    <tbody>
+      <tr><td>app/</td><td>The product: <code>backend/</code> FastAPI, <code>frontend/</code> React, <code>scheduler/</code> install pipeline, Dockerfile. Git remote itsJice/Leaf-Ledger.</td><td><span class="pill dep">deployed</span></td></tr>
+      <tr><td>app-board/</td><td>A second checkout of the same repo on the <code>product-requests</code> branch, open as pull request #8. Adds a Request Form page and a requests router. Not a separate system.</td><td><span class="pill loc">branch</span></td></tr>
+      <tr><td>catalog-extraction/</td><td>Supplier scrapers, per-supplier runners, normalization, export validation. Its own git repo. Output is files, never database writes.</td><td><span class="pill loc">local</span></td></tr>
+      <tr><td>catalog-findings/</td><td><code>THE FINDINGS/</code>: the finished per-supplier spreadsheets the app loads from.</td><td><span class="pill loc">read at load</span></td></tr>
+      <tr><td>db-backups/</td><td>Neon dumps from before the Supabase move, plus 4,668 Allstate images that can no longer be re-fetched. Cold storage.</td><td><span class="pill loc">archive</span></td></tr>
+      <tr><td>pricing-recipes/</td><td>TBDG pricing worksheets. <code>backend/scripts/load_pricing_recipes.py</code> loads them into the historical recipe tables that power the builder's build intelligence.</td><td><span class="pill loc">inputs</span></td></tr>
+      <tr><td>Vickerman Ornament Rules/ · tree-builder-assets/</td><td>Reference material and design assets. No code in the app reads these folders; the ornament rules were hand-coded into <code>utils/ornamentRecipe.ts</code>.</td><td><span class="pill loc">reference</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ FIGURE 2 -->
+<section id="f2">
+  <h2><span class="num">FIG 2</span>What happens on one request</h2>
+  <p>There are no cookies and no server sessions. The browser holds a Supabase access token, every call to <code>/api</code> carries it as a Bearer header, and FastAPI checks the signature against Supabase's public keys before any handler runs. The three lanes happen in this order the first time someone opens the app.</p>
+  <figure>
+  <svg viewBox="0 0 1180 300" role="img" aria-label="Three lanes: first load serves the SPA shell from FastAPI's catch-all; sign in goes through supabase-js to Supabase Auth and stores a JWT in the browser; every API call adds a Bearer header, is verified by get_authorized_user via JWKS, handled by a router module, and read from Postgres with asyncpg.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+    <!-- lane 1 -->
+    <text class="lane" x="20" y="63">1 · First load</text>
+    <rect class="ext" x="140" y="34" width="150" height="56" rx="5"/><text class="t" x="152" y="55">GET /jobs</text><text class="s" x="152" y="72">browser address bar</text>
+    <rect class="dep" x="310" y="34" width="150" height="56" rx="5"/><text class="t" x="322" y="55">main.py catch-all</text><text class="s" x="322" y="72">/{full_path} route</text>
+    <rect class="dep" x="480" y="34" width="150" height="56" rx="5"/><text class="t" x="492" y="55">frontend/dist</text><text class="s" x="492" y="72">index.html + assets/</text>
+    <rect class="dep" x="650" y="34" width="150" height="56" rx="5"/><text class="t" x="662" y="55">AppWrapper.tsx</text><text class="s" x="662" y="72">AuthProvider → router</text>
+    <rect class="dep" x="820" y="34" width="150" height="56" rx="5"/><text class="t" x="832" y="55">UserGuard.tsx</text><text class="s" x="832" y="72">no session → Login</text>
+    <path class="a" d="M290,62 H310"/><path class="a" d="M460,62 H480"/><path class="a" d="M630,62 H650"/><path class="a" d="M800,62 H820"/>
+
+    <!-- lane 2 -->
+    <text class="lane" x="20" y="153">2 · Sign in</text>
+    <rect class="dep" x="140" y="124" width="150" height="56" rx="5"/><text class="t" x="152" y="145">Login.tsx</text><text class="s" x="152" y="162">email + password</text>
+    <rect class="dep" x="310" y="124" width="150" height="56" rx="5"/><text class="t" x="322" y="145">supabase-js</text><text class="s" x="322" y="162">anon key, public</text>
+    <rect class="ext" x="480" y="124" width="150" height="56" rx="5"/><text class="t" x="492" y="145">Supabase Auth</text><text class="s" x="492" y="162">issues ES256 JWT</text>
+    <rect class="ext" x="650" y="124" width="150" height="56" rx="5"/><text class="t" x="662" y="145">Browser session</text><text class="s" x="662" y="162">persist + auto-refresh</text>
+    <rect class="dep" x="820" y="124" width="150" height="56" rx="5"/><text class="t" x="832" y="145">Back to /jobs</text><text class="s" x="832" y="162">UserGuard passes</text>
+    <path class="a" d="M290,152 H310"/><path class="a" d="M460,152 H480"/><path class="a" d="M630,152 H650"/><path class="a" d="M800,152 H820"/>
+
+    <!-- lane 3 -->
+    <text class="lane" x="20" y="243">3 · Every API call</text>
+    <rect class="dep" x="140" y="214" width="132" height="56" rx="5"/><text class="t" x="150" y="235">Page or util</text><text class="s" x="150" y="252">e.g. utils/jobs.ts</text>
+    <rect class="dep" x="288" y="214" width="132" height="56" rx="5"/><text class="t" x="298" y="235">apiClient · apiFetch</text><text class="s" x="298" y="252">adds Bearer JWT</text>
+    <rect class="dep" x="436" y="214" width="132" height="56" rx="5"/><text class="t" x="446" y="235">GET /api/jobs/list</text><text class="s" x="446" y="252">same origin</text>
+    <rect class="dep" x="584" y="214" width="132" height="56" rx="5"/><text class="t" x="594" y="235">get_authorized_user</text><text class="s" x="594" y="252">JWKS verify → sub</text>
+    <rect class="dep" x="732" y="214" width="132" height="56" rx="5"/><text class="t" x="742" y="235">app/apis/jobs</text><text class="s" x="742" y="252">route handler</text>
+    <rect class="dep" x="880" y="214" width="132" height="56" rx="5"/><text class="t" x="890" y="235">asyncpg</text><text class="s" x="890" y="252">DATABASE_URL</text>
+    <path class="sto" d="M1028,222 a66,6 0 0 0 132,0 V264 a66,6 0 0 1 -132,0 Z"/><ellipse class="sto" cx="1094" cy="222" rx="66" ry="6"/><text class="t" x="1038" y="243">Postgres</text><text class="s" x="1038" y="258">JSON back</text>
+    <path class="a" d="M272,242 H288"/><path class="a" d="M420,242 H436"/><path class="a" d="M568,242 H584"/><path class="a" d="M716,242 H732"/><path class="a" d="M864,242 H880"/><path class="a" d="M1012,242 H1028"/>
+  </svg>
+  <figcaption><b>Two client helpers, one rule.</b> The generated <code>apiclient/</code> (Databutton-era, paths spelled <code>/routes/…</code> and rewritten to <code>/api/…</code>) and the hand-written <code>utils/apiFetch.ts</code> both ask <code>auth.getAuthHeaderValue()</code> for the token. Auth can only be switched off with <code>AUTH_DISABLED=true</code> while <code>ENV=dev</code>; the deployed image ignores the flag. In local development Vite serves the pages on 5173 and proxies <code>/api</code> to uvicorn on 8000.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ FIGURE 3 -->
+<section id="f3">
+  <h2><span class="num">FIG 3</span>How a product gets in, and where it goes</h2>
+  <p>Three intake lanes converge on one <code>products</code> table. Dedupe is scoped per supplier because SKUs collide across vendors. Missing fields stay visible as review work rather than being dropped. From there the same rows feed search, favorites, projects, designs, the ornament calculator, jobs and purchase orders.</p>
+  <figure>
+  <svg viewBox="0 0 1180 460" role="img" aria-label="Three intake lanes (external extraction spreadsheets, file upload through the Suppliers page, and in-app scrapers) all write to the products table, which then fans out to catalog search, favorites, projects, designs, the ornament calculator, jobs and purchase orders.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+    <!-- lane A -->
+    <text class="lane" x="20" y="28">A · External extraction — the normal path</text>
+    <rect class="loc" x="20" y="40" width="170" height="56" rx="5"/><text class="t" x="32" y="61">catalog-extraction</text><text class="s" x="32" y="78">run_&lt;supplier&gt;_full.py</text>
+    <rect class="loc" x="220" y="40" width="150" height="56" rx="5"/><text class="t" x="232" y="61">THE FINDINGS xlsx</text><text class="s" x="232" y="78">validated export</text>
+    <rect class="loc" x="400" y="40" width="200" height="56" rx="5"/><text class="t" x="412" y="61">load_all_findings.py</text><text class="s" x="412" y="78">→ libs/findings_intake.py</text>
+    <path class="a" d="M190,68 H220"/><path class="a" d="M370,68 H400"/>
+    <path class="a" d="M600,68 H640 V180 H680"/>
+
+    <!-- lane B -->
+    <text class="lane" x="20" y="158">B · Spreadsheet upload from the Suppliers page</text>
+    <rect class="dep" x="20" y="170" width="170" height="56" rx="5"/><text class="t" x="32" y="191">Suppliers.tsx</text><text class="s" x="32" y="208">upload CSV / XLSX</text>
+    <rect class="dep" x="220" y="170" width="150" height="56" rx="5"/><text class="t" x="232" y="191">/api/suppliers</text><text class="s" x="232" y="208">…/catalog-imports/upload</text>
+    <rect class="dep" x="400" y="170" width="200" height="56" rx="5"/><text class="t" x="412" y="191">libs/catalog_importer.py</text><text class="s" x="412" y="208">preview rows → reprocess → commit</text>
+    <path class="a" d="M190,198 H220"/><path class="a" d="M370,198 H400"/>
+    <path class="a" d="M600,198 H680"/>
+
+    <!-- lane C -->
+    <text class="lane" x="20" y="288">C · In-app scraper — fallback, price syncs, image backfills</text>
+    <rect class="dep" x="20" y="300" width="170" height="56" rx="5"/><text class="t" x="32" y="321">Suppliers.tsx</text><text class="s" x="32" y="338">Configure Catalog · Sync</text>
+    <rect class="dep" x="220" y="300" width="150" height="56" rx="5"/><text class="t" x="232" y="321">/api/scraper/start</text><text class="s" x="232" y="338">scrape_jobs row, bg task</text>
+    <rect class="dep" x="400" y="300" width="200" height="56" rx="5"/><text class="t" x="412" y="321">libs/scraper_base.py</text><text class="s" x="412" y="338">+ allstate, accent_decor, regency,</text><text class="s" x="412" y="350">  select_artificial, vickerman</text>
+    <path class="a" d="M190,328 H220"/><path class="a" d="M370,328 H400"/>
+    <path class="a" d="M600,328 H640 V240 H680"/>
+    <text class="lbl" x="612" y="290" text-anchor="middle">preview →</text>
+    <text class="lbl" x="612" y="304" text-anchor="middle">/import</text>
+
+    <!-- suppliers + products store -->
+    <rect class="sto" x="680" y="40" width="200" height="50" rx="5"/><text class="t" x="692" y="61">suppliers</text><text class="s" x="692" y="78">credentials, terms, contacts</text>
+    <path class="a" d="M780,90 V130"/><text class="lbl" x="788" y="114">supplier_id</text>
+
+    <path class="sto" d="M680,138 a100,8 0 0 0 200,0 V322 a100,8 0 0 1 -200,0 Z"/><ellipse class="sto" cx="780" cy="138" rx="100" ry="8"/>
+    <text class="t" x="692" y="166">products</text>
+    <text class="s" x="692" y="186">supplier-scoped SKU dedupe</text>
+    <text class="s" x="692" y="200">source file, url, season kept</text>
+    <text class="s" x="692" y="222">product_facets</text>
+    <text class="s" x="692" y="236">search_vocab</text>
+    <text class="s" x="692" y="250">product_price_history</text>
+    <text class="s" x="692" y="264">product_favorites</text>
+    <text class="s" x="692" y="286">dual pricing: supplier cost</text>
+    <text class="s" x="692" y="300">vs customer price (markup)</text>
+
+    <!-- bus to consumers -->
+    <path class="bus" d="M880,230 H920 V413"/>
+    <path class="bus" d="M920,53 V230"/>
+    <path class="a" d="M920,53 H960"/><path class="a" d="M920,113 H960"/><path class="a" d="M920,173 H960"/><path class="a" d="M920,233 H960"/><path class="a" d="M920,293 H960"/><path class="a" d="M920,353 H960"/><path class="a" d="M920,413 H960"/>
+
+    <rect class="dep" x="960" y="30" width="200" height="46" rx="5"/><text class="t" x="972" y="49">Catalog Search · Library</text><text class="s" x="972" y="65">/api/products/page · /search</text>
+    <rect class="dep" x="960" y="90" width="200" height="46" rx="5"/><text class="t" x="972" y="109">Favorites</text><text class="s" x="972" y="125">/api/products/favorite</text>
+    <rect class="dep" x="960" y="150" width="200" height="46" rx="5"/><text class="t" x="972" y="169">Clients → Projects</text><text class="s" x="972" y="185">rooms → containers → items</text>
+    <rect class="dep" x="960" y="210" width="200" height="46" rx="5"/><text class="t" x="972" y="229">Designs</text><text class="s" x="972" y="245">/api/designs · /hierarchy</text>
+    <rect class="dep" x="960" y="270" width="200" height="46" rx="5"/><text class="t" x="972" y="289">Ornament Calculator</text><text class="s" x="972" y="305">/api/products/ornament-match</text>
+    <rect class="dep" x="960" y="330" width="200" height="46" rx="5"/><text class="t" x="972" y="349">Jobs → Sourcing</text><text class="s" x="972" y="365">material_needs → sourcing_lines</text>
+    <rect class="dep" x="960" y="390" width="200" height="46" rx="5"/><text class="t" x="972" y="409">Purchase Orders</text><text class="s" x="972" y="425">order_items · PDF / Word / Excel</text>
+  </svg>
+  <figcaption><b>Lane A is the boundary the project chose.</b> Scraping lives outside the app and produces files; the app owns validation, normalization, dedupe, provenance and search. Lane C predates that decision and is kept for the five suppliers whose scrapers already work. Lane B stages parsed rows in <code>supplier_catalog_import_rows</code> and lane C previews a finished scrape job, so both show rows before anything reaches <code>products</code>.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ FIGURE 4 -->
+<section id="f4">
+  <h2><span class="num">FIG 4</span>The data model, in two schemas</h2>
+  <p>The core catalog and project tables sit in <code>public</code>. They came with the platform-generated starter and have no CREATE statement in this repo. Numbered SQL files in <code>backend/migrations/</code> add columns, indexes and a few tables such as <code>clients</code> and <code>project_rooms</code>. The newer operational tables live in an app-owned <code>ll_app</code> schema, and each router creates its own tables with <code>CREATE TABLE IF NOT EXISTS</code> the first time it runs. Arrows point from parent to child.</p>
+  <figure>
+  <svg viewBox="0 0 1180 420" role="img" aria-label="Entity map: in the public schema, suppliers own products, products have favorites and price history, and clients own arrangements which contain rooms, containers and items that reference products; in the ll_app schema, jobs own material needs which become sourcing lines, orders and order items, alongside standalone document tables for the install schedule, preferences, feedback and tree counts.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+    <rect class="zone" x="20" y="20" width="750" height="384" rx="8"/>
+    <text class="zl" x="32" y="42">public · platform-era tables + migrations 003–012</text>
+    <rect class="zone" x="790" y="20" width="370" height="384" rx="8"/>
+    <text class="zl" x="802" y="42">ll_app · created by its routers at runtime</text>
+
+    <!-- catalog side -->
+    <rect class="sto" x="40" y="60" width="150" height="40" rx="4"/><text class="t" x="50" y="78">suppliers</text><text class="s" x="50" y="92">scraper_key, credentials</text>
+    <rect class="sto" x="220" y="60" width="190" height="56" rx="4"/><text class="t" x="230" y="78">scrape_jobs · sync_logs</text><text class="s" x="230" y="93">supplier_category_index</text><text class="s" x="230" y="107">catalog_imports + _rows</text>
+    <path class="a" d="M190,80 H220"/>
+
+    <rect class="sto" x="40" y="160" width="150" height="40" rx="4"/><text class="t" x="50" y="178">products</text><text class="s" x="50" y="192">source-truth supplier row</text>
+    <path class="a" d="M115,100 V160"/><text class="lbl" x="123" y="134">supplier_id</text>
+
+    <rect class="sto" x="40" y="270" width="150" height="40" rx="4"/><text class="t" x="50" y="288">product_price_history</text><text class="s" x="50" y="302">from price syncs</text>
+    <path class="a" d="M115,200 V270"/>
+    <rect class="sto" x="220" y="270" width="150" height="40" rx="4"/><text class="t" x="230" y="288">product_favorites</text><text class="s" x="230" y="302">the heart button</text>
+    <path class="a" d="M150,200 V235 H295 V270"/>
+    <rect class="sto" x="220" y="160" width="170" height="40" rx="4"/><text class="t" x="230" y="178">product_facets</text><text class="s" x="230" y="192">search_vocab · search blob</text>
+    <path class="a" d="M190,180 H220"/>
+
+    <!-- project side -->
+    <rect class="sto" x="430" y="60" width="150" height="40" rx="4"/><text class="t" x="440" y="78">clients</text><text class="s" x="440" y="92">address, contacts, activity</text>
+    <rect class="sto" x="600" y="60" width="150" height="40" rx="4"/><text class="t" x="610" y="78">client_activity</text><text class="s" x="610" y="92">comments, history</text>
+    <path class="a" d="M580,80 H600"/>
+
+    <rect class="sto" x="430" y="130" width="150" height="40" rx="4"/><text class="t" x="440" y="148">arrangements</text><text class="s" x="440" y="162">= a client project</text>
+    <path class="a" d="M505,100 V130"/><text class="lbl" x="513" y="120">client_name</text>
+    <rect class="sto" x="600" y="130" width="150" height="40" rx="4"/><text class="t" x="610" y="148">arrangement_mockups</text><text class="s" x="610" y="162">DALL·E output URLs</text>
+    <path class="a" d="M580,150 H600"/>
+
+    <rect class="sto" x="430" y="200" width="150" height="40" rx="4"/><text class="t" x="440" y="218">project_rooms</text><text class="s" x="440" y="232">= buckets: Tree, Garland…</text>
+    <path class="a" d="M505,170 V200"/>
+
+    <rect class="sto" x="430" y="270" width="150" height="40" rx="4"/><text class="t" x="440" y="288">arrangement_containers</text><text class="s" x="440" y="302">= a design that gets built</text>
+    <path class="a" d="M505,240 V270"/>
+
+    <rect class="sto" x="430" y="340" width="150" height="40" rx="4"/><text class="t" x="440" y="358">container_items</text><text class="s" x="440" y="372">candidate vs selected</text>
+    <path class="a" d="M505,310 V340"/>
+    <path class="a" d="M430,360 H330 V180 H190"/><text class="lbl" x="338" y="360">product_id</text>
+
+    <rect class="sto" x="600" y="200" width="150" height="110" rx="4"/><text class="t" x="610" y="218">recipe intelligence</text><text class="s" x="610" y="236">historical_recipes</text><text class="s" x="610" y="250">historical_recipe_components</text><text class="s" x="610" y="264">recipe_pricing_rules</text><text class="s" x="610" y="278">sku_standards</text><text class="s" x="610" y="292">visual_reference_assets</text><text class="s" x="610" y="306">recipe_source_files</text>
+    <rect class="sto" x="600" y="340" width="150" height="40" rx="4"/><text class="t" x="610" y="358">markup_settings</text><text class="s" x="610" y="372">user_roles</text>
+
+    <!-- ll_app -->
+    <rect class="sto" x="810" y="60" width="150" height="40" rx="4"/><text class="t" x="820" y="78">jobs</text><text class="s" x="820" y="92">intake → shelf</text>
+    <rect class="sto" x="990" y="60" width="150" height="40" rx="4"/><text class="t" x="1000" y="78">job_pieces · job_tasks</text><text class="s" x="1000" y="92">+ groups, items</text>
+    <path class="a" d="M960,80 H990"/>
+
+    <rect class="sto" x="810" y="130" width="150" height="40" rx="4"/><text class="t" x="820" y="148">material_needs</text><text class="s" x="820" y="162">per piece, qty needed</text>
+    <path class="a" d="M885,100 V130"/>
+
+    <rect class="sto" x="810" y="200" width="150" height="40" rx="4"/><text class="t" x="820" y="218">sourcing_lines</text><text class="s" x="820" y="232">stock, open PO, or buy</text>
+    <path class="a" d="M885,170 V200"/>
+
+    <rect class="sto" x="810" y="270" width="150" height="40" rx="4"/><text class="t" x="820" y="288">orders</text><text class="s" x="820" y="302">grouped by vendor</text>
+    <path class="a" d="M885,240 V270"/><text class="lbl" x="893" y="259">send-to-po</text>
+
+    <rect class="sto" x="810" y="340" width="150" height="40" rx="4"/><text class="t" x="820" y="358">order_items</text><text class="s" x="820" y="372">product_id → public.products</text>
+    <path class="a" d="M885,310 V340"/>
+    <rect class="sto" x="990" y="340" width="150" height="40" rx="4"/><text class="t" x="1000" y="358">receipts · stock</text><text class="s" x="1000" y="372">what arrived, what's on hand</text>
+    <path class="a" d="M960,360 H990"/>
+
+    <rect class="sto" x="990" y="130" width="150" height="180" rx="4"/>
+    <text class="t" x="1000" y="148">standalone documents</text>
+    <text class="s" x="1000" y="166">jsonb, no foreign keys</text>
+    <text class="s" x="1000" y="188">install_schedule_pages</text>
+    <text class="s" x="1000" y="202">install_schedule_state</text>
+    <text class="s" x="1000" y="216">install_schedule_history</text>
+    <text class="s" x="1000" y="238">user_preferences</text>
+    <text class="s" x="1000" y="252">feature_requests</text>
+    <text class="s" x="1000" y="266">tree_counts</text>
+    <text class="s" x="1000" y="288">read-modify-write under</text>
+    <text class="s" x="1000" y="302">FOR UPDATE, append-only history</text>
+  </svg>
+  <figcaption><b>The naming is historical.</b> "Arrangements" in the database are what the UI calls Projects, and an "arrangement container" is what the Designs page calls a design. Only items marked <b>selected</b> count toward quantities and cost; candidates are ideas. Jobs are the newer operational layer that turns a client order into pieces, material needs, sourcing decisions and vendor purchase orders.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ FIGURE 5 -->
+<section id="f5">
+  <h2><span class="num">FIG 5</span>The install schedule loop</h2>
+  <p>A seasonal side-product inside the same repo. A Python pipeline turns the raw Christmas client spreadsheet into a routed crew schedule and a self-contained review page. Because that page embeds client names, addresses and phone numbers, it is pushed straight into Postgres and served only to signed-in staff, never committed and never baked into the image.</p>
+  <figure>
+  <svg viewBox="0 0 1180 300" role="img" aria-label="Clockwise loop: the client spreadsheet goes through prep, schedule, route geometry, validate and build_review stages to produce review.html, which publish_pages pushes into Postgres; the API serves it inside InstallSchedule.tsx; staff edits are saved as shared state with history; the exported notebook of promised dates feeds back into the next schedule run as overrides.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ar-o" class="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+    <text class="zl" x="20" y="34">Pipeline · runs locally, TBDG_SEASON derived from the date</text>
+    <rect class="loc" x="20" y="60" width="130" height="56" rx="5"/><text class="t" x="30" y="81">Client sheet</text><text class="s" x="30" y="98">CHRISTMAS CLIENTS.xlsx</text>
+    <rect class="loc" x="170" y="60" width="130" height="56" rx="5"/><text class="t" x="180" y="81">prep.py</text><text class="s" x="180" y="98">zones · hours · geocode</text>
+    <rect class="loc" x="320" y="60" width="130" height="56" rx="5"/><text class="t" x="330" y="81">schedule.py</text><text class="s" x="330" y="98">rules.py crew-day packing</text>
+    <rect class="loc" x="470" y="60" width="130" height="56" rx="5"/><text class="t" x="480" y="81">route_geometry.py</text><text class="s" x="480" y="98">road paths for the map</text>
+    <rect class="loc" x="620" y="60" width="130" height="56" rx="5"/><text class="t" x="630" y="81">validate.py</text><text class="s" x="630" y="98">asserts every rule</text>
+    <rect class="loc" x="770" y="60" width="130" height="56" rx="5"/><text class="t" x="780" y="81">build_review.py</text><text class="s" x="780" y="98">review.html · map.html</text>
+    <rect class="loc" x="920" y="60" width="130" height="56" rx="5"/><text class="t" x="930" y="81">publish_pages.py</text><text class="s" x="930" y="98">asyncpg → Postgres</text>
+    <path class="a" d="M150,88 H170"/><path class="a" d="M300,88 H320"/><path class="a" d="M450,88 H470"/><path class="a" d="M600,88 H620"/><path class="a" d="M750,88 H770"/><path class="a" d="M900,88 H920"/>
+
+    <!-- external geo services under prep -->
+    <rect class="ext" x="170" y="190" width="130" height="56" rx="5"/><text class="t" x="180" y="211">Nominatim · OSRM</text><text class="s" x="180" y="228">geocode, drive-time matrix</text>
+    <path class="a2" d="M235,190 V116"/><text class="lbl" x="243" y="158">cache/</text>
+
+    <!-- overrides under schedule -->
+    <rect class="loc" x="320" y="190" width="130" height="56" rx="5"/><text class="t" x="330" y="211">overrides.json</text><text class="s" x="330" y="228">promised dates, frozen</text>
+    <path class="ad" d="M385,190 V116"/><text class="lbl" x="393" y="158">replayed first</text>
+
+    <!-- serving row, right to left -->
+    <path class="ad" d="M985,116 V190"/>
+    <path class="sto" d="M920,196 a65,6 0 0 0 130,0 V240 a65,6 0 0 1 -130,0 Z"/><ellipse class="sto" cx="985" cy="196" rx="65" ry="6"/><text class="t" x="930" y="216" style="font-size:11px">install_schedule_pages</text><text class="s" x="930" y="232">one row per (season, name)</text>
+    <rect class="dep" x="770" y="190" width="130" height="56" rx="5"/><text class="t" x="780" y="211">/api/install-schedule</text><text class="s" x="780" y="228">/page · /state · /history</text>
+    <path class="a" d="M920,218 H900"/>
+    <rect class="dep" x="620" y="190" width="130" height="56" rx="5"/><text class="t" x="630" y="211">InstallSchedule.tsx</text><text class="s" x="630" y="228">iframe, signed-in only</text>
+    <path class="a" d="M770,218 H750"/>
+    <path class="sto" d="M470,196 a65,6 0 0 0 130,0 V240 a65,6 0 0 1 -130,0 Z"/><ellipse class="sto" cx="535" cy="196" rx="65" ry="6"/><text class="t" x="480" y="216" style="font-size:11px">install_schedule_state</text><text class="s" x="480" y="232">+ _history, append-only</text>
+    <path class="a" d="M620,218 H600"/><text class="lbl" x="610" y="262" text-anchor="middle">PUT /state saves edits</text>
+    <path class="ad" d="M470,218 H450"/><text class="lbl" x="460" y="262" text-anchor="middle">export notebook</text>
+
+    <text class="lbl" x="20" y="290">Keyed to the schedule build hash, so edits saved against last year's build are never applied to a regenerated one. Rules live in scheduler/RULES.md.</text>
+  </svg>
+  <figcaption><b>Why the loop matters.</b> After the base schedule ships, weeks of client reschedule requests follow. Staff move stops in the tool with the same rules the pipeline used as guardrails, and every promised date is exported back into <code>overrides.json</code> so the next pipeline run honors it before re-solving everything else.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ TABLE -->
+<section id="pages">
+  <h2><span class="num">MAP</span>Sidebar tab → page → API router → tables</h2>
+  <p>Every sidebar entry is declared once in <code>components/sidebarNav.ts</code>; routes are listed in <code>user-routes.tsx</code>; routers are auto-discovered from <code>backend/app/apis/&lt;name&gt;/__init__.py</code>. Line counts are from main and are a rough guide to where the weight sits.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Tab</th><th>Route</th><th>Page (lines)</th><th>API router (lines)</th><th>Main tables</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td class="c">/</td><td class="c">App.tsx (348)</td><td class="c">dashboard (143)</td><td class="g">one summary call across products, suppliers, favorites, projects, designs, orders, historical recipes</td></tr>
+      <tr><td>Clients &amp; Projects tree</td><td class="c">/clients · /projects</td><td class="c">Clients.tsx (1255) · Arrangements.tsx (6513)</td><td class="c">clients (468) · arrangements (1259) · builder (1805) · recipe_intelligence (1626)</td><td class="g">clients, client_activity, arrangements, project_rooms, arrangement_containers, container_items</td></tr>
+      <tr><td>Jobs</td><td class="c">/jobs · /sourcing</td><td class="c">Jobs.tsx (489) · Sourcing.tsx (809)</td><td class="c">jobs (1567) · clients · products</td><td class="g">ll_app.jobs, job_pieces, material_needs, sourcing_lines, job_tasks, stock, receipts</td></tr>
+      <tr><td>Designs</td><td class="c">/designs</td><td class="c">Designs.tsx (580)</td><td class="c">designs (826)</td><td class="g">arrangement_containers, container_items, products</td></tr>
+      <tr><td>AI Mockups</td><td class="c">/mockups</td><td class="c">Mockups.tsx (239)</td><td class="c">mockups (167)</td><td class="g">arrangement_mockups, visual_reference_assets · calls OpenAI</td></tr>
+      <tr><td>Ornament Calculator</td><td class="c">/ornament-calculator</td><td class="c">OrnamentCalculator.tsx (1700)</td><td class="c">products (ornament-match)</td><td class="g">products; the golden table lives in utils/ornamentRecipe.ts</td></tr>
+      <tr><td>Tree Counts</td><td class="c">/tree-counts</td><td class="c">TreeCounts.tsx (603)</td><td class="c">tree_counts (287)</td><td class="g">ll_app.tree_counts</td></tr>
+      <tr><td>Catalog Search</td><td class="c">/search</td><td class="c">CatalogSearch.tsx (897) · Library.tsx (3094, shared modals)</td><td class="c">products (2624)</td><td class="g">products, product_facets, search_vocab, product_favorites</td></tr>
+      <tr><td>Suppliers</td><td class="c">/suppliers</td><td class="c">Suppliers.tsx (826)</td><td class="c">suppliers (1359) · scraper (3906)</td><td class="g">suppliers, supplier_catalog_filters, scrape_jobs, scrape_sync_logs</td></tr>
+      <tr><td>Purchase Orders</td><td class="c">/orders</td><td class="c">Orders.tsx (299)</td><td class="c">orders (404) + export.py</td><td class="g">ll_app.orders, order_items</td></tr>
+      <tr><td>Install Schedule</td><td class="c">/install-schedule</td><td class="c">InstallSchedule.tsx (105)</td><td class="c">install_schedule (654)</td><td class="g">ll_app.install_schedule_pages, _state, _history</td></tr>
+      <tr><td>Favorites</td><td class="c">/favorites</td><td class="c">Favorites.tsx (187)</td><td class="c">products</td><td class="g">product_favorites</td></tr>
+      <tr><td>Invoices</td><td class="c">/invoice</td><td class="c">Invoice.tsx (205)</td><td class="c">arrangements · settings</td><td class="g">arrangements, container_items, markup_settings</td></tr>
+      <tr><td>Comments</td><td class="c">/comments</td><td class="c">Comments.tsx (214) · FeedbackWidget.tsx</td><td class="c">feedback (208)</td><td class="g">ll_app.feature_requests</td></tr>
+      <tr><td>Sync Operations</td><td class="c">/admin-dashboard</td><td class="c">AdminDashboard.tsx (1078)</td><td class="c">admin_dashboard (356) · scraper</td><td class="g">scrape_sync_logs, product_price_history, supplier_category_index</td></tr>
+      <tr><td>Settings</td><td class="c">/settings</td><td class="c">Settings.tsx (1430)</td><td class="c">settings (114) · preferences (330) · recipe_intelligence</td><td class="g">markup_settings, user_roles, recipe_pricing_rules, sku_standards, ll_app.user_preferences</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="legend">
+    <span>The app shell, <code>Layout.tsx</code>, calls <code>/api/bootstrap/summary</code>, the client list and recent client comments on every page.</span>
+    <span>Not a tab, reached by link: <code>/sourcing/:jobId</code> (the purchaser's worksheet), <code>/login</code>.</span>
+    <span>Scheduled job, currently unowned: weekly <code>POST /api/scraper/sync-prices-bulk</code> (see SCHEDULES.md).</span>
+  </div>
+</section>
+
+<!-- ============================================================ FILES -->
+<section id="files">
+  <h2><span class="num">REF</span>Where to look</h2>
+  <ul class="files">
+    <li>How routers are found and locked behind auth<code>app/backend/main.py</code></li>
+    <li>JWT verification against Supabase<code>app/backend/app/auth/supabase_auth.py</code></li>
+    <li>Shared scraper framework the five in-app scrapers extend<code>app/backend/app/libs/scraper_base.py</code></li>
+    <li>Spreadsheet intake used by the manual load<code>app/backend/app/libs/findings_intake.py</code></li>
+    <li>Upload intake with preview and commit<code>app/backend/app/libs/catalog_importer.py</code></li>
+    <li>The manual load command<code>app/backend/scripts/load_all_findings.py</code></li>
+    <li>App shell, providers, error boundary<code>app/frontend/src/AppWrapper.tsx</code></li>
+    <li>Sidebar as the single source of truth<code>app/frontend/src/components/sidebarNav.ts</code></li>
+    <li>Both API helpers<code>app/frontend/src/apiclient/index.ts · utils/apiFetch.ts</code></li>
+    <li>Build: two-stage image, Vite then Python<code>app/Dockerfile</code></li>
+    <li>Scheduling rules in prose<code>app/scheduler/RULES.md</code></li>
+    <li>Product boundary and invariants<code>app/PROJECT_CONTEXT.md · CATALOG_DATA_STRATEGY.md</code></li>
+    <li>Supplier runner entry point<code>catalog-extraction/scripts/run_supplier.py</code></li>
+    <li>Export contract every scraper must meet<code>catalog-extraction/README.md</code></li>
+  </ul>
+</section>
+</div>
