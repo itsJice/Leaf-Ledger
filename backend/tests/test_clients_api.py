@@ -90,9 +90,11 @@ def test_list_clients(fake_db, fake_request):
              {"id": 51, "kind": "comment", "season": "x", "summary": "hi",
               "detail": None, "occurred_at": None, "created_at": T1},
          ]},
-        # project-only client: note there is NO "secondary_contacts" key in this dict
+        # project-only client: fixed to carry secondary_contacts: [] like a
+        # saved client does, instead of omitting the key entirely.
         {"id": None, "name": "Unassigned", "email": None, "phone": None, "notes": None,
-         "street": None, "city": None, "state": None, "zip": None, "created_at": None,
+         "street": None, "city": None, "state": None, "zip": None,
+         "secondary_contacts": [], "created_at": None,
          "updated_at": T0, "project_count": 1, "bucket_count": 0, "selected_cost": 0.0,
          "last_project_at": T0, "source": "from_projects", "activity": []},
     ]

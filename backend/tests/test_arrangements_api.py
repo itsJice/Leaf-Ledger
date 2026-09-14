@@ -27,6 +27,7 @@ from app.apis.arrangements import (
     ItemStatusUpdate,
     RoomIn,
     encode_scope_label,
+    parse_room_label,
     parse_scope_label,
 )
 
@@ -131,15 +132,20 @@ def _scope(label="Scope", room_id=None, bucket_type=None, requested_quantity=1, 
         ("LL_SCOPE:{}", _scope()),
         # label trimmed; blank label falls back to the trimmed bucket_type
         ('LL_SCOPE:{"label":"  ","bucket_type":" Garland "}', _scope(label="Garland", bucket_type="Garland")),
-        # mixed case preserved, room_id NOT coerced, numeric-string quantity parsed, notes trimmed
+        # mixed case preserved, room_id coerced to int, numeric-string quantity parsed, notes trimmed
         (
             'LL_SCOPE:{"label":" Mixed Case Tree ","room_id":"7","requested_quantity":"12","scope_notes":" tall "}',
-            _scope(label="Mixed Case Tree", room_id="7", requested_quantity=12, scope_notes="tall"),
+            _scope(label="Mixed Case Tree", room_id=7, requested_quantity=12, scope_notes="tall"),
         ),
         # quantity: junk -> 1, negative -> 1, float truncated
         ('LL_SCOPE:{"requested_quantity":"abc"}', _scope()),
         ('LL_SCOPE:{"requested_quantity":-5}', _scope()),
         ('LL_SCOPE:{"requested_quantity":3.9,"room_id":0}', _scope(requested_quantity=3, room_id=0)),
+        # non-numeric room_id -> None rather than a leaked string
+        ('LL_SCOPE:{"room_id":"abc"}', _scope(room_id=None)),
+        # a non-string label doesn't crash: falls back the same way a missing
+        # label does (label -> bucket_type -> "Scope")
+        ('LL_SCOPE:{"label":5}', _scope()),
         # other prefix family is not a scope
         ('LL_ROOM:{"name":"Foyer"}', None),
     ],
@@ -148,13 +154,26 @@ def test_parse_scope_label_snapshot(label, expected):
     assert parse_scope_label(label) == expected
 
 
-@pytest.mark.parametrize("label", ["LL_SCOPE:null", "LL_SCOPE:[]", 'LL_SCOPE:{"label":5}'])
-def test_parse_scope_label_raises_attribute_error_on_non_dict_or_non_str(label):
-    # Suspected bug, pinned: the except tuple (TypeError, ValueError,
-    # JSONDecodeError) does not cover AttributeError from ``None.get`` /
-    # ``list.get`` / ``int.strip``.
-    with pytest.raises(AttributeError):
-        parse_scope_label(label)
+@pytest.mark.parametrize(
+    "room_id_value, expected",
+    [(None, None), ("7", 7), (7, 7), (7.9, 7), ("7.9", 7), ("abc", None), ("", None)],
+)
+def test_parse_scope_label_coerces_room_id_to_int(room_id_value, expected):
+    label = f'LL_SCOPE:{{"room_id":{json.dumps(room_id_value)}}}'
+    assert parse_scope_label(label)["room_id"] == expected
+
+
+@pytest.mark.parametrize("label", ["LL_SCOPE:null", "LL_SCOPE:[]"])
+def test_parse_scope_label_returns_none_on_non_dict(label):
+    # Fixed: a non-dict payload (null/list) used to raise AttributeError from
+    # ``None.get``/``list.get``. It now falls back to the function's normal
+    # failure value, None, instead of raising.
+    assert parse_scope_label(label) is None
+
+
+@pytest.mark.parametrize("label", ["LL_ROOM:null", "LL_ROOM:[1, 2]", 'LL_ROOM:{"name":42}'])
+def test_parse_room_label_returns_none_on_non_dict_or_non_str(label):
+    assert parse_room_label(label) is None
 
 
 def test_encode_scope_label_round_trips_through_parse():
@@ -392,7 +411,7 @@ def test_create_arrangement(fake_db, fake_request):
     assert fake_db.seen("INSERT INTO container_items (container_id, product_id, quantity, status, part_key, part_label, part_order)")
 
 
-def test_create_arrangement_rejects_bad_item_status_after_inserting_arrangement(fake_db, fake_request):
+def test_create_arrangement_rejects_bad_item_status_before_any_insert(fake_db, fake_request):
     wire(fake_db)
     fake_db.on_fetchrow("INSERT INTO arrangements", ARR_ROW)
     fake_db.on_fetchrow("INSERT INTO arrangement_containers", {"id": 31})
@@ -400,10 +419,10 @@ def test_create_arrangement_rejects_bad_item_status_after_inserting_arrangement(
     with pytest.raises(HTTPException) as exc:
         run(arrangements.create_arrangement(body, fake_request()))
     assert (exc.value.status_code, exc.value.detail) == (400, "Item status must be candidate or selected")
-    # Pinned: the arrangement + container rows were already written (no real
-    # transaction around create), only the item insert is skipped.
-    assert fake_db.seen("INSERT INTO arrangements")
-    assert fake_db.seen("INSERT INTO arrangement_containers")
+    # Fixed: every item status is validated before the arrangement/container
+    # rows are written, so a bad status leaves no partial rows behind.
+    assert not fake_db.seen("INSERT INTO arrangements")
+    assert not fake_db.seen("INSERT INTO arrangement_containers")
     assert not fake_db.seen("INSERT INTO container_items")
 
 
@@ -554,10 +573,15 @@ def test_update_item_quantity(fake_db, fake_request):
     assert args_of(fake_db, "UPDATE arrangements SET updated_at = NOW()") == [(9,)]
 
 
-def test_update_item_quantity_unknown_item_is_not_404(fake_db, fake_request):
-    # Pinned: no existence check -- an unknown id still returns ok.
-    assert run(arrangements.update_item_quantity(404, 3, fake_request())) == {"ok": True}
-    assert args_of(fake_db, "UPDATE container_items SET quantity = $1") == [(3, 404)]
+def test_update_item_quantity_unknown_item_404(fake_db, fake_request):
+    # Fixed: an unknown item id now raises 404 instead of silently
+    # succeeding, following the same existence-check pattern as
+    # update_item_status.
+    with pytest.raises(HTTPException) as exc:
+        run(arrangements.update_item_quantity(404, 3, fake_request()))
+    assert (exc.value.status_code, exc.value.detail) == (404, "Item not found")
+    assert not fake_db.seen("UPDATE container_items")
+    assert not fake_db.seen("DELETE FROM container_items")
     assert not fake_db.seen("UPDATE arrangements")
 
 
