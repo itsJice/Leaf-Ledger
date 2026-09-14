@@ -130,7 +130,10 @@ def test_estimate_helpers_match():
     assert float(m.group(1)) == schedule.ROAD_FUDGE
     assert float(m.group(2)) == schedule.EST_AVG_MPH
     js_r = re.search(r"function haversineMi\(a, b\)\{\s*const R=([\d.]+)", TEMPLATE)
-    py_r = re.search(r"def haversine_mi\(a, b\):.*?R = ([\d.]+)", _read("schedule.py"), re.S)
+    # schedule.haversine_mi is re-exported from common.py; read the source of
+    # whatever function schedule actually uses, wherever it lives.
+    import inspect
+    py_r = re.search(r"R = ([\d.]+)", inspect.getsource(schedule.haversine_mi))
     assert js_r and py_r and float(js_r.group(1)) == float(py_r.group(1))
 
 
