@@ -79,7 +79,10 @@ def test_fixture_patches_get_conn_across_api_modules(fake_db):
     # tree_counts has migrated to app.libs.db's shared ensure_schema_once
     # registry (reset via reset_schema_registry(), asserted elsewhere); jobs
     # still carries the per-module flag this fixture resets.
-    assert jobs._SCHEMA_READY is False
+    # Every module now uses app.libs.db.ensure_schema_once; the fixture must
+    # leave its registry empty so each test starts with DDL un-run.
+    from app.libs import db as libs_db
+    assert libs_db._schema_done == set()
 
 
 async def _txn_and_close(conn):
