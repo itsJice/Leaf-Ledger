@@ -35,6 +35,8 @@ import { apiFetch } from "utils/apiFetch";
 import { ContentType } from "../apiclient/http-client";
 import { formatCurrency, unitLabel } from "utils/format";
 import { toast } from "sonner";
+import { ARRANGEMENTS_DEFAULT_BUILD_TEMPLATES, LEGACY_TOP_DOWN_SLOT_ORDERS, cleanArrangementsBuildTemplates as cleanEditableBuildTemplates } from "utils/buildTemplates";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 import { ProductDetailModal, hasNoSupplierImage, hasSupplierPlaceholderImage, productDisplayImageUrl, type Product as LibraryProduct } from "./Library";
 
 type ItemStatus = "candidate" | "selected";
@@ -484,95 +486,14 @@ export function sortedScopeTerms(terms: ScopeFilterTerm[]) {
 }
 
 
-export const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = [
-  {
-    id: "christmas-tree",
-    section: "Christmas",
-    name: "Christmas Tree",
-    usedFor: ["Christmas Tree", "Decor Packages"],
-    slots: ["Tree", "Enhancers", "Tree Skirt", "Tree Topper"],
-    regularMaterials: ["2 x Assorted Branch", '1 x 4" Ornament', "2 1/2 Yards of Ribbon"],
-    premiumMaterials: ["1 Flower", "2 x Assorted Branch", '1 x 4" Ornament', "1 1/2 Yards of Ribbon", "1 Yard of Premium Ribbon"],
-  },
-  {
-    id: "garland",
-    section: "Christmas",
-    name: "Garland",
-    usedFor: ["Garland", "Railings", "Mantels"],
-    slots: ["Garland", "Enhancers"],
-    regularMaterials: ["5 Regular Enhancers", "2 x Assorted Branches per enhancer", '1 x 4" Ornament per enhancer', "2 1/2 Yards of Ribbon per enhancer"],
-    premiumMaterials: ["3 Premium Enhancers", "2 Regular Enhancers", "2 Extra Ornaments", "1 Flower per premium enhancer", "2 x Assorted Branches per enhancer", '1 x 4" Ornament per enhancer', "1 1/2 Yards of Ribbon per premium enhancer", "1 Yard of Premium Ribbon per premium enhancer"],
-  },
-  {
-    id: "wreath",
-    section: "Christmas",
-    name: "Wreath",
-    usedFor: ["Wreath", "Door Decor"],
-    slots: ["Wreath Base", "Decor Package"],
-  },
-  {
-    id: "teardrop",
-    section: "Christmas",
-    name: "Vertical Spray",
-    usedFor: ["Vertical Spray", "Teardrop", "Door Drop", "Lantern Drop"],
-    slots: ["Vertical Spray Base", "Greenery", "Ribbon", "Decor"],
-  },
-  {
-    id: "swag",
-    section: "Christmas",
-    name: "Horizontal Swag",
-    usedFor: ["Horizontal Swag", "Swag", "Holiday Accent"],
-    slots: ["Horizontal Swag Base", "Greenery", "Ribbon", "Decor"],
-  },
-  {
-    id: "green-tree",
-    section: "Green",
-    name: "Tree",
-    usedFor: ["Tree", "Tree / Plant", "Fiddle Fig"],
-    slots: ["Leaves", "Trunks & Branches", "Top Dressing", "Container"],
-  },
-  {
-    id: "arrangement",
-    section: "Green",
-    name: "Arrangement",
-    usedFor: ["Arrangement", "Orchid Arrangement", "Succulent Arrangement", "Foliage Arrangement"],
-    slots: ["Accent Material", "Focal Material", "Finish/Top Dressing", "Container/Base"],
-  },
-  {
-    id: "planter",
-    section: "Green",
-    name: "Planter",
-    usedFor: ["Planter", "Container Garden", "Floor Container"],
-    slots: ["Accent Plant", "Main Plant", "Finish/Top Dressing", "Container/Planter"],
-  },
-  {
-    id: "drop-in",
-    section: "Green",
-    name: "Drop-in Arrangement",
-    usedFor: ["Drop-in Arrangement", "Client Container"],
-    slots: ["Finish", "Accent Material", "Main Material", "Drop-in Base"],
-  },
-  {
-    id: "succulent",
-    section: "Green",
-    name: "Succulent / Cactus",
-    usedFor: ["Succulent Arrangement", "Cactus Arrangement"],
-    slots: ["Accent Greenery", "Succulents/Cactus", "Finish/Top Dressing", "Container/Base"],
-  },
-];
+export const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = ARRANGEMENTS_DEFAULT_BUILD_TEMPLATES;
 
 // The green build slots above used to read top-down (container first). They now read
 // bottom-up so the builder mirrors how the piece is physically assembled.
 // DISPLAY ORDER ONLY changed - no slot label string was renamed. Saved part data is
 // keyed by `partKey(label, displayIndex)`, so the pre-flip index for these labels is
 // recorded here and honoured when resolving already-saved items (see itemsForPart).
-export const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
-  "green-tree": ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
-  arrangement: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
-  planter: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
-  "drop-in": ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
-  succulent: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
-};
+export { LEGACY_TOP_DOWN_SLOT_ORDERS };
 
 export const FLIPPED_SLOT_COUNT = 4;
 
@@ -590,21 +511,14 @@ type ProjectsListCache = {
 };
 
 export function readProjectsListCache(): ProjectsListCache | null {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(PROJECTS_LIST_CACHE_KEY) || "null");
-    if (!parsed || !Array.isArray(parsed.arrangements)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  const parsed = readJsonCache<ProjectsListCache | null>(PROJECTS_LIST_CACHE_KEY, null);
+  if (!parsed || !Array.isArray(parsed.arrangements)) return null;
+  return parsed;
 }
 
 function writeProjectsListCache(arrangements: ArrangementSummary[]) {
-  try {
-    window.localStorage.setItem(PROJECTS_LIST_CACHE_KEY, JSON.stringify({ arrangements, cachedAt: Date.now() }));
-  } catch {
-    // localStorage is only a speed cache; failures should not block the app.
-  }
+  // localStorage is only a speed cache; failures should not block the app.
+  writeTimestampedJsonCache(PROJECTS_LIST_CACHE_KEY, { arrangements });
 }
 
 export function formatProjectsCacheStamp(ms?: number | null) {
@@ -927,46 +841,31 @@ export function scopeNotesWithWreathSetup(bucket: Container, size: WreathSize) {
   ].filter(Boolean).join("\n");
 }
 
-export function cleanEditableBuildTemplates(values: unknown, fallback = DEFAULT_EDITABLE_BUILD_TEMPLATES): EditableBuildTemplate[] {
-  if (!Array.isArray(values)) return fallback;
-  const cleaned = values
-    .map((value) => {
-      const template = value as Partial<EditableBuildTemplate>;
-      const id = String(template.id || "").trim();
-      const name = String(template.name || "").trim();
-      if (!id || !name) return null;
-      let slots = Array.isArray(template.slots) ? template.slots.map(String).map((item) => item.trim()).filter(Boolean) : [];
-      if (id === "wreath" && slots.map(normalizeLabel).join("|") === "wreath base|greenery|ribbon|decor") {
-        slots = ["Wreath Base", "Decor Package"];
-      }
-      // Green slots now read bottom-up. A stored copy that still holds the old top-down
-      // order verbatim is migrated; any order the user customised is left untouched.
-      const legacyOrder = LEGACY_TOP_DOWN_SLOT_ORDERS[id];
-      if (legacyOrder && slots.map(normalizeLabel).join("|") === legacyOrder.map(normalizeLabel).join("|")) {
-        slots = [...legacyOrder].reverse();
-      }
-      return {
-        id,
-        section: template.section === "Christmas" ? "Christmas" : "Green",
-        name,
-        summary: String(template.summary || ""),
-        usedFor: Array.isArray(template.usedFor) ? template.usedFor.map(String).map((item) => item.trim()).filter(Boolean) : [],
-        slots,
-        regularMaterials: Array.isArray(template.regularMaterials) ? template.regularMaterials.map(String).map((item) => item.trim()).filter(Boolean) : undefined,
-        premiumMaterials: Array.isArray(template.premiumMaterials) ? template.premiumMaterials.map(String).map((item) => item.trim()).filter(Boolean) : undefined,
-      } satisfies EditableBuildTemplate;
-    })
-    .filter(Boolean) as EditableBuildTemplate[];
-  return cleaned.length ? cleaned : fallback;
-}
+export { cleanEditableBuildTemplates };
+
+// The JSX reaches this through the enhancer/slot helpers once per part on every
+// render. Parsing + cleaning is keyed on the raw stored string, so a write from any
+// route (Settings, another tab, devtools) is picked up on the next read. Callers only
+// read the result; nothing mutates the cached templates.
+let editableTemplatesMemo: { raw: string | null; templates: EditableBuildTemplate[] } | null = null;
 
 export function readEditableBuildTemplates() {
   if (typeof window === "undefined") return DEFAULT_EDITABLE_BUILD_TEMPLATES;
+  let raw: string | null;
   try {
-    return cleanEditableBuildTemplates(JSON.parse(window.localStorage.getItem(BUILD_TEMPLATE_STORAGE_KEY) || "null"));
+    raw = window.localStorage.getItem(BUILD_TEMPLATE_STORAGE_KEY);
   } catch {
     return DEFAULT_EDITABLE_BUILD_TEMPLATES;
   }
+  if (editableTemplatesMemo && editableTemplatesMemo.raw === raw) return editableTemplatesMemo.templates;
+  let templates: EditableBuildTemplate[];
+  try {
+    templates = cleanEditableBuildTemplates(JSON.parse(raw || "null"));
+  } catch {
+    templates = DEFAULT_EDITABLE_BUILD_TEMPLATES;
+  }
+  editableTemplatesMemo = { raw, templates };
+  return templates;
 }
 
 export function buildTemplateMatches(template: EditableBuildTemplate, buildType: string) {
