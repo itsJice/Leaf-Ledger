@@ -12,14 +12,13 @@ one-at-a-time submissions of a single browser viewport, not bulk uploads,
 so the extra moving part (a bucket, its own auth, cleanup policy) isn't
 worth it at this scale -- MAX_SCREENSHOT_BYTES keeps any one row small.
 """
-import os
 from typing import Any, Optional
 
-import asyncpg
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/feedback")
 
@@ -46,21 +45,11 @@ CREATE INDEX IF NOT EXISTS feature_requests_created_idx
     ON ll_app.feature_requests (created_at DESC);
 """
 
-_SCHEMA_READY = False
-
-
-async def get_conn():
-    return await asyncpg.connect(
-        os.environ.get("DATABASE_URL"), statement_cache_size=0
-    )
-
-
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
+
+    await ensure_schema_once("feedback", _ddl)
 
 
 class FeedbackIn(BaseModel):

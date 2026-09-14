@@ -20,6 +20,7 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
+import app.libs.db as libs_db
 from app.apis import tree_counts
 from app.apis.tree_counts import TreeCountIn, normalise_counts
 from app.auth.user import User
@@ -99,7 +100,7 @@ def db(monkeypatch):
         return FakeConn(fake)
 
     monkeypatch.setattr(tree_counts, "get_conn", fake_get_conn)
-    monkeypatch.setattr(tree_counts, "_SCHEMA_READY", False)
+    libs_db.reset_schema_registry()
     return fake
 
 

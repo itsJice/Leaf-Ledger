@@ -44,12 +44,16 @@ def _deny_ddl(fake_db):
     fake_db.on("CREATE TABLE IF NOT EXISTS recipe_source_files", deny, method="execute")
 
 
-def test_ensure_schema_runs_ddl_every_call_today(fake_db, storage):
+def test_ensure_schema_runs_ddl_once_per_process(fake_db, storage):
+    """Changed deliberately in Phase 2: `ensure_schema` used to rerun its 7
+    `CREATE TABLE` statements on every call (previously named
+    `test_ensure_schema_runs_ddl_every_call_today`, asserting 7 then 14). It
+    is now wrapped in `ensure_schema_once`, so the second call is a no-op."""
     run(ri.get_build_types())
     first = fake_db.ddl_runs
     assert first == 7
     run(ri.get_build_types())
-    assert fake_db.ddl_runs == 2 * first
+    assert fake_db.ddl_runs == first
 
 
 def test_build_types_maps_rows(fake_db, storage):
