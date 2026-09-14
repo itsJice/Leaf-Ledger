@@ -51,7 +51,7 @@ def test_page_404_messages(fake_db):
     assert not fake_db.seen("SELECT html")
     with pytest.raises(HTTPException) as exc:
         run(sched.get_install_schedule_page(season=" 2024 "))
-    assert exc.value.detail == "No  2024  schedule published — run scheduler/publish_pages.py"
+    assert exc.value.detail == "No 2024 schedule published — run scheduler/publish_pages.py"
     assert [a for _, a in fake_db.calls("SELECT html FROM")] == [("2024", "index.html")]
 
 

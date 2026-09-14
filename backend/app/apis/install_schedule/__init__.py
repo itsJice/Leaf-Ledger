@@ -117,8 +117,8 @@ async def get_install_schedule_page(
         raise HTTPException(
             status_code=404,
             detail=(
-                f"No {season} schedule published — run scheduler/publish_pages.py"
-                if season
+                f"No {want} schedule published — run scheduler/publish_pages.py"
+                if want
                 else "Schedule not published yet — run scheduler/publish_pages.py"
             ),
         )

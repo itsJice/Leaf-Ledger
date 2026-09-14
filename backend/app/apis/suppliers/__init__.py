@@ -243,6 +243,12 @@ async def update_supplier(supplier_id: int, body: SupplierUpdate):
         # omitted" from "field set to empty" needs exclude_unset.
         sent = body.model_dump(exclude_unset=True) if hasattr(body, "model_dump") else body.dict(exclude_unset=True)
 
+        # name is NOT NULL, so a caller that explicitly sends "" or "   " is
+        # not asking to clear it (that's not a valid state) -- it's a bad
+        # request. Reject loudly instead of silently keeping the old name.
+        if "name" in sent and not (sent["name"] or "").strip():
+            raise HTTPException(status_code=400, detail="Supplier name cannot be blank")
+
         next_name = sent.get("name") or existing["name"]
         next_scraper_key = _infer_scraper_key(
             next_name, sent["scraper_key"] if "scraper_key" in sent else existing["scraper_key"])

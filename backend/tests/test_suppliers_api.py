@@ -109,10 +109,22 @@ def test_update_blank_credentials_marks_missing_and_404(fake_db, storage):
     assert exc.value.status_code == 404
     fake_db.on_fetchrow("SELECT * FROM suppliers WHERE id = $1", supplier_row())
     fake_db.on_fetchrow("UPDATE suppliers SET", supplier_row(login_username=""))
-    run(suppliers.update_supplier(7, suppliers.SupplierUpdate(name="", login_username="")))
+    run(suppliers.update_supplier(7, suppliers.SupplierUpdate(login_username="")))
     (sql, args), = fake_db.calls("UPDATE suppliers SET")
-    assert not sql.startswith("UPDATE suppliers SET name")  # empty name is ignored, not written
+    assert not sql.startswith("UPDATE suppliers SET name")  # name wasn't sent, so it's untouched
     assert args == ("", "vickerman", "missing", 7)
+
+
+def test_update_rejects_blank_name(fake_db, storage):
+    fake_db.on_fetchrow("SELECT * FROM suppliers WHERE id = $1", supplier_row())
+    for blank in ("", "   "):
+        with pytest.raises(HTTPException) as exc:
+            run(suppliers.update_supplier(7, suppliers.SupplierUpdate(name=blank)))
+        assert (exc.value.status_code, exc.value.detail) == (400, "Supplier name cannot be blank")
+    assert fake_db.executed == [
+        ("SELECT * FROM suppliers WHERE id = $1", (7,)),
+        ("SELECT * FROM suppliers WHERE id = $1", (7,)),
+    ]
 
 
 def test_delete_404_on_zero_rows(fake_db, storage):

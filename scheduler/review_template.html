@@ -2558,7 +2558,7 @@ function radiusOK(row, day){
   const v = N[row];
   let best = Infinity;
   day.stops.forEach(s=>{ const t=leg(v, N[s]); if(t<best) best=t; });
-  const depotFar = leg(0, v) > 2700;   // rural pockets get the wider radius
+  const depotFar = leg(0, v) > K.RADIUS_RURAL_S;   // rural pockets get the wider radius
   return best <= (depotFar ? K.RADIUS_RURAL_S : K.RADIUS_S);
 }
 

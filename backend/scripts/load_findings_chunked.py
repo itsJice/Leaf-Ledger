@@ -89,30 +89,34 @@ async def main() -> int:
 
     url = os.environ["DATABASE_URL"]
     c = await asyncpg.connect(url, statement_cache_size=0)
-    if mapped_id is not None:
-        sid = await c.fetchval("SELECT id FROM suppliers WHERE id=$1", mapped_id)
-        db_name = await c.fetchval("SELECT name FROM suppliers WHERE id=$1", mapped_id)
-        if sid and (db_name or "").lower() != name.lower():
-            print(f"note      : file says {name!r}, using mapped supplier "
-                  f"{db_name!r} (id={sid}) — avoids creating a duplicate")
-        if db_name:
-            name = db_name
-    else:
-        sid = await c.fetchval(
-            "SELECT id FROM suppliers WHERE name ILIKE $1 ORDER BY id LIMIT 1", name)
-    ext = await dual_price_columns_exist(c)
-    before = await c.fetchval("SELECT COUNT(*) FROM products WHERE supplier_id=$1", sid) if sid else 0
-    await c.close()
+    try:
+        if mapped_id is not None:
+            sid = await c.fetchval("SELECT id FROM suppliers WHERE id=$1", mapped_id)
+            db_name = await c.fetchval("SELECT name FROM suppliers WHERE id=$1", mapped_id)
+            if sid and (db_name or "").lower() != name.lower():
+                print(f"note      : file says {name!r}, using mapped supplier "
+                      f"{db_name!r} (id={sid}) — avoids creating a duplicate")
+            if db_name:
+                name = db_name
+        else:
+            sid = await c.fetchval(
+                "SELECT id FROM suppliers WHERE name ILIKE $1 ORDER BY id LIMIT 1", name)
+        ext = await dual_price_columns_exist(c)
+        before = await c.fetchval("SELECT COUNT(*) FROM products WHERE supplier_id=$1", sid) if sid else 0
+    finally:
+        await c.close()
 
     if sid is None:
         if not a.commit:
             print("supplier   : NEW (would be created)")
         else:
             c = await asyncpg.connect(url, statement_cache_size=0)
-            sid = await c.fetchval(
-                "INSERT INTO suppliers (name, credential_status, notes) "
-                "VALUES ($1,'n/a',$2) RETURNING id", name, "auto-created by load_findings_chunked")
-            await c.close()
+            try:
+                sid = await c.fetchval(
+                    "INSERT INTO suppliers (name, credential_status, notes) "
+                    "VALUES ($1,'n/a',$2) RETURNING id", name, "auto-created by load_findings_chunked")
+            finally:
+                await c.close()
             print(f"supplier   : created id={sid}")
     print(f"supplier id={sid} | existing rows={before:,} | dual-price columns={ext}")
 
@@ -151,8 +155,10 @@ async def main() -> int:
                   f"{time.time() - t0:.0f}s)")
 
     c = await asyncpg.connect(url, statement_cache_size=0)
-    after = await c.fetchval("SELECT COUNT(*) FROM products WHERE supplier_id=$1", sid)
-    await c.close()
+    try:
+        after = await c.fetchval("SELECT COUNT(*) FROM products WHERE supplier_id=$1", sid)
+    finally:
+        await c.close()
     print(f"\nCOMMITTED. supplier {sid} ({name}): {before:,} -> {after:,}")
     return 0
 
