@@ -23,6 +23,7 @@ import { ContentType } from "../apiclient/http-client";
 import { formatCurrency } from "utils/format";
 import { toast } from "sonner";
 import { NewProjectModal } from "./Arrangements";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 
 type ProjectSummary = {
   id: number;
@@ -115,21 +116,13 @@ type ClientsPageCache = {
 };
 
 function readClientsPageCache(): ClientsPageCache | null {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(CLIENTS_PAGE_CACHE_KEY) || "null");
-    if (!parsed || !Array.isArray(parsed.clientRows) || !Array.isArray(parsed.projects)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  const parsed = readJsonCache<any>(CLIENTS_PAGE_CACHE_KEY, null);
+  if (!parsed || !Array.isArray(parsed.clientRows) || !Array.isArray(parsed.projects)) return null;
+  return parsed;
 }
 
 function writeClientsPageCache(clientRows: ClientRecord[], projects: ProjectSummary[]) {
-  try {
-    window.localStorage.setItem(CLIENTS_PAGE_CACHE_KEY, JSON.stringify({ clientRows, projects, cachedAt: Date.now() }));
-  } catch {
-    // localStorage is only a speed cache; failures should not block the app.
-  }
+  writeTimestampedJsonCache(CLIENTS_PAGE_CACHE_KEY, { clientRows, projects });
 }
 
 function formatCacheStamp(ms?: number | null) {
@@ -143,12 +136,8 @@ function normalizedClientName(name?: string | null) {
 }
 
 function readLocalClients(): ClientRecord[] {
-  try {
-    const rows = JSON.parse(window.localStorage.getItem(LOCAL_CLIENTS_KEY) || "[]");
-    return Array.isArray(rows) ? rows : [];
-  } catch {
-    return [];
-  }
+  const rows = readJsonCache<unknown>(LOCAL_CLIENTS_KEY, []);
+  return Array.isArray(rows) ? rows : [];
 }
 
 function writeLocalClients(rows: ClientRecord[]) {

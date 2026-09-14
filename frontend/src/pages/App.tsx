@@ -19,7 +19,11 @@ import {
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { formatCurrency } from "utils/format";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 
+// NOTE: held back as a local literal (not the constants.ts export) -- see WP
+// 3b.4 report. cache-keys.test.ts pins this exact literal inside App.tsx's own
+// source text; switching to the shared constant makes that source-scan fail.
 const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v2";
 
 interface DashboardSummary {
@@ -48,21 +52,11 @@ type DashboardCache = {
 };
 
 function readDashboardCache(): DashboardCache | null {
-  try {
-    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return readJsonCache<DashboardCache | null>(DASHBOARD_CACHE_KEY, null);
 }
 
 function writeDashboardCache(patch: DashboardCache) {
-  try {
-    const prev = readDashboardCache() || {};
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ ...prev, ...patch, cachedAt: Date.now() }));
-  } catch {
-    // Ignore storage issues.
-  }
+  writeTimestampedJsonCache(DASHBOARD_CACHE_KEY, { ...(readDashboardCache() || {}), ...patch });
 }
 
 async function getJson<T>(path: string): Promise<T | null> {

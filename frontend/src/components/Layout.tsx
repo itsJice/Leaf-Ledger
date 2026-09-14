@@ -22,6 +22,7 @@ import {
 } from "components/sidebarNav";
 import type { ResolvedNavItem, SidebarPrefsEventDetail } from "components/sidebarNav";
 import FeedbackWidget from "components/FeedbackWidget";
+import { readJsonCache, writeJsonCache } from "utils/jsonCache";
 
 // NAV_GROUPS, the pinned-path list and the ordering helpers live in
 // components/sidebarNav.ts so that this sidebar and the Settings > Appearance
@@ -40,9 +41,16 @@ interface Props {
 
 const SIDEBAR_PROJECTS_CACHE_KEY = "leaf-ledger-sidebar-projects-cache-v1";
 const CLIENTS_COMMENTS_SEEN_KEY = "leaf-ledger:clients-comments-seen-at";
+// NOTE: held back as local literals (not the constants.ts exports) -- see WP
+// 3b.4 report. cache-keys.test.ts pins these exact literals inside Layout.tsx's
+// own source text; switching to the shared constants makes that source-scan fail.
 const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
 const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
 const SUPPLIERS_CACHE_KEY = "leaf-ledger:suppliers-cache:v1";
+// NOTE: intentionally ":v1" while constants.ts DASHBOARD_CACHE_KEY (read by App.tsx)
+// is ":v2" -- see WP 3b.4 notes. Left as a literal on purpose; do not switch to the
+// shared constant without a product decision, or this write silently targets a
+// different cache shape than what App.tsx reads.
 const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v1";
 
 const NAV_ITEM_IDLE = "text-white/60 hover:text-white hover:bg-white/5";
@@ -79,14 +87,6 @@ type NavRun = {
   hasAnchor: boolean;
 };
 
-function writeJsonCache(key: string, value: unknown) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Cache writes should never block navigation.
-  }
-}
-
 function clientCountsFromProjects(rows: SidebarProject[]) {
   const counts = new Map<string, number>();
   rows.forEach((row) => {
@@ -115,12 +115,8 @@ export default function Layout({ children }: Props) {
   const { mode, setMode } = useTheme();
   const [projectClients, setProjectClients] = useState<Array<{ name: string; count: number }>>([]);
   const [sidebarProjects, setSidebarProjects] = useState<SidebarProject[]>(() => {
-    try {
-      const cached = JSON.parse(window.localStorage.getItem(SIDEBAR_PROJECTS_CACHE_KEY) || "[]");
-      return Array.isArray(cached) ? cached : [];
-    } catch {
-      return [];
-    }
+    const cached = readJsonCache<unknown>(SIDEBAR_PROJECTS_CACHE_KEY, []);
+    return Array.isArray(cached) ? cached : [];
   });
   const [projectsLoading, setProjectsLoading] = useState(() => sidebarProjects.length === 0);
   const [projectsOpen, setProjectsOpen] = useState(() => {
@@ -217,6 +213,9 @@ export default function Layout({ children }: Props) {
     const mountedRef = { current: true };
     loadSidebarProjects(mountedRef);
     const refresh = () => loadSidebarProjects(mountedRef);
+    // NOTE: held back as a literal (not utils/projectsChanged's PROJECTS_CHANGED_EVENT)
+    // -- see WP 3b.4 report. projectsChanged.test.ts pins this exact literal inside
+    // Layout.tsx's own source text.
     window.addEventListener("leaf-ledger-projects-changed", refresh);
     return () => {
       mountedRef.current = false;
