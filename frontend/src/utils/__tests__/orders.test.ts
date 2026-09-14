@@ -5,16 +5,13 @@ vi.mock("../apiFetch", () => ({ apiFetch }));
 
 import {
   ORDER_STATUSES,
-  addToOrder,
   createOrder,
   defaultOrderName,
   deleteOrder,
-  ensureActiveOrder,
   getActiveOrderId,
   getOrder,
   listOrders,
   removeItem,
-  renameOrder,
   setActiveOrderId,
   setOrderStatus,
   updateItemQty,
@@ -112,49 +109,13 @@ describe("order API calls", () => {
 
   it("item and order mutations hit the expected routes", async () => {
     apiFetch.mockResolvedValue(json({}));
-    await addToOrder(1, 2, 3, "sam");
-    await addToOrder(1, 2, 3);
     await updateItemQty(9, 12);
     await removeItem(9);
-    await renameOrder(4, "New");
     await deleteOrder(4);
     expect(apiFetch.mock.calls).toEqual([
-      ["/api/orders/1/items", { method: "POST", credentials: "include", headers: JSON_HEADERS, body: '{"product_id":2,"quantity":3,"added_by":"sam"}' }],
-      ["/api/orders/1/items", { method: "POST", credentials: "include", headers: JSON_HEADERS, body: '{"product_id":2,"quantity":3}' }],
       ["/api/orders/items/9", { method: "PATCH", credentials: "include", headers: JSON_HEADERS, body: '{"quantity":12}' }],
       ["/api/orders/items/9", { method: "DELETE", credentials: "include" }],
-      ["/api/orders/4", { method: "PATCH", credentials: "include", headers: JSON_HEADERS, body: '{"name":"New"}' }],
       ["/api/orders/4", { method: "DELETE", credentials: "include" }],
     ]);
-  });
-});
-
-describe("ensureActiveOrder", () => {
-  it("returns the remembered active order when it still exists", async () => {
-    store.set(ACTIVE_KEY, "2");
-    apiFetch.mockResolvedValueOnce(json([{ id: 1 }, { id: 2 }]));
-    await expect(ensureActiveOrder()).resolves.toEqual({ id: 2 });
-    expect(apiFetch).toHaveBeenCalledTimes(1);
-    expect(store.get(ACTIVE_KEY)).toBe("2");
-  });
-
-  it("falls back to the first listed order and remembers it", async () => {
-    store.set(ACTIVE_KEY, "99");
-    apiFetch.mockResolvedValueOnce(json([{ id: 5 }, { id: 2 }]));
-    await expect(ensureActiveOrder()).resolves.toEqual({ id: 5 });
-    expect(store.get(ACTIVE_KEY)).toBe("5");
-  });
-
-  it("creates a dated order when there are none", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-13T12:00:00Z"));
-    const expectedName = defaultOrderName();
-    apiFetch.mockResolvedValueOnce(json([])).mockResolvedValueOnce(json({ id: 11, name: expectedName }));
-    await expect(ensureActiveOrder("sam")).resolves.toEqual({ id: 11, name: expectedName });
-    expect(apiFetch.mock.calls[1]).toEqual([
-      "/api/orders/create",
-      { method: "POST", credentials: "include", headers: JSON_HEADERS, body: JSON.stringify({ name: expectedName, created_by: "sam" }) },
-    ]);
-    expect(store.get(ACTIVE_KEY)).toBe("11");
   });
 });

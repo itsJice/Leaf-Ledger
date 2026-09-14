@@ -65,11 +65,6 @@ describe("pins cache", () => {
     expect(getPins).not.toHaveBeenCalled();
   });
 
-  it("invalidatePins forgets the entry", () => {
-    mod.setCachedPins(8, pins, groups);
-    mod.invalidatePins(8);
-    expect(mod.getCachedPins(8)).toBeUndefined();
-  });
 });
 
 describe("decidePinAction", () => {

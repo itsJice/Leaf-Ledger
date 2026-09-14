@@ -41,16 +41,12 @@ describe("API routes", () => {
   const PATCH = (url: string, body: unknown) => [url, { credentials: "include", method: "PATCH", headers: H, body: JSON.stringify(body) }];
 
   const cases: [string, () => Promise<unknown>, unknown[]][] = [
-    ["fetchJobsMeta", () => jobs.fetchJobsMeta(), GET("/api/jobs/meta")],
     ["listJobs", () => jobs.listJobs(), GET("/api/jobs/list")],
     ["getJob", () => jobs.getJob(3), GET("/api/jobs/3")],
     ["createJob", () => jobs.createJob({ name: "A" }), POST("/api/jobs/create", { name: "A" })],
     ["updateJob", () => jobs.updateJob(3, { notes: "n" }), PATCH("/api/jobs/3", { notes: "n" })],
     ["deleteJob", () => jobs.deleteJob(3), DEL("/api/jobs/3")],
     ["touchJob", () => jobs.touchJob(3), POST("/api/jobs/3/touch", {})],
-    ["addPiece", () => jobs.addPiece(3, { piece_type: "tree", qty: 1 }), POST("/api/jobs/3/pieces", { piece_type: "tree", qty: 1 })],
-    ["updatePiece", () => jobs.updatePiece(4, { qty: 2 }), PATCH("/api/jobs/pieces/4", { qty: 2 })],
-    ["deletePiece", () => jobs.deletePiece(4), DEL("/api/jobs/pieces/4")],
     ["addNeeds", () => jobs.addNeeds(3, [{ label: "x" }]), POST("/api/jobs/3/needs", { needs: [{ label: "x" }] })],
     ["updateNeed", () => jobs.updateNeed(5, { need_qty: 9 }), PATCH("/api/jobs/needs/5", { need_qty: 9 })],
     ["deleteNeed", () => jobs.deleteNeed(5), DEL("/api/jobs/needs/5")],

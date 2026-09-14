@@ -249,21 +249,6 @@ export interface SidebarPrefsEventDetail {
   hidden: string[];
 }
 
-export interface SidebarEditorRow {
-  item: ResolvedNavItem;
-  hidden: boolean;
-}
-
-/** Every known item in resolved order, flagged - what the editor lists. */
-export function resolveSidebarRows(sidebar?: SidebarPrefsLike | null): SidebarEditorRow[] {
-  const order = resolveSidebarOrder(sidebar?.order);
-  const hidden = new Set(resolveHiddenPaths(sidebar?.hidden));
-  return order.map((path) => ({
-    item: NAV_ITEM_BY_PATH[path],
-    hidden: hidden.has(path),
-  }));
-}
-
 export interface SidebarRenderItem {
   item: ResolvedNavItem;
   /**
