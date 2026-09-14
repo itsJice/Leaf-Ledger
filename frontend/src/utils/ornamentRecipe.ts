@@ -38,18 +38,18 @@ export interface OrnamentOption {
 export const ORNAMENT_OPTIONS: OrnamentOption[] = [
   { display: "1", size: 1, qtyPerPack: 18, sizeCode: "03", planarArea: 0.7853981633974483 },
   { display: "1.6", size: 1.6, qtyPerPack: 96, sizeCode: "54", planarArea: 2.0106192982974678 },
-  { display: "2.4", size: 2.4, qtyPerPack: 24, sizeCode: "06", planarArea: 4.5238934211692976 },
+  { display: "2.4", size: 2.4, qtyPerPack: 24, sizeCode: "06", planarArea: 4.523893421169298 },
   { display: "2.75", size: 2.75, qtyPerPack: 12, sizeCode: "07", planarArea: 5.939573610693197 },
-  { display: "3", size: 3, qtyPerPack: 12, sizeCode: "08", planarArea: 7.0685834705770275 },
+  { display: "3", size: 3, qtyPerPack: 12, sizeCode: "08", planarArea: 7.068583470577027 },
   { display: "4", size: 4, qtyPerPack: 6, sizeCode: "10", planarArea: 12.56637061435916 },
   { display: "4.75", size: 4.75, qtyPerPack: 4, sizeCode: "12", planarArea: 17.72054606165491 },
   { display: "6", size: 6, qtyPerPack: 4, sizeCode: "15", planarArea: 28.27433388230811 },
   { display: "8", size: 8, qtyPerPack: 1, sizeCode: "20", planarArea: 50.26548245743664 },
   { display: "10", size: 10, qtyPerPack: 1, sizeCode: "25", planarArea: 78.53981633974475 },
   { display: "12", size: 12, qtyPerPack: 1, sizeCode: "30", planarArea: 113.09733552923244 },
-  { display: "15.75", size: 15.75, qtyPerPack: 1, sizeCode: "40", planarArea: 194.82783190777932 },
+  { display: "15.75", size: 15.75, qtyPerPack: 1, sizeCode: "40", planarArea: 194.8278319077793 },
   { display: "20", size: 20, qtyPerPack: 1, sizeCode: "45", planarArea: 314.159265358979 },
-  { display: "24", size: 24, qtyPerPack: 1, sizeCode: "46", planarArea: 452.38934211692976 },
+  { display: "24", size: 24, qtyPerPack: 1, sizeCode: "46", planarArea: 452.38934211692975 },
 ];
 
 /**

@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "eslint --ext .ts,.tsx src",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@babel/parser": "7.27.5",
@@ -111,7 +112,8 @@
     "typescript": "5.2.2",
     "typescript-language-server": "4.3.2",
     "vite": "^4.5.14",
-    "vite-tsconfig-paths": "4.2.2"
+    "vite-tsconfig-paths": "4.2.2",
+    "vitest": "^0.34.6"
   },
   "packageManager": "npm@11.12.1"
 }

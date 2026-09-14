@@ -935,7 +935,7 @@ function looksLikeSupplierColorCode(value: unknown): boolean {
   const raw = String(value ?? "").trim();
   if (!raw) return false;
   return raw
-    .split(/[\/,\s-]+/)
+    .split(/[/,\s-]+/)
     .filter(Boolean)
     .every((token) => /^[A-Z]{1,4}$/.test(token));
 }
@@ -1452,7 +1452,7 @@ const RAW_ATTRS_HIDE = new Set([
 ]);
 
 function prettifyKey(key: string): string {
-  return key.replace(/[_\-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+  return key.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Append a unit to bare numeric measurements ("360" -> "360 in"). Leaves empty
