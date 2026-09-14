@@ -1281,21 +1281,6 @@ async def delete_task(task_id: int):
         await conn.close()
 
 
-# ── Stock (what is on the shelf from overage) ───────────────────────────────
-@router.get("/stock/list")
-async def list_stock(q: Optional[str] = None):
-    conn = await get_conn()
-    try:
-        await ensure_schema(conn)
-        if q:
-            rows = await conn.fetch(
-                "SELECT * FROM ll_app.stock WHERE label ILIKE $1 AND qty > 0 ORDER BY updated_at DESC LIMIT 50",
-                f"%{q}%")
-        else:
-            rows = await conn.fetch("SELECT * FROM ll_app.stock WHERE qty > 0 ORDER BY updated_at DESC LIMIT 200")
-        return [dict(r) for r in rows]
-    finally:
-        await conn.close()
 
 
 # ── Pinboard: groups and pinned products ────────────────────────────────────

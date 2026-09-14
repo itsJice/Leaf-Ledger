@@ -140,8 +140,6 @@ def _size_label(raw: dict, row) -> Optional[str]:
     return None
 
 
-async def _order_summaries(conn, rows) -> List[dict]:
-    return [dict(r) for r in rows]
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
