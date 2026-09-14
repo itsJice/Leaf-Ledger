@@ -13,7 +13,7 @@ vi.mock("utils/apiFetch", () => ({ apiFetch: vi.fn() }));
 vi.mock("components/Layout", () => ({ default: () => null }));
 
 import { clearStorage, seedStorage } from "../../test/setup";
-import * as A from "../Arrangements";
+import * as A from "../arrangements/index";
 
 // The page's Container/Arrangement types are not exported; build loose fixtures.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
