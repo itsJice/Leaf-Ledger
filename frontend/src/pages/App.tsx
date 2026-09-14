@@ -20,11 +20,7 @@ import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { formatCurrency } from "utils/format";
 import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
-
-// NOTE: held back as a local literal (not the constants.ts export) -- see WP
-// 3b.4 report. cache-keys.test.ts pins this exact literal inside App.tsx's own
-// source text; switching to the shared constant makes that source-scan fail.
-const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v2";
+import { DASHBOARD_CACHE_KEY } from "../constants";
 
 interface DashboardSummary {
   catalog: { products: number; suppliers: number };
@@ -75,7 +71,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 /** Icon per build type, matching the Designs grid so a build reads the same everywhere. */
-function buildTypeIcon(buildType?: string | null) {
+function appBuildTypeIcon(buildType?: string | null) {
   const t = (buildType || "").toLowerCase();
   if (t.includes("wreath")) return CircleDashed;
   if (t.includes("tree")) return TreePine;
@@ -310,7 +306,7 @@ function RecentDesigns({ designs, loading }: { designs: RecentDesign[]; loading:
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {designs.map((d) => {
-            const Icon = buildTypeIcon(d.build_type);
+            const Icon = appBuildTypeIcon(d.build_type);
             const where = [d.client_name, d.project_name, d.group_name].filter(Boolean).join(" · ");
             return (
               <button

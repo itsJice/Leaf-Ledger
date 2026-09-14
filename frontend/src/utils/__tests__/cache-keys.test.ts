@@ -56,13 +56,7 @@ const EXCLUDED_FILES = new Set(["constants.ts", "utils/projectsChanged.ts"]);
 const REMAINING_LITERALS_ALLOWLIST: Record<string, Record<string, number>> = {
   "components/Layout.tsx": {
     DASHBOARD_CACHE_KEY_DEAD_V1: 1,
-    PROJECTS_LIST_CACHE_KEY: 1,
-    CLIENTS_PAGE_CACHE_KEY: 1,
   },
-  "pages/App.tsx": { DASHBOARD_CACHE_KEY: 1 },
-  "pages/Clients.tsx": { CLIENTS_PAGE_CACHE_KEY: 1 },
-  "pages/Favorites.tsx": { LIBRARY_CACHE_KEY: 1 },
-  "pages/Settings.tsx": { BUILD_TEMPLATE_STORAGE_KEY: 1 },
 };
 
 describe("cache key literals do not creep back into src/", () => {

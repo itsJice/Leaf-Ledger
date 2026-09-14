@@ -26,16 +26,11 @@ const EXCLUDED_FILES = new Set(["constants.ts", "utils/projectsChanged.ts"]);
 
 // How many raw occurrences of the quoted "leaf-ledger-projects-changed" literal
 // legitimately remain outside utils/projectsChanged.ts, keyed by file (relative
-// to src/). Layout.tsx's count covers both its addEventListener and
-// removeEventListener calls; Clients.tsx's covers its four inline dispatches;
-// sidebarNav.ts's is a comment referencing the pattern by name. Shrink this as
-// call sites move to notifyProjectsChanged/PROJECTS_CHANGED_EVENT; a literal may
-// never be added (to this map, or to a file not already listed here).
-const REMAINING_LITERALS_ALLOWLIST: Record<string, number> = {
-  "components/Layout.tsx": 2,
-  "components/sidebarNav.ts": 1,
-  "pages/Clients.tsx": 4,
-};
+// to src/). Nothing remains: Layout.tsx uses PROJECTS_CHANGED_EVENT, Clients.tsx
+// uses notifyProjectsChanged(), and sidebarNav.ts's comment references the
+// constant by name instead of the literal. A literal may never be added (to
+// this map, or to a file not already listed here).
+const REMAINING_LITERALS_ALLOWLIST: Record<string, number> = {};
 
 describe("the projects-changed event literal does not creep back into src/", () => {
   for (const file of listSrcFiles()) {
