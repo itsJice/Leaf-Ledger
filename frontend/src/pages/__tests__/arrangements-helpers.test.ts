@@ -371,8 +371,15 @@ describe("scope-notes parsers", () => {
   it("buildCanopyTierFromNotes takes the leading tier key", () => {
     expect(A.buildCanopyTierFromNotes(notes)).toBe("M");
     expect(A.buildCanopyTierFromNotes("Canopy: xl")).toBe("XL");
-    expect(A.buildCanopyTierFromNotes("Canopy: Medium")).toBe("");
+    expect(A.buildCanopyTierFromNotes("Canopy: Medium")).toBe("M");
     expect(A.buildCanopyTierFromNotes("")).toBe("");
+  });
+
+  it("buildCanopyTierFromNotes accepts the backend's full tier words case-insensitively (regression)", () => {
+    expect(A.buildCanopyTierFromNotes("Canopy: small")).toBe("S");
+    expect(A.buildCanopyTierFromNotes("Canopy: LARGE (42-45\")")).toBe("L");
+    expect(A.buildCanopyTierFromNotes("Canopy: Extra small")).toBe("XS");
+    expect(A.buildCanopyTierFromNotes("Canopy: extra large")).toBe("XL");
   });
 
   it("buildSilhouetteFromNotes maps labels to keys", () => {

@@ -224,10 +224,18 @@ describe("colour decoding", () => {
     expect(L.looksLikeSupplierColorCode(null)).toBe(false);
   });
 
-  it("extractKnownColorWords matches substrings in list order", () => {
+  it("extractKnownColorWords matches whole words only", () => {
     expect(L.extractKnownColorWords("Rose Gold glitter")).toEqual(["Gold", "Rose"]);
-    expect(L.extractKnownColorWords("Tangerine Mint")).toEqual(["Mint", "Tan"]);
+    expect(L.extractKnownColorWords("Tangerine Mint")).toEqual(["Mint"]);
     expect(L.extractKnownColorWords("")).toEqual([]);
+  });
+
+  it("extractKnownColorWords does not match colour words as substrings (regression)", () => {
+    // "tan" must not match inside "tangerine"; "red" must not match inside "credit".
+    expect(L.extractKnownColorWords("Tangerine")).toEqual([]);
+    expect(L.extractKnownColorWords("Store credit")).toEqual([]);
+    // A real whole-word match is still found alongside a would-be substring trap.
+    expect(L.extractKnownColorWords("Tangerine and Tan ribbon")).toEqual(["Tan"]);
   });
 
   it("decodeAllstateColorGroup", () => {

@@ -14,10 +14,20 @@ export function looksLikeSupplierColorCode(value: unknown): boolean {
     .every((token) => /^[A-Z]{1,4}$/.test(token));
 }
 
+// Matches a colour word as a whole word (or whole phrase, for multi-word
+// entries like "rose gold") rather than a bare substring — otherwise "tan"
+// matches inside "tangerine". `normalizeSearchText` already turns hyphens
+// and other separators into spaces, so a word-boundary match against the
+// space-joined phrase also catches hyphenated input (e.g. "rose-gold").
+function matchesColorWord(normalized: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`).test(normalized);
+}
+
 export function extractKnownColorWords(value: unknown): string[] {
   const normalized = normalizeSearchText(value);
   if (!normalized) return [];
-  return KNOWN_COLOR_WORDS.filter((word) => normalized.includes(word)).map(titleCase);
+  return KNOWN_COLOR_WORDS.filter((word) => matchesColorWord(normalized, word)).map(titleCase);
 }
 
 export function decodeAllstateColorGroup(value: unknown): string[] {

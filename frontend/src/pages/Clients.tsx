@@ -142,7 +142,11 @@ function readLocalClients(): ClientRecord[] {
 }
 
 function writeLocalClients(rows: ClientRecord[]) {
-  window.localStorage.setItem(LOCAL_CLIENTS_KEY, JSON.stringify(rows));
+  try {
+    window.localStorage.setItem(LOCAL_CLIENTS_KEY, JSON.stringify(rows));
+  } catch {
+    toast.error("Couldn't save the local client backup -- it may be lost on reload.");
+  }
 }
 
 function mergeClients(primary: ClientRecord[], secondary: ClientRecord[] = []) {
