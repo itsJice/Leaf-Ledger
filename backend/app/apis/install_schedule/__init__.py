@@ -355,7 +355,7 @@ async def get_state(version: str, season: str | None = None) -> dict:
 # year. They must match scheduler/sync_clients.py exactly -- both files write
 # the same rows, and a disagreement means the line silently changes wording
 # depending on which path last touched the client. Change them in both, and
-# run scheduler/backfill_summary_wording.py for the rows already stored.
+# run scheduler/archive/backfill_summary_wording.py for the rows already stored.
 #
 # "this year" and "2026 season" were both wrong here: redundant next to the
 # badge, and actively misleading once the season turns over -- a 2026 row read

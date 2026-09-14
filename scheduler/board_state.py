@@ -38,7 +38,7 @@ from common import load_env  # noqa: E402
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 
 #: Rows at or above this are clients added in the tool / notebook, not sheet
-#: rows. Mirrors `nextSyntheticRow` in build_review.py and the notebook's
+#: rows. Mirrors `nextSyntheticRow` in review_template.html and the notebook's
 #: `new_clients[].row`.
 SYNTHETIC_ROW = 900000
 
