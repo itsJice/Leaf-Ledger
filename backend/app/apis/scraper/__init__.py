@@ -2,21 +2,15 @@
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List
-import asyncpg
-import os
 import json
 import re
 import databutton as db
 from datetime import datetime
 from urllib.parse import unquote
+from app.libs.db import get_conn
 from app.libs.supplier_identity import resolve_scraper_key
 
 router = APIRouter(prefix="/scraper", tags=["scraper"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
 def _resolve_scraper_key(supplier_name: str, scraper_key: Optional[str]) -> str:

@@ -46,25 +46,19 @@ from __future__ import annotations
 import asyncio
 import json
 import math
-import os
 import re
 import statistics
 import time
 from collections import Counter, defaultdict
 from typing import Any, Optional
 
-import asyncpg
 from fastapi import APIRouter, HTTPException
+
+from app.libs.db import get_conn
 
 router = APIRouter(prefix="/builder", tags=["builder"])
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
 SPEC_DOC = "app/docs/TREE_SCOPE_SPEC.md"
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
 # ─── Constants: the spec's approved tables ───────────────────────────────────

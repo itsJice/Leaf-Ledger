@@ -31,7 +31,6 @@ client doesn't collapse the client list and you can still add a second.
 from __future__ import annotations
 
 import json
-import os
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -40,10 +39,9 @@ from typing import Any, Optional
 import asyncpg
 from fastapi import APIRouter, HTTPException
 
+from app.libs.db import get_conn
 
 router = APIRouter(prefix="/designs", tags=["designs"])
-
-DATABASE_URL = os.environ.get("DATABASE_URL")
 
 ROOM_LABEL_PREFIX = "LL_ROOM:"
 SCOPE_LABEL_PREFIX = "LL_SCOPE:"
@@ -51,10 +49,6 @@ BUILD_INTELLIGENCE_MARKER = "LL_BUILD_INTELLIGENCE:"
 
 MAX_LIMIT = 200
 MAX_FACET_VALUES = 200
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
 # ─── Defensive parsing ───────────────────────────────────────────────────────

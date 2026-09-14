@@ -6,16 +6,13 @@ import os
 import json
 from datetime import datetime
 from app.apis.user_context import get_request_user_id
+from app.libs.db import get_conn, has_item_status_column
 
 router = APIRouter(prefix="/arrangements", tags=["arrangements"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
 _PROJECT_SCHEMA_CHECKED = False
 ROOM_LABEL_PREFIX = "LL_ROOM:"
 SCOPE_LABEL_PREFIX = "LL_SCOPE:"
 ITEM_META_PATH = os.path.join(os.path.dirname(__file__), "container_item_meta.local.json")
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 async def ensure_container_item_meta(conn):
     # Compatibility table for databases where the app role can create helper
@@ -276,17 +273,6 @@ async def migrate_fallback_rooms_to_project_rooms(conn, arrangement_id: int):
         # If the app role cannot migrate, fetch_arrangement_full still reads the
         # legacy labels below so packages remain visible and usable.
         return
-
-async def has_item_status_column(conn) -> bool:
-    return bool(await conn.fetchval("""
-        SELECT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = 'container_items'
-              AND column_name = 'status'
-        )
-    """))
 
 async def container_item_columns(conn) -> set[str]:
     rows = await conn.fetch("""
