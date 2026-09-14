@@ -1,6 +1,5 @@
 import os
 import pathlib
-import json
 import dotenv
 from fastapi import FastAPI, APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -30,22 +29,13 @@ AUTH_DISABLED = (
 )
 
 
-def get_router_config() -> dict:
-    try:
-        # Note: This file is not available to the agent
-        cfg = json.loads(open("routers.json").read())
-    except:
-        return False
-    return cfg
-
-
-def is_auth_disabled(router_config: dict, name: str) -> bool:
+def is_auth_disabled(name: str) -> bool:
     """Whether this router should be left unauthenticated.
 
-    `routers.json` is Databutton-generated scaffolding that marks every router
-    `disableAuth: true`. We ignore it: the team's catalog, pricing and client
-    data must never be readable without signing in. The one honoured escape
-    hatch is the local-dev-only AUTH_DISABLED flag above.
+    `routers.json` was Databutton-generated scaffolding that marked every
+    router `disableAuth: true`. We ignore it: the team's catalog, pricing and
+    client data must never be readable without signing in. The one honoured
+    escape hatch is the local-dev-only AUTH_DISABLED flag above.
     """
     return AUTH_DISABLED
 
@@ -53,8 +43,6 @@ def is_auth_disabled(router_config: dict, name: str) -> bool:
 def import_api_routers() -> APIRouter:
     """Create top level router including all user defined endpoints."""
     routes = APIRouter(prefix="/api")
-
-    router_config = get_router_config()
 
     src_path = pathlib.Path(__file__).parent
 
@@ -78,7 +66,7 @@ def import_api_routers() -> APIRouter:
                     api_router,
                     dependencies=(
                         []
-                        if is_auth_disabled(router_config, name)
+                        if is_auth_disabled(name)
                         else [Depends(get_authorized_user)]
                     ),
                 )

@@ -456,49 +456,6 @@ def _parse_category_label(html: str) -> str:
     return texts[0] if texts else ""
 
 
-async def _count_listing_products(
-    page,
-    base_url: str,
-    section: str,
-    label: str,
-    username: str,
-    password: str,
-    first_page_html: Optional[str] = None,
-) -> tuple[int, int]:
-    """Count unique product SKUs in a category by walking listing pages.
-
-    Allstate's displayed "item count" is capped for several categories, so the
-    only reliable count is the number of unique product tiles across pages.
-    """
-    seen_skus: set[str] = set()
-    page_no = 1
-    max_pages_seen = 0
-    html = first_page_html
-
-    while True:
-        if html is None:
-            html = await _safe_goto(page, _append_page_param(base_url, page_no), username, password)
-            await polite_delay(REQUEST_DELAY)
-
-        page_products = _parse_design_listing_page(html, section, label)
-        if not page_products:
-            break
-
-        for product in page_products:
-            sku = product.get("sku")
-            if sku:
-                seen_skus.add(sku)
-
-        max_pages_seen = page_no
-        if len(page_products) < 50:
-            break
-
-        page_no += 1
-        html = None
-
-    return len(seen_skus), max(max_pages_seen, 1 if seen_skus else 0)
-
-
 def _extract_subcategories(html: str) -> list[dict]:
     """Extract subcategory DDCODE + label from a section index page.
 
@@ -1104,63 +1061,6 @@ async def scrape_allstate(
             print(f"[allstate] Category index verify failed (non-fatal): {ve}")
 
 
-async def enrich_product_detail(
-    username: str,
-    password: str,
-    sku: str,
-) -> Optional[dict]:
-    """Fetch and parse the detail page for a single product SKU.
-
-    Returns a dict of extra fields: dimensions, UPC, color, country_of_origin, etc.
-    Used for Phase 2 (background detail enrichment).
-    """
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        page = await browser.new_page()
-        try:
-            await _do_login(page, username, password)
-            url = f"{DETAIL_BASE_URL}?ItemNumber={sku}&Banner=1"
-            html = await _safe_goto(page, url, username, password)
-
-            soup = BeautifulSoup(html, "html.parser")
-            raw: dict = {}
-            for row in soup.find_all("tr"):
-                cells = row.find_all(["td", "th"])
-                i = 0
-                while i < len(cells) - 1:
-                    label = cells[i].get_text(strip=True).rstrip(":").strip()
-                    value = cells[i + 1].get_text(strip=True)
-                    if label and len(label) < 40:
-                        raw[label] = value
-                        i += 2
-                    else:
-                        i += 1
-
-            # Parse dimensions
-            height = parse_dimension(raw.get("ProdHeight") or raw.get("Height") or "")
-            width = parse_dimension(raw.get("ProdWidth") or raw.get("Width") or "")
-            length = parse_dimension(raw.get("ProdLength") or raw.get("Length") or "")
-            weight = parse_dimension(raw.get("ProdWeight") or raw.get("Weight") or "")
-            diameter = parse_dimension(raw.get("Diameter") or "")
-
-            return {
-                "upc": raw.get("UPC"),
-                "color": raw.get("ColorGrp") or raw.get("Color Group") or raw.get("Color"),
-                "country_of_origin": raw.get("Country of Origin"),
-                "height_in": height,
-                "width_in": width,
-                "length_in": length,
-                "weight_lb": weight,
-                "diameter_in": diameter,
-                "moq": safe_int(raw.get("MinQty") or raw.get("Min Qty")),
-                "raw": raw,
-            }
-        finally:
-            await browser.close()
-
-
 async def enrich_allstate_details(
     username: str,
     password: str,
@@ -1196,26 +1096,5 @@ async def enrich_allstate_details(
                     await progress_callback(idx, total, f"Fetched details for {idx:,}/{total:,} ({sku})")
                 yield sku, detail
                 await polite_delay(REQUEST_DELAY)
-        finally:
-            await browser.close()
-
-
-async def build_allstate_session_headers(username: str, password: str) -> dict[str, str]:
-    """Log in once and return authenticated request headers for image downloads."""
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            )
-        )
-        page = await context.new_page()
-        try:
-            await _do_login(page, username, password)
-            return _build_cookie_header(await context.cookies())
         finally:
             await browser.close()

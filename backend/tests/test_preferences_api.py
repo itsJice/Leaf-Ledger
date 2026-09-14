@@ -377,9 +377,3 @@ def test_put_reports_a_storage_failure_rather_than_pretending_to_save(monkeypatc
 def test_routes_are_exactly_the_contracted_paths():
     paths = {(r.path, tuple(sorted(r.methods))) for r in preferences.router.routes}
     assert paths == {("/preferences", ("GET",)), ("/preferences", ("PUT",))}
-
-
-def test_router_is_registered_in_routers_json():
-    import pathlib
-    cfg = json.loads((pathlib.Path(__file__).parent.parent / "routers.json").read_text())
-    assert "preferences" in cfg["routers"]
