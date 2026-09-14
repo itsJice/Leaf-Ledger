@@ -219,7 +219,7 @@ def _pdf(view: dict) -> bytes:
             img_flow = RLImage(io.BytesIO(png), width=0.7 * inch, height=0.7 * inch) if png else Paragraph("", cell)
             name = _esc(it["name"] or "")
             if it["product_url"]:
-                name += f'<br/><font size=6><a href="{_esc(it["product_url"])}">{_esc(it["product_url"])[:48]}</a></font>'
+                name += f'<br/><font size=6><a href="{_esc(it["product_url"])}">{_esc(it["product_url"][:48])}</a></font>'
             rows.append([
                 img_flow, Paragraph(name, cell), Paragraph(_esc(it["sku"] or ""), cell),
                 Paragraph(_esc(it["size"] or ""), cell), Paragraph(str(it["quantity"]), cell),

@@ -344,9 +344,11 @@ async def update_item(item_id: int, body: UpdateItem):
             raise HTTPException(status_code=404, detail="Item not found")
         if body.quantity is not None:
             if body.quantity <= 0:
+                # The row is gone: nothing left to update but the order's timestamp.
                 await conn.execute("DELETE FROM ll_app.order_items WHERE id = $1", item_id)
-            else:
-                await conn.execute("UPDATE ll_app.order_items SET quantity = $2 WHERE id = $1", item_id, int(body.quantity))
+                await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
+                return {"ok": True}
+            await conn.execute("UPDATE ll_app.order_items SET quantity = $2 WHERE id = $1", item_id, int(body.quantity))
         if body.variant_note is not None:
             await conn.execute("UPDATE ll_app.order_items SET variant_note = $2 WHERE id = $1", item_id, body.variant_note)
         await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
@@ -361,8 +363,9 @@ async def delete_item(item_id: int):
     try:
         await ensure_schema(conn)
         row = await conn.fetchrow("DELETE FROM ll_app.order_items WHERE id = $1 RETURNING order_id", item_id)
-        if row:
-            await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
+        if not row:
+            raise HTTPException(status_code=404, detail="Item not found")
+        await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
         return {"ok": True}
     finally:
         await conn.close()
