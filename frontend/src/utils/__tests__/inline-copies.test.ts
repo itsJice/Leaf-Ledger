@@ -230,13 +230,18 @@ describe("inline formatDate copy (pages/TreeCounts.tsx)", () => {
     expect(groupCopies({ formatDateTreeCounts, formatDate }, DATE_INPUTS)).toEqual([["formatDateTreeCounts"], ["formatDate"]]);
   });
 
-  it("both shift a date-only string to the previous day west of UTC (America/Chicago)", () => {
+  // FIX: utils/format's formatDate now parses a date-only string as a local
+  // calendar date instead of UTC midnight (see format.test.ts), so it no
+  // longer shifts to the previous day west of UTC. The kept-verbatim
+  // TreeCounts copy is deliberately not fixed (see inline-copies.ts) and
+  // still has the bug.
+  it("the (unfixed) TreeCounts copy still shifts a date-only string to the previous day west of UTC", () => {
     vi.restoreAllMocks();
     forceDates("America/Chicago");
     forceNumbers();
     try {
       expect(formatDateTreeCounts("2026-09-13")).toBe("Sep 12, 2026");
-      expect(formatDate("2026-09-13")).toBe("Sep 12, 2026");
+      expect(formatDate("2026-09-13")).toBe("Sep 13, 2026");
     } finally {
       vi.restoreAllMocks();
       forceDates("UTC");

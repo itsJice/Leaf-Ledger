@@ -157,7 +157,7 @@ Example: 3" (08) · Red (03) · Shiny (S) → `N590803DSV`.
 
 ### Colors
 
-58 colors, name + 2-digit code (full list in `COLORS` in `ornamentRecipe.ts`).
+57 colors, name + 2-digit code (full list in `COLORS` in `ornamentRecipe.ts`).
 Swatch hex values in the module are our own UI approximations — Vickerman ships
 names/codes only.
 
@@ -276,7 +276,8 @@ described it as "patterns, fewer ornaments". 12 ft x 78 in contemporary ->
 **Colors** (`colorCount`, 1–4, default `LL_DEFAULT_COLOR_COUNT = 2`) — every quantity
 rounds to the nearest multiple of the color count, and the minimum top-size count is 8
 rounded *up* to a multiple of it (`leafLedgerMinTopCount`: 8 / 8 / 9 / 8 for 1–4 colors).
-Enhancer counts and the in-enhancer split round the same way. 12 ft x 78 in with three
+A *computed* enhancer count and the in-enhancer split round the same way; a direct
+table hit stays verbatim (see Enhancers below). 12 ft x 78 in with three
 colors -> `4.75"x39, 6"x30, 8"x18, 10"x15, 12"x9`. Going to Step 2 with untouched color
 blocks seeds one block per color with equal shares (34 / 33 / 33 for three).
 
@@ -307,8 +308,10 @@ no enhancers, so nothing changes there.
 Open conflict: the designer also said "an 8 has 24 enhancers" in conversation, which
 the table doesn't support (8 ft interpolates to 16). The table wins until she confirms.
 
-**Lookup order** (`enhancerLookup`), every result rounded to a multiple of the color
-count (even by default):
+**Lookup order** (`enhancerLookup`). A direct hit (1–2) returns the designer's table
+count verbatim, unrounded — her enhancer table is hers, as written. Only a computed
+value (3–4, interpolated or extrapolated) is rounded to a multiple of the color count
+(even by default):
 
 1. **Table** — a row whose height range (single heights ±0.25 ft) and width bucket both fit.
 2. **Nearest width** — the height fits but no bucket does: the closest bucket at that height

@@ -158,8 +158,13 @@ describe("working job (localStorage)", () => {
   it("coerces ids with Number; falsy ids (0, '') become null", () => {
     store.set(KEY, JSON.stringify({ jobId: "4", groupId: 0 }));
     expect(jobs.readWorkingJob()).toEqual({ jobId: 4, groupId: null });
+  });
+
+  // FIX: a non-numeric stored id (e.g. groupId: "x") used to come back as
+  // NaN; it must become null like every other invalid/missing id.
+  it("a non-numeric id becomes null, not NaN", () => {
     store.set(KEY, JSON.stringify({ jobId: 2, groupId: "x" }));
-    expect(jobs.readWorkingJob()).toEqual({ jobId: 2, groupId: NaN });
+    expect(jobs.readWorkingJob()).toEqual({ jobId: 2, groupId: null });
   });
 
   it("writes JSON and swallows storage errors", () => {

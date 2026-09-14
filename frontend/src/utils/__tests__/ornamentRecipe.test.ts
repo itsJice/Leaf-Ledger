@@ -43,7 +43,9 @@ describe("constants", () => {
     expect(GOLDEN_RECIPES.map((g) => [g.heightFt, g.widthIn])).toEqual([[7.5, 49], [8, 52], [10, 65], [12, 78]]);
     expect(ENHANCER_TABLE.map((r) => r.count)).toEqual([8, 8, 14, 16, 18, 24, 30, 36, 48, 60]);
     expect(Object.keys(WIDTH_PROFILES)).toEqual(["pencil", "slim", "standard", "full"]);
-    // The doc comment says "All 58"; the array holds 57.
+    // FIX: the doc comment said "All 58"; no rules doc names a 58th color,
+    // so the comment (in ornamentRecipe.ts and ornamentRecipe.md) was
+    // corrected to 57 rather than adding an unsourced entry.
     expect(COLORS).toHaveLength(57);
     expect(FINISHES.map((f) => f.code).join("")).toBe("SMGPQCXFIRVLBT");
   });
@@ -99,8 +101,13 @@ describe("buildRecipe (Vickerman)", () => {
     expect(buildRecipe(-3, 40)).toEqual(empty);
   });
 
-  it("BUG pinned: throws on NaN height (NaN area slips past the <= 0 guard)", () => {
-    expect(() => buildRecipe(NaN, 50)).toThrow(TypeError);
+  // FIX: NaN/non-finite dimensions used to slip past the `surfaceArea <= 0`
+  // guard (NaN <= 0 is false) and throw a TypeError inside the bucket lookup.
+  it("treats non-finite dimensions as invalid, same as 0", () => {
+    const empty = { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
+    expect(buildRecipe(NaN, 50)).toEqual(empty);
+    expect(buildRecipe(7.5, NaN)).toEqual(empty);
+    expect(buildRecipe(Infinity, 50)).toEqual(empty);
   });
 });
 
@@ -137,12 +144,12 @@ describe("buildLeafLedgerRecipe", () => {
     expect(buildLeafLedgerRecipe(-3, 40).lines).toEqual([]);
   });
 
-  it("NaN height does not throw: NaN areas, bucket 7, no lines", () => {
-    const r = buildLeafLedgerRecipe(NaN, 50);
-    expect(r.surfaceArea).toBeNaN();
-    expect(r.recipeCoverage).toBeNaN();
-    expect(r.bucketNumber).toBe(7);
-    expect(r.lines).toEqual([]);
+  // FIX: a non-finite height used to produce NaN surfaceArea/recipeCoverage
+  // instead of the same empty result a 0 tree returns.
+  it("treats non-finite dimensions as invalid, same as 0", () => {
+    const empty = { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
+    expect(buildLeafLedgerRecipe(NaN, 50)).toEqual(empty);
+    expect(buildLeafLedgerRecipe(7.5, NaN)).toEqual(empty);
   });
 
   it("buildRecipeFor dispatches on mode", () => {
@@ -209,12 +216,23 @@ describe("enhancers", () => {
     expect([enhancerCount(13, 85), enhancerCount(5, 30), enhancerCount(18, 117), enhancerCount(8, 52, 3)]).toEqual([42, 2, 92, 15]);
   });
 
-  it("BUG pinned: a direct table hit is NOT rounded to the color count (doc says always)", () => {
+  // DECISION (not a bug): a direct table/nearest-width hit returns the
+  // designer's row count verbatim, unrounded. designer-recipe-plan.md calls
+  // the table "hers, verbatim" (### Enhancer table (hers, verbatim)) and rule
+  // 4's "every per-size quantity should divide by the color count" is about
+  // the ornament-recipe sizes, not the enhancer table entries — there's no
+  // rule saying her literal enhancer counts get re-rounded. The stale claim
+  // was the JSDoc/README comment ("always rounded"), which has been corrected
+  // to say only a computed (interpolated/extrapolated) count is rounded.
+  it("a direct table hit returns the designer's row count verbatim, not rounded to the color count", () => {
     expect(enhancerCount(7.5, 49, 3)).toBe(14);
   });
 
-  it("BUG pinned: throws on NaN height", () => {
-    expect(() => enhancerLookup(NaN, 50)).toThrow(TypeError);
+  // FIX: a non-finite height used to fall through every lookup branch to
+  // `row.widthMinIn` on an undefined row, throwing a TypeError.
+  it("treats a non-finite height/width as 0", () => {
+    expect(enhancerLookup(NaN, 50)).toEqual(enhancerLookup(0, 50));
+    expect(enhancerLookup(10, NaN)).toEqual(enhancerLookup(10, 0));
   });
 
   it("enhancerAllocation splits small sizes half into enhancers", () => {
@@ -245,8 +263,11 @@ describe("coverageDensity / packSummary / treeDensityImage", () => {
     ]);
   });
 
-  it("BUG pinned: packSummary on a negative quantity reports '0 packs'", () => {
-    expect(packSummary(opt(3), -5)).toBe("0 packs of 12");
+  // FIX: a negative quantity used to pass the `!quantity` guard (a negative
+  // number is truthy) and report "0 packs of 12" via Math.ceil rounding
+  // toward zero.
+  it("packSummary on a negative quantity returns '' like 0 does", () => {
+    expect(packSummary(opt(3), -5)).toBe("");
   });
 
   it("treeDensityImage clamps to 0..90 in 5% steps", () => {
@@ -262,8 +283,11 @@ describe("coverageDensity / packSummary / treeDensityImage", () => {
     ]);
   });
 
-  it("BUG pinned: treeDensityImage(NaN) builds a NaN path", () => {
-    expect(treeDensityImage(NaN)).toBe("/ornament-calculator/tree_density_NaN.jpg");
+  // FIX: NaN used to slip past both clamp checks (`NaN > 90` and `NaN < 0`
+  // are both false) straight into the filename.
+  it("treeDensityImage(NaN) clamps like an out-of-range value, to 0", () => {
+    expect(treeDensityImage(NaN)).toBe(treeDensityImage(-10));
+    expect(treeDensityImage(NaN)).toBe("/ornament-calculator/tree_density_0.jpg");
   });
 });
 

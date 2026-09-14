@@ -39,18 +39,26 @@ describe("supplier directory cache", () => {
     expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("degrades to {} on non-ok, null body, or a rejected fetch — and caches that result", async () => {
+  // FIX: a failed fetch used to be cached (as {}) until something invalidated
+  // it; a failure must not be cached at all, so the very next call retries
+  // with no explicit invalidate needed.
+  it("degrades to {} on non-ok, null body, or a rejected fetch, without caching the failure", async () => {
     apiFetch.mockResolvedValueOnce(json({ detail: "nope" }, 500));
     await expect(mod.loadSupplierDirectory()).resolves.toEqual({});
-    mod.invalidateSupplierDirectory();
     apiFetch.mockResolvedValueOnce(json(null));
     await expect(mod.loadSupplierDirectory()).resolves.toEqual({});
-    mod.invalidateSupplierDirectory();
     apiFetch.mockRejectedValueOnce(new Error("offline"));
     await expect(mod.loadSupplierDirectory()).resolves.toEqual({});
-    // The failure is cached: no retry until invalidated.
+    apiFetch.mockResolvedValueOnce(json([{ id: 1 }]));
+    await expect(mod.loadSupplierDirectory()).resolves.toEqual({ 1: { id: 1 } });
+    expect(apiFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("still caches a genuinely empty list (not a failure)", async () => {
+    apiFetch.mockResolvedValueOnce(json([]));
     await expect(mod.loadSupplierDirectory()).resolves.toEqual({});
-    expect(apiFetch).toHaveBeenCalledTimes(3);
+    await mod.loadSupplierDirectory();
+    expect(apiFetch).toHaveBeenCalledTimes(1);
   });
 
   it("exports the credentials-changed event name", () => {

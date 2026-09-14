@@ -134,9 +134,14 @@ export async function fetchDesignList(q: DesignListQuery = {}): Promise<DesignLi
     if (!ct.includes("json")) return EMPTY_LIST;
     const data = (await res.json()) as Record<string, unknown> | null;
     const items = Array.isArray(data?.items) ? (data!.items as Design[]) : [];
+    // A real server total of 0 must stick — `Number(data?.total) || items.length`
+    // would treat that falsy 0 as "missing" and substitute the item count.
+    const rawTotal = data?.total;
+    const numericTotal = Number(rawTotal);
+    const total = rawTotal != null && Number.isFinite(numericTotal) ? numericTotal : items.length;
     return {
       items,
-      total: Number(data?.total ?? items.length) || items.length,
+      total,
       facets: normalizeFacets(data?.facets),
     };
   } catch {

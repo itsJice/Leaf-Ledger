@@ -27,9 +27,13 @@ describe("favorites", () => {
     expect(storage.getItem).toHaveBeenCalledWith(KEY);
   });
 
-  it("coerces stored values with Number and drops non-finite ones (null becomes 0)", () => {
+  // FIX: `null` used to coerce via `Number(null)` to a fake id 0; it's now
+  // dropped before coercion, same as it would be if it weren't in the array
+  // at all. "x" was already dropped (Number("x") is NaN, non-finite); `true`
+  // coerces to 1, which is already in the set, so it adds nothing new.
+  it("coerces stored values with Number and drops null and non-finite ones", () => {
     storage.data.set(KEY, JSON.stringify([1, "2", "x", null, 3.5, true]));
-    expect([...readFavoriteIds()]).toEqual([1, 2, 0, 3.5]);
+    expect([...readFavoriteIds()]).toEqual([1, 2, 3.5]);
   });
 
   it("returns an empty set for non-array JSON, corrupt JSON, or a throwing store", () => {

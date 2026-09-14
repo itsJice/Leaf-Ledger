@@ -115,7 +115,7 @@ export function buildRecipe(
   targetCoverage: number = RECIPE_TARGET_COVERAGE
 ): RecipeResult {
   const surfaceArea = treeSurfaceArea(heightFt, widthIn);
-  if (surfaceArea <= 0) {
+  if (!Number.isFinite(surfaceArea) || surfaceArea <= 0) {
     return { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
   }
 
@@ -355,7 +355,7 @@ export function buildLeafLedgerRecipe(
   options: LeafLedgerOptions = {}
 ): RecipeResult {
   const surfaceArea = treeSurfaceArea(heightFt, widthIn);
-  if (surfaceArea <= 0) {
+  if (!Number.isFinite(surfaceArea) || surfaceArea <= 0) {
     return { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
   }
 
@@ -513,7 +513,10 @@ function roundEnhancers(raw: number, colorCount: number): number {
  *   4. beyond  — shorter than the table's first row or taller than its last:
  *                scale that end row's count by surface area, against the row's
  *                default width, never below 0.
- * The result is always rounded to a multiple of the color count (even by default).
+ * A direct table/nearest-width hit (1–2) returns the designer's row count
+ * verbatim, unrounded; only a computed value (3–4, interpolated or
+ * extrapolated) is rounded to a multiple of the color count (even by default).
+ * Non-finite height/width are treated as invalid input (same as 0).
  */
 export function enhancerLookup(
   heightFt: number,
@@ -521,22 +524,24 @@ export function enhancerLookup(
   colorCount: number = LL_DEFAULT_COLOR_COUNT
 ): EnhancerLookup {
   const colors = clampColorCount(colorCount);
-  const atHeight = ENHANCER_TABLE.filter((row) => rowMatchesHeight(row, heightFt));
+  const height = Number.isFinite(heightFt) ? heightFt : 0;
+  const width = Number.isFinite(widthIn) ? widthIn : 0;
+  const atHeight = ENHANCER_TABLE.filter((row) => rowMatchesHeight(row, height));
   if (atHeight.length) {
-    const row = bestWidthRow(atHeight, widthIn);
-    const kind = widthDistance(row, widthIn) === 0 ? "table" : "nearestWidth";
+    const row = bestWidthRow(atHeight, width);
+    const kind = widthDistance(row, width) === 0 ? "table" : "nearestWidth";
     return { count: row.count, source: { kind, row } };
   }
 
-  const below = ENHANCER_TABLE.filter((row) => row.heightMaxFt + ENHANCER_HEIGHT_TOLERANCE_FT < heightFt);
-  const above = ENHANCER_TABLE.filter((row) => row.heightMinFt - ENHANCER_HEIGHT_TOLERANCE_FT > heightFt);
+  const below = ENHANCER_TABLE.filter((row) => row.heightMaxFt + ENHANCER_HEIGHT_TOLERANCE_FT < height);
+  const above = ENHANCER_TABLE.filter((row) => row.heightMinFt - ENHANCER_HEIGHT_TOLERANCE_FT > height);
   const lowerFt = Math.max(...below.map((row) => row.heightMaxFt));
   const upperFt = Math.min(...above.map((row) => row.heightMinFt));
-  const lower = below.length ? bestWidthRow(below.filter((row) => row.heightMaxFt === lowerFt), widthIn) : null;
-  const upper = above.length ? bestWidthRow(above.filter((row) => row.heightMinFt === upperFt), widthIn) : null;
+  const lower = below.length ? bestWidthRow(below.filter((row) => row.heightMaxFt === lowerFt), width) : null;
+  const upper = above.length ? bestWidthRow(above.filter((row) => row.heightMinFt === upperFt), width) : null;
 
   if (lower && upper) {
-    const t = (heightFt - lowerFt) / (upperFt - lowerFt);
+    const t = (height - lowerFt) / (upperFt - lowerFt);
     const raw = lower.count + t * (upper.count - lower.count);
     return { count: roundEnhancers(raw, colors), source: { kind: "interpolated", lower, upper } };
   }
@@ -549,8 +554,8 @@ export function enhancerLookup(
   const rowWidth =
     row.widthMinIn === null || row.widthMaxIn === null
       ? defaultWidthForHeight(rowFt)
-      : Math.min(Math.max(widthIn, row.widthMinIn), row.widthMaxIn);
-  const ratio = treeSurfaceArea(heightFt, widthIn) / treeSurfaceArea(rowFt, rowWidth) || 0;
+      : Math.min(Math.max(width, row.widthMinIn), row.widthMaxIn);
+  const ratio = treeSurfaceArea(height, width) / treeSurfaceArea(rowFt, rowWidth) || 0;
   return { count: roundEnhancers(row.count * ratio, colors), source: { kind: "extrapolated", row } };
 }
 
@@ -615,7 +620,7 @@ export function coverageDensity(
 
 /** Retail packs needed to cover a quantity (rounds up; "each" for singles). */
 export function packSummary(option: OrnamentOption, quantity: number): string {
-  if (!quantity) return "";
+  if (!(quantity > 0)) return "";
   if (option.qtyPerPack === 1) return `${quantity} each`;
   const wholePacks = Math.ceil(quantity / option.qtyPerPack);
   return `${wholePacks} pack${wholePacks === 1 ? "" : "s"} of ${option.qtyPerPack}`;
@@ -751,11 +756,12 @@ export function applySizeSwap<Q extends Record<number, number | "">>(quantities:
 // /public/ornament-calculator/ so the app is self-contained.
 // ---------------------------------------------------------------------------
 
-/** Local path to the tree photo for a given coverage density (%). */
+/** Local path to the tree photo for a given coverage density (%). Out-of-range
+ * (including non-finite) values clamp the same way as a too-low density: 0. */
 export function treeDensityImage(density: number): string {
   let step = Math.floor(density / 5) * 5;
+  if (!Number.isFinite(step) || step < 0) step = 0;
   if (step > 90) step = 90;
-  if (step < 0) step = 0;
   return `/ornament-calculator/tree_density_${step}.jpg`;
 }
 
@@ -776,7 +782,7 @@ export interface OrnamentFinish {
   code: string;
 }
 
-/** All 58 Vickerman ornament colors (name + code exact; hex is our swatch). */
+/** All 57 Vickerman ornament colors (name + code exact; hex is our swatch). */
 export const COLORS: OrnamentColor[] = [
   { name: "Clear Iridescent", code: "00", hex: "#e8f0f2" },
   { name: "Blue", code: "02", hex: "#2f5fa8" },
