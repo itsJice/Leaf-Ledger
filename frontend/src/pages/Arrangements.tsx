@@ -37,6 +37,8 @@ import { formatCurrency, unitLabel } from "utils/format";
 import { toast } from "sonner";
 import { ARRANGEMENTS_DEFAULT_BUILD_TEMPLATES, LEGACY_TOP_DOWN_SLOT_ORDERS, cleanArrangementsBuildTemplates as cleanEditableBuildTemplates } from "utils/buildTemplates";
 import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
+import { notifyProjectsChanged } from "utils/projectsChanged";
+import { PROJECTS_LIST_CACHE_KEY, BUILD_TEMPLATE_STORAGE_KEY } from "../constants";
 import { ProductDetailModal, hasNoSupplierImage, hasSupplierPlaceholderImage, productDisplayImageUrl, type Product as LibraryProduct } from "./Library";
 
 type ItemStatus = "candidate" | "selected";
@@ -154,8 +156,8 @@ type BuildSuggestion = {
   };
 };
 
-export const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
-export const BUILD_TEMPLATE_STORAGE_KEY = "leaf-ledger:build-templates:v1";
+// Re-exported for callers that historically imported these from this page.
+export { PROJECTS_LIST_CACHE_KEY, BUILD_TEMPLATE_STORAGE_KEY };
 export const INTELLIGENCE_NOTE_PREFIX = "LL_BUILD_INTELLIGENCE:";
 export const CUSTOM_SECTIONS_PREFIX = "LL_CUSTOM_SECTIONS:";
 
@@ -524,10 +526,6 @@ function writeProjectsListCache(arrangements: ArrangementSummary[]) {
 export function formatProjectsCacheStamp(ms?: number | null) {
   if (!ms) return "";
   return new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
-
-function notifyProjectsChanged() {
-  window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
 }
 
 export function arrangementShellFromSummary(summary: ArrangementSummary): Arrangement {

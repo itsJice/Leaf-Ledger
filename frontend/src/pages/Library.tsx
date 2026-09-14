@@ -1,5 +1,7 @@
 import { apiFetch } from "utils/apiFetch";
 import { readJsonCache } from "utils/jsonCache";
+import { notifyProjectsChanged } from "utils/projectsChanged";
+import { LIBRARY_CACHE_KEY } from "../constants";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
@@ -90,7 +92,8 @@ export const AVAILABILITY_FILTERS = [
   "Sold out / unavailable",
   "Future ETA",
 ] as const;
-export const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
+// Re-exported for callers that historically imported this from this page.
+export { LIBRARY_CACHE_KEY };
 export const LIBRARY_METADATA_CACHE_KEY = "leaf-ledger:library-filter-metadata:v1";
 export const LIBRARY_CACHE_RAW_KEYS = [
   "Description",
@@ -298,10 +301,6 @@ async function addProductToBucket(containerId: number, productId: number, status
     { containerId },
     { product_id: productId, quantity: 1, status } as any
   );
-}
-
-function notifyProjectsChanged() {
-  window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
 }
 
 // ─── Product Modal ────────────────────────────────────────────────────────────

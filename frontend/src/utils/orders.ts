@@ -1,4 +1,5 @@
 import { apiFetch } from "utils/apiFetch";
+import { ACTIVE_ORDER_KEY as ACTIVE_KEY } from "../constants";
 // Shared team purchase orders — client API + "active order" helper.
 // Orders themselves live on the backend (shared across the team); only the
 // pointer to which order you're currently adding to is per-browser.
@@ -69,7 +70,6 @@ export interface OrderDetail {
   vendor_count: number;
 }
 
-const ACTIVE_KEY = "leaf-ledger:active-order:v1";
 const JSON_HEADERS = { "content-type": "application/json" };
 
 export const getActiveOrderId = (): number | null => {
