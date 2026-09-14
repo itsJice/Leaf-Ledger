@@ -183,6 +183,7 @@ async def build_client_list(conn) -> List[dict]:
             "phone": None,
             "notes": None,
             "street": None, "city": None, "state": None, "zip": None,
+            "secondary_contacts": [],
             "created_at": None,
             "updated_at": stats.get("last_project_at"),
             "project_count": stats.get("project_count", 0),

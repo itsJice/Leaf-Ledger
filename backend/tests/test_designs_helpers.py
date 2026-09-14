@@ -8,9 +8,9 @@ same-named helpers in ``app.apis.arrangements`` decode the SAME ``LL_ROOM:`` /
 * designs returns the raw decoded dict (or ``{}``), with no trimming, no
   required keys, no defaults, and it never raises;
 * arrangements trims every text field, requires ``name`` (room) / fills in
-  defaults (scope), returns ``None`` on failure, and DOES raise
-  ``AttributeError`` when the JSON payload is a dict-with-non-string values or
-  not a dict at all (that branch is not covered by its ``except`` tuple).
+  defaults (scope), and returns ``None`` on failure -- including when the
+  JSON payload is a dict-with-non-string values or not a dict at all (it
+  used to raise ``AttributeError`` for those; fixed to return None instead).
 
 They must not be merged without a deliberate decision -- see the
 ``test_*_disagree*`` cases at the bottom for concrete inputs.
@@ -110,17 +110,16 @@ def test_room_label_disagreement_on_failure_value():
         assert arrangements.parse_room_label(label) is None
 
 
-def test_room_label_disagreement_non_dict_payload_raises_in_arrangements():
-    """designs swallows a non-dict payload; arrangements only catches
-    (TypeError, ValueError, JSONDecodeError) so ``list.get`` / ``int.strip``
-    escape as AttributeError. Pinned as-is (suspected bug, not fixed here)."""
+def test_room_label_disagreement_non_dict_payload():
+    """designs swallows a non-dict payload into {}; arrangements now returns
+    its own failure value, None, for the same input (fixed: it used to raise
+    AttributeError from ``list.get`` / ``int.strip`` escaping its narrower
+    except tuple)."""
     assert designs.parse_room_label("LL_ROOM:[1, 2]") == {}
-    with pytest.raises(AttributeError):
-        arrangements.parse_room_label("LL_ROOM:[1, 2]")
+    assert arrangements.parse_room_label("LL_ROOM:[1, 2]") is None
 
     assert designs.parse_room_label('LL_ROOM:{"name":42}') == {"name": 42}
-    with pytest.raises(AttributeError):
-        arrangements.parse_room_label('LL_ROOM:{"name":42}')
+    assert arrangements.parse_room_label('LL_ROOM:{"name":42}') is None
 
 
 def test_scope_label_disagreement_defaults_and_normalisation():
