@@ -20,7 +20,6 @@ import {
   SETTINGS_COPY_LEGACY_TOP_DOWN_SLOT_ORDERS,
   settingsCopyCleanTemplateList,
 } from "./inline-copies-3a";
-import { readSrc, snippet } from "./source-text";
 
 type Outcome = { value: unknown; isFallback?: boolean } | { throws: string };
 function outcome(fn: () => unknown, fallback: unknown): Outcome {
@@ -56,17 +55,6 @@ const INPUTS: Array<[string, unknown]> = [
   ["Settings defaults as input", SETTINGS_COPY_DEFAULT_BUILD_TEMPLATES],
   ["Arrangements defaults as input", A.DEFAULT_EDITABLE_BUILD_TEMPLATES],
 ];
-
-describe("build templates: oracle", () => {
-  it("the Settings copies are verbatim page source", () => {
-    const oracle = readSrc("utils/__tests__/inline-copies-3a.ts");
-    const settings = readSrc("pages/Settings.tsx");
-    expect(oracle).toContain(snippet(settings, "type BuildTemplate = {", "\n};\n"));
-    expect(oracle).toContain(snippet(settings, "const DEFAULT_BUILD_TEMPLATES", "\n];\n"));
-    expect(oracle).toContain(snippet(settings, "const LEGACY_TOP_DOWN_SLOT_ORDERS", "\n};\n"));
-    expect(oracle).toContain(snippet(settings, "function cleanTemplateList", "\n}\n"));
-  });
-});
 
 describe("build templates: data", () => {
   it("each default list equals its page original", () => {

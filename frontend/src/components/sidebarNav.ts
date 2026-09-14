@@ -240,7 +240,7 @@ export interface SidebarPrefsLike {
 /**
  * Fired by the tabs editor so an already-mounted Layout repaints its sidebar the
  * instant an edit is made, instead of waiting for the debounced write to land.
- * Mirrors the existing "leaf-ledger-projects-changed" pattern.
+ * Mirrors the existing PROJECTS_CHANGED_EVENT pattern (see utils/projectsChanged.ts).
  */
 export const SIDEBAR_PREFS_EVENT = "leaf-ledger-sidebar-prefs-changed";
 

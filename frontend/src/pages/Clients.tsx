@@ -24,6 +24,8 @@ import { formatCurrency } from "utils/format";
 import { toast } from "sonner";
 import { NewProjectModal } from "./Arrangements";
 import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
+import { CLIENTS_PAGE_CACHE_KEY } from "../constants";
+import { notifyProjectsChanged } from "utils/projectsChanged";
 
 type ProjectSummary = {
   id: number;
@@ -107,7 +109,6 @@ type ClientGroup = {
 };
 
 const LOCAL_CLIENTS_KEY = "leaf-ledger-local-clients-v1";
-const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
 
 type ClientsPageCache = {
   clientRows: ClientRecord[];
@@ -366,7 +367,7 @@ function NewClientModal({ client, onClose, onSaved }: {
       if (!res.ok) throw new Error("Could not create client");
       const createdClient = await res.json();
       onSaved(createdClient);
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success("Client created");
       onClose();
     } catch {
@@ -377,7 +378,7 @@ function NewClientModal({ client, onClose, onSaved }: {
       const localClient = makeLocalClient(payload);
       writeLocalClients(mergeClients([localClient], readLocalClients()));
       onSaved(localClient);
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success("Client created locally");
       onClose();
     } finally {
@@ -811,7 +812,7 @@ export default function Clients() {
         delete next[project.id];
         return next;
       });
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success("Project deleted");
     } catch {
       toast.error("Failed to delete project");
@@ -833,7 +834,7 @@ export default function Clients() {
       writeClientsPageCache(nextClientRows, nextProjects);
       if (focusedClient === client.name) showAllClients();
       setDeleteClientTarget(null);
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success(deleteProjects ? "Client and projects deleted" : "Client deleted; projects kept");
     } catch {
       toast.error("Failed to delete client");

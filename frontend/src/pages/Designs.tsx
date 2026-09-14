@@ -4,24 +4,14 @@ import Arrangements from "./Arrangements";
 import {
   Check,
   ChevronDown,
-  CircleDashed,
-  Flower2,
   Layers,
   LayoutGrid,
-  Leaf,
   List,
   Minus,
   Plus,
   RotateCcw,
   Search,
   Shapes,
-  Shrub,
-  Sparkle,
-  Spline,
-  Sprout,
-  TreeDeciduous,
-  TreePine,
-  Waves,
   X,
 } from "lucide-react";
 import Layout from "components/Layout";
@@ -35,8 +25,11 @@ import {
   EMPTY_FACETS,
   fetchDesignList,
 } from "utils/designs";
+import { buildTypeIcon } from "utils/buildTypeIcon";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+
+export { buildTypeIcon };
 
 // The Designs tab — the shortcut to every build in the shop.
 //
@@ -84,34 +77,6 @@ const FILTERS: { key: FilterKey; label: string; facet: keyof DesignFacets }[] = 
   { key: "groups", label: "Group", facet: "groups" },
   { key: "build_types", label: "Build type", facet: "build_types" },
 ];
-
-// Build-type → icon. Ordered: the first pattern that matches wins, so
-// "Christmas Tree" beats the generic "tree" rule.
-// NOTE: held back as a local duplicate (not utils/buildTypeIcon's shared export)
-// -- see WP 3b.4 report. buildTypeIcon.test.ts pins this exact block verbatim
-// inside Designs.tsx's own source text.
-type IconComponent = typeof TreePine;
-const BUILD_TYPE_ICONS: [RegExp, IconComponent][] = [
-  [/christmas tree|holiday tree/, TreePine],
-  [/wreath/, CircleDashed],
-  [/garland/, Spline],
-  [/swag/, Waves],
-  [/spray|teardrop|door drop/, Sprout],
-  [/planter|container garden/, Shrub],
-  [/ornament/, Sparkle],
-  [/branch|stem/, Leaf],
-  [/tree|fig/, TreeDeciduous],
-  [/centerpiece|arrangement|floral|orchid|succulent/, Flower2],
-];
-
-export function buildTypeIcon(buildType?: string | null): IconComponent {
-  const normalized = (buildType || "").trim().toLowerCase();
-  if (!normalized) return Shapes;
-  for (const [pattern, Icon] of BUILD_TYPE_ICONS) {
-    if (pattern.test(normalized)) return Icon;
-  }
-  return Shapes;
-}
 
 export default function Designs() {
   const navigate = useNavigate();

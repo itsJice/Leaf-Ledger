@@ -7,12 +7,9 @@ import { toast } from "sonner";
 import { ProductDetailModal, ProductView, type Product } from "./Library";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
 import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
+import { LIBRARY_CACHE_KEY } from "../constants";
 
 const FAVORITES_CACHE_KEY = "leaf-ledger:favorites-cache:v1";
-// NOTE: held back as a local literal (not the constants.ts export) -- see WP
-// 3b.4 report. cache-keys.test.ts pins this exact literal inside Favorites.tsx's
-// own source text; switching to the shared constant makes that source-scan fail.
-const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
 
 function readFavoritesCache(): Product[] | null {
   const parsed = readJsonCache<any>(FAVORITES_CACHE_KEY, null);
