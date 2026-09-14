@@ -10,6 +10,8 @@ import WorkingJobBar from "components/WorkingJobBar";
 import PinToggle from "components/PinToggle";
 import { readWorkingJob, type WorkingJob, type PinGroup } from "utils/jobs";
 import { loadPins, getCachedPins, setCachedPins } from "utils/pinsCache";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 
 // Phase 3 — versatile catalog search. Purpose-built search over the whole
 // catalog, driven by the normalization layer's server-side facets (color, size,
@@ -161,7 +163,7 @@ export default function CatalogSearch() {
   const [search, setSearch] = useState(() => readSavedSearchState()?.search || "");
   // Restoring a saved keyword shouldn't wait through the debounce below --
   // the very first query fires with it immediately.
-  const [debouncedSearch, setDebouncedSearch] = useState(() => (readSavedSearchState()?.search || "").trim());
+  const debouncedSearch = useDebouncedValue(search, 350).trim();
   // What the LAST smart-search parse itself checked/set, as opposed to
   // anything the user clicked by hand in the sidebar. Search text is meant to
   // behave like a search bar -- each parse should replace what the previous
@@ -258,12 +260,6 @@ export default function CatalogSearch() {
       .then(setMetadata)
       .catch(() => {});
   }, []);
-
-  // debounce keyword
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const buildParams = useCallback(
     (nextOffset: number) => {
@@ -420,19 +416,11 @@ export default function CatalogSearch() {
 
   // Infinite scroll + prefetch: auto-load the next page ~800px before the
   // bottom, so the next batch is ready before you reach it.
-  const loadMoreStateRef = useRef({ loading, itemsLen: items.length, total, offset });
-  loadMoreStateRef.current = { loading, itemsLen: items.length, total, offset };
-  const scrollObsRef = useRef<IntersectionObserver | null>(null);
-  const setSentinel = useCallback((node: HTMLDivElement | null) => {
-    if (scrollObsRef.current) { scrollObsRef.current.disconnect(); scrollObsRef.current = null; }
-    if (!node) return;
-    scrollObsRef.current = new IntersectionObserver((entries) => {
-      if (!entries[0].isIntersecting) return;
-      const s = loadMoreStateRef.current;
-      if (!s.loading && s.itemsLen < s.total) load(s.offset + PAGE_SIZE, true);
-    }, { rootMargin: "800px 0px" });
-    scrollObsRef.current.observe(node);
-  }, [load]);
+  const setSentinel = useInfiniteScroll({
+    enabled: !loading && items.length < total,
+    onLoadMore: () => load(offset + PAGE_SIZE, true),
+    resetKey: load,
+  });
 
   // Natural-language query → facets. "gold matte ornaments under $5" applies
   // Color=Gold, Finish=Matte, price<5, leaving the rest as the keyword.
