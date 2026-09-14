@@ -19,6 +19,8 @@ import {
   type Job, type JobSummary, type Need, type SourcingLine, type Stage,
   type OpenOrderLine, type POLine, type SourcingStatus,
 } from "utils/jobs";
+import { formatMoney as money } from "utils/money";
+import { proxiedImageUrl as proxied } from "utils/images";
 
 // Sourcing: the purchaser's worksheet, one per client job. Reachable at
 // /sourcing only (no sidebar entry) while the team pins and compares on the
@@ -41,8 +43,6 @@ const TABS: Array<{ id: Tab; label: string }> = [
 ];
 const PO_STATUSES = ["draft", "approved", "placed", "follow_up", "shipped", "arrived", "closed"];
 
-const proxied = (url?: string | null) => (url ? `/api/products/image-proxy?url=${encodeURIComponent(url)}` : undefined);
-const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
 const qty = (n?: number | null) => (n == null ? "" : Number.isInteger(Number(n)) ? String(n) : Number(n).toFixed(1));
 const dateStr = (d?: string | null) => (d ? String(d).slice(0, 10) : "");
 
