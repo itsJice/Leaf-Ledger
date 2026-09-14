@@ -28,6 +28,26 @@ jobs:
       - name: Run tests
         run: uv run pytest -q tests
 
+  scheduler:
+    name: Scheduler tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-groups
+      # Synthetic fixtures only: client_config.json and cache/ are gitignored
+      # (client PII) and the tests never read them.
+      - name: Run tests
+        working-directory: scheduler
+        run: uv run --project ../backend python -m pytest -q tests tests_common
+
   frontend:
     name: Frontend checks
     runs-on: ubuntu-latest
