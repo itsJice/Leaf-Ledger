@@ -38,10 +38,10 @@ import PinToggle from "components/PinToggle";
 import { readWorkingJob, type WorkingJob, type PinGroup } from "utils/jobs";
 import { loadPins, getCachedPins, setCachedPins } from "utils/pinsCache";
 
-const CATEGORIES = ["containers", "wood", "greenery", "florals", "trees"];
-const UNITS = ["stem", "pot", "flat", "bunch", "each"];
+export const CATEGORIES = ["containers", "wood", "greenery", "florals", "trees"];
+export const UNITS = ["stem", "pot", "flat", "bunch", "each"];
 const INITIAL_CARD_RENDER_LIMIT = 48;
-const KNOWN_COLOR_WORDS = [
+export const KNOWN_COLOR_WORDS = [
   "aqua", "beige", "black", "blue", "blush", "bronze", "brown", "burgundy", "camel",
   "charcoal", "cinnamon", "clear", "coffee", "copper", "coral", "cream", "crimson",
   "delphinium", "flame", "gold", "gray", "green", "honey", "indigo", "iridescent",
@@ -50,7 +50,7 @@ const KNOWN_COLOR_WORDS = [
   "red", "rose", "royal", "rubrum", "salmon", "seafoam", "silver", "smoke", "tan",
   "taupe", "teal", "tomato", "turquoise", "violet", "white", "yellow",
 ];
-const ALLSTATE_COLOR_CODE_MAP: Record<string, string[]> = {
+export const ALLSTATE_COLOR_CODE_MAP: Record<string, string[]> = {
   AQ: ["Aqua"],
   BE: ["Beige"],
   BK: ["Black"],
@@ -81,16 +81,16 @@ const ALLSTATE_COLOR_CODE_MAP: Record<string, string[]> = {
   WH: ["White"],
   YL: ["Yellow"],
 };
-const AVAILABILITY_FILTERS = [
+export const AVAILABILITY_FILTERS = [
   "Available today",
   "Within 1-4 months",
   "Over 4 months",
   "Sold out / unavailable",
   "Future ETA",
 ] as const;
-const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
-const LIBRARY_METADATA_CACHE_KEY = "leaf-ledger:library-filter-metadata:v1";
-const LIBRARY_CACHE_RAW_KEYS = [
+export const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
+export const LIBRARY_METADATA_CACHE_KEY = "leaf-ledger:library-filter-metadata:v1";
+export const LIBRARY_CACHE_RAW_KEYS = [
   "Description",
   "ColorGrp",
   "Season",
@@ -121,7 +121,7 @@ const LIBRARY_CACHE_RAW_KEYS = [
   "detail_status",
   "image_status",
 ];
-const PRODUCT_TYPE_RULES: Array<{ label: string; keywords: string[] }> = [
+export const PRODUCT_TYPE_RULES: Array<{ label: string; keywords: string[] }> = [
   { label: "Ribbon", keywords: [" ribbon ", " trim ", " bow "] },
   { label: "Spray", keywords: [" spray "] },
   { label: "Pick", keywords: [" pick "] },
@@ -233,7 +233,7 @@ type ProductSearchEntry = {
   isFavorited: boolean;
 };
 
-function trimRawDataForCache(raw?: Record<string, any> | null) {
+export function trimRawDataForCache(raw?: Record<string, any> | null) {
   if (!raw) return {};
   const trimmed: Record<string, any> = {};
   for (const key of LIBRARY_CACHE_RAW_KEYS) {
@@ -242,14 +242,14 @@ function trimRawDataForCache(raw?: Record<string, any> | null) {
   return trimmed;
 }
 
-function trimProductForCache(product: Product): Product {
+export function trimProductForCache(product: Product): Product {
   return {
     ...product,
     raw_data: trimRawDataForCache(product.raw_data),
   };
 }
 
-function readLibraryCache(): { suppliers: Supplier[]; products: Product[]; productTotal?: number } | null {
+export function readLibraryCache(): { suppliers: Supplier[]; products: Product[]; productTotal?: number } | null {
   try {
     const raw = localStorage.getItem(LIBRARY_CACHE_KEY);
     if (!raw) return null;
@@ -275,7 +275,7 @@ function writeLibraryCache(suppliers: Supplier[], products: Product[], productTo
   }
 }
 
-function readLibraryMetadataCache(): LibraryFilterMetadata | null {
+export function readLibraryMetadataCache(): LibraryFilterMetadata | null {
   try {
     const raw = localStorage.getItem(LIBRARY_METADATA_CACHE_KEY);
     if (!raw) return null;
@@ -295,7 +295,7 @@ function writeLibraryMetadataCache(metadata: LibraryFilterMetadata) {
   }
 }
 
-function applyLocalFavoriteState(products: Product[]): Product[] {
+export function applyLocalFavoriteState(products: Product[]): Product[] {
   const favoriteIds = readFavoriteIds();
   return products.map((product) => ({
     ...product,
@@ -674,7 +674,7 @@ function AddToProjectModal({
 // Identity colours, not theme colours — a category keeps its hue in both modes.
 // They resolve through `--cat-*` in index.css only so the dark theme can lift
 // them off a near-black page; the light values are the originals unchanged.
-const CATEGORY_COLORS: Record<string, string> = {
+export const CATEGORY_COLORS: Record<string, string> = {
   // rich display categories (from category_group)
   "Florals": "rgb(var(--cat-florals))",
   "Greenery & Plants": "rgb(var(--cat-greenery))",
@@ -700,8 +700,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 // ─── Stale price check ───────────────────────────────────────────────────────
-const STALE_DAYS = 30;
-function isPriceStale(price_updated_at?: string | null): boolean {
+export const STALE_DAYS = 30;
+export function isPriceStale(price_updated_at?: string | null): boolean {
   if (!price_updated_at) return true;
   const diffMs = Date.now() - new Date(price_updated_at).getTime();
   return diffMs > STALE_DAYS * 24 * 60 * 60 * 1000;
@@ -821,13 +821,13 @@ export function ProxiedImage({ src, fallbacks = [], alt, className, ...rest }: {
   );
 }
 
-function formatDetailValue(value: unknown): string {
+export function formatDetailValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
   return String(value);
 }
 
-function sourceValue(product: Product, ...keys: string[]): unknown {
+export function sourceValue(product: Product, ...keys: string[]): unknown {
   const raw = product.raw_data || {};
   for (const key of keys) {
     const value = raw[key];
@@ -836,7 +836,7 @@ function sourceValue(product: Product, ...keys: string[]): unknown {
   return undefined;
 }
 
-function displayProductName(product: Product): string {
+export function displayProductName(product: Product): string {
   // `name` holds the concise product name; `description` is marketing copy.
   // (Some legacy rows only had the readable name in raw.Description.)
   const raw = product.raw_data || {};
@@ -844,7 +844,7 @@ function displayProductName(product: Product): string {
   return String(preferred || "").trim();
 }
 
-function normalizeSearchText(value: unknown): string {
+export function normalizeSearchText(value: unknown): string {
   return String(value ?? "")
     .toLowerCase()
     .replace(/["'`]/g, "")
@@ -853,11 +853,11 @@ function normalizeSearchText(value: unknown): string {
     .trim();
 }
 
-function titleCase(value: string): string {
+export function titleCase(value: string): string {
   return value.replace(/\b\w+/g, (part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
 }
 
-function expandSearchAliases(value: unknown): string {
+export function expandSearchAliases(value: unknown): string {
   const normalized = normalizeSearchText(value);
   if (!normalized) return "";
 
@@ -908,30 +908,30 @@ function expandSearchAliases(value: unknown): string {
   return expanded.replace(/\s+/g, " ").trim();
 }
 
-function looksLikeCodeQuery(query: string): boolean {
+export function looksLikeCodeQuery(query: string): boolean {
   return /[\d/-]/.test(query) || /^[a-z]{1,3}$/.test(query);
 }
 
-function matchesSearchTokens(haystack: string, query: string): boolean {
+export function matchesSearchTokens(haystack: string, query: string): boolean {
   const tokens = normalizeSearchText(query).split(" ").filter(Boolean);
   if (!tokens.length) return true;
   return matchesNormalizedTokens(haystack, tokens);
 }
 
-function matchesNormalizedTokens(haystack: string, tokens: string[]): boolean {
+export function matchesNormalizedTokens(haystack: string, tokens: string[]): boolean {
   if (!tokens.length) return true;
   return tokens.every((token) => haystack.includes(token));
 }
 
-function supplierKey(product: Product): string {
+export function supplierKey(product: Product): string {
   return normalizeSearchText(product.supplier_name || "");
 }
 
-function uniqStrings(values: Array<string | undefined | null>): string[] {
+export function uniqStrings(values: Array<string | undefined | null>): string[] {
   return Array.from(new Set(values.map((value) => (value || "").trim()).filter(Boolean)));
 }
 
-function looksLikeSupplierColorCode(value: unknown): boolean {
+export function looksLikeSupplierColorCode(value: unknown): boolean {
   const raw = String(value ?? "").trim();
   if (!raw) return false;
   return raw
@@ -940,33 +940,33 @@ function looksLikeSupplierColorCode(value: unknown): boolean {
     .every((token) => /^[A-Z]{1,4}$/.test(token));
 }
 
-function extractKnownColorWords(value: unknown): string[] {
+export function extractKnownColorWords(value: unknown): string[] {
   const normalized = normalizeSearchText(value);
   if (!normalized) return [];
   return KNOWN_COLOR_WORDS.filter((word) => normalized.includes(word)).map(titleCase);
 }
 
-function decodeAllstateColorGroup(value: unknown): string[] {
+export function decodeAllstateColorGroup(value: unknown): string[] {
   const normalized = normalizeSearchText(value).toUpperCase();
   if (!normalized) return [];
   const tokens = normalized.split(/[^A-Z0-9]+/).filter(Boolean);
   return uniqStrings(tokens.flatMap((token) => ALLSTATE_COLOR_CODE_MAP[token] || []));
 }
 
-function metadataColorLabels(value: unknown): string[] {
+export function metadataColorLabels(value: unknown): string[] {
   if (looksLikeSupplierColorCode(value)) return decodeAllstateColorGroup(value);
   const known = extractKnownColorWords(value);
   if (known.length) return known;
   return [];
 }
 
-function mergeOptionLists(...lists: Array<Array<string | undefined | null>>): string[] {
+export function mergeOptionLists(...lists: Array<Array<string | undefined | null>>): string[] {
   return uniqStrings(lists.flat().map((value) => (value ? String(value) : ""))).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true })
   );
 }
 
-function productColorLabels(product: Product): string[] {
+export function productColorLabels(product: Product): string[] {
   const raw = product.raw_data || {};
   const explicitValues = [
     product.color,
@@ -1001,20 +1001,20 @@ function productColorLabels(product: Product): string[] {
   return uniqStrings([...explicitWords, ...colorCodeLabels, ...descriptionLabels]).sort();
 }
 
-function productColorSummary(product: Product): string {
+export function productColorSummary(product: Product): string {
   const labels = productColorLabels(product);
   if (labels.length) return labels.join(", ");
   const raw = product.raw_data || {};
   return String(product.color || raw.ColorGrp || raw.Color || "—");
 }
 
-function productCountryLabel(product: Product): string | undefined {
+export function productCountryLabel(product: Product): string | undefined {
   const raw = product.raw_data || {};
   const value = product.country_of_origin || raw["Country of Origin"] || raw.Country;
   return value ? titleCase(String(value)) : undefined;
 }
 
-function productAvailabilityLabel(product: Product): string | undefined {
+export function productAvailabilityLabel(product: Product): string | undefined {
   const raw = product.raw_data || {};
   const note = normalizeSearchText(product.availability_note || raw["Avail. Qty: *"] || raw["Avail. Qty"]);
   if (note.includes("within 1 4 months")) return "Within 1-4 months";
@@ -1030,7 +1030,7 @@ function productAvailabilityLabel(product: Product): string | undefined {
   return undefined;
 }
 
-function productTypeLabels(product: Product): string[] {
+export function productTypeLabels(product: Product): string[] {
   const raw = product.raw_data || {};
   const haystack = ` ${normalizeSearchText([
     displayProductName(product),
@@ -1047,7 +1047,7 @@ function productTypeLabels(product: Product): string[] {
     .map((rule) => rule.label);
 }
 
-function productSizeLabels(product: Product, cachedTypeLabels?: string[]): string[] {
+export function productSizeLabels(product: Product, cachedTypeLabels?: string[]): string[] {
   const raw = product.raw_data || {};
   const sourceText = [
     displayProductName(product),
@@ -1100,7 +1100,7 @@ function productSizeLabels(product: Product, cachedTypeLabels?: string[]): strin
   });
 }
 
-function buildProductSearchEntry(product: Product): ProductSearchEntry {
+export function buildProductSearchEntry(product: Product): ProductSearchEntry {
   const raw = product.raw_data || {};
   const displayName = displayProductName(product);
   const productTypes = productTypeLabels(product);
@@ -1188,7 +1188,7 @@ function buildProductSearchEntry(product: Product): ProductSearchEntry {
   };
 }
 
-function searchableVisibleText(product: Product): string {
+export function searchableVisibleText(product: Product): string {
   const raw = product.raw_data || {};
   return expandSearchAliases([
     displayProductName(product),
@@ -1255,7 +1255,7 @@ function searchableVisibleText(product: Product): string {
     .join(" "));
 }
 
-function searchableCodeText(product: Product): string {
+export function searchableCodeText(product: Product): string {
   const rawCodeText = [
     product.supplier_sku,
     product.upc,
@@ -1269,19 +1269,19 @@ function searchableCodeText(product: Product): string {
   return `${rawCodeText} ${expandSearchAliases(rawCodeText)}`.trim();
 }
 
-function sourceBasePrice(product: Product): string {
+export function sourceBasePrice(product: Product): string {
   const rawPrice = sourceValue(product, "BasePrice", "price");
   if (rawPrice) return String(rawPrice);
   return product.current_price != null ? formatCurrency(product.current_price) : "—";
 }
 
-function sourceUom(product: Product): string {
+export function sourceUom(product: Product): string {
   const rawUom = sourceValue(product, "Uom", "UOM", "Unit of Measure", "Unit");
   if (rawUom) return String(rawUom);
   return unitLabel(product.unit).toUpperCase();
 }
 
-function sourceOrderContext(product: Product): Array<[string, unknown]> {
+export function sourceOrderContext(product: Product): Array<[string, unknown]> {
   return ([
     ["MinQty", product.moq ?? sourceValue(product, "MinQty")],
     ["BoxQty", product.box_qty ?? sourceValue(product, "BoxQty")],
@@ -1323,7 +1323,7 @@ export function productImageSources(product: Pick<Product, "photo_url" | "image_
   return Array.from(new Set(urls));
 }
 
-function imageStatus(product: Product): "stored" | "visible" | "pending" | "failed" | "no_supplier_image" | "placeholder" {
+export function imageStatus(product: Product): "stored" | "visible" | "pending" | "failed" | "no_supplier_image" | "placeholder" {
   const status = product.raw_data?.image_status;
   const displayImageUrl = productDisplayImageUrl(product);
   if (status === "no_supplier_image") return "no_supplier_image";
@@ -1334,7 +1334,7 @@ function imageStatus(product: Product): "stored" | "visible" | "pending" | "fail
   return "pending";
 }
 
-function detailStatus(product: Product): "stored" | "pending" | "failed" {
+export function detailStatus(product: Product): "stored" | "pending" | "failed" {
   const status = product.raw_data?.detail_status;
   if (status === "failed") return "failed";
   if (status === "stored" || product.raw_data?.detail_url) return "stored";
@@ -1446,18 +1446,18 @@ export function MultiSelectFilter({
 
 // Keys already surfaced elsewhere in the modal or that are internal plumbing —
 // excluded from the catch-all "All Captured Attributes" list.
-const RAW_ATTRS_HIDE = new Set([
+export const RAW_ATTRS_HIDE = new Set([
   "image_urls", "source_photo_url", "needs_review_flag", "additional_image_urls",
   "gallery_images_json", "image_count", "source_photo_url",
 ]);
 
-function prettifyKey(key: string): string {
+export function prettifyKey(key: string): string {
   return key.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Append a unit to bare numeric measurements ("360" -> "360 in"). Leaves empty
 // values and values that already carry a unit / are compound strings untouched.
-function withUnit(value: unknown, unit: string): unknown {
+export function withUnit(value: unknown, unit: string): unknown {
   if (value === null || value === undefined) return value;
   const s = String(value).trim();
   if (!s || s === "0") return value;

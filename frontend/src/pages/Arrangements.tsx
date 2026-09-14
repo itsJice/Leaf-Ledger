@@ -152,10 +152,10 @@ type BuildSuggestion = {
   };
 };
 
-const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
-const BUILD_TEMPLATE_STORAGE_KEY = "leaf-ledger:build-templates:v1";
-const INTELLIGENCE_NOTE_PREFIX = "LL_BUILD_INTELLIGENCE:";
-const CUSTOM_SECTIONS_PREFIX = "LL_CUSTOM_SECTIONS:";
+export const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
+export const BUILD_TEMPLATE_STORAGE_KEY = "leaf-ledger:build-templates:v1";
+export const INTELLIGENCE_NOTE_PREFIX = "LL_BUILD_INTELLIGENCE:";
+export const CUSTOM_SECTIONS_PREFIX = "LL_CUSTOM_SECTIONS:";
 
 // ─── Builder intelligence (/api/builder) ─────────────────────────────────────
 // The measured numbers behind Step 1. Every value the builder now asks for is
@@ -164,7 +164,7 @@ const CUSTOM_SECTIONS_PREFIX = "LL_CUSTOM_SECTIONS:";
 // build type declares exactly which dimension fields it can use. See
 // app/docs/TREE_SCOPE_SPEC.md.
 
-const BUILDER_TYPES_CACHE_KEY = "leaf-ledger:builder-build-types:v1";
+export const BUILDER_TYPES_CACHE_KEY = "leaf-ledger:builder-build-types:v1";
 // Builder-only view prefs. Deliberately NOT the Catalog Search keys - the two
 // panes are different sizes and the user tunes them independently.
 const BUILDER_CATALOG_VIEW_KEY = "leaf-ledger:builder-catalog-view:v1";
@@ -174,7 +174,7 @@ const BUILDER_CATALOG_EXPANDED_KEY = "leaf-ledger:builder-catalog-expanded:v1";
 
 type BuilderFieldKey = "height" | "width" | "canopy" | "silhouette" | "depth" | "species" | "density";
 
-const BUILDER_FIELD_KEYS: BuilderFieldKey[] = ["height", "width", "canopy", "silhouette", "depth", "species", "density"];
+export const BUILDER_FIELD_KEYS: BuilderFieldKey[] = ["height", "width", "canopy", "silhouette", "depth", "species", "density"];
 
 type BuilderTypeSlot = { order: number; label: string; scope: string; scope_label?: string };
 
@@ -292,7 +292,7 @@ type ScopeFilterSlot = {
 
 // Falls back to the spec's table so the control still renders if the silhouette
 // list has not arrived (it ships inside the canopy-tiers response).
-const SILHOUETTE_FALLBACK: SilhouetteOption[] = [
+export const SILHOUETTE_FALLBACK: SilhouetteOption[] = [
   { key: "full_round", label: "Full-round", depth_ratio: 1.0, use: "freestanding, viewed 360°", default: true },
   { key: "corner", label: "Corner", depth_ratio: 0.66, use: "tucked into a corner" },
   { key: "flat_back", label: "3-sided / flat-back", depth_ratio: 0.5, use: "flush against a wall" },
@@ -301,13 +301,13 @@ const SILHOUETTE_FALLBACK: SilhouetteOption[] = [
 // Every field a type could declare. Used when the API is unreachable so Step 1
 // degrades to the pre-Phase-C behaviour (plain height/width/depth) rather than
 // showing canopy and density with nothing behind them.
-const BUILDER_FIELDS_FALLBACK: Record<BuilderFieldKey, boolean> = {
+export const BUILDER_FIELDS_FALLBACK: Record<BuilderFieldKey, boolean> = {
   height: true, width: true, canopy: false, silhouette: false, depth: true, species: false, density: false,
 };
 
 let builderTypesMemo: BuilderBuildType[] | null = null;
 
-function cleanBuilderBuildTypes(value: unknown): BuilderBuildType[] {
+export function cleanBuilderBuildTypes(value: unknown): BuilderBuildType[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((row) => {
@@ -342,7 +342,7 @@ function cleanBuilderBuildTypes(value: unknown): BuilderBuildType[] {
     .filter(Boolean) as BuilderBuildType[];
 }
 
-function readBuilderBuildTypes(): BuilderBuildType[] {
+export function readBuilderBuildTypes(): BuilderBuildType[] {
   if (builderTypesMemo) return builderTypesMemo;
   if (typeof window === "undefined") return [];
   try {
@@ -353,7 +353,7 @@ function readBuilderBuildTypes(): BuilderBuildType[] {
   return builderTypesMemo;
 }
 
-function writeBuilderBuildTypes(types: BuilderBuildType[]) {
+export function writeBuilderBuildTypes(types: BuilderBuildType[]) {
   builderTypesMemo = types;
   if (typeof window === "undefined") return;
   try {
@@ -372,7 +372,7 @@ function writeBuilderBuildTypes(types: BuilderBuildType[]) {
  * the newly added types - Plant & Bush, Container Only, Topiary - are driven
  * from the API template.
  */
-function builderApiTypeFor(buildType: string, known?: BuilderBuildType[]): BuilderBuildType | null {
+export function builderApiTypeFor(buildType: string, known?: BuilderBuildType[]): BuilderBuildType | null {
   const normalized = normalizeLabel(buildType);
   if (!normalized) return null;
   // The module-level cache is the fallback so the synchronous slot lookup
@@ -393,12 +393,12 @@ function builderApiTypeFor(buildType: string, known?: BuilderBuildType[]): Build
   );
 }
 
-function builderApiSlotsForBuildType(buildType: string): string[] | null {
+export function builderApiSlotsForBuildType(buildType: string): string[] | null {
   const slots = builderApiTypeFor(buildType)?.slots || [];
   return slots.length ? slots.map((slot) => slot.label) : null;
 }
 
-function builderFieldsForBuildType(buildType: string, known?: BuilderBuildType[]): Record<BuilderFieldKey, boolean> {
+export function builderFieldsForBuildType(buildType: string, known?: BuilderBuildType[]): Record<BuilderFieldKey, boolean> {
   const declared = builderApiTypeFor(buildType, known)?.fields;
   if (!declared) return { ...BUILDER_FIELDS_FALLBACK };
   return BUILDER_FIELD_KEYS.reduce((next, key) => {
@@ -409,7 +409,7 @@ function builderFieldsForBuildType(buildType: string, known?: BuilderBuildType[]
 
 // The scope slot a part label belongs to, so Choose Parts can ask the API for
 // that slot's smart filters. Mirrors the backend's `_resolve_slot` vocabulary.
-function scopeSlotForPartLabel(label: string): string | null {
+export function scopeSlotForPartLabel(label: string): string | null {
   const text = normalizeLabel(label);
   if (!text) return null;
   if (text.includes("container") || text.includes("planter") || text.includes("base") || text.includes("vessel")) return "container";
@@ -425,7 +425,7 @@ function scopeSlotForPartLabel(label: string): string | null {
   return null;
 }
 
-function builderApiUrl(path: string, params?: Record<string, string | number | undefined | null>) {
+export function builderApiUrl(path: string, params?: Record<string, string | number | undefined | null>) {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params || {})) {
     if (value === undefined || value === null || value === "") continue;
@@ -445,11 +445,11 @@ async function fetchBuilderJson<T>(path: string, params?: Record<string, string 
   }
 }
 
-function silhouetteOption(key: string, options: SilhouetteOption[]) {
+export function silhouetteOption(key: string, options: SilhouetteOption[]) {
   return options.find((option) => option.key === key) || options.find((option) => option.default) || options[0] || null;
 }
 
-function formatInches(value?: number | null) {
+export function formatInches(value?: number | null) {
   if (value == null || !Number.isFinite(value)) return "";
   const rounded = Math.round(value * 10) / 10;
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}"`;
@@ -457,7 +457,7 @@ function formatInches(value?: number | null) {
 
 // The width a tier implies when the designer picks the tier instead of typing a
 // number: the middle of the tier's own range, so "Medium" lands mid-Medium.
-function widthForCanopyTier(tier: CanopyTier | null | undefined) {
+export function widthForCanopyTier(tier: CanopyTier | null | undefined) {
   if (!tier) return null;
   if (tier.min_in != null && tier.max_in != null) return (tier.min_in + tier.max_in) / 2;
   if (tier.max_in != null) return Math.max(1, tier.max_in - 3);
@@ -465,7 +465,7 @@ function widthForCanopyTier(tier: CanopyTier | null | undefined) {
   return null;
 }
 
-function confidenceLabel(confidence?: string | null) {
+export function confidenceLabel(confidence?: string | null) {
   const text = String(confidence || "").replace(/_/g, " ").trim();
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
 }
@@ -474,7 +474,7 @@ function confidenceLabel(confidence?: string | null) {
 // shop's own vocabulary stays visible, it just sorts last so a pre-applied
 // filter always comes back with products. `null` means the catalog index was
 // cold and the term is simply unchecked.
-function sortedScopeTerms(terms: ScopeFilterTerm[]) {
+export function sortedScopeTerms(terms: ScopeFilterTerm[]) {
   return [...terms].sort((a, b) => {
     const aUnverified = a.catalog_verified === false ? 1 : 0;
     const bUnverified = b.catalog_verified === false ? 1 : 0;
@@ -484,7 +484,7 @@ function sortedScopeTerms(terms: ScopeFilterTerm[]) {
 }
 
 
-const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = [
+export const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = [
   {
     id: "christmas-tree",
     section: "Christmas",
@@ -566,7 +566,7 @@ const DEFAULT_EDITABLE_BUILD_TEMPLATES: EditableBuildTemplate[] = [
 // DISPLAY ORDER ONLY changed - no slot label string was renamed. Saved part data is
 // keyed by `partKey(label, displayIndex)`, so the pre-flip index for these labels is
 // recorded here and honoured when resolving already-saved items (see itemsForPart).
-const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
+export const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
   "green-tree": ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
   arrangement: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
   planter: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
@@ -574,11 +574,11 @@ const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
   succulent: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
 };
 
-const FLIPPED_SLOT_COUNT = 4;
+export const FLIPPED_SLOT_COUNT = 4;
 
 // Labels whose display index moved when the green slots were flipped. No Christmas slot
 // or enhancer sub-part label appears here, so the legacy lookup can never cross over.
-const FLIPPED_SLOT_LABELS = new Set(
+export const FLIPPED_SLOT_LABELS = new Set(
   Object.values(LEGACY_TOP_DOWN_SLOT_ORDERS)
     .flat()
     .map((label) => label.trim().toLowerCase())
@@ -589,7 +589,7 @@ type ProjectsListCache = {
   cachedAt: number;
 };
 
-function readProjectsListCache(): ProjectsListCache | null {
+export function readProjectsListCache(): ProjectsListCache | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(PROJECTS_LIST_CACHE_KEY) || "null");
     if (!parsed || !Array.isArray(parsed.arrangements)) return null;
@@ -607,7 +607,7 @@ function writeProjectsListCache(arrangements: ArrangementSummary[]) {
   }
 }
 
-function formatProjectsCacheStamp(ms?: number | null) {
+export function formatProjectsCacheStamp(ms?: number | null) {
   if (!ms) return "";
   return new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
@@ -616,7 +616,7 @@ function notifyProjectsChanged() {
   window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
 }
 
-function arrangementShellFromSummary(summary: ArrangementSummary): Arrangement {
+export function arrangementShellFromSummary(summary: ArrangementSummary): Arrangement {
   return {
     id: summary.id,
     name: summary.name,
@@ -632,7 +632,7 @@ function arrangementShellFromSummary(summary: ArrangementSummary): Arrangement {
   };
 }
 
-function arrangementRouteShell(id: number, clientName?: string): Arrangement {
+export function arrangementRouteShell(id: number, clientName?: string): Arrangement {
   const now = new Date().toISOString();
   return {
     id,
@@ -669,16 +669,16 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function scopeTitle(bucket?: Container | null) {
+export function scopeTitle(bucket?: Container | null) {
   if (!bucket) return "Scope";
   return bucket.label || bucket.bucket_type || `Scope ${bucket.sort_order + 1}`;
 }
 
-function scopeQuantity(bucket?: Container | null) {
+export function scopeQuantity(bucket?: Container | null) {
   return Math.max(1, Number(bucket?.requested_quantity || 1));
 }
 
-function parseScopeIntelligence(notes?: string | null): BuildSuggestion | null {
+export function parseScopeIntelligence(notes?: string | null): BuildSuggestion | null {
   const line = (notes || "").split("\n").find((part) => part.startsWith(INTELLIGENCE_NOTE_PREFIX));
   if (!line) return null;
   try {
@@ -688,7 +688,7 @@ function parseScopeIntelligence(notes?: string | null): BuildSuggestion | null {
   }
 }
 
-function parseCustomSections(notes?: string | null) {
+export function parseCustomSections(notes?: string | null) {
   const line = (notes || "").split("\n").find((part) => part.startsWith(CUSTOM_SECTIONS_PREFIX));
   if (!line) return [];
   try {
@@ -699,7 +699,7 @@ function parseCustomSections(notes?: string | null) {
   }
 }
 
-function displayScopeNotes(notes?: string | null) {
+export function displayScopeNotes(notes?: string | null) {
   return (notes || "")
     .split("\n")
     .filter((line) => !line.startsWith(INTELLIGENCE_NOTE_PREFIX))
@@ -708,7 +708,7 @@ function displayScopeNotes(notes?: string | null) {
     .trim();
 }
 
-function editableScopeNotes(notes?: string | null) {
+export function editableScopeNotes(notes?: string | null) {
   return displayScopeNotes(notes)
     .split("\n")
     .filter((line) => !MANAGED_SCOPE_LINE_RE.test(line.trim()))
@@ -720,7 +720,7 @@ function editableScopeNotes(notes?: string | null) {
 // into the free-text notes. `width / canopy` and `depth / density` are the
 // pre-Phase-C keys: they are no longer written, but they are still stripped here
 // and still read below, so a design saved under them keeps its values.
-const MANAGED_SCOPE_LINE_RE = /^(tree type|tree source|tree lights|height|width \/ canopy|depth \/ density|width|depth|species|canopy|silhouette|density|enhancer package|garland package|garland light|garland size|garland length|garland diameter|wreath size):/i;
+export const MANAGED_SCOPE_LINE_RE = /^(tree type|tree source|tree lights|height|width \/ canopy|depth \/ density|width|depth|species|canopy|silhouette|density|enhancer package|garland package|garland light|garland size|garland length|garland diameter|wreath size):/i;
 
 /**
  * Reading the Step 1 dimensions out of `scope_notes`.
@@ -733,11 +733,11 @@ const MANAGED_SCOPE_LINE_RE = /^(tree type|tree source|tree lights|height|width 
  * losing them. `LL_BUILD_INTELLIGENCE:` / `LL_CUSTOM_SECTIONS:` lines are never
  * touched by any of this.
  */
-function buildHeightFromNotes(notes?: string | null) {
+export function buildHeightFromNotes(notes?: string | null) {
   return scopeNoteValue(notes, "Height");
 }
 
-function buildWidthFromNotes(notes?: string | null) {
+export function buildWidthFromNotes(notes?: string | null) {
   return scopeNoteValue(notes, "Width") || scopeNoteValue(notes, "Width / canopy");
 }
 
@@ -745,25 +745,25 @@ function buildWidthFromNotes(notes?: string | null) {
 // placeholder invited words ("light, medium, dense") rather than a measurement.
 // So it only feeds Depth when it actually holds a number; otherwise it is read
 // as a fullness word by buildDensityBandFromNotes below and nothing is lost.
-function buildDepthFromNotes(notes?: string | null) {
+export function buildDepthFromNotes(notes?: string | null) {
   const explicit = scopeNoteValue(notes, "Depth");
   if (explicit) return explicit;
   const legacy = scopeNoteValue(notes, "Depth / density");
   return firstNumber(legacy) ? legacy : "";
 }
 
-function buildSpeciesFromNotes(notes?: string | null) {
+export function buildSpeciesFromNotes(notes?: string | null) {
   return scopeNoteValue(notes, "Species");
 }
 
 // Stored as `Canopy: M (42-45")`, so take the leading tier key.
-function buildCanopyTierFromNotes(notes?: string | null) {
+export function buildCanopyTierFromNotes(notes?: string | null) {
   const value = scopeNoteValue(notes, "Canopy");
   const match = value.match(/^(XS|S|M|L|XL)\b/i);
   return match ? match[1].toUpperCase() : "";
 }
 
-function buildSilhouetteFromNotes(notes?: string | null) {
+export function buildSilhouetteFromNotes(notes?: string | null) {
   const value = normalizeLabel(scopeNoteValue(notes, "Silhouette"));
   if (!value) return "";
   if (value.includes("corner")) return "corner";
@@ -774,7 +774,7 @@ function buildSilhouetteFromNotes(notes?: string | null) {
 
 // `Density: Full (12 pieces)`. The legacy "Depth / density" box occasionally held
 // a fullness word instead of a number, so it is read as a last resort.
-function buildDensityBandFromNotes(notes?: string | null) {
+export function buildDensityBandFromNotes(notes?: string | null) {
   const value = normalizeLabel(scopeNoteValue(notes, "Density") || scopeNoteValue(notes, "Depth / density"));
   if (!value) return "";
   if (value.includes("super")) return "super_full";
@@ -807,7 +807,7 @@ type BuildScopeValues = {
  * supports. Container Only carries no canopy/silhouette/density and Drop-in no
  * canopy/silhouette, so those lines are never written for them.
  */
-function buildScopeSetupLines(fields: Record<BuilderFieldKey, boolean>, values: BuildScopeValues) {
+export function buildScopeSetupLines(fields: Record<BuilderFieldKey, boolean>, values: BuildScopeValues) {
   const lines: string[] = [];
   const push = (field: BuilderFieldKey, line: string) => {
     if (fields[field] && line.trim()) lines.push(line.trim());
@@ -827,11 +827,11 @@ function buildScopeSetupLines(fields: Record<BuilderFieldKey, boolean>, values: 
   return lines;
 }
 
-function scopeIntelligenceLine(notes?: string | null) {
+export function scopeIntelligenceLine(notes?: string | null) {
   return (notes || "").split("\n").find((line) => line.startsWith(INTELLIGENCE_NOTE_PREFIX)) || "";
 }
 
-function scopeNotesWithCustomSections(bucket: Container, customSections: string[]) {
+export function scopeNotesWithCustomSections(bucket: Container, customSections: string[]) {
   return [
     displayScopeNotes(bucket.scope_notes),
     scopeIntelligenceLine(bucket.scope_notes),
@@ -839,11 +839,11 @@ function scopeNotesWithCustomSections(bucket: Container, customSections: string[
   ].filter(Boolean).join("\n");
 }
 
-function christmasEnhancerPackageFromNotes(notes?: string | null): ChristmasEnhancerPackage {
+export function christmasEnhancerPackageFromNotes(notes?: string | null): ChristmasEnhancerPackage {
   return scopeNoteValue(notes, "Enhancer package").toLowerCase().includes("premium") ? "premium" : "regular";
 }
 
-function scopeNotesWithEnhancerPackage(bucket: Container, packageType: ChristmasEnhancerPackage) {
+export function scopeNotesWithEnhancerPackage(bucket: Container, packageType: ChristmasEnhancerPackage) {
   const nextLine = `Enhancer package: ${packageType === "premium" ? "Premium" : "Regular"}`;
   return [
     ...(bucket.scope_notes || "")
@@ -853,38 +853,38 @@ function scopeNotesWithEnhancerPackage(bucket: Container, packageType: Christmas
   ].filter(Boolean).join("\n");
 }
 
-function garlandPackageFromNotes(notes?: string | null): GarlandPackage {
+export function garlandPackageFromNotes(notes?: string | null): GarlandPackage {
   return scopeNoteValue(notes, "Garland package").toLowerCase().includes("premium") ? "premium" : "regular";
 }
 
-function garlandLengthFromNotes(notes?: string | null) {
+export function garlandLengthFromNotes(notes?: string | null) {
   const explicit = firstNumber(scopeNoteValue(notes, "Garland length"));
   if (explicit) return String(explicit);
   const legacySize = scopeNoteValue(notes, "Garland size");
   return String(firstNumber(legacySize) || 9);
 }
 
-function garlandDiameterFromNotes(notes?: string | null): GarlandDiameter {
+export function garlandDiameterFromNotes(notes?: string | null): GarlandDiameter {
   const explicit = scopeNoteValue(notes, "Garland diameter");
   const legacySize = scopeNoteValue(notes, "Garland size");
   return `${explicit} ${legacySize}`.includes("18") ? "18" : "14";
 }
 
-function garlandLengthLabel(lengthValue?: string | null) {
+export function garlandLengthLabel(lengthValue?: string | null) {
   const length = firstNumber(lengthValue) || 9;
   return `${Number.isInteger(length) ? length : length.toFixed(1).replace(/\.0$/, "")} ft`;
 }
 
-function garlandLengthMultiplier(lengthValue?: string | null) {
+export function garlandLengthMultiplier(lengthValue?: string | null) {
   const length = firstNumber(lengthValue) || 9;
   return Math.max(1, Math.ceil(length / 9));
 }
 
-function garlandSetupLabel(lengthValue?: string | null, diameter: GarlandDiameter = "14") {
+export function garlandSetupLabel(lengthValue?: string | null, diameter: GarlandDiameter = "14") {
   return `${garlandLengthLabel(lengthValue)} x ${diameter}"`;
 }
 
-function garlandSetupLines(packageType: GarlandPackage, lengthValue: string, diameter: GarlandDiameter) {
+export function garlandSetupLines(packageType: GarlandPackage, lengthValue: string, diameter: GarlandDiameter) {
   return [
     `Garland package: ${packageType === "premium" ? "Premium" : "Regular"}`,
     `Garland length: ${garlandLengthLabel(lengthValue)}`,
@@ -892,7 +892,7 @@ function garlandSetupLines(packageType: GarlandPackage, lengthValue: string, dia
   ];
 }
 
-function scopeNotesWithGarlandSetup(
+export function scopeNotesWithGarlandSetup(
   bucket: Container,
   setup: { packageType: GarlandPackage; lengthValue: string; diameter: GarlandDiameter }
 ) {
@@ -904,7 +904,7 @@ function scopeNotesWithGarlandSetup(
   ].filter(Boolean).join("\n");
 }
 
-function wreathSizeFromNotes(notes?: string | null): WreathSize {
+export function wreathSizeFromNotes(notes?: string | null): WreathSize {
   const explicit = firstNumber(scopeNoteValue(notes, "Wreath size"));
   const canopy = firstNumber(buildWidthFromNotes(notes));
   const value = explicit || canopy || 24;
@@ -914,11 +914,11 @@ function wreathSizeFromNotes(notes?: string | null): WreathSize {
   return "24";
 }
 
-function wreathSetupLines(size: WreathSize) {
+export function wreathSetupLines(size: WreathSize) {
   return [`Wreath size: ${size}" Wreath`];
 }
 
-function scopeNotesWithWreathSetup(bucket: Container, size: WreathSize) {
+export function scopeNotesWithWreathSetup(bucket: Container, size: WreathSize) {
   return [
     ...(bucket.scope_notes || "")
       .split("\n")
@@ -927,7 +927,7 @@ function scopeNotesWithWreathSetup(bucket: Container, size: WreathSize) {
   ].filter(Boolean).join("\n");
 }
 
-function cleanEditableBuildTemplates(values: unknown, fallback = DEFAULT_EDITABLE_BUILD_TEMPLATES): EditableBuildTemplate[] {
+export function cleanEditableBuildTemplates(values: unknown, fallback = DEFAULT_EDITABLE_BUILD_TEMPLATES): EditableBuildTemplate[] {
   if (!Array.isArray(values)) return fallback;
   const cleaned = values
     .map((value) => {
@@ -960,7 +960,7 @@ function cleanEditableBuildTemplates(values: unknown, fallback = DEFAULT_EDITABL
   return cleaned.length ? cleaned : fallback;
 }
 
-function readEditableBuildTemplates() {
+export function readEditableBuildTemplates() {
   if (typeof window === "undefined") return DEFAULT_EDITABLE_BUILD_TEMPLATES;
   try {
     return cleanEditableBuildTemplates(JSON.parse(window.localStorage.getItem(BUILD_TEMPLATE_STORAGE_KEY) || "null"));
@@ -969,12 +969,12 @@ function readEditableBuildTemplates() {
   }
 }
 
-function buildTemplateMatches(template: EditableBuildTemplate, buildType: string) {
+export function buildTemplateMatches(template: EditableBuildTemplate, buildType: string) {
   const values = [template.name, ...(template.usedFor || [])];
   return values.some((value) => normalizeLabel(value) === normalizeLabel(buildType));
 }
 
-function editableTemplateForBuildType(buildType: string) {
+export function editableTemplateForBuildType(buildType: string) {
   const normalized = normalizeLabel(buildType);
   const templates = readEditableBuildTemplates();
   const exact = templates.find((template) => buildTemplateMatches(template, buildType));
@@ -990,12 +990,12 @@ function editableTemplateForBuildType(buildType: string) {
   }) || null;
 }
 
-function templateSlotsForBuildType(buildType: string) {
+export function templateSlotsForBuildType(buildType: string) {
   const slots = editableTemplateForBuildType(buildType)?.slots?.map((slot) => slot.trim()).filter(Boolean) || [];
   return slots.length ? slots : null;
 }
 
-function parseMaterialQuantity(line: string) {
+export function parseMaterialQuantity(line: string) {
   const mixed = line.trim().match(/^(\d+)(?:\s+(\d+)\/(\d+)|\.(\d+))?/);
   if (!mixed) return 1;
   const whole = Number(mixed[1]) || 0;
@@ -1004,7 +1004,7 @@ function parseMaterialQuantity(line: string) {
   return whole || 1;
 }
 
-function templateMaterialLabel(line: string) {
+export function templateMaterialLabel(line: string) {
   return line
     .replace(/\bper\s+(premium\s+)?enhancer\b/gi, "")
     .replace(/^\s*\d+(?:\s+\d+\/\d+|\.\d+)?\s*(?:x\b|yards?\s+of\b|yards?\b|yd\s+of\b|yd\b)?\s*/i, "")
@@ -1023,7 +1023,7 @@ type EnhancerPartConfig = {
   premiumOnly?: boolean;
 };
 
-function enhancerPartFromTemplateLine(
+export function enhancerPartFromTemplateLine(
   line: string,
   packageType: ChristmasEnhancerPackage,
   regularLabels: Set<string>
@@ -1046,7 +1046,7 @@ function enhancerPartFromTemplateLine(
   };
 }
 
-function enhancerPartsFromTemplate(buildType: string, packageType: ChristmasEnhancerPackage) {
+export function enhancerPartsFromTemplate(buildType: string, packageType: ChristmasEnhancerPackage) {
   const template = editableTemplateForBuildType(buildType);
   const regularLines = template?.regularMaterials || [];
   const packageLines = packageType === "premium" ? template?.premiumMaterials || [] : regularLines;
@@ -1057,7 +1057,7 @@ function enhancerPartsFromTemplate(buildType: string, packageType: ChristmasEnha
   return parts.length ? parts : null;
 }
 
-const BUILD_TYPE_CONFIGS = [
+export const BUILD_TYPE_CONFIGS = [
   {
     section: "green",
     label: "Tree",
@@ -1141,7 +1141,7 @@ const BUILD_TYPE_CONFIGS = [
   },
 ] as const;
 
-const CHRISTMAS_ENHANCER_PARTS: EnhancerPartConfig[] = [
+export const CHRISTMAS_ENHANCER_PARTS: EnhancerPartConfig[] = [
   {
     label: "Assorted Branch",
     note: "Used in both enhancer packages",
@@ -1184,11 +1184,11 @@ const CHRISTMAS_ENHANCER_PARTS: EnhancerPartConfig[] = [
   },
 ];
 
-const GARLAND_DIAMETER_OPTIONS: GarlandDiameter[] = ["14", "18"];
+export const GARLAND_DIAMETER_OPTIONS: GarlandDiameter[] = ["14", "18"];
 
-const WREATH_SIZE_OPTIONS: WreathSize[] = ["24", "30", "36", "48"];
+export const WREATH_SIZE_OPTIONS: WreathSize[] = ["24", "30", "36", "48"];
 
-const WREATH_DECOR_PARTS = [
+export const WREATH_DECOR_PARTS = [
   {
     label: "Assorted Branches",
     note: "Branch count changes with wreath size",
@@ -1221,7 +1221,7 @@ const WREATH_DECOR_PARTS = [
   },
 ] as const;
 
-const WREATH_DECOR_RECIPES: Record<WreathSize, Array<{ label: string; quantity: number; unit: "total" | "yd" }>> = {
+export const WREATH_DECOR_RECIPES: Record<WreathSize, Array<{ label: string; quantity: number; unit: "total" | "yd" }>> = {
   "24": [
     { label: "Assorted Branches", quantity: 4, unit: "total" },
     { label: "Ribbon", quantity: 3, unit: "yd" },
@@ -1245,7 +1245,7 @@ const WREATH_DECOR_RECIPES: Record<WreathSize, Array<{ label: string; quantity: 
   ],
 };
 
-const GARLAND_ENHANCER_PARTS = [
+export const GARLAND_ENHANCER_PARTS = [
   {
     label: "Assorted Branches",
     note: "Branches used to build out the garland body",
@@ -1281,7 +1281,7 @@ const GARLAND_ENHANCER_PARTS = [
   },
 ] as const;
 
-const CHRISTMAS_TREE_OPTIONS = [
+export const CHRISTMAS_TREE_OPTIONS = [
   { code: "C164176LED", name: "Oregon Fir WA 900LED Warm White", source: "Vickerman", heightFeet: 7.5, heightLabel: "7.5 ft", diameterIn: 65, profile: "Standard", lightStatus: "Lit" },
   { code: "K184076LED", name: "Kamas Fraser Dura-Lit 450WW", source: "Vickerman", heightFeet: 7.5, heightLabel: "7.5 ft", diameterIn: 48, profile: "Standard", lightStatus: "Lit" },
   { code: "K194076LED", name: "Slim Natural Fraser Dura-Lit 700WW", source: "Vickerman", heightFeet: 7.5, heightLabel: "7.5 ft", diameterIn: 45, profile: "Slim", lightStatus: "Lit" },
@@ -1315,7 +1315,7 @@ const CHRISTMAS_TREE_OPTIONS = [
   { code: "MTX32248L", name: "LED Flock Bear Mountain Tree 1100LT", source: "Regency", heightFeet: 9.9, heightLabel: "9 ft 11 in", diameterIn: 73, profile: "Full", lightStatus: "Lit" },
 ] as const;
 
-const CHRISTMAS_TREE_SIZE_OPTIONS = [
+export const CHRISTMAS_TREE_SIZE_OPTIONS = [
   { code: "6-PENCIL", label: "6' Pencil", heightFeet: 6, heightLabel: "6 ft", diameterIn: 30, profile: "Pencil" },
   { code: "7-5-PENCIL", label: "7.5' Pencil", heightFeet: 7.5, heightLabel: "7.5 ft", diameterIn: 30, profile: "Pencil" },
   { code: "7-SLIM", label: "7' Slim", heightFeet: 7, heightLabel: "7 ft", diameterIn: 42, profile: "Slim" },
@@ -1330,11 +1330,11 @@ const CHRISTMAS_TREE_SIZE_OPTIONS = [
   { code: "15-STANDARD", label: "15'", heightFeet: 15, heightLabel: "15 ft", diameterIn: 114, profile: "Standard" },
 ] as const;
 
-function normalizeLabel(value?: string | null) {
+export function normalizeLabel(value?: string | null) {
   return (value || "").trim().toLowerCase();
 }
 
-function buildTypeConfigFor(buildType: string) {
+export function buildTypeConfigFor(buildType: string) {
   const normalized = normalizeLabel(buildType);
   const exact = BUILD_TYPE_CONFIGS.find((config) =>
     normalizeLabel(config.label) === normalized || config.aliases.some((alias) => normalizeLabel(alias) === normalized)
@@ -1356,7 +1356,7 @@ function buildTypeConfigFor(buildType: string) {
   return null;
 }
 
-function designPartsForBuildType(buildType: string) {
+export function designPartsForBuildType(buildType: string) {
   const templateSlots = templateSlotsForBuildType(buildType);
   if (templateSlots) return templateSlots;
   const config = buildTypeConfigFor(buildType);
@@ -1368,7 +1368,7 @@ function designPartsForBuildType(buildType: string) {
   return builderApiSlotsForBuildType(buildType);
 }
 
-function baseScopePlaceholders(bucket: Container) {
+export function baseScopePlaceholders(bucket: Container) {
   const designParts = designPartsForBuildType(`${bucket.bucket_type || ""} ${bucket.label || ""}`);
   if (designParts) return designParts.slice(0, 4);
 
@@ -1378,7 +1378,7 @@ function baseScopePlaceholders(bucket: Container) {
   return sections.length >= 4 ? sections.slice(0, 4) : [...sections, "Product", "Product", "Product", "Product"].slice(0, 4);
 }
 
-function fallbackSectionsForBuildType(buildType: string) {
+export function fallbackSectionsForBuildType(buildType: string) {
   const designParts = designPartsForBuildType(buildType);
   if (designParts) return designParts;
 
@@ -1390,16 +1390,16 @@ function fallbackSectionsForBuildType(buildType: string) {
   return ["Products", "Notes", "Pricing"];
 }
 
-function scopePlaceholders(bucket: Container) {
+export function scopePlaceholders(bucket: Container) {
   return [...baseScopePlaceholders(bucket), ...parseCustomSections(bucket.scope_notes)];
 }
 
-function firstNumber(value?: string | null) {
+export function firstNumber(value?: string | null) {
   const match = String(value || "").match(/(\d+(?:\.\d+)?)/);
   return match ? Number(match[1]) : null;
 }
 
-function treeWidthNumber(value?: string | null) {
+export function treeWidthNumber(value?: string | null) {
   const text = String(value || "");
   const xWidth = text.match(/x\s*(\d+(?:\.\d+)?)\s*(?:"|in|d\b)/i);
   if (xWidth) return Number(xWidth[1]);
@@ -1407,13 +1407,13 @@ function treeWidthNumber(value?: string | null) {
   return diameter ? Number(diameter[1]) : firstNumber(value);
 }
 
-function scopeNoteValue(notes: string | null | undefined, label: string) {
+export function scopeNoteValue(notes: string | null | undefined, label: string) {
   const prefix = `${label}:`;
   const line = (notes || "").split("\n").find((part) => part.trim().toLowerCase().startsWith(prefix.toLowerCase()));
   return line ? line.slice(prefix.length).trim() : "";
 }
 
-function christmasTreeDecorRule(heightValue?: string | null, widthValue?: string | null) {
+export function christmasTreeDecorRule(heightValue?: string | null, widthValue?: string | null) {
   const height = firstNumber(heightValue);
   const width = treeWidthNumber(widthValue);
   if (!height && !width) return null;
@@ -1439,7 +1439,7 @@ function christmasTreeDecorRule(heightValue?: string | null, widthValue?: string
   return { label: "small tree", enhancers: 8, ornaments: 30 };
 }
 
-function christmasTreeDecorRuleForBucket(bucket?: Container | null) {
+export function christmasTreeDecorRuleForBucket(bucket?: Container | null) {
   if (!bucket) return null;
   const selectedTree = itemsForPart(bucket, "Tree", 0)[0];
   const height = buildHeightFromNotes(bucket.scope_notes) || selectedTree?.product_name;
@@ -1447,59 +1447,59 @@ function christmasTreeDecorRuleForBucket(bucket?: Container | null) {
   return christmasTreeDecorRule(height, width);
 }
 
-function christmasEnhancerCountSummary(rule: ReturnType<typeof christmasTreeDecorRule>, profile?: string | null) {
+export function christmasEnhancerCountSummary(rule: ReturnType<typeof christmasTreeDecorRule>, profile?: string | null) {
   if (!rule) return "Select a tree size to calculate how many enhancers are needed.";
   const profileLabel = String(profile || "").trim().toLowerCase();
   const selectedSize = profileLabel && !rule.label.toLowerCase().includes(profileLabel) ? `${rule.label} ${profileLabel}` : rule.label;
   return `${rule.enhancers} enhancers needed for the ${selectedSize} tree selected.`;
 }
 
-function isChristmasTreeBuild(buildType?: string | null) {
+export function isChristmasTreeBuild(buildType?: string | null) {
   return buildTypeConfigFor(buildType || "")?.label === "Christmas Tree";
 }
 
-function isChristmasTreeBucket(bucket?: Container | null) {
+export function isChristmasTreeBucket(bucket?: Container | null) {
   return isChristmasTreeBuild(`${bucket?.bucket_type || ""} ${bucket?.label || ""}`);
 }
 
-function isGarlandBuild(buildType?: string | null) {
+export function isGarlandBuild(buildType?: string | null) {
   return buildTypeConfigFor(buildType || "")?.label === "Garland";
 }
 
-function isGarlandBucket(bucket?: Container | null) {
+export function isGarlandBucket(bucket?: Container | null) {
   return isGarlandBuild(`${bucket?.bucket_type || ""} ${bucket?.label || ""}`);
 }
 
-function isWreathBuild(buildType?: string | null) {
+export function isWreathBuild(buildType?: string | null) {
   return buildTypeConfigFor(buildType || "")?.label === "Wreath";
 }
 
-function isWreathBucket(bucket?: Container | null) {
+export function isWreathBucket(bucket?: Container | null) {
   return isWreathBuild(`${bucket?.bucket_type || ""} ${bucket?.label || ""}`);
 }
 
-function isStructuredChristmasBucket(bucket?: Container | null) {
+export function isStructuredChristmasBucket(bucket?: Container | null) {
   return isChristmasTreeBucket(bucket) || isGarlandBucket(bucket) || isWreathBucket(bucket);
 }
 
-function isEnhancersPart(label: string) {
+export function isEnhancersPart(label: string) {
   return normalizeLabel(label).includes("enhancer");
 }
 
-function isWreathDecorPart(label: string) {
+export function isWreathDecorPart(label: string) {
   const normalized = normalizeLabel(label);
   return normalized.includes("decor package") || normalized === "decor";
 }
 
-function christmasEnhancerPartIndex(parentIndex: number, subIndex: number) {
+export function christmasEnhancerPartIndex(parentIndex: number, subIndex: number) {
   return parentIndex * 100 + subIndex + 1;
 }
 
-function christmasEnhancerBaseCount(bucket: Container | null | undefined) {
+export function christmasEnhancerBaseCount(bucket: Container | null | undefined) {
   return christmasTreeDecorRuleForBucket(bucket)?.enhancers || 8;
 }
 
-function mergeEnhancerParts(parts: EnhancerPartConfig[]) {
+export function mergeEnhancerParts(parts: EnhancerPartConfig[]) {
   const byLabel = new Map<string, EnhancerPartConfig>();
   parts.forEach((part) => {
     const key = normalizeLabel(part.label);
@@ -1509,45 +1509,45 @@ function mergeEnhancerParts(parts: EnhancerPartConfig[]) {
   return Array.from(byLabel.values());
 }
 
-function allChristmasEnhancerPartConfigs() {
+export function allChristmasEnhancerPartConfigs() {
   const regular = enhancerPartsFromTemplate("Christmas Tree", "regular") || [];
   const premium = enhancerPartsFromTemplate("Christmas Tree", "premium") || [];
   const merged = mergeEnhancerParts([...regular, ...premium]);
   return merged.length ? merged : CHRISTMAS_ENHANCER_PARTS;
 }
 
-function christmasEnhancerPartConfig(label: string) {
+export function christmasEnhancerPartConfig(label: string) {
   return allChristmasEnhancerPartConfigs().find((part) => normalizeLabel(part.label) === normalizeLabel(label));
 }
 
-function christmasEnhancerPartIsOptional(part: EnhancerPartConfig) {
+export function christmasEnhancerPartIsOptional(part: EnhancerPartConfig) {
   return Boolean(part.optional || part.premiumOnly);
 }
 
-function christmasEnhancerRegularFormula(part: EnhancerPartConfig) {
+export function christmasEnhancerRegularFormula(part: EnhancerPartConfig) {
   return part.regularFormula || "";
 }
 
-function christmasEnhancerPremiumFormula(part: EnhancerPartConfig) {
+export function christmasEnhancerPremiumFormula(part: EnhancerPartConfig) {
   return part.premiumFormula || "";
 }
 
-function christmasEnhancerPartRequiredForPackage(part: EnhancerPartConfig, packageType: ChristmasEnhancerPackage) {
+export function christmasEnhancerPartRequiredForPackage(part: EnhancerPartConfig, packageType: ChristmasEnhancerPackage) {
   return packageType === "premium" ? Boolean(christmasEnhancerPremiumFormula(part)) : Boolean(christmasEnhancerRegularFormula(part));
 }
 
-function christmasEnhancerPartsForPackage(packageType: ChristmasEnhancerPackage) {
+export function christmasEnhancerPartsForPackage(packageType: ChristmasEnhancerPackage) {
   const templateParts = enhancerPartsFromTemplate("Christmas Tree", packageType);
   if (templateParts?.length) return templateParts;
   return CHRISTMAS_ENHANCER_PARTS.filter((part) => christmasEnhancerPartRequiredForPackage(part, packageType));
 }
 
-function christmasEnhancerPartSubIndex(label: string) {
+export function christmasEnhancerPartSubIndex(label: string) {
   const index = allChristmasEnhancerPartConfigs().findIndex((part) => normalizeLabel(part.label) === normalizeLabel(label));
   return Math.max(0, index);
 }
 
-function christmasEnhancerPartQuantity(bucket: Container | null | undefined, label: string) {
+export function christmasEnhancerPartQuantity(bucket: Container | null | undefined, label: string) {
   const enhancers = christmasEnhancerBaseCount(bucket);
   const packageType = christmasEnhancerPackageFromNotes(bucket?.scope_notes);
   const part = christmasEnhancerPartConfig(label);
@@ -1555,34 +1555,34 @@ function christmasEnhancerPartQuantity(bucket: Container | null | undefined, lab
   return Math.max(1, Math.ceil(enhancers * parseMaterialQuantity(formula || "1")));
 }
 
-function christmasEnhancerPartPreviewText(label: string, enhancers: number, packageType: ChristmasEnhancerPackage) {
+export function christmasEnhancerPartPreviewText(label: string, enhancers: number, packageType: ChristmasEnhancerPackage) {
   const part = christmasEnhancerPartConfig(label);
   const formula = packageType === "premium" ? part?.premiumFormula : part?.regularFormula;
   const quantity = Math.max(1, Math.ceil(enhancers * parseMaterialQuantity(formula || "1")));
   return /yd|yard/i.test(formula || "") ? `${quantity} yd` : `${quantity} total`;
 }
 
-function christmasEnhancerPartTargetText(bucket: Container | null | undefined, label: string) {
+export function christmasEnhancerPartTargetText(bucket: Container | null | undefined, label: string) {
   return christmasEnhancerPartPreviewText(label, christmasEnhancerBaseCount(bucket), christmasEnhancerPackageFromNotes(bucket?.scope_notes));
 }
 
-function christmasEnhancerPartItems(bucket: Container | null | undefined, parentIndex: number, subIndex: number) {
+export function christmasEnhancerPartItems(bucket: Container | null | undefined, parentIndex: number, subIndex: number) {
   const part = allChristmasEnhancerPartConfigs()[subIndex];
   return part ? itemsForPart(bucket, part.label, christmasEnhancerPartIndex(parentIndex, subIndex)) : [];
 }
 
-function garlandEnhancerRule(packageType: GarlandPackage, lengthValue?: string | null) {
+export function garlandEnhancerRule(packageType: GarlandPackage, lengthValue?: string | null) {
   const multiplier = garlandLengthMultiplier(lengthValue);
   return packageType === "premium"
     ? { label: "premium", regularEnhancers: 2 * multiplier, premiumEnhancers: 3 * multiplier, extraOrnaments: 2 * multiplier }
     : { label: "regular", regularEnhancers: 5 * multiplier, premiumEnhancers: 0, extraOrnaments: 0 };
 }
 
-function garlandEnhancerPartConfig(label: string) {
+export function garlandEnhancerPartConfig(label: string) {
   return GARLAND_ENHANCER_PARTS.find((part) => normalizeLabel(part.label) === normalizeLabel(label));
 }
 
-function garlandEnhancerPartsForPackage(packageType: GarlandPackage) {
+export function garlandEnhancerPartsForPackage(packageType: GarlandPackage) {
   const labels = packageType === "premium"
     ? ["Flower", "Assorted Branches", '4" Ornament', "Ribbon", "Premium Ribbon", "Extra Ornaments"]
     : ["Assorted Branches", '4" Ornament', "Ribbon"];
@@ -1591,17 +1591,17 @@ function garlandEnhancerPartsForPackage(packageType: GarlandPackage) {
     .filter(Boolean) as Array<(typeof GARLAND_ENHANCER_PARTS)[number]>;
 }
 
-function garlandEnhancerPartSubIndex(label: string) {
+export function garlandEnhancerPartSubIndex(label: string) {
   const index = GARLAND_ENHANCER_PARTS.findIndex((part) => normalizeLabel(part.label) === normalizeLabel(label));
   return Math.max(0, index);
 }
 
-function formatGarlandQuantity(value: number, unit: "total" | "yd") {
+export function formatGarlandQuantity(value: number, unit: "total" | "yd") {
   const rounded = Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
   return `${rounded} ${unit}`;
 }
 
-function garlandEnhancerPartQuantity(packageType: GarlandPackage, label: string, lengthValue?: string | null) {
+export function garlandEnhancerPartQuantity(packageType: GarlandPackage, label: string, lengthValue?: string | null) {
   const rule = garlandEnhancerRule(packageType, lengthValue);
   const normalized = normalizeLabel(label);
   const totalEnhancers = rule.regularEnhancers + rule.premiumEnhancers;
@@ -1614,23 +1614,23 @@ function garlandEnhancerPartQuantity(packageType: GarlandPackage, label: string,
   return totalEnhancers;
 }
 
-function garlandEnhancerPartPreviewText(label: string, packageType: GarlandPackage, lengthValue?: string | null) {
+export function garlandEnhancerPartPreviewText(label: string, packageType: GarlandPackage, lengthValue?: string | null) {
   const normalized = normalizeLabel(label);
   const quantity = garlandEnhancerPartQuantity(packageType, label, lengthValue);
   if (normalized.includes("ribbon")) return formatGarlandQuantity(quantity, "yd");
   return formatGarlandQuantity(quantity, "total");
 }
 
-function garlandEnhancerPartTargetText(bucket: Container | null | undefined, label: string) {
+export function garlandEnhancerPartTargetText(bucket: Container | null | undefined, label: string) {
   return garlandEnhancerPartPreviewText(label, garlandPackageFromNotes(bucket?.scope_notes), garlandLengthFromNotes(bucket?.scope_notes));
 }
 
-function garlandEnhancerPartItems(bucket: Container | null | undefined, parentIndex: number, subIndex: number) {
+export function garlandEnhancerPartItems(bucket: Container | null | undefined, parentIndex: number, subIndex: number) {
   const part = GARLAND_ENHANCER_PARTS[subIndex];
   return part ? itemsForPart(bucket, part.label, christmasEnhancerPartIndex(parentIndex, subIndex)) : [];
 }
 
-function garlandEnhancerCountSummary(packageType: GarlandPackage, lengthValue: string, diameter: GarlandDiameter) {
+export function garlandEnhancerCountSummary(packageType: GarlandPackage, lengthValue: string, diameter: GarlandDiameter) {
   const rule = garlandEnhancerRule(packageType, lengthValue);
   const productLabel = `${packageType === "premium" ? "Premium" : "Regular"} Garland ${garlandSetupLabel(lengthValue, diameter)}`;
   if (packageType === "premium") {
@@ -1639,11 +1639,11 @@ function garlandEnhancerCountSummary(packageType: GarlandPackage, lengthValue: s
   return `${rule.regularEnhancers} regular enhancers needed for the ${productLabel} selected.`;
 }
 
-function wreathDecorPartConfig(label: string) {
+export function wreathDecorPartConfig(label: string) {
   return WREATH_DECOR_PARTS.find((part) => normalizeLabel(part.label) === normalizeLabel(label));
 }
 
-function wreathDecorPartsForSize(size: WreathSize) {
+export function wreathDecorPartsForSize(size: WreathSize) {
   return WREATH_DECOR_RECIPES[size]
     .map((recipe) => {
       const config = wreathDecorPartConfig(recipe.label);
@@ -1652,36 +1652,36 @@ function wreathDecorPartsForSize(size: WreathSize) {
     .filter(Boolean) as Array<(typeof WREATH_DECOR_PARTS)[number] & { quantity: number; unit: "total" | "yd" }>;
 }
 
-function wreathDecorPartSubIndex(label: string) {
+export function wreathDecorPartSubIndex(label: string) {
   const index = WREATH_DECOR_PARTS.findIndex((part) => normalizeLabel(part.label) === normalizeLabel(label));
   return Math.max(0, index);
 }
 
-function wreathDecorPartItems(bucket: Container | null | undefined, parentIndex: number, subIndex: number) {
+export function wreathDecorPartItems(bucket: Container | null | undefined, parentIndex: number, subIndex: number) {
   const part = WREATH_DECOR_PARTS[subIndex];
   return part ? itemsForPart(bucket, part.label, christmasEnhancerPartIndex(parentIndex, subIndex)) : [];
 }
 
-function wreathDecorPartPreviewText(label: string, size: WreathSize) {
+export function wreathDecorPartPreviewText(label: string, size: WreathSize) {
   const recipe = WREATH_DECOR_RECIPES[size].find((item) => normalizeLabel(item.label) === normalizeLabel(label));
   if (!recipe) return "";
   return formatGarlandQuantity(recipe.quantity, recipe.unit);
 }
 
-function wreathDecorCountSummary(size: WreathSize) {
+export function wreathDecorCountSummary(size: WreathSize) {
   const parts = WREATH_DECOR_RECIPES[size]
     .map((part) => `${formatGarlandQuantity(part.quantity, part.unit)} ${part.label.toLowerCase()}`)
     .join(", ");
   return `${parts} needed for the ${size}" wreath selected.`;
 }
 
-function partKey(label: string, index: number) {
+export function partKey(label: string, index: number) {
   return `${index}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "part"}`;
 }
 
 // Each flipped build type has exactly FLIPPED_SLOT_COUNT slots, so a label that moved
 // sits at (FLIPPED_SLOT_COUNT - 1 - newIndex) in any part_key saved before the flip.
-function legacySlotIndex(label: string, index: number) {
+export function legacySlotIndex(label: string, index: number) {
   if (index < 0 || index >= FLIPPED_SLOT_COUNT) return null;
   if (!FLIPPED_SLOT_LABELS.has(label.trim().toLowerCase())) return null;
   return FLIPPED_SLOT_COUNT - 1 - index;
@@ -1689,14 +1689,14 @@ function legacySlotIndex(label: string, index: number) {
 
 // Every part_key that should resolve to this slot: the current one first, plus the
 // pre-flip key so designs saved under the old top-down order keep their products.
-function partKeysForSlot(label: string, index: number) {
+export function partKeysForSlot(label: string, index: number) {
   const legacyIndex = legacySlotIndex(label, index);
   const keys = [partKey(label, index)];
   if (legacyIndex !== null) keys.push(partKey(label, legacyIndex));
   return keys;
 }
 
-function itemsForPart(bucket: Container | null | undefined, label: string, index: number) {
+export function itemsForPart(bucket: Container | null | undefined, label: string, index: number) {
   if (!bucket) return [];
   const keys = partKeysForSlot(label, index);
   // Untagged legacy items were always treated as belonging to the first slot, which for a
@@ -1707,7 +1707,7 @@ function itemsForPart(bucket: Container | null | undefined, label: string, index
   );
 }
 
-function primarySelectedForPart(bucket: Container, label: string, index: number) {
+export function primarySelectedForPart(bucket: Container, label: string, index: number) {
   return (
     itemsForPart(bucket, label, index).find((item) => (item.status || "selected") === "selected") ||
     itemsForPart(bucket, label, index)[0] ||
@@ -1715,7 +1715,7 @@ function primarySelectedForPart(bucket: Container, label: string, index: number)
   );
 }
 
-function partIsComplete(bucket: Container, label: string, index: number) {
+export function partIsComplete(bucket: Container, label: string, index: number) {
   if (isChristmasTreeBucket(bucket) && isEnhancersPart(label)) {
     const packageType = christmasEnhancerPackageFromNotes(bucket.scope_notes);
     return christmasEnhancerPartsForPackage(packageType).every((part) => {
@@ -1740,7 +1740,7 @@ function partIsComplete(bucket: Container, label: string, index: number) {
   return itemsForPart(bucket, label, index).some((item) => (item.status || "selected") === "selected");
 }
 
-function componentLooksLikePart(componentLabel: string, partLabel: string) {
+export function componentLooksLikePart(componentLabel: string, partLabel: string) {
   const component = normalizeLabel(componentLabel);
   const part = normalizeLabel(partLabel);
   if (part === "tree") return ["tree", "pine", "fir", "spruce", "lit", "unlit"].some((term) => component.includes(term));
@@ -1763,7 +1763,7 @@ function componentLooksLikePart(componentLabel: string, partLabel: string) {
   return false;
 }
 
-function suggestionForPart(bucket: Container | null | undefined, label: string, index: number): BuildSuggestionComponent | null {
+export function suggestionForPart(bucket: Container | null | undefined, label: string, index: number): BuildSuggestionComponent | null {
   if (!bucket) return null;
   const intelligence = parseScopeIntelligence(bucket.scope_notes);
   const components = intelligence?.components || [];
@@ -1775,7 +1775,7 @@ function suggestionForPart(bucket: Container | null | undefined, label: string, 
   return mapped || null;
 }
 
-function searchTermsForPart(bucket: Container | null | undefined, label: string, index: number) {
+export function searchTermsForPart(bucket: Container | null | undefined, label: string, index: number) {
   const part = normalizeLabel(label);
   if (buildTypeConfigFor(`${bucket?.bucket_type || ""} ${bucket?.label || ""}`)?.label === "Christmas Tree") {
     const enhancerPart = christmasEnhancerPartConfig(label);
@@ -1816,7 +1816,7 @@ function searchTermsForPart(bucket: Container | null | undefined, label: string,
   return label;
 }
 
-function suggestedQuantityForPart(bucket: Container | null | undefined, label: string, index: number) {
+export function suggestedQuantityForPart(bucket: Container | null | undefined, label: string, index: number) {
   if (isChristmasTreeBucket(bucket)) {
     const part = normalizeLabel(label);
     if (part.includes("branch") || part.includes("flower") || part.includes("ribbon") || part.includes("pick") || part.includes("spray") || part.includes("ornament") || part.includes("cluster")) {
@@ -1838,7 +1838,7 @@ function suggestedQuantityForPart(bucket: Container | null | undefined, label: s
   return Math.max(1, Math.round(Number(raw) || 1));
 }
 
-function christmasPartGuidance(bucket: Container | null | undefined, label: string) {
+export function christmasPartGuidance(bucket: Container | null | undefined, label: string) {
   const buildLabel = buildTypeConfigFor(`${bucket?.bucket_type || ""} ${bucket?.label || ""}`)?.label;
   if (buildLabel === "Garland") {
     const part = normalizeLabel(label);
@@ -1869,7 +1869,7 @@ function christmasPartGuidance(bucket: Container | null | undefined, label: stri
   return "";
 }
 
-function christmasPreviewGuidance(buildType: string, label: string, heightValue?: string | null, widthValue?: string | null) {
+export function christmasPreviewGuidance(buildType: string, label: string, heightValue?: string | null, widthValue?: string | null) {
   const buildLabel = buildTypeConfigFor(buildType)?.label;
   if (buildLabel === "Garland") {
     const part = normalizeLabel(label);
@@ -1893,15 +1893,15 @@ function christmasPreviewGuidance(buildType: string, label: string, heightValue?
   return "";
 }
 
-function compactSkuPart(value?: string | null, fallback = "NEW", limit = 5) {
+export function compactSkuPart(value?: string | null, fallback = "NEW", limit = 5) {
   return (value || "").replace(/[^a-z0-9]+/gi, "").slice(0, limit).toUpperCase() || fallback;
 }
 
-function skuCodeForBuildType(buildType: string) {
+export function skuCodeForBuildType(buildType: string) {
   return buildTypeConfigFor(buildType)?.skuCode || "GR-CUS";
 }
 
-function selectedSkuSource(bucket?: Container | null) {
+export function selectedSkuSource(bucket?: Container | null) {
   if (!bucket) return "";
   const baseLabels = ["container", "base", "planter", "tree/base", "garland", "wreath"];
   const baseItem = bucket.items.find((item) =>
@@ -1911,26 +1911,26 @@ function selectedSkuSource(bucket?: Container | null) {
   return baseItem?.supplier_sku || baseItem?.product_name || focalItem?.supplier_sku || focalItem?.product_name || "";
 }
 
-function suggestedSkuForType(buildType: string, label?: string | null, arrangement?: Arrangement | null, section: BuilderSection = "green") {
+export function suggestedSkuForType(buildType: string, label?: string | null, arrangement?: Arrangement | null, section: BuilderSection = "green") {
   const code = buildTypeConfigFor(buildType)?.skuCode || `${section === "christmas" ? "CH" : "GR"}-CUS`;
   const projectPart = compactSkuPart(arrangement?.name || arrangement?.client_name || label || buildType, "BUILD", 5);
   return `${code}-${projectPart}-${new Date().getFullYear()}`;
 }
 
-function suggestedFinishedSku(bucket?: Container | null, arrangement?: Arrangement | null) {
+export function suggestedFinishedSku(bucket?: Container | null, arrangement?: Arrangement | null) {
   const code = skuCodeForBuildType(`${bucket?.bucket_type || ""} ${bucket?.label || ""}`);
   const sourcePart = compactSkuPart(selectedSkuSource(bucket) || bucket?.label || bucket?.bucket_type || arrangement?.name, "BUILD", 5);
   return `${code}-${sourcePart}-${new Date().getFullYear()}`;
 }
 
-function mechanicsEstimate(bucket?: Container | null) {
+export function mechanicsEstimate(bucket?: Container | null) {
   const components = parseScopeIntelligence(bucket?.scope_notes)?.components || [];
   return components
     .filter((component) => ["foam", "moss", "fiber", "mechanic", "stake", "clip", "wire", "filler", "stabil"].some((term) => normalizeLabel(component.label).includes(term)))
     .reduce((sum, component) => sum + (Number(component.average_extended_total) || 0), 0);
 }
 
-function evidenceForConfig(config: typeof BUILD_TYPE_CONFIGS[number], buildTypes: BuildTypeOption[]) {
+export function evidenceForConfig(config: typeof BUILD_TYPE_CONFIGS[number], buildTypes: BuildTypeOption[]) {
   return buildTypes.reduce((sum, option) => {
     const labelMatches = config.aliases.some((alias) => normalizeLabel(alias) === normalizeLabel(option.label));
     const prefixMatches = (option.prefixes || []).some((prefix) => config.prefixes.some((knownPrefix) => knownPrefix === prefix));
@@ -1938,11 +1938,11 @@ function evidenceForConfig(config: typeof BUILD_TYPE_CONFIGS[number], buildTypes
   }, 0);
 }
 
-function builderProductName(product: LibraryProduct) {
+export function builderProductName(product: LibraryProduct) {
   return String(product.raw_data?.Description || product.description || product.name || "").trim();
 }
 
-const BUILDER_CATALOG_PAGE_SIZE = 48;
+export const BUILDER_CATALOG_PAGE_SIZE = 48;
 
 type BuilderCardSize = 1 | 2 | 3 | 4;
 
@@ -1957,7 +1957,7 @@ const BUILDER_GRID_COLS: Record<BuilderCardSize, string> = {
 const BUILDER_IMG_HEIGHT: Record<BuilderCardSize, string> = { 1: "h-20", 2: "h-28", 3: "h-36", 4: "h-48" };
 
 type CatalogSelection = { categories: string[]; colors: string[]; product_types: string[] };
-const EMPTY_CATALOG_SELECTION: CatalogSelection = { categories: [], colors: [], product_types: [] };
+export const EMPTY_CATALOG_SELECTION: CatalogSelection = { categories: [], colors: [], product_types: [] };
 
 /**
  * Choose Parts, on the same index the Catalog Search page uses.
