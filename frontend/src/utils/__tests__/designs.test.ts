@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const apiFetch = vi.hoisted(() => vi.fn());
 vi.mock("../apiFetch", () => ({ apiFetch }));
 
-import { EMPTY_FACETS, designListParams, fetchDesign, fetchDesignList } from "../designs";
+import { EMPTY_FACETS, designListParams, fetchDesignList } from "../designs";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -94,24 +94,5 @@ describe("fetchDesignList", () => {
     expect(await fetchDesignList()).toBe(a);
     apiFetch.mockResolvedValueOnce(json(null));
     expect(await fetchDesignList()).toEqual({ items: [], total: 0, facets: EMPTY_FACETS });
-  });
-});
-
-describe("fetchDesign", () => {
-  it("URL-encodes the id and returns the JSON body", async () => {
-    apiFetch.mockResolvedValue(json({ id: "a b/c", name: "X", items: [] }));
-    await expect(fetchDesign("a b/c")).resolves.toEqual({ id: "a b/c", name: "X", items: [] });
-    expect(apiFetch).toHaveBeenCalledWith("/api/designs/a%20b%2Fc");
-    await fetchDesign(12);
-    expect(apiFetch).toHaveBeenLastCalledWith("/api/designs/12");
-  });
-
-  it("resolves to null on non-ok, HTML or error", async () => {
-    apiFetch.mockResolvedValueOnce(json({}, 500));
-    expect(await fetchDesign(1)).toBeNull();
-    apiFetch.mockResolvedValueOnce(html());
-    expect(await fetchDesign(1)).toBeNull();
-    apiFetch.mockRejectedValueOnce(new Error("x"));
-    expect(await fetchDesign(1)).toBeNull();
   });
 });

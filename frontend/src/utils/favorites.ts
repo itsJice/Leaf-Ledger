@@ -17,10 +17,6 @@ export function writeFavoriteIds(ids: Set<number>) {
   }
 }
 
-export function isLocallyFavorited(id: number): boolean {
-  return readFavoriteIds().has(id);
-}
-
 export function setLocalFavorite(id: number, favorited: boolean): Set<number> {
   const ids = readFavoriteIds();
   if (favorited) ids.add(id);

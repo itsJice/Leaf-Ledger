@@ -11,7 +11,6 @@ import {
   buildOrderLines,
   buildRecipe,
   buildRecipeFor,
-  buildSku,
   clampColorCount,
   coverageDensity,
   defaultWidthForHeight,
@@ -23,7 +22,6 @@ import {
   leafLedgerSource,
   leafLedgerTopSize,
   packSummary,
-  productImageUrl,
   profileForWidth,
   recipeBucketNumber,
   sizeSwapSuggestions,
@@ -304,17 +302,6 @@ describe("purchase list helpers", () => {
 });
 
 describe("SKUs and order lines", () => {
-  it("buildSku / productImageUrl", () => {
-    expect([buildSku("08", "03", "X"), buildSku("08", "03", "Q"), buildSku("08", "03", "G"), buildSku("08", "03", "S"), buildSku("", "", "")]).toEqual([
-      "N590803V",
-      "N590803DQ",
-      "N590803DG",
-      "N590803DSV",
-      "N59DV",
-    ]);
-    expect(productImageUrl("N590803DSV")).toBe("https://images.vickerman.com/N590803DSV_1000.jpg");
-  });
-
   it("buildOrderLines expands, merges duplicates, skips invalid blocks, sorts", () => {
     const lines = buildOrderLines(new Map([["08", 42], ["10", 41], ["12", 21]]), [
       { id: 1, colorCode: "03", finishCode: "S", sharePct: 50 },

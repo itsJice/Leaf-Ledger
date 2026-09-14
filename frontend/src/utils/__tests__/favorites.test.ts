@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { isLocallyFavorited, readFavoriteIds, setLocalFavorite, writeFavoriteIds } from "../favorites";
+import { readFavoriteIds, setLocalFavorite, writeFavoriteIds } from "../favorites";
 
 const KEY = "leaf-ledger:favorite-product-ids:v1";
 
@@ -56,10 +56,8 @@ describe("favorites", () => {
     expect([...setLocalFavorite(5, true)]).toEqual([5]);
     expect([...setLocalFavorite(7, true)]).toEqual([5, 7]);
     expect([...setLocalFavorite(5, true)]).toEqual([5, 7]);
-    expect(isLocallyFavorited(5)).toBe(true);
     expect([...setLocalFavorite(5, false)]).toEqual([7]);
     expect([...setLocalFavorite(99, false)]).toEqual([7]);
-    expect(isLocallyFavorited(5)).toBe(false);
     expect(storage.data.get(KEY)).toBe("[7]");
   });
 });

@@ -102,13 +102,6 @@ export async function getOrder(id: number): Promise<OrderDetail> {
   return r.json();
 }
 
-export async function addToOrder(orderId: number, product_id: number, quantity: number, added_by?: string) {
-  return apiFetch(`/api/orders/${orderId}/items`, {
-    method: "POST", credentials: "include", headers: JSON_HEADERS,
-    body: JSON.stringify({ product_id, quantity, added_by }),
-  });
-}
-
 export async function updateItemQty(itemId: number, quantity: number) {
   return apiFetch(`/api/orders/items/${itemId}`, {
     method: "PATCH", credentials: "include", headers: JSON_HEADERS,
@@ -120,26 +113,6 @@ export async function removeItem(itemId: number) {
   return apiFetch(`/api/orders/items/${itemId}`, { method: "DELETE", credentials: "include" });
 }
 
-export async function renameOrder(id: number, name: string) {
-  return apiFetch(`/api/orders/${id}`, {
-    method: "PATCH", credentials: "include", headers: JSON_HEADERS,
-    body: JSON.stringify({ name }),
-  });
-}
-
 export async function deleteOrder(id: number) {
   return apiFetch(`/api/orders/${id}`, { method: "DELETE", credentials: "include" });
-}
-
-// Resolve the order to add to: the remembered active one if it still exists,
-// else the most-recent order, else a fresh one named by today's date.
-export async function ensureActiveOrder(created_by?: string): Promise<OrderSummary> {
-  const orders = await listOrders();
-  const active = getActiveOrderId();
-  const found = active ? orders.find((o) => o.id === active) : undefined;
-  if (found) return found;
-  if (orders.length) { setActiveOrderId(orders[0].id); return orders[0]; }
-  const created = await createOrder(defaultOrderName(), created_by);
-  setActiveOrderId(created.id);
-  return created;
 }

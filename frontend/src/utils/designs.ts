@@ -143,16 +143,3 @@ export async function fetchDesignList(q: DesignListQuery = {}): Promise<DesignLi
     return EMPTY_LIST;
   }
 }
-
-/** GET /api/designs/{id} — resolves to null when unavailable. */
-export async function fetchDesign(id: number | string): Promise<DesignDetail | null> {
-  try {
-    const res = await apiFetch(`/api/designs/${encodeURIComponent(String(id))}`);
-    if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("json")) return null;
-    return (await res.json()) as DesignDetail;
-  } catch {
-    return null;
-  }
-}

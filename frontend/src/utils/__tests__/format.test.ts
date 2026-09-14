@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { categoryLabel, formatCurrency, formatDate, formatDateTime, unitLabel } from "../format";
+import { categoryLabel, formatCurrency, formatDate, unitLabel } from "../format";
 
 // Dates are pinned as if TZ=UTC. `process.env.TZ` assignment has no effect in
 // vitest's worker threads, so the Date prototype methods get `timeZone: "UTC"`
@@ -54,19 +54,6 @@ describe("formatDate", () => {
     expect(formatDate(null)).toBe("—");
     expect(formatDate(undefined)).toBe("—");
     expect(formatDate("not a date")).toBe("Invalid Date");
-  });
-});
-
-describe("formatDateTime", () => {
-  it("formats with hour and 2-digit minute", () => {
-    expect(formatDateTime("2026-09-13T15:04:05Z")).toBe("Sep 13, 2026, 3:04 PM");
-    expect(formatDateTime("2026-09-13")).toBe("Sep 13, 2026, 12:00 AM");
-  });
-
-  it("returns an em dash for falsy input and 'Invalid Date' for garbage", () => {
-    expect(formatDateTime("")).toBe("—");
-    expect(formatDateTime(null)).toBe("—");
-    expect(formatDateTime("nope")).toBe("Invalid Date");
   });
 });
 

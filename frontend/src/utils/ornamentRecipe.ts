@@ -860,23 +860,6 @@ export const FINISHES: OrnamentFinish[] = [
   { name: "Metallic", code: "T" },
 ];
 
-/**
- * Build the Vickerman product SKU for a size/color/finish combination.
- * Rules ported verbatim from the site:
- *   Clear (X):            N59{size}{color}V
- *   Sequin (Q)/Glitter(G): N59{size}{color}D{finish}
- *   everything else:      N59{size}{color}D{finish}V
- */
-export function buildSku(sizeCode: string, colorCode: string, finishCode: string): string {
-  if (finishCode === "X") return `N59${sizeCode}${colorCode}V`;
-  if (finishCode === "Q" || finishCode === "G") return `N59${sizeCode}${colorCode}D${finishCode}`;
-  return `N59${sizeCode}${colorCode}D${finishCode}V`;
-}
-
-/** Product image URL for a SKU (Vickerman CDN pattern), for thumbnails. */
-export function productImageUrl(sku: string): string {
-  return `https://images.vickerman.com/${sku}_1000.jpg`;
-}
 
 /** A color block: exactly one color + one finish + its share of the tree (%). */
 export interface ColorBlock {

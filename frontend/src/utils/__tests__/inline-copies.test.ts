@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { formatDate } from "../format";
-import { productImageUrl } from "../ornamentRecipe";
 import {
   formatDateTreeCounts,
   moneyCatalogPick,
@@ -179,22 +178,11 @@ const PROXIED_EXPECTED: Outcome[] = [
   v(undefined),
 ];
 
-const PRODUCT_IMAGE_URL_EXPECTED: Outcome[] = [
-  v("https://images.vickerman.com/_1000.jpg"),
-  v("https://images.vickerman.com/https://x.com/a.jpg_1000.jpg"),
-  v("https://images.vickerman.com/http://x.com/a.jpg?b=1_1000.jpg"),
-  v("https://images.vickerman.com//relative/a.png_1000.jpg"),
-  v("https://images.vickerman.com/data:image/png;base64,AAA_1000.jpg"),
-  v("https://images.vickerman.com/null_1000.jpg"),
-  v("https://images.vickerman.com/undefined_1000.jpg"),
-];
-
 const PROXIED_COPIES: Record<string, (x: any) => unknown> = {
   proxiedCatalogPick,
   proxiedSourcing,
   proxiedOrders,
   proxiedOrnament,
-  productImageUrl,
 };
 
 describe("inline proxied copies", () => {
@@ -204,23 +192,10 @@ describe("inline proxied copies", () => {
     });
   }
 
-  it("productImageUrl (utils/ornamentRecipe) is a different function: SKU -> Vickerman CDN URL, no proxying", () => {
-    expect(PROXY_INPUTS.map((i) => outcome(() => productImageUrl(i as string)))).toEqual(PRODUCT_IMAGE_URL_EXPECTED);
-  });
-
-  it("grouping: all four proxied copies agree on every input; productImageUrl agrees with none", () => {
+  it("grouping: all four proxied copies agree on every input", () => {
     expect(groupCopies(PROXIED_COPIES, PROXY_INPUTS)).toEqual([
       ["proxiedCatalogPick", "proxiedSourcing", "proxiedOrders", "proxiedOrnament"],
-      ["productImageUrl"],
     ]);
-    // Not on a single input, either.
-    PROXY_INPUTS.forEach((i) => expect(productImageUrl(i as string)).not.toBe(proxiedOrders(i as string)));
-  });
-
-  it("the proxy wraps a CDN URL built by productImageUrl", () => {
-    expect(proxiedOrnament(productImageUrl("N590803DSV"))).toBe(
-      "/api/products/image-proxy?url=https%3A%2F%2Fimages.vickerman.com%2FN590803DSV_1000.jpg",
-    );
   });
 });
 

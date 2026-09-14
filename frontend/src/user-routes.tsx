@@ -26,7 +26,6 @@ import Suppliers from "./pages/Suppliers.tsx";
 export const userRoutes: RouteObject[] = [
 
 	{ path: "/admin-dashboard", element: <AdminDashboard /> },
-	{ path: "/admindashboard", element: <AdminDashboard /> },
 	{ path: "/", element: <App /> },
 	{ path: "/arrangements", element: <Arrangements /> },
 	{ path: "/clients", element: <Clients /> },
@@ -48,7 +47,6 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/orders", element: <Orders /> },
 	{ path: "/install-schedule", element: <InstallSchedule /> },
 	{ path: "/ornament-calculator", element: <OrnamentCalculator /> },
-	{ path: "/ornamentcalculator", element: <OrnamentCalculator /> },
 	{ path: "/tree-counts", element: <TreeCounts /> },
 	{ path: "/search", element: <CatalogSearch /> },
 	{ path: "/settings", element: <Settings /> },

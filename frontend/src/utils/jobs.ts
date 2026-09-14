@@ -226,7 +226,6 @@ const patch = <T,>(path: string, body: unknown) =>
   call<T>(path, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(body) });
 const del = <T,>(path: string) => call<T>(path, { method: "DELETE" });
 
-export const fetchJobsMeta = () => call<JobsMeta>("/api/jobs/meta");
 export const listJobs = () => call<JobSummary[]>("/api/jobs/list");
 export const getJob = (id: number) => call<Job>(`/api/jobs/${id}`);
 export const createJob = (body: Partial<Job>) => post<Job>("/api/jobs/create", body);
@@ -236,10 +235,6 @@ export const deleteJob = (id: number) => del<{ ok: boolean }>(`/api/jobs/${id}`)
 // it's edited — board-list already sorts by updated_at, so this is what
 // makes "the job you were just in" surface at the top of the rail.
 export const touchJob = (id: number) => post<{ ok: boolean }>(`/api/jobs/${id}/touch`, {});
-
-export const addPiece = (jobId: number, body: Partial<Piece>) => post<Job>(`/api/jobs/${jobId}/pieces`, body);
-export const updatePiece = (pieceId: number, body: Partial<Piece>) => patch<Job>(`/api/jobs/pieces/${pieceId}`, body);
-export const deletePiece = (pieceId: number) => del<Job>(`/api/jobs/pieces/${pieceId}`);
 
 export const addNeeds = (jobId: number, needs: Partial<Need>[]) => post<Job>(`/api/jobs/${jobId}/needs`, { needs });
 export const updateNeed = (needId: number, body: Partial<Need>) => patch<Job>(`/api/jobs/needs/${needId}`, body);
