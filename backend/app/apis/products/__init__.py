@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from typing import Optional, List
 from collections import Counter
 from decimal import Decimal, InvalidOperation
-import asyncpg
 import os
 import re
 import uuid
@@ -114,10 +113,9 @@ def image_proxy(url: Optional[str] = None, key: Optional[str] = None) -> Respons
         headers={"Cache-Control": "public, max-age=604800"},
     )
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+# Shared pooled connection helper. Kept importable from here: jobs, orders and
+# dashboard do `from app.apis.products import get_conn`, and tests patch it.
+from app.libs.db import get_conn  # noqa: E402
 
 # ---------- Models ----------
 
