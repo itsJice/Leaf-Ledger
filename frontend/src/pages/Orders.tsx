@@ -12,12 +12,8 @@ import {
   type OrderSummary, type OrderDetail,
 } from "utils/orders";
 import { toast } from "sonner";
-
-function proxied(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  return `/api/products/image-proxy?url=${encodeURIComponent(url)}`;
-}
-const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
+import { formatMoney as money } from "utils/money";
+import { proxiedImageUrl as proxied } from "utils/images";
 
 export default function Orders() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);

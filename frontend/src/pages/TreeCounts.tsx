@@ -13,6 +13,7 @@ import {
   totalPieces,
 } from "utils/treeCounts";
 import type { TableComparisonRow, TreeCountInput, TreeCountKind, TreeCountRecord } from "utils/treeCounts";
+import { formatDateShortLocale as formatDate } from "utils/format";
 
 // The calibration loop behind the ornament calculator's golden table: crews
 // record what was actually on a tree at install / teardown, the page averages
@@ -33,10 +34,6 @@ function emptyGrid(): Record<string, string> {
     grid[o.display] = "";
   });
   return grid;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatAvg(n: number): string {
