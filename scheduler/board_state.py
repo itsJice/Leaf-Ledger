@@ -29,8 +29,12 @@ Nothing here writes a file or a row on import; the callers decide that.
 import datetime
 import json
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)  # common.py is a sibling; this module may be imported from anywhere
+from common import load_env  # noqa: E402
+
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 
 #: Rows at or above this are clients added in the tool / notebook, not sheet
@@ -47,22 +51,8 @@ ROW_LISTS = ("notInstalling", "confirmed")
 # ---------------------------------------------------------------------------
 # environment / database
 # ---------------------------------------------------------------------------
-def load_env(path=ENV_FILE):
-    """Populate os.environ from backend/.env.supabase without overriding
-    anything already set (same rule publish_pages.py has always used)."""
-    if not os.path.exists(path):
-        return
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            os.environ.setdefault(k, v.strip().strip('"').strip("'"))
-
-
 def database_url():
-    load_env()
+    load_env(ENV_FILE)
     return os.environ.get("DATABASE_URL")
 
 

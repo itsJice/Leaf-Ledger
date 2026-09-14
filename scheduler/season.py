@@ -1,75 +1,57 @@
 """Which Christmas season a date belongs to.
 
-A season runs October through the following January: installs Oct-Dec,
-takedowns spilling into January. The season is named for the year its October
-falls in, so January still belongs to the season that started the previous
-autumn -- on 15 Jan 2027 the crews are finishing the 2026 season, not starting
-2027.
+This used to be a byte-for-byte duplicate of backend/app/libs/season.py,
+kept in sync by hand, because the build pipeline runs outside the deployed
+backend image and couldn't import it -- see the old RULES.md warning
+("scheduler/season.py holds the same rule for the build pipeline... change
+both together; backend/tests/test_season.py checks they agree").
 
-The boundary is 1 February. Before it, the current season is last October's; on
-and after it, planning has moved to the coming autumn. That is what makes the
-rollover automatic -- nobody has to remember to change a year.
+It still can't import the backend as an installed package, but backend/ is
+a sibling directory in this same repo checkout, so putting it on sys.path
+and importing the real module directly costs nothing and removes the
+by-hand-duplicate risk entirely: there is now exactly one implementation,
+and this file is a re-export of it.
+
+A season runs October through the following January: installs Oct-Dec,
+takedowns spilling into January. The season is named for the year its
+October falls in, so January still belongs to the season that started the
+previous autumn -- on 15 Jan 2027 the crews are finishing the 2026 season,
+not starting 2027. The rollover boundary is 1 February.
 
     2026-09-02 -> 2026   (planning the coming season)
     2027-01-15 -> 2026   (still finishing it)
     2027-02-01 -> 2027   (rolled over)
-
-NOTE: scheduler/season.py holds the same rule for the build pipeline, which
-runs outside the deployed image and cannot import this one. Change both
-together; backend/tests/test_season.py checks they agree.
 """
+import os
+import sys
 
-from __future__ import annotations
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "backend"))
 
-import datetime
+# Importing app.libs.season must not (and does not) pull in FastAPI or the
+# DB: backend/app/__init__.py doesn't exist (an implicit namespace package)
+# and backend/app/libs/__init__.py is empty, so nothing runs on import
+# beyond this one module.
+from app.libs.season import *  # noqa: F401,F403,E402
 
-SEASON_START_MONTH = 10   # October
-SEASON_END_MONTH = 1      # through January
-ROLLOVER_MONTH = 2        # 1 Feb: "next season" becomes "this season"
-
-
-def season_for(today: datetime.date | None = None) -> int:
-    """The season year `today` falls in (defaults to the real today)."""
-    d = today or datetime.date.today()
-    return d.year if d.month >= ROLLOVER_MONTH else d.year - 1
-
-
-def season_span(season: int) -> tuple[datetime.date, datetime.date]:
-    """(first day, last day) of a season -- 1 Oct through 31 Jan."""
-    return (datetime.date(season, SEASON_START_MONTH, 1),
-            datetime.date(season + 1, SEASON_END_MONTH, 31))
-
-
-def season_of_date(iso: str) -> int:
-    """The season an ISO date string belongs to."""
-    return season_for(datetime.date.fromisoformat(iso[:10]))
-
-
-def year_of_month(season: int, month: int) -> int:
-    """Calendar year of a month within a season -- January is the year after."""
-    return season + 1 if month < SEASON_START_MONTH else season
-
-
-def takedown_cutoff(season: int) -> datetime.date:
-    """Installs run through Christmas; anything later is takedown."""
-    return datetime.date(season, 12, 25)
-
-
-def nth_weekday(year: int, month: int, weekday: int, n: int) -> datetime.date:
-    """The nth given weekday of a month. weekday: Mon=0 .. Sun=6."""
-    d = datetime.date(year, month, 1)
-    offset = (weekday - d.weekday()) % 7
-    return d + datetime.timedelta(days=offset + 7 * (n - 1))
-
-
-def thanksgiving(season: int) -> datetime.date:
-    """US Thanksgiving -- the 4th Thursday of November."""
-    return nth_weekday(season, 11, 3, 4)
-
-
-def black_friday(season: int) -> datetime.date:
-    return thanksgiving(season) + datetime.timedelta(days=1)
-
-
-def sunday_after_thanksgiving(season: int) -> datetime.date:
-    return thanksgiving(season) + datetime.timedelta(days=3)
+# Explicit re-export of every name scheduler/*.py imports from `season`
+# (`import season` then `season.<name>`, or `from season import <name>`):
+# prep.py, schedule.py, rules.py, build_review.py and the callers that used
+# to have their own current_season() (now scheduler/common.py) between them
+# use all of these. `import *` above already binds them; listed again here
+# so a linter (and a human) can see the public surface without reading
+# app/libs/season.py.
+from app.libs.season import (  # noqa: F401,E402
+    SEASON_START_MONTH,
+    SEASON_END_MONTH,
+    ROLLOVER_MONTH,
+    season_for,
+    season_span,
+    season_of_date,
+    year_of_month,
+    takedown_cutoff,
+    nth_weekday,
+    thanksgiving,
+    black_friday,
+    sunday_after_thanksgiving,
+)
