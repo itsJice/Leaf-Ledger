@@ -189,7 +189,11 @@ function readBuildTemplates() {
 }
 
 function writeBuildTemplates(templates: BuildTemplate[]) {
-  window.localStorage.setItem(BUILD_TEMPLATE_STORAGE_KEY, JSON.stringify(cleanTemplateList(templates)));
+  try {
+    window.localStorage.setItem(BUILD_TEMPLATE_STORAGE_KEY, JSON.stringify(cleanTemplateList(templates)));
+  } catch {
+    toast.error("Couldn't save build templates locally -- they may be lost on reload.");
+  }
 }
 
 function rulesToForm(rules?: Record<string, unknown>): PricingRuleForm {

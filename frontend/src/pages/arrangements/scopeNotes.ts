@@ -99,11 +99,38 @@ export function buildSpeciesFromNotes(notes?: string | null) {
   return scopeNoteValue(notes, "Species");
 }
 
-// Stored as `Canopy: M (42-45")`, so take the leading tier key.
+// Tier letters and the full words the backend's `builder` API `/canopy-tiers`
+// endpoint labels them with (see TIER_KEYS / TIER_LABELS in
+// backend/app/apis/builder/__init__.py): XS "Extra small", S "Small",
+// M "Medium", L "Large", XL "Extra large". Longest phrases first so "extra
+// small" wins over the bare "small" alternative.
+const CANOPY_TIER_WORDS: Record<string, string> = {
+  "extra small": "XS",
+  "extra large": "XL",
+  small: "S",
+  medium: "M",
+  large: "L",
+  xs: "XS",
+  s: "S",
+  m: "M",
+  l: "L",
+  xl: "XL",
+};
+const CANOPY_TIER_RE = new RegExp(
+  `^(${Object.keys(CANOPY_TIER_WORDS)
+    .sort((a, b) => b.length - a.length)
+    .map((word) => word.replace(" ", "\\s+"))
+    .join("|")})\\b`,
+  "i"
+);
+
+// Stored as `Canopy: M (42-45")` or `Canopy: Medium`, so take the leading
+// tier key or word.
 export function buildCanopyTierFromNotes(notes?: string | null) {
   const value = scopeNoteValue(notes, "Canopy");
-  const match = value.match(/^(XS|S|M|L|XL)\b/i);
-  return match ? match[1].toUpperCase() : "";
+  const match = value.match(CANOPY_TIER_RE);
+  if (!match) return "";
+  return CANOPY_TIER_WORDS[match[1].toLowerCase().replace(/\s+/g, " ")] || "";
 }
 
 export function buildSilhouetteFromNotes(notes?: string | null) {
