@@ -9,6 +9,7 @@ import { ProductDetailModal } from "./library/ProductDetailModal";
 import {
   listOrders, getOrder, createOrder, deleteOrder, updateItemQty, removeItem,
   setActiveOrderId, getActiveOrderId, defaultOrderName, setOrderStatus, ORDER_STATUSES,
+  downloadOrderExport,
   type OrderSummary, type OrderDetail,
 } from "utils/orders";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import EmptyState from "../components/EmptyState";
 
 export default function Orders() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [exporting, setExporting] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(getActiveOrderId());
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,10 +78,19 @@ export default function Orders() {
     if (activeId) { loadOrder(activeId); refreshList(); }
   };
 
-  const exportUrl = (format: string, supplierId?: number | null) => {
-    const q = new URLSearchParams({ format });
-    if (supplierId != null) q.set("supplier_id", String(supplierId));
-    return `/api/orders/${activeId}/export?${q.toString()}`;
+  // Exports download through apiFetch, never a plain <a href>: /api needs the
+  // Authorization header, so a link navigation comes back 401 "Not signed in".
+  const runExport = async (format: string, supplierId?: number | null, supplierName?: string | null) => {
+    if (!activeId) return;
+    const name = order?.name || defaultOrderName();
+    try {
+      setExporting(`${format}:${supplierId ?? "all"}`);
+      await downloadOrderExport(activeId, format, name, supplierId, supplierName);
+    } catch {
+      toast.error("Export failed. Check you are still signed in, then try again.");
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (
@@ -161,9 +172,9 @@ export default function Orders() {
                     className="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs font-medium text-stone-600" title="Order status">
                     {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
                   </select>
-                  <a href={exportUrl("pdf")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><FileText size={13} /> PDF</a>
-                  <a href={exportUrl("docx")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><FileType size={13} /> Word</a>
-                  <a href={exportUrl("xlsx")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><FileSpreadsheet size={13} /> Excel</a>
+                  <button type="button" onClick={() => runExport("pdf")} disabled={exporting === "pdf:all"} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50"><FileText size={13} /> {exporting === "pdf:all" ? "Preparing…" : "PDF"}</button>
+                  <button type="button" onClick={() => runExport("docx")} disabled={exporting === "docx:all"} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50"><FileType size={13} /> {exporting === "docx:all" ? "Preparing…" : "Word"}</button>
+                  <button type="button" onClick={() => runExport("xlsx")} disabled={exporting === "xlsx:all"} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50"><FileSpreadsheet size={13} /> {exporting === "xlsx:all" ? "Preparing…" : "Excel"}</button>
                   <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"><Printer size={13} /> Print</button>
                   <button onClick={() => removeOrder(order.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
                 </div>
@@ -180,7 +191,7 @@ export default function Orders() {
                         {v.supplier_login_url && (
                           <a href={v.supplier_login_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"><LogIn size={11} /> Log in</a>
                         )}
-                        <a href={exportUrl("pdf", v.supplier_id)} className="text-xs text-stone-400 hover:text-emerald-700" title="Export this vendor's PO as PDF">PO ↓</a>
+                        <button type="button" onClick={() => runExport("pdf", v.supplier_id, v.supplier_name)} className="text-xs text-stone-400 hover:text-emerald-700" title="Export this vendor's PO as PDF">PO ↓</button>
                       </div>
                       <span className="text-sm font-semibold text-emerald-800">{money(v.subtotal)}</span>
                     </div>

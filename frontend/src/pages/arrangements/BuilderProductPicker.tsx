@@ -75,6 +75,11 @@ export function BuilderProductPicker({
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
+  // Filters the picker dropped on its own because the slot's pre-applied set
+  // matched nothing, and whether the designer has edited the filters (once they
+  // have, their selection is honoured even when it returns nothing).
+  const [widened, setWidened] = useState<string[]>([]);
+  const userEdited = useRef(false);
   const seq = useRef(0);
   const suggestedQuery = initialQuery.trim();
 
@@ -106,6 +111,8 @@ export function BuilderProductPicker({
   // term goes into the box because the search ANDs its words - stacking the whole
   // vocabulary would match nothing.
   useEffect(() => {
+    setWidened([]);
+    userEdited.current = false;
     if (!scopeFilters) {
       setSel(EMPTY_CATALOG_SELECTION);
       setQuery(suggestedQuery);
@@ -144,9 +151,24 @@ export function BuilderProductPicker({
           if (s !== seq.current) return;
           const rows = (Array.isArray(data?.items) ? data.items : []) as LibraryProduct[];
           setItems((prev) => (append ? [...prev, ...rows] : rows));
-          setTotal(Number(data?.total) || 0);
+          const found = Number(data?.total) || 0;
+          setTotal(found);
           setOffset(nextOffset);
           if (!append && data?.facets) setFacets(data.facets);
+          // A slot's pre-applied vocabulary can intersect to nothing: every
+          // chip is ANDed, so ten of them from 200-odd past lines routinely
+          // match no product and the picker looks broken. Drop the narrowest
+          // group and search again, narrowest first, until something returns.
+          // Only ever the picker's own chips - never a designer's choice.
+          if (!append && nextOffset === 0 && found === 0 && !userEdited.current) {
+            const group = (["colors", "product_types", "categories"] as (keyof CatalogSelection)[])
+              .find((name) => sel[name].length > 0);
+            if (group) {
+              const dropped = sel[group];
+              setWidened((prev) => [...prev, ...dropped]);
+              setSel((prev) => ({ ...prev, [group]: [] }));
+            }
+          }
         })
         .catch(() => {
           if (s !== seq.current) return;
@@ -160,18 +182,24 @@ export function BuilderProductPicker({
   useEffect(() => { load(0, false); }, [load]);
 
   const clearSmartFilters = () => {
+    userEdited.current = true;
+    setWidened([]);
     setSel(EMPTY_CATALOG_SELECTION);
     setQuery("");
   };
 
-  const removeChip = (group: keyof CatalogSelection, value: string) =>
+  const removeChip = (group: keyof CatalogSelection, value: string) => {
+    userEdited.current = true;
     setSel((prev) => ({ ...prev, [group]: prev[group].filter((item) => item !== value) }));
+  };
 
-  const toggleFacet = (group: keyof CatalogSelection, value: string) =>
+  const toggleFacet = (group: keyof CatalogSelection, value: string) => {
+    userEdited.current = true;
     setSel((prev) => ({
       ...prev,
       [group]: prev[group].includes(value) ? prev[group].filter((item) => item !== value) : [...prev[group], value],
     }));
+  };
 
   const activeChipCount = sel.categories.length + sel.colors.length + sel.product_types.length + (activeQuery ? 1 : 0);
   // A slot's excludes are enforced by asking for its own categories instead:
@@ -294,6 +322,7 @@ export function BuilderProductPicker({
               ? "Searching..."
               : `${items.length.toLocaleString()} of ${total.toLocaleString()} match${total === 1 ? "" : "es"}`}
             {activeChipCount > 0 ? ` · ${activeChipCount} filter${activeChipCount === 1 ? "" : "s"}` : " · whole catalog"}
+            {widened.length > 0 ? ` · widened: nothing matched ${widened.join(", ")}` : ""}
           </p>
           <div className="flex items-center gap-2">
             {viewMode === "grid" && (
