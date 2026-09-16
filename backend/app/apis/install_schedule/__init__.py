@@ -42,6 +42,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.apis.user_context import get_request_user_id
+from app.libs import client_season
 from app.libs.db import ensure_schema_once, get_conn
 from app.libs.jsonutil import loads_json as _loads
 from app.libs.season import season_for
@@ -339,79 +340,44 @@ async def get_state(version: str, season: str | None = None) -> dict:
 
 
 # Leaf & Ledger is the source of truth for whether a client is installing, so a
-# removal made in the scheduler has to reach the client record -- not stay in
-# this tool's own state where the Clients tab never sees it. Before this, a
-# client pulled from the season still had a 2026 client_activity row reading
-# "Scheduled 2026-11-25", which is what the Clients tab showed and what the
-# scheduler's own popup contradicted.
+# removal (or a hold) made in the scheduler has to reach the client record --
+# not stay in this tool's own state where the Clients tab never sees it. Before
+# this, a client pulled from the season still had a 2026 client_activity row
+# reading "Scheduled 2026-11-25", which is what the Clients tab showed and what
+# the scheduler's own popup contradicted.
 #
-# summarize() in scheduler/sync_clients.py builds that summary from `detail`,
-# and `detail` keeps the whole original record -- install_date, total, fees. So
-# marking is reversible: set the flag and rewrite the summary, and putting a
-# client back can rebuild the original line from what is still there.
-#
-# WORDING: these two strings are stored in client_activity.summary and rendered
-# verbatim by the Clients tab, next to a badge that ALREADY shows the season
-# year. They must match scheduler/sync_clients.py exactly -- both files write
-# the same rows, and a disagreement means the line silently changes wording
-# depending on which path last touched the client. Change them in both, and
-# run scheduler/archive/backfill_summary_wording.py for the rows already stored.
-#
-# "this year" and "2026 season" were both wrong here: redundant next to the
-# badge, and actively misleading once the season turns over -- a 2026 row read
-# "Not installing this year" while the app was planning 2027.
-NOT_INSTALLING_SUMMARY = "Not installing"
-#: Fallback when no install date is on record. Not "not scheduled" -- for the
-#: older seasons the date simply was never tracked, which is a different thing.
-NO_DATE_SUMMARY = "No date recorded"
+# The summary wording, the flag names and the rule for what survives a re-sync
+# all live in app.libs.client_season, shared with scheduler/sync_clients.py
+# and the Clients tab's own season editor -- one summarize(), not three.
+NOT_INSTALLING_SUMMARY = client_season.NOT_INSTALLING_SUMMARY
+NO_DATE_SUMMARY = client_season.NO_DATE_SUMMARY
 
 
-def _mdy(iso_date: str) -> str:
-    """ISO "YYYY-MM-DD" -> "MM/DD/YYYY" -- US format, matching the scheduler's
-    own fmtMDYYYY (user, 2026-09-04). Anything not cleanly YYYY-MM-DD is
-    handed back unchanged rather than raising, since this only ever formats
-    a date the scheduler itself already produced."""
-    parts = iso_date.split("-")
-    if len(parts) != 3:
-        return iso_date
-    y, m, d = parts
-    return f"{m}/{d}/{y}"
-
-
-def _restored_summary(detail: dict, season: str) -> str:
-    """Rebuild what summarize() would have produced, from the kept detail.
-
-    `season` is no longer part of the text (the badge next to it already says
-    the year) but stays in the signature: the caller has it, and the summary
-    is the one place a future season-specific wording would go.
-    """
-    bits = []
-    if detail.get("install_date"):
-        bits.append(f"Scheduled {_mdy(detail['install_date'])}")
-    else:
-        bits.append(NO_DATE_SUMMARY)
-    total = detail.get("total")
-    if total is None and detail.get("install_fee") is not None:
-        total = round((detail.get("install_fee") or 0)
-                      + (detail.get("takedown_fee") or 0)
-                      + (detail.get("storage_fee") or 0), 2)
-    if total:
-        bits.append(f"${float(total):,.0f}")
-    return " · ".join(bits)
-
-
-async def _reconcile_not_installing(
-    conn, season: str, names: list[str], dates: dict[str, str] | None = None
+async def _reconcile_flags(
+    conn,
+    season: str,
+    not_installing: list[str],
+    hold: list[str] | None = None,
+    dates: dict[str, str] | None = None,
 ) -> dict:
-    """Make client_activity agree with the scheduler about who is installing.
+    """Make client_activity agree with the scheduler about who is installing
+    and who is on hold.
 
     Idempotent and narrow: it only ever touches this season's christmas_install
-    rows, and only the ones whose flag disagrees with `names`. Both directions
-    are handled, so putting a client back restores the line rather than leaving
-    a permanent "not installing" behind.
+    rows, and only the ones whose flags disagree with the lists. Both
+    directions are handled, so putting a client back restores the line rather
+    than leaving a permanent "not installing" behind. Edits go through
+    client_season.apply_edits so they are stamped exactly like an edit made on
+    the Clients tab, and the summary is rebuilt from the row, not composed here.
     """
-    wanted = {n.strip().lower() for n in names if isinstance(n, str) and n.strip()}
-    # Keyed the same way `wanted` is matched -- name, case/whitespace-folded --
+    def _fold(names):
+        return {n.strip().lower() for n in (names or []) if isinstance(n, str) and n.strip()}
+
+    want_out = _fold(not_installing)
+    # hold=None means the page did not say (an older build): leave holds as
+    # they are rather than reading "nothing sent" as "nobody is on hold".
+    want_hold = (_fold(hold) - want_out) if hold is not None else None
+    # Keyed the same way the names are matched -- case/whitespace-folded --
     # so a marking that also knows the date the client was pulled off of can
     # say so, instead of just "not installing" with nothing to compare against
     # what staff remember booking (user, 2026-09-04).
@@ -421,33 +387,38 @@ async def _reconcile_not_installing(
     }
     rows = await conn.fetch(
         "SELECT ca.id, ca.summary, ca.detail, cl.name, "
-        "       COALESCE((ca.detail->>'not_installing')::boolean, false) AS flagged "
+        "       COALESCE((ca.detail->>'not_installing')::boolean, false) AS flagged, "
+        "       COALESCE((ca.detail->>'hold')::boolean, false) AS held "
         "  FROM client_activity ca JOIN clients cl ON cl.id = ca.client_id "
         " WHERE ca.season = $1 AND ca.kind = 'christmas_install'",
         season,
     )
     marked = cleared = 0
     for r in rows:
-        is_wanted = (r["name"] or "").strip().lower() in wanted
-        if is_wanted == r["flagged"]:
+        key = (r["name"] or "").strip().lower()
+        is_out = key in want_out
+        is_hold = (key in want_hold) if want_hold is not None else bool(r.get("held"))
+        if is_out == bool(r["flagged"]) and is_hold == bool(r.get("held")):
             continue  # already agrees -- most rows, most saves
         detail = _loads(r["detail"]) or {}
         if not isinstance(detail, dict):
             detail = {}
-        if is_wanted:
-            detail["not_installing"] = True
-            was_on = dates_by_name.get((r["name"] or "").strip().lower())
-            summary = f"{NOT_INSTALLING_SUMMARY} — previously scheduled {_mdy(was_on)}" if was_on \
-                else NOT_INSTALLING_SUMMARY
+        edits: dict = {}
+        if is_out != bool(r["flagged"]):
+            edits["not_installing"] = is_out
+            if is_out and dates_by_name.get(key):
+                detail["was_scheduled"] = dates_by_name[key]
+        if is_hold != bool(r.get("held")):
+            edits["hold"] = is_hold
+        detail = client_season.apply_edits(detail, edits)
+        if is_out or is_hold:
             marked += 1
         else:
-            detail.pop("not_installing", None)
-            summary = _restored_summary(detail, season)
             cleared += 1
         await conn.execute(
             "UPDATE client_activity SET summary = $2, detail = $3::jsonb, updated_at = now() "
             " WHERE id = $1",
-            r["id"], summary, json.dumps(detail, default=str),
+            r["id"], client_season.summarize(detail), json.dumps(detail, default=str),
         )
     return {"marked": marked, "cleared": cleared}
 
@@ -537,22 +508,28 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
                 v,
                 MAX_HISTORY_PER_VERSION,
             )
-            # Write the not-installing decision through to the client record,
-            # inside the same transaction as the state save so the two cannot
-            # disagree if one half fails.
+            # Write the not-installing / on-hold decisions through to the
+            # client record, inside the same transaction as the state save so
+            # the two cannot disagree if one half fails.
             #
             # Keyed on the field being PRESENT, not on it being non-empty: a
             # page cached from before this shipped sends no such key, and
             # treating that as "nobody is excluded" would clear every flag the
             # newer clients had set. Absent means "this client has nothing to
-            # say", which is different from "the list is empty".
+            # say", which is different from "the list is empty". `holdNames`
+            # is newer still, so it is read the same way and an older page
+            # that does not send it leaves holds exactly as they are.
             if "notInstallingNames" in state:
                 names = state.get("notInstallingNames") or []
                 raw_dates = state.get("notInstallingDates")
                 dates = raw_dates if isinstance(raw_dates, dict) else {}
+                holds = state.get("holdNames") if "holdNames" in state else None
                 if payload_season and isinstance(names, list):
                     try:
-                        await _reconcile_not_installing(conn, payload_season, names, dates)
+                        await _reconcile_flags(
+                            conn, payload_season, names,
+                            holds if isinstance(holds, list) else None, dates,
+                        )
                     except Exception as exc:  # noqa: BLE001
                         # The schedule save is the user's actual action and must
                         # not fail because the write-through did; the next save

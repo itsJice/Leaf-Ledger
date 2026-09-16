@@ -92,6 +92,9 @@
   "/api/clients/{client_id}/comments/{activity_id}": [
     "DELETE"
   ],
+  "/api/clients/{client_id}/seasons/{season}": [
+    "PUT"
+  ],
   "/api/dashboard/recent-designs": [
     "GET"
   ],

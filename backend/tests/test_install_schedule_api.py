@@ -134,22 +134,62 @@ def test_put_state_statement_sequence_and_history_trim(fake_db, fake_request):
     assert not fake_db.seen("client_activity")
 
 
-def test_put_state_reconciles_not_installing(fake_db, fake_request):
+def test_put_state_reconciles_not_installing(fake_db, fake_request, monkeypatch):
+    from app.libs import client_season
+    monkeypatch.setattr(client_season, "now_iso", lambda: "T")
     fake_db.on_fetch("FROM client_activity ca JOIN clients cl", [
         {"id": 1, "summary": "Scheduled 11/25/2026", "name": " smith ", "flagged": False,
          "detail": '{"install_date": "2026-11-25", "total": 1200}'},
         {"id": 2, "summary": "Not installing", "name": "Jones", "flagged": True,
-         "detail": {"not_installing": True, "install_date": "2026-12-01", "total": 950.4}},
+         "detail": {"not_installing": True, "install_date": "2026-12-01", "total": 950.4,
+                    "was_scheduled": "2026-12-01", "app_edits": {"not_installing": "T0"}}},
         {"id": 3, "summary": "x", "name": "Lee", "flagged": False, "detail": None},
     ])
     state = {"season": "2026", "notInstallingNames": ["Smith"], "notInstallingDates": {"SMITH": "2026-11-25"}}
     run(sched.put_state(fake_request(), {"version": "build-1", "state": state}))
-    assert [a for _, a in fake_db.calls("UPDATE client_activity")] == [
+    calls = [(i, s, json.loads(d)) for (i, s, d) in (a for _, a in fake_db.calls("UPDATE client_activity"))]
+    assert calls == [
+        # marked: the flag is stamped as an app edit so a re-sync keeps it
         (1, "Not installing — previously scheduled 11/25/2026",
-         '{"install_date": "2026-11-25", "total": 1200, "not_installing": true}'),
-        (2, "Scheduled 12/01/2026 · $950", '{"install_date": "2026-12-01", "total": 950.4}'),
+         {"install_date": "2026-11-25", "total": 1200, "was_scheduled": "2026-11-25",
+          "not_installing": True, "app_edits": {"not_installing": "T"}}),
+        # cleared: flag, remembered date and stamp all go; the line is rebuilt
+        (2, "Scheduled 12/01/2026 · $950", {"install_date": "2026-12-01", "total": 950.4}),
     ]
     assert [a for _, a in fake_db.calls("FROM client_activity")] == [("2026",)]
+
+
+def test_put_state_reconciles_hold(fake_db, fake_request, monkeypatch):
+    from app.libs import client_season
+    monkeypatch.setattr(client_season, "now_iso", lambda: "T")
+    fake_db.on_fetch("FROM client_activity ca JOIN clients cl", [
+        {"id": 1, "summary": "Scheduled 11/25/2026", "name": "Smith", "flagged": False, "held": False,
+         "detail": '{"install_date": "2026-11-25"}'},
+        {"id": 2, "summary": "On hold · Scheduled 12/01/2026", "name": "Jones", "flagged": False, "held": True,
+         "detail": {"install_date": "2026-12-01", "hold": True, "app_edits": {"hold": "T0"}}},
+        # on hold AND not installing: not-installing wins, hold is dropped
+        {"id": 3, "summary": "x", "name": "Lee", "flagged": False, "held": False, "detail": {}},
+    ])
+    state = {"season": "2026", "notInstallingNames": ["Lee"], "holdNames": ["Smith", "Lee"]}
+    run(sched.put_state(fake_request(), {"version": "build-1", "state": state}))
+    calls = [(i, s, json.loads(d)) for (i, s, d) in (a for _, a in fake_db.calls("UPDATE client_activity"))]
+    assert calls == [
+        (1, "On hold · Scheduled 11/25/2026",
+         {"install_date": "2026-11-25", "hold": True, "app_edits": {"hold": "T"}}),
+        (2, "Scheduled 12/01/2026", {"install_date": "2026-12-01"}),
+        (3, "Not installing", {"not_installing": True, "app_edits": {"not_installing": "T"}}),
+    ]
+
+
+def test_put_state_without_hold_names_leaves_holds_alone(fake_db, fake_request):
+    fake_db.on_fetch("FROM client_activity ca JOIN clients cl", [
+        {"id": 2, "summary": "On hold · Scheduled 12/01/2026", "name": "Jones", "flagged": False, "held": True,
+         "detail": {"install_date": "2026-12-01", "hold": True}},
+    ])
+    # an older cached page: sends notInstallingNames but has never heard of holds
+    state = {"season": "2026", "notInstallingNames": []}
+    run(sched.put_state(fake_request(), {"version": "build-1", "state": state}))
+    assert not fake_db.seen("UPDATE client_activity")
 
 
 @pytest.mark.parametrize(
