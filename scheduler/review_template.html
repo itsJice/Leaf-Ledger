@@ -220,6 +220,11 @@ dialog option:disabled{color:#b6b3ae}
 .mvcrewrow .mvcrewempty{color:var(--faint);font-style:italic}
 #sfdlg{max-width:500px}
 #ncdlg{max-width:380px}
+.ncsuggest{border:1px solid var(--line);border-radius:6px;background:#fff;max-height:190px;overflow:auto;
+  margin:2px 0 4px;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.ncsuggest div{padding:6px 9px;cursor:pointer;line-height:1.3}
+.ncsuggest div:hover,.ncsuggest div.on{background:var(--brand-soft)}
+.ncsuggest .zip{color:var(--mut)}
 .ncerr{font-size:11.5px;color:var(--warn-ink);margin-top:2px;min-height:14px}
 #histdlg{max-width:440px}
 .histsub{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
@@ -945,7 +950,8 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
   <label class="nclabel">Name</label>
   <input id="ncname" type="text" placeholder="e.g. Client X - Reinstall, or Client Y - Callback">
   <label class="nclabel">Address</label>
-  <input id="ncaddr" type="text" placeholder="Street, city, state zip">
+  <input id="ncaddr" type="text" placeholder="Start typing the street — pick a match to fill city, state and ZIP" autocomplete="off">
+  <div id="ncsuggest" class="ncsuggest" hidden></div>
   <label class="nclabel">Est. install time (hours)</label>
   <input id="nchours" type="number" step="0.25" min="0" value="1">
   <label class="nclabel">Crew size (people, optional)</label>
@@ -4004,7 +4010,13 @@ function openMoveDlg(row,presetDate){
     // Quick answer to "which crew should I drag this onto" -- every crew's
     // current property list for this date, at a glance, before picking one.
     const info=document.getElementById('mvcrewinfo');
-    info.innerHTML=BASE_CREWS.map(cr=>{
+    // Labels are POSITIONAL per day (crewLabel) -- the same numbers the day
+    // cards and the dropdown show. Listing the STORED names here meant that
+    // on a date where stored Crew 2 was off, the list said "Crew 3: Crane
+    // Worldwide..." while the dropdown called that same day "Crew 2"
+    // (user, 2026-09-16: "look at the crew numbers").
+    const working=[...new Set(existing.map(d=>d.crew))].sort();
+    const rows=working.map(cr=>{
       // A crew can have more than one day-instance here (stacked/overflow
       // job) -- fold every occurrence's stops together for the glance view.
       const ds=existing.filter(x=>x.crew===cr);
@@ -4012,10 +4024,19 @@ function openMoveDlg(row,presetDate){
       const isSel=csel.value.startsWith(`${dt}|${cr}|`);
       return `<div class="mvcrewrow${isSel?' mvsel':''}">`
         +`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
-        +`<span class="mvcrewnames"><b>${cr}</b>`
-        +(names.length?': '+names.join(', '):(ds.length?' <span class="mvcrewempty">(only this stop)</span>':' <span class="mvcrewempty">not working this date</span>'))
+        +`<span class="mvcrewnames"><b>${crewLabel(ds[0])}</b>`
+        +(names.length?': '+names.join(', '):' <span class="mvcrewempty">(only this stop)</span>')
         +'</span></div>';
-    }).join('');
+    });
+    const spare=BASE_CREWS.find(cr=>!working.includes(cr));
+    if(spare){
+      const isSel=csel.value.startsWith(`${dt}|${spare}|`);
+      rows.push(`<div class="mvcrewrow${isSel?' mvsel':''}">`
+        +`<span class="cdot" style="background:${CREW_COLORS[spare]||'#555'}"></span>`
+        +`<span class="mvcrewnames"><b>+ another crew</b> <span class="mvcrewempty">`
+        +`${working.length?'not working this date — pick "new day" to start one':'nobody works this date yet'}</span></span></div>`);
+    }
+    info.innerHTML=rows.join('');
     const note=document.getElementById('mvnote');
     const sel=csel.value;
     if(sel){
@@ -4041,11 +4062,17 @@ function openMoveDlg(row,presetDate){
       const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
       return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${crewLabel(d)}${tag}${dupe}`
            + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
-    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
-      const id=`${dt}|${cr}|0`;
+    // One "start another crew" option, not one per stored name: crew
+    // numbers are positional per day, so which stored slot a new day lands
+    // in is meaningless to staff (and its label would shift the moment the
+    // day exists). The stored name stays in the id so nothing downstream moves.
+    const working=[...new Set(existing.map(d=>d.crew))].sort();
+    const spare=BASE_CREWS.find(cr=>!working.includes(cr));
+    if(spare){
+      const id=`${dt}|${spare}|0`;
       const chk=checkPlan(planFor(row, id));
-      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>${cr} (new day)`
-              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);});
+      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>+ another crew (new day)`
+              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);}
     csel.innerHTML=opts.join('');
     renderCrewInfo();
   };
@@ -4227,6 +4254,74 @@ function openPutBackDialog(name, addr){
   ncAfterCreate=row=>openSlotFinder(row);
   ncdlg.showModal();
 }
+// ---------- address suggestions while typing (Photon / OpenStreetMap) ----------
+// Staff usually have the street but not the ZIP (user, 2026-09-16), so the
+// address box offers matching addresses as you type and a pick fills in
+// city, state and ZIP. Photon is OSM's typeahead service (no key, CORS open,
+// fair use); results are biased toward the depot. Nominatim -- used for the
+// final rooftop lookup below -- forbids autocomplete traffic, so it is not
+// used for this. A street-level match keeps the house number you typed.
+const DEPOT_LL={lat:29.8306, lon:-95.4546};
+const STATE_ABBR={Texas:'TX', Louisiana:'LA', Oklahoma:'OK', Arkansas:'AR', 'New Mexico':'NM'};
+let ncSugTimer=null, ncSugAbort=null, ncSugItems=[], ncSugIdx=-1;
+function ncSuggestFormat(f, typed){
+  const p=f.properties||{};
+  const num=p.housenumber || ((typed.match(/^\s*(\d+[A-Za-z]?)\s+/)||[])[1]) || '';
+  const street=p.street || (p.type==='street' ? p.name : '');
+  const place=(p.type!=='street' && p.name && p.name!==street) ? p.name : '';
+  const line1=[num, street].filter(Boolean).join(' ') || place;
+  return {line1, place: place && place!==line1 ? place : '',
+          city:p.city||p.district||'', st:STATE_ABBR[p.state]||p.state||'', zip:p.postcode||'',
+          lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]};
+}
+async function ncFetchSuggestions(q){
+  if(ncSugAbort) ncSugAbort.abort();
+  const ctl=new AbortController(); ncSugAbort=ctl;
+  const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`
+           +`&lat=${DEPOT_LL.lat}&lon=${DEPOT_LL.lon}`;
+  const r=await fetch(url,{signal:ctl.signal});
+  if(!r.ok) return [];
+  const j=await r.json();
+  return (j.features||[])
+    .filter(f=>(f.properties||{}).country==='United States' && ['house','street'].includes((f.properties||{}).type))
+    .map(f=>ncSuggestFormat(f,q))
+    .filter((s,i,arr)=>s.line1 && s.zip && arr.findIndex(t=>t.line1===s.line1&&t.zip===s.zip)===i);
+}
+function ncRenderSuggestions(){
+  const box=document.getElementById('ncsuggest');
+  if(!ncSugItems.length){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false;
+  box.innerHTML=ncSugItems.map((s,i)=>`<div class="${i===ncSugIdx?'on':''}" data-i="${i}">`
+    +`${esc(s.line1)}${s.place?` <span class="zip">(${esc(s.place)})</span>`:''}`
+    +`<span class="zip"> · ${esc([s.city,s.st].filter(Boolean).join(', '))} ${esc(s.zip)}</span></div>`).join('');
+  [...box.children].forEach(el=>{ el.onmousedown=e=>{ e.preventDefault(); ncPickSuggestion(+el.dataset.i); }; });
+}
+function ncPickSuggestion(i){
+  const s=ncSugItems[i]; if(!s) return;
+  document.getElementById('ncaddr').value=[s.line1, s.city, [s.st, s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  ncSugItems=[]; ncSugIdx=-1; ncRenderSuggestions();
+  document.getElementById('nchours').focus();
+}
+(function wireAddressSuggestions(){
+  const inp=document.getElementById('ncaddr');
+  inp.oninput=()=>{
+    clearTimeout(ncSugTimer);
+    const q=inp.value.trim();
+    if(q.length<4){ ncSugItems=[]; ncRenderSuggestions(); return; }
+    ncSugTimer=setTimeout(async()=>{
+      try{ ncSugItems=await ncFetchSuggestions(q); ncSugIdx=-1; ncRenderSuggestions(); }
+      catch(e){ if(e.name!=='AbortError'){ ncSugItems=[]; ncRenderSuggestions(); } }
+    }, 250);
+  };
+  inp.onkeydown=e=>{
+    if(!ncSugItems.length) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); ncSugIdx=Math.min(ncSugIdx+1, ncSugItems.length-1); ncRenderSuggestions(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); ncSugIdx=Math.max(ncSugIdx-1, 0); ncRenderSuggestions(); }
+    else if(e.key==='Enter'){ e.preventDefault(); ncPickSuggestion(ncSugIdx<0?0:ncSugIdx); }
+    else if(e.key==='Escape'){ ncSugItems=[]; ncRenderSuggestions(); }
+  };
+  inp.onblur=()=>setTimeout(()=>{ ncSugItems=[]; ncRenderSuggestions(); }, 150);
+})();
 async function geocodeQuery(q){
   const res = await fetch(`https://nominatim.openstreetmap.org/search`
     + `?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`);
