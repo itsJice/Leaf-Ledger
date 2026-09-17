@@ -78,6 +78,22 @@ header h1 svg{color:var(--brand)}
 #main{flex:1;display:flex;min-height:0}
 #side{width:460px;min-width:380px;overflow-y:auto;padding:14px;background:var(--page)}
 #map{flex:1}
+/* Phone: the 380-460px side panel cannot sit beside the map, so the stop
+   list stacks above it and each takes its share of the height. Tablets and
+   up keep the side-by-side layout untouched. */
+@media(max-width:767px){
+  header{padding:12px 14px 10px}
+  #main{flex-direction:column}
+  #side{width:100%;min-width:0;flex:0 0 55%;max-height:55%;padding:10px}
+  #map{flex:1 1 45%;min-height:0}
+  #calwrap,#staffwrap{padding:12px 12px 32px}
+  /* Sixty date chips wrapped into ~700px of header and pushed the map and
+     the stop list off the bottom of the screen. One swipeable row instead. */
+  #datestrip{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;margin-top:8px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  #datestrip .dchip,#datestrip .dchipwrap{flex:none;white-space:nowrap}
+  #searchwrap{margin-left:0;width:100%}
+}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:14px;
   box-shadow:0 1px 2px rgba(41,37,36,.05)}
 .card.approved{border:2px solid var(--ok)}

@@ -762,7 +762,7 @@ export default function Suppliers() {
   return (
     <Layout>
       {/* Page header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Suppliers</h1>
           <p className="text-xs text-stone-500 mt-0.5">

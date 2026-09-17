@@ -174,7 +174,7 @@ export default function App() {
   return (
     <Layout>
       <header
-        className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-4 sm:px-10 py-4"
+        className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
@@ -188,7 +188,7 @@ export default function App() {
         </div>
         <button
           onClick={() => navigate("/designs/new")}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
           style={{ backgroundColor: "rgb(var(--ll-brand))" }}
         >
           <Plus size={15} strokeWidth={2.2} />
@@ -198,7 +198,7 @@ export default function App() {
 
       <div className="max-w-6xl px-4 sm:px-10 py-8">
         {/* Stats — each one is a doorway to the page behind it. */}
-        <div className="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STATS.map(({ label, value, sub, icon: Icon, path }) => (
             <button
               key={label}

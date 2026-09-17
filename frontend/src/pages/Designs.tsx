@@ -158,12 +158,12 @@ export default function Designs() {
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
               <Shapes size={18} className="text-emerald-700" />
               Designs
             </h1>
-            <p className="mt-0.5 text-xs text-stone-500">
+            <p className="mt-0.5 hidden text-xs text-stone-500 sm:block">
               Every build in one place — filter by client, project, group &amp; build type.
             </p>
           </div>

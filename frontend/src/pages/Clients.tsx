@@ -896,7 +896,7 @@ export default function Clients() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
             <button onClick={showAllClients} className="hover:underline">Clients</button>
