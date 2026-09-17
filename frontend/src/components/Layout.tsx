@@ -5,7 +5,6 @@ import {
   Package,
   LogOut,
   ChevronRight,
-  ChevronDown,
   Monitor,
   Moon,
   Sun,
@@ -322,7 +321,7 @@ export default function Layout({ children }: Props) {
         <div className="flex items-center gap-1">
           <Link
             to="/clients"
-            className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
+            className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
               isActive("/clients") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
           >
@@ -340,11 +339,11 @@ export default function Layout({ children }: Props) {
           </Link>
           <button
             onClick={() => setClientsOpen((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-all hover:bg-white/5 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/5 hover:text-white"
             title={clientsOpen ? "Hide client list" : "Show client list"}
             aria-label={clientsOpen ? "Hide client list" : "Show client list"}
           >
-            {clientsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <ChevronRight size={14} className={`transition-transform ${clientsOpen ? "rotate-90" : ""}`} />
           </button>
         </div>
         {clientsOpen && (
@@ -355,7 +354,7 @@ export default function Layout({ children }: Props) {
                 <Link
                   key={client.name}
                   to={`/clients?client=${encodeURIComponent(client.name)}`}
-                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition-all ${
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition-colors ${
                     active ? SUBTREE_ITEM_ACTIVE : SUBTREE_ITEM_IDLE
                   }`}
                   title={`${client.count} project${client.count === 1 ? "" : "s"}`}
@@ -382,7 +381,7 @@ export default function Layout({ children }: Props) {
         <div className="flex items-center gap-1">
           <Link
             to="/projects"
-            className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
+            className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
               isActive("/projects") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
           >
@@ -391,11 +390,11 @@ export default function Layout({ children }: Props) {
           </Link>
           <button
             onClick={() => setProjectsOpen((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-all hover:bg-white/5 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/5 hover:text-white"
             title={projectsOpen ? "Hide project list" : "Show project list"}
             aria-label={projectsOpen ? "Hide project list" : "Show project list"}
           >
-            {projectsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <ChevronRight size={14} className={`transition-transform ${projectsOpen ? "rotate-90" : ""}`} />
           </button>
         </div>
         {projectsOpen && (
@@ -406,7 +405,7 @@ export default function Layout({ children }: Props) {
                 <Link
                   key={project.id}
                   to={`/projects?id=${project.id}`}
-                  className={`rounded-lg px-2 py-1.5 text-left text-xs transition-all ${
+                  className={`rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
                     active ? SUBTREE_ITEM_ACTIVE : SUBTREE_ITEM_IDLE
                   }`}
                   title={`${project.client_name || "No client"} · ${project.name}`}
@@ -475,7 +474,7 @@ export default function Layout({ children }: Props) {
                       <Link
                         key={path}
                         to={path}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left w-full ${
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left w-full ${
                           active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
                         }`}
                       >
@@ -504,7 +503,7 @@ export default function Layout({ children }: Props) {
                 <button
                   key={option.mode}
                   onClick={() => setMode(option.mode)}
-                  className={`flex h-6 flex-1 items-center justify-center rounded-md transition-all ${
+                  className={`flex h-6 flex-1 items-center justify-center rounded-md transition-colors ${
                     selected ? "bg-emerald-700/50 text-emerald-200" : "text-white/40 hover:bg-white/5 hover:text-white/80"
                   }`}
                   title={option.label}

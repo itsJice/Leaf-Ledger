@@ -2402,7 +2402,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                       onClick={goBackBuilderStep}
                       tabIndex={builderStep !== "type" ? 0 : -1}
                       aria-hidden={builderStep === "type"}
-                      className={`flex w-[78px] transform-gpu items-center justify-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-md active:scale-[0.98] ${
+                      className={`flex w-[78px] transform-gpu items-center justify-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-md ${
                         builderStep !== "type" ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"
                       }`}
                     >
@@ -2420,7 +2420,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         }
                         goToBuilderStep(step);
                       }}
-                      className={`transform-gpu whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.98] ${
+                      className={`transform-gpu whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 ease-out hover:-translate-y-0.5 ${
                         builderStep === step
                           ? "scale-[1.02] bg-stone-900 text-white shadow-[0_0_0_2px_rgb(var(--ll-focus-gold))]"
                           : "scale-100 bg-stone-100 text-stone-500 shadow-none hover:bg-stone-200 hover:text-stone-700"
@@ -2688,7 +2688,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                               <button
                                                 type="button"
                                                 onClick={() => openBucketCatalog(activeBucket.id, { label: part.label, index: part.partIndex })}
-                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm active:scale-[0.98]"
+                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm"
                                               >
                                                 {selectedItems.length ? "Add more" : "Product"}
                                               </button>
@@ -2802,7 +2802,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                               <button
                                                 type="button"
                                                 onClick={() => openBucketCatalog(activeBucket.id, { label: part.label, index: part.partIndex })}
-                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm active:scale-[0.98]"
+                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm"
                                               >
                                                 {selectedItems.length ? "Add more" : "Product"}
                                               </button>
@@ -2883,7 +2883,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                   <button
                                     type="button"
                                     onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
-                                    className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-white hover:text-emerald-900 hover:shadow-sm active:scale-[0.98]"
+                                    className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-white hover:text-emerald-900 hover:shadow-sm"
                                   >
                                     {primary ? "Add more" : "Product"}
                                   </button>
@@ -2961,7 +2961,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                             <button
                                               type="button"
                                               onClick={() => openBucketCatalog(activeBucket.id, { label: part.label, index: partIndex })}
-                                              className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-stone-900 hover:shadow-md active:scale-[0.98]"
+                                              className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-stone-900 hover:shadow-md"
                                             >
                                               {selectedItems.length ? "Add more" : "Select product"}
                                             </button>

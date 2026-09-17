@@ -229,7 +229,7 @@ export default function App() {
               <div
                 key={title}
                 onClick={() => navigate(path)}
-                className={`group flex cursor-pointer flex-col gap-3 rounded-xl border bg-white p-5 transition-all hover:shadow-sm ${
+                className={`group flex cursor-pointer flex-col gap-3 rounded-xl border bg-white p-5 transition-shadow hover:shadow-sm ${
                   primary ? "border-emerald-300" : "border-stone-200 hover:border-stone-300"
                 }`}
               >

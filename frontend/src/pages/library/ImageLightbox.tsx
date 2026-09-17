@@ -31,7 +31,7 @@ export function ImageLightbox({ images, index, onIndex, onClose }: {
   const rawUrl = images[index] || "";
 
   return (
-    <div className="fixed inset-0 z-[70] flex select-none items-center justify-center bg-black/90" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[70] flex select-none items-center justify-center bg-black/90 ll-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <button onClick={onClose} title="Close (Esc)" className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white/80 hover:bg-white/20 hover:text-white">
         <X size={20} />
       </button>

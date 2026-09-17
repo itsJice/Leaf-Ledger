@@ -55,11 +55,11 @@ export function NewProjectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40">
-      <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 ll-overlay">
+      <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl ll-modal">
         <div className="flex items-center justify-between border-b border-stone-100 px-6 py-4">
           <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>New Project</h2>
-          <button type="button" onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={18} /></button>
+          <button type="button" onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void handleCreate(); }}>
           <div className="space-y-4 px-6 py-5">

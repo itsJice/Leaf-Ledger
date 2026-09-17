@@ -418,8 +418,8 @@ function Worksheet({ job, run, me }: { job: Job; run: Run; me?: string }) {
       </div>
 
       {plan && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30 p-4" onClick={() => setPlan(null)}>
-          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30 p-4 ll-overlay" onClick={() => setPlan(null)}>
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl ll-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-stone-800">Where should these lines go?</h3>
             <p className="mt-1 text-xs text-stone-500">Some vendors already have an open purchase order. Add to it, or start a new one.</p>
             <div className="mt-4 flex flex-col gap-3">

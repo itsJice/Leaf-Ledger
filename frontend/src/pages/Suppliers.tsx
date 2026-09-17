@@ -146,13 +146,13 @@ function SupplierModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ll-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 ll-modal">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
           <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             {form.id ? "Edit Supplier" : "Add Supplier"}
           </h2>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={18} /></button>
+          <button onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         {/* terms, contacts and shipping make this form far taller than the
             viewport on a laptop -- scroll the body, keep header/footer fixed */}
