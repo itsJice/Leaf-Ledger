@@ -576,7 +576,7 @@ export default function TreeCounts() {
 
   return (
     <Layout>
-      <header className="border-b border-stone-200 px-10 py-5">
+      <header className="border-b border-stone-200 px-4 sm:px-10 py-5">
         <h1
           className="flex items-center gap-2 text-xl font-semibold text-stone-800"
           style={{ fontFamily: "Georgia, serif" }}

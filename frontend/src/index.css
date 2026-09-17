@@ -987,6 +987,15 @@ html.dark {
     transform-origin: center;
     animation: ll-pop-in var(--dur-modal) var(--ease-out-strong) both;
   }
+  /* On a phone a tall form can outgrow the screen (more so with the keyboard
+     up). Cap it to the viewport and let the panel itself scroll. Desktop is
+     left alone so modals that manage their own scrolling body keep doing so. */
+  @media (max-width: 767px) {
+    .ll-modal {
+      max-height: calc(100dvh - 2rem);
+      overflow-y: auto;
+    }
+  }
   /* An anchored popover / menu: scales from the edge it hangs off. */
   .ll-popover {
     transform-origin: var(--ll-popover-origin, top);

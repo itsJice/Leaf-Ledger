@@ -317,7 +317,7 @@ export function ProductView({
         {!hideFavoritesToggle && (
           <button
             onClick={() => setFavoritesOnly((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition ${
               favoritesOnly
                 ? "border-orange-300 bg-orange-50 text-orange-700"
                 : "border-stone-200 bg-white text-stone-500 hover:text-stone-700"
@@ -356,7 +356,7 @@ export function ProductView({
             <button
               onClick={handleSyncAll}
               disabled={syncing || products.length === 0}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-stone-200 bg-white text-stone-600 hover:text-emerald-700 hover:border-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-stone-200 bg-white text-stone-600 hover:text-emerald-700 hover:border-emerald-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
               {syncing ? "Syncing…" : "Sync Prices"}
@@ -370,7 +370,7 @@ export function ProductView({
         <button
           onClick={resetFilters}
           disabled={!hasActiveDropdownFilters}
-          className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-stone-200 disabled:hover:text-stone-500"
+          className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-500 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-stone-200 disabled:hover:text-stone-500"
         >
           <RotateCcw size={12} /> Reset filters
         </button>

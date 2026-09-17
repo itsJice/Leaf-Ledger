@@ -154,7 +154,7 @@ export default function Designs() {
   return (
     <Layout>
       <header
-        className="sticky top-0 z-20 border-b border-stone-200 px-10 py-4"
+        className="sticky top-0 z-20 border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div className="flex items-start justify-between gap-4">
@@ -192,7 +192,7 @@ export default function Designs() {
       {isNew ? (
         <Arrangements embedded newDesign />
       ) : (
-        <main className="px-10 py-6">
+        <main className="px-4 sm:px-10 py-6">
           {/* Filter chips (left) + search / sort / view controls (right) */}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -216,8 +216,8 @@ export default function Designs() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="relative w-72 max-w-[36vw]">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative w-72 max-w-full sm:max-w-[36vw]">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
                 <input
                   value={search}
@@ -375,7 +375,7 @@ function FilterChip({ label, options, selected, onToggle, onClear }: {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 max-h-80 w-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
+        <div className="ll-popover origin-top-left absolute left-0 top-full z-30 mt-1.5 max-h-80 w-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">{label}</span>
             {selected.length > 0 && (

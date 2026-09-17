@@ -21,6 +21,8 @@ export default function Orders() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(getActiveOrderId());
+  // Below `md` the rail sits above the order and folds away once one is chosen.
+  const [railOpen, setRailOpen] = useState(false);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -95,7 +97,7 @@ export default function Orders() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             <ShoppingCart size={18} className="text-emerald-700" /> Purchase Orders
@@ -109,9 +111,9 @@ export default function Orders() {
         </button>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         {/* Orders rail */}
-        <aside className="w-64 flex-shrink-0 border-r border-stone-200 px-3 py-4" style={{ minHeight: "calc(100vh - 65px)" }}>
+        <aside className={`${railOpen || !activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-64 md:border-b-0 md:border-r`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Orders ({orders.length})</p>
           {orders.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">No orders yet. Add products from the catalog, or start one.</p>
@@ -120,7 +122,7 @@ export default function Orders() {
               {orders.map((o) => {
                 const active = o.id === activeId;
                 return (
-                  <button key={o.id} onClick={() => setActiveId(o.id)}
+                  <button key={o.id} onClick={() => { setActiveId(o.id); setRailOpen(false); }}
                     className={`group flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
                     <span className="flex items-center justify-between gap-2">
                       <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{o.name}</span>
@@ -138,7 +140,17 @@ export default function Orders() {
         </aside>
 
         {/* Order detail */}
-        <main className="flex-1 px-8 py-6">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+          {activeId && (
+            <button
+              type="button"
+              onClick={() => setRailOpen((v) => !v)}
+              aria-expanded={railOpen}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+            >
+              <ShoppingCart size={13} /> {railOpen ? "Hide" : "Show"} orders ({orders.length})
+            </button>
+          )}
           {!activeId ? (
             <Empty />
           ) : loading && !order ? (

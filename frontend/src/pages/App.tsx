@@ -174,7 +174,7 @@ export default function App() {
   return (
     <Layout>
       <header
-        className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4"
+        className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
@@ -196,7 +196,7 @@ export default function App() {
         </button>
       </header>
 
-      <div className="max-w-6xl px-10 py-8">
+      <div className="max-w-6xl px-4 sm:px-10 py-8">
         {/* Stats — each one is a doorway to the page behind it. */}
         <div className="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {STATS.map(({ label, value, sub, icon: Icon, path }) => (

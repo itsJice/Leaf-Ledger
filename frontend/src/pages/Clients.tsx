@@ -632,7 +632,7 @@ function TypeFilterChip({ options, selected, onToggle, onClear }: {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 w-64 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
+        <div className="ll-popover origin-top-left absolute left-0 top-full z-30 mt-1.5 w-64 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">Type</span>
             {selected.length > 0 && (
@@ -896,7 +896,7 @@ export default function Clients() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
             <button onClick={showAllClients} className="hover:underline">Clients</button>
@@ -929,7 +929,7 @@ export default function Clients() {
       </header>
 
       {!focusedClient && (
-        <div className="flex items-center gap-2 border-b border-stone-100 px-10 py-3" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+        <div className="flex items-center gap-2 border-b border-stone-100 px-4 sm:px-10 py-3" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
           <TypeFilterChip
             options={typeFacets}
             selected={typeFilter}
@@ -944,7 +944,7 @@ export default function Clients() {
         </div>
       )}
 
-      <main className="px-10 py-6">
+      <main className="px-4 sm:px-10 py-6">
         {loading || (!initialDataSettled && visibleClients.length === 0) ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-center">

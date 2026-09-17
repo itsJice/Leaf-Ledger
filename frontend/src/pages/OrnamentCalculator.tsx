@@ -639,7 +639,7 @@ export default function OrnamentCalculator() {
   return (
     <Layout>
       <header
-        className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4"
+        className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
@@ -676,7 +676,7 @@ export default function OrnamentCalculator() {
         </div>
       </header>
 
-      <div className="px-10 py-8">
+      <div className="px-4 sm:px-10 py-8">
         {step === "calculator" ? (
           <CalculatorStep
             heightFt={heightFt}
@@ -955,7 +955,7 @@ function CalculatorStep(p: CalcProps) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-600">Ornaments</h2>
             <span className="text-xs text-stone-500">{p.totalOrnaments.toLocaleString()} total</span>
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
                 <th className="px-6 py-2 font-medium">Size (in)</th>
@@ -1001,7 +1001,7 @@ function CalculatorStep(p: CalcProps) {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
           <div className="flex justify-end border-t border-stone-200 px-6 py-4">
             <button
               onClick={p.goToColors}

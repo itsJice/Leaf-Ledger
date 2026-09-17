@@ -90,6 +90,8 @@ export default function Sourcing() {
   const [loading, setLoading] = useState(false);
 
   const activeId = jobId ? Number(jobId) : null;
+  // Below `md` the worksheet rail sits above the sheet and folds away once one is chosen.
+  const [railOpen, setRailOpen] = useState(false);
 
   const refreshList = useCallback(async () => {
     try { setJobs(await listJobs()); } catch { setJobs([]); }
@@ -139,7 +141,7 @@ export default function Sourcing() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             <ClipboardList size={18} className="text-emerald-700" /> Sourcing
@@ -149,8 +151,8 @@ export default function Sourcing() {
         <button onClick={newJob} className={btnPrimary}><Plus size={15} /> New worksheet</button>
       </header>
 
-      <div className="flex">
-        <aside className="w-72 flex-shrink-0 border-r border-stone-200 px-3 py-4" style={{ minHeight: "calc(100vh - 65px)" }}>
+      <div className="flex flex-col md:flex-row">
+        <aside className={`${railOpen || !activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-72 md:border-b-0 md:border-r`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Worksheets ({jobs.length})</p>
           {jobs.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">Nothing yet. Start one when a purple sheet lands on your desk.</p>
@@ -159,7 +161,7 @@ export default function Sourcing() {
               {jobs.map((j) => {
                 const active = j.id === activeId;
                 return (
-                  <button key={j.id} onClick={() => navigate(`/sourcing/${j.id}`)}
+                  <button key={j.id} onClick={() => { navigate(`/sourcing/${j.id}`); setRailOpen(false); }}
                     className={`flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
                     <span className="flex items-center justify-between gap-2">
                       <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
@@ -180,16 +182,26 @@ export default function Sourcing() {
           )}
         </aside>
 
-        <main className="min-w-0 flex-1 px-8 py-6">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+          {activeId && (
+            <button
+              type="button"
+              onClick={() => setRailOpen((v) => !v)}
+              aria-expanded={railOpen}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+            >
+              <ClipboardList size={13} /> {railOpen ? "Hide" : "Show"} worksheets ({jobs.length})
+            </button>
+          )}
           {!activeId ? <Empty /> : loading && !job ? (
             <p className="py-20 text-center text-sm text-stone-400">Loading…</p>
           ) : !job ? <Empty /> : (
             <>
               <JobHeader job={job} onDelete={removeJob} onChange={(body) => run(() => updateJob(job.id, body))} />
-              <nav className="mt-5 flex gap-1 border-b border-stone-200">
+              <nav className="mt-5 flex gap-1 overflow-x-auto border-b border-stone-200 [scrollbar-width:none]">
                 {TABS.map((t) => (
                   <button key={t.id} onClick={() => setTab(t.id)}
-                    className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === t.id ? "border-emerald-700 text-emerald-800" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
+                    className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${tab === t.id ? "border-emerald-700 text-emerald-800" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
                     {t.label}
                     {t.id === "worksheet" && job.summary.unsourced_count > 0 && <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[11px] text-amber-800">{job.summary.unsourced_count}</span>}
                     {t.id === "orders" && job.purchase_orders.length > 0 && <span className="ml-1.5 text-[11px] text-stone-400">{job.purchase_orders.length}</span>}
@@ -442,7 +454,7 @@ function Worksheet({ job, run, me }: { job: Job; run: Run; me?: string }) {
       )}
 
       {drawer && (
-        <aside className="sticky top-[81px] h-[calc(100vh-100px)] w-[380px] shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+        <aside className="fixed inset-x-0 bottom-0 top-14 z-40 flex flex-col overflow-hidden bg-white shadow-2xl lg:sticky lg:inset-auto lg:top-[81px] lg:z-auto lg:h-[calc(100vh-100px)] lg:w-[380px] lg:shrink-0 lg:rounded-xl lg:border lg:border-stone-200 lg:shadow-sm">
           {drawer.kind === "catalog" && (
             <CatalogPickPane title={`${drawer.substituteFor ? "Substitute for " + (drawer.substituteFor.description || "line") : drawer.need.label}${drawer.need.spec ? ` · ${drawer.need.spec}` : ""}`}
               initialQuery={drawer.need.label} onClose={() => setDrawer(null)} onPick={(p) => pick(drawer.need, p, drawer.substituteFor)} />

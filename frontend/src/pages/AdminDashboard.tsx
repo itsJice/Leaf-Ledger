@@ -511,7 +511,7 @@ function CategoryIndexCard() {
                 )}
 
                 {isExpanded && isEmpty && (
-                  <div className="border-t border-stone-100 px-10 py-4 text-xs text-stone-400">
+                  <div className="border-t border-stone-100 px-4 sm:px-10 py-4 text-xs text-stone-400">
                     No categories cached yet. Run a full scrape to populate the index.
                   </div>
                 )}
@@ -740,7 +740,7 @@ export default function AdminDashboard() {
     <TooltipProvider>
       <div className="min-h-screen" style={{ background: "rgb(var(--ll-page))" }}>
         {/* ── Header ── */}
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between">
+        <div className="px-4 sm:px-8 pt-8 pb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-serif font-semibold text-brand">Sync Operations</h1>
             <p className="text-sm text-stone-500 mt-0.5">

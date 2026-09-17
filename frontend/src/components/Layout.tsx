@@ -4,6 +4,8 @@ import {
   Leaf,
   Package,
   LogOut,
+  Menu,
+  X,
   ChevronRight,
   Monitor,
   Moon,
@@ -135,6 +137,16 @@ export default function Layout({ children }: Props) {
   // read-receipt) -- good enough for a small team, and avoids a table just
   // for this.
   const [hasNewClientComments, setHasNewClientComments] = useState(false);
+  // Below the `lg` breakpoint the sidebar is an off-canvas drawer opened from
+  // the top bar. It closes on every navigation and on Escape.
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [location.pathname, location.search]);
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setNavOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
 
   const loadSidebarProjects = useCallback((mountedRef?: { current: boolean }) => {
     if (sidebarProjects.length === 0) setProjectsLoading(true);
@@ -437,6 +449,36 @@ export default function Layout({ children }: Props) {
   // content area follows the theme while the sidebar keeps its dark identity.
   return (
     <div className="min-h-screen flex bg-background" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+      {/* Phone / tablet top bar. Same dark chrome as the sidebar; hidden at lg
+          where the sidebar is always on screen. */}
+      <header
+        data-ll-chrome="dark"
+        className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b border-white/10 px-2 lg:hidden"
+        style={{ backgroundColor: "#1c2e1e" }}
+      >
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          aria-label="Open navigation"
+          aria-expanded={navOpen}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
+        >
+          <Menu size={20} />
+        </button>
+        <Link to="/" className="flex items-center gap-2 rounded-lg px-1 py-1">
+          <Leaf className="text-emerald-400" size={18} strokeWidth={1.5} />
+          <span className="text-base font-bold tracking-wide text-white" style={{ fontFamily: "Georgia, serif", letterSpacing: "0.04em" }}>
+            Leaf &amp; Ledger
+          </span>
+        </Link>
+      </header>
+      {navOpen && (
+        <div
+          className="ll-overlay fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       {/* Sidebar - intentionally dark in BOTH light and dark mode. */}
       <aside
         // `data-ll-chrome="dark"` is the hook index.css uses to pin the stone /
@@ -444,11 +486,22 @@ export default function Layout({ children }: Props) {
         // sidebar renders identically in both modes. Without it the stylesheet
         // falls back to matching `aside.w-60`, which is brittle.
         data-ll-chrome="dark"
-        className="w-60 flex-shrink-0 flex flex-col border-r border-white/10 py-8 px-4 fixed top-0 left-0 h-full z-20"
+        className={`w-60 flex-shrink-0 flex flex-col border-r border-white/10 py-8 px-4 fixed top-0 left-0 h-full z-40 transition-transform duration-200 ease-drawer motion-reduce:transition-none lg:z-20 lg:translate-x-0 lg:shadow-none ${
+          navOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+        }`}
         style={{ backgroundColor: "#1c2e1e" }}
+        aria-label="Main navigation"
       >
         {/* Logo */}
-        <div className="mb-10 px-2">
+        <div className="relative mb-10 px-2">
+          <button
+            type="button"
+            onClick={() => setNavOpen(false)}
+            aria-label="Close navigation"
+            className="absolute -right-1 -top-2 flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
+          >
+            <X size={18} />
+          </button>
           <div className="flex items-center gap-2 mb-1">
             <Leaf className="text-emerald-400" size={20} strokeWidth={1.5} />
             <span
@@ -538,7 +591,7 @@ export default function Layout({ children }: Props) {
           content, so it never overflowed, the window scrolled instead, and
           every `sticky top-0` page header rode away inside a container that
           never moved -- while this comment claimed the opposite. */}
-      <div data-scroll-root className="flex-1 ml-60 h-screen overflow-auto">
+      <div data-scroll-root className="mt-14 h-[calc(100dvh-3.5rem)] flex-1 overflow-auto lg:ml-60 lg:mt-0 lg:h-screen">
         {children}
       </div>
       <FeedbackWidget />

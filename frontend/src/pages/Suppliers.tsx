@@ -467,7 +467,7 @@ function SupplierCard({
   };
 
   return (
-    <div className={`bg-white rounded-xl border transition-all ${
+    <div className={`bg-white rounded-xl border transition ${
       expanded ? "border-emerald-200 shadow-sm" : "border-stone-200"
     }`}>
       {/* Card header row */}
@@ -541,7 +541,7 @@ function SupplierCard({
           {/* Visit supplier site */}
           {supplier.login_url && (
             <a href={supplier.login_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
+              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 transition">
               <ExternalLink size={12} /> Visit
             </a>
           )}
@@ -762,7 +762,7 @@ export default function Suppliers() {
   return (
     <Layout>
       {/* Page header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Suppliers</h1>
           <p className="text-xs text-stone-500 mt-0.5">
@@ -781,7 +781,7 @@ export default function Suppliers() {
         </button>
       </header>
 
-      <div className="px-10 py-6 max-w-4xl">
+      <div className="px-4 sm:px-10 py-6 max-w-4xl">
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
