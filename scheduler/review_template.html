@@ -2024,7 +2024,7 @@ function persist(){
  * needs to know whether it actually landed before the dialog closes. */
 async function pushSharedNow(){
   if(!AUTH || READONLY) return false;
-  clearTimeout(pushTimer);
+  clearTimeout(pushTimer); pushTimer = null;
   try{
     const r = await fetch('/api/install-schedule/state', {
       method:'PUT',
@@ -2034,6 +2034,28 @@ async function pushSharedNow(){
     return r.ok;
   }catch(e){ return false; }
 }
+// Flush a pending debounced push when the page is going away. Without
+// this, an edit made in the last 200ms before the tab is closed, the phone
+// is locked, or the app navigates to another tab only lives in this
+// device's localStorage until the schedule is next opened HERE -- another
+// staff member opening it meanwhile would not see it. `keepalive` lets the
+// request outlive the document. Also exposed as window.tbdgFlush so the
+// hosting page (InstallSchedule.tsx) can call it synchronously right
+// before it unmounts the iframe, where no unload event is guaranteed.
+function tbdgFlush(){
+  if(!AUTH || READONLY || !pushTimer) return;
+  clearTimeout(pushTimer); pushTimer = null;
+  try{
+    fetch('/api/install-schedule/state', {
+      method:'PUT', keepalive:true,
+      headers:{'Content-Type':'application/json', Authorization:AUTH},
+      body: JSON.stringify({version:SPEC.version, state:snapshot()}),
+    }).catch(()=>{});
+  }catch(e){}
+}
+window.tbdgFlush = tbdgFlush;
+window.addEventListener('pagehide', tbdgFlush);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') tbdgFlush(); });
 
 // ---------- change history ----------
 // Shared save history, so several staff working the same schedule can see
