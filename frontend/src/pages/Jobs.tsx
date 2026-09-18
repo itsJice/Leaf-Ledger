@@ -395,10 +395,10 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
         <p className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-400">Nothing here yet. Pin options from the catalog into this group.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-          <table className="border-separate border-spacing-0 text-sm" style={{ minWidth: `${160 + order.length * 230}px` }}>
+          <table className="border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 w-40 bg-white px-3 py-3 text-left align-bottom text-[11px] font-medium uppercase tracking-wide text-stone-400">Option</th>
+                <th className="sticky left-0 z-10 w-[88px] min-w-[88px] bg-white px-2 py-3 text-left align-bottom text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:w-40 sm:min-w-[10rem] sm:px-3 sm:text-[11px]">Option</th>
                 {order.map((it) => (
                   <th key={it.item_id}
                     draggable={order.length > 1}
@@ -407,7 +407,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     onDragOver={(e) => { e.preventDefault(); if (dragId != null && overId !== it.item_id) setOverId(it.item_id); }}
                     onDragLeave={() => setOverId((cur) => (cur === it.item_id ? null : cur))}
                     onDrop={(e) => { e.preventDefault(); dropOn(it.item_id); }}
-                    className={`w-[230px] min-w-[230px] px-3 py-3 text-left align-top transition-opacity ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
+                    className={`w-[calc(100vw-122px)] min-w-[calc(100vw-122px)] px-3 py-3 text-left align-top transition-opacity sm:w-[230px] sm:min-w-[230px] ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
                   >
                     {order.length > 1 && (
                       <div className="mb-1 flex items-center justify-center text-stone-300" title="Drag to reorder"><GripVertical size={13} /></div>
@@ -466,7 +466,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
 function Row({ label, items, render }: { label: string; items: BoardItem[]; render: (it: BoardItem) => React.ReactNode }) {
   return (
     <tr className="border-t border-stone-100">
-      <td className="sticky left-0 z-10 w-40 border-t border-stone-100 bg-white px-3 py-2 align-top text-[11px] font-medium uppercase tracking-wide text-stone-400">{label}</td>
+      <td className="sticky left-0 z-10 w-[88px] min-w-[88px] border-t border-stone-100 bg-white px-2 py-2 align-top text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:w-40 sm:min-w-[10rem] sm:px-3 sm:text-[11px]">{label}</td>
       {items.map((it) => (
         <td key={it.item_id} className={`border-t border-stone-100 px-3 py-2 align-top text-stone-700 ${it.chosen ? "bg-emerald-50/70" : ""}`}>{render(it)}</td>
       ))}
