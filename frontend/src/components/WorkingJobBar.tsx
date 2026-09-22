@@ -82,7 +82,7 @@ export default function WorkingJobBar({ value, onChange }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-80 rounded-xl border border-stone-200 bg-white p-3 shadow-lg" onMouseLeave={() => setOpen(false)}>
+        <div className="ll-popover origin-top-right absolute right-0 z-30 mt-1 w-80 rounded-xl border border-stone-200 bg-white p-3 shadow-lg" onMouseLeave={() => setOpen(false)}>
           <label className="flex flex-col gap-1 text-xs text-stone-500">
             Job
             <div className="flex gap-1.5">

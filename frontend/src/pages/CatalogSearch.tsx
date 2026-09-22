@@ -250,6 +250,8 @@ export default function CatalogSearch() {
   }, []);
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_KEY) as ViewMode) || "grid");
+  // Below `md` the facet rail is hidden until asked for.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [cardSize, setCardSize] = useState<CardSize>(() => (Number(localStorage.getItem(SIZE_KEY)) as CardSize) || 3);
   useEffect(() => { localStorage.setItem(VIEW_KEY, viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem(SIZE_KEY, String(cardSize)); }, [cardSize]);
@@ -503,10 +505,10 @@ export default function CatalogSearch() {
   return (
     <Layout>
       <header
-        className="sticky top-0 z-10 border-b border-stone-200 px-10 py-4"
+        className="sticky top-0 z-10 border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div>
             <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
               <Search size={18} className="text-emerald-700" />
@@ -517,7 +519,15 @@ export default function CatalogSearch() {
             </p>
           </div>
           <WorkingJobBar value={working} onChange={setWorking} />
-          <div className="relative w-96 max-w-[40vw]">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+          >
+            <SlidersHorizontal size={13} /> Filters{activeCount > 0 ? ` (${activeCount})` : ""}
+          </button>
+          <div className="relative w-96 max-w-full md:max-w-[40vw]">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               value={search}
@@ -546,9 +556,9 @@ export default function CatalogSearch() {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         {/* Facet sidebar */}
-        <aside className="w-64 flex-shrink-0 border-r border-stone-200 px-5 py-6" style={{ minHeight: "calc(100vh - 65px)" }}>
+        <aside className={`${filtersOpen ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-4 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-64 md:border-b-0 md:border-r md:px-5 md:py-6`}>
           <div className="mb-4 flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-stone-500">
               <SlidersHorizontal size={13} /> Filters
@@ -608,9 +618,9 @@ export default function CatalogSearch() {
         </aside>
 
         {/* Results */}
-        <main className="flex-1 px-8 py-6">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
           {/* View + size toolbar */}
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-stone-400">
               {total.toLocaleString()} result{total === 1 ? "" : "s"}
             </p>

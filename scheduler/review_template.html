@@ -78,6 +78,22 @@ header h1 svg{color:var(--brand)}
 #main{flex:1;display:flex;min-height:0}
 #side{width:460px;min-width:380px;overflow-y:auto;padding:14px;background:var(--page)}
 #map{flex:1}
+/* Phone: the 380-460px side panel cannot sit beside the map, so the stop
+   list stacks above it and each takes its share of the height. Tablets and
+   up keep the side-by-side layout untouched. */
+@media(max-width:767px){
+  header{padding:12px 14px 10px}
+  #main{flex-direction:column}
+  #side{width:100%;min-width:0;flex:0 0 55%;max-height:55%;padding:10px}
+  #map{flex:1 1 45%;min-height:0}
+  #calwrap,#staffwrap{padding:12px 12px 32px}
+  /* Sixty date chips wrapped into ~700px of header and pushed the map and
+     the stop list off the bottom of the screen. One swipeable row instead. */
+  #datestrip{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;margin-top:8px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  #datestrip .dchip,#datestrip .dchipwrap{flex:none;white-space:nowrap}
+  #searchwrap{margin-left:0;width:100%}
+}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:14px;
   box-shadow:0 1px 2px rgba(41,37,36,.05)}
 .card.approved{border:2px solid var(--ok)}
@@ -2024,7 +2040,7 @@ function persist(){
  * needs to know whether it actually landed before the dialog closes. */
 async function pushSharedNow(){
   if(!AUTH || READONLY) return false;
-  clearTimeout(pushTimer);
+  clearTimeout(pushTimer); pushTimer = null;
   try{
     const r = await fetch('/api/install-schedule/state', {
       method:'PUT',
@@ -2034,6 +2050,28 @@ async function pushSharedNow(){
     return r.ok;
   }catch(e){ return false; }
 }
+// Flush a pending debounced push when the page is going away. Without
+// this, an edit made in the last 200ms before the tab is closed, the phone
+// is locked, or the app navigates to another tab only lives in this
+// device's localStorage until the schedule is next opened HERE -- another
+// staff member opening it meanwhile would not see it. `keepalive` lets the
+// request outlive the document. Also exposed as window.tbdgFlush so the
+// hosting page (InstallSchedule.tsx) can call it synchronously right
+// before it unmounts the iframe, where no unload event is guaranteed.
+function tbdgFlush(){
+  if(!AUTH || READONLY || !pushTimer) return;
+  clearTimeout(pushTimer); pushTimer = null;
+  try{
+    fetch('/api/install-schedule/state', {
+      method:'PUT', keepalive:true,
+      headers:{'Content-Type':'application/json', Authorization:AUTH},
+      body: JSON.stringify({version:SPEC.version, state:snapshot()}),
+    }).catch(()=>{});
+  }catch(e){}
+}
+window.tbdgFlush = tbdgFlush;
+window.addEventListener('pagehide', tbdgFlush);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') tbdgFlush(); });
 
 // ---------- change history ----------
 // Shared save history, so several staff working the same schedule can see

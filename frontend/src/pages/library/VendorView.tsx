@@ -58,7 +58,7 @@ export function VendorView({
           <span className="text-xs text-stone-400 font-medium mr-1">Filter by type:</span>
           <button
             onClick={() => setFilterCat("")}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
               filterCat === ""
                 ? "bg-emerald-700 text-white border-emerald-700"
                 : "border-stone-200 text-stone-500 hover:border-stone-300 bg-white"
@@ -73,7 +73,7 @@ export function VendorView({
               <button
                 key={cat}
                 onClick={() => setFilterCat(active ? "" : cat)}
-                className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
+                className="px-3 py-1 rounded-full text-xs font-medium border transition"
                 style={active
                   // Selected: the pill's own ink becomes the fill. `--ll-on-bright`
                   // is white in light mode and near-black in dark, where the inks

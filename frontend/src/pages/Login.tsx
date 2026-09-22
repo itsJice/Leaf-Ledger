@@ -55,7 +55,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
+        <div className="ll-enter mb-8 text-center">
           <h1 className="font-serif text-3xl tracking-tight text-brand-deep">
             Leaf &amp; Ledger
           </h1>
@@ -64,7 +64,7 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-brand-deep/10 bg-white p-6 shadow-sm">
+        <div className="ll-enter rounded-lg border border-brand-deep/10 bg-white p-6 shadow-sm">
           <h2 className="mb-1 text-lg font-medium text-brand-deep">
             {resetMode ? "Reset your password" : "Sign in"}
           </h2>
@@ -96,7 +96,7 @@ export default function Login() {
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded border border-brand-deep/20 px-3 py-2 text-brand-deep outline-none transition focus:border-brand-deep focus:ring-1 focus:ring-brand-deep"
+                className="w-full rounded border border-brand-deep/20 px-3 py-2 text-brand-deep outline-none transition-[border-color,box-shadow] focus:border-brand-deep focus:ring-1 focus:ring-brand-deep"
                 placeholder="you@company.com"
               />
             </div>
@@ -115,7 +115,7 @@ export default function Login() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded border border-brand-deep/20 px-3 py-2 text-brand-deep outline-none transition focus:border-brand-deep focus:ring-1 focus:ring-brand-deep"
+                  className="w-full rounded border border-brand-deep/20 px-3 py-2 text-brand-deep outline-none transition-[border-color,box-shadow] focus:border-brand-deep focus:ring-1 focus:ring-brand-deep"
                   placeholder="••••••••"
                 />
               </div>

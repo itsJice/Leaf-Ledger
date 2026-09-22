@@ -241,7 +241,7 @@ export default function Library() {
   return (
     <Layout>
       {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Product Library</h1>
           <p className="text-xs text-stone-500 mt-0.5">
@@ -276,7 +276,7 @@ export default function Library() {
         </div>
       </header>
 
-      <div className="px-10 py-6">
+      <div className="px-4 sm:px-10 py-6">
         {view === "vendor" ? (
           loading && products.length === 0 && suppliers.length === 0 ? (
             <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-stone-200 bg-white text-center">

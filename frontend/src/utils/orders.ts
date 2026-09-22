@@ -116,3 +116,51 @@ export async function removeItem(itemId: number) {
 export async function deleteOrder(id: number) {
   return apiFetch(`/api/orders/${id}`, { method: "DELETE", credentials: "include" });
 }
+
+
+// ── Exports ────────────────────────────────────────────────────────────────
+
+export const orderExportUrl = (orderId: number, format: string, supplierId?: number | null) => {
+  const q = new URLSearchParams({ format });
+  if (supplierId != null) q.set("supplier_id", String(supplierId));
+  return `/api/orders/${orderId}/export?${q.toString()}`;
+};
+
+const EXPORT_EXTENSION: Record<string, string> = { pdf: "pdf", docx: "docx", xlsx: "xlsx" };
+
+const slugify = (value: string) => value.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_");
+
+/** `Holiday_Order_Regency` — the order, plus the vendor on a single-vendor PO. */
+export function exportFileName(orderName: string, supplierName?: string | null): string {
+  const base = slugify(orderName || "") || "order";
+  const vendor = supplierName ? slugify(supplierName).slice(0, 24) : "";
+  return vendor ? `${base}_${vendor}` : base;
+}
+
+/**
+ * Download a purchase order as PDF, Word or Excel.
+ *
+ * Goes through apiFetch so the Authorization header goes along. A plain
+ * `<a href>` to /api comes back 401 "Not signed in", because the token lives in
+ * the Supabase session rather than in a cookie — the same reason
+ * `jobs.downloadExport` exists.
+ */
+export async function downloadOrderExport(
+  orderId: number,
+  format: string,
+  orderName: string,
+  supplierId?: number | null,
+  supplierName?: string | null,
+) {
+  const r = await apiFetch(orderExportUrl(orderId, format, supplierId), { credentials: "include" });
+  if (!r.ok) throw new Error("Export failed");
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${exportFileName(orderName, supplierName)}.${EXPORT_EXTENSION[format] || format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
