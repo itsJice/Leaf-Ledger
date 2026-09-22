@@ -504,8 +504,8 @@ function NeedCard({ need, run, me, jobId, onCatalog, onOpenOrders, onManual }: {
       </div>
       {need.lines.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead>
+          <table className="block w-full text-sm sm:table sm:min-w-[980px]">
+            <thead className="hidden sm:table-header-group">
               <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
                 <th className="px-3 py-2 font-medium">Product</th>
                 <th className="px-2 py-2 font-medium">Vendor · SKU</th>
@@ -521,7 +521,7 @@ function NeedCard({ need, run, me, jobId, onCatalog, onOpenOrders, onManual }: {
                 <th />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="block sm:table-row-group">
               {need.lines.map((l) => <SourcingRow key={l.id} line={l} need={need} run={run} me={me} jobId={jobId} onSubstitute={() => onCatalog(l)} />)}
             </tbody>
           </table>
@@ -550,8 +550,8 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
   };
   const dim = line.status === "sold_out" || line.status === "on_hold";
   return (
-    <tr className={`border-t border-stone-100 align-middle ${dim ? "opacity-60" : ""}`}>
-      <td className="px-3 py-2">
+    <tr className={`block border-t border-stone-100 px-3 py-3 sm:table-row sm:p-0 sm:align-middle ${dim ? "opacity-60" : ""}`}>
+      <td className="block pb-2 sm:table-cell sm:px-3 sm:py-2">
         <div className="flex items-center gap-2">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-50">
             {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={18} className="text-stone-300" />}
@@ -563,19 +563,19 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
           </div>
         </div>
       </td>
-      <td className="px-2 py-2 text-xs text-stone-600">{line.vendor_name || "—"}<br /><span className="font-mono text-[11px] text-stone-400">{line.sku || ""}</span></td>
-      <td className="px-2 py-2">
+      <td className="flex items-center justify-between gap-3 py-1 text-xs text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Vendor · SKU</span><span className="text-right sm:text-left">{line.vendor_name || "—"}<br /><span className="font-mono text-[11px] text-stone-400">{line.sku || ""}</span></span></td>
+      <td className="flex items-center justify-between gap-3 py-1 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Status</span>
         {locked ? linePill(line.status) : (
           <select value={line.status} onChange={(e) => save({ status: e.target.value as SourcingStatus })} className={`${input} text-xs`}>
             {(["proposed", "ready", "follow_up", "sold_out", "on_hold"] as SourcingStatus[]).map((s) => <option key={s} value={s}>{SOURCING_LABEL[s]}</option>)}
           </select>
         )}
       </td>
-      <td className="px-2 py-2 text-right">
+      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Covers</span>
         {line.status === "allocated" ? <span className="tabular-nums">{qty(line.allocated_qty)}</span>
           : <input type="number" min={0} step="any" value={v.covers} disabled={locked} onChange={(e) => setV({ ...v, covers: e.target.value })} onBlur={() => Number(v.covers) !== line.covers_qty && save({ covers_qty: Number(v.covers) })} className={`${input} w-16 text-right`} />}
       </td>
-      <td className="px-2 py-2 text-right">
+      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Pack</span>
         {line.status === "allocated" ? "—" : (
           <div className="flex items-center justify-end gap-1">
             <input type="number" min={1} value={v.pack} disabled={locked} onChange={(e) => setV({ ...v, pack: e.target.value })} onBlur={() => Number(v.pack) !== line.pack_qty && save({ pack_qty: Math.max(1, Number(v.pack)) })} className={`${input} w-14 text-right`} />
@@ -583,8 +583,8 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
           </div>
         )}
       </td>
-      <td className="px-2 py-2 text-right tabular-nums text-stone-600">{line.status === "allocated" ? "—" : line.packs}</td>
-      <td className="px-2 py-2 text-right">
+      <td className="flex items-center justify-between gap-3 py-1 text-right tabular-nums text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Packs</span><span>{line.status === "allocated" ? "—" : line.packs}</span></td>
+      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">O/O qty</span>
         {line.status === "allocated" ? "—" : (
           <div className="flex flex-col items-end">
             <input type="number" min={0} step="any" value={v.order} onChange={(e) => setV({ ...v, order: e.target.value })} onBlur={() => Number(v.order) !== line.order_qty && save({ order_qty: Number(v.order) })} className={`${input} w-16 text-right font-semibold`} />
@@ -592,11 +592,11 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
           </div>
         )}
       </td>
-      <td className="px-2 py-2 text-right"><input type="number" min={0} step="0.01" value={v.cost} disabled={locked} onChange={(e) => setV({ ...v, cost: e.target.value })} onBlur={() => (v.cost === "" ? null : Number(v.cost)) !== (line.unit_cost ?? null) && save({ unit_cost: v.cost === "" ? (null as any) : Number(v.cost) })} className={`${input} w-20 text-right`} /></td>
-      <td className="px-2 py-2 text-right tabular-nums text-stone-600">{line.price_per === "pack" ? money(line.adj_unit_cost) : "—"}</td>
-      <td className="px-2 py-2 text-right font-medium tabular-nums text-stone-800">{line.status === "allocated" ? "—" : money(line.line_cost)}</td>
-      <td className="px-2 py-2"><input value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} onBlur={() => v.notes !== (line.notes || "") && save({ notes: v.notes })} className={`${input} w-40`} /></td>
-      <td className="px-2 py-2">
+      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Unit cost</span><input type="number" min={0} step="0.01" value={v.cost} disabled={locked} onChange={(e) => setV({ ...v, cost: e.target.value })} onBlur={() => (v.cost === "" ? null : Number(v.cost)) !== (line.unit_cost ?? null) && save({ unit_cost: v.cost === "" ? (null as any) : Number(v.cost) })} className={`${input} w-20 text-right`} /></td>
+      <td className="flex items-center justify-between gap-3 py-1 text-right tabular-nums text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Adj. unit</span><span>{line.price_per === "pack" ? money(line.adj_unit_cost) : "—"}</span></td>
+      <td className="flex items-center justify-between gap-3 py-1 text-right font-medium tabular-nums text-stone-800 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Line</span><span>{line.status === "allocated" ? "—" : money(line.line_cost)}</span></td>
+      <td className="flex items-center justify-between gap-3 py-1 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Notes</span><input value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} onBlur={() => v.notes !== (line.notes || "") && save({ notes: v.notes })} className={`${input} w-full min-w-0 sm:w-40`} /></td>
+      <td className="block pt-2 sm:table-cell sm:px-2 sm:py-2">
         <div className="flex items-center justify-end gap-1.5">
           {!locked && <button onClick={onSubstitute} className="text-[11px] text-stone-500 hover:text-emerald-700" title="Sold out? Pick a substitute and keep the history">Substitute</button>}
           <button onClick={followUp} className="text-[11px] text-stone-500 hover:text-amber-700">Follow-up</button>
