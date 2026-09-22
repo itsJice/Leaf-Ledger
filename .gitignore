@@ -109,6 +109,8 @@ scheduler/.venv/
 scheduler/__pycache__/
 scheduler/cache/
 scheduler/review.html
+# Backups of the review tool embed client PII (names, addresses, phones).
+scheduler/*.bak*
 scheduler/map.html
 backend/protected/
 

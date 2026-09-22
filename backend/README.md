@@ -8,7 +8,7 @@ The backend is a FastAPI application that validates catalog data, coordinates su
 - `app/libs/` contains catalog importers, supplier adapters, and shared services.
 - `app/internal/` contains application bootstrapping, configuration, middleware, and generated platform support.
 - `tests/` covers normalization, onboarding adapters, and representative supplier parsers.
-- `routers.json` registers API modules used by the application runtime.
+- API modules are discovered automatically: `main.py` includes the `router` from every `app/apis/*/__init__.py` (the old Databutton `routers.json` was removed in the 2026-09 refactor).
 
 ## Setup
 

@@ -23,6 +23,9 @@ import { ContentType } from "../apiclient/http-client";
 import { formatCurrency } from "utils/format";
 import { toast } from "sonner";
 import { NewProjectModal } from "./Arrangements";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
+import { CLIENTS_PAGE_CACHE_KEY } from "../constants";
+import { notifyProjectsChanged } from "utils/projectsChanged";
 
 type ProjectSummary = {
   id: number;
@@ -106,7 +109,6 @@ type ClientGroup = {
 };
 
 const LOCAL_CLIENTS_KEY = "leaf-ledger-local-clients-v1";
-const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
 
 type ClientsPageCache = {
   clientRows: ClientRecord[];
@@ -115,21 +117,13 @@ type ClientsPageCache = {
 };
 
 function readClientsPageCache(): ClientsPageCache | null {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(CLIENTS_PAGE_CACHE_KEY) || "null");
-    if (!parsed || !Array.isArray(parsed.clientRows) || !Array.isArray(parsed.projects)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  const parsed = readJsonCache<any>(CLIENTS_PAGE_CACHE_KEY, null);
+  if (!parsed || !Array.isArray(parsed.clientRows) || !Array.isArray(parsed.projects)) return null;
+  return parsed;
 }
 
 function writeClientsPageCache(clientRows: ClientRecord[], projects: ProjectSummary[]) {
-  try {
-    window.localStorage.setItem(CLIENTS_PAGE_CACHE_KEY, JSON.stringify({ clientRows, projects, cachedAt: Date.now() }));
-  } catch {
-    // localStorage is only a speed cache; failures should not block the app.
-  }
+  writeTimestampedJsonCache(CLIENTS_PAGE_CACHE_KEY, { clientRows, projects });
 }
 
 function formatCacheStamp(ms?: number | null) {
@@ -143,16 +137,16 @@ function normalizedClientName(name?: string | null) {
 }
 
 function readLocalClients(): ClientRecord[] {
-  try {
-    const rows = JSON.parse(window.localStorage.getItem(LOCAL_CLIENTS_KEY) || "[]");
-    return Array.isArray(rows) ? rows : [];
-  } catch {
-    return [];
-  }
+  const rows = readJsonCache<unknown>(LOCAL_CLIENTS_KEY, []);
+  return Array.isArray(rows) ? rows : [];
 }
 
 function writeLocalClients(rows: ClientRecord[]) {
-  window.localStorage.setItem(LOCAL_CLIENTS_KEY, JSON.stringify(rows));
+  try {
+    window.localStorage.setItem(LOCAL_CLIENTS_KEY, JSON.stringify(rows));
+  } catch {
+    toast.error("Couldn't save the local client backup -- it may be lost on reload.");
+  }
 }
 
 function mergeClients(primary: ClientRecord[], secondary: ClientRecord[] = []) {
@@ -377,7 +371,7 @@ function NewClientModal({ client, onClose, onSaved }: {
       if (!res.ok) throw new Error("Could not create client");
       const createdClient = await res.json();
       onSaved(createdClient);
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success("Client created");
       onClose();
     } catch {
@@ -388,7 +382,7 @@ function NewClientModal({ client, onClose, onSaved }: {
       const localClient = makeLocalClient(payload);
       writeLocalClients(mergeClients([localClient], readLocalClients()));
       onSaved(localClient);
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success("Client created locally");
       onClose();
     } finally {
@@ -822,7 +816,7 @@ export default function Clients() {
         delete next[project.id];
         return next;
       });
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success("Project deleted");
     } catch {
       toast.error("Failed to delete project");
@@ -844,7 +838,7 @@ export default function Clients() {
       writeClientsPageCache(nextClientRows, nextProjects);
       if (focusedClient === client.name) showAllClients();
       setDeleteClientTarget(null);
-      window.dispatchEvent(new Event("leaf-ledger-projects-changed"));
+      notifyProjectsChanged();
       toast.success(deleteProjects ? "Client and projects deleted" : "Client deleted; projects kept");
     } catch {
       toast.error("Failed to delete client");

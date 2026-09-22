@@ -11,6 +11,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 import client_config_loader
+from common import merge_crew
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -37,14 +38,6 @@ AREA_COLORS = {
     "Dallas - West": "#000075", "Dallas - East": "#e6beff",
     "UNKNOWN": "#a9a9a9",
 }
-
-
-def merge_crew(prev, new):
-    """Joint stops appear on two crews' cards -> merged label."""
-    names = set()
-    for c in (prev, new):
-        names.update(x.strip() for x in c.replace(" (joint)", "").split(" + "))
-    return " + ".join(sorted(names)) + " (joint)"
 
 
 def gmaps_link(depot, stops, depot_anchored):

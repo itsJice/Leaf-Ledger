@@ -26,6 +26,7 @@ import json
 import pytest
 from fastapi import HTTPException
 
+import app.libs.db as libs_db
 from app.apis import preferences
 
 
@@ -115,7 +116,7 @@ def db(monkeypatch):
         return FakeConn(fake)
 
     monkeypatch.setattr(preferences, "get_conn", fake_get_conn)
-    monkeypatch.setattr(preferences, "_SCHEMA_READY", False)
+    libs_db.reset_schema_registry()
     return fake
 
 
@@ -151,7 +152,7 @@ def test_get_degrades_to_defaults_when_storage_is_unreachable(monkeypatch):
         raise RuntimeError("pooler is down")
 
     monkeypatch.setattr(preferences, "get_conn", boom)
-    monkeypatch.setattr(preferences, "_SCHEMA_READY", False)
+    libs_db.reset_schema_registry()
     assert get() == preferences.DEFAULT_PREFERENCES
 
 
@@ -365,7 +366,7 @@ def test_put_reports_a_storage_failure_rather_than_pretending_to_save(monkeypatc
         raise RuntimeError("pooler is down")
 
     monkeypatch.setattr(preferences, "get_conn", boom)
-    monkeypatch.setattr(preferences, "_SCHEMA_READY", False)
+    libs_db.reset_schema_registry()
     with pytest.raises(HTTPException) as err:
         put({"theme": {"mode": "dark"}})
     assert err.value.status_code == 503
@@ -377,9 +378,3 @@ def test_put_reports_a_storage_failure_rather_than_pretending_to_save(monkeypatc
 def test_routes_are_exactly_the_contracted_paths():
     paths = {(r.path, tuple(sorted(r.methods))) for r in preferences.router.routes}
     assert paths == {("/preferences", ("GET",)), ("/preferences", ("PUT",))}
-
-
-def test_router_is_registered_in_routers_json():
-    import pathlib
-    cfg = json.loads((pathlib.Path(__file__).parent.parent / "routers.json").read_text())
-    assert "preferences" in cfg["routers"]

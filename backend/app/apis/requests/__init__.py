@@ -23,12 +23,10 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.apis.products import get_conn
 from app.apis.user_context import get_request_user_id
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/requests", tags=["requests"])
-
-_SCHEMA_READY = False
 
 MATCH_RULES = ["exact", "similar", "inspiration"]
 MATCH_LABEL = {
@@ -75,11 +73,10 @@ CREATE INDEX IF NOT EXISTS product_request_items_request_idx
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
+
+    await ensure_schema_once("requests", _ddl)
 
 
 def _touch(conn, request_id: int):

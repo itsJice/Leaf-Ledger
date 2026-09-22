@@ -1,0 +1,407 @@
+{
+  "/api/admin/category-index": [
+    "GET"
+  ],
+  "/api/admin/category-index/{supplier_id}/rebuild": [
+    "POST"
+  ],
+  "/api/admin/dashboard": [
+    "GET"
+  ],
+  "/api/admin/toggle-scraper/{supplier_id}": [
+    "POST"
+  ],
+  "/api/arrangements/container/add/{arrangement_id}": [
+    "POST"
+  ],
+  "/api/arrangements/container/remove/{container_id}": [
+    "DELETE"
+  ],
+  "/api/arrangements/container/update/{container_id}": [
+    "PUT"
+  ],
+  "/api/arrangements/create": [
+    "POST"
+  ],
+  "/api/arrangements/delete/{arrangement_id}": [
+    "DELETE"
+  ],
+  "/api/arrangements/get/{arrangement_id}": [
+    "GET"
+  ],
+  "/api/arrangements/item/add/{container_id}": [
+    "POST"
+  ],
+  "/api/arrangements/item/quantity/{item_id}": [
+    "PUT"
+  ],
+  "/api/arrangements/item/remove/{item_id}": [
+    "DELETE"
+  ],
+  "/api/arrangements/item/status/{item_id}": [
+    "PUT"
+  ],
+  "/api/arrangements/list": [
+    "GET"
+  ],
+  "/api/arrangements/room/add/{arrangement_id}": [
+    "POST"
+  ],
+  "/api/arrangements/room/delete/{room_id}": [
+    "DELETE"
+  ],
+  "/api/arrangements/room/update/{room_id}": [
+    "PUT"
+  ],
+  "/api/arrangements/update/{arrangement_id}": [
+    "PUT"
+  ],
+  "/api/bootstrap/summary": [
+    "GET"
+  ],
+  "/api/builder/build-types": [
+    "GET"
+  ],
+  "/api/builder/canopy-tiers": [
+    "GET"
+  ],
+  "/api/builder/common-builds": [
+    "GET"
+  ],
+  "/api/builder/scope-filters": [
+    "GET"
+  ],
+  "/api/clients/comments/recent": [
+    "GET"
+  ],
+  "/api/clients/create": [
+    "POST"
+  ],
+  "/api/clients/delete/{client_name}": [
+    "DELETE"
+  ],
+  "/api/clients/list": [
+    "GET"
+  ],
+  "/api/clients/update/{client_id}": [
+    "PUT"
+  ],
+  "/api/clients/{client_id}/comments": [
+    "POST"
+  ],
+  "/api/clients/{client_id}/comments/{activity_id}": [
+    "DELETE"
+  ],
+  "/api/dashboard/recent-designs": [
+    "GET"
+  ],
+  "/api/dashboard/summary": [
+    "GET"
+  ],
+  "/api/designs/hierarchy": [
+    "GET"
+  ],
+  "/api/designs/list": [
+    "GET"
+  ],
+  "/api/designs/{design_id}": [
+    "GET"
+  ],
+  "/api/feedback": [
+    "GET",
+    "POST"
+  ],
+  "/api/feedback/{feedback_id}": [
+    "PUT"
+  ],
+  "/api/feedback/{feedback_id}/screenshot": [
+    "GET"
+  ],
+  "/api/historical/complete": [
+    "POST"
+  ],
+  "/api/install-schedule/history": [
+    "GET"
+  ],
+  "/api/install-schedule/history/{entry_id}": [
+    "GET"
+  ],
+  "/api/install-schedule/page": [
+    "GET"
+  ],
+  "/api/install-schedule/seasons": [
+    "GET"
+  ],
+  "/api/install-schedule/state": [
+    "GET",
+    "PUT"
+  ],
+  "/api/jobs/board-list": [
+    "GET"
+  ],
+  "/api/jobs/create": [
+    "POST"
+  ],
+  "/api/jobs/groups/{group_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/jobs/items/{item_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/jobs/list": [
+    "GET"
+  ],
+  "/api/jobs/meta": [
+    "GET"
+  ],
+  "/api/jobs/needs/{need_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/jobs/needs/{need_id}/allocate": [
+    "POST"
+  ],
+  "/api/jobs/needs/{need_id}/sourcing": [
+    "POST"
+  ],
+  "/api/jobs/open-orders/search": [
+    "GET"
+  ],
+  "/api/jobs/order-items/{item_id}/receive": [
+    "POST"
+  ],
+  "/api/jobs/pieces/{piece_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/jobs/po/{order_id}": [
+    "PATCH"
+  ],
+  "/api/jobs/po/{order_id}/lines": [
+    "GET"
+  ],
+  "/api/jobs/sourcing/{line_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/jobs/tasks/{task_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/jobs/vendors/{supplier_id}/open-pos": [
+    "GET"
+  ],
+  "/api/jobs/{job_id}": [
+    "DELETE",
+    "GET",
+    "PATCH"
+  ],
+  "/api/jobs/{job_id}/board": [
+    "GET"
+  ],
+  "/api/jobs/{job_id}/export": [
+    "GET"
+  ],
+  "/api/jobs/{job_id}/groups": [
+    "POST"
+  ],
+  "/api/jobs/{job_id}/items": [
+    "POST"
+  ],
+  "/api/jobs/{job_id}/items/by-product/{product_id}": [
+    "DELETE"
+  ],
+  "/api/jobs/{job_id}/needs": [
+    "POST"
+  ],
+  "/api/jobs/{job_id}/pieces": [
+    "POST"
+  ],
+  "/api/jobs/{job_id}/pins": [
+    "GET"
+  ],
+  "/api/jobs/{job_id}/send-to-po": [
+    "POST"
+  ],
+  "/api/jobs/{job_id}/tasks": [
+    "POST"
+  ],
+  "/api/jobs/{job_id}/touch": [
+    "POST"
+  ],
+  "/api/mockups/delete/{mockup_id}": [
+    "DELETE"
+  ],
+  "/api/mockups/generate": [
+    "POST"
+  ],
+  "/api/mockups/list/{arrangement_id}": [
+    "GET"
+  ],
+  "/api/orders/create": [
+    "POST"
+  ],
+  "/api/orders/items/{item_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/orders/list": [
+    "GET"
+  ],
+  "/api/orders/{order_id}": [
+    "DELETE",
+    "GET",
+    "PATCH"
+  ],
+  "/api/orders/{order_id}/export": [
+    "GET"
+  ],
+  "/api/orders/{order_id}/items": [
+    "POST"
+  ],
+  "/api/preferences": [
+    "GET",
+    "PUT"
+  ],
+  "/api/pricing-rules": [
+    "GET",
+    "PUT"
+  ],
+  "/api/products/by-ids": [
+    "GET"
+  ],
+  "/api/products/create": [
+    "POST"
+  ],
+  "/api/products/delete/{product_id}": [
+    "DELETE"
+  ],
+  "/api/products/detail/{product_id}": [
+    "GET"
+  ],
+  "/api/products/favorite/{product_id}": [
+    "POST"
+  ],
+  "/api/products/filter-metadata": [
+    "GET"
+  ],
+  "/api/products/image-proxy": [
+    "GET"
+  ],
+  "/api/products/ornament-match": [
+    "POST"
+  ],
+  "/api/products/page": [
+    "GET"
+  ],
+  "/api/products/search": [
+    "GET"
+  ],
+  "/api/products/similar": [
+    "GET"
+  ],
+  "/api/products/sync-price/{product_id}": [
+    "POST"
+  ],
+  "/api/products/update/{product_id}": [
+    "PUT"
+  ],
+  "/api/products/upload-photo-new": [
+    "POST"
+  ],
+  "/api/recipe-intelligence/build-types": [
+    "GET"
+  ],
+  "/api/recipe-intelligence/import": [
+    "POST"
+  ],
+  "/api/recipe-intelligence/import-status": [
+    "GET"
+  ],
+  "/api/recipe-intelligence/suggest": [
+    "POST"
+  ],
+  "/api/recipe-intelligence/visual-references": [
+    "GET"
+  ],
+  "/api/recipe-intelligence/visual-references/{asset_id}/preview": [
+    "GET"
+  ],
+  "/api/requests/create": [
+    "POST"
+  ],
+  "/api/requests/for-job/{job_id}": [
+    "GET"
+  ],
+  "/api/requests/items/{item_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/requests/list": [
+    "GET"
+  ],
+  "/api/requests/meta": [
+    "GET"
+  ],
+  "/api/requests/open": [
+    "GET"
+  ],
+  "/api/requests/{request_id}": [
+    "DELETE",
+    "GET",
+    "PATCH"
+  ],
+  "/api/requests/{request_id}/items": [
+    "POST"
+  ],
+  "/api/requests/{request_id}/link": [
+    "POST"
+  ],
+  "/api/requests/{request_id}/save": [
+    "POST"
+  ],
+  "/api/scraper/backfill-images": [
+    "POST"
+  ],
+  "/api/scraper/backfill-images/status": [
+    "GET"
+  ],
+  "/api/scraper/sync-prices-bulk": [
+    "POST"
+  ],
+  "/api/settings/markup": [
+    "GET",
+    "PUT"
+  ],
+  "/api/settings/markup/category/{category}": [
+    "DELETE"
+  ],
+  "/api/sku-standards": [
+    "GET",
+    "PUT"
+  ],
+  "/api/suppliers/create": [
+    "POST"
+  ],
+  "/api/suppliers/delete/{supplier_id}": [
+    "DELETE"
+  ],
+  "/api/suppliers/list": [
+    "GET"
+  ],
+  "/api/suppliers/update/{supplier_id}": [
+    "PUT"
+  ],
+  "/api/suppliers/{supplier_id}/credentials": [
+    "GET"
+  ],
+  "/api/tree-counts": [
+    "GET",
+    "POST"
+  ],
+  "/api/tree-counts/{count_id}": [
+    "DELETE"
+  ]
+}

@@ -22,6 +22,9 @@ import {
 } from "components/sidebarNav";
 import type { ResolvedNavItem, SidebarPrefsEventDetail } from "components/sidebarNav";
 import FeedbackWidget from "components/FeedbackWidget";
+import { readJsonCache, writeJsonCache } from "utils/jsonCache";
+import { CLIENTS_PAGE_CACHE_KEY, PROJECTS_LIST_CACHE_KEY } from "../constants";
+import { PROJECTS_CHANGED_EVENT } from "utils/projectsChanged";
 
 // NAV_GROUPS, the pinned-path list and the ordering helpers live in
 // components/sidebarNav.ts so that this sidebar and the Settings > Appearance
@@ -40,10 +43,9 @@ interface Props {
 
 const SIDEBAR_PROJECTS_CACHE_KEY = "leaf-ledger-sidebar-projects-cache-v1";
 const CLIENTS_COMMENTS_SEEN_KEY = "leaf-ledger:clients-comments-seen-at";
-const CLIENTS_PAGE_CACHE_KEY = "leaf-ledger:clients-page-cache:v1";
-const PROJECTS_LIST_CACHE_KEY = "leaf-ledger:projects-list-cache:v1";
 const SUPPLIERS_CACHE_KEY = "leaf-ledger:suppliers-cache:v1";
-const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v1";
+// dead write kept pending decision; App reads :v2
+const LEGACY_LAYOUT_DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v1";
 
 const NAV_ITEM_IDLE = "text-white/60 hover:text-white hover:bg-white/5";
 const NAV_ITEM_ACTIVE = "bg-emerald-700/40 text-emerald-300";
@@ -79,14 +81,6 @@ type NavRun = {
   hasAnchor: boolean;
 };
 
-function writeJsonCache(key: string, value: unknown) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Cache writes should never block navigation.
-  }
-}
-
 function clientCountsFromProjects(rows: SidebarProject[]) {
   const counts = new Map<string, number>();
   rows.forEach((row) => {
@@ -115,12 +109,8 @@ export default function Layout({ children }: Props) {
   const { mode, setMode } = useTheme();
   const [projectClients, setProjectClients] = useState<Array<{ name: string; count: number }>>([]);
   const [sidebarProjects, setSidebarProjects] = useState<SidebarProject[]>(() => {
-    try {
-      const cached = JSON.parse(window.localStorage.getItem(SIDEBAR_PROJECTS_CACHE_KEY) || "[]");
-      return Array.isArray(cached) ? cached : [];
-    } catch {
-      return [];
-    }
+    const cached = readJsonCache<unknown>(SIDEBAR_PROJECTS_CACHE_KEY, []);
+    return Array.isArray(cached) ? cached : [];
   });
   const [projectsLoading, setProjectsLoading] = useState(() => sidebarProjects.length === 0);
   const [projectsOpen, setProjectsOpen] = useState(() => {
@@ -174,7 +164,7 @@ export default function Layout({ children }: Props) {
           writeJsonCache(SUPPLIERS_CACHE_KEY, summary.suppliers);
         }
         if (summary.stats) {
-          writeJsonCache(DASHBOARD_CACHE_KEY, {
+          writeJsonCache(LEGACY_LAYOUT_DASHBOARD_CACHE_KEY, {
             stats: summary.stats,
             recentProjects: sortedProjects.slice(0, 5),
             cachedAt: Date.now(),
@@ -217,10 +207,10 @@ export default function Layout({ children }: Props) {
     const mountedRef = { current: true };
     loadSidebarProjects(mountedRef);
     const refresh = () => loadSidebarProjects(mountedRef);
-    window.addEventListener("leaf-ledger-projects-changed", refresh);
+    window.addEventListener(PROJECTS_CHANGED_EVENT, refresh);
     return () => {
       mountedRef.current = false;
-      window.removeEventListener("leaf-ledger-projects-changed", refresh);
+      window.removeEventListener(PROJECTS_CHANGED_EVENT, refresh);
     };
   }, [loadSidebarProjects]);
 

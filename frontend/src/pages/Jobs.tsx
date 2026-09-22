@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical, NotebookPen, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "components/Layout";
-import { ProductDetailModal, ProxiedImage } from "./Library";
+import { ProductDetailModal } from "./library/ProductDetailModal";
+import { ProxiedImage } from "./library/ProxiedImage";
 import { apiFetch } from "utils/apiFetch";
 import {
   listBoards, getBoard, createJob, updateJob, deleteJob, touchJob,
@@ -11,6 +12,7 @@ import {
   type Board, type BoardJob, type BoardItem, type PinGroup,
 } from "utils/jobs";
 import { listOpenRequests, linkRequestToJob, requestForJob, type OpenRequest, type ProductRequest } from "utils/requests";
+import { formatMoney as money } from "utils/money";
 
 // Jobs: a pinboard per client job, compared side by side.
 //
@@ -22,7 +24,6 @@ import { listOpenRequests, linkRequestToJob, requestForJob, type OpenRequest, ty
 // The purchaser's full worksheet still exists at /sourcing/:id (no sidebar
 // entry) for when a job moves from choosing to buying.
 
-const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
 const inch = (n?: number | null) => (n == null ? null : `${Number.isInteger(Number(n)) ? n : Number(n).toFixed(1)}"`);
 const dateStr = (d?: string | null) => (d ? String(d).slice(0, 10) : "");
 const input = "rounded-md border border-stone-300 bg-white px-2 py-1 text-sm outline-none focus:border-emerald-500";

@@ -134,25 +134,17 @@ export async function fetchDesignList(q: DesignListQuery = {}): Promise<DesignLi
     if (!ct.includes("json")) return EMPTY_LIST;
     const data = (await res.json()) as Record<string, unknown> | null;
     const items = Array.isArray(data?.items) ? (data!.items as Design[]) : [];
+    // A real server total of 0 must stick — `Number(data?.total) || items.length`
+    // would treat that falsy 0 as "missing" and substitute the item count.
+    const rawTotal = data?.total;
+    const numericTotal = Number(rawTotal);
+    const total = rawTotal != null && Number.isFinite(numericTotal) ? numericTotal : items.length;
     return {
       items,
-      total: Number(data?.total ?? items.length) || items.length,
+      total,
       facets: normalizeFacets(data?.facets),
     };
   } catch {
     return EMPTY_LIST;
-  }
-}
-
-/** GET /api/designs/{id} — resolves to null when unavailable. */
-export async function fetchDesign(id: number | string): Promise<DesignDetail | null> {
-  try {
-    const res = await apiFetch(`/api/designs/${encodeURIComponent(String(id))}`);
-    if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("json")) return null;
-    return (await res.json()) as DesignDetail;
-  } catch {
-    return null;
   }
 }

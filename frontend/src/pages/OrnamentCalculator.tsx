@@ -61,6 +61,8 @@ import {
   type EnhancerLookup,
   type EnhancerAllocationLine,
 } from "utils/ornamentRecipe";
+import { formatMoneyGrouped as money } from "utils/money";
+import { proxiedImageUrl as proxied } from "utils/images";
 
 // Exact in-app clone of Vickerman's Ornament Calculator (both steps):
 //   Step 1 "Calculator" — tree dimensions -> recipe quantities, with the tree
@@ -94,12 +96,6 @@ interface MatchLine {
   finish: string | null;
   match_count: number;
   matches: CatalogMatch[];
-}
-
-/** Route a supplier image through the backend proxy (dodges hotlink blocks). */
-function proxied(url: string | null): string | undefined {
-  if (!url) return undefined;
-  return `/api/products/image-proxy?url=${encodeURIComponent(url)}`;
 }
 
 /** Stable id for a recipe line (size + color + finish) — keys the picker map + scroll anchors. */
@@ -187,9 +183,6 @@ function describeEnhancers(lookup: EnhancerLookup | null, touched: boolean): str
  * — so per piece = price ÷ case_qty. Null when the product has no price.
  */
 const pricePerPiece = (m: CatalogMatch) => (m.price != null ? m.price / Math.max(1, m.case_qty || 1) : null);
-
-/** Money for the UI: "$1,234.50". */
-const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** One line on a size swap: `4" ×36 → 4.75" ×26 — cheaper per coverage (−$7.40 total), bigger impact`. */
 function describeSwap(s: SizeSwapSuggestion): string {

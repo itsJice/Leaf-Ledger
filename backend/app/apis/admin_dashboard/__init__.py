@@ -2,13 +2,11 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
-import asyncpg
-import os
 from datetime import datetime
+from app.libs.db import get_conn
 from app.libs.scraper_base import rebuild_category_index, get_category_index_summary
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
 # ─── Category Index Models & Endpoints ───────────────────────────────────────────
@@ -48,7 +46,7 @@ class RebuildIndexResponse(BaseModel):
 @router.get("/category-index", response_model=CategoryIndexResponse)
 async def get_category_index():
     """Return the full category index for all suppliers that have a scraper."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         suppliers = await conn.fetch("""
             SELECT id, name, scraper_key
@@ -100,7 +98,7 @@ async def get_category_index():
 @router.post("/category-index/{supplier_id}/rebuild", response_model=RebuildIndexResponse)
 async def rebuild_supplier_category_index(supplier_id: int):
     """Wipe the category index so the next scrape does a full re-discovery."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         row = await conn.fetchrow(
             "SELECT scraper_key FROM suppliers WHERE id = $1", supplier_id
@@ -199,7 +197,7 @@ class AdminDashboardResponse(BaseModel):
 @router.get("/dashboard", response_model=AdminDashboardResponse)
 async def get_admin_dashboard():
     """Return full admin dashboard: supplier health, sync history, and price changes."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         # ── Per-supplier health rows ──────────────────────────────────────────
         health_rows = await conn.fetch("""
@@ -345,7 +343,7 @@ async def get_admin_dashboard():
 @router.post("/toggle-scraper/{supplier_id}")
 async def toggle_scraper(supplier_id: int, enabled: bool):
     """Enable or disable the automated scraper for a supplier."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         await conn.execute(
             "UPDATE suppliers SET scraper_enabled = $2, updated_at = now() WHERE id = $1",

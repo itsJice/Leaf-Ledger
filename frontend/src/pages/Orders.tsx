@@ -5,19 +5,16 @@ import {
   FileText, FileSpreadsheet, FileType, Printer,
 } from "lucide-react";
 import Layout from "components/Layout";
-import { ProductDetailModal } from "./Library";
+import { ProductDetailModal } from "./library/ProductDetailModal";
 import {
   listOrders, getOrder, createOrder, deleteOrder, updateItemQty, removeItem,
   setActiveOrderId, getActiveOrderId, defaultOrderName, setOrderStatus, ORDER_STATUSES,
   type OrderSummary, type OrderDetail,
 } from "utils/orders";
 import { toast } from "sonner";
-
-function proxied(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  return `/api/products/image-proxy?url=${encodeURIComponent(url)}`;
-}
-const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
+import { formatMoney as money } from "utils/money";
+import { proxiedImageUrl as proxied } from "utils/images";
+import EmptyState from "../components/EmptyState";
 
 export default function Orders() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -264,19 +261,13 @@ export default function Orders() {
   );
 }
 
-function Empty() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
-        <ShoppingCart size={28} className="text-emerald-600" strokeWidth={1.5} />
-      </div>
-      <p className="mb-1 text-base font-medium text-stone-600">No order selected</p>
-      <p className="max-w-xs text-sm leading-relaxed text-stone-400">
-        Open a product in Catalog Search and use “Add to order”, or start a new one.
-      </p>
-    </div>
-  );
-}
+const Empty = () => (
+  <EmptyState
+    icon={ShoppingCart}
+    title="No order selected"
+    description="Open a product in Catalog Search and use “Add to order”, or start a new one."
+  />
+);
 
 function applyQty(o: OrderDetail, itemId: number, qty: number): OrderDetail {
   return {

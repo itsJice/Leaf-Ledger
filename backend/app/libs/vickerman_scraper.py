@@ -5,6 +5,7 @@ Product details include an embedded JSON model with SKU, descriptions, images,
 stock, package data, and account-specific price fields after login.
 """
 
+import asyncio
 import json
 import re
 import time
@@ -632,13 +633,13 @@ async def discover_vickerman_catalog(
             }
 
     session = _new_session()
-    homepage_html = _login(session, username, password)
+    homepage_html = await asyncio.to_thread(_login, session, username, password)
     if progress_callback:
         await progress_callback(0, 0, "Logged in to Vickerman", milestone_event="logged_in")
 
     homepage_categories = _discover_category_links(homepage_html)
     if not homepage_categories:
-        response = session.get(BASE_URL, timeout=30)
+        response = await asyncio.to_thread(session.get, BASE_URL, timeout=30)
         response.raise_for_status()
         homepage_categories = _discover_category_links(response.text)
     categories = _merge_categories(_seed_categories(), homepage_categories)
@@ -653,13 +654,13 @@ async def discover_vickerman_catalog(
         category = categories[idx]
         idx += 1
         try:
-            category_page_html, token = _fetch_category_page(session, category)
+            category_page_html, token = await asyncio.to_thread(_fetch_category_page, session, category)
             _append_new_categories(
                 categories,
                 _discover_category_links(category_page_html),
                 seen_category_urls,
             )
-            item_count = _count_category_items(session, category, category_page_html, token)
+            item_count = await asyncio.to_thread(_count_category_items, session, category, category_page_html, token)
             category["item_count"] = item_count
             total_products += item_count
         except Exception as exc:
@@ -721,7 +722,7 @@ async def scrape_vickerman(
     excluded_item_numbers: Optional[set[str]] = None,
 ) -> AsyncGenerator[ScrapedProduct, None]:
     session = _new_session()
-    _login(session, username, password)
+    await asyncio.to_thread(_login, session, username, password)
     excluded_items = {
         _clean_text(item).upper()
         for item in (excluded_item_numbers or set())
@@ -757,15 +758,15 @@ async def scrape_vickerman(
                     category_total=len(subcategories),
                     category_failures=category_failures,
                 )
-            category_page = _request_with_retries(session, "get", slug, timeout=30)
+            category_page = await asyncio.to_thread(_request_with_retries, session, "get", slug, timeout=30)
             token = _extract_token(category_page.text)
-            first_page = _fetch_selector_page(session, category, 1, token)
+            first_page = await asyncio.to_thread(_fetch_selector_page, session, category, 1, token)
             page_count = _parse_page_count(first_page)
             pages = [first_page]
             for page_index in range(2, page_count + 1):
                 if max_products and len(detail_order) >= max_products:
                     break
-                pages.append(_fetch_selector_page(session, category, page_index, token))
+                pages.append(await asyncio.to_thread(_fetch_selector_page, session, category, page_index, token))
                 await polite_delay(REQUEST_DELAY)
 
             category_collected = 0
@@ -818,7 +819,7 @@ async def scrape_vickerman(
     total_to_fetch = len(detail_order)
     for detail_url in detail_order:
         try:
-            detail_response = _request_with_retries(session, "get", detail_url, timeout=30)
+            detail_response = await asyncio.to_thread(_request_with_retries, session, "get", detail_url, timeout=30)
             product = _parse_detail_page(detail_response.text, detail_url, detail_categories[detail_url])
             yielded += 1
             if progress_callback:

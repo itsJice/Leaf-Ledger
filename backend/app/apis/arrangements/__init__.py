@@ -6,16 +6,13 @@ import os
 import json
 from datetime import datetime
 from app.apis.user_context import get_request_user_id
+from app.libs.db import get_conn, has_item_status_column
 
 router = APIRouter(prefix="/arrangements", tags=["arrangements"])
-DATABASE_URL = os.environ.get("DATABASE_URL")
 _PROJECT_SCHEMA_CHECKED = False
 ROOM_LABEL_PREFIX = "LL_ROOM:"
 SCOPE_LABEL_PREFIX = "LL_SCOPE:"
 ITEM_META_PATH = os.path.join(os.path.dirname(__file__), "container_item_meta.local.json")
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 async def ensure_container_item_meta(conn):
     # Compatibility table for databases where the app role can create helper
@@ -277,17 +274,6 @@ async def migrate_fallback_rooms_to_project_rooms(conn, arrangement_id: int):
         # legacy labels below so packages remain visible and usable.
         return
 
-async def has_item_status_column(conn) -> bool:
-    return bool(await conn.fetchval("""
-        SELECT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = 'container_items'
-              AND column_name = 'status'
-        )
-    """))
-
 async def container_item_columns(conn) -> set[str]:
     rows = await conn.fetch("""
         SELECT column_name
@@ -443,10 +429,29 @@ def normalize_item_status(status: Optional[str]) -> str:
     return value
 
 def clean_optional_text(value: Optional[str]) -> Optional[str]:
-    if value is None:
+    if not isinstance(value, str):
         return None
     value = value.strip()
     return value or None
+
+
+def normalize_room_id_value(value) -> Optional[int]:
+    """Coerce a decoded LL_SCOPE room_id (any JSON type) to an int or None.
+
+    Labels are free-form JSON blobs, so `room_id` can arrive as an int (the
+    normal case), a numeric string, a float, or garbage -- room ids are ints
+    everywhere else in the API, so anything that isn't cleanly integer-like
+    becomes None rather than leaking a string/float downstream.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
 
 async def sync_build_type(conn, container_id: int, build_type: Optional[str], container_columns: set[str]):
     """Keep build_type populated on every row this API writes.
@@ -484,6 +489,8 @@ def parse_room_label(label: Optional[str]) -> Optional[dict]:
         return None
     try:
         data = json.loads(label[len(ROOM_LABEL_PREFIX):])
+        if not isinstance(data, dict):
+            return None
         name = clean_optional_text(data.get("name"))
         if not name:
             return None
@@ -515,9 +522,11 @@ def parse_scope_label(label: Optional[str]) -> Optional[dict]:
         return None
     try:
         data = json.loads(label[len(SCOPE_LABEL_PREFIX):])
+        if not isinstance(data, dict):
+            return None
         return {
             "label": clean_optional_text(data.get("label")) or clean_optional_text(data.get("bucket_type")) or "Scope",
-            "room_id": data.get("room_id"),
+            "room_id": normalize_room_id_value(data.get("room_id")),
             "bucket_type": clean_optional_text(data.get("bucket_type")),
             "requested_quantity": normalize_requested_quantity(data.get("requested_quantity")),
             "scope_notes": clean_optional_text(data.get("scope_notes")),
@@ -722,57 +731,66 @@ async def create_arrangement(body: ArrangementCreate, request: Request):
         supports_status = await has_item_status_column(conn)
         item_columns = await container_item_columns(conn)
         container_columns = await arrangement_container_columns(conn)
-        arr = await conn.fetchrow("""
-            INSERT INTO arrangements (name, client_name, notes, created_by)
-            VALUES ($1, $2, $3, $4) RETURNING *
-        """, body.name, body.client_name, body.notes, user_id)
-        arr_id = arr["id"]
-
-        for i, c in enumerate(body.containers):
-            if {"bucket_type", "requested_quantity", "scope_notes", "room_id"}.issubset(container_columns):
-                container = await conn.fetchrow("""
-                    INSERT INTO arrangement_containers
-                        (arrangement_id, container_product_id, label, room_id, bucket_type, requested_quantity, scope_notes, sort_order)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
-                """, arr_id, c.container_product_id, clean_optional_text(c.label), c.room_id, clean_optional_text(c.bucket_type),
-                    normalize_requested_quantity(c.requested_quantity), clean_optional_text(c.scope_notes), i)
-            elif {"bucket_type", "requested_quantity", "scope_notes"}.issubset(container_columns):
-                container = await conn.fetchrow("""
-                    INSERT INTO arrangement_containers
-                        (arrangement_id, container_product_id, label, bucket_type, requested_quantity, scope_notes, sort_order)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
-                """, arr_id, c.container_product_id, clean_optional_text(c.label), clean_optional_text(c.bucket_type),
-                    normalize_requested_quantity(c.requested_quantity), clean_optional_text(c.scope_notes), i)
-            else:
-                fallback_label = (
-                    encode_scope_label(c.label, c.room_id, c.bucket_type, c.requested_quantity, c.scope_notes)
-                    if c.room_id is not None
-                    else (clean_optional_text(c.label) or clean_optional_text(c.bucket_type))
-                )
-                container = await conn.fetchrow("""
-                    INSERT INTO arrangement_containers
-                        (arrangement_id, container_product_id, label, sort_order)
-                    VALUES ($1, $2, $3, $4) RETURNING id
-                """, arr_id, c.container_product_id, fallback_label, i)
-            await sync_build_type(conn, container["id"], c.build_type or c.bucket_type, container_columns)
+        # Validate every item status up front, before any row is written, so
+        # a single bad status can't leave a partial arrangement/container
+        # behind (previously the arrangement + container rows were inserted
+        # before validation ran).
+        for c in body.containers:
             for item in c.items:
-                status = normalize_item_status(item.status)
-                if supports_status and {"part_key", "part_label", "part_order"}.issubset(item_columns):
-                    await conn.execute("""
-                        INSERT INTO container_items (container_id, product_id, quantity, status, part_key, part_label, part_order)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    """, container["id"], item.product_id, item.quantity, status, clean_optional_text(item.part_key),
-                        clean_optional_text(item.part_label), int(item.part_order or 0))
-                elif supports_status:
-                    await conn.execute("""
-                        INSERT INTO container_items (container_id, product_id, quantity, status)
-                        VALUES ($1, $2, $3, $4)
-                    """, container["id"], item.product_id, item.quantity, status)
+                normalize_item_status(item.status)
+
+        async with conn.transaction():
+            arr = await conn.fetchrow("""
+                INSERT INTO arrangements (name, client_name, notes, created_by)
+                VALUES ($1, $2, $3, $4) RETURNING *
+            """, body.name, body.client_name, body.notes, user_id)
+            arr_id = arr["id"]
+
+            for i, c in enumerate(body.containers):
+                if {"bucket_type", "requested_quantity", "scope_notes", "room_id"}.issubset(container_columns):
+                    container = await conn.fetchrow("""
+                        INSERT INTO arrangement_containers
+                            (arrangement_id, container_product_id, label, room_id, bucket_type, requested_quantity, scope_notes, sort_order)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+                    """, arr_id, c.container_product_id, clean_optional_text(c.label), c.room_id, clean_optional_text(c.bucket_type),
+                        normalize_requested_quantity(c.requested_quantity), clean_optional_text(c.scope_notes), i)
+                elif {"bucket_type", "requested_quantity", "scope_notes"}.issubset(container_columns):
+                    container = await conn.fetchrow("""
+                        INSERT INTO arrangement_containers
+                            (arrangement_id, container_product_id, label, bucket_type, requested_quantity, scope_notes, sort_order)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+                    """, arr_id, c.container_product_id, clean_optional_text(c.label), clean_optional_text(c.bucket_type),
+                        normalize_requested_quantity(c.requested_quantity), clean_optional_text(c.scope_notes), i)
                 else:
-                    await conn.execute("""
-                        INSERT INTO container_items (container_id, product_id, quantity)
-                        VALUES ($1, $2, $3)
-                    """, container["id"], item.product_id, item.quantity)
+                    fallback_label = (
+                        encode_scope_label(c.label, c.room_id, c.bucket_type, c.requested_quantity, c.scope_notes)
+                        if c.room_id is not None
+                        else (clean_optional_text(c.label) or clean_optional_text(c.bucket_type))
+                    )
+                    container = await conn.fetchrow("""
+                        INSERT INTO arrangement_containers
+                            (arrangement_id, container_product_id, label, sort_order)
+                        VALUES ($1, $2, $3, $4) RETURNING id
+                    """, arr_id, c.container_product_id, fallback_label, i)
+                await sync_build_type(conn, container["id"], c.build_type or c.bucket_type, container_columns)
+                for item in c.items:
+                    status = normalize_item_status(item.status)
+                    if supports_status and {"part_key", "part_label", "part_order"}.issubset(item_columns):
+                        await conn.execute("""
+                            INSERT INTO container_items (container_id, product_id, quantity, status, part_key, part_label, part_order)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        """, container["id"], item.product_id, item.quantity, status, clean_optional_text(item.part_key),
+                            clean_optional_text(item.part_label), int(item.part_order or 0))
+                    elif supports_status:
+                        await conn.execute("""
+                            INSERT INTO container_items (container_id, product_id, quantity, status)
+                            VALUES ($1, $2, $3, $4)
+                        """, container["id"], item.product_id, item.quantity, status)
+                    else:
+                        await conn.execute("""
+                            INSERT INTO container_items (container_id, product_id, quantity)
+                            VALUES ($1, $2, $3)
+                        """, container["id"], item.product_id, item.quantity)
 
         return await fetch_arrangement_full(conn, arr_id, user_id)
     finally:
@@ -1203,6 +1221,8 @@ async def update_item_quantity(item_id: int, quantity: int, request: Request):
             JOIN arrangement_containers ac ON ac.id = ci.container_id
             WHERE ci.id = $1
         """, item_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Item not found")
         if quantity <= 0:
             if await can_use_item_meta_table(conn):
                 await conn.execute("DELETE FROM container_item_meta WHERE item_id = $1", item_id)
@@ -1210,8 +1230,7 @@ async def update_item_quantity(item_id: int, quantity: int, request: Request):
             await conn.execute("DELETE FROM container_items WHERE id = $1", item_id)
         else:
             await conn.execute("UPDATE container_items SET quantity = $1 WHERE id = $2", quantity, item_id)
-        if row:
-            await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", row["arrangement_id"])
+        await conn.execute("UPDATE arrangements SET updated_at = NOW() WHERE id = $1", row["arrangement_id"])
         return {"ok": True}
     finally:
         await conn.close()

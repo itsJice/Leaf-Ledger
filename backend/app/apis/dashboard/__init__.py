@@ -12,8 +12,8 @@ feature degrades that one number to null/0 rather than failing the whole screen.
 from fastapi import APIRouter, Request
 from typing import Any, Optional
 
-from app.apis.products import get_conn
 from app.apis.user_context import get_request_user_id
+from app.libs.db import get_conn
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

@@ -5,6 +5,7 @@ import Layout from "components/Layout";
 import { apiClient } from "app";
 import { formatCurrency } from "utils/format";
 import { toast } from "sonner";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 
 const INVOICE_PROJECTS_CACHE_KEY = "leaf-ledger:invoice-projects-cache:v1";
 
@@ -22,24 +23,12 @@ type Arrangement = {
 type MarkupSettings = { global_markup: number };
 
 function readInvoiceProjectsCache(): ArrangementSummary[] {
-  try {
-    const raw = localStorage.getItem(INVOICE_PROJECTS_CACHE_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return Array.isArray(parsed?.arrangements) ? parsed.arrangements : [];
-  } catch {
-    return [];
-  }
+  const parsed = readJsonCache<any>(INVOICE_PROJECTS_CACHE_KEY, null);
+  return Array.isArray(parsed?.arrangements) ? parsed.arrangements : [];
 }
 
 function writeInvoiceProjectsCache(arrangements: ArrangementSummary[]) {
-  try {
-    localStorage.setItem(
-      INVOICE_PROJECTS_CACHE_KEY,
-      JSON.stringify({ arrangements, cachedAt: Date.now() })
-    );
-  } catch {
-    // Ignore storage issues.
-  }
+  writeTimestampedJsonCache(INVOICE_PROJECTS_CACHE_KEY, { arrangements });
 }
 
 export default function Invoice() {

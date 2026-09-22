@@ -25,6 +25,12 @@ import { ContentType } from "../apiclient/http-client";
 import { categoryLabel } from "utils/format";
 import { THEME_ACCENTS, useTheme } from "utils/theme";
 import { toast } from "sonner";
+import { BUILD_TEMPLATE_STORAGE_KEY } from "../constants";
+import {
+  cleanSettingsBuildTemplates as cleanTemplateList,
+  LEGACY_TOP_DOWN_SLOT_ORDERS,
+  SETTINGS_DEFAULT_BUILD_TEMPLATES as DEFAULT_BUILD_TEMPLATES,
+} from "utils/buildTemplates";
 
 const CATEGORIES = ["plant", "container", "filler", "accent", "other"];
 
@@ -123,109 +129,6 @@ const DEFAULT_PRICING_FORM: PricingRuleForm = {
   arrangement_markup_multiplier: "1.25",
 };
 
-const BUILD_TEMPLATE_STORAGE_KEY = "leaf-ledger:build-templates:v1";
-
-const DEFAULT_BUILD_TEMPLATES: BuildTemplate[] = [
-  {
-    id: "christmas-tree",
-    section: "Christmas",
-    name: "Christmas Tree",
-    summary: "Tree package builder with a base tree, enhancer materials, skirt, and topper.",
-    usedFor: ["Christmas Tree", "Decor Packages"],
-    slots: ["Tree", "Enhancers", "Tree Skirt", "Tree Topper"],
-    regularMaterials: ["2 x Assorted Branch", '1 x 4" Ornament', "2 1/2 Yards of Ribbon"],
-    premiumMaterials: ["1 Flower", "2 x Assorted Branch", '1 x 4" Ornament', "1 1/2 Yards of Ribbon", "1 Yard of Premium Ribbon"],
-  },
-  {
-    id: "garland",
-    section: "Christmas",
-    name: "Garland",
-    summary: "Nine-foot garland build with lighted/unlit setup and regular or premium enhancer packages.",
-    usedFor: ["Garland", "Railings", "Mantels"],
-    slots: ["Garland", "Enhancers"],
-    regularMaterials: ["5 Regular Enhancers", "2 x Assorted Branches per enhancer", '1 x 4" Ornament per enhancer', "2 1/2 Yards of Ribbon per enhancer"],
-    premiumMaterials: ["3 Premium Enhancers", "2 Regular Enhancers", "2 Extra Ornaments", "1 Flower per premium enhancer", "2 x Assorted Branches per enhancer", '1 x 4" Ornament per enhancer', "1 1/2 Yards of Ribbon per premium enhancer", "1 Yard of Premium Ribbon per premium enhancer"],
-  },
-  {
-    id: "wreath",
-    section: "Christmas",
-    name: "Wreath",
-    summary: "Circular hanging design built from a wreath base and a size-based decor package.",
-    usedFor: ["Wreath", "Door Decor"],
-    slots: ["Wreath Base", "Decor Package"],
-    regularMaterials: ['24" Wreath: 4 assorted branches, 3 yd ribbon, 3 x 4" ornaments', '30" Wreath: 5 assorted branches, 4 yd ribbon, 5 x 4" ornaments'],
-    premiumMaterials: ['36" Wreath: 2 flowers, 7 assorted branches, 6 yd ribbon', '48" Wreath: 3 flowers, 14 assorted branches, 2 x 8" ornaments, 3 x 6" ornaments'],
-  },
-  {
-    id: "teardrop",
-    section: "Christmas",
-    name: "Vertical Spray",
-    summary: "Upright holiday spray for doors, gates, lanterns, columns, or vertical accents.",
-    usedFor: ["Vertical Spray", "Teardrop", "Door Drop", "Lantern Drop"],
-    slots: ["Vertical Spray Base", "Greenery", "Ribbon", "Decor"],
-  },
-  {
-    id: "swag",
-    section: "Christmas",
-    name: "Horizontal Swag",
-    summary: "Horizontal holiday greenery piece for mantels, railings, signs, or architectural accents.",
-    usedFor: ["Horizontal Swag", "Swag", "Holiday Accent"],
-    slots: ["Horizontal Swag Base", "Greenery", "Ribbon", "Decor"],
-  },
-  {
-    id: "green-tree",
-    section: "Green",
-    name: "Tree",
-    summary: "Permanent green tree or plant build, designed from bottom to top.",
-    usedFor: ["Tree", "Tree / Plant", "Fiddle Fig"],
-    slots: ["Leaves", "Trunks & Branches", "Top Dressing", "Container"],
-  },
-  {
-    id: "arrangement",
-    section: "Green",
-    name: "Arrangement",
-    summary: "Smaller tabletop or vase-style design with a base, finish, focal material, and accents.",
-    usedFor: ["Arrangement", "Orchid Arrangement", "Succulent Arrangement", "Foliage Arrangement"],
-    slots: ["Accent Material", "Focal Material", "Finish/Top Dressing", "Container/Base"],
-  },
-  {
-    id: "planter",
-    section: "Green",
-    name: "Planter",
-    summary: "Larger floor container build, usually not a tree but bigger than a tabletop arrangement.",
-    usedFor: ["Planter", "Container Garden", "Floor Container"],
-    slots: ["Accent Plant", "Main Plant", "Finish/Top Dressing", "Container/Planter"],
-  },
-  {
-    id: "drop-in",
-    section: "Green",
-    name: "Drop-in Arrangement",
-    summary: "A build made to drop into a client-owned or separately purchased container.",
-    usedFor: ["Drop-in Arrangement", "Client Container"],
-    slots: ["Finish", "Accent Material", "Main Material", "Drop-in Base"],
-  },
-  {
-    id: "succulent",
-    section: "Green",
-    name: "Succulent / Cactus",
-    summary: "Succulent-focused arrangement pattern kept as an editable reference even when it rolls into Arrangement.",
-    usedFor: ["Succulent Arrangement", "Cactus Arrangement"],
-    slots: ["Accent Greenery", "Succulents/Cactus", "Finish/Top Dressing", "Container/Base"],
-  },
-];
-
-// The green templates above used to list their slots top-down (container first). They now
-// read bottom-up to match how a build is physically assembled. Only the ORDER changed - no
-// slot label was renamed. A stored copy that still holds the old order verbatim is migrated
-// in cleanTemplateList; any order the user customised is left untouched.
-const LEGACY_TOP_DOWN_SLOT_ORDERS: Record<string, string[]> = {
-  "green-tree": ["Container", "Top Dressing", "Trunks & Branches", "Leaves"],
-  arrangement: ["Container/Base", "Finish/Top Dressing", "Focal Material", "Accent Material"],
-  planter: ["Container/Planter", "Finish/Top Dressing", "Main Plant", "Accent Plant"],
-  "drop-in": ["Drop-in Base", "Main Material", "Accent Material", "Finish"],
-  succulent: ["Container/Base", "Finish/Top Dressing", "Succulents/Cactus", "Accent Greenery"],
-};
-
 const PREVIEWABLE_VISUAL_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".psd"]);
 const SKU_FAMILY_LABELS: Record<string, string> = {
   TT: "Tree",
@@ -277,37 +180,6 @@ function visualExtensionLabel(asset: VisualReference) {
   return String(asset.extension || "").replace(".", "").toUpperCase() || "FILE";
 }
 
-function cleanTemplateList(values: unknown, fallback = DEFAULT_BUILD_TEMPLATES): BuildTemplate[] {
-  if (!Array.isArray(values)) return fallback;
-  const cleaned = values
-    .map((value) => {
-      const template = value as Partial<BuildTemplate>;
-      const id = String(template.id || "").trim();
-      const name = String(template.name || "").trim();
-      if (!id || !name) return null;
-      let slots = Array.isArray(template.slots) ? template.slots.map(String).map((item) => item.trim()).filter(Boolean) : [];
-      if (id === "wreath" && slots.map((slot) => slot.toLowerCase()).join("|") === "wreath base|greenery|ribbon|decor") {
-        slots = ["Wreath Base", "Decor Package"];
-      }
-      const legacyOrder = LEGACY_TOP_DOWN_SLOT_ORDERS[id];
-      if (legacyOrder && slots.map((slot) => slot.toLowerCase()).join("|") === legacyOrder.map((slot) => slot.toLowerCase()).join("|")) {
-        slots = [...legacyOrder].reverse();
-      }
-      return {
-        id,
-        section: template.section === "Christmas" ? "Christmas" : "Green",
-        name,
-        summary: String(template.summary || ""),
-        usedFor: Array.isArray(template.usedFor) ? template.usedFor.map(String).map((item) => item.trim()).filter(Boolean) : [],
-        slots,
-        regularMaterials: Array.isArray(template.regularMaterials) ? template.regularMaterials.map(String).map((item) => item.trim()).filter(Boolean) : undefined,
-        premiumMaterials: Array.isArray(template.premiumMaterials) ? template.premiumMaterials.map(String).map((item) => item.trim()).filter(Boolean) : undefined,
-      } satisfies BuildTemplate;
-    })
-    .filter(Boolean) as BuildTemplate[];
-  return cleaned.length ? cleaned : fallback;
-}
-
 function readBuildTemplates() {
   try {
     return cleanTemplateList(JSON.parse(window.localStorage.getItem(BUILD_TEMPLATE_STORAGE_KEY) || "null"));
@@ -317,7 +189,11 @@ function readBuildTemplates() {
 }
 
 function writeBuildTemplates(templates: BuildTemplate[]) {
-  window.localStorage.setItem(BUILD_TEMPLATE_STORAGE_KEY, JSON.stringify(cleanTemplateList(templates)));
+  try {
+    window.localStorage.setItem(BUILD_TEMPLATE_STORAGE_KEY, JSON.stringify(cleanTemplateList(templates)));
+  } catch {
+    toast.error("Couldn't save build templates locally -- they may be lost on reload.");
+  }
 }
 
 function rulesToForm(rules?: Record<string, unknown>): PricingRuleForm {

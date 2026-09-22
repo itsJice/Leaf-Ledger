@@ -20,9 +20,7 @@ from __future__ import annotations
 import io
 from typing import Optional
 
-
-def _money(n) -> str:
-    return "" if n is None else f"${float(n):,.2f}"
+from app.libs.export_format import esc as _esc, money as _money
 
 
 def _qty(n) -> str:
@@ -39,10 +37,6 @@ def _d(v) -> str:
         return v.strftime("%b %d, %Y")
     except Exception:
         return str(v)
-
-
-def _esc(s) -> str:
-    return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 # ── Tracking sheet (xlsx) ───────────────────────────────────────────────────

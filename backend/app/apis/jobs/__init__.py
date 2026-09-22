@@ -43,12 +43,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.apis.products import get_conn
 from app.apis.user_context import get_request_user_id
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
-
-_SCHEMA_READY = False
 
 STAGES = ["new", "sourcing", "ordered", "receiving", "complete"]
 
@@ -222,14 +220,13 @@ ALTER TABLE ll_app.order_items ADD COLUMN IF NOT EXISTS follow_up_note text;
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    # orders tables must exist before we ALTER them
-    from app.apis.orders import ensure_schema as ensure_orders
-    await ensure_orders(conn)
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        # orders tables must exist before we ALTER them
+        from app.apis.orders import ensure_schema as ensure_orders
+        await ensure_orders(conn)
+        await conn.execute(DDL)
+
+    await ensure_schema_once("jobs", _ddl)
 
 
 # ── Models ──────────────────────────────────────────────────────────────────
@@ -493,17 +490,27 @@ def _derive_stage(job: dict, pieces: list, needs: List[dict]) -> str:
 
 
 async def _load_job(conn, job_id: int) -> Optional[dict]:
-    job = await conn.fetchrow("SELECT * FROM ll_app.jobs WHERE id = $1", job_id)
-    if not job:
-        return None
-    job = dict(job)
-    job["intake"] = _jsonb(job.get("intake"))
-    pieces = [dict(r) for r in await conn.fetch(
-        "SELECT * FROM ll_app.job_pieces WHERE job_id = $1 ORDER BY sort_order, id", job_id)]
-    for p in pieces:
+    return (await _load_jobs(conn, [job_id])).get(job_id)
+
+
+async def _load_jobs(conn, job_ids: List[int]) -> dict:
+    """Load full worksheets for many jobs with a fixed number of queries
+    (six, however many ids), keyed by job id. Missing ids are simply absent."""
+    ids = list(dict.fromkeys(int(i) for i in job_ids))
+    if not ids:
+        return {}
+    job_rows = await conn.fetch("SELECT * FROM ll_app.jobs WHERE id = ANY($1::int[])", ids)
+    if not job_rows:
+        return {}
+    ids = [r["id"] for r in job_rows]
+    pieces_by_job: dict = {}
+    for r in await conn.fetch(
+            "SELECT * FROM ll_app.job_pieces WHERE job_id = ANY($1::int[]) ORDER BY sort_order, id", ids):
+        p = dict(r)
         p["spec"] = _jsonb(p.get("spec"))
+        pieces_by_job.setdefault(p["job_id"], []).append(p)
     need_rows = await conn.fetch(
-        "SELECT * FROM ll_app.material_needs WHERE job_id = $1 ORDER BY sort_order, id", job_id)
+        "SELECT * FROM ll_app.material_needs WHERE job_id = ANY($1::int[]) ORDER BY sort_order, id", ids)
     line_rows = await conn.fetch("""
         SELECT l.*, oi.quantity AS po_quantity, oi.received_qty, oi.order_id,
                o.name AS order_name, o.status AS order_status, o.expected_arrival,
@@ -516,9 +523,9 @@ async def _load_job(conn, job_id: int) -> Optional[dict]:
         LEFT JOIN ll_app.orders o ON o.id = oi.order_id
         LEFT JOIN ll_app.order_items srci ON srci.id = l.allocated_from_order_item_id
         LEFT JOIN ll_app.orders src ON src.id = srci.order_id
-        WHERE n.job_id = $1
+        WHERE n.job_id = ANY($1::int[])
         ORDER BY l.created_at, l.id
-    """, job_id)
+    """, ids)
     by_need: dict = {}
     for r in line_rows:
         d = dict(r)
@@ -529,32 +536,48 @@ async def _load_job(conn, job_id: int) -> Optional[dict]:
         d["line_cost"] = _line_cost(d)
         d["overage_qty"] = max(0.0, _num(d["order_qty"]) - _num(d["covers_qty"])) if d["order_qty"] else 0.0
         by_need.setdefault(d["need_id"], []).append(d)
-    needs = []
+    needs_by_job: dict = {}
     for r in need_rows:
         n = dict(r)
         for k in ("need_qty", "shelf_qty"):
             n[k] = float(n[k]) if n[k] is not None else 0.0
         n["lines"] = by_need.get(n["id"], [])
         n.update(_derive_need(n, n["lines"]))
-        needs.append(n)
-    tasks = [dict(r) for r in await conn.fetch(
-        "SELECT * FROM ll_app.job_tasks WHERE job_id = $1 ORDER BY done_at NULLS FIRST, due NULLS LAST, id",
-        job_id)]
-    # Purchase orders this job has lines on, with per-line receiving state.
+        needs_by_job.setdefault(n["job_id"], []).append(n)
+    tasks_by_job: dict = {}
+    for r in await conn.fetch(
+            "SELECT * FROM ll_app.job_tasks WHERE job_id = ANY($1::int[]) "
+            "ORDER BY done_at NULLS FIRST, due NULLS LAST, id", ids):
+        t = dict(r)
+        tasks_by_job.setdefault(t["job_id"], []).append(t)
+    # Purchase orders each job has lines on, with per-line receiving state.
     po_rows = await conn.fetch("""
         SELECT o.id, o.name, o.status, o.supplier_id, o.vendor_order_no, o.placed_at,
                o.expected_arrival, o.freight, o.updated_at,
                s.name AS supplier_name,
                COUNT(oi.id)::int AS line_count,
                COALESCE(SUM(oi.quantity), 0)::float AS total_qty,
-               COALESCE(SUM(oi.received_qty), 0)::float AS received_qty
+               COALESCE(SUM(oi.received_qty), 0)::float AS received_qty,
+               oi.job_id AS _job_id
         FROM ll_app.orders o
-        JOIN ll_app.order_items oi ON oi.order_id = o.id AND oi.job_id = $1
+        JOIN ll_app.order_items oi ON oi.order_id = o.id AND oi.job_id = ANY($1::int[])
         LEFT JOIN suppliers s ON s.id = o.supplier_id
-        GROUP BY o.id, s.name
+        GROUP BY oi.job_id, o.id, s.name
         ORDER BY o.updated_at DESC
-    """, job_id)
-    pos = [dict(r) for r in po_rows]
+    """, ids)
+    pos_by_job: dict = {}
+    for r in po_rows:
+        d = dict(r)
+        pos_by_job.setdefault(d.pop("_job_id", None), []).append(d)
+    return {
+        r["id"]: _assemble_job(dict(r), pieces_by_job.get(r["id"], []), needs_by_job.get(r["id"], []),
+                               tasks_by_job.get(r["id"], []), pos_by_job.get(r["id"], []))
+        for r in job_rows
+    }
+
+
+def _assemble_job(job: dict, pieces: list, needs: list, tasks: list, pos: list) -> dict:
+    job["intake"] = _jsonb(job.get("intake"))
     stage = _derive_stage(job, pieces, needs)
     cost = 0.0
     cost_known = False
@@ -601,9 +624,10 @@ async def list_jobs():
     try:
         await ensure_schema(conn)
         rows = await conn.fetch("SELECT id FROM ll_app.jobs ORDER BY updated_at DESC")
+        loaded = await _load_jobs(conn, [r["id"] for r in rows])
         out = []
         for r in rows:
-            j = await _load_job(conn, r["id"])
+            j = loaded.get(r["id"])
             if not j:
                 continue
             out.append({k: j[k] for k in (
@@ -720,7 +744,9 @@ async def delete_job(job_id: int):
     conn = await get_conn()
     try:
         await ensure_schema(conn)
-        await conn.execute("DELETE FROM ll_app.jobs WHERE id = $1", job_id)
+        row = await conn.fetchrow("DELETE FROM ll_app.jobs WHERE id = $1 RETURNING id", job_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Job not found")
         return {"ok": True}
     finally:
         await conn.close()
@@ -1281,21 +1307,6 @@ async def delete_task(task_id: int):
         await conn.close()
 
 
-# ── Stock (what is on the shelf from overage) ───────────────────────────────
-@router.get("/stock/list")
-async def list_stock(q: Optional[str] = None):
-    conn = await get_conn()
-    try:
-        await ensure_schema(conn)
-        if q:
-            rows = await conn.fetch(
-                "SELECT * FROM ll_app.stock WHERE label ILIKE $1 AND qty > 0 ORDER BY updated_at DESC LIMIT 50",
-                f"%{q}%")
-        else:
-            rows = await conn.fetch("SELECT * FROM ll_app.stock WHERE qty > 0 ORDER BY updated_at DESC LIMIT 200")
-        return [dict(r) for r in rows]
-    finally:
-        await conn.close()
 
 
 # ── Pinboard: groups and pinned products ────────────────────────────────────
@@ -1548,6 +1559,9 @@ async def export_job(job_id: int, format: str = "xlsx"):
     """`xlsx` is the buyer's tracking sheet in the binder layout, with product
     pictures. (A Manufacturing Order PDF exists in export.py for the future
     in-app MO; it is deliberately not exposed while the designers use paper.)"""
+    fmt = (format or "xlsx").lower()
+    if fmt != "xlsx":
+        raise HTTPException(status_code=400, detail="format must be xlsx")
     conn = await get_conn()
     try:
         await ensure_schema(conn)
@@ -1557,9 +1571,6 @@ async def export_job(job_id: int, format: str = "xlsx"):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     from app.apis.jobs import export as export_mod
-    fmt = (format or "xlsx").lower()
-    if fmt != "xlsx":
-        raise HTTPException(status_code=400, detail="format must be xlsx")
     body = export_mod.tracking_xlsx(job)
     slug = "".join(c if c.isalnum() or c in "-_ " else "" for c in (job["name"] or "job")).strip().replace(" ", "_")
     return Response(content=body,

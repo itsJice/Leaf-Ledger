@@ -27,10 +27,21 @@ let _supplierDirCache: Promise<Record<number, SupplierLoginInfo>> | null = null;
 
 export function loadSupplierDirectory(): Promise<Record<number, SupplierLoginInfo>> {
   if (!_supplierDirCache) {
-    _supplierDirCache = apiFetch("/api/suppliers/list", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows: SupplierLoginInfo[]) => Object.fromEntries((rows || []).map((s) => [s.id, s])))
-      .catch(() => ({}));
+    const promise: Promise<Record<number, SupplierLoginInfo>> = apiFetch("/api/suppliers/list", {
+      credentials: "include",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((rows: SupplierLoginInfo[] | null) => {
+        if (!Array.isArray(rows)) throw new Error("invalid supplier directory response");
+        return Object.fromEntries(rows.map((s) => [s.id, s]));
+      })
+      .catch(() => {
+        // Don't cache a failure — the next call should retry, not keep
+        // answering {} forever until something happens to invalidate it.
+        if (_supplierDirCache === promise) _supplierDirCache = null;
+        return {};
+      });
+    _supplierDirCache = promise;
   }
   return _supplierDirCache;
 }

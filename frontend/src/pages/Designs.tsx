@@ -4,28 +4,18 @@ import Arrangements from "./Arrangements";
 import {
   Check,
   ChevronDown,
-  CircleDashed,
-  Flower2,
   Layers,
   LayoutGrid,
-  Leaf,
   List,
   Minus,
   Plus,
   RotateCcw,
   Search,
   Shapes,
-  Shrub,
-  Sparkle,
-  Spline,
-  Sprout,
-  TreeDeciduous,
-  TreePine,
-  Waves,
   X,
 } from "lucide-react";
 import Layout from "components/Layout";
-import { ProxiedImage } from "./Library";
+import { ProxiedImage } from "./library/ProxiedImage";
 import { formatCurrency } from "utils/format";
 import {
   Design,
@@ -35,6 +25,11 @@ import {
   EMPTY_FACETS,
   fetchDesignList,
 } from "utils/designs";
+import { buildTypeIcon } from "utils/buildTypeIcon";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+
+export { buildTypeIcon };
 
 // The Designs tab — the shortcut to every build in the shop.
 //
@@ -83,31 +78,6 @@ const FILTERS: { key: FilterKey; label: string; facet: keyof DesignFacets }[] = 
   { key: "build_types", label: "Build type", facet: "build_types" },
 ];
 
-// Build-type → icon. Ordered: the first pattern that matches wins, so
-// "Christmas Tree" beats the generic "tree" rule.
-type IconComponent = typeof TreePine;
-const BUILD_TYPE_ICONS: [RegExp, IconComponent][] = [
-  [/christmas tree|holiday tree/, TreePine],
-  [/wreath/, CircleDashed],
-  [/garland/, Spline],
-  [/swag/, Waves],
-  [/spray|teardrop|door drop/, Sprout],
-  [/planter|container garden/, Shrub],
-  [/ornament/, Sparkle],
-  [/branch|stem/, Leaf],
-  [/tree|fig/, TreeDeciduous],
-  [/centerpiece|arrangement|floral|orchid|succulent/, Flower2],
-];
-
-export function buildTypeIcon(buildType?: string | null): IconComponent {
-  const normalized = (buildType || "").trim().toLowerCase();
-  if (!normalized) return Shapes;
-  for (const [pattern, Icon] of BUILD_TYPE_ICONS) {
-    if (pattern.test(normalized)) return Icon;
-  }
-  return Shapes;
-}
-
 export default function Designs() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,7 +85,7 @@ export default function Designs() {
 
   const [sel, setSel] = useState<Selection>(EMPTY_SELECTION);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 350).trim();
   const [sort, setSort] = useState<DesignSort>("recent");
   const [items, setItems] = useState<Design[]>([]);
   const [facets, setFacets] = useState<DesignFacets>(EMPTY_FACETS);
@@ -131,11 +101,6 @@ export default function Designs() {
   const [cardSize, setCardSize] = useState<CardSize>(() => (Number(localStorage.getItem(SIZE_KEY)) as CardSize) || 3);
   useEffect(() => { localStorage.setItem(VIEW_KEY, viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem(SIZE_KEY, String(cardSize)); }, [cardSize]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const load = useCallback(
     (nextOffset: number, append: boolean) => {
@@ -180,19 +145,11 @@ export default function Designs() {
   const resetAll = () => { setSel(EMPTY_SELECTION); setSearch(""); };
 
   // Infinite scroll + prefetch — next page starts loading ~800px early.
-  const loadMoreStateRef = useRef({ loading, itemsLen: items.length, total, offset });
-  loadMoreStateRef.current = { loading, itemsLen: items.length, total, offset };
-  const scrollObsRef = useRef<IntersectionObserver | null>(null);
-  const setSentinel = useCallback((node: HTMLDivElement | null) => {
-    if (scrollObsRef.current) { scrollObsRef.current.disconnect(); scrollObsRef.current = null; }
-    if (!node) return;
-    scrollObsRef.current = new IntersectionObserver((entries) => {
-      if (!entries[0].isIntersecting) return;
-      const s = loadMoreStateRef.current;
-      if (!s.loading && s.itemsLen < s.total) load(s.offset + PAGE_SIZE, true);
-    }, { rootMargin: "800px 0px" });
-    scrollObsRef.current.observe(node);
-  }, [load]);
+  const setSentinel = useInfiniteScroll({
+    enabled: !loading && items.length < total,
+    onLoadMore: () => load(offset + PAGE_SIZE, true),
+    resetKey: load,
+  });
 
   return (
     <Layout>
