@@ -9,7 +9,7 @@
     "lint": "eslint --ext .ts,.tsx src",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "TZ=America/Chicago vitest run"
   },
   "dependencies": {
     "@radix-ui/react-icons": "^1.3.0",
