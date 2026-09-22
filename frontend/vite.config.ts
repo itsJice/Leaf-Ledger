@@ -47,5 +47,13 @@ export default defineConfig({
 		environment: "node",
 		include: ["src/**/*.test.{ts,tsx}"],
 		globals: false,
+		// The clock is pinned to America/Chicago by the `test` script in
+		// package.json, not here: the date-only formatter tests build "local
+		// midnight" with `new Date(y, m, d)` and render it through a forced
+		// display timezone, which only proves the right thing when the PROCESS
+		// timezone is the team's. On a UTC runner (GitHub Actions) three of them
+		// failed while passing on every developer's Mac. Setting process.env.TZ
+		// from a setup file does not reach vitest's worker threads; the shell
+		// variable does.
 	},
 });

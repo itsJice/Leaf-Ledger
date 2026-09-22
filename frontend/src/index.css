@@ -918,3 +918,116 @@ html.dark {
   cursor: grab;
 }
 .ornament-slider:disabled { opacity: 0.5; cursor: not-allowed; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Shared timing and the handful of entrance animations the app uses. The
+   rules of thumb, in the order they are applied:
+
+     * Anything entering or exiting uses a strong ease-out: it moves the
+       instant the user acts and settles gently. Never ease-in on UI.
+     * UI motion stays under 300 ms. Modals 200, popovers 150, presses 160.
+     * Only `opacity`, `transform` and `scale` are animated (GPU, no layout).
+     * Nothing appears from scale(0). Panels start at 0.97 and fade in.
+     * Modals scale from the centre; anchored popovers scale from their edge.
+     * Reduced-motion keeps the fades (they aid comprehension) and drops
+       the movement.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 160ms;
+  --dur-popover: 150ms;
+  --dur-modal: 200ms;
+}
+
+@layer base {
+  /* Press feedback on every pressable element. The interface should feel like
+     it heard the click. Uses the standalone `scale` property so it composes
+     with any Tailwind `translate-*` / `rotate-*` already on the element
+     instead of overwriting its `transform`. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, scale;
+    transition-duration: var(--dur-press);
+    transition-timing-function: var(--ease-out-strong);
+  }
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    scale: 0.97;
+  }
+  /* Opt out for elements where a scale would look wrong (e.g. a full-bleed
+     row or an element that is dragged). */
+  .press-none:active { scale: 1 !important; }
+}
+
+@keyframes ll-fade-in {
+  from { opacity: 0; }
+}
+@keyframes ll-pop-in {
+  from { opacity: 0; scale: 0.97; }
+}
+@keyframes ll-rise-in {
+  from { opacity: 0; translate: 0 8px; }
+}
+
+@layer components {
+  /* Backdrop behind a modal. */
+  .ll-overlay {
+    animation: ll-fade-in var(--dur-popover) var(--ease-out-strong) both;
+  }
+  /* A centred modal panel: fades in while settling from 0.97 → 1. Centre
+     origin on purpose — modals are not anchored to a trigger. */
+  .ll-modal {
+    transform-origin: center;
+    animation: ll-pop-in var(--dur-modal) var(--ease-out-strong) both;
+  }
+  /* On a phone a tall form can outgrow the screen (more so with the keyboard
+     up). Cap it to the viewport and let the panel itself scroll. Desktop is
+     left alone so modals that manage their own scrolling body keep doing so. */
+  @media (max-width: 767px) {
+    .ll-modal {
+      max-height: calc(100dvh - 2rem);
+      overflow-y: auto;
+    }
+  }
+  /* An anchored popover / menu: scales from the edge it hangs off. */
+  .ll-popover {
+    transform-origin: var(--ll-popover-origin, top);
+    animation: ll-pop-in var(--dur-popover) var(--ease-out-strong) both;
+  }
+  /* Page-level content on a rare screen (login, empty states). Delight is
+     allowed here because the user does not see it a hundred times a day. */
+  .ll-enter {
+    animation: ll-rise-in 300ms var(--ease-out-strong) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    scale: 1;
+  }
+  .ll-modal,
+  .ll-popover,
+  .ll-enter {
+    animation-name: ll-fade-in;
+    animation-duration: 150ms;
+  }
+}
+
+
+/* On a phone a page header is title + subtitle + action stacked (~170px).
+   Pinned, it covers a fifth of the screen for the whole scroll, and the app
+   bar above it already keeps navigation in reach -- so let it scroll away. */
+@media (max-width: 639px) {
+  [data-scroll-root] header.sticky,
+  [data-scroll-root] div.sticky.top-0.border-b {
+    position: static;
+  }
+}

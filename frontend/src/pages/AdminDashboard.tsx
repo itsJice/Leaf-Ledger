@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { apiClient } from "app";
+import { apiFetch } from "utils/apiFetch";
 import type {
   AdminDashboardResponse,
   SupplierHealth,
@@ -511,7 +512,7 @@ function CategoryIndexCard() {
                 )}
 
                 {isExpanded && isEmpty && (
-                  <div className="border-t border-stone-100 px-10 py-4 text-xs text-stone-400">
+                  <div className="border-t border-stone-100 px-4 sm:px-10 py-4 text-xs text-stone-400">
                     No categories cached yet. Run a full scrape to populate the index.
                   </div>
                 )}
@@ -602,9 +603,9 @@ function BackfillCard() {
   const isFailed = bf?.status === "failed";
 
   return (
-    <div className="mx-8 mb-5">
+    <div className="mx-4 mb-5 sm:mx-8">
       <div className="bg-white border border-stone-200 rounded-xl shadow-sm px-5 py-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-amber-50">
               <Download className="w-4 h-4 text-amber-700" />
@@ -682,7 +683,11 @@ export default function AdminDashboard() {
     if (!quiet) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await apiClient.get_admin_dashboard();
+      // Refresh bypasses the backend's 60s cache; a plain load is happy with it.
+      // (The generated client cannot add a query string, so go through apiFetch.)
+      const res = quiet
+        ? await apiFetch("/api/admin/dashboard?fresh=true")
+        : await apiClient.get_admin_dashboard();
       const json = (await res.json()) as AdminDashboardResponse;
       setData(json);
     } catch (e) {
@@ -709,9 +714,9 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-4" style={{ background: "rgb(var(--ll-page))", minHeight: "100vh" }}>
+      <div className="space-y-4 p-4 sm:p-8" style={{ background: "rgb(var(--ll-page))", minHeight: "100vh" }}>
         <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />
           ))}
@@ -740,7 +745,7 @@ export default function AdminDashboard() {
     <TooltipProvider>
       <div className="min-h-screen" style={{ background: "rgb(var(--ll-page))" }}>
         {/* ── Header ── */}
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between">
+        <div className="px-4 sm:px-8 pt-8 pb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-serif font-semibold text-brand">Sync Operations</h1>
             <p className="text-sm text-stone-500 mt-0.5">
@@ -805,7 +810,7 @@ export default function AdminDashboard() {
         <BackfillCard />
 
         {/* ── Tabs ── */}
-        <div className="px-8">
+        <div className="px-4 sm:px-8">
           <Tabs defaultValue="suppliers">
             <TabsList className="bg-white border border-stone-200 rounded-lg mb-4">
               <TabsTrigger value="suppliers">
