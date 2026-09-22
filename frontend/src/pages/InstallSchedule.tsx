@@ -68,6 +68,24 @@ export default function InstallSchedule() {
     }
   };
 
+  // Leaving this tab unmounts the iframe, which kills the tool's 200ms
+  // debounced save with it. Ask the tool (same origin, so its window is
+  // reachable) to flush synchronously first; older published builds without
+  // the hook simply have nothing to call.
+  // Re-run when `html` lands so the frame captured here is the one that
+  // actually mounted (it does not exist before then).
+  useEffect(() => {
+    const frame = frameRef.current;
+    return () => {
+      try {
+        const w = frame?.contentWindow as (Window & { tbdgFlush?: () => void }) | null | undefined;
+        w?.tbdgFlush?.();
+      } catch {
+        /* cross-origin or already gone */
+      }
+    };
+  }, [html]);
+
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
@@ -80,7 +98,7 @@ export default function InstallSchedule() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-0px)] min-h-0 flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         {error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-stone-500">
             <TreePine className="h-8 w-8 text-stone-400" />

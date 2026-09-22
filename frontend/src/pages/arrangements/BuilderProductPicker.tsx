@@ -421,7 +421,7 @@ export function BuilderProductPicker({
                 return (
                   <div
                     key={product.id}
-                    className={`flex items-center gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm transition-all ${
+                    className={`flex items-center gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm transition ${
                       added ? "border-emerald-700 ring-1 ring-emerald-100" : "border-stone-200 hover:border-stone-300"
                     }`}
                   >
@@ -455,7 +455,7 @@ export function BuilderProductPicker({
               return (
                 <div
                   key={product.id}
-                  className={`rounded-2xl border bg-white p-2.5 shadow-sm transition-all ${
+                  className={`rounded-2xl border bg-white p-2.5 shadow-sm transition ${
                     added ? "border-emerald-700 ring-1 ring-emerald-100" : "border-stone-200 hover:border-stone-300"
                   }`}
                 >

@@ -21,6 +21,8 @@ export default function Orders() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(getActiveOrderId());
+  // Below `md` the rail sits above the order and folds away once one is chosen.
+  const [railOpen, setRailOpen] = useState(false);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -95,7 +97,7 @@ export default function Orders() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             <ShoppingCart size={18} className="text-emerald-700" /> Purchase Orders
@@ -109,9 +111,9 @@ export default function Orders() {
         </button>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         {/* Orders rail */}
-        <aside className="w-64 flex-shrink-0 border-r border-stone-200 px-3 py-4" style={{ minHeight: "calc(100vh - 65px)" }}>
+        <aside className={`${railOpen || !activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-64 md:border-b-0 md:border-r`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Orders ({orders.length})</p>
           {orders.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">No orders yet. Add products from the catalog, or start one.</p>
@@ -120,7 +122,7 @@ export default function Orders() {
               {orders.map((o) => {
                 const active = o.id === activeId;
                 return (
-                  <button key={o.id} onClick={() => setActiveId(o.id)}
+                  <button key={o.id} onClick={() => { setActiveId(o.id); setRailOpen(false); }}
                     className={`group flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
                     <span className="flex items-center justify-between gap-2">
                       <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{o.name}</span>
@@ -138,7 +140,17 @@ export default function Orders() {
         </aside>
 
         {/* Order detail */}
-        <main className="flex-1 px-8 py-6">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+          {activeId && (
+            <button
+              type="button"
+              onClick={() => setRailOpen((v) => !v)}
+              aria-expanded={railOpen}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+            >
+              <ShoppingCart size={13} /> {railOpen ? "Hide" : "Show"} orders ({orders.length})
+            </button>
+          )}
           {!activeId ? (
             <Empty />
           ) : loading && !order ? (
@@ -196,8 +208,8 @@ export default function Orders() {
                       <span className="text-sm font-semibold text-emerald-800">{money(v.subtotal)}</span>
                     </div>
                     <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
-                      <thead>
+                    <table className="block w-full text-sm sm:table sm:min-w-[640px]">
+                      <thead className="hidden sm:table-header-group">
                         <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
                           <th className="px-4 py-2 font-medium">Product</th>
                           <th className="px-2 py-2 font-medium">SKU</th>
@@ -208,30 +220,30 @@ export default function Orders() {
                           <th className="px-2 py-2"></th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="block sm:table-row-group">
                         {v.items.map((it) => {
                           const img = proxied(it.image_url);
                           return (
-                            <tr key={it.item_id} className="border-t border-stone-100 align-middle">
-                              <td className="px-4 py-2">
+                            <tr key={it.item_id} className="block border-t border-stone-100 px-3 py-3 sm:table-row sm:p-0 sm:align-middle">
+                              <td className="block pb-2 sm:table-cell sm:px-4 sm:py-2">
                                 <div className="flex items-center gap-3">
                                   {/* Big enough to actually identify the product —
                                       this is a design business, the picture is the point. */}
                                   <button onClick={() => openProduct(it.product_id)} className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-50 transition-colors hover:border-emerald-300">
                                     {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={26} className="text-stone-300" />}
                                   </button>
-                                  <div className="min-w-0">
-                                    <button onClick={() => openProduct(it.product_id)} className="block max-w-[22rem] truncate text-left font-medium text-stone-800 hover:text-emerald-700" title={it.name}>{it.name}</button>
+                                  <div className="min-w-0 flex-1">
+                                    <button onClick={() => openProduct(it.product_id)} className="block max-w-full truncate text-left font-medium text-stone-800 hover:text-emerald-700 sm:max-w-[22rem]" title={it.name}>{it.name}</button>
                                     {it.product_url && (
                                       <a href={it.product_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-stone-400 hover:text-emerald-700"><ExternalLink size={10} /> View on site</a>
                                     )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-2 py-2 font-mono text-[11px] text-stone-500">{it.sku || "—"}</td>
-                              <td className="px-2 py-2 text-stone-500">{it.size || "—"}</td>
-                              <td className="px-2 py-2">
-                                <div className="mx-auto flex w-fit items-center rounded-md border border-stone-300">
+                              <td className="flex items-center justify-between gap-3 py-1 font-mono text-[11px] text-stone-500 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">SKU</span><span>{it.sku || "—"}</span></td>
+                              <td className="flex items-center justify-between gap-3 py-1 text-stone-500 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Size</span><span>{it.size || "—"}</span></td>
+                              <td className="flex items-center justify-between gap-3 py-1 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Qty</span>
+                                <div className="flex w-fit items-center rounded-md border border-stone-300 sm:mx-auto">
                                   <button onClick={() => changeQty(it.item_id, Math.max(1, it.quantity - 1))} className="px-1.5 py-1 text-stone-500 hover:text-stone-800" aria-label="Decrease"><Minus size={12} /></button>
                                   <input type="number" min={1} value={it.quantity}
                                     onChange={(e) => changeQty(it.item_id, Math.max(1, Number(e.target.value) || 1))}
@@ -239,9 +251,9 @@ export default function Orders() {
                                   <button onClick={() => changeQty(it.item_id, it.quantity + 1)} className="px-1.5 py-1 text-stone-500 hover:text-stone-800" aria-label="Increase"><Plus size={12} /></button>
                                 </div>
                               </td>
-                              <td className="px-2 py-2 text-right text-stone-600">{money(it.unit_price)}</td>
-                              <td className="px-2 py-2 text-right font-medium text-stone-800">{money(it.line_total)}</td>
-                              <td className="px-2 py-2 text-right">
+                              <td className="flex items-center justify-between gap-3 py-1 text-right text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Unit</span><span>{money(it.unit_price)}</span></td>
+                              <td className="flex items-center justify-between gap-3 py-1 text-right font-medium text-stone-800 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Total</span><span>{money(it.line_total)}</span></td>
+                              <td className="block pt-2 text-right sm:table-cell sm:px-2 sm:py-2">
                                 <button onClick={() => dropItem(it.item_id)} className="text-stone-300 hover:text-rose-600" aria-label="Remove"><Trash2 size={15} /></button>
                               </td>
                             </tr>

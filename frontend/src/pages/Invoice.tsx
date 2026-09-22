@@ -66,15 +66,15 @@ export default function Invoice() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200 print:hidden" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200 print:hidden" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Invoice</h1>
           <p className="text-xs text-stone-500 mt-0.5">Generate print-ready invoice from any arrangement</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <select
-              className="appearance-none border border-stone-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              className="w-full max-w-full appearance-none border border-stone-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
               value={arrangementId || ""}
               onChange={(e) => setSearchParams(e.target.value ? { arrangement_id: e.target.value } : {})}
             >
@@ -97,7 +97,7 @@ export default function Invoice() {
         </div>
       </header>
 
-      <div className="px-10 py-8">
+      <div className="px-4 sm:px-10 py-8">
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
@@ -132,7 +132,7 @@ export default function Invoice() {
                 <h3 className="text-sm font-semibold text-stone-700 mb-3" style={{ fontFamily: "Georgia, serif" }}>
                   {container.label || "Container"}{container.container_name ? ` — ${container.container_name}` : ""}
                 </h3>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-stone-200">
                       <th className="text-left pb-2 text-xs font-semibold text-stone-500 uppercase tracking-wider">Product</th>
@@ -159,7 +159,7 @@ export default function Invoice() {
                       <td className="pt-2 text-right font-semibold text-stone-700">{formatCurrency(container.subtotal)}</td>
                     </tr>
                   </tfoot>
-                </table>
+                </table></div>
               </div>
             ))}
 

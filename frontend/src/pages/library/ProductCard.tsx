@@ -50,7 +50,7 @@ export function ProductCard({
       tabIndex={0}
       onClick={() => onOpen(p)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onOpen(p); }}
-      className="bg-white rounded-xl border border-stone-200 overflow-hidden group hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-300"
+      className="bg-white rounded-xl border border-stone-200 overflow-hidden group hover:shadow-md transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-300"
     >
       {/* Image */}
       <div className="relative h-56 bg-stone-100 overflow-hidden">

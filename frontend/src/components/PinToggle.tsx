@@ -125,7 +125,7 @@ export default function PinToggle({ productId, jobId, groupId, groups, isPinned,
         : <Plus size={iconSize} style={{ color: jobId ? "rgb(var(--ll-brand))" : "rgb(var(--nc-400))" }} />}
       {choosing && (
         <div
-          className="absolute right-0 top-full z-30 mt-1 w-48 cursor-default rounded-lg border border-stone-200 bg-white p-1 text-left normal-case shadow-lg"
+          className="ll-popover origin-top-right absolute right-0 top-full z-30 mt-1 w-48 cursor-default rounded-lg border border-stone-200 bg-white p-1 text-left normal-case shadow-lg"
           onClick={(e) => e.stopPropagation()}
           onMouseLeave={() => setChoosing(false)}
         >

@@ -38,6 +38,9 @@ const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
 /** @type {import('tailwindcss').Config} */
 export default {
+	// Touch devices fire :hover on tap and leave it stuck; this wraps every
+	// hover: variant in @media (hover: hover) so it only fires for a real pointer.
+	future: { hoverOnlyWhenSupported: true },
 	darkMode: ["class"],
 	content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
 	theme: {
@@ -129,6 +132,34 @@ export default {
 					soft: token("ll-brand-soft"),
 				},
 			},
+			/* ── Motion ─────────────────────────────────────────────────────────
+			   Built-in CSS easings are too weak to read as intentional. The
+			   default `transition-*` curve becomes a strong ease-out (starts fast,
+			   so the user sees movement the instant they act) and every
+			   transition list gains `scale`, which is what the global press
+			   feedback in index.css animates. */
+			transitionTimingFunction: {
+				DEFAULT: "cubic-bezier(0.23, 1, 0.32, 1)",
+				"out-strong": "cubic-bezier(0.23, 1, 0.32, 1)",
+				"in-out-strong": "cubic-bezier(0.77, 0, 0.175, 1)",
+				drawer: "cubic-bezier(0.32, 0.72, 0, 1)",
+			},
+			transitionDuration: {
+				DEFAULT: "160ms",
+			},
+			transitionProperty: {
+				DEFAULT:
+					"color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, scale, filter, backdrop-filter",
+				colors:
+					"color, background-color, border-color, text-decoration-color, fill, stroke, scale",
+				opacity: "opacity, scale",
+				shadow: "box-shadow, scale",
+				transform: "transform, scale",
+			},
+			/* tailwindcss-animate reads these for `animate-in` / `animate-out`. */
+			animationTimingFunction: {
+				DEFAULT: "cubic-bezier(0.23, 1, 0.32, 1)",
+			},
 			keyframes: {
 				"accordion-down": {
 					from: {
@@ -148,6 +179,8 @@ export default {
 				},
 			},
 			animation: {
+				/* A faster spinner makes the same wait feel shorter. */
+				spin: "spin 0.7s linear infinite",
 				"accordion-down": "accordion-down 0.2s ease-out",
 				"accordion-up": "accordion-up 0.2s ease-out",
 			},

@@ -146,13 +146,13 @@ function SupplierModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ll-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 ll-modal">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
           <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             {form.id ? "Edit Supplier" : "Add Supplier"}
           </h2>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={18} /></button>
+          <button onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         {/* terms, contacts and shipping make this form far taller than the
             viewport on a laptop -- scroll the body, keep header/footer fixed */}
@@ -467,7 +467,7 @@ function SupplierCard({
   };
 
   return (
-    <div className={`bg-white rounded-xl border transition-all ${
+    <div className={`bg-white rounded-xl border transition ${
       expanded ? "border-emerald-200 shadow-sm" : "border-stone-200"
     }`}>
       {/* Card header row */}
@@ -541,7 +541,7 @@ function SupplierCard({
           {/* Visit supplier site */}
           {supplier.login_url && (
             <a href={supplier.login_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
+              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 transition">
               <ExternalLink size={12} /> Visit
             </a>
           )}
@@ -762,7 +762,7 @@ export default function Suppliers() {
   return (
     <Layout>
       {/* Page header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Suppliers</h1>
           <p className="text-xs text-stone-500 mt-0.5">
@@ -781,7 +781,7 @@ export default function Suppliers() {
         </button>
       </header>
 
-      <div className="px-10 py-6 max-w-4xl">
+      <div className="px-4 sm:px-10 py-6 max-w-4xl">
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />

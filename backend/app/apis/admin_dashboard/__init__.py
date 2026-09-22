@@ -1,4 +1,6 @@
 """Admin dashboard API — supplier sync health, product stats, and price change logs."""
+import asyncio
+import time
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
@@ -194,9 +196,39 @@ class AdminDashboardResponse(BaseModel):
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
+#: The page is ops telemetry that changes on the scraper's cadence (hours),
+#: not per click, and building it costs a ~7s scan of `products`. Serve a
+#: build for at most this long, and let concurrent callers (two tabs,
+#: React's double-mount in dev) share one in-flight build instead of each
+#: paying for the scan.
+_DASHBOARD_TTL_S = 60.0
+_dashboard_cache: tuple[float, AdminDashboardResponse] | None = None
+_dashboard_inflight: asyncio.Task | None = None
+
+
 @router.get("/dashboard", response_model=AdminDashboardResponse)
-async def get_admin_dashboard():
-    """Return full admin dashboard: supplier health, sync history, and price changes."""
+async def get_admin_dashboard(fresh: bool = False):
+    """Return full admin dashboard: supplier health, sync history, and price changes.
+
+    `fresh=true` (the page's Refresh button) skips the short cache.
+    """
+    global _dashboard_cache, _dashboard_inflight
+    if not fresh and _dashboard_cache and time.monotonic() - _dashboard_cache[0] < _DASHBOARD_TTL_S:
+        return _dashboard_cache[1]
+    task = _dashboard_inflight
+    if task is None or task.done():
+        task = asyncio.ensure_future(_build_admin_dashboard())
+        _dashboard_inflight = task
+    try:
+        result = await asyncio.shield(task)
+    finally:
+        if _dashboard_inflight is task and task.done():
+            _dashboard_inflight = None
+    _dashboard_cache = (time.monotonic(), result)
+    return result
+
+
+async def _build_admin_dashboard() -> AdminDashboardResponse:
     conn = await get_conn()
     try:
         # ── Per-supplier health rows ──────────────────────────────────────────
@@ -205,22 +237,33 @@ async def get_admin_dashboard():
         # cheap columns are tested before `raw_data` so the jsonb blob is only
         # detoasted for the few rows with no photo at all. On 178k products
         # this took the query from 41s to about 3s.
+        # This is the one expensive scan on the page (~7s on 178k rows), so it
+        # runs exactly once: the per-supplier rows feed the health table AND
+        # are summed for the summary tiles, which used to re-scan the whole
+        # table a second time for the same three counts.
+        stats_rows = await conn.fetch("""
+            SELECT
+                p.supplier_id,
+                COUNT(*) FILTER (WHERE p.is_active) AS product_count,
+                COUNT(*) FILTER (
+                    WHERE p.is_active
+                      AND NULLIF(p.photo_url, '') IS NULL
+                      AND NULLIF(p.image_urls[1], '') IS NULL
+                      AND NULLIF(p.raw_data->>'source_photo_url', '') IS NULL
+                      AND COALESCE(p.raw_data->>'image_status', '') != 'no_supplier_image'
+                ) AS missing_images,
+                COUNT(*) FILTER (WHERE p.is_active AND p.current_price IS NULL) AS missing_prices
+            FROM products p
+            GROUP BY p.supplier_id
+        """)
+        stats = {r["supplier_id"]: r for r in stats_rows}
+        product_totals = {
+            "total_products": sum(r["product_count"] for r in stats_rows),
+            "products_missing_images": sum(r["missing_images"] for r in stats_rows),
+            "products_missing_prices": sum(r["missing_prices"] for r in stats_rows),
+        }
+
         health_rows = await conn.fetch("""
-            WITH stats AS (
-                SELECT
-                    p.supplier_id,
-                    COUNT(*) FILTER (WHERE p.is_active) AS product_count,
-                    COUNT(*) FILTER (
-                        WHERE p.is_active
-                          AND NULLIF(p.photo_url, '') IS NULL
-                          AND NULLIF(p.image_urls[1], '') IS NULL
-                          AND NULLIF(p.raw_data->>'source_photo_url', '') IS NULL
-                          AND COALESCE(p.raw_data->>'image_status', '') != 'no_supplier_image'
-                    ) AS missing_images,
-                    COUNT(*) FILTER (WHERE p.is_active AND p.current_price IS NULL) AS missing_prices
-                FROM products p
-                GROUP BY p.supplier_id
-            )
             SELECT
                 s.id,
                 s.name,
@@ -230,9 +273,6 @@ async def get_admin_dashboard():
                 s.last_full_sync_at,
                 s.last_price_synced_at,
                 COALESCE(s.sync_frequency_hours, 168) AS sync_frequency_hours,
-                COALESCE(st.product_count, 0) AS product_count,
-                COALESCE(st.missing_images, 0) AS missing_images,
-                COALESCE(st.missing_prices, 0) AS missing_prices,
                 -- The supplier's most recent sync log, read once rather than
                 -- as seven correlated subqueries for the same row.
                 last_log.status AS last_sync_status,
@@ -243,7 +283,6 @@ async def get_admin_dashboard():
                 last_log.error_message AS last_sync_error,
                 EXTRACT(EPOCH FROM (last_log.completed_at - last_log.started_at)) AS last_sync_duration_s
             FROM suppliers s
-            LEFT JOIN stats st ON st.supplier_id = s.id
             LEFT JOIN LATERAL (
                 SELECT l.status, l.products_inserted, l.products_updated,
                        l.products_failed, l.price_changes, l.error_message,
@@ -308,27 +347,18 @@ async def get_admin_dashboard():
                 (SELECT COUNT(*) FROM scrape_sync_logs WHERE status = 'error' AND started_at >= now() - interval '7 days') AS failed_syncs_this_week
         """)
 
-        # Counted in one pass, cheap columns first — the three product
-        # sub-selects this replaces cost about 19s between them.
-        product_totals = await conn.fetchrow("""
-            SELECT
-                COUNT(*) FILTER (WHERE is_active) AS total_products,
-                COUNT(*) FILTER (
-                    WHERE is_active
-                      AND NULLIF(photo_url, '') IS NULL
-                      AND NULLIF(image_urls[1], '') IS NULL
-                      AND NULLIF(raw_data->>'source_photo_url', '') IS NULL
-                      AND COALESCE(raw_data->>'image_status', '') != 'no_supplier_image'
-                ) AS products_missing_images,
-                COUNT(*) FILTER (WHERE is_active AND current_price IS NULL) AS products_missing_prices
-            FROM products
-        """)
+        def _health(r):
+            st = stats.get(r["id"])
+            return SupplierHealth(
+                **dict(r),
+                product_count=st["product_count"] if st else 0,
+                missing_images=st["missing_images"] if st else 0,
+                missing_prices=st["missing_prices"] if st else 0,
+            )
 
         return AdminDashboardResponse(
-            summary=DashboardSummary(**dict(summary_row), **dict(product_totals)),
-            supplier_health=[
-                SupplierHealth(**dict(r)) for r in health_rows
-            ],
+            summary=DashboardSummary(**dict(summary_row), **product_totals),
+            supplier_health=[_health(r) for r in health_rows],
             recent_syncs=[
                 SyncLogEntry(**dict(r)) for r in sync_rows
             ],

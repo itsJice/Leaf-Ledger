@@ -45,8 +45,8 @@ function ScreenshotViewer({ id, onClose }: { id: number; onClose: () => void }) 
   }, [id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
-      <div className="relative max-h-full max-w-4xl overflow-auto rounded-xl bg-white p-2 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 ll-overlay" onClick={onClose}>
+      <div className="relative max-h-full max-w-4xl overflow-auto rounded-xl bg-white p-2 shadow-2xl ll-modal" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute right-3 top-3 rounded-full bg-white/90 p-1.5 text-stone-500 shadow hover:text-stone-800" aria-label="Close">
           <X size={16} />
         </button>
@@ -151,7 +151,7 @@ export default function Comments() {
 
   return (
     <Layout>
-      <header className="border-b border-stone-200 px-10 py-5">
+      <header className="border-b border-stone-200 px-4 sm:px-10 py-5">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
           <MessageSquare size={18} className="text-emerald-700" />
           Comments

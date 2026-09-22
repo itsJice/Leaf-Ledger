@@ -552,7 +552,7 @@ export default function Settings() {
   return (
     <Layout>
       {/* `bg-background` (was a hardcoded #f7f4ef) so the sticky header follows the theme. */}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-background px-10 py-4">
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-background px-4 sm:px-10 py-4">
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Settings</h1>
           <p className="mt-0.5 text-xs text-stone-500">Manage pricing, SKU standards, imports, and intelligence data</p>
@@ -563,7 +563,7 @@ export default function Settings() {
         </button>
       </header>
 
-      <div className="px-10 py-8">
+      <div className="px-4 sm:px-10 py-8">
         <div className="mb-6 flex flex-wrap gap-2">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button

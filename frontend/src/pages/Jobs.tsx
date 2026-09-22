@@ -66,6 +66,8 @@ export default function Jobs() {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<any | null>(null);
   const activeId = jobId ? Number(jobId) : null;
+  // Below `md` the job rail sits above the board and folds away once one is open.
+  const [railOpen, setRailOpen] = useState(false);
 
   const refreshList = useCallback(async () => {
     try { setJobs(await listBoards()); } catch { setJobs([]); }
@@ -148,7 +150,7 @@ export default function Jobs() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
             <ClipboardList size={18} className="text-emerald-700" /> Jobs
@@ -158,8 +160,8 @@ export default function Jobs() {
         <button onClick={newJob} className={btnPrimary}><Plus size={15} /> New job</button>
       </header>
 
-      <div className="flex">
-        <aside className="w-72 flex-shrink-0 border-r border-stone-200 px-3 py-4" style={{ minHeight: "calc(100vh - 65px)" }}>
+      <div className="flex flex-col md:flex-row">
+        <aside className={`${railOpen || !activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-72 md:border-b-0 md:border-r`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Jobs ({jobs.length})</p>
           {jobs.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">No jobs yet. Start one here, or from the “Pinning to” picker in Catalog Search.</p>
@@ -168,7 +170,7 @@ export default function Jobs() {
               {jobs.map((j) => {
                 const active = j.id === activeId;
                 return (
-                  <button key={j.id} onClick={() => selectJob(j.id)}
+                  <button key={j.id} onClick={() => { selectJob(j.id); setRailOpen(false); }}
                     className={`flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
                     <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
                     <span className="mt-0.5 truncate text-xs text-stone-400">{j.client_name || ""}{j.client_name && j.collection ? " · " : ""}{j.collection || ""}</span>
@@ -182,7 +184,17 @@ export default function Jobs() {
           )}
         </aside>
 
-        <main className="min-w-0 flex-1 px-8 py-6">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+          {activeId && (
+            <button
+              type="button"
+              onClick={() => setRailOpen((v) => !v)}
+              aria-expanded={railOpen}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+            >
+              <ClipboardList size={13} /> {railOpen ? "Hide" : "Show"} jobs ({jobs.length})
+            </button>
+          )}
           {!activeId ? <JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /> : loading && !board ? (
             <p className="py-20 text-center text-sm text-stone-400">Loading…</p>
           ) : !board ? <JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /> : (
@@ -237,7 +249,7 @@ function JobTile({ job, onOpen }: { job: BoardJob; onOpen: () => void }) {
     <button
       onDoubleClick={onOpen}
       title="Double-click to open"
-      className="flex min-h-[168px] flex-col rounded-xl border border-stone-200 bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+      className="flex min-h-[168px] min-w-0 flex-col overflow-hidden rounded-xl border border-stone-200 bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
     >
       <div className="flex items-start justify-between gap-2">
         <ClipboardList size={16} className="mt-0.5 shrink-0 text-emerald-600" />
@@ -281,7 +293,7 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 basis-full sm:basis-auto">
           <input value={name} onChange={(e) => setName(e.target.value)}
             onBlur={() => name.trim() && name !== board.name && onRename(name.trim())}
             className="w-full max-w-xl bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500"
@@ -290,7 +302,7 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
             {board.client_name || "No client"}{board.collection ? ` · ${board.collection}` : ""} · {board.items.length} pinned
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button onClick={() => onPinMore(null)} className={btnPrimary}><Search size={14} /> Pin and search more from the catalog</button>
           <button onClick={newGroup} className={btnGhost}><FolderPlus size={13} /> New group</button>
           <a href={`/sourcing/${board.id}`} className="text-[11px] text-stone-400 hover:text-emerald-700" title="The purchaser's full worksheet for this job">Worksheet</a>
@@ -368,7 +380,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
         {group ? (
           <input value={gname} onChange={(e) => setGname(e.target.value)}
             onBlur={() => gname.trim() && gname !== group.name && run(() => updateGroup(group.id, { name: gname.trim() }))}
-            className="bg-transparent text-base font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500" style={{ fontFamily: "Georgia, serif" }} />
+            className="min-w-0 max-w-full bg-transparent text-base font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500" style={{ fontFamily: "Georgia, serif" }} />
         ) : (
           <h3 className="text-base font-semibold text-stone-500" style={{ fontFamily: "Georgia, serif" }}>Not in a group</h3>
         )}
@@ -383,10 +395,10 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
         <p className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-400">Nothing here yet. Pin options from the catalog into this group.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-          <table className="border-separate border-spacing-0 text-sm" style={{ minWidth: `${160 + order.length * 230}px` }}>
+          <table className="border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 w-40 bg-white px-3 py-3 text-left align-bottom text-[11px] font-medium uppercase tracking-wide text-stone-400">Option</th>
+                <th className="sticky left-0 z-10 w-[88px] min-w-[88px] bg-white px-2 py-3 text-left align-bottom text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:w-40 sm:min-w-[10rem] sm:px-3 sm:text-[11px]">Option</th>
                 {order.map((it) => (
                   <th key={it.item_id}
                     draggable={order.length > 1}
@@ -395,7 +407,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     onDragOver={(e) => { e.preventDefault(); if (dragId != null && overId !== it.item_id) setOverId(it.item_id); }}
                     onDragLeave={() => setOverId((cur) => (cur === it.item_id ? null : cur))}
                     onDrop={(e) => { e.preventDefault(); dropOn(it.item_id); }}
-                    className={`w-[230px] min-w-[230px] px-3 py-3 text-left align-top transition-opacity ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
+                    className={`w-[calc(100vw-122px)] min-w-[calc(100vw-122px)] px-3 py-3 text-left align-top transition-opacity sm:w-[230px] sm:min-w-[230px] ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
                   >
                     {order.length > 1 && (
                       <div className="mb-1 flex items-center justify-center text-stone-300" title="Drag to reorder"><GripVertical size={13} /></div>
@@ -454,7 +466,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
 function Row({ label, items, render }: { label: string; items: BoardItem[]; render: (it: BoardItem) => React.ReactNode }) {
   return (
     <tr className="border-t border-stone-100">
-      <td className="sticky left-0 z-10 w-40 border-t border-stone-100 bg-white px-3 py-2 align-top text-[11px] font-medium uppercase tracking-wide text-stone-400">{label}</td>
+      <td className="sticky left-0 z-10 w-[88px] min-w-[88px] border-t border-stone-100 bg-white px-2 py-2 align-top text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:w-40 sm:min-w-[10rem] sm:px-3 sm:text-[11px]">{label}</td>
       {items.map((it) => (
         <td key={it.item_id} className={`border-t border-stone-100 px-3 py-2 align-top text-stone-700 ${it.chosen ? "bg-emerald-50/70" : ""}`}>{render(it)}</td>
       ))}

@@ -1950,7 +1950,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
     <Shell>
       {!selectedId && !standaloneNewDesign ? (
         <>
-          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+          <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
             <div>
               <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
                 <button onClick={showAllProjects} className="hover:underline">All Projects</button>
@@ -1974,7 +1974,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               <Plus size={15} strokeWidth={2.2} /> New Project
             </button>
           </header>
-          <div className="px-10 py-6">
+          <div className="px-4 sm:px-10 py-6">
             {loading && filteredArrangements.length === 0 ? (
               <div className="flex items-center justify-center py-24">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
@@ -1991,7 +1991,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
             ) : (
               <div className="grid gap-3">
                 {filteredArrangements.map((a) => (
-                  <div key={a.id} onClick={() => selectProject(a.id)} className="group flex cursor-pointer items-center gap-4 rounded-xl border border-stone-200 bg-white px-6 py-4 transition-all hover:shadow-sm">
+                  <div key={a.id} onClick={() => selectProject(a.id)} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 transition hover:shadow-sm sm:gap-4 sm:px-6 sm:py-4">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                       <Package size={18} className="text-emerald-700" strokeWidth={1.5} />
                     </div>
@@ -1999,11 +1999,11 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                       <p className="text-sm font-semibold text-stone-800">{a.name}</p>
                       <p className="mt-0.5 text-xs text-stone-400">{a.client_name || "No client"} · {a.container_count} scope{a.container_count !== 1 ? "s" : ""}</p>
                     </div>
-                    <div className="mr-4 text-right">
+                    <div className="text-right sm:mr-4">
                       <p className="text-sm font-semibold text-stone-800">{formatCurrency(a.total_cost)}</p>
                       <p className="text-xs text-stone-400">selected cost</p>
                     </div>
-                    <p className="text-xs text-stone-300">{new Date(a.updated_at).toLocaleDateString()}</p>
+                    <p className="hidden text-xs text-stone-300 sm:block">{new Date(a.updated_at).toLocaleDateString()}</p>
                     <button onClick={(e) => { e.stopPropagation(); deleteProject(a.id); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-300 opacity-0 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:opacity-100">
                       <Trash2 size={14} />
                     </button>
@@ -2019,7 +2019,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
             // Embedded in the Designs tab, the host already renders the header
             // and the All Designs / New Design toggle — a second one would stack.
             embedded ? null : (
-            <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+            <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
               <button onClick={() => navigate("/clients")} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200" aria-label="Leave the new design builder">
                 <ArrowLeft size={16} />
               </button>
@@ -2035,7 +2035,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
             </header>
             )
           ) : (
-          <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+          <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
             <button onClick={activeRoomId ? (activeBucket || creatingBuiltProduct ? backToBuiltProducts : closeRoom) : clearSelection} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200">
               <ArrowLeft size={16} />
             </button>
@@ -2105,7 +2105,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
           )}
 
           {!activeRoomId && !standaloneNewDesign ? (
-            <div className="px-10 py-6">
+            <div className="px-4 sm:px-10 py-6">
               <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div className="mb-4">
                   <h2 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>Rooms & design packages</h2>
@@ -2176,7 +2176,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                     const selectedTotal = scopes.reduce((sum, bucket) => sum + (bucket.subtotal || 0), 0);
                     const savedCount = scopes.reduce((sum, bucket) => sum + bucket.items.length, 0);
                     return (
-                      <div key={room.id} className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-200 hover:shadow-md">
+                      <div key={room.id} className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
                         <div className="mb-4 flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Design package</p>
@@ -2211,7 +2211,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               )}
             </div>
           ) : !activeBucket && !creatingBuiltProduct && !standaloneNewDesign ? (
-            <div className="px-10 py-6">
+            <div className="px-4 sm:px-10 py-6">
               <div className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 {editingRoom ? (
                   <div className="w-full space-y-4">
@@ -2291,7 +2291,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                     const selected = bucket.items.filter((item) => (item.status || "selected") === "selected");
                     const candidates = bucket.items.filter((item) => (item.status || "selected") === "candidate");
                     return (
-                      <div key={bucket.id} className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-200 hover:shadow-md">
+                      <div key={bucket.id} className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
                         <div className="mb-4 flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{bucket.bucket_type || "Built product"}</p>
@@ -2392,9 +2392,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 </div>
                 )}
                 </div>
-                <div className="flex min-h-[34px] items-center gap-2">
+                <div className="flex min-h-[34px] items-center gap-2 overflow-x-auto [scrollbar-width:none]">
                   <div
-                    className="grid overflow-hidden transition-all duration-300 ease-out"
+                    className="grid overflow-hidden transition-[grid-template-columns] duration-200"
                     style={{ gridTemplateColumns: builderStep !== "type" ? "78px" : "0px" }}
                   >
                     <button
@@ -2402,7 +2402,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                       onClick={goBackBuilderStep}
                       tabIndex={builderStep !== "type" ? 0 : -1}
                       aria-hidden={builderStep === "type"}
-                      className={`flex w-[78px] transform-gpu items-center justify-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-md active:scale-[0.98] ${
+                      className={`flex w-[78px] transform-gpu items-center justify-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-md ${
                         builderStep !== "type" ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"
                       }`}
                     >
@@ -2420,7 +2420,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         }
                         goToBuilderStep(step);
                       }}
-                      className={`transform-gpu whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.98] ${
+                      className={`transform-gpu whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 ${
                         builderStep === step
                           ? "scale-[1.02] bg-stone-900 text-white shadow-[0_0_0_2px_rgb(var(--ll-focus-gold))]"
                           : "scale-100 bg-stone-100 text-stone-500 shadow-none hover:bg-stone-200 hover:text-stone-700"
@@ -2641,7 +2641,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               return (
                                 <div
                                   key={`${label}-${index}`}
-                                  className={`relative rounded-[1.75rem] border border-dashed px-4 py-5 shadow-sm transition-all ${
+                                  className={`relative rounded-[1.75rem] border border-dashed px-4 py-5 shadow-sm transition ${
                                     selectedSubpart ? "border-stone-900 bg-white ring-2 ring-stone-100" : "border-emerald-200 bg-white ring-1 ring-emerald-50"
                                   }`}
                                 >
@@ -2671,7 +2671,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                           return (
                                             <div
                                               key={part.label}
-                                              className={`grid items-center gap-3 rounded-2xl border px-3 py-2.5 text-xs transition-all sm:grid-cols-[minmax(0,1fr)_120px] ${
+                                              className={`grid items-center gap-3 rounded-2xl border px-3 py-2.5 text-xs transition sm:grid-cols-[minmax(0,1fr)_120px] ${
                                                 selected ? "border-stone-900 bg-white shadow-sm ring-2 ring-stone-100" : "border-emerald-100 bg-emerald-50/45 hover:border-emerald-200"
                                               }`}
                                             >
@@ -2688,7 +2688,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                               <button
                                                 type="button"
                                                 onClick={() => openBucketCatalog(activeBucket.id, { label: part.label, index: part.partIndex })}
-                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm active:scale-[0.98]"
+                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm"
                                               >
                                                 {selectedItems.length ? "Add more" : "Product"}
                                               </button>
@@ -2737,7 +2737,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               return (
                                 <div
                                   key={`${label}-${index}`}
-                                  className={`relative rounded-[1.75rem] border border-dashed px-4 py-5 shadow-sm transition-all ${
+                                  className={`relative rounded-[1.75rem] border border-dashed px-4 py-5 shadow-sm transition ${
                                     selectedSubpart ? "border-stone-900 bg-white ring-2 ring-stone-100" : "border-emerald-200 bg-white ring-1 ring-emerald-50"
                                   }`}
                                 >
@@ -2780,7 +2780,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                           return (
                                             <div
                                               key={part.label}
-                                              className={`grid items-center gap-3 rounded-2xl border px-3 py-2.5 text-xs transition-all sm:grid-cols-[minmax(0,1fr)_120px] ${
+                                              className={`grid items-center gap-3 rounded-2xl border px-3 py-2.5 text-xs transition sm:grid-cols-[minmax(0,1fr)_120px] ${
                                                 selected ? "border-stone-900 bg-white shadow-sm ring-2 ring-stone-100" : "border-emerald-100 bg-emerald-50/45 hover:border-emerald-200"
                                               }`}
                                             >
@@ -2802,7 +2802,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                               <button
                                                 type="button"
                                                 onClick={() => openBucketCatalog(activeBucket.id, { label: part.label, index: part.partIndex })}
-                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm active:scale-[0.98]"
+                                                className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-400 transition hover:-translate-y-0.5 hover:border-emerald-600 hover:text-emerald-900 hover:shadow-sm"
                                               >
                                                 {selectedItems.length ? "Add more" : "Product"}
                                               </button>
@@ -2819,7 +2819,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             return (
                               <div
                                 key={`${label}-${index}`}
-                                className={`relative rounded-2xl border border-dashed bg-white px-4 py-4 shadow-sm transition-all ${
+                                className={`relative rounded-2xl border border-dashed bg-white px-4 py-4 shadow-sm transition ${
                                   selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-stone-300 hover:border-stone-400"
                                 }`}
                               >
@@ -2883,7 +2883,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                   <button
                                     type="button"
                                     onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
-                                    className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400 transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-white hover:text-emerald-900 hover:shadow-sm active:scale-[0.98]"
+                                    className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400 transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-white hover:text-emerald-900 hover:shadow-sm"
                                   >
                                     {primary ? "Add more" : "Product"}
                                   </button>
@@ -2911,7 +2911,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           return (
                             <div
                               key={`${label}-${index}`}
-                              className={`group relative rounded-3xl border bg-white/95 px-6 py-6 text-left shadow-sm transition-all ${selectedSubpart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-emerald-200"}`}
+                              className={`group relative rounded-3xl border bg-white/95 px-6 py-6 text-left shadow-sm transition ${selectedSubpart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-emerald-200"}`}
                             >
                               <span className="absolute -top-3 left-5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
                                 {label}
@@ -2939,7 +2939,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                       return (
                                         <div
                                           key={part.label}
-                                          className={`flex min-h-[58px] items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left transition-all hover:border-stone-900 hover:shadow-sm ${
+                                          className={`flex min-h-[58px] items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left transition hover:border-stone-900 hover:shadow-sm ${
                                             selected ? "border-stone-900 bg-white ring-2 ring-stone-100" : "border-emerald-100 bg-emerald-50/40"
                                           }`}
                                         >
@@ -2961,7 +2961,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                             <button
                                               type="button"
                                               onClick={() => openBucketCatalog(activeBucket.id, { label: part.label, index: partIndex })}
-                                              className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-stone-900 hover:shadow-md active:scale-[0.98]"
+                                              className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-900 hover:shadow-md"
                                             >
                                               {selectedItems.length ? "Add more" : "Select product"}
                                             </button>
@@ -2980,7 +2980,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           key={`${label}-${index}`}
                           type="button"
                           onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
-                          className={`group relative flex min-h-[128px] items-center gap-4 rounded-2xl border bg-white/95 px-6 py-5 text-left shadow-sm transition-all hover:border-stone-900 hover:shadow-md ${selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-stone-300"}`}
+                          className={`group relative flex min-h-[128px] items-center gap-4 rounded-2xl border bg-white/95 px-6 py-5 text-left shadow-sm transition hover:border-stone-900 hover:shadow-md ${selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-stone-300"}`}
                         >
                           <span className="absolute -top-3 left-5 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
                             {label}
@@ -3879,7 +3879,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center px-10 py-40 text-center">
+        <div className="flex flex-col items-center justify-center px-4 sm:px-10 py-40 text-center">
           <p className="text-base font-medium text-stone-700">Project could not load</p>
           <p className="mt-1 max-w-sm text-sm leading-relaxed text-stone-400">
             Go back to All Projects and open it again. The catalog add button will stay on the page when the project is loaded.
