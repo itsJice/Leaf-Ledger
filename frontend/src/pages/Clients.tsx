@@ -5,6 +5,7 @@ import {
   Briefcase,
   Check,
   ChevronDown,
+  Clock,
   FolderOpen,
   Mail,
   MapPin,
@@ -13,7 +14,6 @@ import {
   Phone,
   Plus,
   Trash2,
-  TreePine,
   X,
   Users,
 } from "lucide-react";
@@ -26,6 +26,17 @@ import { NewProjectModal } from "./Arrangements";
 import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 import { CLIENTS_PAGE_CACHE_KEY } from "../constants";
 import { notifyProjectsChanged } from "utils/projectsChanged";
+import { SeasonHistory } from "./clients/SeasonHistory";
+import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
+
+/** Per-client install-time preference (clients.time_preference, migration 015).
+ *  The scheduler orders a crew's stops morning -> flexible -> afternoon -> late. */
+export type TimePreference = "morning" | "afternoon" | "late";
+export const TIME_PREFERENCE_LABEL: Record<TimePreference, string> = {
+  morning: "Early morning",
+  afternoon: "Afternoon",
+  late: "Late",
+};
 
 type ProjectSummary = {
   id: number;
@@ -51,15 +62,7 @@ type ProjectDetail = ProjectSummary & {
   containers: Bucket[];
 };
 
-type ActivityEntry = {
-  id: number;
-  kind: string;
-  season: string;
-  summary: string;
-  detail?: Record<string, unknown> | null;
-  occurred_at?: string | null;
-  created_at?: string | null;
-};
+type ActivityEntry = import("./clients/SeasonHistory").ActivityEntry;
 
 type SecondaryContact = {
   label: string;
@@ -77,6 +80,7 @@ type ClientRecord = {
   city?: string | null;
   state?: string | null;
   zip?: string | null;
+  time_preference?: TimePreference | null;
   secondary_contacts?: SecondaryContact[];
   created_at?: string | null;
   updated_at?: string | null;
@@ -98,6 +102,7 @@ type ClientGroup = {
   city?: string | null;
   state?: string | null;
   zip?: string | null;
+  timePreference?: TimePreference | null;
   secondaryContacts: SecondaryContact[];
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
@@ -170,6 +175,7 @@ function makeLocalClient(payload: { name: string; email: string; phone: string; 
     city: null,
     state: null,
     zip: null,
+    time_preference: null,
     created_at: now,
     updated_at: now,
     project_count: 0,
@@ -253,6 +259,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       city: client.city,
       state: client.state,
       zip: client.zip,
+      timePreference: client.time_preference ?? null,
       secondaryContacts: client.secondary_contacts || [],
       activity: client.activity || [],
       source: client.source,
@@ -296,7 +303,44 @@ function NewClientModal({ client, onClose, onSaved }: {
   const [secondaryContacts, setSecondaryContacts] = useState<SecondaryContact[]>(
     () => (client?.secondaryContacts || []).map((c) => ({ ...c }))
   );
+  const [timePreference, setTimePreference] = useState<TimePreference | null>(client?.timePreference ?? null);
   const [saving, setSaving] = useState(false);
+  // Address suggestions while typing the street (Photon / OpenStreetMap):
+  // picking one fills city, state and ZIP -- staff usually have the street
+  // but not the ZIP. Same service and shaping as the scheduler's form.
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [suggestionIdx, setSuggestionIdx] = useState(-1);
+  const suggestTimer = useRef<number | null>(null);
+  const suggestAbort = useRef<AbortController | null>(null);
+  const onStreetTyped = (value: string) => {
+    set("street", value);
+    if (suggestTimer.current) window.clearTimeout(suggestTimer.current);
+    if (value.trim().length < 4) { setSuggestions([]); return; }
+    suggestTimer.current = window.setTimeout(async () => {
+      suggestAbort.current?.abort();
+      const ctl = new AbortController();
+      suggestAbort.current = ctl;
+      try {
+        const found = await fetchAddressSuggestions(value, ctl.signal);
+        if (!ctl.signal.aborted) { setSuggestions(found); setSuggestionIdx(-1); }
+      } catch {
+        if (!ctl.signal.aborted) setSuggestions([]);
+      }
+    }, 250);
+  };
+  const pickSuggestion = (s: AddressSuggestion) => {
+    setForm((current) => ({ ...current, street: s.line1, city: s.city || current.city, state: s.state || current.state, zip: s.zip || current.zip }));
+    setSuggestions([]);
+    setSuggestionIdx(-1);
+    zipRef.current?.focus();
+  };
+  const onStreetKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestions.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setSuggestionIdx((i) => Math.min(i + 1, suggestions.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSuggestionIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); pickSuggestion(suggestions[suggestionIdx < 0 ? 0 : suggestionIdx]); }
+    else if (e.key === "Escape") setSuggestions([]);
+  };
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -341,6 +385,8 @@ function NewClientModal({ client, onClose, onSaved }: {
             city: payload.city || undefined,
             state: payload.state || undefined,
             zip: payload.zip || undefined,
+            // "" clears it server-side; undefined would leave it untouched
+            time_preference: timePreference ?? "",
             secondary_contacts: secondaryContacts.filter((c) => c.label.trim() || c.phone?.trim() || c.email?.trim()),
           },
           type: ContentType.Json,
@@ -364,6 +410,7 @@ function NewClientModal({ client, onClose, onSaved }: {
           city: payload.city || undefined,
           state: payload.state || undefined,
           zip: payload.zip || undefined,
+          time_preference: timePreference ?? undefined,
           secondary_contacts: secondaryContacts.filter((c) => c.label.trim() || c.phone?.trim() || c.email?.trim()),
         },
         type: ContentType.Json,
@@ -414,9 +461,31 @@ function NewClientModal({ client, onClose, onSaved }: {
                 <input ref={phoneRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Optional" />
               </label>
             </div>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-stone-600">Street address</span>
-              <input ref={streetRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.street} onChange={(e) => set("street", e.target.value)} placeholder="Optional" />
+            <label className="relative block">
+              <span className="mb-1 block text-xs font-medium text-stone-600">Street address <span className="font-normal text-stone-400">— pick a match to fill city, state and ZIP</span></span>
+              <input
+                ref={streetRef}
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                value={form.street}
+                onChange={(e) => onStreetTyped(e.target.value)}
+                onKeyDown={onStreetKey}
+                onBlur={() => window.setTimeout(() => setSuggestions([]), 150)}
+                autoComplete="off"
+                placeholder="Start typing the street"
+              />
+              {suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 z-20 mt-1 max-h-48 overflow-auto rounded-lg border border-stone-200 bg-white text-xs shadow-lg">
+                  {suggestions.map((s, i) => (
+                    <div
+                      key={`${s.line1}|${s.zip}`}
+                      onMouseDown={(e) => { e.preventDefault(); pickSuggestion(s); }}
+                      className={`cursor-pointer px-3 py-1.5 ${i === suggestionIdx ? "bg-emerald-50 text-emerald-900" : "text-stone-700 hover:bg-stone-50"}`}
+                    >
+                      {suggestionLabel(s)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </label>
             <div className="grid gap-3 grid-cols-[2fr_1fr_1fr]">
               <label className="block">
@@ -431,6 +500,23 @@ function NewClientModal({ client, onClose, onSaved }: {
                 <span className="mb-1 block text-xs font-medium text-stone-600">ZIP</span>
                 <input ref={zipRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.zip} onChange={(e) => set("zip", e.target.value)} placeholder="Optional" />
               </label>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs font-medium text-stone-600">
+                Install time preference <span className="font-normal text-stone-400">— the scheduler orders each crew's day by this</span>
+              </span>
+              <div className="inline-flex overflow-hidden rounded-lg border border-stone-200 text-xs">
+                {([null, "morning", "afternoon", "late"] as (TimePreference | null)[]).map((value) => (
+                  <button
+                    key={value ?? "none"}
+                    type="button"
+                    onClick={() => setTimePreference(value)}
+                    className={`px-3 py-1.5 font-medium ${timePreference === value ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-50"}`}
+                  >
+                    {value ? TIME_PREFERENCE_LABEL[value] : "No preference"}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <span className="mb-1 block text-xs font-medium text-stone-600">
@@ -855,6 +941,14 @@ export default function Clients() {
       row.id === clientId ? { ...row, activity: updater(row.activity || []) } : row));
   };
 
+  // A season saved from the history table comes back as the whole row --
+  // replace the one with that id, or add it when the season was just started.
+  const upsertSeasonEntry = (clientId: number | null | undefined, entry: ActivityEntry) =>
+    patchClientActivity(clientId, (activity) =>
+      activity.some((a) => a.id === entry.id)
+        ? activity.map((a) => (a.id === entry.id ? entry : a))
+        : [entry, ...activity]);
+
   const addComment = async (client: ClientGroup) => {
     if (client.id == null) { toast.error("Save this client before adding comments"); return; }
     const text = (commentDrafts[client.name] || "").trim();
@@ -1035,8 +1129,14 @@ export default function Clients() {
                         </button>
                       </div>
 
-                      {(client.phone || client.email || client.street || client.city || client.secondaryContacts.length > 0) && (
+                      {(client.phone || client.email || client.street || client.city || client.timePreference || client.secondaryContacts.length > 0) && (
                         <div className="mb-4 flex flex-wrap gap-x-5 gap-y-1.5 rounded-xl border border-stone-200 bg-white px-4 py-3 text-xs text-stone-600">
+                          {client.timePreference && (
+                            <span className="flex items-center gap-1.5 font-medium text-emerald-800" title="Install time preference — the scheduler orders each crew's stops by this">
+                              <Clock size={12} className="text-emerald-600" />
+                              {TIME_PREFERENCE_LABEL[client.timePreference]}
+                            </span>
+                          )}
                           {client.phone && (
                             <span className="flex items-center gap-1.5"><Phone size={12} className="text-stone-400" />{client.phone}</span>
                           )}
@@ -1059,24 +1159,11 @@ export default function Clients() {
                         </div>
                       )}
 
-                      {client.activity.some((a) => a.kind !== "comment") && (
-                        <div className="mb-5">
-                          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
-                            <TreePine size={12} />
-                            Christmas install history
-                          </p>
-                          <div className="grid gap-1.5">
-                            {client.activity.filter((a) => a.kind !== "comment").map((entry) => (
-                              <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
-                                <span className="rounded-full px-2 py-0.5 font-semibold" style={{ backgroundColor: "rgb(var(--ll-brand-soft))", color: "rgb(var(--ll-brand))" }}>
-                                  {entry.season}
-                                </span>
-                                <span className="min-w-0 flex-1 truncate text-stone-700">{entry.summary}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <SeasonHistory
+                        clientId={client.id}
+                        activity={client.activity}
+                        onSaved={(entry) => upsertSeasonEntry(client.id, entry)}
+                      />
 
                       <div className="mb-5">
                         <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">

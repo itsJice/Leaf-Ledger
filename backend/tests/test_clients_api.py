@@ -23,7 +23,7 @@ T0 = datetime(2026, 1, 2, 3, 4, 5)
 T1 = datetime(2026, 2, 3, 4, 5, 6)
 
 CLIENT_KEYS = ["id", "name", "email", "phone", "notes", "street", "city", "state", "zip",
-               "secondary_contacts", "created_at", "updated_at"]
+               "time_preference", "secondary_contacts", "created_at", "updated_at"]
 
 
 def run(coro):
@@ -94,7 +94,7 @@ def test_list_clients(fake_db, fake_request):
         # saved client does, instead of omitting the key entirely.
         {"id": None, "name": "Unassigned", "email": None, "phone": None, "notes": None,
          "street": None, "city": None, "state": None, "zip": None,
-         "secondary_contacts": [], "created_at": None,
+         "time_preference": None, "secondary_contacts": [], "created_at": None,
          "updated_at": T0, "project_count": 1, "bucket_count": 0, "selected_cost": 0.0,
          "last_project_at": T0, "source": "from_projects", "activity": []},
     ]
@@ -124,7 +124,7 @@ def test_create_client(fake_db, fake_request):
     }
     assert args_of(fake_db, "INSERT INTO clients") == [(
         "Smith", "s@x.com", None, None, None, None, None, None,
-        '[{"label": "Wife", "phone": "555", "email": null}]', None,
+        '[{"label": "Wife", "phone": "555", "email": null}]', None, None,
     )]
     assert fake_db.seen("ON CONFLICT (LOWER(TRIM(name))) DO NOTHING")
 
@@ -140,7 +140,7 @@ def test_create_client_conflict_and_blank(fake_db, fake_request):
         run(clients.create_client(ClientCreate(name="Smith"), fake_request()))
     assert (exc.value.status_code, exc.value.detail) == (409, "Client already exists")
     # secondary_contacts omitted -> literal "[]"
-    assert args_of(fake_db, "INSERT INTO clients") == [("Smith", None, None, None, None, None, None, None, "[]", None)]
+    assert args_of(fake_db, "INSERT INTO clients") == [("Smith", None, None, None, None, None, None, None, "[]", None, None)]
 
 
 # ─── update ──────────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ def test_update_client(fake_db, fake_request):
                       "detail": {"author": None}, "occurred_at": None, "created_at": T1}],
     }
     # raw (untrimmed) values are bound; SQL does the NULLIF/TRIM
-    assert args_of(fake_db, "UPDATE clients SET") == [(5, None, None, "", None, None, None, None, None, "[]")]
+    assert args_of(fake_db, "UPDATE clients SET") == [(5, None, None, "", None, None, None, None, None, "[]", None)]
 
 
 def test_update_client_404(fake_db, fake_request):
@@ -283,3 +283,77 @@ def test_recent_comments(fake_db, fake_request):
     fake_db.executed.clear()
     run(clients.recent_comments(fake_request(), limit=5))
     assert args_of(fake_db, "LIMIT $1") == [(5,)]
+
+
+# ─── time_preference ─────────────────────────────────────────────────────────
+
+
+def test_update_time_preference_binds_and_clears(fake_db, fake_request):
+    fake_db.on_fetchrow("UPDATE clients SET", client_row(id=5, name="Smith", time_preference="morning",
+                                                         secondary_contacts=[], created_at=T0, updated_at=T1))
+    out = run(clients.update_client(5, ClientUpdate(time_preference=" Morning "), fake_request()))
+    assert out["time_preference"] == "morning"
+    # normalised before binding; "" is passed through so SQL's NULLIF clears it
+    assert args_of(fake_db, "UPDATE clients SET")[0][-1] == "morning"
+    run(clients.update_client(5, ClientUpdate(time_preference=""), fake_request()))
+    assert args_of(fake_db, "UPDATE clients SET")[1][-1] == ""
+
+
+def test_time_preference_rejects_unknown_value(fake_db, fake_request):
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client(5, ClientUpdate(time_preference="noon"), fake_request()))
+    assert exc.value.status_code == 400 and "morning, afternoon, late" in exc.value.detail
+    with pytest.raises(HTTPException):
+        run(clients.create_client(ClientCreate(name="X", time_preference="dawn"), fake_request()))
+    assert fake_db.executed == []
+
+
+# ─── per-season fields ───────────────────────────────────────────────────────
+
+
+def test_update_client_season_merges_and_stamps(fake_db, fake_request, monkeypatch):
+    from app.libs import client_season
+    monkeypatch.setattr(client_season, "now_iso", lambda: "2026-09-16T12:00:00+00:00")
+    fake_db.on_fetchval("SELECT 1 FROM clients WHERE id = $1", 1)
+    fake_db.on_fetchrow("FROM client_activity WHERE client_id = $1 AND kind = 'christmas_install' AND season = $2 FOR UPDATE",
+                        {"id": 9, "detail": '{"install_date": "2026-11-20", "install_fee": 400, "storing": false}'})
+    fake_db.on("INSERT INTO client_activity",
+               lambda sql, cid, season, summary, detail, occurred: {
+                   "id": 9, "kind": "christmas_install", "season": season, "summary": summary,
+                   "detail": detail, "occurred_at": occurred, "created_at": T0}, method="fetchrow")
+
+    body = clients.SeasonFieldsIn(fields={"storing": True, "boxes": "12", "hold": True, "invoice_total": "1,065"})
+    out = run(clients.update_client_season(5, "2026", body, fake_request()))
+
+    assert out["detail"] == {
+        "install_date": "2026-11-20", "install_fee": 400,
+        "storing": True, "boxes": 12, "hold": True, "invoice_total": 1065.0,
+        "app_edits": {k: "2026-09-16T12:00:00+00:00" for k in ("storing", "boxes", "hold", "invoice_total")},
+    }
+    assert out["summary"] == "On hold · Scheduled 11/20/2026 · $400"
+    assert out["occurred_at"] == "2026-11-20"
+    ((cid, season, summary, detail, occurred),) = args_of(fake_db, "INSERT INTO client_activity")
+    assert (cid, season) == (5, "2026") and json.loads(detail) == out["detail"]
+
+
+def test_update_client_season_validation(fake_db, fake_request):
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client_season(5, "26", clients.SeasonFieldsIn(fields={"hold": True}), fake_request()))
+    assert (exc.value.status_code, exc.value.detail) == (400, "Bad season")
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client_season(5, "2026", clients.SeasonFieldsIn(fields={}), fake_request()))
+    assert exc.value.status_code == 400
+    assert fake_db.executed == []
+
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client_season(5, "2026", clients.SeasonFieldsIn(fields={"hold": True}), fake_request()))
+    assert (exc.value.status_code, exc.value.detail) == (404, "No client with that id")
+
+    fake_db.on_fetchval("SELECT 1 FROM clients WHERE id = $1", 1)
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client_season(5, "2026", clients.SeasonFieldsIn(fields={"colour": "red"}), fake_request()))
+    assert (exc.value.status_code, exc.value.detail) == (400, "unknown season field 'colour'")
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client_season(5, "2026", clients.SeasonFieldsIn(fields={"boxes": "lots"}), fake_request()))
+    assert exc.value.status_code == 400
+    assert not fake_db.seen("INSERT")

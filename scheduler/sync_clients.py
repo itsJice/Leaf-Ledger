@@ -29,6 +29,18 @@ edited in the app must survive a re-sync UNLESS the spreadsheet itself has
 since changed that field -- see `merge_field` for the three-way compare
 against `christmas_synced_snapshot`, which is exactly what the pipeline
 pushed last time.
+
+Per-season fields (everything in client_activity.detail) follow a simpler
+rule, shared with the backend through app.libs.client_season: a value set in
+the app is stamped in detail.app_edits and this script never overwrites it;
+everything else is the sheet's to refresh on every run.
+
+Which season a column describes is NOT which sheet it is on. The current
+sheet carries last season's real hours, crew, invoice total and takedown, and
+the two-back install and takedown dates, alongside this season's columns.
+prep.py names those prior_* / prior2_*; this script files them on THAT
+season's row (`supplement`) rather than on the current one, so the Clients
+tab's year-over-year table reads true.
 """
 import argparse
 import asyncio
@@ -46,6 +58,8 @@ import openpyxl
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # common.py/season.py are siblings; this may be run from anywhere
 from common import current_season, load_env  # noqa: E402
+import season as _season_bridge  # noqa: E402,F401  (puts backend/ on sys.path)
+from app.libs import client_season  # noqa: E402
 
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 DEFAULT_XLSX = os.path.join(
@@ -177,12 +191,43 @@ def season_field(rec: dict, season: str, *templates, default=None):
     return default
 
 
+def storing_from_sheet(v) -> tuple[Optional[bool], Optional[str]]:
+    """"TBDG STORAGE YES/NO" -> (storing, note).
+
+    The column is mostly YES/NO but also holds "Ask", "?", and the odd
+    "NO — client now stores at her own house". Anything that is not a plain
+    yes/no keeps its text as a note so the reason is not lost, and anything
+    that cannot be read as yes or no is None (unknown), not False.
+    """
+    s = clean_str(v)
+    if not s:
+        return None, None
+    u = s.upper()
+    note = None if u in ("YES", "NO", "Y", "N") else s
+    if u.startswith("Y"):
+        return True, note
+    if u.startswith("N"):
+        return False, note
+    return None, note
+
+
+def as_int(v) -> Optional[int]:
+    try:
+        return int(float(v)) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def extract_current_season(season: str):
     """This season's clients, from the pipeline cache prep.py/schedule.py left.
 
     `season` is the label, not a filter: the cache only ever holds one season
     (the one prep.py was last run for), so this reads whatever is in it and
     files it under the season the caller derived.
+
+    Each record also carries `supplements`: {season_label: {key: value}} for
+    the columns on this sheet that describe an EARLIER season (see the
+    module docstring). upsert_client files those on that season's row.
     """
     with open(CACHE) as f:
         sched = json.load(f)
@@ -190,6 +235,8 @@ def extract_current_season(season: str):
     for day in sched["days"]:
         for s in day["stops"]:
             row_dates.setdefault(s["row"], day["date"])
+    prior = str(int(season) - 1)
+    prior2 = str(int(season) - 2)
     out = []
     for c in sched["all_clients"]:
         # Default False, not None: an unresolvable key must not silently drop
@@ -200,7 +247,9 @@ def extract_current_season(season: str):
         name = clean_name(c.get("name"))
         if not name:
             continue
-        out.append({
+        storing, storage_note = storing_from_sheet(c.get("storage"))
+        role_need = c.get("role_need") if isinstance(c.get("role_need"), dict) else None
+        rec = {
             "name": name,
             "street": clean_str(c.get("street")), "city": clean_str(c.get("city")),
             "state": clean_str(c.get("st")), "zip": clean_str(c.get("zip")),
@@ -210,11 +259,50 @@ def extract_current_season(season: str):
             "takedown_fee": money(
                 season_field(c, season, "takedown_fee_{}", "takedown_fee")),
             "storage_fee": money(c.get("storage_fee")),
-            "total": None,
-            "notes": clean_str(c.get("production_notes")),
+            # Was hardcoded None for years: the sheet's total column was never
+            # read for the current season. (It is a broken formula on most
+            # rows today, so this is usually None anyway -- but honestly so.)
+            "total": money(c.get("pickup_delivery_total")),
+            "ideal_total": money(c.get("ideal_total")),
             "install_date": row_dates.get(c["row"]),
             "cancelled": False,
-        })
+            # Storage and staffing for THIS season.
+            "storing": storing,
+            "storage_note": storage_note,
+            "boxes": as_int(c.get("box_count")),
+            "boxes_verified": bool(c.get("box_verified")),
+            "est_hours": c.get("est_hours"),
+            "role_need": role_need,
+            "people_needed": as_int(c.get("people_needed")),
+            "specialty": clean_str(c.get("specialty_needed")),
+            "confirmation_notes": clean_str(c.get("confirmation_notes")),
+            "supplements": {
+                prior: {
+                    "real_hours": c.get("real_hours"),
+                    "real_start": clean_str(c.get("prior_real_start")),
+                    "real_end": clean_str(c.get("prior_real_end")),
+                    "crew": clean_str(c.get("crew_2025")),
+                    "crew_size": as_int(c.get("crew_size_2025")),
+                    "invoice_total": money(c.get("invoice_2025_total")),
+                    "production_notes": clean_str(c.get("production_notes")),
+                    "takedown_date": clean_str(c.get("prior_takedown_date")),
+                    "takedown_order": as_int(c.get("prior_takedown_order")),
+                    "takedown_est_hours": c.get("prior_takedown_est_hours"),
+                    "takedown_est_note": clean_str(c.get("prior_takedown_est_note")),
+                    "takedown_real_hours": c.get("prior_takedown_real_hours"),
+                    "takedown_real_note": clean_str(c.get("prior_takedown_real_note")),
+                    "takedown_real_start": clean_str(c.get("prior_takedown_real_start")),
+                    "takedown_real_end": clean_str(c.get("prior_takedown_real_end")),
+                    "takedown_on_calendar": clean_str(c.get("prior_takedown_on_calendar")),
+                    "takedown_called": clean_str(c.get("prior_takedown_called")),
+                },
+                prior2: {
+                    "install_date": clean_str(c.get("date_2024")),
+                    "takedown_date": clean_str(c.get("prior2_takedown_date")),
+                },
+            },
+        }
+        out.append(rec)
     return out
 
 
@@ -241,16 +329,20 @@ def extract_2025(ws):
         "install_fee": ("INSTALL LABOR FEE",), "takedown_fee": ("TAKEDOWN LABOR FEE",),
         "storage_fee": ("STORAGE FEE (BASED ON # OF BOXES)",),
         "total": ("TOTAL PICK UP & DELIVERY INSTALL + TAKEDOWN",),
-        "notes": ("Production Notes",),
+        "production_notes": ("Production Notes",),
         "install_date": ("Install Date 2025",),
+        "storage": ("TBDG STORAGE YES/NO",),
+        "boxes": ("BOX COUNT",),
     })
     for rec in raw:
-        for k in ("street", "city", "state", "zip", "phone", "email", "notes"):
+        for k in ("street", "city", "state", "zip", "phone", "email", "production_notes"):
             rec[k] = clean_str(rec.get(k))
         for k in ("install_fee", "takedown_fee", "storage_fee", "total"):
             rec[k] = money(rec.get(k))
         d = rec.get("install_date")
         rec["install_date"] = d.date().isoformat() if hasattr(d, "date") else (str(d) if d else None)
+        rec["storing"], rec["storage_note"] = storing_from_sheet(rec.pop("storage", None))
+        rec["boxes"] = as_int(rec.get("boxes"))
         rec["cancelled"] = False
     return raw
 
@@ -326,52 +418,17 @@ def extract_2022_cancelled(ws):
 
 
 #
-# WORDING: these two go into client_activity.summary and are rendered verbatim
-# by the Clients tab, next to a badge that ALREADY shows the season year. They
-# must match backend/app/apis/install_schedule/__init__.py exactly -- both
-# files write these same rows, and a disagreement means the line changes
-# wording depending on which path last touched the client. Change them in both,
-# and run archive/backfill_summary_wording.py for the rows already stored
-# (already run once for the wording it introduced; kept for reference --
-# see scheduler/archive/README.md).
-#
-# "this year" and "2026 season" were both wrong here: redundant next to the
-# badge, and actively misleading once the season turns over -- a 2026 row read
-# "Not installing this year" while the app was planning 2027.
-NOT_INSTALLING_SUMMARY = "Not installing"
-#: Fallback when no install date is on record. Not "not scheduled" -- for the
-#: older seasons the date simply was never tracked, which is a different thing.
-NO_DATE_SUMMARY = "No date recorded"
-
-
-def _mdy(iso_date: str) -> str:
-    """ISO "YYYY-MM-DD" -> "MM/DD/YYYY" -- US format, matching the rest of
-    the app (user, 2026-09-04). Duplicated in install_schedule/__init__.py,
-    same reason the two SUMMARY constants above are: no shared import path
-    between this script and the backend package, so it's kept in sync by
-    hand like everything else in this WORDING block."""
-    parts = iso_date.split("-")
-    if len(parts) != 3:
-        return iso_date
-    y, m, d = parts
-    return f"{m}/{d}/{y}"
+# WORDING lives in backend/app/libs/client_season.py now (imported above via
+# the season.py sys.path bridge), so this script, the install-schedule API and
+# the Clients tab's season editor all write the same summary for the same row.
+NOT_INSTALLING_SUMMARY = client_season.NOT_INSTALLING_SUMMARY
+NO_DATE_SUMMARY = client_season.NO_DATE_SUMMARY
 
 
 def summarize(season: str, rec: dict) -> str:
-    if rec.get("cancelled"):
-        return "Cancelled before install"
-    bits = []
-    if rec.get("install_date"):
-        bits.append(f"Scheduled {_mdy(rec['install_date'])}")
-    else:
-        bits.append(NO_DATE_SUMMARY)
-    total = rec.get("total")
-    if total is None and rec.get("install_fee") is not None:
-        total = round((rec.get("install_fee") or 0) + (rec.get("takedown_fee") or 0)
-                       + (rec.get("storage_fee") or 0), 2)
-    if total:
-        bits.append(f"${total:,.0f}")
-    return " · ".join(bits)
+    """`season` is unused in the text (the badge next to it says the year)
+    but stays in the signature for the callers that pass it."""
+    return client_season.summarize(rec)
 
 
 def merge_field(live: Optional[str], last_synced: Optional[str], new_value: Optional[str]) -> str:
@@ -457,38 +514,74 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
     if changed:
         counts["fields_updated"] += 1
 
-    summary = summarize(season, rec)
-    detail = {k: v for k, v in rec.items() if k != "name"}
+    supplements = rec.get("supplements") or {}
+    fresh = {k: v for k, v in rec.items() if k not in ("name", "supplements")}
 
-    # Staff taking a client out of the season is a decision made in the app, and
-    # the app is the source of truth -- so it survives a re-sync. This script
-    # builds `rec` from the schedule spreadsheet, which still lists them, and
-    # would otherwise overwrite the "not installing" line with "Scheduled ..."
-    # on every run, silently undoing the removal.
-    #
-    # The flag lives in detail.not_installing (set by the install_schedule API
-    # when the scheduler saves). Carry it forward and keep the summary, while
-    # still refreshing everything else the sheet is authoritative for.
+    # The app is the source of truth for anything a person set there -- a
+    # client marked not installing or on hold, a storage flag, a corrected fee.
+    # This script builds `fresh` from the spreadsheet, which knows none of
+    # that, and would otherwise overwrite it on every run. merge_sheet_detail
+    # keeps every app-owned value (stamped in detail.app_edits, plus the
+    # flags) on top of the refreshed sheet record.
+    prior = await load_detail(conn, row["id"], season)
+    detail = client_season.merge_sheet_detail(prior, fresh)
+    summary = client_season.summarize(detail)
+
+    await conn.execute(
+        "INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at) "
+        "VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date) "
+        "ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment' DO UPDATE SET "
+        "summary=EXCLUDED.summary, detail=EXCLUDED.detail, occurred_at=EXCLUDED.occurred_at, "
+        "updated_at=now()",
+        row["id"], season, summary, json.dumps(detail, default=str),
+        to_date(detail.get("install_date")),
+    )
+    counts["activity_rows"] += 1
+
+    # Columns on this sheet that describe an EARLIER season go on that
+    # season's row -- added to what is already there, never replacing it.
+    for other_season, extra in supplements.items():
+        extra = {k: v for k, v in extra.items() if v is not None}
+        if not extra:
+            continue
+        await supplement_season(conn, row["id"], other_season, extra, counts)
+
+
+async def load_detail(conn, client_id: int, season: str) -> Optional[dict]:
     prior = await conn.fetchval(
         "SELECT detail FROM client_activity "
         " WHERE client_id=$1 AND kind='christmas_install' AND season=$2",
-        row["id"], season,
+        client_id, season,
     )
-    if prior:
-        prior = prior if isinstance(prior, dict) else json.loads(prior)
-        if prior.get("not_installing"):
-            detail["not_installing"] = True
-            summary = NOT_INSTALLING_SUMMARY
+    if not prior:
+        return None
+    prior = prior if isinstance(prior, dict) else json.loads(prior)
+    return prior if isinstance(prior, dict) else None
 
-    result = await conn.execute(
+
+async def supplement_season(conn, client_id: int, season: str, extra: dict, counts: dict):
+    """Merge sheet-sourced values into an existing season row (or start one).
+
+    Ordering makes this safe: seasons are written oldest first, so by the
+    time the current sheet's "last season's real hours" arrives, last
+    season's own sheet has already written that row and this only adds to
+    it. App-owned keys are left alone (client_season.supplement_detail).
+    """
+    prior = await load_detail(conn, client_id, season)
+    detail = client_season.supplement_detail(prior, extra)
+    if detail == (prior or {}):
+        return
+    summary = client_season.summarize(detail)
+    await conn.execute(
         "INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at) "
         "VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date) "
-        "ON CONFLICT (client_id, kind, season) DO UPDATE SET "
+        "ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment' DO UPDATE SET "
         "summary=EXCLUDED.summary, detail=EXCLUDED.detail, occurred_at=EXCLUDED.occurred_at, "
         "updated_at=now()",
-        row["id"], season, summary, json.dumps(detail, default=str), to_date(rec.get("install_date")),
+        client_id, season, summary, json.dumps(detail, default=str),
+        to_date(detail.get("install_date")),
     )
-    counts["activity_rows"] += 1
+    counts["supplemented_rows"] += 1
 
 
 async def main():
@@ -541,7 +634,8 @@ async def main():
         seasons.append((name, recs))
 
     conn = await asyncpg.connect(db_url, statement_cache_size=0)
-    counts = {"clients_created": 0, "clients_seen": 0, "fields_updated": 0, "activity_rows": 0}
+    counts = {"clients_created": 0, "clients_seen": 0, "fields_updated": 0,
+              "activity_rows": 0, "supplemented_rows": 0}
     try:
         # Ascending order: oldest history first, the current season last, so a
         # client's newest row is the one written most recently.
@@ -556,6 +650,7 @@ async def main():
     print(f"Existing clients matched: {counts['clients_seen']}")
     print(f"Clients with a contact-field change this run: {counts['fields_updated']}")
     print(f"Activity rows written/updated: {counts['activity_rows']}")
+    print(f"Earlier-season rows supplemented from this sheet: {counts['supplemented_rows']}")
 
 
 if __name__ == "__main__":

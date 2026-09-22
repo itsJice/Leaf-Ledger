@@ -173,6 +173,59 @@ the rest of this file is the WHY behind it.*
   into `ll_app.install_schedule_pages`. No restart, redeploy or frontend
   rebuild is needed — the page is fetched at request time, not bundled.
 
+### 10.1 The client record is the source of truth (per-season fields)
+- Every client has one `client_activity` row per season (kind
+  `christmas_install`); its jsonb `detail` holds that season's fields —
+  install/takedown dates, storing with us, boxes, crew, hours, the three
+  fees, total, invoice total, notes, and the `hold` / `not_installing`
+  flags. The key names and coercion rules live in ONE place,
+  `backend/app/libs/client_season.py`, and three writers share it: the
+  Clients tab's season editor (`PUT /clients/{id}/seasons/{season}`), the
+  scheduler's save (`_reconcile_flags`, from `notInstallingNames` /
+  `holdNames`), and `sync_clients.py`. There is one `summarize()`; do not
+  write a summary string anywhere else.
+- **A value set in the app wins over the sheet.** Setting a key stamps
+  `detail.app_edits[key] = <when>`; `merge_sheet_detail()` keeps every
+  stamped key (and the flags) across a re-sync, and clearing a value in
+  the app drops the stamp so the sheet may fill it again. A green dot on
+  the Clients tab marks a stamped value.
+- **Which season a sheet column describes is not which sheet it is on.**
+  The current sheet carries LAST season's real hours / start / end, crew,
+  invoice total, production notes and takedown block, and the two-back
+  install and takedown dates. `prep.py` names those `prior_*` / `prior2_*`
+  and `sync_clients.py` files them on THAT season's row as a supplement
+  (`supplement_detail()` — adds, never replaces). "2026 Takedown Date" on
+  the 2026 sheet is the 2025 season's takedown (January 2026); "2024
+  TAKEDOWN DATE" is named for the season. Both are in `prep.COL`.
+- `sync_clients.py` needs `backend/.env.supabase` and the workbook next to
+  it; in a worktree, symlink both (they are gitignored). The upsert's
+  `ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment'` must
+  name the partial index's predicate (migration 009) or Postgres refuses it.
+
+### 10.2 Install-time preference (morning / afternoon / late)
+- `clients.time_preference` (migration 015) is per CLIENT — a daycare that
+  needs mornings needs them every year. Set on the Clients tab.
+- The tool reads it live off `/api/clients/list` (`appClientFor(row)
+  .time_preference`), never from the build. On an EDITED day `routeDay`
+  partitions the stops morning → no preference → afternoon → late and
+  routes each group for shortest drive on its own, picking up where the
+  previous group ended (`solveOrder`): the preference decides the group,
+  drive time decides the order within it. The pipeline's forced-first
+  stop still leads its own group; a manual pin (reorder arrows) still
+  overrides everything. Untouched pipeline days keep schedule.py's order
+  until someone drops a stop — teaching schedule.py the rule is a
+  follow-on, not done. Badge on the stop card and the printed sheet.
+
+### 10.3 Hold — about to cancel, not decided
+- A held client KEEPS their day and slot (losing the slot is the thing
+  you'd regret if they stay). The stop card, popup, printed sheet
+  ("ON HOLD — confirm before install"), the date heading's count and the
+  "On hold" chip (drop target; list; amber map pins, no routes) all say
+  so. Release from the popup or the hold list; "not installing" ends a
+  hold. Saved in shared state as `hold` (row ids) + `holdNames`, written
+  through to `client_activity.detail.hold` on save; the Clients tab shows
+  and sets the same flag (status Installing / Hold / Not installing).
+
 ## 11. Real road geometry, mileage & map robustness
 - `route_geometry.py` fetches each day's REAL road-following path + actual
   mileage from OSRM's /route service (distinct from /table, which only

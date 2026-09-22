@@ -83,7 +83,27 @@ COL = {
     "crew_name":        f"{PRIOR} Crew Name",
     "invoice_total":    f"{PRIOR} Invoice Total Actual Created",
     "production_notes": f"{PRIOR} Production Notes",
+    # Last season's measured install window (the pair the real-hours column
+    # is computed from).
+    "real_start":       f"{PRIOR} Real Start",
+    "real_end":         f"{PRIOR} Real End",
+    # TAKEDOWN of last season happens in January of THIS season's year, and
+    # this block of columns is named for that calendar year -- so "{SEASON}
+    # Takedown Date" on the {SEASON} sheet is the {PRIOR} season's takedown.
+    # (The two-back column is the odd one out: "{PRIOR2} TAKEDOWN DATE" is
+    # named for the season and holds January {PRIOR2+1} dates.)
+    "takedown_date":        f"{SEASON} Takedown Date",
+    "takedown_real_hours":  f"{SEASON} Real Hours For Takedown",
+    "takedown_real_start":  f"{SEASON} Real Start",
+    "takedown_real_end":    f"{SEASON} Real End",
+    "prior2_takedown_date": f"{PRIOR2} TAKEDOWN DATE",
+    # This season's billing target and the running confirmation log.
+    "ideal_total":          f"{SEASON} IDEAL TOTAL",
+    "confirmation_notes":   f"Confirmation Notes {SEASON}/{SEASON + 1}",
 }
+# The one header with a full date baked in ("12.31.2025 Kayla called to give
+# date to client") is matched on this fragment, not spelled out.
+CALLED_HEADER_FRAGMENT = "called to give date"
 # Year-free aliases accepted when the year-named spelling isn't there.
 COL_FALLBACK = {
     "crew_name": ("Crew Name",),
@@ -119,6 +139,23 @@ OPTIONAL_HEADERS = [
     ("# GENERAL INSTALLERS NEEDED", "staffing ask incomplete"),
     ("PHONE", "no phone numbers on the crew cards"),
     ("EMAIL", "no emails for client confirmations"),
+    # Year-over-year history the app keeps per client (sync_clients.py files
+    # these on the season they describe). Absent = that season's row is
+    # thinner in the Clients tab, nothing else breaks.
+    (COL["real_start"], "last season's install start time blank in client history"),
+    (COL["real_end"], "last season's install end time blank in client history"),
+    (COL["takedown_date"], "last season's takedown date blank in client history"),
+    ("Take Down Order by Day", "last season's takedown order blank in client history"),
+    ("ESTIMATED TOTAL HOURS FOR Takedown", "takedown hour estimates blank in client history"),
+    (COL["takedown_real_hours"], "last season's takedown hours blank in client history"),
+    (COL["takedown_real_start"], "last season's takedown start blank in client history"),
+    (COL["takedown_real_end"], "last season's takedown end blank in client history"),
+    (COL["prior2_takedown_date"], "two-seasons-back takedown date blank in client history"),
+    ("Takedown On ODOO Cal", "takedown-on-calendar flag blank in client history"),
+    ("Specialty Needed", "specialty flag blank in client history"),
+    ("TOTAL PICK UP & DELIVERY INSTALL + TAKEDOWN", "season total blank in client history"),
+    (COL["ideal_total"], "ideal total blank in client history"),
+    (COL["confirmation_notes"], "confirmation notes blank in client history"),
 ]
 
 
@@ -482,6 +519,32 @@ def parse():
                 return ws.cell(r, c).value
         return None
 
+    called_header = next((k for k in col if CALLED_HEADER_FRAGMENT in k.lower()), None)
+    if not called_header:
+        print(f"     !! no header containing {CALLED_HEADER_FRAGMENT!r} -> "
+              f"date-given-to-client flag blank in client history")
+
+    def as_time(v):
+        """A time cell -> "HH:MM"; free text (a note in a time column) as-is."""
+        if v is None or v == "":
+            return None
+        if hasattr(v, "strftime"):
+            return v.strftime("%H:%M")
+        return str(v).strip() or None
+
+    def num_or_text(v):
+        """A column meant to hold hours that sometimes holds a note instead
+        ("Lakewood / Arrive 3:30 / Depart 3:46") -> (number, note)."""
+        if v is None or v == "":
+            return None, None
+        try:
+            return round(float(v), 2), None
+        except (ValueError, TypeError):
+            return None, re.sub(r"\s+", " ", str(v)).strip() or None
+
+    def text(v):
+        return re.sub(r"\s+", " ", str(v)).strip() if v not in (None, "") else None
+
     clients = []
     for r in range(2, ws.max_row + 1):
         name = h(r, "TBDG CLIENT")
@@ -580,6 +643,32 @@ def parse():
                             if production_notes_v else "")
         h_rec = hist.get(norm_name(name), {})
 
+        # Year-over-year history for the app's client record. Named for WHICH
+        # season they describe (prior_*, prior2_*), not for the sheet column's
+        # year, so sync_clients.py can file each on the right season's row
+        # without knowing the sheet's naming quirks (see COL above).
+        td_est_hours, td_est_note = num_or_text(h(r, "ESTIMATED TOTAL HOURS FOR Takedown"))
+        td_real_hours, td_real_note = num_or_text(h(r, COL["takedown_real_hours"]))
+        history = {
+            "specialty_needed": text(h(r, "Specialty Needed")),
+            "pickup_delivery_total": as_money(h(r, "TOTAL PICK UP & DELIVERY INSTALL + TAKEDOWN")),
+            "ideal_total": as_money(h(r, COL["ideal_total"])),
+            "confirmation_notes": text(h(r, COL["confirmation_notes"])),
+            "prior_real_start": as_time(h(r, COL["real_start"])),
+            "prior_real_end": as_time(h(r, COL["real_end"])),
+            "prior_takedown_date": as_date(h(r, COL["takedown_date"])) or None,
+            "prior_takedown_order": as_int(h(r, "Take Down Order by Day")),
+            "prior_takedown_est_hours": td_est_hours,
+            "prior_takedown_est_note": td_est_note,
+            "prior_takedown_real_hours": td_real_hours,
+            "prior_takedown_real_note": td_real_note,
+            "prior_takedown_real_start": as_time(h(r, COL["takedown_real_start"])),
+            "prior_takedown_real_end": as_time(h(r, COL["takedown_real_end"])),
+            "prior_takedown_on_calendar": text(h(r, "Takedown On ODOO Cal")),
+            "prior_takedown_called": text(h(r, called_header)) if called_header else None,
+            "prior2_takedown_date": as_date(h(r, COL["prior2_takedown_date"])) or None,
+        }
+
         box_sheet = box
         if name in STORAGE_BOX_COUNTS:
             box = STORAGE_BOX_COUNTS[name]
@@ -651,6 +740,7 @@ def parse():
             "storage_fee_2024": h_rec.get("storage_prior2"),
             "install_fee_2025": h_rec.get("install_prior"),
             "storage_fee_2025": h_rec.get("storage_prior"),
+            **history,
         }
         clients.append(rec)
     return clients

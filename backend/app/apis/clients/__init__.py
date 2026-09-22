@@ -15,18 +15,23 @@ import asyncpg
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.libs import client_season
 from app.libs.db import get_conn, has_item_status_column
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 ADDRESS_FIELDS = ("street", "city", "state", "zip")
 
+#: The columns every client read returns. One list, so the SELECT here, the
+#: RETURNING on create/update and the response model cannot drift apart.
+CLIENT_COLUMNS = (
+    "id, name, email, phone, notes, street, city, state, zip, time_preference, "
+    "secondary_contacts, created_at, updated_at"
+)
+
 
 async def load_saved_clients(conn) -> List[dict]:
-    rows = await conn.fetch(
-        "SELECT id, name, email, phone, notes, street, city, state, zip, "
-        "secondary_contacts, created_at, updated_at FROM clients"
-    )
+    rows = await conn.fetch(f"SELECT {CLIENT_COLUMNS} FROM clients")
     out = []
     for r in rows:
         data = dict(r)
@@ -73,6 +78,8 @@ class ClientCreate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip: Optional[str] = None
+    #: "morning" | "afternoon" | "late" | None -- see migrations/015.
+    time_preference: Optional[str] = None
     secondary_contacts: Optional[List[SecondaryContact]] = None
 
 
@@ -96,7 +103,24 @@ class ClientUpdate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip: Optional[str] = None
+    #: "" clears it (same NULLIF convention as the other fields).
+    time_preference: Optional[str] = None
     secondary_contacts: Optional[List[SecondaryContact]] = None
+
+
+def clean_time_preference(value: Optional[str]) -> Optional[str]:
+    """None -> leave alone; "" -> clear; anything else must be a known value."""
+    if value is None:
+        return None
+    v = value.strip().lower()
+    if v == "":
+        return ""
+    if v not in client_season.TIME_PREFERENCES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"time_preference must be one of {', '.join(client_season.TIME_PREFERENCES)}",
+        )
+    return v
 
 
 class ActivityOut(BaseModel):
@@ -119,6 +143,7 @@ class ClientOut(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip: Optional[str] = None
+    time_preference: Optional[str] = None
     secondary_contacts: List[SecondaryContact] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -183,6 +208,7 @@ async def build_client_list(conn) -> List[dict]:
             "phone": None,
             "notes": None,
             "street": None, "city": None, "state": None, "zip": None,
+            "time_preference": None,
             "secondary_contacts": [],
             "created_at": None,
             "updated_at": stats.get("last_project_at"),
@@ -214,6 +240,7 @@ async def create_client(body: ClientCreate, request: Request):
     if not name:
         raise HTTPException(status_code=400, detail="Client name is required")
 
+    time_preference = clean_time_preference(body.time_preference) or None
     signed_in = get_optional_user(request)
     conn = await get_conn()
     try:
@@ -221,11 +248,11 @@ async def create_client(body: ClientCreate, request: Request):
         # client at the same moment produce one row and one clean 409, instead
         # of one silently overwriting the other.
         row = await conn.fetchrow(
-            """
-            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+            f"""
+            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
             ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
-            RETURNING id, name, email, phone, notes, street, city, state, zip, secondary_contacts, created_at, updated_at
+            RETURNING {CLIENT_COLUMNS}
             """,
             name,
             clean_name(body.email) or None,
@@ -237,6 +264,7 @@ async def create_client(body: ClientCreate, request: Request):
             clean_name(body.zip) or None,
             json.dumps([c.dict() for c in body.secondary_contacts]) if body.secondary_contacts is not None else "[]",
             signed_in.email if signed_in else None,
+            time_preference,
         )
         if row is None:
             raise HTTPException(status_code=409, detail="Client already exists")
@@ -264,6 +292,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
     partial edit (just fixing a phone number) can't accidentally blank out
     everything else. There was no way to edit a saved client at all before
     this -- create and delete were the only two operations."""
+    time_preference = clean_time_preference(body.time_preference)
     conn = await get_conn()
     try:
         try:
@@ -272,7 +301,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                 if body.secondary_contacts is not None else None
             )
             row = await conn.fetchrow(
-                """
+                f"""
                 UPDATE clients SET
                     name = COALESCE(NULLIF(TRIM($2), ''), name),
                     email = CASE WHEN $3::text IS NOT NULL THEN NULLIF(TRIM($3), '') ELSE email END,
@@ -283,12 +312,13 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                     state = CASE WHEN $8::text IS NOT NULL THEN NULLIF(TRIM($8), '') ELSE state END,
                     zip = CASE WHEN $9::text IS NOT NULL THEN NULLIF(TRIM($9), '') ELSE zip END,
                     secondary_contacts = CASE WHEN $10::jsonb IS NOT NULL THEN $10::jsonb ELSE secondary_contacts END,
+                    time_preference = CASE WHEN $11::text IS NOT NULL THEN NULLIF(TRIM($11), '') ELSE time_preference END,
                     updated_at = NOW()
                 WHERE id = $1
-                RETURNING id, name, email, phone, notes, street, city, state, zip, secondary_contacts, created_at, updated_at
+                RETURNING {CLIENT_COLUMNS}
                 """,
                 client_id, body.name, body.email, body.phone, body.notes,
-                body.street, body.city, body.state, body.zip, sc_json,
+                body.street, body.city, body.state, body.zip, sc_json, time_preference,
             )
         except asyncpg.UniqueViolationError:
             raise HTTPException(status_code=409, detail="Another client already has that name")
@@ -339,6 +369,79 @@ async def delete_client(client_name: str, request: Request, delete_projects: boo
         """, name)
         count = int(updated.split()[-1]) if updated else 0
         return {"deleted": deleted, "projects_updated": count}
+    finally:
+        await conn.close()
+
+
+class SeasonFieldsIn(BaseModel):
+    """Per-season edits from the Clients tab. ``fields`` is {key: value} over
+    the whitelist in app.libs.client_season.SEASON_FIELDS; a null or ""
+    value clears that key so the spreadsheet may fill it again."""
+    fields: dict
+
+
+def _clean_season_label(season: str) -> str:
+    s = (season or "").strip()
+    if len(s) != 4 or not s.isdigit():
+        raise HTTPException(status_code=400, detail="Bad season")
+    return s
+
+
+@router.put("/{client_id}/seasons/{season}", response_model=ActivityOut)
+async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn, request: Request):
+    """Edit one client's record for one season -- storing with us, on hold,
+    not installing, fees, boxes, notes -- from the app.
+
+    The app is the source of truth: whatever is set here is stamped in
+    detail.app_edits and survives every later spreadsheet sync (see
+    app.libs.client_season). Creating the season's row when there is none
+    yet is deliberate -- staff can mark "storing with us" for a client the
+    sheet has not been synced for.
+    """
+    season = _clean_season_label(season)
+    if not isinstance(body.fields, dict) or not body.fields:
+        raise HTTPException(status_code=400, detail="fields must be a non-empty object")
+    conn = await get_conn()
+    try:
+        exists = await conn.fetchval("SELECT 1 FROM clients WHERE id = $1", client_id)
+        if not exists:
+            raise HTTPException(status_code=404, detail="No client with that id")
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id, detail FROM client_activity "
+                " WHERE client_id = $1 AND kind = 'christmas_install' AND season = $2 FOR UPDATE",
+                client_id, season,
+            )
+            prior = row["detail"] if row else None
+            if isinstance(prior, str):
+                prior = json.loads(prior)
+            try:
+                detail = client_season.apply_edits(prior if isinstance(prior, dict) else {}, body.fields)
+            except client_season.FieldError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            summary = client_season.summarize(detail)
+            occurred = detail.get("install_date")
+            try:
+                occurred_at = date.fromisoformat(str(occurred)[:10]) if occurred else None
+            except ValueError:
+                occurred_at = None
+            saved = await conn.fetchrow(
+                """
+                INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at)
+                VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date)
+                ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment' DO UPDATE SET
+                    summary = EXCLUDED.summary, detail = EXCLUDED.detail,
+                    occurred_at = EXCLUDED.occurred_at, updated_at = now()
+                RETURNING id, kind, season, summary, detail, occurred_at, created_at
+                """,
+                client_id, season, summary, json.dumps(detail, default=str), occurred_at,
+            )
+        out = dict(saved)
+        if isinstance(out.get("detail"), str):
+            out["detail"] = json.loads(out["detail"])
+        if out.get("occurred_at") is not None and not isinstance(out["occurred_at"], str):
+            out["occurred_at"] = out["occurred_at"].isoformat()
+        return out
     finally:
         await conn.close()
 

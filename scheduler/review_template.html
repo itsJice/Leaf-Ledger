@@ -146,6 +146,15 @@ header h1 svg{color:var(--brand)}
 .badge.store{background:var(--brand-soft);color:var(--ok-ink)}
 .badge.approx{background:var(--warn-soft);color:var(--warn-ink)}
 .badge.confirm{background:#dcfce7;color:#15803d;font-weight:800}
+.badge.pref{background:#e0ecf8;color:#1e3a5f}
+.badge.hold{background:#fef3c7;color:#92400e;font-weight:800}
+.stop.onhold{border-left:3px solid #d97706}
+.dayhead{padding:4px 2px 8px;margin-bottom:10px;border-bottom:1.5px solid var(--line)}
+.dayhead b{display:block;font-size:15px;color:var(--ink);font-weight:800}
+.dayhead span{font-size:11px;color:var(--mut);line-height:1.4}
+.dayhead .holdn{color:#92400e;font-weight:700}
+.dchip.hold{border-color:#d97706;color:#92400e}
+.dchip.hold.sel{background:#d97706;color:#fff}
 .stop.confirmed{border-left:3px solid #15803d}
 /* The hidden attribute only works through the UA stylesheet's display:none,
    which any class setting display beats on specificity -- .mv.confirm{display:flex}
@@ -227,6 +236,11 @@ dialog option:disabled{color:#b6b3ae}
 .mvcrewrow .mvcrewempty{color:var(--faint);font-style:italic}
 #sfdlg{max-width:500px}
 #ncdlg{max-width:380px}
+.ncsuggest{border:1px solid var(--line);border-radius:6px;background:#fff;max-height:190px;overflow:auto;
+  margin:2px 0 4px;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.ncsuggest div{padding:6px 9px;cursor:pointer;line-height:1.3}
+.ncsuggest div:hover,.ncsuggest div.on{background:var(--brand-soft)}
+.ncsuggest .zip{color:var(--mut)}
 .ncerr{font-size:11.5px;color:var(--warn-ink);margin-top:2px;min-height:14px}
 #histdlg{max-width:440px}
 .histsub{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
@@ -952,7 +966,8 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
   <label class="nclabel">Name</label>
   <input id="ncname" type="text" placeholder="e.g. Client X - Reinstall, or Client Y - Callback">
   <label class="nclabel">Address</label>
-  <input id="ncaddr" type="text" placeholder="Street, city, state zip">
+  <input id="ncaddr" type="text" placeholder="Start typing the street — pick a match to fill city, state and ZIP" autocomplete="off">
+  <div id="ncsuggest" class="ncsuggest" hidden></div>
   <label class="nclabel">Est. install time (hours)</label>
   <input id="nchours" type="number" step="0.25" min="0" value="1">
   <label class="nclabel">Crew size (people, optional)</label>
@@ -998,6 +1013,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
   <div id="peekbody"></div>
   <div class="btns"><button onclick="peekdlg.close()">Close</button>
   <button class="mv confirm" id="peekconfirm">confirm date</button>
+  <button class="mv" id="peekhold" title="About to cancel but not decided — keeps their date, flags every card and sheet">put on hold</button>
   <button class="okbtn" id="peekappr">Approve day</button>
   <button id="peekprint">Print sheet</button>
   <button id="peekmove">Reschedule</button>
@@ -1305,6 +1321,12 @@ function materializeTrainingDays(){
 // those were never on the board and can't be put back from here. Keyed by
 // client row.
 let notInstalling = new Set();
+// Clients who are about to cancel but haven't decided. They KEEP their day
+// and slot -- losing the slot is the thing you'd regret if they stay -- and
+// every card, printed sheet and the Clients tab say so until it's settled.
+// Same row-id set shape as notInstalling; written through to the client
+// record as `holdNames` on save (see snapshot).
+let hold = new Set();
 function normNotInstalling(list){
   return new Set((Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]));
 }
@@ -1588,6 +1610,7 @@ try{
     newDates = normDates(s.newDates);
     trainingDays = normTrainingDays(s.trainingDays);
     notInstalling = normNotInstalling(s.notInstalling);
+    hold = normNotInstalling(s.hold);
     lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
     materializeTrainingDays();
@@ -1639,11 +1662,16 @@ function snapshot(){
     const info=lastScheduledFrom[r];
     if(name && info && info.date) notInstallingDates[name]=info.date;
   });
+  // Same shape as notInstallingNames, for the hold write-through.
+  const holdNames=[...hold].map(r=>{
+    const ac=appClientFor(r);
+    return (ac && ac.name) || (C[r] && C[r].name) || null;
+  }).filter(Boolean);
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays],
-          notInstalling:[...notInstalling], lastScheduledFrom,
-          notInstallingNames, notInstallingDates, season:String((SEASON[0]||'')).slice(0,4),
+          notInstalling:[...notInstalling], hold:[...hold], lastScheduledFrom,
+          notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
@@ -1692,7 +1720,9 @@ window.addEventListener('message', e=>{
       // address" / "from the spreadsheet" rows check clientDirectory for
       // an address the Clients tab already has, which wasn't loaded yet
       // if this is what the page opened to.
-      if(selDate==='NOINSTALL') render();
+      // And everything else: preference badges and preference-grouped
+      // ordering both read the directory, so the board repaints once it's in.
+      render();
     });
   }
 });
@@ -1943,6 +1973,31 @@ function loadClientDirectory(){
 function appClientFor(row){
   return clientDirectory ? (clientDirectory.get(normName(C[row].name)) || null) : null;
 }
+// ---------- install-time preference (from the Clients tab) ----------
+// clients.time_preference: morning | afternoon | late | null. Read live off
+// the app's directory, never baked into the build, so a preference set on
+// the Clients tab reaches every open scheduler on its next directory load.
+// It decides the GROUP a stop sorts into on an edited day (see routeDay);
+// drive time decides the order within the group.
+const PREF_RANK={morning:0, '':1, afternoon:2, late:3};
+const PREF_LABEL={morning:'early morning', afternoon:'afternoon', late:'late'};
+function prefOf(row){
+  const ac=appClientFor(row); const p=ac && ac.time_preference;
+  return (p && PREF_RANK[p]!==undefined) ? p : '';
+}
+function prefRank(row){ return PREF_RANK[prefOf(row)]; }
+function prefBadge(row){
+  const p=prefOf(row);
+  return p ? `<span class="badge pref" title="Install-time preference from the Clients tab — an edited day runs morning → no preference → afternoon → late">${IC.clock} ${PREF_LABEL[p]}</span>` : '';
+}
+/** This season's "storing with us" from the Clients tab, or null if unknown. */
+function storingWithUs(row){
+  const ac=appClientFor(row); if(!ac) return null;
+  const yr=String((SEASON[0]||'')).slice(0,4);
+  const en=(ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
+  const v=en && en.detail && en.detail.storing;
+  return v===true ? true : (v===false ? false : null);
+}
 async function pullShared(){
   if(!AUTH) return;
   try{
@@ -1975,6 +2030,7 @@ async function pullShared(){
       newDates = normDates(j.state.newDates);
       trainingDays = normTrainingDays(j.state.trainingDays);
       notInstalling = normNotInstalling(j.state.notInstalling);
+      hold = normNotInstalling(j.state.hold);
       lastScheduledFrom = normLastScheduledFrom(j.state.lastScheduledFrom);
       const missing = applyPlacement(j.state.placement);
       materializeTrainingDays();
@@ -2143,6 +2199,7 @@ async function restoreHistoryEntry(entryId, btn){
     newDates = normDates(st.newDates);
     trainingDays = normTrainingDays(st.trainingDays);
     notInstalling = normNotInstalling(st.notInstalling);
+    hold = normNotInstalling(st.hold);
     lastScheduledFrom = normLastScheduledFrom(st.lastScheduledFrom);
     applyPlacement(st.placement);
     materializeTrainingDays();
@@ -2176,7 +2233,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         notInstalling:[...notInstalling], lastScheduledFrom, roster, staffing});
+                         notInstalling:[...notInstalling], hold:[...hold], lastScheduledFrom, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -2185,6 +2242,7 @@ function restoreBlob(blob){
   newDates = normDates(s.newDates);
   trainingDays = normTrainingDays(s.trainingDays);
   notInstalling = normNotInstalling(s.notInstalling);
+  hold = normNotInstalling(s.hold);
   lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
   applyPlacement(s.placement);
   materializeTrainingDays();
@@ -2250,15 +2308,41 @@ function routeDay(d){
   // a few milliseconds. Held-Karp covers the larger cases an edit can
   // create. A forced-first stop is pinned and only the remainder permuted,
   // exactly as build_day does.
+  // Install-time preference (Clients tab): a crew's day runs its morning
+  // clients first, then the ones with no preference, then afternoon, then
+  // late. Each group is routed for shortest drive on its own, picking up from
+  // wherever the previous group ended, so the preference decides the GROUP
+  // and drive time decides the order within it. A day where everyone is in
+  // one group is routed exactly as before. The pipeline's forced-first stop
+  // (d.startRow) still leads its own group.
+  const idx2row={}; d.stops.forEach(r=>idx2row[N[r]]=r);
   const startIdx = (d.startRow!=null && d.stops.includes(d.startRow))
                  ? N[d.startRow] : null;
-  const free = startIdx==null ? idx : idx.filter(i=>i!==startIdx);
-  const head = d.anchored ? [0] : [];
-  const tail = d.anchored ? [0] : [];
+  const groups=[[],[],[],[]];
+  idx.forEach(i=>groups[prefRank(idx2row[i])].push(i));
+  const nonEmpty=groups.filter(g=>g.length);
+  let seq = d.anchored ? [0] : [];
+  nonEmpty.forEach((g, gi)=>{
+    const last = gi===nonEmpty.length-1;
+    const pin = (startIdx!=null && g.includes(startIdx)) ? startIdx : null;
+    const free = pin==null ? g : g.filter(i=>i!==pin);
+    seq = solveOrder(seq.concat(pin==null?[]:[pin]), free, (d.anchored && last) ? [0] : []);
+  });
+  const bestSeq = seq;
+  let drive=0; for(let i=0;i<bestSeq.length-1;i++) drive+=leg(bestSeq[i],bestSeq[i+1]);
+  const inner = d.anchored? bestSeq.slice(1,-1): bestSeq;
+  return {order: inner.map(i=>idx2row[i]), drive: drive/60, path:bestSeq};
+}
+/** Shortest visiting order of `free` after the fixed prefix `head` (possibly
+ *  empty), ending at `tail` (the depot, or nothing). Returns the whole
+ *  head+order+tail sequence. Exhaustive permutation to 8 stops, Held-Karp
+ *  above -- the same two algorithms edited-day routing has always used. */
+function solveOrder(head, free, tail){
+  if(!free.length) return head.concat(tail);
+  const from = head.length ? head[head.length-1] : null;
   let best=null, bestSeq=null;
-
   const score = perm => {
-    const seq = head.concat(startIdx==null?[]:[startIdx], perm, tail);
+    const seq = head.concat(perm, tail);
     let t=0; for(let i=0;i<seq.length-1;i++) t+=leg(seq[i],seq[i+1]);
     return {t, seq};
   };
@@ -2275,38 +2359,34 @@ function routeDay(d){
         used[i]=true; perm.push(free[i]); rec(); perm.pop(); used[i]=false;
       }
     })();
-  } else {
-    // Held-Karp over the free stops, with a fixed start and (for anchored
-    // days) a fixed return to the depot.
-    const n=free.length, FULL=1<<n;
-    const from = startIdx!=null ? startIdx : (d.anchored?0:free[0]);
-    const dp=new Float64Array(FULL*n).fill(Infinity);
-    const par=new Int16Array(FULL*n).fill(-1);
-    for(let i=0;i<n;i++) dp[(1<<i)*n+i]=leg(from,free[i]);
-    for(let m=1;m<FULL;m++) for(let i=0;i<n;i++){
-      const cur=dp[m*n+i];
-      if(!(m&(1<<i))||cur===Infinity) continue;
-      for(let j=0;j<n;j++){
-        if(m&(1<<j)) continue;
-        const nm2=m|(1<<j), v=cur+leg(free[i],free[j]);
-        if(v<dp[nm2*n+j]){ dp[nm2*n+j]=v; par[nm2*n+j]=i; }
-      }
-    }
-    let endBest=Infinity, endI=0;
-    for(let i=0;i<n;i++){
-      const v=dp[(FULL-1)*n+i]+(d.anchored?leg(free[i],0):0);
-      if(v<endBest){ endBest=v; endI=i; }
-    }
-    const order=[]; let m=FULL-1, i=endI;
-    while(i>=0){ order.push(free[i]); const p=par[m*n+i]; m^=(1<<i); i=p; }
-    order.reverse();
-    bestSeq = head.concat(startIdx==null?[]:[startIdx], order, tail);
-    best = endBest + (startIdx!=null?0:0);
+    return bestSeq;
   }
-  let drive=0; for(let i=0;i<bestSeq.length-1;i++) drive+=leg(bestSeq[i],bestSeq[i+1]);
-  const inner = d.anchored? bestSeq.slice(1,-1): bestSeq;
-  const idx2row={}; d.stops.forEach(r=>idx2row[N[r]]=r);
-  return {order: inner.map(i=>idx2row[i]), drive: drive/60, path:bestSeq};
+  // Held-Karp over the free stops, with a fixed start (the last fixed node,
+  // or the first free stop when there is none) and an optional fixed end.
+  const n=free.length, FULL=1<<n;
+  const start = from!=null ? from : free[0];
+  const endAt = tail.length ? tail[tail.length-1] : null;
+  const dp=new Float64Array(FULL*n).fill(Infinity);
+  const par=new Int16Array(FULL*n).fill(-1);
+  for(let i=0;i<n;i++) dp[(1<<i)*n+i]=leg(start,free[i]);
+  for(let m=1;m<FULL;m++) for(let i=0;i<n;i++){
+    const cur=dp[m*n+i];
+    if(!(m&(1<<i))||cur===Infinity) continue;
+    for(let j=0;j<n;j++){
+      if(m&(1<<j)) continue;
+      const nm2=m|(1<<j), v=cur+leg(free[i],free[j]);
+      if(v<dp[nm2*n+j]){ dp[nm2*n+j]=v; par[nm2*n+j]=i; }
+    }
+  }
+  let endBest=Infinity, endI=0;
+  for(let i=0;i<n;i++){
+    const v=dp[(FULL-1)*n+i]+(endAt!=null?leg(free[i],endAt):0);
+    if(v<endBest){ endBest=v; endI=i; }
+  }
+  const order=[]; let m=FULL-1, i=endI;
+  while(i>=0){ order.push(free[i]); const p=par[m*n+i]; m^=(1<<i); i=p; }
+  order.reverse();
+  return head.concat(order, tail);
 }
 function effH(d,r){
   return (d.half||[]).includes(r) ? (C[r].h26||0)/2 : (C[r].h26||0);
@@ -2927,11 +3007,11 @@ const OVERVIEW_TITLE={
   'ALL-INSTALL':'Install — all days', 'ALL-TAKEDOWN':'Takedown — all days',
 };
 function isOverview(sel){
-  return ['ALL','ALL-HOU','ALL-DAL','ALL-INSTALL','ALL-TAKEDOWN','NOINSTALL'].includes(sel)
+  return ['ALL','ALL-HOU','ALL-DAL','ALL-INSTALL','ALL-TAKEDOWN','NOINSTALL','HOLD'].includes(sel)
     || sel in MONTH_OVERVIEWS;
 }
 function daysFor(sel){
-  if(sel==='NOINSTALL') return [];
+  if(sel==='NOINSTALL' || sel==='HOLD') return [];
   if(sel==='ALL') return days;
   if(sel==='ALL-HOU') return days.filter(d=>d.cat!=='M Crowd');
   if(sel==='ALL-DAL') return days.filter(d=>d.cat==='M Crowd');
@@ -3013,6 +3093,25 @@ function drawDate(date){
       // the content (user, 2026-08-31: "dots with names").
       mk.bindTooltip(pin.name,{permanent:true,direction:'right',
                                offset:[9,0],className:'name-label noinstall-label'});
+      layerGroup.addLayer(mk);
+    });
+    map.invalidateSize();
+    if(pts.length) map.fitBounds(pts,{padding:[50,50]});
+    return;
+  }
+  if(date==='HOLD'){
+    // Amber pins for the maybes, on their real addresses, no routes -- they
+    // are still on a crew's run, and that run is drawn on its own date.
+    const pts=[];
+    [...hold].forEach(r=>{
+      const c=C[r]; if(!c || c.lat==null || c.lon==null) return;
+      pts.push([c.lat,c.lon]);
+      const mk=L.circleMarker([c.lat,c.lon],{radius:8,color:'#92400e',weight:1.5,
+        fillColor:'#d97706',fillOpacity:.95});
+      const d=days.find(x=>x.stops.includes(r));
+      mk.bindPopup(`<b>${esc(c.name)}</b><br><i>On hold</i>`
+        + (d?`<br>${esc(fmtDate(d.date))} · ${esc(crewLabel(d))}`:''));
+      mk.bindTooltip(c.name,{permanent:true,direction:'right',offset:[9,0],className:'name-label'});
       layerGroup.addLayer(mk);
     });
     map.invalidateSize();
@@ -3262,6 +3361,7 @@ function markNotInstalling(row){
   days = days.filter(d=>d.stops.length);
   confirmed.delete(row);
   notInstalling.add(row);
+  hold.delete(row);
   // What date/crew they were pulled off of -- shown in the "not installing"
   // panel so staff can see what was booked before deciding whether to put
   // someone back on that same date.
@@ -3281,6 +3381,23 @@ function putBackOnSchedule(row){
   moves.push({row, name:C[row].name, from:'NOINSTALL', to:''});
   persist(); render();
   openSlotFinder(row);
+}
+/** Put a client on hold, or release them. On hold they stay exactly where
+ *  they are on the board -- this only flags them -- so a "yes, we're in"
+ *  costs nothing and a "no" is one click to "not installing". */
+function toggleHold(row){
+  if(roBlocked()) return;
+  if(!C[row]) return;
+  pushUndo();
+  const cur = days.find(d=>d.stops.includes(row));
+  if(hold.has(row)){
+    hold.delete(row);
+    moves.push({row, name:C[row].name, from:'HOLD', to: cur?cur.id:''});
+  } else {
+    hold.add(row);
+    moves.push({row, name:C[row].name, from: cur?cur.id:'', to:'HOLD'});
+  }
+  persist(); render();
 }
 /** The date strip: All, All Dallas, All Houston, then every Dallas date,
  * then every Houston date -- one flowing wrapped row, chip width sized to
@@ -3307,6 +3424,7 @@ function renderStrip(){
       if(dayid){ if(!isOverview(val)) moveWholeDay(dayid,val); return; }
       const row=+e.dataTransfer.getData('row'); if(!row) return;
       if(val==='NOINSTALL'){ markNotInstalling(row); return; }
+      if(val==='HOLD'){ if(!hold.has(row)) toggleHold(row); return; }
       if(!isOverview(val)) openMoveDlg(row,val);};
     // A date THIS session added gets its own remove button, right on the
     // strip -- no need to reopen "Add a date" and hunt for it in the
@@ -3393,6 +3511,10 @@ function renderStrip(){
   const outCount = notInstallingPins().length;
   const nb = mk(`Not installing${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
   if(nb) nb.classList.add('noinstall');
+  // Beside it: the maybes. Drop a stop here to flag it without moving it.
+  const holdCount = [...hold].filter(r=>C[r]).length;
+  const hb = mk(`On hold${holdCount?` (${holdCount})`:''}`,'HOLD',false,false,'');
+  if(hb) hb.classList.add('hold');
 }
 
 function fmtH(m){ return (m/60).toFixed(1)+'h'; }
@@ -3480,7 +3602,7 @@ function buildDayCard(d){
     }
     const el=document.createElement('div');
     const isConfirmed=confirmed.has(r);
-    el.className='stop'+(isConfirmed?' confirmed':''); el.dataset.row=r;
+    el.className='stop'+(isConfirmed?' confirmed':'')+(hold.has(r)?' onhold':''); el.dataset.row=r;
     // A confirmed stop simply doesn't pick up on drag -- draggable=false
     // gives an immediate not-allowed cursor rather than letting the drag
     // start and only rejecting it on drop.
@@ -3498,6 +3620,8 @@ function buildDayCard(d){
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
         ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
+        ${prefBadge(r)}
+        ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}
         ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
@@ -3645,7 +3769,7 @@ function renderNotInstalling(){
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
       const was=lastScheduledFrom[row];
       el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
-          <span class="badge niout">${esc(entry.badge)}</span>
+          <span class="badge niout">${esc(entry.badge)}</span>${prefBadge(row)}
           ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
                  :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
@@ -3690,9 +3814,46 @@ function renderNotInstalling(){
     side.appendChild(el);
   });
 }
+function renderHold(){
+  const rows=[...hold].filter(r=>C[r]).sort((a,b)=>C[a].name.localeCompare(C[b].name));
+  const sh=document.createElement('div'); sh.className='ovdate';
+  sh.textContent=`On hold — ${rows.length}`;
+  side.appendChild(sh);
+  const note=document.createElement('p'); note.className='nothingyet';
+  note.style.cssText='margin:0 0 12px';
+  note.textContent='Clients who are about to cancel but haven\'t decided. They keep '
+    + 'their date and crew -- drag a stop onto this bubble to flag it, release it '
+    + 'from the card or the client\'s popup once they decide. Amber pins on the map.';
+  side.appendChild(note);
+  if(!rows.length){
+    const p=document.createElement('p'); p.className='nothingyet';
+    p.textContent='Nobody on hold.'; side.appendChild(p);
+  }
+  rows.forEach(row=>{
+    const c=C[row], d=days.find(x=>x.stops.includes(row));
+    const el=document.createElement('div');
+    el.className='stop nistop onhold'; el.dataset.row=row;
+    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+        <span class="badge hold">on hold</span>${prefBadge(row)}</div>
+      ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewLabel(d))}</div>`
+         :'<div class="sub">Not on any day</div>'}
+      <div class="sub">${esc(c.zone||'—')}</div>
+      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+      ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+      <div class="stopbtns">
+        <button class="mv release">release hold</button>
+        <button class="mv out">not installing</button>
+      </div>`;
+    el.onclick=()=>openStopPeek(row, d?d.id:null);
+    el.querySelector('.release').onclick=e=>{ e.stopPropagation(); toggleHold(row); };
+    el.querySelector('.out').onclick=e=>{ e.stopPropagation(); markNotInstalling(row); };
+    side.appendChild(el);
+  });
+}
 function renderCards(){
   side.innerHTML='';
   if(selDate==='NOINSTALL'){ renderNotInstalling(); return; }
+  if(selDate==='HOLD'){ renderHold(); return; }
   if(isOverview(selDate)){
     // Full detail, every crew-day in the pool, long-form list grouped by
     // date (client request: same crew/stop detail as a single day, just
@@ -3712,6 +3873,21 @@ function renderCards(){
     renderLog(); return;
   }
   const onThisDate = days.filter(d=>d.date===selDate);
+  // Every date gets a heading. A single-crew day used to show nothing but its
+  // card, so the date -- and what the list IS -- had to be inferred from the
+  // selected chip up top (user, 2026-09-16: "we need to be able to see the
+  // date and what the column on the left represents").
+  const nStops=onThisDate.reduce((a,d)=>a+d.stops.length,0);
+  const nHold=onThisDate.reduce((a,d)=>a+d.stops.filter(r=>hold.has(r)).length,0);
+  const hd=document.createElement('div'); hd.className='dayhead';
+  hd.innerHTML=`<b>${esc(dowOf(selDate))} ${esc(fmtMDYYYY(selDate))}</b>`
+    + `<span>${onThisDate.length
+        ? `${onThisDate.length} crew${onThisDate.length===1?'':'s'} · ${nStops} stop${nStops===1?'':'s'}`
+        : 'No crews yet'}`
+    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}`
+    + ` — each card below is one crew's run for this date, stops numbered in driving order. `
+    + `Drag a stop between crews, or onto a date above, to move it.</span>`;
+  side.appendChild(hd);
   // Standing commitment for this date (HYROX etc.) -- advisory banner, shown
   // whether or not anything is booked, so an empty tagged day still explains
   // itself rather than just looking free.
@@ -3790,7 +3966,8 @@ function buildAddCrewButton(date){
 }
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
-  const fmtId=id=>{if(!id) return 'new'; const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
+  const fmtId=id=>{if(!id) return 'new'; if(id==='NOINSTALL') return 'not installing';
+    if(id==='HOLD') return 'on hold'; const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
     moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${fmtId(m.from)} → ${fmtId(m.to)}</div>`).join('')+
     `<div class="undobar">
@@ -3871,7 +4048,13 @@ function openMoveDlg(row,presetDate){
     // Quick answer to "which crew should I drag this onto" -- every crew's
     // current property list for this date, at a glance, before picking one.
     const info=document.getElementById('mvcrewinfo');
-    info.innerHTML=BASE_CREWS.map(cr=>{
+    // Labels are POSITIONAL per day (crewLabel) -- the same numbers the day
+    // cards and the dropdown show. Listing the STORED names here meant that
+    // on a date where stored Crew 2 was off, the list said "Crew 3: Crane
+    // Worldwide..." while the dropdown called that same day "Crew 2"
+    // (user, 2026-09-16: "look at the crew numbers").
+    const working=[...new Set(existing.map(d=>d.crew))].sort();
+    const rows=working.map(cr=>{
       // A crew can have more than one day-instance here (stacked/overflow
       // job) -- fold every occurrence's stops together for the glance view.
       const ds=existing.filter(x=>x.crew===cr);
@@ -3879,10 +4062,19 @@ function openMoveDlg(row,presetDate){
       const isSel=csel.value.startsWith(`${dt}|${cr}|`);
       return `<div class="mvcrewrow${isSel?' mvsel':''}">`
         +`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
-        +`<span class="mvcrewnames"><b>${cr}</b>`
-        +(names.length?': '+names.join(', '):(ds.length?' <span class="mvcrewempty">(only this stop)</span>':' <span class="mvcrewempty">not working this date</span>'))
+        +`<span class="mvcrewnames"><b>${crewLabel(ds[0])}</b>`
+        +(names.length?': '+names.join(', '):' <span class="mvcrewempty">(only this stop)</span>')
         +'</span></div>';
-    }).join('');
+    });
+    const spare=BASE_CREWS.find(cr=>!working.includes(cr));
+    if(spare){
+      const isSel=csel.value.startsWith(`${dt}|${spare}|`);
+      rows.push(`<div class="mvcrewrow${isSel?' mvsel':''}">`
+        +`<span class="cdot" style="background:${CREW_COLORS[spare]||'#555'}"></span>`
+        +`<span class="mvcrewnames"><b>+ another crew</b> <span class="mvcrewempty">`
+        +`${working.length?'not working this date — pick "new day" to start one':'nobody works this date yet'}</span></span></div>`);
+    }
+    info.innerHTML=rows.join('');
     const note=document.getElementById('mvnote');
     const sel=csel.value;
     if(sel){
@@ -3908,11 +4100,17 @@ function openMoveDlg(row,presetDate){
       const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
       return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${crewLabel(d)}${tag}${dupe}`
            + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
-    BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
-      const id=`${dt}|${cr}|0`;
+    // One "start another crew" option, not one per stored name: crew
+    // numbers are positional per day, so which stored slot a new day lands
+    // in is meaningless to staff (and its label would shift the moment the
+    // day exists). The stored name stays in the id so nothing downstream moves.
+    const working=[...new Set(existing.map(d=>d.crew))].sort();
+    const spare=BASE_CREWS.find(cr=>!working.includes(cr));
+    if(spare){
+      const id=`${dt}|${spare}|0`;
       const chk=checkPlan(planFor(row, id));
-      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>${cr} (new day)`
-              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);});
+      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>+ another crew (new day)`
+              + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);}
     csel.innerHTML=opts.join('');
     renderCrewInfo();
   };
@@ -4094,6 +4292,74 @@ function openPutBackDialog(name, addr){
   ncAfterCreate=row=>openSlotFinder(row);
   ncdlg.showModal();
 }
+// ---------- address suggestions while typing (Photon / OpenStreetMap) ----------
+// Staff usually have the street but not the ZIP (user, 2026-09-16), so the
+// address box offers matching addresses as you type and a pick fills in
+// city, state and ZIP. Photon is OSM's typeahead service (no key, CORS open,
+// fair use); results are biased toward the depot. Nominatim -- used for the
+// final rooftop lookup below -- forbids autocomplete traffic, so it is not
+// used for this. A street-level match keeps the house number you typed.
+const DEPOT_LL={lat:29.8306, lon:-95.4546};
+const STATE_ABBR={Texas:'TX', Louisiana:'LA', Oklahoma:'OK', Arkansas:'AR', 'New Mexico':'NM'};
+let ncSugTimer=null, ncSugAbort=null, ncSugItems=[], ncSugIdx=-1;
+function ncSuggestFormat(f, typed){
+  const p=f.properties||{};
+  const num=p.housenumber || ((typed.match(/^\s*(\d+[A-Za-z]?)\s+/)||[])[1]) || '';
+  const street=p.street || (p.type==='street' ? p.name : '');
+  const place=(p.type!=='street' && p.name && p.name!==street) ? p.name : '';
+  const line1=[num, street].filter(Boolean).join(' ') || place;
+  return {line1, place: place && place!==line1 ? place : '',
+          city:p.city||p.district||'', st:STATE_ABBR[p.state]||p.state||'', zip:p.postcode||'',
+          lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]};
+}
+async function ncFetchSuggestions(q){
+  if(ncSugAbort) ncSugAbort.abort();
+  const ctl=new AbortController(); ncSugAbort=ctl;
+  const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`
+           +`&lat=${DEPOT_LL.lat}&lon=${DEPOT_LL.lon}`;
+  const r=await fetch(url,{signal:ctl.signal});
+  if(!r.ok) return [];
+  const j=await r.json();
+  return (j.features||[])
+    .filter(f=>(f.properties||{}).country==='United States' && ['house','street'].includes((f.properties||{}).type))
+    .map(f=>ncSuggestFormat(f,q))
+    .filter((s,i,arr)=>s.line1 && s.zip && arr.findIndex(t=>t.line1===s.line1&&t.zip===s.zip)===i);
+}
+function ncRenderSuggestions(){
+  const box=document.getElementById('ncsuggest');
+  if(!ncSugItems.length){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false;
+  box.innerHTML=ncSugItems.map((s,i)=>`<div class="${i===ncSugIdx?'on':''}" data-i="${i}">`
+    +`${esc(s.line1)}${s.place?` <span class="zip">(${esc(s.place)})</span>`:''}`
+    +`<span class="zip"> · ${esc([s.city,s.st].filter(Boolean).join(', '))} ${esc(s.zip)}</span></div>`).join('');
+  [...box.children].forEach(el=>{ el.onmousedown=e=>{ e.preventDefault(); ncPickSuggestion(+el.dataset.i); }; });
+}
+function ncPickSuggestion(i){
+  const s=ncSugItems[i]; if(!s) return;
+  document.getElementById('ncaddr').value=[s.line1, s.city, [s.st, s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  ncSugItems=[]; ncSugIdx=-1; ncRenderSuggestions();
+  document.getElementById('nchours').focus();
+}
+(function wireAddressSuggestions(){
+  const inp=document.getElementById('ncaddr');
+  inp.oninput=()=>{
+    clearTimeout(ncSugTimer);
+    const q=inp.value.trim();
+    if(q.length<4){ ncSugItems=[]; ncRenderSuggestions(); return; }
+    ncSugTimer=setTimeout(async()=>{
+      try{ ncSugItems=await ncFetchSuggestions(q); ncSugIdx=-1; ncRenderSuggestions(); }
+      catch(e){ if(e.name!=='AbortError'){ ncSugItems=[]; ncRenderSuggestions(); } }
+    }, 250);
+  };
+  inp.onkeydown=e=>{
+    if(!ncSugItems.length) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); ncSugIdx=Math.min(ncSugIdx+1, ncSugItems.length-1); ncRenderSuggestions(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); ncSugIdx=Math.max(ncSugIdx-1, 0); ncRenderSuggestions(); }
+    else if(e.key==='Enter'){ e.preventDefault(); ncPickSuggestion(ncSugIdx<0?0:ncSugIdx); }
+    else if(e.key==='Escape'){ ncSugItems=[]; ncRenderSuggestions(); }
+  };
+  inp.onblur=()=>setTimeout(()=>{ ncSugItems=[]; ncRenderSuggestions(); }, 150);
+})();
 async function geocodeQuery(q){
   const res = await fetch(`https://nominatim.openstreetmap.org/search`
     + `?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`);
@@ -5083,6 +5349,10 @@ function profileSectionHTML(row){
     <div class="pkprofile">
       <p class="pksec">Full client profile</p>
       ${ac.notes?`<p class="pknote">${peekEsc(ac.notes)}</p>`:''}
+      ${ac.time_preference && PREF_LABEL[ac.time_preference]
+        ? `<p class="pkrow">${IC.clock} Prefers ${PREF_LABEL[ac.time_preference]} installs</p>` : ''}
+      ${(()=>{ const st=storingWithUs(row);
+        return st==null ? '' : `<p class="pkrow">📦 ${st?'Storing with us this season':'Not storing with us this season'}</p>`; })()}
       ${projectLine}
       ${history}
       <button class="pkfull" id="pkfullprofile">Open full client profile ↗</button>
@@ -5345,6 +5615,7 @@ function openStopPeek(row,dayId){
     ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
     ${d && confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
+    ${hold.has(row)?`<p class="pkrow"><span class="badge hold">on hold — about to cancel, not decided</span></p>`:''}
     ${profileSectionHTML(row)}
     <div class="pkcomments">
       <p class="pksec">Comments</p>
@@ -5422,11 +5693,15 @@ function openStopPeek(row,dayId){
   const mv=document.getElementById('peekmove');
   const cfBtn=document.getElementById('peekconfirm');
   const apBtn=document.getElementById('peekappr');
-  // Approve, print and confirm all act on a day. Off the schedule there is no
-  // day to act on, so they are hidden rather than shown disabled -- a greyed
-  // "Approve day" invites a click that can never do anything.
-  [prBtn, cfBtn, apBtn].forEach(b=>{ b.hidden = !d; });
+  const hdBtn=document.getElementById('peekhold');
+  // Approve, print, confirm and hold all act on a day. Off the schedule there
+  // is no day to act on, so they are hidden rather than shown disabled -- a
+  // greyed "Approve day" invites a click that can never do anything.
+  [prBtn, cfBtn, apBtn, hdBtn].forEach(b=>{ b.hidden = !d; });
   if(d){
+    hdBtn.textContent = hold.has(row) ? 'release hold' : 'put on hold';
+    hdBtn.classList.toggle('on', hold.has(row));
+    hdBtn.onclick=()=>{ peekdlg.close(); toggleHold(row); };
     openBtn.hidden=false;
     openBtn.textContent='Open day';
     openBtn.onclick=()=>{
@@ -6207,8 +6482,9 @@ function manifestHTML(d){
     const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
                .filter(Boolean).join(' · ');
     const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
+    const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(c.name)}</div>
+      <div class="nm">${esc(c.name)}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone||'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${note?`<div class="nt">${esc(note)}</div>`:''}
@@ -6277,6 +6553,8 @@ function printManifests(list, title){
     .ad{color:#444;font-size:11px;margin-top:1px}
     .ct{color:#666;font-size:10.5px;margin-top:1px}
     .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
+    .hold{color:#92400e;font-weight:800;font-size:10px;border:1px solid #d97706;border-radius:4px;padding:0 4px;vertical-align:middle}
+    .pref{color:#1e3a5f;font-size:10.5px;font-weight:600}
     tr.drive td{border:0;padding:2px 6px 2px 32px;color:#777;font-size:10.5px}
     tr.depot td{border:0;padding:4px 6px;color:#2d5a33;font-weight:700;font-size:11px;
       text-transform:uppercase;letter-spacing:.3px}
