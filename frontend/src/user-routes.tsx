@@ -20,6 +20,7 @@ const Favorites = lazyWithReload(() => import("./pages/Favorites.tsx"));
 const Comments = lazyWithReload(() => import("./pages/Comments.tsx"));
 const Invoice = lazyWithReload(() => import("./pages/Invoice.tsx"));
 const Jobs = lazyWithReload(() => import("./pages/Jobs.tsx"));
+const RequestForm = lazyWithReload(() => import("./pages/RequestForm.tsx"));
 const Sourcing = lazyWithReload(() => import("./pages/Sourcing.tsx"));
 const Mockups = lazyWithReload(() => import("./pages/Mockups.tsx"));
 const Orders = lazyWithReload(() => import("./pages/Orders.tsx"));
@@ -47,6 +48,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/invoice", element: <Invoice /> },
 	{ path: "/jobs", element: <Jobs /> },
 	{ path: "/jobs/:jobId", element: <Jobs /> },
+	{ path: "/requests", element: <RequestForm /> },
+	{ path: "/requests/:requestId", element: <RequestForm /> },
 	// The purchaser's full worksheet. Not in the sidebar; reachable by link.
 	{ path: "/sourcing", element: <Sourcing /> },
 	{ path: "/sourcing/:jobId", element: <Sourcing /> },

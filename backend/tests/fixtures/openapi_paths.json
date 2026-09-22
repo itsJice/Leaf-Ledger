@@ -329,6 +329,39 @@
   "/api/recipe-intelligence/visual-references/{asset_id}/preview": [
     "GET"
   ],
+  "/api/requests/create": [
+    "POST"
+  ],
+  "/api/requests/for-job/{job_id}": [
+    "GET"
+  ],
+  "/api/requests/items/{item_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/requests/list": [
+    "GET"
+  ],
+  "/api/requests/meta": [
+    "GET"
+  ],
+  "/api/requests/open": [
+    "GET"
+  ],
+  "/api/requests/{request_id}": [
+    "DELETE",
+    "GET",
+    "PATCH"
+  ],
+  "/api/requests/{request_id}/items": [
+    "POST"
+  ],
+  "/api/requests/{request_id}/link": [
+    "POST"
+  ],
+  "/api/requests/{request_id}/save": [
+    "POST"
+  ],
   "/api/scraper/backfill-images": [
     "POST"
   ],

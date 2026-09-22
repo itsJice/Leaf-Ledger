@@ -5,6 +5,7 @@ import {
   Calculator,
   ClipboardCheck,
   ClipboardList,
+  NotebookPen,
   FileText,
   Heart,
   LayoutGrid,
@@ -60,6 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "workspace",
     label: "Workspace",
     items: [
+      { path: "/requests", label: "Request Form", icon: NotebookPen },
       { path: "/jobs", label: "Jobs", icon: ClipboardList },
       { path: "/designs", label: "Designs", icon: Shapes },
       { path: "/mockups", label: "AI Mockups", icon: Sparkles },
