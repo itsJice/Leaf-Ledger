@@ -3,6 +3,7 @@ import { Sparkles, Image, Trash2, RefreshCw, ChevronDown, AlertCircle } from "lu
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { toast } from "sonner";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 
 type ArrangementSummary = { id: number; name: string; client_name?: string };
 type Mockup = {
@@ -24,24 +25,12 @@ const STYLES = [
 const MOCKUPS_PROJECTS_CACHE_KEY = "leaf-ledger:mockups-projects-cache:v1";
 
 function readMockupsProjectsCache(): ArrangementSummary[] {
-  try {
-    const raw = localStorage.getItem(MOCKUPS_PROJECTS_CACHE_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return Array.isArray(parsed?.arrangements) ? parsed.arrangements : [];
-  } catch {
-    return [];
-  }
+  const parsed = readJsonCache<any>(MOCKUPS_PROJECTS_CACHE_KEY, null);
+  return Array.isArray(parsed?.arrangements) ? parsed.arrangements : [];
 }
 
 function writeMockupsProjectsCache(arrangements: ArrangementSummary[]) {
-  try {
-    localStorage.setItem(
-      MOCKUPS_PROJECTS_CACHE_KEY,
-      JSON.stringify({ arrangements, cachedAt: Date.now() })
-    );
-  } catch {
-    // Ignore storage issues.
-  }
+  writeTimestampedJsonCache(MOCKUPS_PROJECTS_CACHE_KEY, { arrangements });
 }
 
 export default function Mockups() {

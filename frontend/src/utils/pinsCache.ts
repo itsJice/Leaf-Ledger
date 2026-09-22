@@ -53,11 +53,6 @@ export function setCachedPins(jobId: number, pins: Pins["pins"], groups?: Pins["
   cache.set(jobId, { groups: groups ?? cur?.groups ?? [], pins });
 }
 
-export function invalidatePins(jobId: number) {
-  cache.delete(jobId);
-}
-
-
 // What clicking + should do, computed as a pure function of state — the part
 // of the old bug that actually mattered. `ready` must be false until the
 // job's real pins/groups have loaded at least once; treating "not loaded

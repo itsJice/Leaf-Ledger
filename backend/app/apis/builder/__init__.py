@@ -46,25 +46,19 @@ from __future__ import annotations
 import asyncio
 import json
 import math
-import os
 import re
 import statistics
 import time
 from collections import Counter, defaultdict
 from typing import Any, Optional
 
-import asyncpg
 from fastapi import APIRouter, HTTPException
+
+from app.libs.db import get_conn
 
 router = APIRouter(prefix="/builder", tags=["builder"])
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
 SPEC_DOC = "app/docs/TREE_SCOPE_SPEC.md"
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
 # ─── Constants: the spec's approved tables ───────────────────────────────────
@@ -130,23 +124,7 @@ SILHOUETTES = [
     },
 ]
 
-# Density bands as multipliers of the species×height baseline. Derived, not
-# picked: pooling every recipe's ratio-to-its-own-cell-median (n=122 recipes
-# across the 33 species×height cells that hold 2+ recipes) gives
-# p20=0.75, p50=1.00, p85=1.60, p95=2.24. Those four percentiles are the four
-# bands. The *centre* is always species-specific — only the spread shape is
-# pooled, because a cell with n=1 has no spread of its own to measure.
-DENSITY_BANDS = [
-    {"key": "sparse", "label": "Sparse", "multiplier": 0.75, "percentile": 20},
-    {"key": "standard", "label": "Standard", "multiplier": 1.0, "percentile": 50},
-    {"key": "full", "label": "Full", "multiplier": 1.6, "percentile": 85},
-    {"key": "super_full", "label": "Super-Full", "multiplier": 2.25, "percentile": 95},
-]
-DENSITY_BAND_PERCENTILES = [20, 50, 85, 95]
 
-# A cell with this many recipes describes its own spread better than the pooled
-# shape does, so its bands come from its own percentiles.
-_OWN_SPREAD_MIN_N = 4
 
 
 # ─── Dimension parsing ───────────────────────────────────────────────────────
@@ -1181,68 +1159,6 @@ async def get_build_types():
 # ─── 2. Species ──────────────────────────────────────────────────────────────
 
 
-@router.get("/species")
-async def get_species(build_type: Optional[str] = None, include_empty: bool = True):
-    """The species/style list, each tagged `built_up` or `specimen`.
-
-    `built_up` means density is a real dial (a 7′ Eucalyptus is 16 stems).
-    `specimen` means ~1 stem — one large potted plant — so the builder should
-    not prompt for density at all (a 7′ Areca Palm is 1).
-
-    `build_type` narrows the list to species that type has actually been built
-    from. `include_empty=false` drops the vocabulary entries the corpus never
-    names (they are returned by default so a designer can still pick Croton or
-    a generic Palm and get a class-based answer).
-    """
-    data = await corpus()
-    resolved_type = resolve_build_type(build_type)
-    if build_type and not resolved_type:
-        raise HTTPException(status_code=400, detail=f"Unknown build_type: {build_type}")
-
-    items = []
-    for entry in data["species"].values():
-        if resolved_type:
-            aliases = {a.lower() for a in resolved_type["aliases"]}
-            matched = {bt: n for bt, n in entry["build_types"].items()
-                       if bt.strip().lower() in aliases}
-            if not matched:
-                continue
-            recipe_count = sum(matched.values())
-            # Counts must narrow together: a Tree-filtered list reporting the
-            # species' whole-corpus usable count is a number nobody can act on.
-            usable_count = sum(n for bt, n in entry["build_types_usable"].items()
-                               if bt.strip().lower() in aliases)
-        else:
-            matched = entry["build_types"]
-            recipe_count = entry["recipe_count"]
-            usable_count = entry["usable_recipe_count"]
-        if not include_empty and recipe_count == 0:
-            continue
-        items.append({
-            "name": entry["name"],
-            "structural_class": entry["structural_class"],
-            "class_basis": entry["class_basis"],
-            "class_agrees_with_data": entry["class_agrees_with_data"],
-            "density_applies": entry["density_applies"],
-            "recipe_count": recipe_count,
-            "usable_recipe_count": usable_count,
-            "build_types": matched,
-            "heights_ft": entry["heights_ft"],
-            "median_pieces": entry["median_pieces"],
-            "median_structural_pieces": entry["median_structural_pieces"],
-        })
-    items.sort(key=lambda s: (-s["recipe_count"], s["name"]))
-
-    return {
-        "species": items,
-        "build_type": resolved_type["label"] if resolved_type else None,
-        "classes": {
-            "built_up": "Assembled from many stems/branches — density is a real dial.",
-            "specimen": "~1 stem: one large potted plant, no build-up. Density barely applies.",
-        },
-        "unclassified_recipes": sum(1 for r in data["recipes"] if not r["species"]),
-        "provenance": _provenance(data),
-    }
 
 
 # ─── 3. Canopy tiers ─────────────────────────────────────────────────────────
@@ -1336,226 +1252,12 @@ def _spec_matches(cuts: list[float], measured: dict[str, Any]) -> Optional[bool]
 # ─── 4. Density ──────────────────────────────────────────────────────────────
 
 
-@router.get("/density")
-async def get_density(species: Optional[str] = None,
-                      height_in: Optional[float] = None,
-                      height: Optional[str] = None,
-                      build_type: Optional[str] = None):
-    """Baseline piece count and Sparse→Super-Full bands for a species at a height.
-
-    The baseline is always `f(species, height)` and never a pooled global
-    number: at an identical 7 feet an Areca Palm uses 1 stem and a Eucalyptus
-    16, so a shared baseline would be wrong for both. Only the *spread* around
-    the baseline is pooled, because most cells hold too few recipes to have a
-    spread of their own — see `DENSITY_BANDS`.
-
-    The answer degrades in named steps rather than pretending: exact
-    species×height cell → the same species at the nearest recorded height →
-    the species at any height → its structural class. `source`, `n` and
-    `confidence` always say which one you got.
-    """
-    data = await corpus()
-    resolved_height = height_in if height_in is not None else parse_length_in(height)
-    if (height_in is not None or height) and resolved_height is None:
-        raise HTTPException(status_code=400, detail=f"Could not read a height from {height!r}")
-
-    requested = (species or "").strip() or None
-    canonical = normalize_species(requested)
-    known = data["species"].get(canonical) if canonical else None
-
-    notes: list[str] = []
-    if requested and not canonical:
-        notes.append(f"{requested!r} is not in the recipe vocabulary — answering from the "
-                     f"{_DEFAULT_CLASS} class.")
-    klass = known["structural_class"] if known else _DEFAULT_CLASS
-    class_basis = known["class_basis"] if known else "default"
-
-    height_ft = round(resolved_height / 12) if resolved_height else None
-    resolution = _resolve_density(data, canonical, klass, height_ft)
-    notes.extend(resolution["notes"])
-
-    applies = klass != "specimen"
-    baseline = resolution["baseline"]
-    bands = _density_bands(baseline, resolution["cell"], applies)
-
-    if not applies:
-        notes.append("Specimen species: ~1 stem, one large potted plant. Density barely "
-                     "applies — don't prompt for it.")
-
-    return {
-        "requested_species": requested,
-        "species": canonical,
-        "structural_class": klass,
-        "class_basis": class_basis,
-        "density_applies": applies,
-        "height_in": resolved_height,
-        "height_ft": height_ft,
-        "height_display": format_height(resolved_height),
-        "build_type": (resolve_build_type(build_type) or {}).get("label"),
-        "baseline_pieces": _round_pieces(baseline),
-        "baseline_pieces_exact": round(baseline, 3) if baseline is not None else None,
-        "n": resolution["n"],
-        "observed_min": _round_pieces(resolution["min"]),
-        "observed_max": _round_pieces(resolution["max"]),
-        "observed_values": resolution["values"],
-        "structural_baseline_pieces": _round_pieces(resolution["structural"]),
-        "confidence": resolution["confidence"],
-        "source": resolution["source"],
-        "examples": resolution["examples"],
-        "bands": bands,
-        "default_band": "standard",
-        "basis": {
-            "metric": "product_lines",
-            "definition": ("pieces summed across every `product` component line — the "
-                           "metric the spec's seed baselines were measured with, so a "
-                           "Dragonwood pole counts alongside a Fiddle branch"),
-            "piece_field": data["piece_basis"]["primary"],
-            "structural_metric": ("pieces on lines that classify as plant material only "
-                                  "— the narrower 'stems' reading"),
-        },
-        "notes": notes,
-        "provenance": _provenance(data),
-    }
 
 
-def _resolve_density(data: dict, species: Optional[str], klass: str,
-                     height_ft: Optional[int]) -> dict[str, Any]:
-    """Walk the fallback chain and report exactly which rung answered."""
-    cells = data["density_cells"]
-    notes: list[str] = []
-
-    def _from_cell(cell: dict, source: str, scale: float = 1.0) -> dict[str, Any]:
-        return {
-            "baseline": cell["baseline"] * scale,
-            "n": cell["n"],
-            "min": cell["min"] * scale,
-            "max": cell["max"] * scale,
-            "values": cell["values"] if scale == 1.0 else None,
-            "structural": cell.get("structural_baseline"),
-            "examples": cell.get("examples", []),
-            "confidence": _confidence(cell["n"], source),
-            "source": source,
-            "cell": cell if scale == 1.0 else None,
-            "notes": notes,
-        }
-
-    if species and height_ft is not None:
-        exact = cells.get(f"{species}|{height_ft}")
-        if exact:
-            return _from_cell(exact, "species_height")
-
-    if species and height_ft is not None:
-        # Nearest recorded height for this species, within 2 feet, scaled by the
-        # height ratio. Beyond 2 feet the shape of the build has changed too much.
-        candidates = []
-        for key, cell in cells.items():
-            name, _, ft = key.rpartition("|")
-            if name != species:
-                continue
-            distance = abs(int(ft) - height_ft)
-            if distance <= 2:
-                candidates.append((distance, int(ft), cell))
-        if candidates:
-            candidates.sort(key=lambda c: (c[0], -c[2]["n"]))
-            distance, ft, cell = candidates[0]
-            scale = height_ft / ft if ft else 1.0
-            notes.append(f"No {species} recipe at {height_ft}′; scaled from the "
-                         f"{ft}′ cell (n={cell['n']}) by {scale:.2f}.")
-            return _from_cell(cell, "species_nearby_height", scale)
-
-    if species:
-        pooled = [v for key, cell in cells.items()
-                  if key.rpartition("|")[0] == species for v in cell["values"]]
-        if pooled:
-            notes.append(f"No {species} recipe near that height; pooled every recorded "
-                         f"{species} build instead.")
-            return {
-                "baseline": statistics.median(pooled), "n": len(pooled),
-                "min": min(pooled), "max": max(pooled), "values": sorted(pooled),
-                "structural": None, "examples": [],
-                "confidence": _confidence(len(pooled), "species_any_height"),
-                "source": "species_any_height", "cell": None, "notes": notes,
-            }
-
-    if klass == "specimen":
-        notes.append("Specimen fallback: one plant. No history for this species at any height.")
-        return {"baseline": 1.0, "n": 0, "min": 1.0, "max": 1.0, "values": [],
-                "structural": 1.0, "examples": [], "confidence": "none",
-                "source": "class_fallback", "cell": None, "notes": notes}
-
-    class_cell = (data["class_cells"].get(f"{klass}|{height_ft}") if height_ft is not None
-                  else None) or data["class_cells"].get(klass)
-    if class_cell:
-        notes.append(f"No history for this species — fell back to the {klass} class "
-                     f"(n={class_cell['n']}). This is a class average, not a baseline "
-                     f"for this species. Every new build refines it.")
-        return {"baseline": class_cell["baseline"], "n": 0, "min": class_cell["min"],
-                "max": class_cell["max"], "values": [], "structural": None,
-                "examples": [], "confidence": "none", "source": "class_fallback",
-                "cell": None, "notes": notes}
-
-    notes.append("No history at all for this species or class — no baseline invented.")
-    return {"baseline": None, "n": 0, "min": None, "max": None, "values": [],
-            "structural": None, "examples": [], "confidence": "none",
-            "source": "no_data", "cell": None, "notes": notes}
 
 
-def _confidence(n: int, source: str) -> str:
-    """How much to trust the number. Most cells hold 1–5 recipes."""
-    if source == "class_fallback" or n <= 0:
-        return "none"
-    if source != "species_height":
-        return "low"
-    if n >= 6:
-        return "medium"
-    if n >= 3:
-        return "low"
-    return "very_low"
 
 
-def _density_bands(baseline: Optional[float], cell: Optional[dict],
-                   applies: bool = True) -> list[dict[str, Any]]:
-    """Sparse → Super-Full as piece counts around the baseline.
-
-    A cell with 4+ recipes describes its own spread, so its bands come from its
-    own percentiles; thinner cells borrow the corpus-wide spread shape.
-
-    For a specimen species every band is the baseline: a 1-stem Areca Palm has
-    no Super-Full, and manufacturing one would be the exact fabrication this
-    module exists to avoid. `density_applies: false` is the real answer.
-    """
-    if baseline is None:
-        return []
-    own = cell and cell["n"] >= _OWN_SPREAD_MIN_N and cell.get("values")
-    bands = []
-    for i, band in enumerate(DENSITY_BANDS):
-        if not applies:
-            value, basis = baseline, "specimen_flat"
-        elif own:
-            value = _percentile(list(cell["values"]), DENSITY_BAND_PERCENTILES[i])
-            basis = "observed_percentile"
-        else:
-            value = baseline * band["multiplier"]
-            basis = "pooled_spread"
-        bands.append({
-            "key": band["key"],
-            "label": band["label"],
-            "pieces": _round_pieces(value),
-            "multiplier": round(value / baseline, 3) if baseline else None,
-            "percentile": band["percentile"],
-            "basis": basis,
-        })
-    if not applies:
-        return bands
-    # Percentiles of a tiny sample can tie, and rounding can flatten the low end.
-    # Anchor Standard on the baseline itself and keep the rungs above it strictly
-    # apart, so the four bands stay four distinct choices in the UI.
-    standard = _round_pieces(baseline) or 0
-    bands[0]["pieces"] = min(bands[0]["pieces"] or 0, standard)
-    bands[1]["pieces"] = standard
-    for i in (2, 3):
-        bands[i]["pieces"] = max(bands[i]["pieces"] or 0, (bands[i - 1]["pieces"] or 0) + 1)
-    return bands
 
 
 # ─── 5. Common builds ────────────────────────────────────────────────────────
@@ -1787,19 +1489,3 @@ def _scope_payload(data: dict, scope: str,
 # ─── Diagnostics ─────────────────────────────────────────────────────────────
 
 
-@router.get("/health")
-async def get_health():
-    """What the cache is holding and which piece basis it measured with."""
-    data = await corpus()
-    return {
-        "cached": _cache_fresh(),
-        "cache_age_s": round(time.time() - _CACHE["ts"], 1),
-        "ttl_s": _TTL,
-        "recipes": data["recipe_count"],
-        "components": data["component_count"],
-        "piece_basis": data["piece_basis"],
-        "density_cells": len(data["density_cells"]),
-        "common_builds": len(data["common_builds"]),
-        "species_with_history": sum(1 for s in data["species"].values()
-                                    if s["recipe_count"] > 0),
-    }

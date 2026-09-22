@@ -19,6 +19,7 @@ import json
 import os
 from collections import defaultdict
 
+import common
 import season          # the one season/date-arithmetic rule (see season.py)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,8 +46,17 @@ CREWS = ["Crew 1", "Crew 2", "Crew 3"]
 # season.py owns the one rule (a season runs Oct(Y)..Jan(Y+1) and is named Y;
 # the rollover boundary is 1 Feb), so no year is hand-typed anywhere below.
 # TBDG_SEASON overrides it when rebuilding a PAST season's schedule.
+#
+# common.current_season() replaces this file's old inline
+# `int(os.environ.get("TBDG_SEASON") or season.season_for())` (5.1
+# scheduler-common) -- NOTE this tightens validation: the old expression did
+# no checking at all, so TBDG_SEASON=26 silently built season 26 and a
+# non-numeric override crashed with a bare ValueError instead of a clean
+# message. common.current_season() requires exactly four digits and raises
+# a readable SystemExit otherwise, matching sync_clients.py/
+# publish_pages.py/sync_notebook.py's stricter (and now shared) rule.
 # ---------------------------------------------------------------------------
-SEASON = int(os.environ.get("TBDG_SEASON") or season.season_for())
+SEASON = int(common.current_season())
 SEASON_FIRST, SEASON_LAST = season.season_span(SEASON)
 
 DOW_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -330,13 +340,7 @@ ROAD_FUDGE = 1.35
 EST_AVG_MPH = 27
 
 
-def haversine_mi(a, b):
-    import math
-    R = 3958.8
-    p1, p2 = math.radians(a[0]), math.radians(b[0])
-    dphi, dl = math.radians(b[0] - a[0]), math.radians(b[1] - a[1])
-    h = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(h))
+haversine_mi = common.haversine_mi
 
 
 def est_seconds(a, b):
@@ -383,6 +387,12 @@ def load_overrides():
         return []
     out = [d for d in doc.get("days", [])
            if d.get("date") and d.get("crew") and d.get("stops")]
+    # Say where the notebook came from: a stale one (weeks older than the
+    # board) is exactly how a rebuild moves people nobody meant to move.
+    # sync_notebook.py refreshes it from the live board -- run that first.
+    print(f"  NOTEBOOK: overrides.json saved {doc.get('savedAt', '?')} "
+          f"for build {doc.get('version', '?')} "
+          f"({doc.get('source', 'exported from the tool')})")
     # Deterministic order so a rebuild is reproducible.
     out.sort(key=lambda d: (d["date"], d["crew"]))
     return out
@@ -1677,30 +1687,6 @@ def main():
         print(f"  !! {d['date']} {d['crew']}: {d['total_min']}min  {d['flags']}")
     singles = [d for d in days if any("single-stop" in f for f in d["flags"])]
     print(f"Single-stop days (flagged): {[(d['date'], d['crew'], d['stops'][0]['name']) for d in singles]}")
-
-
-def partition_days(stops, target=6.5, min_stops=2):
-    """Split a crew's stops into balanced days: a stop that fills a day
-    (>target hrs) gets its own day; the rest are balanced across
-    ceil(sum/target) days, keeping >=min_stops per day where possible."""
-    import math
-    big = [s for s in stops if s["cal_hours"] > target]
-    small = [s for s in stops if s["cal_hours"] <= target]
-    days = [[b] for b in big]
-    if small:
-        total = sum(s["cal_hours"] for s in small)
-        nd = max(1, math.ceil(total / target))
-        if len(small) >= min_stops:
-            nd = min(nd, len(small) // min_stops)
-        nd = max(1, nd)
-        buckets = [[] for _ in range(nd)]
-        bload = [0.0] * nd
-        for s in small:  # already in geographic order
-            i = min(range(nd), key=lambda k: bload[k])
-            buckets[i].append(s)
-            bload[i] += s["cal_hours"]
-        days += [b for b in buckets if b]
-    return days
 
 
 def merge_singletons(D, bins):

@@ -4,41 +4,27 @@ import { Heart } from "lucide-react";
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { toast } from "sonner";
-import { ProductDetailModal, ProductView, type Product } from "./Library";
+import { ProductDetailModal } from "./library/ProductDetailModal";
+import { ProductView } from "./library/ProductView";
+import type { Product } from "./library/types";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
+import { LIBRARY_CACHE_KEY } from "../constants";
 
 const FAVORITES_CACHE_KEY = "leaf-ledger:favorites-cache:v1";
-const LIBRARY_CACHE_KEY = "leaf-ledger:library-cache:v1";
 
 function readFavoritesCache(): Product[] | null {
-  try {
-    const raw = localStorage.getItem(FAVORITES_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.products) ? parsed.products : null;
-  } catch {
-    return null;
-  }
+  const parsed = readJsonCache<any>(FAVORITES_CACHE_KEY, null);
+  return Array.isArray(parsed?.products) ? parsed.products : null;
 }
 
 function writeFavoritesCache(products: Product[]) {
-  try {
-    localStorage.setItem(
-      FAVORITES_CACHE_KEY,
-      JSON.stringify({ products, cachedAt: Date.now() })
-    );
-  } catch {
-    // Ignore storage issues.
-  }
+  writeTimestampedJsonCache(FAVORITES_CACHE_KEY, { products });
 }
 
 function readLibraryProductsFromCache(): Product[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "{}");
-    return Array.isArray(parsed?.products) ? parsed.products : [];
-  } catch {
-    return [];
-  }
+  const parsed = readJsonCache<any>(LIBRARY_CACHE_KEY, {});
+  return Array.isArray(parsed?.products) ? parsed.products : [];
 }
 
 function localFavoriteProducts(): Product[] {

@@ -119,12 +119,18 @@ the rest of this file is the WHY behind it.*
 
 ## 8. Process / tooling
 - Pipeline: `prep.py` (parse→zones→hours→geocode→matrix, all cached) →
+  **`sync_notebook.py`** (rewrites `overrides.json` from the LIVE board —
+  the published build plus its shared state — so the rebuild replays every
+  current assignment and only new clients get slotted; `--dry-run` to
+  preview; stops non-zero rather than re-solve if the DB is unreachable) →
   `schedule.py` (rules + routing, orders stops for minimum real DRIVE
   TIME) → `route_geometry.py` (fetches each day's real road-following
   path + actual mileage from OSRM /route, cached by stop sequence) →
   `validate.py` (27 assertions — run after EVERY change) →
-  `outputs.py`, `team_review.py`, `make_updated_copy.py`,
-  `build_review.py`. Re-run `route_geometry.py` before the output
+  `outputs.py`, `team_review.py`,
+  `build_review.py` → `publish_pages.py` (pushes the pages AND carries the
+  previous build's shared state onto the new version — see §12 "Dates
+  survive a rebuild"). Re-run `route_geometry.py` before the output
   scripts any time schedule.py changes the plan — cached, so unchanged
   days don't refetch.
 - Deliverables: schedule workbook, Team Review workbook (all history
@@ -154,18 +160,18 @@ the rest of this file is the WHY behind it.*
   sidebar tab (Workspace → "Install Schedule", TreePine icon, route
   `/install-schedule`). The page is client names, home addresses and
   phone numbers, so it is served ONLY from the authenticated
-  `GET /api/install-schedule/page` route (backend/app/apis/install_schedule)
-  and synced into `backend/protected/install-schedule/` — never
+  `GET /api/install-schedule/page` route (backend/app/apis/install_schedule),
+  which reads it from Postgres (`ll_app.install_schedule_pages`) — never
   `frontend/public/`, which is served to anyone with the URL. The
   frontend page fetches it with the signed-in user's token and injects
   it into a `srcDoc` iframe (`frontend/src/pages/InstallSchedule.tsx`),
   then `postMessage`s the auth token in so the tool's shared-state calls
   (§12) can authenticate — with no token it falls back to localStorage
   only, same as running the standalone file offline.
-- `build_review.py` auto-syncs review.html + map.html into
-  `backend/protected/install-schedule/` on every regenerate — restart
-  or redeploy the backend to ship updates (no frontend rebuild needed;
-  the page is fetched at request time, not bundled).
+- `build_review.py` writes review.html locally (its markup lives in
+  `review_template.html`); `publish_pages.py` pushes review.html + map.html
+  into `ll_app.install_schedule_pages`. No restart, redeploy or frontend
+  rebuild is needed — the page is fetched at request time, not bundled.
 
 ## 11. Real road geometry, mileage & map robustness
 - `route_geometry.py` fetches each day's REAL road-following path + actual
@@ -265,12 +271,32 @@ definition of "legal," not a second implementation that can drift.
   the day's real geography, then exactly re-routed for the top candidates.
   Recommends dates before AND after the client's current one when today's
   date allows it (never a date that's already passed).
-- **Notebook** (`overrides.json`, exported from the tool) — every promised
-  (date, crew, stops) is a FROZEN assignment, replayed verbatim by
-  `schedule.py` before anything else runs, so a spreadsheet regeneration
-  doesn't silently move 30 people who were already told their date.
-  Keyed by client NAME (a sheet row insertion renumbers every row after
-  it, which would reattach dates to the wrong person otherwise).
+- **Notebook** (`overrides.json`) — every promised (date, crew, stops) is
+  a FROZEN assignment, replayed verbatim by `schedule.py` before anything
+  else runs, so a spreadsheet regeneration doesn't silently move 30 people
+  who were already told their date. Keyed by client NAME (a sheet row
+  insertion renumbers every row after it, which would reattach dates to
+  the wrong person otherwise). **It is generated, not exported**:
+  `sync_notebook.py` rebuilds it from the live board (published build +
+  shared state) as the first pipeline step, so it can never be weeks
+  behind what staff actually have on screen (the tool's "Export notebook"
+  button still works as a manual fallback). Notebook-baked clients are
+  NOT flagged `synthetic` in the build, so the sync carries the prior
+  notebook's `new_clients` by name rather than trusting the tool's export.
+- **Dates survive a rebuild (user, 2026-09-04: "make sure the app
+  preserves all of the dates as we move and change them")** — two layers,
+  both automatic. (1) The rebuild itself replays the board via the synced
+  notebook, so `schedule.py` only places clients that are NEW to the board
+  (a client just given an address, a new sheet row). (2) `publish_pages.py`
+  carries the previous build's shared state onto the new version
+  (`board_state.carry_state`): everything keyed by row is re-keyed by
+  client name through the two builds' client tables; a client the new
+  build has that the old board never placed is dropped at its baseline
+  day; roster, staffing, comments, confirmations, "not installing", manual
+  stop order and the move log all come along. It never overwrites a new
+  version that already has edits. The tool's local-wins guard only honours
+  a local save made against the SAME build, so a device still holding an
+  older build's save can't push an empty board over the carried state.
 - **Manually-added clients** (jobs never in the spreadsheet: an
   install → event-takedown → reinstall pattern, a one-day install with
   a next-day takedown, a callback because something broke or the client
@@ -317,13 +343,15 @@ code. Skim §13.0 once, then work 1→7.
 - The rollover boundary is **1 February**. Before it, "this season" is last
   October's; on and after it, planning has moved to the coming autumn. That
   is what makes rollover automatic — nobody edits a year to make it happen.
-- `scheduler/season.py` is the **single definition** (`season_for`,
+- `backend/app/libs/season.py` is the **single definition** (`season_for`,
   `season_of_date`, `season_span`, `year_of_month`, `takedown_cutoff`,
   `nth_weekday`, `thanksgiving`, `black_friday`,
-  `sunday_after_thanksgiving`). `backend/app/libs/season.py` is its deployed
-  twin because the build pipeline runs outside the deployed image and can't
-  import it — **change both together**; `backend/tests/test_season.py` fails
-  if they disagree. No other file may compute a year.
+  `sunday_after_thanksgiving`). `scheduler/season.py` is a thin re-export of
+  it (the scheduler adds `../backend` to `sys.path`), so there is nothing to
+  keep in sync; `scheduler/tests_common/test_common.py` fails if the
+  re-export stops pointing at the backend functions. `TBDG_SEASON` parsing
+  lives in one place, `scheduler/common.current_season()`, which rejects
+  anything but a 4-digit year. No other file may compute a year.
 - **`TBDG_SEASON` overrides it**, everywhere (prep.py, schedule.py,
   build_review.py, publish_pages.py all read it before falling back to
   `season_for()`), for rebuilding a closed season or getting the coming

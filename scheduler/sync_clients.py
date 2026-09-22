@@ -44,8 +44,8 @@ import asyncpg
 import openpyxl
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)  # season.py is a sibling; this may be run from anywhere
-from season import season_for  # noqa: E402
+sys.path.insert(0, HERE)  # common.py/season.py are siblings; this may be run from anywhere
+from common import current_season, load_env  # noqa: E402
 
 ENV_FILE = os.path.join(HERE, "..", "backend", ".env.supabase")
 DEFAULT_XLSX = os.path.join(
@@ -61,37 +61,6 @@ SEASON_ENV = "TBDG_SEASON"
 #: Seasons whose sheets are finished history. These stay literal -- the 2023
 #: sheet is the 2023 season no matter what year it is read in.
 HISTORICAL_SEASONS = ("2022", "2023", "2024", "2025")
-
-
-def current_season() -> str:
-    """The season this run is filing the cached schedule under.
-
-    From season.py so it rolls over on 1 February without anyone editing a
-    literal; TBDG_SEASON overrides it for a re-run of a past season or an
-    early build of the next one. Validated, because a typo'd export would
-    otherwise create a whole phantom season of client_activity rows.
-    """
-    override = (os.environ.get(SEASON_ENV) or "").strip()
-    if override:
-        if len(override) != 4 or not override.isdigit():
-            raise SystemExit(
-                f"{SEASON_ENV}={override!r} is not a four-digit season year "
-                "(a season is named for the year its October falls in)."
-            )
-        return override
-    return str(season_for())
-
-
-def load_env(path):
-    if not os.path.exists(path):
-        return
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            os.environ.setdefault(k, v.strip().strip('"').strip("'"))
 
 
 def clean_name(name) -> str:
@@ -362,7 +331,9 @@ def extract_2022_cancelled(ws):
 # must match backend/app/apis/install_schedule/__init__.py exactly -- both
 # files write these same rows, and a disagreement means the line changes
 # wording depending on which path last touched the client. Change them in both,
-# and run backfill_summary_wording.py for the rows already stored.
+# and run archive/backfill_summary_wording.py for the rows already stored
+# (already run once for the wording it introduced; kept for reference --
+# see scheduler/archive/README.md).
 #
 # "this year" and "2026 season" were both wrong here: redundant next to the
 # badge, and actively misleading once the season turns over -- a 2026 row read

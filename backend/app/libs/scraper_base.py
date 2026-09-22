@@ -20,6 +20,8 @@ import asyncpg
 import databutton as db
 import json
 
+from app.libs.db import get_conn
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
@@ -111,14 +113,19 @@ CATEGORY_MAP: dict[str, str] = {
     "dried": "botanicals",
     "preserved": "preserved",
     "containers": "containers",
+    "container": "containers",
     "pots": "containers",
+    "pot": "containers",
     "planters": "containers",
     "vases": "vases",
+    "vase": "vases",
     "baskets": "baskets",
     "urns": "containers",
     "bowls": "containers",
     "moss": "moss",
     "branches": "branches",
+    "branch": "branches",
+    "tree": "trees",
     "filler": "filler",
     "accents": "accent",
     "decorative": "accent",
@@ -136,7 +143,7 @@ CATEGORY_MAP: dict[str, str] = {
 
 VALID_CATEGORIES = {
     'containers', 'wood', 'greenery', 'florals', 'trees', 'plant',
-    'container', 'filler', 'accent', 'other',
+    'filler', 'accent', 'other',
     'moss', 'branches', 'botanicals', 'preserved', 'seasonal',
     'stems', 'foliage', 'succulents', 'topiaries', 'wreaths',
     'baskets', 'vases', 'risers', 'pedestals', 'liners'
@@ -326,97 +333,21 @@ def download_and_store_image(
         return None
 
 
-def delete_supplier_images(supplier_sku_list: list[str]) -> int:
-    """Delete all stored images for the given SKUs. Returns number deleted."""
-    deleted = 0
-    for sku in supplier_sku_list:
-        key = _storage_key(sku)
-        try:
-            existing = db.storage.binary.list()
-            if any(f.name == key for f in existing):
-                db.storage.binary.delete(key)
-                deleted += 1
-        except Exception as e:
-            print(f"[img] could not delete {key}: {e}")
-    return deleted
-
-
-def delete_all_supplier_images_by_prefix(supplier_id: int) -> int:
-    """List all product-img-* keys and delete ones matching stored SKUs for a supplier.
-    Call before re-importing to keep storage lean. Returns number deleted."""
-    deleted = 0
-    try:
-        files = db.storage.binary.list()
-        for f in files:
-            if f.name.startswith(IMAGE_KEY_PREFIX):
-                try:
-                    db.storage.binary.delete(f.name)
-                    deleted += 1
-                except Exception as e:
-                    print(f"[img] could not delete {f.name}: {e}")
-    except Exception as e:
-        print(f"[img] error listing storage: {e}")
-    return deleted
-
-
 # ─────────────────────────────────────────────
 # Sync log management
 # ─────────────────────────────────────────────
-
-async def create_sync_log(
-    supplier_id: int,
-    scrape_job_id: Optional[int] = None,
-    sync_type: str = "full",
-) -> int:
-    """Insert a new sync log row and return its id."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
-    try:
-        row = await conn.fetchrow("""
-            INSERT INTO scrape_sync_logs
-                (supplier_id, scrape_job_id, sync_type, status, started_at)
-            VALUES ($1, $2, $3, 'running', now())
-            RETURNING id
-        """, supplier_id, scrape_job_id, sync_type)
-        return row["id"]
-    finally:
-        await conn.close()
-
 
 async def update_sync_log(log_id: int, **kwargs):
     """Patch arbitrary columns on a sync log row."""
     if not kwargs:
         return
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(kwargs))
         vals = [log_id] + list(kwargs.values())
         await conn.execute(f"UPDATE scrape_sync_logs SET {sets} WHERE id = $1", *vals)
     finally:
         await conn.close()
-
-
-async def finish_sync_log(
-    log_id: int,
-    status: str,
-    inserted: int = 0,
-    updated: int = 0,
-    skipped: int = 0,
-    failed: int = 0,
-    price_changes: int = 0,
-    error_message: Optional[str] = None,
-):
-    """Mark a sync log as completed with final stats."""
-    await update_sync_log(
-        log_id,
-        status=status,
-        completed_at=datetime.utcnow(),
-        products_inserted=inserted,
-        products_updated=updated,
-        products_skipped=skipped,
-        products_failed=failed,
-        price_changes=price_changes,
-        error_message=error_message,
-    )
 
 
 # ─────────────────────────────────────────────
@@ -565,7 +496,7 @@ async def load_category_index(
 
     Returns None if the index is empty or all rows are stale (triggers full discovery).
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         cutoff = datetime.utcnow() - timedelta(days=max_age_days)
         rows = await conn.fetch("""
@@ -626,7 +557,7 @@ async def save_category_index(
     """
     if not categories:
         return 0
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         count = 0
         for cat in categories:
@@ -673,7 +604,7 @@ async def verify_category_index(
 
     Returns {"added": int, "removed": int, "refreshed": int}
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         existing_rows = await conn.fetch("""
             SELECT category_slug_or_url, is_active
@@ -728,7 +659,7 @@ async def rebuild_category_index(
 
     Returns number of rows deleted.
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         result = await conn.execute("""
             DELETE FROM supplier_category_index
@@ -751,7 +682,7 @@ async def get_category_index_summary(
     scraper_key: str,
 ) -> list[dict]:
     """Return all index rows for a supplier (active + inactive) for admin display."""
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         rows = await conn.fetch("""
             SELECT
@@ -796,7 +727,7 @@ async def load_catalog_filters(
         allowed = await load_catalog_filters(supplier_id)
         subcategories = [s for s in all_subs if allowed is None or s["ddcode"] in allowed]
     """
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
+    conn = await get_conn()
     try:
         row = await conn.fetchrow(
             "SELECT categories FROM supplier_catalog_filters WHERE supplier_id = $1",
@@ -819,57 +750,3 @@ async def load_catalog_filters(
         await conn.close()
 
 
-async def bulk_upsert_products(
-    supplier_id: int,
-    products: list[ScrapedProduct],
-    sync_log_id: Optional[int] = None,
-    on_progress: Optional[Callable] = None,
-) -> dict:
-    """Bulk upsert a list of ScrapedProducts for a supplier.
-    
-    Returns stats dict: inserted, updated, skipped, failed, price_changes
-    """
-    stats = {"inserted": 0, "updated": 0, "skipped": 0, "failed": 0, "price_changes": 0}
-    conn = await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
-    total = len(products)
-
-    try:
-        for i, product in enumerate(products):
-            try:
-                action, price_changed = await upsert_product(conn, supplier_id, product)
-                stats[action] += 1
-                if price_changed:
-                    stats["price_changes"] += 1
-            except Exception as e:
-                stats["failed"] += 1
-                print(f"[upsert] product #{i} '{product.name}' SKU='{product.sku}' failed: {e}")
-
-            if on_progress and i % 25 == 0:
-                await on_progress(i + 1, total, f"Importing {i + 1}/{total}...")
-            if sync_log_id and i % 50 == 0:
-                await update_sync_log(
-                    sync_log_id,
-                    products_found=total,
-                    products_inserted=stats["inserted"],
-                    products_updated=stats["updated"],
-                    products_failed=stats["failed"],
-                )
-
-        # Update supplier-level stats
-        total_active = await conn.fetchval(
-            "SELECT COUNT(*) FROM products WHERE supplier_id = $1 AND is_active = true",
-            supplier_id
-        )
-        await conn.execute("""
-            UPDATE suppliers
-            SET last_full_sync_at = now(),
-                total_products_count = $2,
-                credential_status = 'ok'
-            WHERE id = $1
-        """, supplier_id, total_active)
-
-    finally:
-        await conn.close()
-
-    print(f"[upsert] Done: {stats}")
-    return stats

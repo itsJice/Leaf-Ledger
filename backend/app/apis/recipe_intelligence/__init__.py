@@ -18,9 +18,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from app.libs.db import ensure_schema_once, get_conn
+
 router = APIRouter(tags=["recipe_intelligence"])
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
 SOURCE_ROOT = Path(os.environ.get("RECIPE_INTELLIGENCE_ROOT", "/Users/justice/Documents/TBDG Pricing Recipies "))
 PARSER_VERSION = "2026-06-03.v1"
 PREVIEW_CACHE_ROOT = Path(os.environ.get("RECIPE_PREVIEW_CACHE_ROOT", "/tmp/leaf-ledger-visual-previews"))
@@ -67,10 +68,6 @@ def build_type_aliases(build_type: str) -> list[str]:
         if requested.lower() == canonical.lower() or requested.lower() in {alias.lower() for alias in aliases}:
             return aliases
     return [requested]
-
-
-async def get_conn():
-    return await asyncpg.connect(DATABASE_URL, statement_cache_size=0)
 
 
 class ImportRequest(BaseModel):
@@ -647,7 +644,8 @@ def file_kind(path: Path) -> str:
 
 
 async def ensure_schema(conn):
-    await conn.execute("""
+    async def _ddl():
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS recipe_source_files (
             id SERIAL PRIMARY KEY,
             source_path TEXT UNIQUE NOT NULL,
@@ -667,7 +665,7 @@ async def ensure_schema(conn):
             updated_at TIMESTAMP DEFAULT NOW()
         )
     """)
-    await conn.execute("""
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS historical_recipes (
             id SERIAL PRIMARY KEY,
             source_file_id INTEGER UNIQUE REFERENCES recipe_source_files(id) ON DELETE CASCADE,
@@ -687,7 +685,7 @@ async def ensure_schema(conn):
             updated_at TIMESTAMP DEFAULT NOW()
         )
     """)
-    await conn.execute("""
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS historical_recipe_components (
             id SERIAL PRIMARY KEY,
             recipe_id INTEGER REFERENCES historical_recipes(id) ON DELETE CASCADE,
@@ -706,7 +704,7 @@ async def ensure_schema(conn):
             created_at TIMESTAMP DEFAULT NOW()
         )
     """)
-    await conn.execute("""
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS visual_reference_assets (
             id SERIAL PRIMARY KEY,
             source_file_id INTEGER UNIQUE REFERENCES recipe_source_files(id) ON DELETE CASCADE,
@@ -721,7 +719,7 @@ async def ensure_schema(conn):
             updated_at TIMESTAMP DEFAULT NOW()
         )
     """)
-    await conn.execute("""
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS recipe_pricing_rules (
             id SERIAL PRIMARY KEY,
             scope TEXT NOT NULL DEFAULT 'global',
@@ -732,7 +730,7 @@ async def ensure_schema(conn):
             UNIQUE (scope, project_id)
         )
     """)
-    await conn.execute("""
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS sku_standards (
             prefix TEXT PRIMARY KEY,
             label TEXT NOT NULL,
@@ -743,7 +741,7 @@ async def ensure_schema(conn):
             updated_at TIMESTAMP DEFAULT NOW()
         )
     """)
-    await conn.execute("""
+        await conn.execute("""
         CREATE TABLE IF NOT EXISTS completed_historical_builds (
             id SERIAL PRIMARY KEY,
             arrangement_id INTEGER NOT NULL,
@@ -758,6 +756,7 @@ async def ensure_schema(conn):
             completed_at TIMESTAMP DEFAULT NOW()
         )
     """)
+    await ensure_schema_once("recipe_intelligence", _ddl)
 
 
 async def upsert_source_file(conn, path: Path, root: Path, status: str = "pending", metadata: Optional[dict[str, Any]] = None) -> int:

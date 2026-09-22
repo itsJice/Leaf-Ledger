@@ -126,13 +126,13 @@ async def main() -> int:
         files = [p for p in files if only in p.name.lower()]
         print(f"--only {only!r} → {len(files)} file(s): {[p.name for p in files]}\n")
     c = await asyncpg.connect(os.environ["DATABASE_URL"])
-    ext = await dual_price_columns_exist(c)
-    sql = build_upsert(ext)
-    total = 0
-    print(f"dual-price columns present: {ext} "
-          f"(retail/margin stored {'as columns' if ext else 'in raw_data only'})\n")
-    print(f"{'sid':>4}  {'supplier':30s} {'file':40s} {'rows':>7}")
     try:
+        ext = await dual_price_columns_exist(c)
+        sql = build_upsert(ext)
+        total = 0
+        print(f"dual-price columns present: {ext} "
+              f"(retail/margin stored {'as columns' if ext else 'in raw_data only'})\n")
+        print(f"{'sid':>4}  {'supplier':30s} {'file':40s} {'rows':>7}")
         for path in files:
             sid, status = await resolve_supplier(c, path, commit)
             rows, rep = parse_findings_xlsx(str(path))

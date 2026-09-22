@@ -82,14 +82,6 @@ CODES = {
 SOFT_CODES = {k for k, v in CODES.items() if v[2]}
 
 
-def code_msg(code):
-    return CODES.get(code, ("?", code, False))[1]
-
-
-def is_soft(code):
-    return code in SOFT_CODES
-
-
 # ---------------------------------------------------------------------------
 # Calendar
 # ---------------------------------------------------------------------------

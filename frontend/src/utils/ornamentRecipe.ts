@@ -38,18 +38,18 @@ export interface OrnamentOption {
 export const ORNAMENT_OPTIONS: OrnamentOption[] = [
   { display: "1", size: 1, qtyPerPack: 18, sizeCode: "03", planarArea: 0.7853981633974483 },
   { display: "1.6", size: 1.6, qtyPerPack: 96, sizeCode: "54", planarArea: 2.0106192982974678 },
-  { display: "2.4", size: 2.4, qtyPerPack: 24, sizeCode: "06", planarArea: 4.5238934211692976 },
+  { display: "2.4", size: 2.4, qtyPerPack: 24, sizeCode: "06", planarArea: 4.523893421169298 },
   { display: "2.75", size: 2.75, qtyPerPack: 12, sizeCode: "07", planarArea: 5.939573610693197 },
-  { display: "3", size: 3, qtyPerPack: 12, sizeCode: "08", planarArea: 7.0685834705770275 },
+  { display: "3", size: 3, qtyPerPack: 12, sizeCode: "08", planarArea: 7.068583470577027 },
   { display: "4", size: 4, qtyPerPack: 6, sizeCode: "10", planarArea: 12.56637061435916 },
   { display: "4.75", size: 4.75, qtyPerPack: 4, sizeCode: "12", planarArea: 17.72054606165491 },
   { display: "6", size: 6, qtyPerPack: 4, sizeCode: "15", planarArea: 28.27433388230811 },
   { display: "8", size: 8, qtyPerPack: 1, sizeCode: "20", planarArea: 50.26548245743664 },
   { display: "10", size: 10, qtyPerPack: 1, sizeCode: "25", planarArea: 78.53981633974475 },
   { display: "12", size: 12, qtyPerPack: 1, sizeCode: "30", planarArea: 113.09733552923244 },
-  { display: "15.75", size: 15.75, qtyPerPack: 1, sizeCode: "40", planarArea: 194.82783190777932 },
+  { display: "15.75", size: 15.75, qtyPerPack: 1, sizeCode: "40", planarArea: 194.8278319077793 },
   { display: "20", size: 20, qtyPerPack: 1, sizeCode: "45", planarArea: 314.159265358979 },
-  { display: "24", size: 24, qtyPerPack: 1, sizeCode: "46", planarArea: 452.38934211692976 },
+  { display: "24", size: 24, qtyPerPack: 1, sizeCode: "46", planarArea: 452.38934211692975 },
 ];
 
 /**
@@ -115,7 +115,7 @@ export function buildRecipe(
   targetCoverage: number = RECIPE_TARGET_COVERAGE
 ): RecipeResult {
   const surfaceArea = treeSurfaceArea(heightFt, widthIn);
-  if (surfaceArea <= 0) {
+  if (!Number.isFinite(surfaceArea) || surfaceArea <= 0) {
     return { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
   }
 
@@ -355,7 +355,7 @@ export function buildLeafLedgerRecipe(
   options: LeafLedgerOptions = {}
 ): RecipeResult {
   const surfaceArea = treeSurfaceArea(heightFt, widthIn);
-  if (surfaceArea <= 0) {
+  if (!Number.isFinite(surfaceArea) || surfaceArea <= 0) {
     return { surfaceArea: 0, recipeCoverage: 0, bucketNumber: 0, lines: [] };
   }
 
@@ -513,7 +513,10 @@ function roundEnhancers(raw: number, colorCount: number): number {
  *   4. beyond  — shorter than the table's first row or taller than its last:
  *                scale that end row's count by surface area, against the row's
  *                default width, never below 0.
- * The result is always rounded to a multiple of the color count (even by default).
+ * A direct table/nearest-width hit (1–2) returns the designer's row count
+ * verbatim, unrounded; only a computed value (3–4, interpolated or
+ * extrapolated) is rounded to a multiple of the color count (even by default).
+ * Non-finite height/width are treated as invalid input (same as 0).
  */
 export function enhancerLookup(
   heightFt: number,
@@ -521,22 +524,24 @@ export function enhancerLookup(
   colorCount: number = LL_DEFAULT_COLOR_COUNT
 ): EnhancerLookup {
   const colors = clampColorCount(colorCount);
-  const atHeight = ENHANCER_TABLE.filter((row) => rowMatchesHeight(row, heightFt));
+  const height = Number.isFinite(heightFt) ? heightFt : 0;
+  const width = Number.isFinite(widthIn) ? widthIn : 0;
+  const atHeight = ENHANCER_TABLE.filter((row) => rowMatchesHeight(row, height));
   if (atHeight.length) {
-    const row = bestWidthRow(atHeight, widthIn);
-    const kind = widthDistance(row, widthIn) === 0 ? "table" : "nearestWidth";
+    const row = bestWidthRow(atHeight, width);
+    const kind = widthDistance(row, width) === 0 ? "table" : "nearestWidth";
     return { count: row.count, source: { kind, row } };
   }
 
-  const below = ENHANCER_TABLE.filter((row) => row.heightMaxFt + ENHANCER_HEIGHT_TOLERANCE_FT < heightFt);
-  const above = ENHANCER_TABLE.filter((row) => row.heightMinFt - ENHANCER_HEIGHT_TOLERANCE_FT > heightFt);
+  const below = ENHANCER_TABLE.filter((row) => row.heightMaxFt + ENHANCER_HEIGHT_TOLERANCE_FT < height);
+  const above = ENHANCER_TABLE.filter((row) => row.heightMinFt - ENHANCER_HEIGHT_TOLERANCE_FT > height);
   const lowerFt = Math.max(...below.map((row) => row.heightMaxFt));
   const upperFt = Math.min(...above.map((row) => row.heightMinFt));
-  const lower = below.length ? bestWidthRow(below.filter((row) => row.heightMaxFt === lowerFt), widthIn) : null;
-  const upper = above.length ? bestWidthRow(above.filter((row) => row.heightMinFt === upperFt), widthIn) : null;
+  const lower = below.length ? bestWidthRow(below.filter((row) => row.heightMaxFt === lowerFt), width) : null;
+  const upper = above.length ? bestWidthRow(above.filter((row) => row.heightMinFt === upperFt), width) : null;
 
   if (lower && upper) {
-    const t = (heightFt - lowerFt) / (upperFt - lowerFt);
+    const t = (height - lowerFt) / (upperFt - lowerFt);
     const raw = lower.count + t * (upper.count - lower.count);
     return { count: roundEnhancers(raw, colors), source: { kind: "interpolated", lower, upper } };
   }
@@ -549,8 +554,8 @@ export function enhancerLookup(
   const rowWidth =
     row.widthMinIn === null || row.widthMaxIn === null
       ? defaultWidthForHeight(rowFt)
-      : Math.min(Math.max(widthIn, row.widthMinIn), row.widthMaxIn);
-  const ratio = treeSurfaceArea(heightFt, widthIn) / treeSurfaceArea(rowFt, rowWidth) || 0;
+      : Math.min(Math.max(width, row.widthMinIn), row.widthMaxIn);
+  const ratio = treeSurfaceArea(height, width) / treeSurfaceArea(rowFt, rowWidth) || 0;
   return { count: roundEnhancers(row.count * ratio, colors), source: { kind: "extrapolated", row } };
 }
 
@@ -615,7 +620,7 @@ export function coverageDensity(
 
 /** Retail packs needed to cover a quantity (rounds up; "each" for singles). */
 export function packSummary(option: OrnamentOption, quantity: number): string {
-  if (!quantity) return "";
+  if (!(quantity > 0)) return "";
   if (option.qtyPerPack === 1) return `${quantity} each`;
   const wholePacks = Math.ceil(quantity / option.qtyPerPack);
   return `${wholePacks} pack${wholePacks === 1 ? "" : "s"} of ${option.qtyPerPack}`;
@@ -751,11 +756,12 @@ export function applySizeSwap<Q extends Record<number, number | "">>(quantities:
 // /public/ornament-calculator/ so the app is self-contained.
 // ---------------------------------------------------------------------------
 
-/** Local path to the tree photo for a given coverage density (%). */
+/** Local path to the tree photo for a given coverage density (%). Out-of-range
+ * (including non-finite) values clamp the same way as a too-low density: 0. */
 export function treeDensityImage(density: number): string {
   let step = Math.floor(density / 5) * 5;
+  if (!Number.isFinite(step) || step < 0) step = 0;
   if (step > 90) step = 90;
-  if (step < 0) step = 0;
   return `/ornament-calculator/tree_density_${step}.jpg`;
 }
 
@@ -776,7 +782,7 @@ export interface OrnamentFinish {
   code: string;
 }
 
-/** All 58 Vickerman ornament colors (name + code exact; hex is our swatch). */
+/** All 57 Vickerman ornament colors (name + code exact; hex is our swatch). */
 export const COLORS: OrnamentColor[] = [
   { name: "Clear Iridescent", code: "00", hex: "#e8f0f2" },
   { name: "Blue", code: "02", hex: "#2f5fa8" },
@@ -860,23 +866,6 @@ export const FINISHES: OrnamentFinish[] = [
   { name: "Metallic", code: "T" },
 ];
 
-/**
- * Build the Vickerman product SKU for a size/color/finish combination.
- * Rules ported verbatim from the site:
- *   Clear (X):            N59{size}{color}V
- *   Sequin (Q)/Glitter(G): N59{size}{color}D{finish}
- *   everything else:      N59{size}{color}D{finish}V
- */
-export function buildSku(sizeCode: string, colorCode: string, finishCode: string): string {
-  if (finishCode === "X") return `N59${sizeCode}${colorCode}V`;
-  if (finishCode === "Q" || finishCode === "G") return `N59${sizeCode}${colorCode}D${finishCode}`;
-  return `N59${sizeCode}${colorCode}D${finishCode}V`;
-}
-
-/** Product image URL for a SKU (Vickerman CDN pattern), for thumbnails. */
-export function productImageUrl(sku: string): string {
-  return `https://images.vickerman.com/${sku}_1000.jpg`;
-}
 
 /** A color block: exactly one color + one finish + its share of the tree (%). */
 export interface ColorBlock {

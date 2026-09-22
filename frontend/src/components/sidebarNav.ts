@@ -240,28 +240,13 @@ export interface SidebarPrefsLike {
 /**
  * Fired by the tabs editor so an already-mounted Layout repaints its sidebar the
  * instant an edit is made, instead of waiting for the debounced write to land.
- * Mirrors the existing "leaf-ledger-projects-changed" pattern.
+ * Mirrors the existing PROJECTS_CHANGED_EVENT pattern (see utils/projectsChanged.ts).
  */
 export const SIDEBAR_PREFS_EVENT = "leaf-ledger-sidebar-prefs-changed";
 
 export interface SidebarPrefsEventDetail {
   order: string[];
   hidden: string[];
-}
-
-export interface SidebarEditorRow {
-  item: ResolvedNavItem;
-  hidden: boolean;
-}
-
-/** Every known item in resolved order, flagged - what the editor lists. */
-export function resolveSidebarRows(sidebar?: SidebarPrefsLike | null): SidebarEditorRow[] {
-  const order = resolveSidebarOrder(sidebar?.order);
-  const hidden = new Set(resolveHiddenPaths(sidebar?.hidden));
-  return order.map((path) => ({
-    item: NAV_ITEM_BY_PATH[path],
-    hidden: hidden.has(path),
-  }));
 }
 
 export interface SidebarRenderItem {

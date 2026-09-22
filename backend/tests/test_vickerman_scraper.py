@@ -1,5 +1,8 @@
+import asyncio
 import json
+import time
 
+from app.libs import vickerman_scraper
 from app.libs.vickerman_scraper import (
     VICKERMAN_PRODUCT_SELECTOR_SEEDS,
     _catalog_totals,
@@ -302,3 +305,127 @@ def test_vickerman_validation_category_order_defers_rollups():
         "Container/Vases",
         "All Categories",
     ]
+
+
+class _FakeResponse:
+    def __init__(self, text: str):
+        self.text = text
+
+    def raise_for_status(self):
+        pass
+
+
+_CATEGORY_PAGE_HTML = "<html><body>Category landing page</body></html>"
+_SELECTOR_PAGE_HTML = """
+<div>
+  <a href="/products/details?item=K999999">Ball Ornament</a>
+  Total items found: 1
+  page 1 of 1
+</div>
+"""
+_DETAIL_MODEL = {
+    "CurrentItem": {
+        "ItemNumber": "K999999",
+        "Description": "Test Ball Ornament",
+        "WebDescription": "Test description",
+        "ImageUrl": "https://images.vickerman.com/K999999_1000.jpg",
+        "QtyInStock": 5,
+        "Price": 9.99,
+    },
+    "ProductOptions": [],
+}
+_DETAIL_PAGE_HTML = f"""
+<html><body>
+<script>
+  var model = {json.dumps(_DETAIL_MODEL)};
+  if (model.CurrentItem) {{}}
+</script>
+</body></html>
+"""
+
+
+def test_scrape_vickerman_does_not_block_the_event_loop(monkeypatch):
+    """scrape_vickerman's blocking requests must run off the event loop.
+
+    The sync request helper is monkeypatched to sleep synchronously (as the
+    real `requests`/`time.sleep` calls would while waiting on the network),
+    and a concurrent ticker coroutine proves the loop kept advancing instead
+    of freezing for the duration of the scrape.
+
+    A naive "did the ticker ever advance" check is not a strong enough
+    assertion: `scrape_vickerman` also awaits `polite_delay` (a real
+    `asyncio.sleep`) after yielding each product, and that alone would let a
+    starved ticker catch up at the very end, masking a loop-blocking bug
+    earlier in the run. So instead this test tracks the *gap* between
+    consecutive ticks and asserts no gap is anywhere near the 0.2s sleep
+    duration used by each fake blocking call — if any single call ran
+    directly on the loop, that call's whole duration would show up as one
+    big gap with no ticks in between.
+    """
+
+    def fake_login(session, username, password):
+        time.sleep(0.2)
+        return ""
+
+    def fake_request_with_retries(session, method, url, attempts=3, backoff_seconds=1.5, **kwargs):
+        time.sleep(0.2)
+        if "/products/details" in url:
+            return _FakeResponse(_DETAIL_PAGE_HTML)
+        if url == vickerman_scraper.SELECTOR_URL:
+            return _FakeResponse(_SELECTOR_PAGE_HTML)
+        return _FakeResponse(_CATEGORY_PAGE_HTML)
+
+    async def fast_polite_delay(seconds: float = 1.5):
+        # Neutralize the real (legitimately non-blocking) delay so the test
+        # measures only the effect of the blocking calls under test.
+        return
+
+    monkeypatch.setattr(vickerman_scraper, "_login", fake_login)
+    monkeypatch.setattr(vickerman_scraper, "_request_with_retries", fake_request_with_retries)
+    monkeypatch.setattr(vickerman_scraper, "polite_delay", fast_polite_delay)
+
+    category = {
+        "section": "Ornament",
+        "label": "Ball Ornaments",
+        "slug": "https://www.vickerman.com/productselector/ornament/ball-ornaments",
+        "ddcode": "https://www.vickerman.com/productselector/ornament/ball-ornaments",
+        "item_count": 1,
+        "product_type": "Ball Ornaments",
+    }
+
+    async def scenario():
+        ticks: list[float] = []
+
+        async def ticker():
+            while True:
+                ticks.append(time.monotonic())
+                await asyncio.sleep(0.02)
+
+        async def run_scrape():
+            products = []
+            async for product in vickerman_scraper.scrape_vickerman(
+                "user", "pass", subcategories=[category], supplier_id=None,
+            ):
+                products.append(product)
+            return products
+
+        ticker_task = asyncio.create_task(ticker())
+        try:
+            products = await run_scrape()
+        finally:
+            ticker_task.cancel()
+            try:
+                await ticker_task
+            except asyncio.CancelledError:
+                pass
+        return products, ticks
+
+    products, ticks = asyncio.run(scenario())
+
+    assert len(products) == 1
+    assert products[0].sku == "K999999"
+    # 4 fake blocking calls of 0.2s each (login, category page, selector
+    # page, detail page) run during the scrape. The ticker fires every 20ms.
+    gaps = [b - a for a, b in zip(ticks, ticks[1:])]
+    assert len(ticks) >= 15, f"ticker barely advanced ({len(ticks)} ticks) — event loop was likely blocked"
+    assert max(gaps) < 0.1, f"found a {max(gaps):.3f}s gap between ticks — event loop was blocked"

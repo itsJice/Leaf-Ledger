@@ -18,11 +18,9 @@ from pydantic import BaseModel
 from typing import Any, Optional, List
 import json
 
-from app.apis.products import get_conn
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/orders", tags=["orders"])
-
-_SCHEMA_READY = False
 
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
@@ -56,11 +54,10 @@ CREATE INDEX IF NOT EXISTS order_items_order_idx ON ll_app.order_items(order_id)
 
 
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
+
+    await ensure_schema_once("orders", _ddl)
 
 
 # ── Models ──────────────────────────────────────────────────────────────────
@@ -140,8 +137,6 @@ def _size_label(raw: dict, row) -> Optional[str]:
     return None
 
 
-async def _order_summaries(conn, rows) -> List[dict]:
-    return [dict(r) for r in rows]
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
@@ -349,9 +344,11 @@ async def update_item(item_id: int, body: UpdateItem):
             raise HTTPException(status_code=404, detail="Item not found")
         if body.quantity is not None:
             if body.quantity <= 0:
+                # The row is gone: nothing left to update but the order's timestamp.
                 await conn.execute("DELETE FROM ll_app.order_items WHERE id = $1", item_id)
-            else:
-                await conn.execute("UPDATE ll_app.order_items SET quantity = $2 WHERE id = $1", item_id, int(body.quantity))
+                await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
+                return {"ok": True}
+            await conn.execute("UPDATE ll_app.order_items SET quantity = $2 WHERE id = $1", item_id, int(body.quantity))
         if body.variant_note is not None:
             await conn.execute("UPDATE ll_app.order_items SET variant_note = $2 WHERE id = $1", item_id, body.variant_note)
         await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
@@ -366,8 +363,9 @@ async def delete_item(item_id: int):
     try:
         await ensure_schema(conn)
         row = await conn.fetchrow("DELETE FROM ll_app.order_items WHERE id = $1 RETURNING order_id", item_id)
-        if row:
-            await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
+        if not row:
+            raise HTTPException(status_code=404, detail="Item not found")
+        await conn.execute("UPDATE ll_app.orders SET updated_at = now() WHERE id = $1", row["order_id"])
         return {"ok": True}
     finally:
         await conn.close()

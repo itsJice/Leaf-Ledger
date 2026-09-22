@@ -19,6 +19,10 @@ import {
   type Job, type JobSummary, type Need, type SourcingLine, type Stage,
   type OpenOrderLine, type POLine, type SourcingStatus,
 } from "utils/jobs";
+import { formatMoney as money } from "utils/money";
+import { proxiedImageUrl as proxied } from "utils/images";
+import EmptyState from "../components/EmptyState";
+import { ACTIVE_ORDER_KEY } from "../constants";
 
 // Sourcing: the purchaser's worksheet, one per client job. Reachable at
 // /sourcing only (no sidebar entry) while the team pins and compares on the
@@ -41,8 +45,6 @@ const TABS: Array<{ id: Tab; label: string }> = [
 ];
 const PO_STATUSES = ["draft", "approved", "placed", "follow_up", "shipped", "arrived", "closed"];
 
-const proxied = (url?: string | null) => (url ? `/api/products/image-proxy?url=${encodeURIComponent(url)}` : undefined);
-const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
 const qty = (n?: number | null) => (n == null ? "" : Number.isInteger(Number(n)) ? String(n) : Number(n).toFixed(1));
 const dateStr = (d?: string | null) => (d ? String(d).slice(0, 10) : "");
 
@@ -207,17 +209,13 @@ export default function Sourcing() {
   );
 }
 
-function Empty() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
-        <ClipboardList size={28} className="text-emerald-600" strokeWidth={1.5} />
-      </div>
-      <p className="mb-1 text-base font-medium text-stone-600">No worksheet selected</p>
-      <p className="max-w-xs text-sm leading-relaxed text-stone-400">Pick one on the left, or start a new one from the purple sheet.</p>
-    </div>
-  );
-}
+const Empty = () => (
+  <EmptyState
+    icon={ClipboardList}
+    title="No worksheet selected"
+    description="Pick one on the left, or start a new one from the purple sheet."
+  />
+);
 
 // ── Header: name, stage strip, export ───────────────────────────────────────
 function JobHeader({ job, onDelete, onChange }: { job: Job; onDelete: () => void; onChange: (b: Record<string, unknown>) => void }) {
@@ -767,7 +765,7 @@ function POCard({ po, run, reload }: { po: Job["purchase_orders"][number]; run: 
         </select>
         {!po.placed_at && <button onClick={() => savePO({ placed: true })} className={btnGhost}><Check size={12} /> Mark placed</button>}
         <span className="ml-auto text-xs text-stone-500">{qty(po.received_qty)}/{qty(po.total_qty)} checked in · {pct}%</span>
-        <a href="/orders" onClick={() => { try { localStorage.setItem("leaf-ledger:active-order:v1", String(po.id)); } catch {} }} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"><ExternalLink size={11} /> Open PO</a>
+        <a href="/orders" onClick={() => { try { localStorage.setItem(ACTIVE_ORDER_KEY, String(po.id)); } catch {} }} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"><ExternalLink size={11} /> Open PO</a>
       </div>
       <div className="grid grid-cols-3 gap-3 px-4 py-3">
         <label className="flex flex-col gap-1 text-xs text-stone-500">Vendor order #<input value={meta.vendor_order_no} onChange={(e) => setMeta({ ...meta, vendor_order_no: e.target.value })} onBlur={() => meta.vendor_order_no !== (po.vendor_order_no || "") && savePO({ vendor_order_no: meta.vendor_order_no })} className={input} /></label>

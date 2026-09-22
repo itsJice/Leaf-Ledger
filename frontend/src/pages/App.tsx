@@ -19,8 +19,8 @@ import {
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { formatCurrency } from "utils/format";
-
-const DASHBOARD_CACHE_KEY = "leaf-ledger:dashboard-cache:v2";
+import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
+import { DASHBOARD_CACHE_KEY } from "../constants";
 
 interface DashboardSummary {
   catalog: { products: number; suppliers: number };
@@ -48,21 +48,11 @@ type DashboardCache = {
 };
 
 function readDashboardCache(): DashboardCache | null {
-  try {
-    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return readJsonCache<DashboardCache | null>(DASHBOARD_CACHE_KEY, null);
 }
 
 function writeDashboardCache(patch: DashboardCache) {
-  try {
-    const prev = readDashboardCache() || {};
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ ...prev, ...patch, cachedAt: Date.now() }));
-  } catch {
-    // Ignore storage issues.
-  }
+  writeTimestampedJsonCache(DASHBOARD_CACHE_KEY, { ...(readDashboardCache() || {}), ...patch });
 }
 
 async function getJson<T>(path: string): Promise<T | null> {
@@ -81,7 +71,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 /** Icon per build type, matching the Designs grid so a build reads the same everywhere. */
-function buildTypeIcon(buildType?: string | null) {
+function appBuildTypeIcon(buildType?: string | null) {
   const t = (buildType || "").toLowerCase();
   if (t.includes("wreath")) return CircleDashed;
   if (t.includes("tree")) return TreePine;
@@ -316,7 +306,7 @@ function RecentDesigns({ designs, loading }: { designs: RecentDesign[]; loading:
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {designs.map((d) => {
-            const Icon = buildTypeIcon(d.build_type);
+            const Icon = appBuildTypeIcon(d.build_type);
             const where = [d.client_name, d.project_name, d.group_name].filter(Boolean).join(" · ");
             return (
               <button

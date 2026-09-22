@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from app.libs.scraper_base import normalize_category, normalize_unit, parse_price, safe_int
+
+
 @dataclass
 class CatalogRow:
     supplier_sku: str
@@ -37,65 +40,17 @@ BOX_KEYS = ("box qty", "boxqty", "box", "box/cs", "box cs")
 CASE_KEYS = ("case qty", "caseqty", "case", "case pack")
 CATEGORY_KEYS = ("category", "section", "department", "collection")
 
-VALID_UNITS = {
-    "stem", "pot", "flat", "bunch", "each", "box", "case", "bag", "roll",
-    "yard", "foot", "piece", "set", "pair",
-}
-
-
-def safe_int(raw: Any) -> Optional[int]:
-    try:
-        return int(str(raw).strip())
-    except (TypeError, ValueError, AttributeError):
-        return None
-
-
-def parse_price(raw: str) -> Optional[float]:
-    if not raw:
-        return None
-    cleaned = str(raw).replace(",", "").replace("$", "").strip()
-    match = re.search(r"\d+\.?\d*", cleaned)
-    return float(match.group(0)) if match else None
-
-
-def normalize_unit(raw_unit: Optional[str]) -> str:
-    if not raw_unit:
-        return "each"
-    lower = raw_unit.lower().strip()
-    if lower in VALID_UNITS:
-        return lower
-    if "ea" in lower or "each" in lower:
-        return "each"
-    if "stem" in lower:
-        return "stem"
-    if "bundle" in lower or "bunch" in lower:
-        return "bunch"
-    if "case" in lower:
-        return "case"
-    if "box" in lower:
-        return "box"
-    return "each"
-
-
-def normalize_category(raw_category: Optional[str]) -> str:
-    if not raw_category:
-        return "other"
-    lower = raw_category.lower().strip()
-    if any(term in lower for term in ("holiday", "christmas", "fall", "season")):
-        return "seasonal"
-    if any(term in lower for term in ("bouquet", "flower", "floral", "dahlia", "rose", "tulip")):
-        return "florals"
-    if any(term in lower for term in ("foliage", "greenery", "leaf", "grass")):
-        return "greenery"
-    if any(term in lower for term in ("container", "vase", "pot", "planter")):
-        return "containers"
-    if "moss" in lower:
-        return "moss"
-    if "branch" in lower:
-        return "branches"
-    if "tree" in lower:
-        return "trees"
-    return "other"
+# safe_int, parse_price, normalize_unit, and normalize_category used to be
+# duplicated here -- normalize_category with genuinely different behavior
+# (a small hardcoded set of substring checks with no exact VALID_CATEGORIES
+# short-circuit and no CATEGORY_MAP, so e.g. "pot" -> "containers" here but
+# "other" in scraper_base, and "wood"/"wreaths"/"topiaries"/"succulents" ->
+# "other" here but their own categories in scraper_base). That divergence was
+# an accident of two hand-maintained lists drifting apart, not an intentional
+# difference between catalog-file categories and scraper categories, so
+# scraper_base.normalize_category was extended to cover every alias this
+# module's version understood and this module now delegates to it, same as
+# the other three helpers. See tests/test_catalog_importer.py.
 
 
 def _clean(value: Any) -> Optional[str]:

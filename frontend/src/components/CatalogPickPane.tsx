@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Package, Search, X } from "lucide-react";
 import { apiFetch } from "utils/apiFetch";
+import { formatMoney as money } from "utils/money";
+import { proxiedImageUrl as proxied } from "utils/images";
 
 // Catalog Search as a side pane: the buyer types what a need line says
 // ("cream hydrangea"), sees catalog matches with picture, vendor, SKU and
@@ -23,10 +25,6 @@ interface Props {
   onClose: () => void;
   pickLabel?: string;
 }
-
-const proxied = (url?: string | null) =>
-  url ? `/api/products/image-proxy?url=${encodeURIComponent(url)}` : undefined;
-const money = (n?: number | null) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
 
 export default function CatalogPickPane({ title, initialQuery, onPick, onClose, pickLabel }: Props) {
   const [q, setQ] = useState(initialQuery || "");

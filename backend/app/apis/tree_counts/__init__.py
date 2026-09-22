@@ -20,15 +20,14 @@ attribution only, and anyone signed in can list or delete them.
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional
 
-import asyncpg
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from app.auth import AuthorizedUser
+from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/tree-counts", tags=["tree_counts"])
 
@@ -66,21 +65,11 @@ CREATE INDEX IF NOT EXISTS tree_counts_height_idx
     ON ll_app.tree_counts (height_ft);
 """
 
-_SCHEMA_READY = False
-
-
-async def get_conn():
-    return await asyncpg.connect(
-        os.environ.get("DATABASE_URL"), statement_cache_size=0
-    )
-
-
 async def ensure_schema(conn):
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    await conn.execute(DDL)
-    _SCHEMA_READY = True
+    async def _ddl():
+        await conn.execute(DDL)
+
+    await ensure_schema_once("tree_counts", _ddl)
 
 
 # ─── Shapes ──────────────────────────────────────────────────────────────────
