@@ -28,6 +28,7 @@ const OrnamentCalculator = lazyWithReload(() => import("./pages/OrnamentCalculat
 const TreeCounts = lazyWithReload(() => import("./pages/TreeCounts.tsx"));
 const CatalogSearch = lazyWithReload(() => import("./pages/CatalogSearch.tsx"));
 const InstallSchedule = lazyWithReload(() => import("./pages/InstallSchedule.tsx"));
+const Shifts = lazyWithReload(() => import("./pages/Shifts.tsx"));
 const Settings = lazyWithReload(() => import("./pages/Settings.tsx"));
 const Suppliers = lazyWithReload(() => import("./pages/Suppliers.tsx"));
 
@@ -60,6 +61,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/tree-counts", element: <TreeCounts /> },
 	{ path: "/search", element: <CatalogSearch /> },
 	{ path: "/settings", element: <Settings /> },
+	// Leads land here and can open nothing else (app/auth/RoleGate.tsx).
+	{ path: "/shifts", element: <Shifts /> },
 	{ path: "/suppliers", element: <Suppliers /> },
 
 ];

@@ -3,6 +3,7 @@ import { createBrowserRouter, Outlet } from "react-router-dom";
 import { userRoutes } from "./user-routes";
 import { AppProvider } from "components/AppProvider";
 import { UserGuard } from "app/auth/UserGuard";
+import { RoleGate } from "app/auth/RoleGate";
 
 export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
   return <Suspense>{children}</Suspense>;
@@ -29,9 +30,11 @@ export const router = createBrowserRouter([
     element: (
       <AppProvider>
         <UserGuard>
-          <SuspenseWrapper>
-            <Outlet />
-          </SuspenseWrapper>
+          <RoleGate>
+            <SuspenseWrapper>
+              <Outlet />
+            </SuspenseWrapper>
+          </RoleGate>
         </UserGuard>
       </AppProvider>
     ),

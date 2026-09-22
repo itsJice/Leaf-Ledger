@@ -19,6 +19,7 @@ else:
     print(f"No {env_file} — using environment variables as provided")
 
 from app.auth import get_authorized_user
+from app.libs.roles import DEFAULT_ROLE, require_role
 
 # Signing in is required for the whole API. The only way to turn it off is to
 # set AUTH_DISABLED=true AND be running the local dev environment — it is
@@ -62,12 +63,16 @@ def import_api_routers() -> APIRouter:
             api_module = __import__(api_module_prefix + name, fromlist=[name])
             api_router = getattr(api_module, "router", None)
             if isinstance(api_router, APIRouter):
+                # Each router declares the lowest role that may call it
+                # (app.libs.roles); one that says nothing is office-staff only,
+                # so a field lead can never reach it by accident.
+                min_role = getattr(api_module, "MIN_ROLE", DEFAULT_ROLE)
                 routes.include_router(
                     api_router,
                     dependencies=(
                         []
                         if is_auth_disabled(name)
-                        else [Depends(get_authorized_user)]
+                        else [Depends(get_authorized_user), Depends(require_role(min_role))]
                     ),
                 )
         except Exception as e:

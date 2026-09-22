@@ -47,6 +47,10 @@ from app.libs.jsonutil import loads_json as _loads
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 
+#: Everyone's own theme/sidebar document -- leads and crew included, since
+#: the app shell reads it on every page (app.libs.roles).
+MIN_ROLE = "crew"
+
 
 # ─── The shape ───────────────────────────────────────────────────────────────
 

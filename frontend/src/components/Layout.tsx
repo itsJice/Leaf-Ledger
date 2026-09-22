@@ -17,6 +17,7 @@ import { APP_BASE_PATH, apiClient } from "app";
 import { apiFetch } from "utils/apiFetch";
 import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
+import { currentMe } from "utils/me";
 import {
   resolveSidebarRender,
   SIDEBAR_PREFS_EVENT,
@@ -102,7 +103,45 @@ function sortProjectsByUpdated(rows: SidebarProject[]) {
   });
 }
 
-export default function Layout({ children }: Props) {
+/**
+ * Field logins (leads, crew) get a bare header and their page -- none of the
+ * office sidebar, whose data calls they aren't allowed to make. RoleGate has
+ * already loaded the account before any page renders.
+ */
+export default function Layout(props: Props) {
+  const me = currentMe();
+  if (me?.fieldOnly) return <FieldLayout>{props.children}</FieldLayout>;
+  return <StaffLayout {...props} />;
+}
+
+function FieldLayout({ children }: Props) {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const me = currentMe();
+  return (
+    <div className="min-h-screen bg-[#f7f6f2]">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-[#1f3d2b] px-4 py-3 text-white">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Leaf &amp; Ledger</p>
+          <p className="truncate text-xs text-white/70">{me?.person?.name || me?.email}</p>
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            await signOut();
+            navigate("/login", { replace: true });
+          }}
+          className="flex items-center gap-1.5 rounded-lg border border-white/30 px-3 py-1.5 text-xs font-semibold"
+        >
+          <LogOut size={14} /> Sign out
+        </button>
+      </header>
+      <main>{children}</main>
+    </div>
+  );
+}
+
+function StaffLayout({ children }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
@@ -288,7 +327,9 @@ export default function Layout({ children }: Props) {
   const navRuns = useMemo<NavRun[]>(() => {
     const plan = resolveSidebarRender(sidebarOverride || prefs?.sidebar);
     const runs: NavRun[] = [];
+    const isAdmin = Boolean(currentMe()?.isAdmin);
     plan.items.forEach(({ item, showGroupLabel }, index) => {
+      if (item.adminOnly && !isAdmin) return;
       const current = runs[runs.length - 1];
       if (!current || current.groupId !== item.groupId) {
         runs.push({
