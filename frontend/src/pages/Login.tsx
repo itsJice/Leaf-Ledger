@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "app/auth/AuthProvider";
 import { isSupabaseConfigured } from "app/auth/supabase";
+import { LeafLedgerLogo } from "components/LeafLedgerLogo";
 
 export default function Login() {
   const { user, loading, signIn, sendPasswordReset } = useAuth();
@@ -56,9 +57,8 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="ll-enter mb-8 text-center">
-          <h1 className="font-serif text-3xl tracking-tight text-brand-deep">
-            Leaf &amp; Ledger
-          </h1>
+          <h1 className="sr-only">Leaf &amp; Ledger</h1>
+          <LeafLedgerLogo className="mx-auto h-auto w-56" />
           <p className="mt-2 text-sm text-brand-deep/60">
             The Branch Design Group
           </p>
