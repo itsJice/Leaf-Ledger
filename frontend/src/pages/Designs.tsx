@@ -13,7 +13,7 @@ import {
   Search,
   Shapes,
   X,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import { ProxiedImage } from "./library/ProxiedImage";
 import { formatCurrency } from "utils/format";

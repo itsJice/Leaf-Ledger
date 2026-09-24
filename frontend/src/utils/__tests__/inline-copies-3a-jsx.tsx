@@ -1,6 +1,6 @@
 // Oracle copies of the inline `Empty()` panels (verbatim apart from the name;
 // empty-state.test.tsx checks them against the page source).
-import { ClipboardList, ShoppingCart } from "lucide-react";
+import { ClipboardList, ShoppingCart } from "components/icons";
 
 // pages/Sourcing.tsx
 export function EmptySourcing() {

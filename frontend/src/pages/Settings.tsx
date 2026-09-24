@@ -17,7 +17,7 @@ import {
   Tags,
   Trash2,
   Users,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import SidebarTabsEditor from "components/SidebarTabsEditor";
 import UserRolesEditor from "components/UserRolesEditor";

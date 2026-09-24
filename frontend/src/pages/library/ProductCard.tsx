@@ -1,6 +1,6 @@
 // Single product card shown in both the vendor and product catalog views.
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
-import { Heart, Plus, AlertTriangle } from "lucide-react";
+import { Heart, Plus, AlertTriangle } from "components/icons";
 import { formatCurrency, formatDate, categoryLabel, unitLabel } from "utils/format";
 import { metricHintText, METRIC_CHEAT } from "utils/measurements";
 import { CATEGORY_COLORS } from "./constants";

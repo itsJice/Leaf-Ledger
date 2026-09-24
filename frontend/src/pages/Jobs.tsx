@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical, NotebookPen, ChevronDown } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical, NotebookPen, ChevronDown } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { ProductDetailModal } from "./library/ProductDetailModal";

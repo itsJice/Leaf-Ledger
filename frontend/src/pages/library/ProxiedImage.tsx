@@ -1,7 +1,7 @@
 // Image with fallback/proxy retries, plus the shared "image pending"
 // placeholder. Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import React, { useEffect, useMemo, useState } from "react";
-import { Leaf } from "lucide-react";
+import { Leaf } from "components/icons";
 
 // ─── Image with proxy fallback ───────────────────────────────────────────────
 export function ImagePending({ compact = false, label = "Image pending" }: { compact?: boolean; label?: string }) {

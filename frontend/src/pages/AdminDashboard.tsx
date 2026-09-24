@@ -54,7 +54,7 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronRight,
-} from "lucide-react";
+} from "components/icons";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

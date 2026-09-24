@@ -3,7 +3,7 @@
 // inline-copies.ts: verbatim, only `export`/names changed. Tests check the
 // source-text blocks marked "verbatim" against the page files, so they cannot
 // silently drift.
-import { CircleDashed, Flower2, Leaf, Package, Shapes, Shrub, Sparkle, Spline, Sprout, TreeDeciduous, TreePine, Waves } from "lucide-react";
+import { CircleDashed, Flower2, Leaf, Package, Shapes, Shrub, Sparkle, Spline, Sprout, TreeDeciduous, TreePine, Waves } from "components/icons";
 
 // ─── pages/Settings.tsx build templates (verbatim, source-checked) ──────────
 

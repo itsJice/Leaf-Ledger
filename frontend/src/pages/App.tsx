@@ -15,7 +15,7 @@ import {
   TreePine,
   CircleDashed,
   Sprout,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { formatCurrency } from "utils/format";

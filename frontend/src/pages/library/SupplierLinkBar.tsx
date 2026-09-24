@@ -1,7 +1,7 @@
 // Supplier product-page link + saved-login helper for the product detail
 // modal. Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useEffect, useState } from "react";
-import { ExternalLink, LogIn, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { ExternalLink, LogIn, Eye, EyeOff, Copy, Check } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
 import { loadSupplierDirectory, type SupplierLoginInfo } from "utils/supplierDirectory";
 

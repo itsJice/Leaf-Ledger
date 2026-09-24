@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Printer, ChevronDown, FileText } from "lucide-react";
+import { Printer, ChevronDown, FileText } from "components/icons";
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { formatCurrency } from "utils/format";

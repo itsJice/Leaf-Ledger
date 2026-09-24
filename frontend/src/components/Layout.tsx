@@ -10,7 +10,7 @@ import {
   Moon,
   Sun,
   Users,
-} from "lucide-react";
+} from "components/icons";
 import { useAuth } from "app/auth/AuthProvider";
 import { APP_BASE_PATH, apiClient } from "app";
 import { apiFetch } from "utils/apiFetch";

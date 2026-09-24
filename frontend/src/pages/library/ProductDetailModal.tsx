@@ -2,7 +2,7 @@
 // pinning/favouriting, and the attribute detail sections.
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useMemo, useState, useEffect } from "react";
-import { X, Heart, ZoomIn } from "lucide-react";
+import { X, Heart, ZoomIn } from "components/icons";
 import { formatDate, categoryLabel } from "utils/format";
 import { readFavoriteIds, setLocalFavorite } from "utils/favorites";
 import { metricHintText, METRIC_CHEAT } from "utils/measurements";

@@ -1,6 +1,6 @@
 import { apiFetch } from "utils/apiFetch";
 import React, { useEffect, useMemo, useState } from "react";
-import { Heart } from "lucide-react";
+import { Heart } from "components/icons";
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { toast } from "sonner";

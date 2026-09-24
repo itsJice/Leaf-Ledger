@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "components/icons";
 import {
   Activity,
   Building2,
@@ -17,7 +17,7 @@ import {
   ShoppingCart,
   Sparkles,
   TreePine,
-} from "lucide-react";
+} from "components/icons";
 
 /**
  * Single source of truth for the sidebar's navigation items.

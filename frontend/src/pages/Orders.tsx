@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ShoppingCart, Plus, Minus, Trash2, ExternalLink, Package, LogIn,
   FileText, FileSpreadsheet, FileType, Printer,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import { ProductDetailModal } from "./library/ProductDetailModal";
 import {

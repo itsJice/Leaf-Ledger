@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ClipboardList, Plus, Trash2, Search, PackageCheck, FileSpreadsheet,
   ExternalLink, Check, Package, AlertTriangle, Link2,
-} from "lucide-react";
+} from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import CatalogPickPane, { type CatalogPick } from "components/CatalogPickPane";

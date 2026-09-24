@@ -17,7 +17,7 @@ import {
   Undo2,
   Upload,
   X,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import DesignDestinationPicker, {
   EMPTY_DESIGN_DESTINATION,
