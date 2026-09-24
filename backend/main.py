@@ -30,15 +30,22 @@ AUTH_DISABLED = (
 )
 
 
+#: Routers that authenticate themselves instead of with a Supabase session.
+#: Only for callers that cannot sign in -- a calendar app polling a feed. Each
+#: one must check its own secret; see app/apis/install_calendar.
+PUBLIC_ROUTERS = {"install_calendar"}
+
+
 def is_auth_disabled(name: str) -> bool:
     """Whether this router should be left unauthenticated.
 
     `routers.json` was Databutton-generated scaffolding that marked every
     router `disableAuth: true`. We ignore it: the team's catalog, pricing and
-    client data must never be readable without signing in. The one honoured
-    escape hatch is the local-dev-only AUTH_DISABLED flag above.
+    client data must never be readable without signing in. The honoured
+    escape hatches are the local-dev-only AUTH_DISABLED flag above and
+    PUBLIC_ROUTERS, which check a secret of their own.
     """
-    return AUTH_DISABLED
+    return AUTH_DISABLED or name in PUBLIC_ROUTERS
 
 
 def import_api_routers() -> APIRouter:

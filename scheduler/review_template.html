@@ -2077,6 +2077,25 @@ let pushTimer = null;
 // Short debounce -- just enough to coalesce a fast drag/edit burst into
 // one request, not so long that a quick refresh can race past it (see
 // pullShared's local-wins guard above for the remaining edge of that).
+/** What the shared PUT sends: the snapshot plus every crew-day's estimated
+ *  stop times, from the same stopTimes() the calendar view draws. The office
+ *  calendar feed (backend app/libs/install_calendar.py) reads these rather
+ *  than re-deriving the route, so an edited day's re-optimized order and a
+ *  hand-added client's live OSRM legs reach the calendar exactly as shown
+ *  here. Only on the debounced shared push -- routing every day is too much
+ *  work for each localStorage write. */
+function sharedSnapshot(){
+  const r1=x=>Math.round(x*10)/10, timeline={};
+  days.forEach(d=>{
+    if(!d.stops.length || d.training) return;
+    const ts=stopTimes(d); if(!ts.length) return;
+    const last=ts[ts.length-1].row;
+    timeline[d.id]={start:shiftStart(d),
+      stops:ts.map(t=>({row:t.row, start:r1(t.start), end:r1(t.end)})),
+      back:d.anchored!==false ? r1(leg(N[last],0)/60) : null};
+  });
+  return {...snapshot(), timeline};
+}
 function pushShared(){
   if(!AUTH || READONLY) return;
   clearTimeout(pushTimer);
@@ -2101,7 +2120,7 @@ async function pushSharedNow(){
     const r = await fetch('/api/install-schedule/state', {
       method:'PUT',
       headers:{'Content-Type':'application/json', Authorization:AUTH},
-      body: JSON.stringify({version:SPEC.version, state:snapshot()}),
+      body: JSON.stringify({version:SPEC.version, state:sharedSnapshot()}),
     });
     return r.ok;
   }catch(e){ return false; }
@@ -2121,7 +2140,7 @@ function tbdgFlush(){
     fetch('/api/install-schedule/state', {
       method:'PUT', keepalive:true,
       headers:{'Content-Type':'application/json', Authorization:AUTH},
-      body: JSON.stringify({version:SPEC.version, state:snapshot()}),
+      body: JSON.stringify({version:SPEC.version, state:sharedSnapshot()}),
     }).catch(()=>{});
   }catch(e){}
 }

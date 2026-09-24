@@ -21,6 +21,7 @@ separate frontend host to configure.
 | `ENV` | ✅ | Set to `supabase` in production so `.env.supabase` conventions apply. |
 | `SUPABASE_JWT_SECRET` | ⬜ | Only needed if the project uses legacy HS256 signing. This project uses ES256, so **leave unset**. |
 | `OPENAI_API_KEY` | ⬜ | Only for the AI Mockups page. Without it that one page returns a clear "not configured" error; everything else works. |
+| `INSTALL_CALENDAR_TOKEN` | ⬜ | Secret for the office's install-schedule calendar feed, `/api/install-calendar/feed.ics?token=…`. Unset, the feed is off. Changing it revokes every subscribed link. |
 | `AUTH_DISABLED` | 🚫 | **Never set in production.** Local-dev escape hatch only, and it is ignored unless `ENV=dev`. |
 
 ### Frontend (set at **build** time)
