@@ -123,6 +123,9 @@
   "/api/historical/complete": [
     "POST"
   ],
+  "/api/install-calendar/feed.ics": [
+    "GET"
+  ],
   "/api/install-schedule/history": [
     "GET"
   ],

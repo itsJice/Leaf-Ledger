@@ -38,6 +38,16 @@ class Board:
     staffing: dict[str, list[str]] = field(default_factory=dict)
     comments: dict[str, list] = field(default_factory=dict)
     day_notes: dict[str, str] = field(default_factory=dict)
+    # Timing inputs for the calendar feed (app.libs.install_calendar): the
+    # tool's OSRM matrix (seconds, node 0 = the branch), each client's node,
+    # the per-day metadata (window, stacked crews, half rows, depot-anchored),
+    # and the stop times the tool itself saved, which win when present.
+    node: dict[int, int] = field(default_factory=dict)
+    durs: list = field(default_factory=list)
+    depot: dict = field(default_factory=dict)
+    day_meta: dict[str, dict] = field(default_factory=dict)
+    const: dict = field(default_factory=dict)
+    timeline: dict[str, dict] = field(default_factory=dict)
 
     def person(self, pid: str) -> Optional[dict]:
         return next((p for p in self.roster if p["id"] == pid), None)
@@ -153,6 +163,12 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         staffing=staffing,
         comments=state.get("comments") or {},
         day_notes={k: v.get("note") or "" for k, v in meta.items() if isinstance(v, dict)},
+        node={int(r): i for r, i in (payload.get("node") or {}).items()},
+        durs=payload.get("durs") or [],
+        depot=payload.get("depot") or {},
+        day_meta={k: v for k, v in meta.items() if isinstance(v, dict)},
+        const=spec.get("const") or {},
+        timeline=state.get("timeline") if isinstance(state.get("timeline"), dict) else {},
     )
 
 
