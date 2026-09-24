@@ -5,6 +5,7 @@ import { userRoutes } from "./user-routes";
 import { AppProvider } from "components/AppProvider";
 import Layout from "components/Layout";
 import { UserGuard } from "app/auth/UserGuard";
+import { RoleGate } from "app/auth/RoleGate";
 import { preloadPagesWhenIdle } from "./utils/preloadPages";
 
 export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
@@ -70,10 +71,12 @@ export const router = createBrowserRouter([
     element: (
       <AppProvider>
         <UserGuard>
-          <PagePreloader />
-          <Suspense fallback={<PageShell />}>
-            <Outlet />
-          </Suspense>
+          <RoleGate>
+            <PagePreloader />
+            <Suspense fallback={<PageShell />}>
+              <Outlet />
+            </Suspense>
+          </RoleGate>
         </UserGuard>
       </AppProvider>
     ),

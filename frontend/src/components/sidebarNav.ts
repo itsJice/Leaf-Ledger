@@ -5,6 +5,7 @@ import {
   Calculator,
   ClipboardCheck,
   ClipboardList,
+  MapPinned,
   NotebookPen,
   FileText,
   Heart,
@@ -32,6 +33,8 @@ export interface NavItem {
   path: string;
   label: string;
   icon: LucideIcon;
+  /** Only shown to admins (the server refuses everyone else anyway). */
+  adminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -71,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/suppliers", label: "Suppliers", icon: Building2 },
       { path: "/orders", label: "Purchase Orders", icon: ShoppingCart },
       { path: "/install-schedule", label: "Install Schedule", icon: TreePine },
+      { path: "/shifts", label: "Crew Shifts", icon: MapPinned },
       { path: "/favorites", label: "Favorites", icon: Heart },
       { path: "/invoice", label: "Invoices", icon: FileText },
       { path: "/comments", label: "Comments", icon: MessageSquare },
@@ -80,7 +84,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "admin",
     label: "Admin",
     items: [
-      { path: "/admin-dashboard", label: "Sync Operations", icon: Activity },
+      { path: "/admin-dashboard", label: "Sync Operations", icon: Activity, adminOnly: true },
       { path: "/settings", label: "Settings", icon: Settings },
     ],
   },

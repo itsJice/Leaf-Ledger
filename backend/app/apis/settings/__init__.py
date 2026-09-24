@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from app.auth import AuthorizedUser
 from app.libs.db import get_conn
+from app.libs.roles import require_role
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -41,7 +42,8 @@ async def get_markup_settings():
     finally:
         await conn.close()
 
-@router.put("/markup")
+# Markup drives every quoted price: anyone can read it, only admins change it.
+@router.put("/markup", dependencies=[Depends(require_role("admin"))])
 async def update_markup(body: MarkupUpdate, user: AuthorizedUser):
     conn = await get_conn()
     try:
@@ -62,7 +64,7 @@ async def update_markup(body: MarkupUpdate, user: AuthorizedUser):
     finally:
         await conn.close()
 
-@router.delete("/markup/category/{category}")
+@router.delete("/markup/category/{category}", dependencies=[Depends(require_role("admin"))])
 async def delete_category_markup(category: str, user: AuthorizedUser):
     conn = await get_conn()
     try:

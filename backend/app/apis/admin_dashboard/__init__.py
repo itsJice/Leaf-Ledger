@@ -10,6 +10,9 @@ from app.libs.scraper_base import rebuild_category_index, get_category_index_sum
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+#: Supplier sync controls and health -- admins only (app.libs.roles).
+MIN_ROLE = "admin"
+
 
 # ─── Category Index Models & Endpoints ───────────────────────────────────────────
 

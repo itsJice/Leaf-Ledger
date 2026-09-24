@@ -234,6 +234,28 @@
   "/api/jobs/{job_id}/touch": [
     "POST"
   ],
+  "/api/lead/notes": [
+    "POST"
+  ],
+  "/api/lead/notes/{note_id}": [
+    "DELETE"
+  ],
+  "/api/lead/shifts": [
+    "GET"
+  ],
+  "/api/lead/time/start": [
+    "POST"
+  ],
+  "/api/lead/time/stop": [
+    "POST"
+  ],
+  "/api/lead/time/{entry_id}": [
+    "DELETE",
+    "PATCH"
+  ],
+  "/api/me": [
+    "GET"
+  ],
   "/api/mockups/delete/{mockup_id}": [
     "DELETE"
   ],
@@ -406,5 +428,9 @@
   ],
   "/api/tree-counts/{count_id}": [
     "DELETE"
+  ],
+  "/api/users": [
+    "GET",
+    "PUT"
   ]
 }
