@@ -57,6 +57,7 @@ header h1 svg{color:var(--brand)}
 .dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand);border-style:solid}
 .dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
 .dchip.janpick{border-style:dashed;color:var(--mut);max-width:190px}
+.dchip.scopepick{font-weight:700;color:var(--ink);border-color:var(--brand);border-width:2px;background:#fff;padding-right:10px}
 .dchipwrap{position:relative;display:inline-flex}
 .dchiprm{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
   border:1px solid var(--line);background:#fff;color:var(--mut);font-size:12px;line-height:1;
@@ -3008,36 +3009,68 @@ L.marker([DATA.depot.lat,DATA.depot.lon],{icon:depotIcon,zIndexOffset:1000}).add
   .bindPopup('<b>DEPOT</b><br>2860 Antoine Dr, Houston 77092');
 let layerGroup = L.layerGroup().addTo(map);
 
-const MONTH_OVERVIEWS={'ALL-OCT':'10','ALL-NOV':'11','ALL-DEC':'12','ALL-JAN':'01'};
+const MONTH_OVERVIEWS={'ALL-OCT':'10','ALL-NOV':'11','ALL-DEC':'12','ALL-JAN':'01','ALL-FEB':'02'};
 // Install vs takedown isn't a field on any client -- it's purely the
 // calendar (user, 2026-09-02): Oct 1 through Christmas is install season,
 // anything after is takedown. A plain date-string cutoff, so it needs no
 // new data and works the moment takedown dates exist on the calendar.
 const TAKEDOWN_CUTOFF='__CUTOFF__';
+// Which half of the season the date strip lists. Install (Oct-Dec) and
+// takedown (Jan) are worked weeks apart, and sixty chips for both at once was
+// a wall to scroll past every time (user, 2026-09-24). A per-device
+// preference, not shared state: it changes what THIS screen lists, never the
+// schedule itself.
+const STRIP_SCOPE_KEY='tbdg-strip-scope';
+let stripScope=(()=>{ try{ const v=localStorage.getItem(STRIP_SCOPE_KEY); return ['install','takedown','all'].includes(v)?v:'install'; }catch(e){ return 'install'; } })();
+function inStripScope(dt){ return stripScope==='all' || (stripScope==='install' ? dt<=TAKEDOWN_CUTOFF : dt>TAKEDOWN_CUTOFF); }
+function setStripScope(v){
+  stripScope=v;
+  try{ localStorage.setItem(STRIP_SCOPE_KEY,v); }catch(e){}
+  // Land on the matching overview so the board below agrees with the strip.
+  selDate = v==='install' ? 'ALL-INSTALL' : v==='takedown' ? 'ALL-TAKEDOWN' : 'ALL';
+  focusDayId=null;
+  render();
+}
 // Which calendar year each month of THIS season falls in -- October through
 // December are the season year, January is the one after. Used for the chip
 // labels and the January takedown picker, so nothing on screen leaves you
 // guessing which January is meant.
-const MONTH_YEAR={'10':'__Y_OCT__','11':'__Y_NOV__','12':'__Y_DEC__','01':'__Y_JAN__'};
-const OVERVIEW_TITLE={
-  'ALL':'Overview', 'ALL-HOU':'Houston — all days', 'ALL-DAL':'Dallas — all nights (Mi Cocina)',
-  'ALL-OCT':`October ${MONTH_YEAR['10']} — all days`, 'ALL-NOV':`November ${MONTH_YEAR['11']} — all days`,
-  'ALL-DEC':`December ${MONTH_YEAR['12']} — all days`, 'ALL-JAN':`January ${MONTH_YEAR['01']} — all days`,
-  'ALL-INSTALL':'Install — all days', 'ALL-TAKEDOWN':'Takedown — all days',
-};
+const MONTH_YEAR={'10':'__Y_OCT__','11':'__Y_NOV__','12':'__Y_DEC__','01':'__Y_JAN__','02':'__Y_JAN__'};
+// Overview keys compose: ALL, then optionally a city (HOU/DAL) or a month
+// (OCT..FEB), then optionally a half of the season (INSTALL/TAKEDOWN), e.g.
+// ALL-DAL-TAKEDOWN or ALL-DEC-INSTALL. The date strip picks which of these to
+// offer per scope; everything else just asks daysFor().
+const OVERVIEW_RE=/^ALL(?:-(HOU|DAL|OCT|NOV|DEC|JAN|FEB))?(?:-(INSTALL|TAKEDOWN))?$/;
+const MONTH_NAME={OCT:'October',NOV:'November',DEC:'December',JAN:'January',FEB:'February'};
+const MONTH_NUM={OCT:'10',NOV:'11',DEC:'12',JAN:'01',FEB:'02'};
+function parseOverview(sel){
+  const m=OVERVIEW_RE.exec(sel||'');
+  return m ? {group:m[1]||null, phase:m[2]||null} : null;
+}
+function overviewTitle(sel){
+  const o=parseOverview(sel);
+  if(!o) return '';
+  const half = o.phase==='INSTALL' ? 'install days' : o.phase==='TAKEDOWN' ? 'takedown days' : 'all days';
+  if(!o.group) return o.phase ? (o.phase==='INSTALL' ? 'Install — all days' : 'Takedown — all days') : 'Overview';
+  if(o.group==='HOU') return `Houston — ${half}`;
+  if(o.group==='DAL') return `Dallas — ${o.phase ? half : 'all nights (Mi Cocina)'}`;
+  const mn=MONTH_NUM[o.group];
+  return `${MONTH_NAME[o.group]} ${MONTH_YEAR[mn]} — ${half}`;
+}
 function isOverview(sel){
-  return ['ALL','ALL-HOU','ALL-DAL','ALL-INSTALL','ALL-TAKEDOWN','NOINSTALL','HOLD'].includes(sel)
-    || sel in MONTH_OVERVIEWS;
+  return sel==='NOINSTALL' || sel==='HOLD' || !!parseOverview(sel);
 }
 function daysFor(sel){
   if(sel==='NOINSTALL' || sel==='HOLD') return [];
-  if(sel==='ALL') return days;
-  if(sel==='ALL-HOU') return days.filter(d=>d.cat!=='M Crowd');
-  if(sel==='ALL-DAL') return days.filter(d=>d.cat==='M Crowd');
-  if(sel==='ALL-INSTALL') return days.filter(d=>d.date<=TAKEDOWN_CUTOFF);
-  if(sel==='ALL-TAKEDOWN') return days.filter(d=>d.date>TAKEDOWN_CUTOFF);
-  if(sel in MONTH_OVERVIEWS) return days.filter(d=>d.date.slice(5,7)===MONTH_OVERVIEWS[sel]);
-  return days.filter(d=>d.date===sel);
+  const o=parseOverview(sel);
+  if(!o) return days.filter(d=>d.date===sel);   // a single date
+  let out=days;
+  if(o.group==='HOU') out=out.filter(d=>d.cat!=='M Crowd');
+  else if(o.group==='DAL') out=out.filter(d=>d.cat==='M Crowd');
+  else if(o.group) out=out.filter(d=>d.date.slice(5,7)===MONTH_NUM[o.group]);
+  if(o.phase==='INSTALL') out=out.filter(d=>d.date<=TAKEDOWN_CUTOFF);
+  else if(o.phase==='TAKEDOWN') out=out.filter(d=>d.date>TAKEDOWN_CUTOFF);
+  return out;
 }
 // US format throughout -- this is a Houston crew reading it. Anything
 // day-first invites a real misread ("01/12/26" for Dec 1 looks like Jan 12).
@@ -3473,20 +3506,47 @@ function renderStrip(){
     return mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
   };
 
-  mk('All','ALL',false);
-  mk('All Dallas','ALL-DAL',false);
-  mk('All Houston','ALL-HOU',false);
-  // The year is on the label, not just in the filter: October-December and
-  // January are different calendar years, and "All January" alone reads as
-  // this year's January to anyone glancing at it. daysFor() still matches on
-  // the MONTH portion only (see MONTH_OVERVIEWS) -- the label says which year
-  // that month belongs to, it doesn't narrow the filter.
-  mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
-  mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
-  mk(`All Dec ${MONTH_YEAR['12']}`,'ALL-DEC',false);
-  mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
-  mk('All Install','ALL-INSTALL',false);
-  mk('All Takedown','ALL-TAKEDOWN',false);
+  const scope=document.createElement('select');
+  scope.className='dchip scopepick';
+  scope.title='Which part of the season the dates below cover';
+  scope.innerHTML=`<option value="install">Christmas install dates ${MONTH_YEAR['12']}</option>`
+    +`<option value="takedown">Christmas takedown dates ${MONTH_YEAR['01']}</option>`
+    +`<option value="all">All dates</option>`;
+  scope.value=stripScope;
+  scope.onchange=()=>setStripScope(scope.value);
+  strip.appendChild(scope);
+  const showTakedown=stripScope!=='install';
+
+  // Overview chips for the chosen half of the season: the same "All / city /
+  // month" idea, but every one of them means "...of these dates".
+  const cutDay=Number(TAKEDOWN_CUTOFF.slice(8,10));
+  const decInstall=`All Dec 1–${cutDay}`, decTakedown=`All Dec ${cutDay+1}–31`;
+  const hasFeb=[...allDates()].some(dt=>dt.slice(5,7)==='02');
+  if(stripScope==='install'){
+    mk('All','ALL-INSTALL',false);
+    mk('All Dallas installs','ALL-DAL-INSTALL',false);
+    mk('All Houston installs','ALL-HOU-INSTALL',false);
+    mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
+    mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
+    mk(decInstall,'ALL-DEC-INSTALL',false);
+  } else if(stripScope==='takedown'){
+    mk('All','ALL-TAKEDOWN',false);
+    mk('All Dallas takedowns','ALL-DAL-TAKEDOWN',false);
+    mk('All Houston takedowns','ALL-HOU-TAKEDOWN',false);
+    mk(decTakedown,'ALL-DEC-TAKEDOWN',false);
+    mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
+    if(hasFeb) mk(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB',false);
+  } else {
+    mk('All','ALL',false);
+    mk('All Dallas · installs + takedowns','ALL-DAL',false);
+    mk('All Houston · installs + takedowns','ALL-HOU',false);
+    mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
+    mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
+    mk(decInstall,'ALL-DEC-INSTALL',false);
+    mk(decTakedown,'ALL-DEC-TAKEDOWN',false);
+    mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
+    if(hasFeb) mk(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB',false);
+  }
   // A flex-basis:100% item forces the wrap here even when the header
   // chips above don't fill the line -- the actual dates always start on
   // their own row (user, 2026-09-02), not wherever they happened to fit.
@@ -3497,7 +3557,7 @@ function renderStrip(){
   // Houston" on its own without splitting the list; splitting it instead
   // pulled the Dallas block ahead of any earlier date (like an added
   // October date), landing it out of order.
-  [...allDates()].sort().forEach(dateChip);
+  [...allDates()].sort().filter(dt=>inStripScope(dt)||dt===selDate).forEach(dateChip);
 
   // January takedown dates, one at a time from a dropdown rather than 31
   // more chips (user, 2026-09-02: "I don't want to take up space on
@@ -3508,7 +3568,7 @@ function renderStrip(){
   const JAN_PREFIX=`${MONTH_YEAR['01']}-01`;
   const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)===JAN_PREFIX
     && !newDates.has(ci.date));
-  if(janLeft.length){
+  if(janLeft.length && showTakedown){
     const sel=document.createElement('select');
     sel.className='dchip janpick';
     sel.innerHTML=`<option value="">+ January ${MONTH_YEAR['01']} takedown date…</option>`
@@ -3879,7 +3939,7 @@ function renderCards(){
     // date (client request: same crew/stop detail as a single day, just
     // stacked for the whole Houston or Dallas run).
     const pool=daysFor(selDate);
-    const title=OVERVIEW_TITLE[selDate]||'Overview';
+    const title=overviewTitle(selDate)||'Overview';
     const hdr=document.createElement('h3'); hdr.className='ovtitle'; hdr.textContent=title;
     side.appendChild(hdr);
     const dates=[...new Set(pool.map(d=>d.date))].sort();
