@@ -57,6 +57,7 @@ header h1 svg{color:var(--brand)}
 .dchip.sel{background:var(--brand);color:#fff;border-color:var(--brand);border-style:solid}
 .dchip.dragover{outline:2px dashed var(--brand);outline-offset:1px}
 .dchip.janpick{border-style:dashed;color:var(--mut);max-width:190px}
+.dchip.scopepick{font-weight:700;color:var(--ink);border-color:var(--brand);border-width:2px;background:#fff;padding-right:10px}
 .dchipwrap{position:relative;display:inline-flex}
 .dchiprm{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
   border:1px solid var(--line);background:#fff;color:var(--mut);font-size:12px;line-height:1;
@@ -2995,6 +2996,22 @@ const MONTH_OVERVIEWS={'ALL-OCT':'10','ALL-NOV':'11','ALL-DEC':'12','ALL-JAN':'0
 // anything after is takedown. A plain date-string cutoff, so it needs no
 // new data and works the moment takedown dates exist on the calendar.
 const TAKEDOWN_CUTOFF='__CUTOFF__';
+// Which half of the season the date strip lists. Install (Oct-Dec) and
+// takedown (Jan) are worked weeks apart, and sixty chips for both at once was
+// a wall to scroll past every time (user, 2026-09-24). A per-device
+// preference, not shared state: it changes what THIS screen lists, never the
+// schedule itself.
+const STRIP_SCOPE_KEY='tbdg-strip-scope';
+let stripScope=(()=>{ try{ const v=localStorage.getItem(STRIP_SCOPE_KEY); return ['install','takedown','all'].includes(v)?v:'install'; }catch(e){ return 'install'; } })();
+function inStripScope(dt){ return stripScope==='all' || (stripScope==='install' ? dt<=TAKEDOWN_CUTOFF : dt>TAKEDOWN_CUTOFF); }
+function setStripScope(v){
+  stripScope=v;
+  try{ localStorage.setItem(STRIP_SCOPE_KEY,v); }catch(e){}
+  // Land on the matching overview so the board below agrees with the strip.
+  selDate = v==='install' ? 'ALL-INSTALL' : v==='takedown' ? 'ALL-TAKEDOWN' : 'ALL';
+  focusDayId=null;
+  render();
+}
 // Which calendar year each month of THIS season falls in -- October through
 // December are the season year, January is the one after. Used for the chip
 // labels and the January takedown picker, so nothing on screen leaves you
@@ -3454,6 +3471,17 @@ function renderStrip(){
     return mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
   };
 
+  const scope=document.createElement('select');
+  scope.className='dchip scopepick';
+  scope.title='Which part of the season the dates below cover';
+  scope.innerHTML=`<option value="install">Christmas install dates ${MONTH_YEAR['12']}</option>`
+    +`<option value="takedown">Christmas takedown dates ${MONTH_YEAR['01']}</option>`
+    +`<option value="all">All dates</option>`;
+  scope.value=stripScope;
+  scope.onchange=()=>setStripScope(scope.value);
+  strip.appendChild(scope);
+  const showInstall=stripScope!=='takedown', showTakedown=stripScope!=='install';
+
   mk('All','ALL',false);
   mk('All Dallas','ALL-DAL',false);
   mk('All Houston','ALL-HOU',false);
@@ -3462,12 +3490,17 @@ function renderStrip(){
   // this year's January to anyone glancing at it. daysFor() still matches on
   // the MONTH portion only (see MONTH_OVERVIEWS) -- the label says which year
   // that month belongs to, it doesn't narrow the filter.
-  mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
-  mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
-  mk(`All Dec ${MONTH_YEAR['12']}`,'ALL-DEC',false);
-  mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
-  mk('All Install','ALL-INSTALL',false);
-  mk('All Takedown','ALL-TAKEDOWN',false);
+  if(showInstall){
+    mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
+    mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
+    mk(`All Dec ${MONTH_YEAR['12']}`,'ALL-DEC',false);
+  }
+  if(showTakedown) mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
+  // Both halves at once is the only view where "which half" is a question.
+  if(stripScope==='all'){
+    mk('All Install','ALL-INSTALL',false);
+    mk('All Takedown','ALL-TAKEDOWN',false);
+  }
   // A flex-basis:100% item forces the wrap here even when the header
   // chips above don't fill the line -- the actual dates always start on
   // their own row (user, 2026-09-02), not wherever they happened to fit.
@@ -3478,7 +3511,7 @@ function renderStrip(){
   // Houston" on its own without splitting the list; splitting it instead
   // pulled the Dallas block ahead of any earlier date (like an added
   // October date), landing it out of order.
-  [...allDates()].sort().forEach(dateChip);
+  [...allDates()].sort().filter(dt=>inStripScope(dt)||dt===selDate).forEach(dateChip);
 
   // January takedown dates, one at a time from a dropdown rather than 31
   // more chips (user, 2026-09-02: "I don't want to take up space on
@@ -3489,7 +3522,7 @@ function renderStrip(){
   const JAN_PREFIX=`${MONTH_YEAR['01']}-01`;
   const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)===JAN_PREFIX
     && !newDates.has(ci.date));
-  if(janLeft.length){
+  if(janLeft.length && showTakedown){
     const sel=document.createElement('select');
     sel.className='dchip janpick';
     sel.innerHTML=`<option value="">+ January ${MONTH_YEAR['01']} takedown date…</option>`
