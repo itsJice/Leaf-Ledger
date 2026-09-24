@@ -87,7 +87,7 @@ const OPEN_PRODUCT_KEY = "leaf-ledger:catalog-open-product:v1";
 const SEARCH_STATE_KEY = "leaf-ledger:catalog-search-state:v1";
 type SavedSearchState = {
   sel: Selection; favOnly: boolean; priceMin: number | ""; priceMax: number | "";
-  search: string; scrollTop?: number;
+  search: string; effectiveTerm?: string | null; scrollTop?: number;
 };
 function readSavedSearchState(): SavedSearchState | null {
   try {
@@ -162,9 +162,15 @@ export default function CatalogSearch() {
   const [priceMin, setPriceMin] = useState<number | "">(() => readSavedSearchState()?.priceMin ?? "");
   const [priceMax, setPriceMax] = useState<number | "">(() => readSavedSearchState()?.priceMax ?? "");
   const [search, setSearch] = useState(() => readSavedSearchState()?.search || "");
+  // What the search box SHOWS stays exactly what was typed ("green wreaths
+  // under $20"), even after Enter turns "green", "wreaths" and "under $20"
+  // into filters. What is actually SENT is the residual keyword left over
+  // after those were lifted out ("" here), otherwise "green" would also be
+  // required in the product name. null means "no parse yet: send the text".
+  const [effectiveTerm, setEffectiveTerm] = useState<string | null>(() => readSavedSearchState()?.effectiveTerm ?? null);
   // Restoring a saved keyword shouldn't wait through the debounce below --
   // the very first query fires with it immediately.
-  const debouncedSearch = useDebouncedValue(search, 350).trim();
+  const debouncedSearch = useDebouncedValue(effectiveTerm ?? search, 350).trim();
   // What the LAST smart-search parse itself checked/set, as opposed to
   // anything the user clicked by hand in the sidebar. Search text is meant to
   // behave like a search bar -- each parse should replace what the previous
@@ -194,6 +200,9 @@ export default function CatalogSearch() {
   }, []);
   const [items, setItems] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
+  // The server stops counting at 5,000 while its index is still warming up
+  // after a deploy; the header then says "5,000+" rather than a wrong number.
+  const [totalIsCapped, setTotalIsCapped] = useState(false);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
@@ -333,6 +342,7 @@ export default function CatalogSearch() {
           const nextTotal: number = data?.total ?? 0;
           setItems((prev) => (append ? [...prev, ...rows] : rows));
           setTotal(nextTotal);
+          setTotalIsCapped(!!data?.total_is_capped);
           setOffset(nextOffset);
           if (!append && data?.facets) setFacets(data.facets);
           if (!append) setSearchedFor(data?.corrected && data?.searched_for ? String(data.searched_for) : null);
@@ -363,10 +373,10 @@ export default function CatalogSearch() {
   useEffect(() => {
     try {
       const prev = readSavedSearchState();
-      const next: SavedSearchState = { sel, favOnly, priceMin, priceMax, search, scrollTop: prev?.scrollTop };
+      const next: SavedSearchState = { sel, favOnly, priceMin, priceMax, search, effectiveTerm, scrollTop: prev?.scrollTop };
       sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(next));
     } catch { /* sessionStorage unavailable (private mode, quota) -- fine to skip */ }
-  }, [sel, favOnly, priceMin, priceMax, search]);
+  }, [sel, favOnly, priceMin, priceMax, search, effectiveTerm]);
 
   // Scroll lives on Layout's own scrolling div, not the window (see
   // data-scroll-root in components/Layout.tsx) -- restore it once, after
@@ -414,7 +424,7 @@ export default function CatalogSearch() {
       + (debouncedSearch ? 1 : 0) + (priceMin !== "" ? 1 : 0) + (priceMax !== "" ? 1 : 0) + (favOnly ? 1 : 0),
     [sel, debouncedSearch, priceMin, priceMax, favOnly]
   );
-  const resetAll = () => { setSel(EMPTY); setSearch(""); setPriceMin(""); setPriceMax(""); setFavOnly(false); };
+  const resetAll = () => { setSel(EMPTY); setSearch(""); setEffectiveTerm(null); setPriceMin(""); setPriceMax(""); setFavOnly(false); };
   const hasSimilar = !!similar && (similar.items.length > 0 || similar.identifier_suggestions.length > 0);
 
   // Infinite scroll + prefetch: auto-load the next page ~800px before the
@@ -445,6 +455,7 @@ export default function CatalogSearch() {
 
     if (looksLikeProductNumber(search)) {
       setSearch(search.trim());
+      setEffectiveTerm(null);
       return;
     }
     let text = ` ${search.toLowerCase()} `;
@@ -488,7 +499,8 @@ export default function CatalogSearch() {
     const STOP = /\b(the|and|with|for|an?|of|in|on|my|me|some|please|show|find|all|that|are|is|me)\b/g;
     const residual = text.replace(STOP, " ").replace(/\s+/g, " ").trim();
     autoAppliedRef.current = { ...justApplied, priceMin: appliedPriceMin, priceMax: appliedPriceMax };
-    setSearch(residual);
+    // Keep the typed query in the box; only the leftover keyword is searched.
+    setEffectiveTerm(residual);
   };
 
   // Dynamic facet groups — options come from the current search's `facets`, so
@@ -505,7 +517,7 @@ export default function CatalogSearch() {
   return (
     <Layout>
       <header
-        className="sticky top-0 z-10 border-b border-stone-200 px-4 sm:px-10 py-4"
+        className="sticky top-0 z-20 border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
@@ -515,7 +527,7 @@ export default function CatalogSearch() {
               Catalog Search
             </h1>
             <p className="mt-0.5 text-xs text-stone-500">
-              {total.toLocaleString()} product{total === 1 ? "" : "s"} across every supplier — filter by color, size, finish &amp; more.
+              {total.toLocaleString()}{totalIsCapped ? "+" : ""} product{total === 1 ? "" : "s"} across every supplier — filter by color, size, finish &amp; more.
             </p>
           </div>
           <WorkingJobBar value={working} onChange={setWorking} />
@@ -534,6 +546,7 @@ export default function CatalogSearch() {
               onChange={(e) => {
                 const next = e.target.value;
                 setSearch(next);
+                setEffectiveTerm(null);
                 // Reaching empty by backspacing is the same "clear it" intent
                 // as the X button below -- undo what the last search applied
                 // right away, don't wait for another Enter.
@@ -545,7 +558,7 @@ export default function CatalogSearch() {
             />
             {search && (
               <button
-                onClick={() => { setSearch(""); revertAutoApplied(); }}
+                onClick={() => { setSearch(""); setEffectiveTerm(null); revertAutoApplied(); }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
               >
                 <X size={15} />
@@ -622,7 +635,7 @@ export default function CatalogSearch() {
           {/* View + size toolbar */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-stone-400">
-              {total.toLocaleString()} result{total === 1 ? "" : "s"}
+              {total.toLocaleString()}{totalIsCapped ? "+" : ""} result{total === 1 ? "" : "s"}
             </p>
             <div className="flex items-center gap-3">
               {viewMode === "grid" && (
