@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  Leaf,
   Package,
   LogOut,
   Menu,
@@ -24,6 +23,7 @@ import {
 } from "components/sidebarNav";
 import type { ResolvedNavItem, SidebarPrefsEventDetail } from "components/sidebarNav";
 import FeedbackWidget from "components/FeedbackWidget";
+import { LeafLedgerLogo } from "components/LeafLedgerLogo";
 import { readJsonCache, writeJsonCache } from "utils/jsonCache";
 import { CLIENTS_PAGE_CACHE_KEY, PROJECTS_LIST_CACHE_KEY } from "../constants";
 import { PROJECTS_CHANGED_EVENT } from "utils/projectsChanged";
@@ -506,11 +506,8 @@ function StaffLayout({ children }: Props) {
         >
           <Menu size={20} />
         </button>
-        <Link to="/" className="flex items-center gap-2 rounded-lg px-1 py-1">
-          <Leaf className="text-emerald-400" size={18} strokeWidth={1.5} />
-          <span className="text-base font-bold tracking-wide text-white" style={{ fontFamily: "Georgia, serif", letterSpacing: "0.04em" }}>
-            Leaf &amp; Ledger
-          </span>
+        <Link to="/" className="flex items-center rounded-lg px-1 py-1" aria-label="Leaf & Ledger home">
+          <LeafLedgerLogo className="h-9 w-auto" />
         </Link>
       </header>
       {navOpen && (
@@ -543,16 +540,10 @@ function StaffLayout({ children }: Props) {
           >
             <X size={18} />
           </button>
-          <div className="flex items-center gap-2 mb-1">
-            <Leaf className="text-emerald-400" size={20} strokeWidth={1.5} />
-            <span
-              className="text-lg font-bold tracking-wide text-white"
-              style={{ fontFamily: "Georgia, serif", letterSpacing: "0.04em" }}
-            >
-              Leaf &amp; Ledger
-            </span>
-          </div>
-          <p className="text-xs text-white/45 pl-7 leading-tight">Catalog &amp; project operations</p>
+          <Link to="/" className="block w-[176px] pr-8" aria-label="Leaf & Ledger home">
+            <LeafLedgerLogo className="h-auto w-full" />
+          </Link>
+          <p className="mt-2 text-xs text-white/45 leading-tight">Catalog &amp; project operations</p>
         </div>
 
         {/* Nav */}

@@ -1031,3 +1031,25 @@ html.dark {
     position: static;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOGO
+   ═══════════════════════════════════════════════════════════════════════════
+   <LeafLedgerLogo /> (components/LeafLedgerLogo.tsx) fills its lettering with
+   --logo-wordmark and its leaves with --logo-accent, so one SVG serves every
+   theme: light mode = brand ink + the accent's 600 step; dark mode and the
+   always-dark sidebar chrome = pale mint + the accent's 400 step. The accent
+   ramp already follows data-accent, so Settings > Appearance recolours the
+   leaves with no asset change. */
+:root {
+  --logo-wordmark: rgb(var(--ll-ink));
+  --logo-accent: rgb(var(--p-600));
+}
+html.dark {
+  --logo-accent: rgb(var(--p-400));
+}
+[data-ll-chrome="dark"] {
+  --logo-wordmark: rgb(214 228 218);
+  --logo-accent: rgb(var(--p-400));
+}
