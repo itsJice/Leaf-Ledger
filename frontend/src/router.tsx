@@ -1,6 +1,6 @@
 import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
 import { createBrowserRouter, Outlet } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "components/icons";
 import { userRoutes } from "./user-routes";
 import { AppProvider } from "components/AppProvider";
 import Layout from "components/Layout";

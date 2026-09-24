@@ -1,6 +1,6 @@
 import { apiFetch } from "utils/apiFetch";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart, LayoutGrid, List, Minus, Plus, Check } from "lucide-react";
+import { Search, X, SlidersHorizontal, Package, RotateCcw, Heart, LayoutGrid, List, Minus, Plus, Check } from "components/icons";
 import Layout from "components/Layout";
 import { ProductDetailModal } from "./library/ProductDetailModal";
 import { ProxiedImage } from "./library/ProxiedImage";

@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, Loader2, Eye, EyeOff, Download, AlertTriangle,
   KeyRound, ChevronDown, ChevronUp, Package, ArrowRight, RefreshCcw,
   Circle, BookOpen, FileUp, Database, Copy, Check,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import {
   formatPhone, telHref, gmailComposeHref, SHIPPING_SPEEDS, shippingSpeedLabel,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ClipboardList, ShoppingCart } from "lucide-react";
+import { ClipboardList, ShoppingCart } from "components/icons";
 import EmptyState from "../../components/EmptyState";
 import { EmptyOrders, EmptySourcing } from "./inline-copies-3a-jsx";
 

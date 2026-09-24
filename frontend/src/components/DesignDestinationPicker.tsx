@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, Loader2, X } from "lucide-react";
+import { Check, ChevronRight, Loader2, X } from "components/icons";
 
 /**
  * Cascading Client -> Project -> Group picker used by the standalone "New Design"

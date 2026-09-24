@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
   Users,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { ContentType } from "../apiclient/http-client";

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Check, Loader2 } from "lucide-react";
+import { Plus, Check, Loader2 } from "components/icons";
 import { toast } from "sonner";
 import { pinProduct, unpinProduct, type PinGroup } from "utils/jobs";
 import { decidePinAction } from "utils/pinsCache";

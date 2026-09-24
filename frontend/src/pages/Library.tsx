@@ -2,7 +2,7 @@ import Layout from "components/Layout";
 import { apiClient } from "app";
 import { toast } from "sonner";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { Store, Grid3X3 } from "lucide-react";
+import { Store, Grid3X3 } from "components/icons";
 import { setLocalFavorite } from "utils/favorites";
 import {
   readLibraryCache,

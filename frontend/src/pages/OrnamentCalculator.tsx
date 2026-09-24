@@ -22,7 +22,7 @@ import {
   ListChecks,
   MessageSquareText,
   ArrowUpRight,
-} from "lucide-react";
+} from "components/icons";
 import Layout from "components/Layout";
 import { toast } from "sonner";
 import {

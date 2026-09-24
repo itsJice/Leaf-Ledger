@@ -2,7 +2,7 @@
 // infinite scroll and the product grid.
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Heart, RefreshCw, RotateCcw, X, Leaf } from "lucide-react";
+import { Search, Heart, RefreshCw, RotateCcw, X, Leaf } from "components/icons";
 import { categoryLabel } from "utils/format";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { INITIAL_CARD_RENDER_LIMIT } from "./constants";

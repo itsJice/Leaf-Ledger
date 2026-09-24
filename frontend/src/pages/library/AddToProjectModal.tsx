@@ -1,7 +1,7 @@
 // Modal to save a product into a project's bucket (candidate item).
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "components/icons";
 import { apiClient } from "app";
 import { toast } from "sonner";
 import { notifyProjectsChanged } from "utils/projectsChanged";

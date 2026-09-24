@@ -1,7 +1,7 @@
 // Vendor-grouped catalog view: collapsible supplier sections of product
 // cards. Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useState } from "react";
-import { Store, ChevronRight, Package, Plus, Leaf } from "lucide-react";
+import { Store, ChevronRight, Package, Plus, Leaf } from "components/icons";
 import { formatCurrency } from "utils/format";
 import { INITIAL_CARD_RENDER_LIMIT } from "./constants";
 import { productDisplayImageUrl } from "./display";

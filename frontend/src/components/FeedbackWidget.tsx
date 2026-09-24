@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { MessageSquarePlus, X, Camera, Eraser, Loader2, ImagePlus } from "lucide-react";
+import { MessageSquarePlus, X, Camera, Eraser, Loader2, ImagePlus } from "components/icons";
 import { toast } from "sonner";
 import { apiFetch } from "utils/apiFetch";
 

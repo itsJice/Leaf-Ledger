@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Lock, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Lock, RotateCcw } from "components/icons";
 import { PINNED_PATHS as STORE_PINNED_PATHS, usePreferences } from "utils/preferences";
 import {
   DEFAULT_NAV_ORDER,

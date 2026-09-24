@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "components/icons";
 import { apiClient } from "app";
 import { toast } from "sonner";
 import { notifyProjectsChanged } from "utils/projectsChanged";

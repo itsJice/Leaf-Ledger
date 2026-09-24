@@ -1,5 +1,5 @@
 import React from "react";
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "components/icons";
 
 /**
  * Centered "nothing selected" panel: a round brand-tinted badge with an icon,

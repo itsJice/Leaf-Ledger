@@ -1,7 +1,7 @@
 // Generic multi-select dropdown filter used by the product library's
 // filter row. Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Check, X } from "lucide-react";
+import { ChevronDown, Check, X } from "components/icons";
 
 export function MultiSelectFilter({
   label,

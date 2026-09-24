@@ -1,7 +1,7 @@
 // Fullscreen image lightbox with zoom/pan and prev/next navigation.
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ZoomIn } from "components/icons";
 import { ProxiedImage } from "./ProxiedImage";
 
 export function ImageLightbox({ images, index, onIndex, onClose }: {

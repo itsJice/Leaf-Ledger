@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageSquare, Check, Image as ImageIcon, X, ChevronDown, ChevronRight } from "lucide-react";
+import { MessageSquare, Check, Image as ImageIcon, X, ChevronDown, ChevronRight } from "components/icons";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { toast } from "sonner";

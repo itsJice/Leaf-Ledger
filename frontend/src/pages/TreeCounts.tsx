@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ClipboardCheck, Copy, Loader2, Scale, Trash2, TreePine } from "lucide-react";
+import { ClipboardCheck, Copy, Loader2, Scale, Trash2, TreePine } from "components/icons";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { toast } from "sonner";

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Check, Pencil, Plus, TreePine, X } from "lucide-react";
+import { Check, Pencil, Plus, TreePine, X } from "components/icons";
 import { toast } from "sonner";
 import { apiClient } from "app";
 import { ContentType } from "../../apiclient/http-client";

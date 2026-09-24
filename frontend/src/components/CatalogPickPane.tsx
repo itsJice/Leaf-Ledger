@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Package, Search, X } from "lucide-react";
+import { Package, Search, X } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
 import { formatMoney as money } from "utils/money";
 import { proxiedImageUrl as proxied } from "utils/images";

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, Image, Trash2, RefreshCw, ChevronDown, AlertCircle } from "lucide-react";
+import { Sparkles, Image, Trash2, RefreshCw, ChevronDown, AlertCircle } from "components/icons";
 import Layout from "components/Layout";
 import { apiClient } from "app";
 import { toast } from "sonner";

@@ -1,4 +1,4 @@
-import { CircleDashed, Flower2, Leaf, Shapes, Shrub, Sparkle, Spline, Sprout, TreeDeciduous, TreePine, Waves } from "lucide-react";
+import { CircleDashed, Flower2, Leaf, Shapes, Shrub, Sparkle, Spline, Sprout, TreeDeciduous, TreePine, Waves } from "components/icons";
 
 // Build-type → icon. Ordered: the first pattern that matches wins, so
 // "Christmas Tree" beats the generic "tree" rule.

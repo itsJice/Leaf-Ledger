@@ -1,7 +1,7 @@
 // Add/edit product form modal (manual products, not supplier-synced ones).
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import { useRef, useState } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload, X } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
 import { apiClient } from "app";
 import { toast } from "sonner";

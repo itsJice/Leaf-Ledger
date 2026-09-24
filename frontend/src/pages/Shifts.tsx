@@ -13,7 +13,7 @@ import {
   Square,
   Trash2,
   Users,
-} from "lucide-react";
+} from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";

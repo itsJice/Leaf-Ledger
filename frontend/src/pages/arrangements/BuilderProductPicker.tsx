@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, LayoutGrid, List, Maximize2, Minimize2, Minus, Package, Plus, Search, X } from "lucide-react";
+import { CheckCircle2, LayoutGrid, List, Maximize2, Minimize2, Minus, Package, Plus, Search, X } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
 import { formatCurrency } from "utils/format";
 import {

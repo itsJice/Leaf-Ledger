@@ -2,7 +2,7 @@
 // supplier hasn't given us a source price.
 // Moved verbatim out of pages/Library.tsx (WP 4.2 library-extract).
 import React, { useRef, useState } from "react";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X } from "components/icons";
 import { apiClient } from "app";
 import { toast } from "sonner";
 import type { Product } from "./types";

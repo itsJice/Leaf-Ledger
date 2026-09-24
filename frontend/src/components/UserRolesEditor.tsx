@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "components/icons";
 import { toast } from "sonner";
 import { apiFetch } from "utils/apiFetch";
 

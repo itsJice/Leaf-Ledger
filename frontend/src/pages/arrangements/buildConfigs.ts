@@ -1,5 +1,5 @@
 // Build-type configs and the enhancer, wreath and garland tables.
-import { Circle, Grid3X3, Leaf, Package } from "lucide-react";
+import { Circle, Grid3X3, Leaf, Package } from "components/icons";
 import type { GarlandDiameter, WreathSize, EnhancerPartConfig } from "./types";
 import { normalizeLabel } from "./textHelpers";
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { NotebookPen, Plus, Trash2, Check } from "lucide-react";
+import { NotebookPen, Plus, Trash2, Check } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import {
