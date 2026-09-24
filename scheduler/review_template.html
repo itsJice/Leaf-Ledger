@@ -42,12 +42,12 @@ header h1 svg{color:var(--brand)}
   letter-spacing:.01em;transition:all .15s}
 .dchip:hover{background:#fafaf9;border-color:#d6d3d1}
 .dchip.wknd{background:var(--warn-soft);color:var(--warn-ink);border-color:#fde3ad}
-.dchip.tagged{border-color:#7c3aed;border-width:2px}
-.dtag{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:4px;
-  background:#7c3aed;color:#fff;font-size:9px;font-weight:800;letter-spacing:.3px;
+.dchip.tagged{border-color:#0f766e;border-width:2px}
+.dtag{display:inline-block;margin-left:5px;padding:0 4px;border-radius:3px;
+  background:#0f766e;color:#fff;font-size:8px;font-weight:700;letter-spacing:.3px;line-height:14px;
   vertical-align:1px}
 #daytag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:5px;
-  background:#7c3aed;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px}
+  background:#0f766e;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px}
 .dchip.wknd:hover{background:#fdecc8}
 /* Nothing scheduled here yet -- still a real, draggable date, just visibly
    empty so it reads differently from a day with actual work on it. Wins
@@ -420,7 +420,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .calcell.empty{background:#faf9f7;border-style:dashed;cursor:default}
 .calcell.off{visibility:hidden}
 .calcell:hover:not(.empty){border-color:var(--brand)}
-.calcell.tagged{border-color:#7c3aed;border-width:2px}
+.calcell.tagged{border-color:#0f766e;border-width:2px}
 .calnum{font-weight:800;font-size:15px}
 .calnum small{font-weight:600;color:var(--mut);font-size:10.5px;margin-left:4px}
 /* Month cells read as chips, one per crew-day, colour-keyed to the crew and
@@ -439,7 +439,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .calfoot{margin-top:5px;padding-top:4px;border-top:1px solid var(--line);
   font-weight:800;font-size:11px}
 .calbox{color:#8a5a00}
-.caltag{display:inline-block;padding:0 5px;border-radius:4px;background:#7c3aed;color:#fff;
+.caltag{display:inline-block;padding:0 5px;border-radius:4px;background:#0f766e;color:#fff;
   font-size:9px;font-weight:800;margin-left:4px;vertical-align:2px}
 /* ---------- staffing ---------- */
 #staffwrap{padding:16px 20px 40px;width:100%;box-sizing:border-box;
@@ -743,7 +743,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .agrow:hover{background:var(--brand-soft)}
 .agrow i{width:9px;height:9px;border-radius:50%;flex:none}
 .agt{width:74px;color:var(--mut);font-size:11.5px;flex:none}
-.agt em{font-style:normal;font-weight:800;color:#7c3aed}
+.agt em{font-style:normal;font-weight:800;color:#0f766e}
 .calev.clipped{border-bottom:2px dashed var(--warn-ink)}
 /* ---- operational: drag to reschedule, approval state ---- */
 .calev{cursor:grab}
@@ -3430,7 +3430,8 @@ function renderStrip(){
              +(tag?' tagged':'')+(newDates.has(val)?' added':'');
     b.textContent=label; b.dataset.val=val;
     if(tag){
-      const s=document.createElement('span'); s.className='dtag'; s.textContent=tag;
+      // Chips are small: the flag's first part only ("EVENT"), the full text stays in the title and day heading.
+      const s=document.createElement('span'); s.className='dtag'; s.textContent=String(tag).split(/\s*[\u2014\u2013-]\s*/)[0];
       b.appendChild(s);
       b.title=`${tag} — still bookable, just flagged`;
     }
