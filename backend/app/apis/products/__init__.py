@@ -1854,12 +1854,12 @@ async def _facets_for(conn, exprs, base_where, base_args, sel,
     facets = {d: (baseline[d] if baseline else []) for d in from_cache}
     exact_total: Optional[int] = None
     if not need:
-        # Nothing selected and no search: the whole answer is the baseline. The
-        # total deliberately still comes from the capped count — deriving it from
-        # the cache instead would make the same request report 166,029 warm and
-        # "5000+" cold, and a number that moves with cache state is worse than a
-        # number that is honestly approximate.
-        return facets, None
+        # Nothing selected and no search: the whole answer is the baseline,
+        # including its exact total, which the baseline pass counted. Cold (no
+        # baseline yet) this stays None and the caller reports the capped count,
+        # which the UI shows as "5,000+"; warm, the header shows the real
+        # catalogue size instead of a number that is wrong by 160k.
+        return facets, (int(_FACET_CACHE["total"]) if baseline and _FACET_CACHE["total"] else None)
     sql, args = _facet_query(exprs, base_where, base_args, sel, tuple(need))
     try:
         rows = await conn.fetch(sql, *args)
