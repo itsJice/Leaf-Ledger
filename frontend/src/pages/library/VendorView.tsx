@@ -126,7 +126,7 @@ export function VendorView({
                   <Store size={18} className="text-emerald-700" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <p className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{s.name}</p>
+                  <p className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{s.name}</p>
                   <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                     {(s.categories || []).map((cat) => {
                       const cfg = CAT_PILL[cat] || CAT_PILL.other;

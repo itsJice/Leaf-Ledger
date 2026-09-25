@@ -68,7 +68,7 @@ export default function Invoice() {
     <Layout>
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200 print:hidden" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
-          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Invoice</h1>
+          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Invoice</h1>
           <p className="text-xs text-stone-500 mt-0.5">Generate print-ready invoice from any arrangement</p>
         </div>
         <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
@@ -116,7 +116,7 @@ export default function Invoice() {
             {/* Invoice header */}
             <div className="flex items-start justify-between mb-8 pb-6 border-b border-stone-200">
               <div>
-                <h2 className="text-2xl font-bold text-stone-800 mb-1" style={{ fontFamily: "Georgia, serif" }}>Invoice</h2>
+                <h2 className="text-2xl font-bold text-stone-800 mb-1" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Invoice</h2>
                 <p className="text-sm text-stone-500">Design Operations</p>
               </div>
               <div className="text-right">
@@ -129,7 +129,7 @@ export default function Invoice() {
             {/* Containers */}
             {arrangement.containers.map((container) => (
               <div key={container.id} className="mb-8">
-                <h3 className="text-sm font-semibold text-stone-700 mb-3" style={{ fontFamily: "Georgia, serif" }}>
+                <h3 className="text-sm font-semibold text-stone-700 mb-3" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                   {container.label || "Container"}{container.container_name ? ` — ${container.container_name}` : ""}
                 </h3>
                 <div className="overflow-x-auto"><table className="w-full text-sm">

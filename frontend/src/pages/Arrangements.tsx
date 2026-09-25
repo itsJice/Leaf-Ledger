@@ -1961,7 +1961,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   </>
                 )}
               </div>
-              <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+              <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                 {clientFilter ? `${clientFilter} Projects` : "Projects"}
               </h1>
               <p className="mt-0.5 text-xs text-stone-500">
@@ -2029,7 +2029,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   <span className="text-stone-300">/</span>
                   <span className="text-stone-500">New design</span>
                 </div>
-                <h1 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>New Design</h1>
+                <h1 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>New Design</h1>
                 <p className="text-xs text-stone-400">Pick the client, project, and group beside the steps · nothing is saved until you continue past step 1.</p>
               </div>
             </header>
@@ -2088,7 +2088,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{arrangement.name}</h1>
+                  <h1 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{arrangement.name}</h1>
                   <button onClick={() => { setNameEdit(arrangement.name); setEditingName(true); }} className="text-stone-300 transition-colors hover:text-stone-500"><Pencil size={13} /></button>
                 </div>
               )}
@@ -2108,7 +2108,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
             <div className="px-4 sm:px-10 py-6">
               <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>Rooms & design packages</h2>
+                  <h2 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Rooms & design packages</h2>
                   <p className="mt-1 text-sm text-stone-500">Add a room, area, or design package first. Then build individual products inside it.</p>
                 </div>
                 <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
@@ -2180,7 +2180,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         <div className="mb-4 flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Design package</p>
-                            <h3 className="mt-1 text-lg font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>{room.name}</h3>
+                            <h3 className="mt-1 text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{room.name}</h3>
                             {room.notes && <p className="mt-1 line-clamp-2 text-sm text-stone-500">{room.notes}</p>}
                           </div>
                           <button onClick={() => removeRoom(room.id)} className="rounded-lg p-1 text-stone-300 opacity-0 transition-colors hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100">
@@ -2258,7 +2258,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Design package</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <h2 className="text-xl font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>{activeRoom?.name || "Package"}</h2>
+                        <h2 className="text-xl font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{activeRoom?.name || "Package"}</h2>
                         <button
                           onClick={startRoomEdit}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-100 hover:text-emerald-800"
@@ -2295,7 +2295,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                         <div className="mb-4 flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{bucket.bucket_type || "Built product"}</p>
-                            <h3 className="mt-1 text-lg font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>{scopeQuantity(bucket)}x {scopeTitle(bucket)}</h3>
+                            <h3 className="mt-1 text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{scopeQuantity(bucket)}x {scopeTitle(bucket)}</h3>
                             {displayScopeNotes(bucket.scope_notes) && <p className="mt-1 line-clamp-2 text-sm text-stone-500">{displayScopeNotes(bucket.scope_notes)}</p>}
                           </div>
                           <button onClick={() => removeBucket(bucket.id)} className="rounded-lg p-1 text-stone-300 opacity-0 transition-colors hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100">
@@ -2605,7 +2605,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                       <div className="mb-1 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Active scope</p>
-                          <h2 className="text-xl font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>{scopeQuantity(activeBucket)}x {scopeTitle(activeBucket)}</h2>
+                          <h2 className="text-xl font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{scopeQuantity(activeBucket)}x {scopeTitle(activeBucket)}</h2>
                         </div>
                         <button onClick={() => removeBucket(activeBucket.id)} className="rounded-lg px-2 py-1 text-xs text-stone-400 hover:bg-red-50 hover:text-red-500">Delete scope</button>
                       </div>
@@ -3138,7 +3138,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <p className="text-xs text-stone-400">Project / Builder</p>
-                      <h3 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>
+                      <h3 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                         {builderStep === "type" && "Select type"}
                         {builderStep === "products" && (activePart ? `Select ${activePart.label}` : "Choose products")}
                         {builderStep === "mockup" && "Mockup setup"}
@@ -3795,7 +3795,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   <div className="space-y-4 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "Georgia, serif" }}>Purchase Order Review</h3>
+                        <h3 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Purchase Order Review</h3>
                         <p className="text-xs text-stone-400">Drafted from selected products only.</p>
                       </div>
                     </div>

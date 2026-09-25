@@ -522,7 +522,7 @@ export default function CatalogSearch() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+            <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
               <Search size={18} className="text-emerald-700" />
               Catalog Search
             </h1>

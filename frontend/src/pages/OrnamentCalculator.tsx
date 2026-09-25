@@ -645,7 +645,7 @@ export default function OrnamentCalculator() {
         <div>
           <h1
             className="flex items-center gap-2 text-xl font-semibold text-stone-800"
-            style={{ fontFamily: "Georgia, serif" }}
+            style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
           >
             <Calculator size={18} className="text-emerald-700" />
             Ornament Calculator
@@ -1119,7 +1119,7 @@ function CalculatorStep(p: CalcProps) {
             </span>
             <span
               className="text-lg font-bold"
-              style={{ fontFamily: "Georgia, serif", color: densityColor(p.density) }}
+              style={{ fontFamily: "'Sora', system-ui, sans-serif", color: densityColor(p.density) }}
             >
               Total Coverage: {p.density}%
             </span>
@@ -1207,7 +1207,7 @@ function ColorsStep(p: ColorsProps) {
           <ListChecks size={14} className="text-emerald-700" />
           Purchase list
         </p>
-        <h2 className="mt-0.5 text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+        <h2 className="mt-0.5 text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
           {p.configLabel || "Enter tree dimensions and choose colors"}
         </h2>
       </div>

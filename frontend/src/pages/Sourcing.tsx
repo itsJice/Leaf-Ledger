@@ -143,7 +143,7 @@ export default function Sourcing() {
     <Layout>
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             <ClipboardList size={18} className="text-emerald-700" /> Sourcing
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">The buyer's worksheet: what the designers still need, and where it is coming from.</p>
@@ -244,7 +244,7 @@ function JobHeader({ job, onDelete, onChange }: { job: Job; onDelete: () => void
           <input value={name} onChange={(e) => setName(e.target.value)}
             onBlur={() => name.trim() && name !== job.name && onChange({ name: name.trim() })}
             className="w-full max-w-xl bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500"
-            style={{ fontFamily: "Georgia, serif" }} />
+            style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
           <p className="text-xs text-stone-500">
             {job.client_name || "No client"}{job.collection ? ` · ${job.collection}` : ""}
             {job.summary.buy_cost != null && <> · <span className="font-semibold text-emerald-800">{money(job.summary.buy_cost)}</span> to buy</>}

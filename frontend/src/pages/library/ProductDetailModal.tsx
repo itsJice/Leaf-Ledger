@@ -186,7 +186,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
         <div className="flex items-start justify-between gap-4 border-b border-stone-100 px-5 py-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-stone-400">{product.supplier_name}</p>
-            <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{displayName}</h2>
+            <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{displayName}</h2>
             <p className="text-xs text-stone-500">{product.supplier_sku || raw["Item No"]}</p>
             {metricHintText(`${displayName} ${product.name || ""}`) && (
               <p className="mt-1 text-xs font-medium text-emerald-700" title={METRIC_CHEAT}>

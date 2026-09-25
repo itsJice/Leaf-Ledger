@@ -149,7 +149,7 @@ function SupplierModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ll-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 ll-modal">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {form.id ? "Edit Supplier" : "Add Supplier"}
           </h2>
           <button onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
@@ -764,7 +764,7 @@ export default function Suppliers() {
       {/* Page header */}
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
-          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Suppliers</h1>
+          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Suppliers</h1>
           <p className="text-xs text-stone-500 mt-0.5">
             {loading && suppliers.length === 0
               ? "Checking suppliers..."
