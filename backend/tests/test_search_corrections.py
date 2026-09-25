@@ -66,3 +66,22 @@ def test_real_short_word_keeps_the_one_edit_cap():
     # true while the abbreviation rule above exists.
     near = [("bold", 3), ("golden", 900), ("gild", 1)]
     assert "golden" not in _rank_corrections("gold", near, None, skip_known=True)
+
+
+def test_mangled_middle_reaches_the_common_word():
+    # "ornimnet" is two edits from both. Trigrams never offered "ornament" at
+    # all (20% similarity); the same-prefix pass now does, and frequency wins.
+    near = [("ornmet", 3), ("ornament", 9399), ("ornaments", 1191), ("orange", 2200)]
+    out = _rank_corrections("ornimnet", near, None, skip_known=True)
+    assert out[0] == "ornament"
+    assert "orange" not in out  # four edits: a different word
+
+
+def test_far_commoner_word_one_edit_further_wins():
+    # A vendor's typo one edit away must not beat the real word two away when
+    # the real word is _KNOWN_RATIO times commoner.
+    near = [("ornamnt", 22), ("ornament", 9399)]
+    assert _rank_corrections("ornamnts", near, None, skip_known=True)[0] == "ornament"
+    # ...but a merely somewhat commoner word does not jump the queue.
+    near = [("ornamnt", 22), ("ornamentx", 100)]
+    assert _rank_corrections("ornamnts", near, None, skip_known=True)[0] == "ornamnt"
