@@ -1,7 +1,8 @@
 """Characterisation tests for the feedback inbox API (`app.apis.feedback`).
 
 Note: there is no delete route today; the inbox supports submit, list,
-status update (PUT /{id}) and screenshot fetch.
+status update (PUT /{id}), replying to a Claude review (PUT /{id}/reply)
+and screenshot fetch.
 """
 
 import asyncio
@@ -103,3 +104,31 @@ def test_screenshot(fake_db):
         run(feedback.get_feedback_screenshot(42))
     fake_db.on_fetchrow("SELECT screenshot FROM ll_app.feature_requests", {"screenshot": "data:image/png;base64,AAA"})
     assert run(feedback.get_feedback_screenshot(42)) == {"screenshot": "data:image/png;base64,AAA"}
+
+
+def test_list_includes_claude_review(fake_db):
+    fake_db.on_fetch("FROM ll_app.feature_requests ORDER BY created_at DESC", [feedback_row(
+        claude_status="needs_approval", claude_note="Plan: add a toggle", claude_link=None,
+        claude_reviewed_at=T0, reply=None, reply_name=None, replied_at=None,
+    )])
+    (out,) = run(feedback.list_feedback())
+    assert (out.claude_status, out.claude_note, out.claude_reviewed_at) == (
+        "needs_approval", "Plan: add a toggle", "2026-09-01T12:00:00+00:00")
+
+
+def test_reply_validation(fake_db, fake_user):
+    with pytest.raises(HTTPException) as exc:
+        run(feedback.reply_to_claude(42, feedback.ReplyIn(reply="  "), fake_user))
+    assert (exc.value.status_code, exc.value.detail) == (400, "Write a reply or approve the plan")
+    with pytest.raises(HTTPException) as exc:
+        run(feedback.reply_to_claude(42, feedback.ReplyIn(reply="ok", approve=True), fake_user))
+    assert exc.value.status_code == 404
+
+
+def test_reply_queues_for_claude(fake_db, fake_user):
+    fake_db.on_fetchrow("UPDATE ll_app.feature_requests SET claude_status", feedback_row(claude_status="approved"))
+    out = run(feedback.reply_to_claude(42, feedback.ReplyIn(approve=True), fake_user))
+    assert out.claude_status == "approved"
+    run(feedback.reply_to_claude(42, feedback.ReplyIn(reply=" It's the Jobs page "), fake_user))
+    args = [a for _, a in fake_db.calls("UPDATE ll_app.feature_requests SET claude_status")]
+    assert args == [(42, "approved", None, "crew"), (42, "replied", "It's the Jobs page", "crew")]
