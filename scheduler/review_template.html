@@ -452,7 +452,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .walldow{font-size:.7em;font-weight:800;color:var(--mut);text-transform:uppercase;
   letter-spacing:.06em;text-align:center}
 .wcell{border:2px solid var(--line);border-radius:8px;background:#fff;padding:.25em .4em .3em;
-  overflow:hidden;cursor:pointer;min-height:0}
+  overflow:hidden;cursor:pointer;min-height:0;min-width:0}
 .wcell.empty{background:#faf9f7;border-style:dashed;cursor:default}
 .wcell.off{visibility:hidden}
 .wcell.past{opacity:.45}
@@ -5350,8 +5350,10 @@ function wallGridHTML(dates){
   });
   const rows=weeks.filter(w=>cols.some(c=>w[c]));
   // A week entirely in the past is a thin strip; the rest share the height.
-  const sizes=rows.map(w=>cols.every(c=>!w[c] || w[c]<today) ? 'auto' : 'minmax(0,1fr)');
-  let h=`<div class="wallgrid" style="grid-template-columns:repeat(${cols.length},minmax(0,1fr));`
+  const sizes=rows.map(w=>cols.every(c=>!w[c] || w[c]<today) ? 'auto' : 'minmax(max-content,1fr)');
+  // Weekends carry a stop or two at most; weekdays get the width.
+  const widths=cols.map(d=>(d===0||d===6)?'minmax(0,.6fr)':'minmax(0,1fr)');
+  let h=`<div class="wallgrid" style="grid-template-columns:${widths.join(' ')};`
       + `grid-template-rows:auto ${sizes.join(' ')}">`;
   cols.forEach(d=>h+=`<div class="walldow">${DOW3[d]}</div>`);
   rows.forEach(w=>cols.forEach(dow=>{
@@ -5376,31 +5378,18 @@ function wall2HTML(anchor){ return wallGridHTML(wall2Dates(anchor)); }
 /** Fill the screen below the calendar bar, then shrink the type one step at
  *  a time until no day cell overflows -- a light week reads from across the
  *  shop, a packed one still shows every name. */
+/** One fixed type size, month after month (user, 2026-09-25: text that
+ *  grows and shrinks with the month reads as noise). Every name is shown:
+ *  each week's row is as tall as its busiest day, and any spare height is
+ *  shared out so the month still fills the screen. */
+const WALL_FS=13;
 function fitWall(){
   const g=document.querySelector('#calwrap .wallgrid');
   if(!g) return;
+  g.style.setProperty('--wfs', WALL_FS+'px');
   const top=g.getBoundingClientRect().top;
-  g.style.height=Math.max(420, window.innerHeight-top-14)+'px';
-  const cells=[...g.querySelectorAll('.wcell:not(.off)')];
-  const over=c=>c.scrollHeight>c.clientHeight+1;
-  // Largest type that fits every day -- but never below a size that reads
-  // from across the room. Days still too full after that fold their tail
-  // into "+N more" (tap the day for the full list).
-  const FLOOR=12;
-  let fs=34;
-  g.style.setProperty('--wfs', fs+'px');
-  while(fs>FLOOR && cells.some(over)){ fs-=1; g.style.setProperty('--wfs', fs+'px'); }
-  cells.filter(over).forEach(c=>{
-    const ul=c.querySelector('.wlist'); if(!ul) return;
-    const lis=[...ul.querySelectorAll('li:not(.wmore)')];
-    const more=document.createElement('li'); more.className='wmore'; ul.appendChild(more);
-    let hidden=0;
-    while(over(c) && hidden<lis.length-1){
-      lis[lis.length-1-hidden].style.display='none'; hidden++;
-      more.textContent=`+${hidden} more`;
-    }
-    if(!hidden) more.remove();
-  });
+  g.style.minHeight=Math.max(300, window.innerHeight-top-12)+'px';
+  g.style.height='';
 }
 window.addEventListener('resize', ()=>{ if(viewMode==='cal' && calView.startsWith('wall')) fitWall(); });
 function monthHTML(anchor){
