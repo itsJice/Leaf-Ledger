@@ -494,7 +494,11 @@ body.viewonly .calbar{margin-bottom:6px}
 body.tv header{display:none}
 body.tv #calwrap{padding:10px 14px 10px}
 body.tv .calbar{margin-bottom:8px}
-body.tv #caltoday,body.tv #calprev,body.tv #calnext,body.tv #calviewsel{display:none}
+body.tv #calviewsel{display:none}
+/* Month arrows stay: someone at the TV can flip ahead, and it comes back to
+   this month on its own after a few idle minutes (tvIdleReturn). */
+body.tv #caltoday{padding:10px 22px;font-size:16px}
+body.tv .calnav{width:48px;height:48px;font-size:28px;background:#fff;border:1.5px solid var(--line)}
 body.tv .caltitle{font-size:34px}
 body.tv .wallstamp{font-size:15px}
 body.tv .tvexit{display:block;padding:5px 10px;border:1px solid var(--line);border-radius:8px;
@@ -2007,10 +2011,26 @@ function startLiveRefresh(){
   let shownDay=todayISO();
   setInterval(()=>{ if(AUTH && !document.hidden && (VIEWONLY||TVMODE)) pullShared(); }, 2*60*1000);
   setInterval(()=>{
-    if(todayISO()===shownDay) return;
-    shownDay=todayISO();
-    if(VIEWONLY||TVMODE){ calAnchor=wallHome(); if(viewMode==='cal') renderCalendar(); }
+    if(todayISO()!==shownDay){
+      shownDay=todayISO();
+      if(VIEWONLY||TVMODE){ calAnchor=wallHome(); if(viewMode==='cal') renderCalendar(); }
+      return;
+    }
+    tvIdleReturn();
   }, 60*1000);
+}
+// A wall display drifts back to the month being worked: if someone flipped
+// to another month (or opened a day) and walked away, return after 5 idle
+// minutes.
+const TV_IDLE_MS=5*60*1000;
+let lastTouch=Date.now();
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ lastTouch=Date.now(); }, true));
+function tvIdleReturn(){
+  if(!TVMODE || Date.now()-lastTouch<TV_IDLE_MS) return;
+  const home=wallHome();
+  if(viewMode==='cal' && calView==='wall' && calAnchor.slice(0,7)===home.slice(0,7)) return;
+  calView='wall'; calAnchor=home;
+  if(viewMode!=='cal') setView('cal'); else renderCalendar();
 }
 // ---------- TV mode ----------
 // Toggle in the header. Remembered per device, so the studio iPad comes back
