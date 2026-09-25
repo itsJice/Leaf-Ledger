@@ -5344,6 +5344,12 @@ function wallCellHTML(dt, today){
     if(d.training && !d.stops.length){ items.push(`<li class="wtrain">Training</li>`); return; }
     d.stops.forEach(r=>stops.push({r, d, name:wallName(C[r].name)}));
   });
+  // Two crews at the same client on the same day is one thing for the
+  // design team to have ready: list it once here (the day view still shows
+  // each crew's stops -- user, 2026-09-25).
+  const seenName=new Set();
+  const uniq=stops.filter(s=>{ const k=s.name.toLowerCase(); if(seenName.has(k)) return false; seenName.add(k); return true; });
+  stops.length=0; stops.push(...uniq);
   // One client at many locations the same day ("Capital Bank - Katy",
   // "Capital Bank - Pasadena", ...) reads as one line: "Capital Bank ·
   // 8 locations". Tapping the day still lists every one (user, 2026-09-25).
@@ -5716,7 +5722,7 @@ function renderCalendar(){
   if(calView.startsWith('wall')) fitWall();
   syncTvBack();
   wrap.querySelectorAll('.calcell[data-date],.wcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
-    c.onclick=()=>{ if(calView!=='day') calReturn={view:calView, anchor:calAnchor};
+    c.onclick=()=>{ if(calView==='month'||calView.startsWith('wall')||TVMODE) calReturn={view:calView, anchor:calAnchor};
                     calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
