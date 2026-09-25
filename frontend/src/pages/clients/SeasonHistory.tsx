@@ -5,6 +5,8 @@ import { apiClient } from "app";
 import { ContentType } from "../../apiclient/http-client";
 import { formatCurrency } from "utils/format";
 import { currentSeasonLabel, seasonSpanLabel } from "utils/season";
+import { ChristmasCard } from "./ChristmasCard";
+import { discountLabel, missingLabel, type PricingView } from "./pricing";
 
 /**
  * One client's Christmas history, season by season, with an inline editor.
@@ -25,6 +27,8 @@ export type ActivityEntry = {
   detail?: Record<string, unknown> | null;
   occurred_at?: string | null;
   created_at?: string | null;
+  /** On a christmas_install row: ideal / charged / discount, computed server-side. */
+  pricing?: PricingView | null;
 };
 
 type Status = "installing" | "hold" | "not_installing";
@@ -43,15 +47,17 @@ const EDITABLE = {
   takedown_fee: "money",
   storage_fee: "money",
   total: "money",
-  ideal_total: "money",
   invoice_total: "money",
+  price_basis: "text",
   notes: "text",
   production_notes: "text",
   confirmation_notes: "text",
 } as const;
 type EditableKey = keyof typeof EDITABLE;
 
-const MONEY_KEYS: EditableKey[] = ["install_fee", "takedown_fee", "storage_fee", "total", "ideal_total", "invoice_total"];
+/** The price as sent, and what was actually invoiced. The ideal is computed
+ *  from the Christmas card (see ChristmasCard), never typed in. */
+const MONEY_KEYS: EditableKey[] = ["install_fee", "takedown_fee", "storage_fee", "total", "invoice_total"];
 
 function str(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -68,14 +74,6 @@ function statusOf(d: Record<string, unknown>): Status {
   if (d.not_installing) return "not_installing";
   if (d.hold) return "hold";
   return "installing";
-}
-
-function seasonTotal(d: Record<string, unknown>): number | null {
-  const t = num(d.total);
-  if (t !== null) return t;
-  const fees = [num(d.install_fee), num(d.takedown_fee), num(d.storage_fee)];
-  if (fees.every((f) => f === null)) return null;
-  return fees.reduce<number>((a, f) => a + (f || 0), 0);
 }
 
 function mdy(iso: unknown): string {
@@ -230,9 +228,6 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
   const extras: [string, unknown][] = [
     ["Specialty", detail.specialty],
     ["People needed", detail.people_needed],
-    ["Crew roles", detail.role_need && typeof detail.role_need === "object"
-      ? Object.entries(detail.role_need as Record<string, unknown>).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(", ")
-      : null],
     ["Install start / end", [detail.real_start, detail.real_end].filter(Boolean).join(" – ")],
     ["Takedown order", detail.takedown_order],
     ["Takedown start / end", [detail.takedown_real_start, detail.takedown_real_end].filter(Boolean).join(" – ")],
@@ -268,10 +263,11 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
         <Field label="Est. hours"><input inputMode="decimal" className={inputClass} value={draft.est_hours} onChange={(e) => set("est_hours", e.target.value)} /></Field>
         <Field label="Real hours"><input inputMode="decimal" className={inputClass} value={draft.real_hours} onChange={(e) => set("real_hours", e.target.value)} /></Field>
         {MONEY_KEYS.map((k) => (
-          <Field key={k} label={k.replace(/_/g, " ")}>
+          <Field key={k} label={k === "total" ? "total (as sent)" : k === "invoice_total" ? "invoiced (actual)" : k.replace(/_/g, " ")}>
             <input inputMode="decimal" className={inputClass} value={draft[k]} onChange={(e) => set(k, e.target.value)} placeholder="$" />
           </Field>
         ))}
+        <Field label="Pricing basis" wide><input className={inputClass} value={draft.price_basis} onChange={(e) => set("price_basis", e.target.value)} placeholder="how this price was arrived at" /></Field>
         <Field label="Confirmation notes" wide><input className={inputClass} value={draft.confirmation_notes} onChange={(e) => set("confirmation_notes", e.target.value)} /></Field>
         <Field label="Production notes" wide><input className={inputClass} value={draft.production_notes} onChange={(e) => set("production_notes", e.target.value)} placeholder="relight, replace, repair…" /></Field>
         <Field label="Notes" wide><input className={inputClass} value={draft.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
@@ -299,7 +295,31 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
   );
 }
 
-const COLS = ["Season", "Status", "Install", "Takedown", "Storing", "Boxes", "Crew", "Hours", "Fees I / T / S", "Total", "Invoiced", ""];
+const COLS = ["Season", "Status", "Install", "Takedown", "Storing", "Boxes", "Crew", "Hours", "Fees I / T / S", "Ideal", "Charged", "Discount", ""];
+
+function PricingCells({ p, d }: { p: PricingView | null | undefined; d: Record<string, unknown> }) {
+  const ideal = p?.ideal?.total ?? null;
+  const missing = missingLabel(p?.ideal?.missing);
+  const charged = p?.charged ?? null;
+  const src = p?.charged_source;
+  return (
+    <>
+      <td className="px-3 py-2 whitespace-nowrap" title={ideal === null && missing ? `Needs ${missing}` : "From the Christmas card × this season's rates"}>
+        {ideal !== null ? formatCurrency(ideal) : <span className="text-stone-400">{missing ? "needs card" : "–"}</span>}
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap font-medium" title={src === "invoice" ? "The actual invoice" : src === "total" ? "The price as sent" : ""}>
+        {charged !== null ? formatCurrency(charged) : "–"}
+        {src === "invoice" && <span className="ml-1 text-[10px] font-normal text-stone-400">inv</span>}
+        <EditedDot d={d} k={src === "invoice" ? "invoice_total" : "total"} />
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        {p?.discount_pct !== null && p?.discount_pct !== undefined ? (
+          <span className={p.discount_pct > 0.05 ? "text-amber-700" : p.discount_pct < -0.05 ? "text-emerald-700" : "text-stone-600"}>{discountLabel(p.discount_pct)}</span>
+        ) : "–"}
+      </td>
+    </>
+  );
+}
 
 export function SeasonHistory({ clientId, activity, onSaved }: {
   clientId: number | null | undefined;
@@ -321,8 +341,19 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
 
   if (clientId == null) return null;
 
+  const currentRow = rows.find((r) => r.season === current);
+  const previousRow = rows.find((r) => r.season < current);
+
   return (
     <div className="mb-5">
+      <ChristmasCard
+        clientId={clientId}
+        season={current}
+        detail={currentRow?.detail || {}}
+        previousDetail={previousRow?.detail || null}
+        pricing={currentRow?.entry?.pricing ?? null}
+        onSaved={onSaved}
+      />
       <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
         <TreePine size={12} />
         Christmas history
@@ -340,7 +371,6 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
               const isCurrent = season === current;
               const empty = !entry;
               const status = statusOf(d);
-              const total = seasonTotal(d);
               const fees = [d.install_fee, d.takedown_fee, d.storage_fee].map((v) => (num(v) === null ? "–" : formatCurrency(num(v)))).join(" / ");
               return (
                 <React.Fragment key={season}>
@@ -363,8 +393,7 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
                     <td className="max-w-[140px] truncate px-3 py-2" title={str(d.crew)}>{str(d.crew) || "–"}<EditedDot d={d} k="crew" /></td>
                     <td className="px-3 py-2 whitespace-nowrap">{num(d.real_hours) !== null ? `${d.real_hours}h` : num(d.est_hours) !== null ? <span className="text-stone-400">est {String(d.est_hours)}h</span> : "–"}<EditedDot d={d} k="real_hours" /></td>
                     <td className="px-3 py-2 whitespace-nowrap">{fees}</td>
-                    <td className="px-3 py-2 whitespace-nowrap font-medium">{total !== null ? formatCurrency(total) : "–"}<EditedDot d={d} k="total" /></td>
-                    <td className="px-3 py-2 whitespace-nowrap">{num(d.invoice_total) !== null ? formatCurrency(num(d.invoice_total)) : "–"}<EditedDot d={d} k="invoice_total" /></td>
+                    <PricingCells p={entry?.pricing} d={d} />
                     <td className="px-2 py-2 text-right">
                       <button
                         type="button"

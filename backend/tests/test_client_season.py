@@ -73,7 +73,37 @@ def test_apply_edits_hold_and_not_installing_are_exclusive(monkeypatch):
 @pytest.mark.parametrize("key,value", [
     ("colour", "red"), ("boxes", "lots"), ("boxes", "1.5"), ("storing", "maybe"),
     ("install_date", "Nov 20"), ("install_fee", "four hundred"),
+    # the old sheet-fed ideal is no longer an app field
+    ("ideal_total", "1500"),
+    # inventory: a list of typed lines, nothing else
+    ("inventory", "3 trees"), ("inventory", [{"type": "bush", "qty": 1}]),
+    ("inventory", [{"type": "tree", "qty": 0}]), ("inventory", [{"type": "tree", "qty": "two"}]),
+    ("inventory", ["tree"]),
+    # role_need: the four known roles, whole numbers, zero or more
+    ("role_need", 3), ("role_need", {"elves": 2}), ("role_need", {"leads": -1}),
+    ("role_need", {"general": "4.5"}),
 ])
 def test_coerce_field_rejects(key, value):
     with pytest.raises(cs.FieldError):
         cs.coerce_field(key, value)
+
+
+def test_coerce_inventory_and_role_need():
+    lines = cs.coerce_field("inventory", [
+        {"type": "Tree", "size": " 12 ft ", "qty": "2", "note": ""},
+        {"type": "wreath", "size": "36in", "qty": 4},
+        {"type": "garland"},                      # qty defaults to 1, no size
+    ])
+    assert lines == [
+        {"type": "tree", "qty": 2, "size": "12 ft"},
+        {"type": "wreath", "qty": 4, "size": "36in"},
+        {"type": "garland", "qty": 1},
+    ]
+    assert cs.coerce_field("inventory", []) is None          # empty list clears
+    assert cs.coerce_field("role_need", {"leads": "1", "general": 4}) == {"leads": 1, "general": 4}
+    assert cs.coerce_field("role_need", {"leads": 1, "designer": None}) == {"leads": 1}
+    assert cs.coerce_field("role_need", {}) is None
+    # and they ride through apply_edits like any other field, stamped
+    d = cs.apply_edits({}, {"role_need": {"leads": 1, "general": 4}, "drive_min_out": "25.5"}, when="T")
+    assert d == {"role_need": {"leads": 1, "general": 4}, "drive_min_out": 25.5,
+                 "app_edits": {"role_need": "T", "drive_min_out": "T"}}
