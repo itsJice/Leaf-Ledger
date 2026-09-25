@@ -110,8 +110,36 @@ function sortProjectsByUpdated(rows: SidebarProject[]) {
  */
 export default function Layout(props: Props) {
   const me = currentMe();
+  if (me?.viewOnly) return <DisplayLayout>{props.children}</DisplayLayout>;
   if (me?.fieldOnly) return <FieldLayout>{props.children}</FieldLayout>;
   return <StaffLayout {...props} />;
+}
+
+/**
+ * The warehouse display login: the iPad is screen-mirrored to the studio TV,
+ * so the page gets the whole screen -- no sidebar, no header. Sign out is a
+ * small corner button, since nobody should need it day to day.
+ */
+function DisplayLayout({ children }: Props) {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  return (
+    <div className="relative flex h-[100dvh] flex-col bg-[#f7f6f2]">
+      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+      <button
+        type="button"
+        onClick={async () => {
+          if (!window.confirm("Sign this display out?")) return;
+          await signOut();
+          navigate("/login", { replace: true });
+        }}
+        aria-label="Sign out"
+        className="absolute bottom-2 left-2 rounded-full p-2 text-stone-400 opacity-40 hover:opacity-100"
+      >
+        <LogOut size={14} />
+      </button>
+    </div>
+  );
 }
 
 function FieldLayout({ children }: Props) {

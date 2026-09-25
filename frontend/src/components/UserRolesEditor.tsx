@@ -20,6 +20,7 @@ interface UserRow {
 
 const ROLE_LABEL: Record<string, string> = {
   crew: "Crew: no pages",
+  viewer: "Display: install schedule, view only",
   lead: "Lead: their own shifts only",
   staff: "Office staff: everything except admin",
   admin: "Admin: everything except roles",
