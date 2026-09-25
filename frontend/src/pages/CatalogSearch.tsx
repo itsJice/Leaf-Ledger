@@ -210,6 +210,11 @@ export default function CatalogSearch() {
   // ("wreathe" -> "wreath"). Shown so the user knows why they're looking at
   // results for a word they did not type.
   const [searchedFor, setSearchedFor] = useState<string | null>(null);
+  // "No, I meant that": search the spelling as typed and never substitute a
+  // correction (a vendor's own odd word, a style name). Cleared whenever the
+  // query text changes, so the next search starts with corrections on again.
+  const [asTyped, setAsTyped] = useState(false);
+  useEffect(() => { setAsTyped(false); }, [debouncedSearch]);
   const [similar, setSimilar] = useState<SimilarResult | null>(null);
   const [similarLoading, setSimilarLoading] = useState(false);
   // One /similar call per query, fired when the exact results run out -- on a
@@ -288,11 +293,12 @@ export default function CatalogSearch() {
       if (priceMin !== "") p.set("price_min", String(priceMin));
       if (priceMax !== "") p.set("price_max", String(priceMax));
       if (debouncedSearch) p.set("search", debouncedSearch);
+      if (asTyped) p.set("exact", "1");
       p.set("limit", String(PAGE_SIZE));
       p.set("offset", String(nextOffset));
       return p.toString();
     },
-    [sel, favOnly, priceMin, priceMax, debouncedSearch]
+    [sel, favOnly, priceMin, priceMax, debouncedSearch, asTyped]
   );
 
   const loadSimilar = useCallback(
@@ -351,7 +357,7 @@ export default function CatalogSearch() {
           // a longer list. Only a keyword query has near spellings to offer,
           // and the favorites view is a fixed id set with nothing to approximate.
           const exhausted = rows.length < PAGE_SIZE || seenIds.current.length >= nextTotal;
-          if (debouncedSearch && !favOnly && exhausted && !similarFetched.current) {
+          if (debouncedSearch && !favOnly && !asTyped && exhausted && !similarFetched.current) {
             similarFetched.current = true;
             loadSimilar(seenIds.current);
           }
@@ -361,7 +367,7 @@ export default function CatalogSearch() {
         })
         .finally(() => { if (s === seq.current) setLoading(false); });
     },
-    [buildParams, debouncedSearch, favOnly, loadSimilar]
+    [buildParams, debouncedSearch, favOnly, asTyped, loadSimilar]
   );
 
   // reload from top whenever filters/search change (favIds so un-hearting an
@@ -670,9 +676,29 @@ export default function CatalogSearch() {
             </div>
           </div>
 
-          {searchedFor && (
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              Few exact matches for <span className="font-semibold">“{debouncedSearch}”</span> — also showing results for <span className="font-semibold">“{searchedFor}”</span>.
+          {searchedFor && !asTyped && (
+            <p className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <span>Few exact matches for <span className="font-semibold">“{debouncedSearch}”</span> — also showing results for <span className="font-semibold">“{searchedFor}”</span>.</span>
+              <button
+                type="button"
+                onClick={() => setAsTyped(true)}
+                className="font-semibold underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+                title="Keep the spelling exactly as typed and skip the near-spelling results"
+              >
+                No — search “{debouncedSearch}” as typed
+              </button>
+            </p>
+          )}
+          {asTyped && debouncedSearch && (
+            <p className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700">
+              <span>Showing only <span className="font-semibold">“{debouncedSearch}”</span> spelled exactly as typed.</span>
+              <button
+                type="button"
+                onClick={() => setAsTyped(false)}
+                className="font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+              >
+                Include near spellings
+              </button>
             </p>
           )}
 

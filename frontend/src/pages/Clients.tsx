@@ -13,6 +13,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  Search,
   Trash2,
   X,
   Users,
@@ -808,11 +809,40 @@ export default function Clients() {
   ], [clients]);
   const toggleTypeFilter = (tag: ClientTypeTag) =>
     setTypeFilter((current) => current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]);
+  // Search box: every word typed has to appear somewhere on the client --
+  // name, phone, email, address, notes, an extra contact, or a season's
+  // summary -- so "hug away 77489" and "katy daycare" both land.
+  const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const visibleClients = useMemo(() => {
     let list = focusedClient ? clients.filter((client) => client.name === focusedClient) : clients;
     if (typeFilter.length > 0) list = list.filter((c) => typeFilter.some((tag) => clientHasTag(c, tag)));
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length > 0 && !focusedClient) {
+      list = list.filter((c) => {
+        const hay = [
+          c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes,
+          ...c.secondaryContacts.flatMap((s) => [s.label, s.phone, s.email]),
+          ...c.activity.map((a) => `${a.season} ${a.summary}`),
+        ].filter(Boolean).join(" ").toLowerCase();
+        const digits = hay.replace(/[^0-9a-z@. ]/g, "");
+        return words.every((w) => hay.includes(w) || digits.includes(w.replace(/[^0-9a-z@.]/g, "")));
+      });
+    }
     return list;
-  }, [clients, focusedClient, typeFilter]);
+  }, [clients, focusedClient, typeFilter, query]);
+  // "/" focuses the search from anywhere on the page, like the catalog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1036,17 +1066,45 @@ export default function Clients() {
       </header>
 
       {!focusedClient && (
-        <div className="flex items-center gap-2 border-b border-stone-100 px-4 sm:px-10 py-3" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+        <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 sm:px-10 py-3" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+          <label className="relative flex min-w-[220px] flex-1 items-center sm:max-w-md">
+            <Search size={14} className="pointer-events-none absolute left-3 text-stone-400" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") { setQuery(""); (e.target as HTMLInputElement).blur(); } }}
+              placeholder="Search clients — name, phone, email, address, notes…"
+              aria-label="Search clients"
+              className="w-full rounded-full border border-stone-300 bg-white py-1.5 pl-8 pr-8 text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => { setQuery(""); searchInputRef.current?.focus(); }}
+                className="absolute right-2 rounded-full p-0.5 text-stone-400 hover:text-stone-700"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </label>
           <TypeFilterChip
             options={typeFacets}
             selected={typeFilter}
             onToggle={toggleTypeFilter}
             onClear={() => setTypeFilter([])}
           />
-          {typeFilter.length > 0 && (
-            <button onClick={() => setTypeFilter([])} className="text-xs font-medium text-stone-400 hover:text-stone-600">
+          {(typeFilter.length > 0 || query) && (
+            <button onClick={() => { setTypeFilter([]); setQuery(""); }} className="text-xs font-medium text-stone-400 hover:text-stone-600">
               Reset
             </button>
+          )}
+          {query && (
+            <span className="text-xs text-stone-400">
+              {visibleClients.length} of {clients.length}
+            </span>
           )}
         </div>
       )}
@@ -1059,14 +1117,16 @@ export default function Clients() {
               <p className="mt-3 text-sm text-stone-400">Checking clients...</p>
             </div>
           </div>
-        ) : visibleClients.length === 0 && typeFilter.length > 0 ? (
+        ) : visibleClients.length === 0 && (typeFilter.length > 0 || query) ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
               <Users size={28} className="text-emerald-600" strokeWidth={1.5} />
             </div>
-            <p className="mb-1 text-base font-medium text-stone-600">No clients match that filter</p>
-            <button onClick={() => setTypeFilter([])} className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700">
-              Clear filter
+            <p className="mb-1 text-base font-medium text-stone-600">
+              {query ? <>No clients match <span className="font-semibold text-stone-800">“{query.trim()}”</span></> : "No clients match that filter"}
+            </p>
+            <button onClick={() => { setTypeFilter([]); setQuery(""); }} className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700">
+              {query ? "Clear search" : "Clear filter"}
             </button>
           </div>
         ) : visibleClients.length === 0 ? (

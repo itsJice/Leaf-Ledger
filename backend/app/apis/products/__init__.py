@@ -1126,6 +1126,10 @@ _SIMILAR_MIN = float(os.environ.get("SEARCH_SIMILAR_MIN", 0.4))
 # edit like any other.
 _WORD_SIMILAR_MIN = float(os.environ.get("SEARCH_WORD_SIMILAR_MIN", 0.3))
 _WORD_CANDIDATES = 15
+#: Same-prefix, similar-length neighbours per term (see _correct_terms). More
+#: than the trigram cap because these are ordered by frequency, not closeness,
+#: and the right word can sit behind a few dozen commoner ones.
+_SHAPE_CANDIDATES = 60
 # A word the catalog uses is spelled fine -- unless it is a vendor's own typo of
 # something far more common. "garlnd" appears 83 times and "garland" 3,949; the
 # person who typed "garlnd" wanted garland. Below this ratio the word stands.
@@ -1212,7 +1216,26 @@ def _rank_corrections(term: str, candidates: list[tuple[str, int]],
         best_freq = max(-f for _, f, _ in scored)
         if best_freq < _KNOWN_RATIO * self_freq:
             return []
-    scored.sort()
+    # A word the catalog uses far more often may stand one edit further away
+    # and still be what was meant. "ornimnet" is two edits from "ornmet" (a
+    # vendor's typo, three products) and two from "ornament" (9,399), which
+    # frequency settles -- but had ornmet been ONE edit away it would have won
+    # outright, and nobody typing ornimnet wants ornmet. The same ratio that
+    # decides a known word is really a typo (_KNOWN_RATIO) decides that here:
+    # a candidate at least that many times commoner than the best word one
+    # edit closer is ranked as if it were that close. One edit of promotion
+    # only; a common word three edits away is a different word.
+    top_at: dict[int, int] = {}
+    for d, negf, _ in scored:
+        top_at[d] = max(top_at.get(d, 0), -negf)
+
+    def effective(d: int, freq: int) -> int:
+        closer = [top_at[k] for k in top_at if k < d]
+        if closer and freq >= _KNOWN_RATIO * max(closer):
+            return d - 1
+        return d
+
+    scored.sort(key=lambda s: (effective(s[0], -s[1]), s[1], s[2]))
     return [w for _, _, w in scored[:keep]]
 
 
@@ -1289,8 +1312,28 @@ async def _correct_terms(conn, terms: list[str], *, skip_known: bool = True) -> 
                     ORDER BY freq DESC
                     LIMIT $3
               ) v ON TRUE
+            UNION
+            -- Neighbours by shape, for longer words: same first two letters,
+            -- about the same length, the commonest first. Trigrams miss a
+            -- word whose middle is mangled -- "ornimnet" shares 20%% of its
+            -- trigrams with "ornament" (under the threshold) and 33%% with
+            -- "ornmet", a vendor typo, which is how ornmet got picked. The
+            -- edit-distance pass in _rank_corrections decides among these; this
+            -- only makes sure the real word is in the room. Cheap: the
+            -- dictionary is 18k words, a two-letter prefix is a few dozen.
+            SELECT t.term, v.word, v.freq
+              FROM unnest($1::text[]) AS t(term)
+              JOIN LATERAL (
+                   SELECT word, freq
+                     FROM search_vocab
+                    WHERE length(t.term) >= 6
+                      AND word LIKE left(t.term, 2) || '%%'
+                      AND length(word) BETWEEN length(t.term) - 2 AND length(t.term) + 2
+                    ORDER BY freq DESC
+                    LIMIT $4
+              ) v ON TRUE
             """.replace("%%", "%"),
-            words, _WORD_SIMILAR_MIN, _WORD_CANDIDATES,
+            words, _WORD_SIMILAR_MIN, _WORD_CANDIDATES, _SHAPE_CANDIDATES,
         )
     except Exception as e:  # noqa: BLE001 — suggestions are a bonus, not a gate
         print(f"search_vocab unavailable, approximate matching off: {e}")
@@ -1452,8 +1495,12 @@ async def _search_products_db(conn, *, search, price_min, price_max,
                               supplier_ids, ids, limit, offset, build_facets,
                               categories=None, colors=None, sizes=None, finishes=None,
                               availability=None, product_types=None,
-                              exclude_ids=None):
+                              exclude_ids=None, exact=False):
     """Answer a faceted catalog search from Postgres.
+
+    `exact` turns the near-spelling fallback off: the person has said the
+    spelling is what they meant (a vendor's own odd word, a style name), so a
+    thin result set stays thin instead of being padded with a correction.
 
     This is a full replacement for the in-memory index, not just a warm-up
     fallback: it applies every filter the sidebar can set, returns the same
@@ -1737,7 +1784,7 @@ async def _search_products_db(conn, *, search, price_min, price_max,
     # offset, which is never small on page two.)
     searched_for = None
     n_exact = 0
-    if terms and len(rows) < lim:
+    if terms and len(rows) < lim and not exact:
         if off == 0:
             exact = list(rows)                      # a short first page is the whole set
         elif not rows:
@@ -1888,8 +1935,12 @@ async def search_products(
     search: Optional[str] = None,
     limit: int = 48,
     offset: int = 0,
+    exact: bool = False,
 ):
     """Faceted catalog search, served from Postgres.
+
+    `exact=true` searches the spelling as typed and never substitutes a
+    correction -- the "no, I meant that" switch on the near-spelling banner.
 
     Alongside the page of results it returns `facets` — the values still
     available *within the current query*, each with a live count and computed
@@ -1913,6 +1964,7 @@ async def search_products(
             build_facets=offset <= 0,
             categories=categories, colors=colors, sizes=sizes, finishes=finishes,
             availability=availability, product_types=product_types,
+            exact=exact,
         )
     finally:
         await conn.close()
