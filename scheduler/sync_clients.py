@@ -465,10 +465,24 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
     # comparing catches that; the stored `name` is left untouched either
     # way, so this doesn't disturb arrangements.client_name's free-text
     # matching against whichever row already exists.
+    #
+    # A client renamed on the Clients tab keeps the sheet's spelling in
+    # `sheet_name` (written below on every sync) and every earlier spelling in
+    # `former_names` (migrations/017), and both are matched here -- otherwise
+    # the first sync after a rename would fail to find her and create a second
+    # client under the old sheet name. The app is the source of truth for the
+    # name, so `name` is never in MERGE_FIELDS and is never written back.
     row = await conn.fetchrow(
         "SELECT id, phone, email, street, city, state, zip, christmas_synced_snapshot "
-        "FROM clients WHERE regexp_replace(LOWER(TRIM(name)), '[,.]', '', 'g') "
-        "= regexp_replace(LOWER(TRIM($1)), '[,.]', '', 'g')",
+        "  FROM clients "
+        " WHERE sheet_name = $1 "
+        "    OR regexp_replace(LOWER(TRIM(name)), '[,.]', '', 'g') "
+        "       = regexp_replace(LOWER(TRIM($1)), '[,.]', '', 'g') "
+        "    OR EXISTS (SELECT 1 FROM unnest(former_names) f "
+        "                WHERE regexp_replace(LOWER(TRIM(f)), '[,.]', '', 'g') "
+        "                    = regexp_replace(LOWER(TRIM($1)), '[,.]', '', 'g')) "
+        " ORDER BY (sheet_name = $1) DESC NULLS LAST, id "
+        " LIMIT 1",
         name,
     )
     if row is None:
@@ -506,10 +520,10 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
 
     await conn.execute(
         "UPDATE clients SET phone=$2, email=$3, street=$4, city=$5, state=$6, zip=$7, "
-        "christmas_synced_snapshot=$8::jsonb, christmas_synced_at=now(), updated_at=now() "
-        "WHERE id=$1",
+        "christmas_synced_snapshot=$8::jsonb, christmas_synced_at=now(), sheet_name=$9, "
+        "updated_at=now() WHERE id=$1",
         row["id"], merged["phone"], merged["email"], merged["street"], merged["city"],
-        merged["state"], merged["zip"], json.dumps(new_snapshot),
+        merged["state"], merged["zip"], json.dumps(new_snapshot), name,
     )
     if changed:
         counts["fields_updated"] += 1

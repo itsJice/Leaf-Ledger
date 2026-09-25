@@ -13,6 +13,7 @@ import asyncio
 import json
 from datetime import datetime
 
+import asyncpg
 import pytest
 from fastapi import HTTPException
 
@@ -23,7 +24,7 @@ T0 = datetime(2026, 1, 2, 3, 4, 5)
 T1 = datetime(2026, 2, 3, 4, 5, 6)
 
 CLIENT_KEYS = ["id", "name", "email", "phone", "notes", "street", "city", "state", "zip",
-               "time_preference", "secondary_contacts", "created_at", "updated_at"]
+               "time_preference", "former_names", "sheet_name", "secondary_contacts", "created_at", "updated_at"]
 
 
 def run(coro):
@@ -94,7 +95,7 @@ def test_list_clients(fake_db, fake_request):
         # saved client does, instead of omitting the key entirely.
         {"id": None, "name": "Unassigned", "email": None, "phone": None, "notes": None,
          "street": None, "city": None, "state": None, "zip": None,
-         "time_preference": None, "secondary_contacts": [], "created_at": None,
+         "time_preference": None, "former_names": [], "sheet_name": None, "secondary_contacts": [], "created_at": None,
          "updated_at": T0, "project_count": 1, "bucket_count": 0, "selected_cost": 0.0,
          "last_project_at": T0, "source": "from_projects", "activity": []},
     ]
@@ -148,6 +149,7 @@ def test_create_client_conflict_and_blank(fake_db, fake_request):
 
 def test_update_client(fake_db, fake_request):
     returned = client_row(id=5, name="Smith", secondary_contacts=[], created_at=T0, updated_at=T1)
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Smith")
     fake_db.on_fetchrow("UPDATE clients SET", returned)
     fake_db.on_fetch("FROM client_activity", [
         {"client_id": 5, "id": 60, "kind": "comment", "season": "s", "summary": "mine",
@@ -160,22 +162,63 @@ def test_update_client(fake_db, fake_request):
     out = run(clients.update_client(5, body, fake_request()))
 
     assert out == {
-        **returned,
+        **returned, "former_names": [],
         "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
         "last_project_at": None, "source": "saved",
         "activity": [{"id": 60, "kind": "comment", "season": "s", "summary": "mine",
                       "detail": {"author": None}, "occurred_at": None, "created_at": T1}],
+        "renamed": None,
     }
-    # raw (untrimmed) values are bound; SQL does the NULLIF/TRIM
-    assert args_of(fake_db, "UPDATE clients SET") == [(5, None, None, "", None, None, None, None, None, "[]", None)]
+    # raw (untrimmed) values are bound; SQL does the NULLIF/TRIM. Name unchanged
+    # -> no rename flag, nothing mirrored.
+    assert args_of(fake_db, "UPDATE clients SET") == [(5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith")]
+    assert not fake_db.seen("UPDATE arrangements")
 
 
 def test_update_client_404(fake_db, fake_request):
-    fake_db.on_fetchrow("UPDATE clients SET", None)
     with pytest.raises(HTTPException) as exc:
         run(clients.update_client(5, ClientUpdate(name="X"), fake_request()))
     assert (exc.value.status_code, exc.value.detail) == (404, "No client with that id")
+    assert not fake_db.seen("UPDATE clients")
     assert not fake_db.seen("FROM client_activity")
+
+
+def test_rename_writes_through_everywhere(fake_db, fake_request):
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Ashley Bird")
+    fake_db.on_fetchrow("UPDATE clients SET", client_row(id=5, name="Ashley Birdwell", former_names=["Ashley Bird"],
+                                                         secondary_contacts=[], created_at=T0, updated_at=T1))
+    fake_db.on_execute("UPDATE arrangements", "UPDATE 3")
+    fake_db.on_execute("UPDATE ll_app.jobs", "UPDATE 2")
+    fake_db.on_execute("UPDATE ll_app.product_requests", "UPDATE 0")
+
+    async def missing_table(sql, *args):
+        raise asyncpg.UndefinedTableError("relation does not exist")
+    fake_db.on("UPDATE ll_app.shift_notes", missing_table, method="execute")
+    fake_db.on_execute("UPDATE ll_app.shift_time_entries", "UPDATE 1")
+
+    out = run(clients.update_client(5, ClientUpdate(name=" Ashley Birdwell "), fake_request()))
+
+    assert out["name"] == "Ashley Birdwell" and out["former_names"] == ["Ashley Bird"]
+    assert out["renamed"] == {"from": "Ashley Bird", "to": "Ashley Birdwell",
+                              "projects": 3, "jobs": 2, "requests": 0, "shift_notes": 0, "time_entries": 1}
+    # the rename flag and the old name ride along on the clients UPDATE
+    assert args_of(fake_db, "UPDATE clients SET")[0][-2:] == (True, "Ashley Bird")
+    # every mirror is matched on the OLD name and given the NEW one
+    for pattern in ("UPDATE arrangements", "UPDATE ll_app.jobs", "UPDATE ll_app.product_requests",
+                    "UPDATE ll_app.shift_notes", "UPDATE ll_app.shift_time_entries"):
+        assert args_of(fake_db, pattern) == [("Ashley Birdwell", "Ashley Bird", 5)], pattern
+
+
+def test_rename_conflict_is_a_409(fake_db, fake_request):
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Ashley Bird")
+
+    async def dup(sql, *args):
+        raise asyncpg.UniqueViolationError("duplicate key")
+    fake_db.on("UPDATE clients SET", dup, method="fetchrow")
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client(5, ClientUpdate(name="Smith"), fake_request()))
+    assert (exc.value.status_code, exc.value.detail) == (409, "Another client already has that name")
+    assert not fake_db.seen("UPDATE arrangements")
 
 
 # ─── delete ──────────────────────────────────────────────────────────────────
@@ -289,14 +332,15 @@ def test_recent_comments(fake_db, fake_request):
 
 
 def test_update_time_preference_binds_and_clears(fake_db, fake_request):
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Smith")
     fake_db.on_fetchrow("UPDATE clients SET", client_row(id=5, name="Smith", time_preference="morning",
                                                          secondary_contacts=[], created_at=T0, updated_at=T1))
     out = run(clients.update_client(5, ClientUpdate(time_preference=" Morning "), fake_request()))
     assert out["time_preference"] == "morning"
-    # normalised before binding; "" is passed through so SQL's NULLIF clears it
-    assert args_of(fake_db, "UPDATE clients SET")[0][-1] == "morning"
+    # normalised before binding ($11); "" is passed through so SQL's NULLIF clears it
+    assert args_of(fake_db, "UPDATE clients SET")[0][10] == "morning"
     run(clients.update_client(5, ClientUpdate(time_preference=""), fake_request()))
-    assert args_of(fake_db, "UPDATE clients SET")[1][-1] == ""
+    assert args_of(fake_db, "UPDATE clients SET")[1][10] == ""
 
 
 def test_time_preference_rejects_unknown_value(fake_db, fake_request):

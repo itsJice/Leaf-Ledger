@@ -82,6 +82,9 @@ type ClientRecord = {
   state?: string | null;
   zip?: string | null;
   time_preference?: TimePreference | null;
+  former_names?: string[];
+  /** Only on an update that changed the name: what was rewritten where. */
+  renamed?: { from: string; to: string; projects?: number; jobs?: number; requests?: number } | null;
   secondary_contacts?: SecondaryContact[];
   created_at?: string | null;
   updated_at?: string | null;
@@ -104,6 +107,7 @@ type ClientGroup = {
   state?: string | null;
   zip?: string | null;
   timePreference?: TimePreference | null;
+  formerNames: string[];
   secondaryContacts: SecondaryContact[];
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
@@ -261,6 +265,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       state: client.state,
       zip: client.zip,
       timePreference: client.time_preference ?? null,
+      formerNames: client.former_names || [],
       secondaryContacts: client.secondary_contacts || [],
       activity: client.activity || [],
       source: client.source,
@@ -276,6 +281,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
     if (groups.has(key)) return;
     groups.set(key, {
       name: stats.name,
+      formerNames: [],
       secondaryContacts: [],
       activity: [],
       source: "from_projects" as const,
@@ -395,7 +401,17 @@ function NewClientModal({ client, onClose, onSaved }: {
         if (!res.ok) throw new Error("Could not save client");
         const updated = await res.json();
         onSaved(updated);
-        toast.success("Client updated");
+        if (updated.renamed) {
+          const r = updated.renamed;
+          const where = [
+            r.projects ? `${r.projects} project${r.projects === 1 ? "" : "s"}` : "",
+            r.jobs ? `${r.jobs} job${r.jobs === 1 ? "" : "s"}` : "",
+            r.requests ? `${r.requests} request${r.requests === 1 ? "" : "s"}` : "",
+          ].filter(Boolean).join(", ");
+          toast.success(`Renamed to ${r.to}${where ? ` — updated on ${where}` : ""}. The scheduler picks it up on its next load.`);
+        } else {
+          toast.success("Client updated");
+        }
         onClose();
         return;
       }
@@ -809,6 +825,7 @@ export default function Clients() {
       list = list.filter((c) => {
         const hay = [
           c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes,
+          ...c.formerNames,  // a client renamed on this tab is still found by the old spelling
           ...c.secondaryContacts.flatMap((s) => [s.label, s.phone, s.email]),
           ...c.activity.map((a) => `${a.season} ${a.summary}`),
         ].filter(Boolean).join(" ").toLowerCase();
@@ -1360,6 +1377,19 @@ export default function Clients() {
           onClose={() => setEditingClient(null)}
           onSaved={(client) => {
             upsertClientRow(client);
+            // A rename was written through to the projects server-side; mirror
+            // it in the list we already hold so nothing shows as unassigned
+            // until the next reload.
+            if (client.renamed) {
+              const from = client.renamed.from.trim().toLowerCase();
+              const to = client.renamed.to;
+              setProjects((current) => {
+                const next = current.map((p) => (p.client_name || "").trim().toLowerCase() === from ? { ...p, client_name: to } : p);
+                writeClientsPageCache(clientRows, next);
+                return next;
+              });
+              notifyProjectsChanged();
+            }
             if (focusedClient === editingClient.name || expandedClient === editingClient.name) {
               setSearchParams(focusedClient ? { client: client.name } : {});
               setExpandedClient(client.name);
