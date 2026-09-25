@@ -26,8 +26,43 @@ ADDRESS_FIELDS = ("street", "city", "state", "zip")
 #: RETURNING on create/update and the response model cannot drift apart.
 CLIENT_COLUMNS = (
     "id, name, email, phone, notes, street, city, state, zip, time_preference, "
-    "secondary_contacts, created_at, updated_at"
+    "former_names, sheet_name, secondary_contacts, created_at, updated_at"
 )
+
+#: Everywhere else a client's name is stored as text (migrations/017). A rename
+#: on the Clients tab rewrites all of them in one transaction; each is matched
+#: case- and whitespace-insensitively on the OLD name, and where the table also
+#: carries the client's id, on that too. The key is the name reported back.
+NAME_MIRRORS = (
+    ("projects", "UPDATE arrangements SET client_name = $1, updated_at = NOW() "
+                 " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+    ("jobs", "UPDATE ll_app.jobs SET client_name = $1, updated_at = NOW() "
+             " WHERE client_id = $3 OR LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+    ("requests", "UPDATE ll_app.product_requests SET client_name = $1, updated_at = NOW() "
+                 " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+    ("shift_notes", "UPDATE ll_app.shift_notes SET client_name = $1 "
+                    " WHERE client_id = $3 OR LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+    ("time_entries", "UPDATE ll_app.shift_time_entries SET client_name = $1 "
+                     " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+)
+
+
+async def _rename_everywhere(conn, client_id: int, old: str, new: str) -> dict:
+    """Write a client's new name through to every table that keeps it as text.
+
+    Each mirror runs in its own savepoint: an ll_app table that a fresh
+    database has not created yet (they are made lazily on first use) must
+    not abort the rename of the rest.
+    """
+    counts: dict = {"from": old, "to": new}
+    for key, sql in NAME_MIRRORS:
+        try:
+            async with conn.transaction():
+                status = await conn.execute(sql, new, old, client_id)
+            counts[key] = int(status.split()[-1]) if status else 0
+        except asyncpg.UndefinedTableError:
+            counts[key] = 0
+    return counts
 
 
 async def load_saved_clients(conn) -> List[dict]:
@@ -144,6 +179,13 @@ class ClientOut(BaseModel):
     state: Optional[str] = None
     zip: Optional[str] = None
     time_preference: Optional[str] = None
+    #: Previous spellings, oldest first -- the scheduler and the sync match on
+    #: these too, so a name baked into a page keeps resolving after a rename.
+    former_names: List[str] = []
+    #: The spreadsheet's own spelling as of the last sync.
+    sheet_name: Optional[str] = None
+    #: Only on an update that changed the name: what was rewritten where.
+    renamed: Optional[dict] = None
     secondary_contacts: List[SecondaryContact] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -209,6 +251,7 @@ async def build_client_list(conn) -> List[dict]:
             "notes": None,
             "street": None, "city": None, "state": None, "zip": None,
             "time_preference": None,
+            "former_names": [], "sheet_name": None,
             "secondary_contacts": [],
             "created_at": None,
             "updated_at": stats.get("last_project_at"),
@@ -293,33 +336,50 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
     everything else. There was no way to edit a saved client at all before
     this -- create and delete were the only two operations."""
     time_preference = clean_time_preference(body.time_preference)
+    new_name = clean_name(body.name)
     conn = await get_conn()
     try:
+        # A rename has to reach every table that keeps the name as text, in the
+        # same transaction as the clients row -- see NAME_MIRRORS. The old name
+        # is read first so the mirrors know what to match, and it is kept on
+        # the row (former_names) so the sync and the scheduler still find her.
+        old_name = await conn.fetchval("SELECT name FROM clients WHERE id = $1", client_id)
+        if old_name is None:
+            raise HTTPException(status_code=404, detail="No client with that id")
+        renaming = bool(new_name) and new_name != old_name
+        renamed = None
         try:
             sc_json = (
                 json.dumps([c.dict() for c in body.secondary_contacts])
                 if body.secondary_contacts is not None else None
             )
-            row = await conn.fetchrow(
-                f"""
-                UPDATE clients SET
-                    name = COALESCE(NULLIF(TRIM($2), ''), name),
-                    email = CASE WHEN $3::text IS NOT NULL THEN NULLIF(TRIM($3), '') ELSE email END,
-                    phone = CASE WHEN $4::text IS NOT NULL THEN NULLIF(TRIM($4), '') ELSE phone END,
-                    notes = CASE WHEN $5::text IS NOT NULL THEN NULLIF(TRIM($5), '') ELSE notes END,
-                    street = CASE WHEN $6::text IS NOT NULL THEN NULLIF(TRIM($6), '') ELSE street END,
-                    city = CASE WHEN $7::text IS NOT NULL THEN NULLIF(TRIM($7), '') ELSE city END,
-                    state = CASE WHEN $8::text IS NOT NULL THEN NULLIF(TRIM($8), '') ELSE state END,
-                    zip = CASE WHEN $9::text IS NOT NULL THEN NULLIF(TRIM($9), '') ELSE zip END,
-                    secondary_contacts = CASE WHEN $10::jsonb IS NOT NULL THEN $10::jsonb ELSE secondary_contacts END,
-                    time_preference = CASE WHEN $11::text IS NOT NULL THEN NULLIF(TRIM($11), '') ELSE time_preference END,
-                    updated_at = NOW()
-                WHERE id = $1
-                RETURNING {CLIENT_COLUMNS}
-                """,
-                client_id, body.name, body.email, body.phone, body.notes,
-                body.street, body.city, body.state, body.zip, sc_json, time_preference,
-            )
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    f"""
+                    UPDATE clients SET
+                        name = COALESCE(NULLIF(TRIM($2), ''), name),
+                        email = CASE WHEN $3::text IS NOT NULL THEN NULLIF(TRIM($3), '') ELSE email END,
+                        phone = CASE WHEN $4::text IS NOT NULL THEN NULLIF(TRIM($4), '') ELSE phone END,
+                        notes = CASE WHEN $5::text IS NOT NULL THEN NULLIF(TRIM($5), '') ELSE notes END,
+                        street = CASE WHEN $6::text IS NOT NULL THEN NULLIF(TRIM($6), '') ELSE street END,
+                        city = CASE WHEN $7::text IS NOT NULL THEN NULLIF(TRIM($7), '') ELSE city END,
+                        state = CASE WHEN $8::text IS NOT NULL THEN NULLIF(TRIM($8), '') ELSE state END,
+                        zip = CASE WHEN $9::text IS NOT NULL THEN NULLIF(TRIM($9), '') ELSE zip END,
+                        secondary_contacts = CASE WHEN $10::jsonb IS NOT NULL THEN $10::jsonb ELSE secondary_contacts END,
+                        time_preference = CASE WHEN $11::text IS NOT NULL THEN NULLIF(TRIM($11), '') ELSE time_preference END,
+                        former_names = CASE WHEN $12::boolean
+                                            THEN array_append(array_remove(former_names, $13::text), $13::text)
+                                            ELSE former_names END,
+                        updated_at = NOW()
+                    WHERE id = $1
+                    RETURNING {CLIENT_COLUMNS}
+                    """,
+                    client_id, body.name, body.email, body.phone, body.notes,
+                    body.street, body.city, body.state, body.zip, sc_json, time_preference,
+                    renaming, old_name,
+                )
+                if row is not None and renaming:
+                    renamed = await _rename_everywhere(conn, client_id, old_name, row["name"])
         except asyncpg.UniqueViolationError:
             raise HTTPException(status_code=409, detail="Another client already has that name")
         if row is None:
@@ -329,11 +389,13 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
         result = dict(row)
         sc = result.get("secondary_contacts")
         result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
+        result["former_names"] = list(result.get("former_names") or [])
         return {
             **result,
             "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
             "last_project_at": None, "source": "saved",
             "activity": activity_by_client.get(client_id, []),
+            "renamed": renamed,
         }
     finally:
         await conn.close()

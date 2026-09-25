@@ -81,6 +81,9 @@ type ClientRecord = {
   state?: string | null;
   zip?: string | null;
   time_preference?: TimePreference | null;
+  former_names?: string[];
+  /** Only on an update that changed the name: what was rewritten where. */
+  renamed?: { from: string; to: string; projects?: number; jobs?: number; requests?: number } | null;
   secondary_contacts?: SecondaryContact[];
   created_at?: string | null;
   updated_at?: string | null;
@@ -394,7 +397,17 @@ function NewClientModal({ client, onClose, onSaved }: {
         if (!res.ok) throw new Error("Could not save client");
         const updated = await res.json();
         onSaved(updated);
-        toast.success("Client updated");
+        if (updated.renamed) {
+          const r = updated.renamed;
+          const where = [
+            r.projects ? `${r.projects} project${r.projects === 1 ? "" : "s"}` : "",
+            r.jobs ? `${r.jobs} job${r.jobs === 1 ? "" : "s"}` : "",
+            r.requests ? `${r.requests} request${r.requests === 1 ? "" : "s"}` : "",
+          ].filter(Boolean).join(", ");
+          toast.success(`Renamed to ${r.to}${where ? ` — updated on ${where}` : ""}. The scheduler picks it up on its next load.`);
+        } else {
+          toast.success("Client updated");
+        }
         onClose();
         return;
       }
@@ -1300,6 +1313,19 @@ export default function Clients() {
           onClose={() => setEditingClient(null)}
           onSaved={(client) => {
             upsertClientRow(client);
+            // A rename was written through to the projects server-side; mirror
+            // it in the list we already hold so nothing shows as unassigned
+            // until the next reload.
+            if (client.renamed) {
+              const from = client.renamed.from.trim().toLowerCase();
+              const to = client.renamed.to;
+              setProjects((current) => {
+                const next = current.map((p) => (p.client_name || "").trim().toLowerCase() === from ? { ...p, client_name: to } : p);
+                writeClientsPageCache(clientRows, next);
+                return next;
+              });
+              notifyProjectsChanged();
+            }
             if (focusedClient === editingClient.name || expandedClient === editingClient.name) {
               setSearchParams(focusedClient ? { client: client.name } : {});
               setExpandedClient(client.name);

@@ -2202,7 +2202,27 @@ function loadClientDirectory(){
   clientDirectoryPromise = fetch('/api/clients/list', {headers:{Authorization:AUTH}})
     .then(r=>r.ok?r.json():[])
     .then(rows=>{
-      clientDirectory = new Map((Array.isArray(rows)?rows:[]).map(c=>[normName(c.name), c]));
+      // Indexed by every spelling the app knows for a client -- the current
+      // name, every former name, and the spreadsheet's own -- so a name baked
+      // into this page at build time still resolves after a rename on the
+      // Clients tab.
+      clientDirectory = new Map();
+      (Array.isArray(rows)?rows:[]).forEach(c=>{
+        [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
+          const k=normName(n); if(k && !clientDirectory.has(k)) clientDirectory.set(k, c);
+        });
+      });
+      // The Clients tab is the source of truth for the name: show its spelling
+      // everywhere here (cards, sheets, the find box, the change log) rather
+      // than the one the sheet had when this page was built. The sheet's
+      // spelling is kept on the row for anything still keyed on it.
+      Object.values(C).forEach(c=>{
+        const ac=clientDirectory.get(normName(c.name));
+        if(ac && ac.name && normName(ac.name)!==normName(c.name)){
+          c.sheetName = c.sheetName || c.name;
+          c.name = ac.name;
+        }
+      });
     })
     .catch(()=>{ clientDirectory = null; });
   return clientDirectoryPromise;
@@ -4093,7 +4113,8 @@ function renderNotInstalling(){
       .filter(Boolean).join(', ');
   };
   const existingRow = name => {
-    const c = Object.values(C).find(x=>normName(x.name)===normName(name));
+    const k=normName(name);
+    const c = Object.values(C).find(x=>normName(x.name)===k || (x.sheetName && normName(x.sheetName)===k));
     return c ? c.row : null;
   };
 

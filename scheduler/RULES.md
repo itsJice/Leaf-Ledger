@@ -202,6 +202,20 @@ the rest of this file is the WHY behind it.*
   `ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment'` must
   name the partial index's predicate (migration 009) or Postgres refuses it.
 
+### 10.1a Renaming a client
+- The Clients tab is the source of truth for the NAME too. `PUT
+  /clients/update` writes a changed name through, in one transaction, to
+  every table that keeps it as text (arrangements, ll_app.jobs,
+  product_requests, shift_notes, shift_time_entries -- `NAME_MIRRORS`) and
+  appends the old spelling to `clients.former_names` (migration 017).
+- `clients.sheet_name` is the spreadsheet's own spelling, written by every
+  sync. `sync_clients.py` matches on sheet_name, then name, then
+  former_names, so a rename never makes the next sync create a duplicate.
+  (It did, three times, before this existed -- 2026-09-25.)
+- The scheduler's client directory indexes every spelling and, once loaded,
+  shows the app's current name on cards, sheets and the find box, keeping
+  the sheet's spelling on `C[row].sheetName` for anything still keyed on it.
+
 ### 10.2 Install-time preference (morning / afternoon / late)
 - `clients.time_preference` (migration 015) is per CLIENT — a daycare that
   needs mornings needs them every year. Set on the Clients tab.
