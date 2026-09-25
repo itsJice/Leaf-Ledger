@@ -422,6 +422,8 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .calcell.off{visibility:hidden}
 .calcell:hover:not(.empty){border-color:var(--brand)}
 .calcell.tagged{border-color:#0f766e;border-width:2px}
+.calcell.today{border-color:var(--brand);border-width:3px;background:#e3f1e5}
+.calcell.today .calnum{color:var(--brand)}
 .calnum{font-weight:800;font-size:15px}
 .calnum small{font-weight:600;color:var(--mut);font-size:10.5px;margin-left:4px}
 /* Month cells read as chips, one per crew-day, colour-keyed to the crew and
@@ -454,7 +456,9 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .wcell.empty{background:#faf9f7;border-style:dashed;cursor:default}
 .wcell.off{visibility:hidden}
 .wcell.past{opacity:.45}
-.wcell.today{border-color:var(--brand);border-width:4px}
+.wcell.today{border-color:var(--brand);border-width:4px;background:#e3f1e5}
+.wcell.today .wnum b,.wcell.today .wnum span{color:var(--brand)}
+.wcell.today .wnum span::after{content:' · Today';font-weight:800}
 .wcell.tagged{border-color:#0f766e}
 .wnum{display:flex;align-items:baseline;gap:.3em;line-height:1.05;margin-bottom:.1em}
 .wnum b{font-size:1.25em;font-weight:800}
@@ -490,7 +494,16 @@ body.viewonly .calbar{margin-bottom:6px}
    type as large as the busiest day allows. Exit sits faded in a corner. */
 #tvbtn{padding:7px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
   font-weight:700;font-size:12.5px;cursor:pointer}
-.tvexit,#tvhint{display:none}
+.tvexit,#tvhint,#tvback{display:none}
+.calback{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:800}
+body.tv #tvback:not([hidden]){display:block;position:fixed;left:14px;top:12px;z-index:60;
+  padding:12px 20px;border:0;border-radius:12px;background:var(--brand);color:#fff;
+  font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+/* TV has no header, so a day, Days, Staffing or Roster opened from a tap
+   leaves room at the top for the floating Back button. */
+body.tv.tvaway #calwrap,body.tv.tvaway #main,body.tv.tvaway #staffwrap{padding-top:64px}
+body.tv #peekdlg .pkclose{width:44px;height:44px}
+body.tv #peekdlg .btns button:first-child{padding:10px 20px;font-size:15px;font-weight:800}
 body.tv header{display:none}
 body.tv #calwrap{padding:10px 14px 10px}
 body.tv .calbar{margin-bottom:8px}
@@ -950,6 +963,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 </header>
 <div id="calwrap" style="display:none"></div>
 <button id="tvhint" type="button" hidden>Tap for full screen</button>
+<button id="tvback" type="button" hidden>← Back to month</button>
 <div id="staffwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
@@ -2052,6 +2066,14 @@ function exitFS(){
   try{ const r=(document.exitFullscreen||document.webkitExitFullscreen).call(document);
        if(r&&r.catch) r.catch(()=>{}); }catch(e){}
 }
+/** In TV mode, anywhere but the month wall gets a big Back button. */
+function syncTvBack(){
+  const b=document.getElementById('tvback');
+  if(!b) return;
+  const away = TVMODE && !(viewMode==='cal' && calView==='wall');
+  b.hidden = !away;
+  document.body.classList.toggle('tvaway', away);
+}
 function syncTvHint(){
   const h=document.getElementById('tvhint');
   if(h) h.hidden = !(TVMODE && fsSupported() && !fsEl());
@@ -2084,6 +2106,14 @@ document.getElementById('tvbtn').onclick=()=>enterTV(true);
 // Exit lives in the calendar bar, which re-renders -- so delegate.
 document.addEventListener('click', e=>{ if(e.target.closest('#tvexit')) exitTV(); });
 document.getElementById('tvhint').onclick=()=>{ requestFS(); };
+// By id, not the `peekdlg` const: that is declared further down this
+// script, and touching it here would throw before the page finishes loading.
+document.getElementById('tvback').onclick=()=>{
+  const dlg=document.getElementById('peekdlg'); if(dlg.open) dlg.close(); backToMonth(); };
+// Tapping outside the stop popup closes it (a <dialog>'s backdrop click
+// lands on the dialog element itself).
+document.getElementById('peekdlg').addEventListener('click', e=>{
+  if(e.target===e.currentTarget) e.currentTarget.close(); });
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
   syncTvHint(); if(TVMODE && viewMode==='cal') setTimeout(fitWall, 60); }));
 function enterReadOnly(current){
@@ -5370,7 +5400,7 @@ function monthHTML(anchor){
   for(let n=1;n<=last;n++){
     const iso=`${y}-${String(m).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
     const ci=SPEC.calendar.find(c=>c.date===iso), ds=calDaysOn(iso);
-    if(!ci && !ds.length){ h+=`<div class="calcell empty"><div class="calnum">${n}</div></div>`; continue; }
+    if(!ci && !ds.length){ h+=`<div class="calcell empty${iso===todayISO()?' today':''}"><div class="calnum">${n}</div></div>`; continue; }
     let inner=`<div class="calnum">${n}<small>${DOW3[dateOf(iso).getDay()]}</small>`
             + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div>`;
     let stops=0,boxes=0,hrs=0;
@@ -5391,7 +5421,7 @@ function monthHTML(anchor){
     if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
                        + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')
                        + (appr?` · <span class="apprdot">${appr}/${ds.length} ✓</span>`:'')+`</div>`;
-    h+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}" data-date="${iso}">${inner}</div>`;
+    h+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}${iso===todayISO()?' today':''}" data-date="${iso}">${inner}</div>`;
   }
   return h+`</div>`;
 }
@@ -5559,6 +5589,13 @@ function agendaHTML(){
   return h||`<p class="nothingyet">Nothing scheduled.</p>`;
 }
 let calView='month', calAnchor=(SEASON[0]||todayISO());
+// Where "Back to month" goes: the month/wall view a date was opened from.
+let calReturn=null;
+function backToMonth(){
+  const r=calReturn||{view:TVMODE?'wall':'month', anchor:calAnchor};
+  calReturn=null; calView=r.view; calAnchor=r.anchor;
+  if(viewMode!=='cal') setView('cal'); else renderCalendar();
+}
 function calTitle(){
   if(calView==='month'||calView==='wall'){ const [y,m]=calAnchor.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; }
   if(calView==='agenda') return 'Schedule';
@@ -5588,6 +5625,7 @@ function renderCalendar(){
       <button class="calbtn" id="caltoday">Today</button>
       ${nav?`<button class="calnav" id="calprev" aria-label="Previous">‹</button>
       <button class="calnav" id="calnext" aria-label="Next">›</button>`:''}
+      ${calView==='day'&&calReturn?`<button class="calbtn calback" id="calback">← Back to month</button>`:''}
       <h2 class="caltitle">${calTitle()}</h2>
       ${calView.startsWith('wall')?`<span class="wallstamp">Updated ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>`:''}
       <button class="tvexit" id="tvexit" type="button">Exit TV</button>
@@ -5604,7 +5642,7 @@ function renderCalendar(){
       calView==='week' ?weekHTML(calAnchor):
       calView==='day'  ?dayHTML(calAnchor):agendaHTML()}</div>`;
   document.getElementById('calviewsel').value=calView;
-  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; renderCalendar(); };
+  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; calReturn=null; renderCalendar(); };
   const TODAY=todayISO();
   document.getElementById('caltoday').onclick=()=>{
     // "Today" outside the season would land on an empty screen -- fall back to
@@ -5620,12 +5658,15 @@ function renderCalendar(){
     }
     renderCalendar();
   };
+  const back=document.getElementById('calback'); if(back) back.onclick=backToMonth;
   if(nav){ document.getElementById('calprev').onclick=()=>calShift(-1);
            document.getElementById('calnext').onclick=()=>calShift(1); }
   initCylinder(wrap);
   if(calView.startsWith('wall')) fitWall();
+  syncTvBack();
   wrap.querySelectorAll('.calcell[data-date],.wcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
-    c.onclick=()=>{ calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
+    c.onclick=()=>{ if(calView==='month'||calView.startsWith('wall')) calReturn={view:calView, anchor:calAnchor};
+                    calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
     if(confirmed.has(+el.dataset.row)) el.classList.add('confirmed');
@@ -6959,6 +7000,7 @@ function render(){
     `${n} stops · ${days.length} crew-days · ${approved.size} approved`;
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
+  if(typeof syncTvBack==='function') syncTvBack();
 }
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.
