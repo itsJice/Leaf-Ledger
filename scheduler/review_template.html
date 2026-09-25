@@ -150,6 +150,10 @@ header h1 svg{color:var(--brand)}
 .badge.pref{background:#e0ecf8;color:#1e3a5f}
 .badge.hold{background:#fef3c7;color:#92400e;font-weight:800}
 .stop.onhold{border-left:3px solid #d97706}
+.badge.pinpos{background:#ede9fe;color:#4c1d95;font-weight:800}
+.pkpos{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 4px}
+.pkpos .pksec{margin:0 4px 0 0}
+.pkpos .mv.on{background:#4c1d95;border-color:#4c1d95;color:#fff}
 .dayhead{padding:4px 2px 8px;margin-bottom:10px;border-bottom:1.5px solid var(--line)}
 .dayhead b{display:block;font-size:15px;color:var(--ink);font-weight:800}
 .dayhead span{font-size:11px;color:var(--mut);line-height:1.4}
@@ -1328,6 +1332,18 @@ let notInstalling = new Set();
 // Same row-id set shape as notInstalling; written through to the client
 // record as `holdNames` on save (see snapshot).
 let hold = new Set();
+// Position locks: row -> 'first' | 'middle' | 'last'. A client who has to be
+// the day's first (or last, or anything but either end) stop keeps that place
+// through every re-route, drop and manual reorder until the lock is released
+// (user, 2026-09-25: "lock her in so she doesn't get slid around on
+// accident"). Travels with the row across days; shared state like the rest.
+let stopPin = {};
+const PIN_LABEL={first:'goes first', middle:'goes in the middle', last:'goes last'};
+function normStopPins(obj){
+  const out={};
+  Object.entries(obj||{}).forEach(([r,v])=>{ if(C[+r] && PIN_LABEL[v]) out[+r]=v; });
+  return out;
+}
 function normNotInstalling(list){
   return new Set((Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]));
 }
@@ -1612,6 +1628,7 @@ try{
     trainingDays = normTrainingDays(s.trainingDays);
     notInstalling = normNotInstalling(s.notInstalling);
     hold = normNotInstalling(s.hold);
+    stopPin = normStopPins(s.stopPin);
     lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
     materializeTrainingDays();
@@ -1671,7 +1688,7 @@ function snapshot(){
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays],
-          notInstalling:[...notInstalling], hold:[...hold], lastScheduledFrom,
+          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
 }
@@ -2032,6 +2049,7 @@ async function pullShared(){
       trainingDays = normTrainingDays(j.state.trainingDays);
       notInstalling = normNotInstalling(j.state.notInstalling);
       hold = normNotInstalling(j.state.hold);
+      stopPin = normStopPins(j.state.stopPin);
       lastScheduledFrom = normLastScheduledFrom(j.state.lastScheduledFrom);
       const missing = applyPlacement(j.state.placement);
       materializeTrainingDays();
@@ -2220,6 +2238,7 @@ async function restoreHistoryEntry(entryId, btn){
     trainingDays = normTrainingDays(st.trainingDays);
     notInstalling = normNotInstalling(st.notInstalling);
     hold = normNotInstalling(st.hold);
+    stopPin = normStopPins(st.stopPin);
     lastScheduledFrom = normLastScheduledFrom(st.lastScheduledFrom);
     applyPlacement(st.placement);
     materializeTrainingDays();
@@ -2253,7 +2272,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         notInstalling:[...notInstalling], hold:[...hold], lastScheduledFrom, roster, staffing});
+                         notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -2263,6 +2282,7 @@ function restoreBlob(blob){
   trainingDays = normTrainingDays(s.trainingDays);
   notInstalling = normNotInstalling(s.notInstalling);
   hold = normNotInstalling(s.hold);
+  stopPin = normStopPins(s.stopPin);
   lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
   applyPlacement(s.placement);
   materializeTrainingDays();
@@ -2303,6 +2323,26 @@ document.addEventListener('keydown', e=>{
 
 // ---------- routing (embedded OSRM matrix) ----------
 function leg(a,b){ return D[a][b]||0; }
+/** Honour position locks without re-routing: stops locked "first" lead (in
+ *  the order given), "last" trail, and a "middle" stop is kept off both ends
+ *  whenever another stop can take that spot. Stable -- an order with no
+ *  locks comes back untouched -- so every ordering path can run it last. */
+function applyPins(order){
+  if(!order.some(r=>stopPin[r])) return order;
+  const firsts=order.filter(r=>stopPin[r]==='first');
+  const lasts=order.filter(r=>stopPin[r]==='last');
+  let mid=order.filter(r=>!firsts.includes(r) && !lasts.includes(r));
+  if(!firsts.length && mid.length>1 && stopPin[mid[0]]==='middle'){
+    const k=mid.findIndex(r=>stopPin[r]!=='middle');
+    if(k>0){ const [x]=mid.splice(k,1); mid.unshift(x); }
+  }
+  if(!lasts.length && mid.length>1 && stopPin[mid[mid.length-1]]==='middle'){
+    const rev=[...mid].reverse();
+    const k=rev.findIndex(r=>stopPin[r]!=='middle');
+    if(k>0){ const x=rev[k]; mid=mid.filter(r=>r!==x); mid.push(x); }
+  }
+  return [...firsts, ...mid, ...lasts];
+}
 function routeDay(d){
   const idx = d.stops.map(r=>N[r]).filter(i=>i!==undefined);
   if(!idx.length) return {order:[],drive:0};
@@ -2315,11 +2355,14 @@ function routeDay(d){
     // -- UNLESS a stop's position was manually pinned (the reorder arrows
     // on a stop row), in which case that pin overrides the optimizer the
     // same way: trust d.stops's order exactly, don't re-permute it away.
+    // Position locks still apply -- they are the one thing a person has
+    // said outright about the order, and they beat both the pipeline's plan
+    // and a manual sequence a later drop appended to.
+    const order=applyPins([...d.stops]);
     let drive=0;
-    const seq=(d.anchored?[0]:[]).concat(d.stops.map(r=>N[r])).concat(d.anchored?[0]:[]);
+    const seq=(d.anchored?[0]:[]).concat(order.map(r=>N[r])).concat(d.anchored?[0]:[]);
     for(let i=0;i<seq.length-1;i++) drive+=leg(seq[i],seq[i+1]);
-    return {order:[...d.stops], drive:drive/60,
-            path:d.stops.map(r=>N[r])};
+    return {order, drive:drive/60, path:order.map(r=>N[r])};
   }
   // Edited day: re-route with the SAME algorithm the Python pipeline uses
   // (route_exact -- exhaustive permutation over the true asymmetric
@@ -2335,22 +2378,34 @@ function routeDay(d){
   // and drive time decides the order within it. A day where everyone is in
   // one group is routed exactly as before. The pipeline's forced-first stop
   // (d.startRow) still leads its own group.
+  // Position locks come before everything: stops locked "first" open the
+  // day (routed among themselves), stops locked "last" close it, and only
+  // what is left is grouped by preference and routed in between. A "middle"
+  // lock is settled by applyPins afterwards -- it keeps that stop off both
+  // ends of the finished order.
   const idx2row={}; d.stops.forEach(r=>idx2row[N[r]]=r);
   const startIdx = (d.startRow!=null && d.stops.includes(d.startRow))
                  ? N[d.startRow] : null;
+  const firstsIdx=idx.filter(i=>stopPin[idx2row[i]]==='first');
+  const lastsIdx=idx.filter(i=>stopPin[idx2row[i]]==='last');
+  const rest=idx.filter(i=>!firstsIdx.includes(i) && !lastsIdx.includes(i));
   const groups=[[],[],[],[]];
-  idx.forEach(i=>groups[prefRank(idx2row[i])].push(i));
+  rest.forEach(i=>groups[prefRank(idx2row[i])].push(i));
   const nonEmpty=groups.filter(g=>g.length);
+  const depotTail = d.anchored ? [0] : [];
   let seq = d.anchored ? [0] : [];
+  seq = solveOrder(seq, firstsIdx, (!nonEmpty.length && !lastsIdx.length) ? depotTail : []);
   nonEmpty.forEach((g, gi)=>{
-    const last = gi===nonEmpty.length-1;
+    const last = gi===nonEmpty.length-1 && !lastsIdx.length;
     const pin = (startIdx!=null && g.includes(startIdx)) ? startIdx : null;
     const free = pin==null ? g : g.filter(i=>i!==pin);
-    seq = solveOrder(seq.concat(pin==null?[]:[pin]), free, (d.anchored && last) ? [0] : []);
+    seq = solveOrder(seq.concat(pin==null?[]:[pin]), free, last ? depotTail : []);
   });
-  const bestSeq = seq;
+  if(lastsIdx.length) seq = solveOrder(seq, lastsIdx, depotTail);
+  let inner = d.anchored? seq.slice(1,-1): seq;
+  inner = applyPins(inner.map(i=>idx2row[i])).map(r=>N[r]);
+  const bestSeq = d.anchored ? [0, ...inner, 0] : inner;
   let drive=0; for(let i=0;i<bestSeq.length-1;i++) drive+=leg(bestSeq[i],bestSeq[i+1]);
-  const inner = d.anchored? bestSeq.slice(1,-1): bestSeq;
   return {order: inner.map(i=>idx2row[i]), drive: drive/60, path:bestSeq};
 }
 /** Shortest visiting order of `free` after the fixed prefix `head` (possibly
@@ -2599,6 +2654,12 @@ function reorderStop(d, row, dir){
   const i = d.stops.indexOf(row);
   const j = i + dir;
   if(i<0 || j<0 || j>=d.stops.length) return;
+  const locked = stopPin[row] ? row : (stopPin[d.stops[j]] ? d.stops[j] : null);
+  if(locked){
+    alert(`${C[locked].name} ${PIN_LABEL[stopPin[locked]]} -- their position is locked.\n\n`
+      +`Open their card and set the position to "any" first if it really needs to move.`);
+    return;
+  }
   pushUndo();
   const next = [...d.stops];
   [next[i], next[j]] = [next[j], next[i]];
@@ -3414,6 +3475,7 @@ function markNotInstalling(row){
   confirmed.delete(row);
   notInstalling.add(row);
   hold.delete(row);
+  delete stopPin[row];
   // What date/crew they were pulled off of -- shown in the "not installing"
   // panel so staff can see what was booked before deciding whether to put
   // someone back on that same date.
@@ -3437,6 +3499,18 @@ function putBackOnSchedule(row){
 /** Put a client on hold, or release them. On hold they stay exactly where
  *  they are on the board -- this only flags them -- so a "yes, we're in"
  *  costs nothing and a "no" is one click to "not installing". */
+/** Lock a stop's place in its day -- first, last, anywhere but the ends --
+ *  or release it (pos null). Kept when the stop moves to another day. */
+function setStopPin(row, pos){
+  if(roBlocked()) return;
+  if(!C[row]) return;
+  if((stopPin[row]||null)===(pos||null)) return;
+  pushUndo();
+  if(pos && PIN_LABEL[pos]) stopPin[row]=pos; else delete stopPin[row];
+  const d=days.find(x=>x.stops.includes(row));
+  moves.push({row, name:C[row].name, from: d?d.id:'', to: pos ? `LOCK:${pos}` : 'LOCK:any'});
+  persist(); render();
+}
 function toggleHold(row){
   if(roBlocked()) return;
   if(!C[row]) return;
@@ -3691,15 +3765,16 @@ function buildDayCard(d){
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
     el.innerHTML=`<div class="numwrap">
-        <button type="button" class="ordbtn up" ${i===0?'disabled':''} title="Move up one stop">${IC.down}</button>
+        <button type="button" class="ordbtn up" ${i===0||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move up one stop'}">${IC.down}</button>
         <span class="num" style="background:${col}">${i+1}</span>
-        <button type="button" class="ordbtn down" ${i===d.stops.length-1?'disabled':''} title="Move down one stop">${IC.down}</button>
+        <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.down}</button>
       </div>
       <div class="body"><div class="nm">${c.name}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
-        ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
+        ${stopPin[r]?`<span class="badge pinpos" title="Position locked — set from the client's card">${IC.lock} ${PIN_LABEL[stopPin[r]]}</span>`
+          :(SPEC.forceFirst[r]?'<span class="badge">goes first</span>':'')}
         ${prefBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
@@ -4047,7 +4122,8 @@ function buildAddCrewButton(date){
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
   const fmtId=id=>{if(!id) return 'new'; if(id==='NOINSTALL') return 'not installing';
-    if(id==='HOLD') return 'on hold'; const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
+    if(id==='HOLD') return 'on hold'; if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
+    const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
     moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${fmtId(m.from)} → ${fmtId(m.to)}</div>`).join('')+
     `<div class="undobar">
@@ -5696,6 +5772,11 @@ function openStopPeek(row,dayId){
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
     ${d && confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
     ${hold.has(row)?`<p class="pkrow"><span class="badge hold">on hold — about to cancel, not decided</span></p>`:''}
+    ${d?`<div class="pkpos"><span class="pksec">Position on the day</span>
+      ${[['first','First'],['middle','Middle'],['last','Last'],['','Any']].map(([v,l])=>
+        `<button type="button" class="mv${(stopPin[row]||'')===v?' on':''}" data-pos="${v}" `
+        +`title="${v?'Lock this stop as the day\'s '+l.toLowerCase()+' stop':'No lock — drive time decides'}">${l}</button>`).join('')}
+      ${stopPin[row]?`<span class="pkhstale">locked — re-routing and drops won't move it</span>`:''}</div>`:''}
     ${profileSectionHTML(row)}
     <div class="pkcomments">
       <p class="pksec">Comments</p>
@@ -5707,6 +5788,9 @@ function openStopPeek(row,dayId){
     </div>`;
   wireContactBlock(row);
   wireProfileLink(row);
+  document.querySelectorAll('#peekbody .pkpos button').forEach(b=>{
+    b.onclick=()=>{ peekdlg.close(); setStopPin(row, b.dataset.pos||null); };
+  });
   const addComment=async()=>{
     if(roBlocked()) return;
     const inp=document.getElementById('pkcommenttext');
@@ -6564,7 +6648,7 @@ function manifestHTML(d){
     const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(c.name)}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
+      <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone||'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${note?`<div class="nt">${esc(note)}</div>`:''}
@@ -6635,6 +6719,7 @@ function printManifests(list, title){
     .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
     .hold{color:#92400e;font-weight:800;font-size:10px;border:1px solid #d97706;border-radius:4px;padding:0 4px;vertical-align:middle}
     .pref{color:#1e3a5f;font-size:10.5px;font-weight:600}
+    .pos{color:#4c1d95;font-weight:800;font-size:10px;border:1px solid #4c1d95;border-radius:4px;padding:0 4px;vertical-align:middle}
     tr.drive td{border:0;padding:2px 6px 2px 32px;color:#777;font-size:10.5px}
     tr.depot td{border:0;padding:4px 6px;color:#2d5a33;font-weight:700;font-size:11px;
       text-transform:uppercase;letter-spacing:.3px}
@@ -6662,8 +6747,15 @@ function render(){
       // that arrived from a move) goes on the end rather than vanishing.
       const known = mo.filter(r=>d.stops.includes(r));
       const extra = d.stops.filter(r=>!known.includes(r));
-      d.stops = [...known, ...extra];
+      d.stops = applyPins([...known, ...extra]);
     } else if(d.edited) d.stops = dayCalc(d).order;
+    else {
+      // A pipeline day is trusted as planned -- unless a position lock says
+      // otherwise. Moving a stop makes it an edited day (re-routed live, and
+      // drawn from a fresh path rather than the stale precomputed one).
+      const pinned = applyPins([...d.stops]);
+      if(pinned.some((r,i)=>r!==d.stops[i])){ d.stops = pinned; d.edited = true; d.stops = dayCalc(d).order; }
+    }
   });
   // Leaving Staffing must drop its maps -- renderStaffing() is the only
   // other thing that tears them down, and it does not run from here.
