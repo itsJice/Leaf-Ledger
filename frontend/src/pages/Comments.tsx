@@ -15,6 +15,9 @@ import { toast } from "sonner";
 // A daily Claude Code run reviews every open item and leaves a note on it:
 // what it fixed (with a link to test), or why it needs a person. Answering
 // that note here puts the item back in Claude's queue for the next run.
+// The notes, replies, filters and check-off are the owner's (Justice -- the
+// server decides, GET /api/feedback/access); everyone else sees each item as "Under review" or "Complete", and the API
+// leaves the review fields out for them.
 
 interface FeedbackRow {
   id: number;
@@ -216,8 +219,9 @@ function ClaudeReview({ row, onReply }: {
   );
 }
 
-function CommentRow({ row, onToggle, onViewScreenshot, onReply }: {
+function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
   row: FeedbackRow;
+  owner: boolean;
   onToggle: (row: FeedbackRow) => void;
   onViewScreenshot: (id: number) => void;
   onReply: (row: FeedbackRow, reply: string, approve: boolean) => Promise<boolean>;
@@ -225,7 +229,7 @@ function CommentRow({ row, onToggle, onViewScreenshot, onReply }: {
   const done = row.status === "done";
   return (
     <div className="flex items-start gap-3 border-b border-stone-100 px-5 py-3.5 last:border-b-0">
-      <button
+      {owner && <button
         onClick={() => onToggle(row)}
         className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border transition-colors ${
           done ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-300 hover:border-emerald-500"
@@ -234,12 +238,22 @@ function CommentRow({ row, onToggle, onViewScreenshot, onReply }: {
         title={done ? "Mark as not done" : "Mark as done"}
       >
         {done && <Check size={13} strokeWidth={3} />}
-      </button>
+      </button>}
       <div className="min-w-0 flex-1">
-        <p className={`text-sm leading-relaxed ${done ? "text-stone-400 line-through" : "text-stone-800"}`}>
+        <p className={`text-sm leading-relaxed ${done && owner ? "text-stone-400 line-through" : "text-stone-800"}`}>
           {row.message}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
+          {!owner && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                done ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              {done ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+              {done ? "Complete" : "Under review"}
+            </span>
+          )}
           {row.submitted_name && <span className="font-medium text-stone-500">{row.submitted_name}</span>}
           <span>· {relativeTime(row.created_at)}</span>
           {row.page_path && (
@@ -256,7 +270,7 @@ function CommentRow({ row, onToggle, onViewScreenshot, onReply }: {
             </button>
           )}
         </div>
-        <ClaudeReview row={row} onReply={onReply} />
+        {owner && <ClaudeReview row={row} onReply={onReply} />}
       </div>
     </div>
   );
@@ -268,6 +282,10 @@ export default function Comments() {
   const [showDone, setShowDone] = useState(false);
   const [viewingScreenshot, setViewingScreenshot] = useState<number | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  // null until the server answers, so the owner never sees a flash of the
+  // plain view.
+  const [ownerFlag, setOwnerFlag] = useState<boolean | null>(null);
+  const owner = ownerFlag === true;
 
   const load = () => {
     apiFetch("/api/feedback", { credentials: "include" })
@@ -278,6 +296,10 @@ export default function Comments() {
   };
 
   useEffect(() => {
+    apiFetch("/api/feedback/access", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : { owner: false }))
+      .then((data) => setOwnerFlag(Boolean(data.owner)))
+      .catch(() => setOwnerFlag(false));
     load();
     // Someone else's checkmark should show up without a manual refresh --
     // refetching on focus is the cheap version of that, no polling loop.
@@ -340,12 +362,14 @@ export default function Comments() {
           Comments
         </h1>
         <p className="mt-0.5 text-xs text-stone-500">
-          Feature requests and notes sent in from around the app. Claude reviews open ones every morning — check one off once it's handled.
+          {owner
+            ? "Feature requests and notes sent in from around the app. Claude reviews open ones every morning — check one off once it's handled."
+            : "Feature requests and notes sent in from around the app, and where each one stands."}
         </p>
       </header>
 
       <div className="mx-auto max-w-3xl px-6 py-6">
-        {loading ? (
+        {loading || ownerFlag === null ? (
           <p className="py-12 text-center text-sm text-stone-400">Loading…</p>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 py-16 text-center">
@@ -357,7 +381,7 @@ export default function Comments() {
           </div>
         ) : (
           <>
-            <div className="mb-3 flex flex-wrap gap-1.5">
+            {owner && <div className="mb-3 flex flex-wrap gap-1.5">
               {filters.map((f) => {
                 const count = allOpen.filter((r) => matchesFilter(r, f.key)).length;
                 const active = filter === f.key;
@@ -376,7 +400,7 @@ export default function Comments() {
                   </button>
                 );
               })}
-            </div>
+            </div>}
 
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
               {open.length === 0 ? (
@@ -385,7 +409,7 @@ export default function Comments() {
                 </p>
               ) : (
                 open.map((row) => (
-                  <CommentRow key={row.id} row={row} onToggle={toggle} onViewScreenshot={setViewingScreenshot} onReply={reply} />
+                  <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onViewScreenshot={setViewingScreenshot} onReply={reply} />
                 ))
               )}
             </div>
@@ -402,7 +426,7 @@ export default function Comments() {
                 {showDone && (
                   <div className="mt-2 overflow-hidden rounded-xl border border-stone-200 bg-white">
                     {done.map((row) => (
-                      <CommentRow key={row.id} row={row} onToggle={toggle} onViewScreenshot={setViewingScreenshot} onReply={reply} />
+                      <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onViewScreenshot={setViewingScreenshot} onReply={reply} />
                     ))}
                   </div>
                 )}

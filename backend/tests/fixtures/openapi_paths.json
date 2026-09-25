@@ -114,6 +114,9 @@
     "GET",
     "POST"
   ],
+  "/api/feedback/access": [
+    "GET"
+  ],
   "/api/feedback/{feedback_id}": [
     "PUT"
   ],

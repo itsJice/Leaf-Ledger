@@ -18,13 +18,19 @@ submissions and writes a review back onto the row (`claude_status`,
 talks to the database directly, so there is no API route that writes a
 review. People answer a review from the Comments tab (`PUT /{id}/reply`),
 which queues the item for Claude's next run.
+
+Claude's notes, the replies and the check-off belong to the owner (Justice:
+any super_admin, plus the work account in `OWNER_EMAILS`). Everyone else still sees every submission, but only as
+"under review" or "complete": the list strips the review fields for them,
+and the routes that change a submission refuse them.
 """
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
+from app.libs import roles
 from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/feedback")
@@ -70,6 +76,27 @@ CLAUDE_REVIEW_STATUSES = {
 }
 #: Set by a person answering a review; Claude picks these up on its next run.
 CLAUDE_QUEUE_STATUSES = {"approved", "replied"}
+
+#: Justice's work login, which is plain staff everywhere else in the app.
+OWNER_EMAILS = frozenset({"justice@thebranchdesigngroup.com"})
+
+
+async def is_owner(user) -> bool:
+    if roles.norm_email(user.email) in OWNER_EMAILS:
+        return True
+    return await roles.role_of(user) == "super_admin"
+
+
+async def _require_owner(user: AuthorizedUser) -> None:
+    if not await is_owner(user):
+        raise HTTPException(status_code=403, detail="Only the owner can change comments")
+
+
+owner_only = [Depends(_require_owner)]
+
+#: Fields only the owner sees; blanked for everyone else in the list.
+OWNER_FIELDS = ("claude_status", "claude_note", "claude_link", "claude_reviewed_at",
+                "reply", "reply_name", "replied_at")
 
 #: Column list shared by every query that returns a FeedbackRow.
 ROW_COLUMNS = (
@@ -164,12 +191,20 @@ def to_row(r) -> FeedbackRow:
     )
 
 
+@router.get("/access")
+async def feedback_access(user: AuthorizedUser) -> dict:
+    """Whether the Comments tab shows this person the owner view."""
+    return {"owner": await is_owner(user)}
+
+
 @router.get("", response_model=list[FeedbackRow])
-async def list_feedback(limit: int = 100) -> Any:
+async def list_feedback(user: AuthorizedUser, limit: int = 100) -> Any:
     """Everyone signed in can read the inbox -- this is a small internal
     team tool, not a multi-tenant product, and every other resource here
     (clients, pricing, the install schedule) is already visible to any
-    authenticated user on the same basis."""
+    authenticated user on the same basis. Only the owner gets Claude's
+    notes and the replies; everyone else gets the submission and its
+    open/done status."""
     limit = max(1, min(limit, 500))
     try:
         conn = await get_conn()
@@ -184,7 +219,10 @@ async def list_feedback(limit: int = 100) -> Any:
         )
     finally:
         await conn.close()
-    return [to_row(r) for r in rows]
+    out = [to_row(r) for r in rows]
+    if not await is_owner(user):
+        out = [row.model_copy(update=dict.fromkeys(OWNER_FIELDS)) for row in out]
+    return out
 
 
 ALLOWED_STATUSES = {"new", "done"}
@@ -194,13 +232,11 @@ class StatusIn(BaseModel):
     status: str
 
 
-@router.put("/{feedback_id}", response_model=FeedbackRow)
+@router.put("/{feedback_id}", response_model=FeedbackRow, dependencies=owner_only)
 async def update_feedback_status(feedback_id: int, body: StatusIn) -> Any:
-    """Check/uncheck a submission. This is a shared team list (Comments tab,
-    every signed-in user), so it's a plain status flip rather than a
-    per-user completion record -- one person checking something off marks
-    it done for everyone, the same way any of them can see it in the first
-    place."""
+    """Check/uncheck a submission (owner only). It's a plain status flip
+    rather than a per-user completion record -- checking something off
+    shows it as complete to everyone who can see the list."""
     if body.status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=400, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}")
     try:
@@ -226,7 +262,7 @@ class ReplyIn(BaseModel):
     approve: bool = False
 
 
-@router.put("/{feedback_id}/reply", response_model=FeedbackRow)
+@router.put("/{feedback_id}/reply", response_model=FeedbackRow, dependencies=owner_only)
 async def reply_to_claude(feedback_id: int, body: ReplyIn, user: AuthorizedUser) -> Any:
     """Answer Claude's review -- approve its plan, add the missing detail,
     or both. Either way the item goes back in Claude's queue for the next
