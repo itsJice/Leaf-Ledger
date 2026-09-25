@@ -7,7 +7,7 @@ import { apiFetch } from "utils/apiFetch";
 // Users. The server enforces every rule on its own -- this only decides what
 // to show.
 
-export type Role = "crew" | "lead" | "staff" | "admin" | "super_admin";
+export type Role = "crew" | "viewer" | "lead" | "staff" | "admin" | "super_admin";
 
 export interface RosterPerson {
   id: string;
@@ -24,11 +24,15 @@ export interface Me {
   isSuperAdmin: boolean;
   /** Leads and crew: the lead pages only, no office sidebar. */
   fieldOnly: boolean;
+  /** The warehouse display login: the install schedule, read-only, full screen. */
+  viewOnly: boolean;
   person: RosterPerson | null;
 }
 
 /** The only page a field-only login can open. */
 export const FIELD_HOME = "/shifts";
+/** The only page a view-only (warehouse display) login can open. */
+export const DISPLAY_HOME = "/install-schedule";
 
 let cached: { token: string; promise: Promise<Me> } | null = null;
 
