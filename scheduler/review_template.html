@@ -469,6 +469,11 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .wlist li{font-weight:650;line-height:1.15;color:#1c1917;cursor:pointer;padding:.08em 0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wlist li+li{border-top:1px solid var(--line)}
+.wcell.wide .wlist{column-count:var(--wcols,3);column-gap:1.4em}
+.wcell.wide .wlist li{break-inside:avoid}
+.wcell.wkend .wlist li{white-space:normal;overflow:visible}
+.wlist li.wgroup{cursor:default;white-space:normal;overflow:visible}
+.wlist li.wgroup span{color:var(--mut);font-weight:700}
 .wlist li.wtrain{color:var(--mut);font-style:italic;cursor:default}
 .wlist li.wmore{color:var(--brand);font-weight:800;font-size:.85em}
 .wallstamp{font-size:12px;color:var(--mut);margin-left:auto}
@@ -507,7 +512,8 @@ body.tv #peekdlg .btns button:first-child{padding:10px 20px;font-size:15px;font-
 body.tv header{display:none}
 body.tv #calwrap{padding:10px 14px 10px}
 body.tv .calbar{margin-bottom:8px}
-body.tv #calviewsel{display:none}
+/* iPad Safari's full-screen close button sits over the top-left corner. */
+body.tv .calbar{padding-left:88px}
 /* Month arrows stay: someone at the TV can flip ahead, and it comes back to
    this month on its own after a few idle minutes (tvIdleReturn). */
 body.tv #caltoday{padding:10px 22px;font-size:16px}
@@ -962,7 +968,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 </header>
 <div id="calwrap" style="display:none"></div>
 <button id="tvhint" type="button" hidden>Tap for full screen</button>
-<button id="tvback" type="button" hidden>← Back to month</button>
+<button id="tvback" type="button" hidden>← Back</button>
 <div id="staffwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
@@ -2008,7 +2014,7 @@ function enterViewOnly(){
   _roKill = e => { e.preventDefault(); e.stopPropagation(); };
   document.addEventListener('dragstart', _roKill, true);
   document.addEventListener('drop', _roKill, true);
-  calView = 'wall';
+  calView = tvView();
   calAnchor = wallHome();
   startLiveRefresh();
   setView('cal');
@@ -2040,9 +2046,9 @@ let lastTouch=Date.now();
 ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ lastTouch=Date.now(); }, true));
 function tvIdleReturn(){
   if(!TVMODE || Date.now()-lastTouch<TV_IDLE_MS) return;
-  const home=wallHome();
-  if(viewMode==='cal' && calView==='wall' && calAnchor.slice(0,7)===home.slice(0,7)) return;
-  calView='wall'; calAnchor=home;
+  const home=wallHome(), view=tvView();
+  if(viewMode==='cal' && calView===view && calAnchor.slice(0,7)===home.slice(0,7)) return;
+  calReturn=null; calView=view; calAnchor=home;
   if(viewMode!=='cal') setView('cal'); else renderCalendar();
 }
 // ---------- TV mode ----------
@@ -2051,6 +2057,10 @@ function tvIdleReturn(){
 // screen from a tap, so after a reload a "Tap for full screen" button waits.
 let TVMODE=false, tvPrev=null;
 function tvPref(){ try{ return localStorage.getItem('tbdg-tv-mode'); }catch(e){ return null; } }
+// The calendar view picked while in TV mode (month wall by default), so a
+// restarted iPad comes back on the same view.
+function tvView(){ try{ return localStorage.getItem('tbdg-tv-view')||'wall'; }catch(e){ return 'wall'; } }
+function setTvView(v){ try{ localStorage.setItem('tbdg-tv-view', v); }catch(e){} }
 function setTvPref(v){ try{ localStorage.setItem('tbdg-tv-mode', v); }catch(e){} }
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
 function fsSupported(){ const el=document.documentElement;
@@ -2069,7 +2079,9 @@ function exitFS(){
 function syncTvBack(){
   const b=document.getElementById('tvback');
   if(!b) return;
-  const away = TVMODE && !(viewMode==='cal' && calView==='wall');
+  // A view chosen from the menu is where TV mode lives; the Back button is
+  // for a day or a Days/Staffing/Roster screen opened by tapping.
+  const away = TVMODE && (viewMode!=='cal' || (calView==='day' && !!calReturn));
   b.hidden = !away;
   document.body.classList.toggle('tvaway', away);
 }
@@ -2087,7 +2099,7 @@ function enterTV(fromTap){
   if(fromTap) setTvPref('1');
   tvPrev={viewMode, calView, calAnchor};
   document.body.classList.add('tv');
-  calView='wall'; calAnchor=wallHome();
+  calView=tvView(); calAnchor=wallHome();
   startLiveRefresh();
   setView('cal');
   if(fromTap) requestFS();
@@ -5327,9 +5339,26 @@ function wallCellHTML(dt, today){
   // order -- no crew labels or box counts (user, 2026-09-25: the wall is
   // for "what is on what day", nothing else).
   const items=[];
+  const stops=[];
   ds.forEach(d=>{
     if(d.training && !d.stops.length){ items.push(`<li class="wtrain">Training</li>`); return; }
-    d.stops.forEach(r=>items.push(`<li data-row="${r}" data-dayid="${d.id}">${peekEsc(wallName(C[r].name))}</li>`));
+    d.stops.forEach(r=>stops.push({r, d, name:wallName(C[r].name)}));
+  });
+  // One client at many locations the same day ("Capital Bank - Katy",
+  // "Capital Bank - Pasadena", ...) reads as one line: "Capital Bank ·
+  // 8 locations". Tapping the day still lists every one (user, 2026-09-25).
+  const brand=n=>n.includes(' - ') ? n.split(' - ')[0].trim() : null;
+  const count={};
+  stops.forEach(s=>{ const b=brand(s.name); if(b) count[b]=(count[b]||0)+1; });
+  const shown=new Set();
+  stops.forEach(s=>{
+    const b=brand(s.name);
+    if(b && count[b]>=WALL_GROUP_MIN){
+      if(!shown.has(b)){ shown.add(b);
+        items.push(`<li class="wgroup">${peekEsc(b)} <span>· ${count[b]} locations</span></li>`); }
+      return;
+    }
+    items.push(`<li data-row="${s.r}" data-dayid="${s.d.id}">${peekEsc(s.name)}</li>`);
   });
   if(items.length) inner+=`<ul class="wlist">${items.join('')}</ul>`;
   const n=ds.reduce((a,d)=>a+d.stops.length,0);
@@ -5356,9 +5385,24 @@ function wallGridHTML(dates){
   let h=`<div class="wallgrid" style="grid-template-columns:${widths.join(' ')};`
       + `grid-template-rows:auto ${sizes.join(' ')}">`;
   cols.forEach(d=>h+=`<div class="walldow">${DOW3[d]}</div>`);
-  rows.forEach(w=>cols.forEach(dow=>{
-    h+= w[dow] ? wallCellHTML(w[dow], today) : `<div class="wcell off"></div>`;
-  }));
+  rows.forEach((w,ri)=>{
+    // The month's last day, when the rest of its week is empty, stretches
+    // across that space and lays its names out in columns -- a long list
+    // then costs width, not height (user, 2026-09-25: the 30th).
+    const lastIdx=cols.reduce((m,dow,i)=>w[dow]?i:m,-1);
+    const span=(ri===rows.length-1) ? cols.length-lastIdx : 1;
+    cols.forEach((dow,i)=>{
+      if(i>lastIdx && span>1) return;
+      if(!w[dow]){ h+=`<div class="wcell off"></div>`; return; }
+      let cell=wallCellHTML(w[dow], today);
+      // Weekend columns are narrow, and carry a stop or two: wrap their
+      // names instead of cutting them off (user, 2026-09-25).
+      if(dow===0||dow===6) cell=cell.replace('<div class="wcell', '<div class="wkend wcell');
+      if(i===lastIdx && span>1)
+        cell=cell.replace('<div class="wcell', `<div style="grid-column:span ${span};--wcols:${Math.min(span,4)}" class="wide wcell`);
+      h+=cell;
+    });
+  });
   return h+`</div>`;
 }
 /** Wall calendar, month: every client going out that month, at a glance. */
@@ -5383,13 +5427,17 @@ function wall2HTML(anchor){ return wallGridHTML(wall2Dates(anchor)); }
  *  each week's row is as tall as its busiest day, and any spare height is
  *  shared out so the month still fills the screen. */
 const WALL_FS=13;
+/** A client with at least this many locations on one day collapses to one line. */
+const WALL_GROUP_MIN=3;
 function fitWall(){
   const g=document.querySelector('#calwrap .wallgrid');
   if(!g) return;
   g.style.setProperty('--wfs', WALL_FS+'px');
   const top=g.getBoundingClientRect().top;
-  g.style.minHeight=Math.max(300, window.innerHeight-top-12)+'px';
-  g.style.height='';
+  // A definite height (not min-height): with an indefinite one, every
+  // 1fr row grows to the tallest week's height and the month overflows.
+  g.style.minHeight='';
+  g.style.height=Math.max(300, window.innerHeight-top-12)+'px';
 }
 window.addEventListener('resize', ()=>{ if(viewMode==='cal' && calView.startsWith('wall')) fitWall(); });
 function monthHTML(anchor){
@@ -5593,7 +5641,7 @@ let calView='month', calAnchor=(SEASON[0]||todayISO());
 // Where "Back to month" goes: the month/wall view a date was opened from.
 let calReturn=null;
 function backToMonth(){
-  const r=calReturn||{view:TVMODE?'wall':'month', anchor:calAnchor};
+  const r=calReturn||{view:TVMODE?tvView():'month', anchor:calAnchor};
   calReturn=null; calView=r.view; calAnchor=r.anchor;
   if(viewMode!=='cal') setView('cal'); else renderCalendar();
 }
@@ -5626,7 +5674,7 @@ function renderCalendar(){
       <button class="calbtn" id="caltoday">Today</button>
       ${nav?`<button class="calnav" id="calprev" aria-label="Previous">‹</button>
       <button class="calnav" id="calnext" aria-label="Next">›</button>`:''}
-      ${calView==='day'&&calReturn?`<button class="calbtn calback" id="calback">← Back to month</button>`:''}
+      ${calView==='day'&&calReturn?`<button class="calbtn calback" id="calback">← Back</button>`:''}
       <h2 class="caltitle">${calTitle()}</h2>
       ${calView.startsWith('wall')?`<span class="wallstamp">Updated ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>`:''}
       <button class="tvexit" id="tvexit" type="button">Exit TV</button>
@@ -5643,7 +5691,9 @@ function renderCalendar(){
       calView==='week' ?weekHTML(calAnchor):
       calView==='day'  ?dayHTML(calAnchor):agendaHTML()}</div>`;
   document.getElementById('calviewsel').value=calView;
-  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; calReturn=null; renderCalendar(); };
+  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; calReturn=null;
+    if(TVMODE) setTvView(calView);
+    renderCalendar(); };
   const TODAY=todayISO();
   document.getElementById('caltoday').onclick=()=>{
     // "Today" outside the season would land on an empty screen -- fall back to
@@ -5666,7 +5716,7 @@ function renderCalendar(){
   if(calView.startsWith('wall')) fitWall();
   syncTvBack();
   wrap.querySelectorAll('.calcell[data-date],.wcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
-    c.onclick=()=>{ if(calView==='month'||calView.startsWith('wall')) calReturn={view:calView, anchor:calAnchor};
+    c.onclick=()=>{ if(calView!=='day') calReturn={view:calView, anchor:calAnchor};
                     calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
