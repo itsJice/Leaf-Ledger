@@ -43,6 +43,9 @@ function asViewOnly(html: string): string {
 
 export default function InstallSchedule() {
   const [html, setHtml] = useState<string | null>(null);
+  // The tool's TV mode (a wall display): it tells us when it's on, and we
+  // cover the whole window -- sidebar included -- with the tool.
+  const [tv, setTv] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -102,6 +105,7 @@ export default function InstallSchedule() {
       if (e.origin !== window.location.origin) return;
       if (e.source !== frameRef.current?.contentWindow) return;
       if (e.data?.type === "tbdg-ready") sendToken();
+      if (e.data?.type === "tbdg-tv") setTv(Boolean(e.data.on));
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -109,7 +113,7 @@ export default function InstallSchedule() {
 
   return (
     <Layout>
-      <div className="flex h-full min-h-0 flex-col">
+      <div className={tv ? "fixed inset-0 z-[60] flex flex-col bg-[#f7f6f2]" : "flex h-full min-h-0 flex-col"}>
         {error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-stone-500">
             <TreePine className="h-8 w-8 text-stone-400" />
@@ -125,6 +129,8 @@ export default function InstallSchedule() {
             srcDoc={html}
             title="TBDG Install Schedule"
             className="h-full w-full flex-1 border-0"
+            allow="fullscreen"
+            allowFullScreen
             onLoad={sendToken}
           />
         )}

@@ -485,6 +485,29 @@ body.viewonly .stfrating,body.viewonly .stfnotes{display:none!important}
 body.viewonly header{padding:6px 12px}
 body.viewonly #calwrap{padding:6px 10px 8px}
 body.viewonly .calbar{margin-bottom:6px}
+/* ---------- TV mode ----------
+   A wall display nobody touches: header gone, the month fills the screen,
+   type as large as the busiest day allows. Exit sits faded in a corner. */
+#tvbtn{padding:7px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
+  font-weight:700;font-size:12.5px;cursor:pointer}
+.tvexit,#tvhint{display:none}
+body.tv header{display:none}
+body.tv #calwrap{padding:10px 14px 10px}
+body.tv .calbar{margin-bottom:8px}
+body.tv #caltoday,body.tv #calprev,body.tv #calnext,body.tv #calviewsel{display:none}
+body.tv .caltitle{font-size:34px}
+body.tv .wallstamp{font-size:15px}
+body.tv .tvexit{display:block;padding:5px 10px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer}
+body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14px;z-index:50;
+  padding:10px 16px;border:0;border-radius:10px;background:var(--brand);color:#fff;
+  font-weight:800;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+/* Weeks that are over shrink to a strip: their names are done, the room
+   goes to what is still coming. */
+.wcell.past .wcrew{display:none}
+.wcell.past .wnum i{display:none}
+.wcell .wdone{display:none}
+.wcell.past .wdone{display:block;font-size:.62em;font-weight:700;color:var(--mut)}
 /* ---------- staffing ---------- */
 #staffwrap{padding:16px 20px 40px;width:100%;box-sizing:border-box;
   align-self:stretch;overflow-y:auto;min-height:0}
@@ -912,6 +935,7 @@ body.viewonly .calbar{margin-bottom:6px}
     <button id="viewstaff" type="button">Staffing</button>
     <button id="viewroster" type="button">Roster</button>
   </div>
+  <button id="tvbtn" type="button" title="Full-screen wall calendar for the studio TV">📺 TV mode</button>
   <button id="newclientbtn" type="button">+ New client</button>
   <button id="newdatebtn" type="button">+ New date</button>
   <button id="billexportbtn" type="button">⬇ Export</button>
@@ -921,6 +945,7 @@ body.viewonly .calbar{margin-bottom:6px}
   <div id="datestrip"></div>
 </header>
 <div id="calwrap" style="display:none"></div>
+<button id="tvhint" type="button" hidden>Tap for full screen</button>
 <div id="staffwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
@@ -1968,17 +1993,79 @@ function enterViewOnly(){
   document.addEventListener('drop', _roKill, true);
   calView = 'wall';
   calAnchor = wallHome();
-  let shownDay = todayISO();
-  // Someone else's edits reach the TV without anyone touching it, and at
-  // midnight it moves on to the new day (and month) by itself.
-  setInterval(()=>{ if(AUTH && !document.hidden) pullShared(); }, 2*60*1000);
+  startLiveRefresh();
+  setView('cal');
+  // The display is a TV unless someone on this device has turned TV mode off.
+  if(tvPref()!=='0') enterTV();
+}
+let liveRefresh=false;
+/** For a screen nobody touches: someone else's edits arrive every 2 minutes,
+ *  and at midnight it moves on to the new day (and month) by itself. */
+function startLiveRefresh(){
+  if(liveRefresh) return;
+  liveRefresh=true;
+  let shownDay=todayISO();
+  setInterval(()=>{ if(AUTH && !document.hidden && (VIEWONLY||TVMODE)) pullShared(); }, 2*60*1000);
   setInterval(()=>{
     if(todayISO()===shownDay) return;
-    shownDay = todayISO(); calAnchor = wallHome();
-    if(viewMode==='cal') renderCalendar();
+    shownDay=todayISO();
+    if(VIEWONLY||TVMODE){ calAnchor=wallHome(); if(viewMode==='cal') renderCalendar(); }
   }, 60*1000);
-  setView('cal');
 }
+// ---------- TV mode ----------
+// Toggle in the header. Remembered per device, so the studio iPad comes back
+// in TV mode after a reload or a restart. The browser only allows full
+// screen from a tap, so after a reload a "Tap for full screen" button waits.
+let TVMODE=false, tvPrev=null;
+function tvPref(){ try{ return localStorage.getItem('tbdg-tv-mode'); }catch(e){ return null; } }
+function setTvPref(v){ try{ localStorage.setItem('tbdg-tv-mode', v); }catch(e){} }
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
+function fsSupported(){ const el=document.documentElement;
+  return !!(el.requestFullscreen||el.webkitRequestFullscreen); }
+function requestFS(){
+  const el=document.documentElement;
+  try{ const r=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);
+       if(r&&r.catch) r.catch(()=>{}); }catch(e){}
+}
+function exitFS(){
+  if(!fsEl()) return;
+  try{ const r=(document.exitFullscreen||document.webkitExitFullscreen).call(document);
+       if(r&&r.catch) r.catch(()=>{}); }catch(e){}
+}
+function syncTvHint(){
+  const h=document.getElementById('tvhint');
+  if(h) h.hidden = !(TVMODE && fsSupported() && !fsEl());
+}
+function tellHost(){
+  // The app hides its sidebar around us while TV mode is on.
+  try{ window.parent.postMessage({type:'tbdg-tv', on:TVMODE}, '*'); }catch(e){}
+}
+function enterTV(fromTap){
+  if(TVMODE) return;
+  TVMODE=true;
+  if(fromTap) setTvPref('1');
+  tvPrev={viewMode, calView, calAnchor};
+  document.body.classList.add('tv');
+  calView='wall'; calAnchor=wallHome();
+  startLiveRefresh();
+  setView('cal');
+  if(fromTap) requestFS();
+  tellHost(); syncTvHint();
+}
+function exitTV(){
+  if(!TVMODE) return;
+  TVMODE=false; setTvPref('0');
+  document.body.classList.remove('tv');
+  exitFS();
+  if(tvPrev){ calView=tvPrev.calView; calAnchor=tvPrev.calAnchor; setView(tvPrev.viewMode); }
+  tellHost(); syncTvHint();
+}
+document.getElementById('tvbtn').onclick=()=>enterTV(true);
+// Exit lives in the calendar bar, which re-renders -- so delegate.
+document.addEventListener('click', e=>{ if(e.target.closest('#tvexit')) exitTV(); });
+document.getElementById('tvhint').onclick=()=>{ requestFS(); };
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
+  syncTvHint(); if(TVMODE && viewMode==='cal') setTimeout(fitWall, 60); }));
 function enterReadOnly(current){
   if(READONLY) return;
   READONLY = true;
@@ -5167,6 +5254,13 @@ function wallHome(){
   if(SEASON.length && t>=SEASON[0] && t<=SEASON[SEASON.length-1]) return t;
   return SEASON.find(dt=>calDaysOn(dt).length) || SEASON[0] || t;
 }
+/** A client's name as the wall shows it. The M Crowd restaurants all read
+ *  "M Crowd <location>"; on the wall the location alone is the useful part
+ *  (user, 2026-09-25), so the prefix goes. */
+function wallName(name){
+  const n=String(name||'').split('|')[0].trim();
+  return n.replace(/^M\s*Crowd\s+/i,'') || n;
+}
 /** One day on the wall: the date (and its box count -- what the warehouse
  *  has to pull), then each crew-day as a colour-keyed group of full client
  *  names. Deliberately no clock times; a night shift is a dark badge. */
@@ -5186,12 +5280,14 @@ function wallCellHTML(dt, today){
     const night=d.win===K.NIGHT;
     const badge=`<span class="wcb${night?' night':''}">${d.training?'Training':crewLabelShort(d)}${night?' ☾':''}</span>`;
     const names=d.stops.map(r=>`<li data-row="${r}" data-dayid="${d.id}">`
-                  + `${peekEsc(C[r].name.split('|')[0].trim())}</li>`);
+                  + `${peekEsc(wallName(C[r].name))}</li>`);
     inner+=`<ul class="wcrew" style="--cc:${CREW_COLORS[d.crew]||'#57534e'}">`
          + (names.length ? names.map((li,i)=>i?li:li.replace('>', '>'+badge)).join('')
                          : `<li>${badge}</li>`)
          + `</ul>`;
   });
+  const n=ds.reduce((a,d)=>a+d.stops.length,0);
+  if(n) inner+=`<div class="wdone">✓ ${n} stop${n===1?'':'s'}</div>`;
   return `<div class="${cls.join(' ')}"${ds.length?` data-date="${dt}"`:''}>${inner}</div>`;
 }
 /** Lay dates out Sun..Sat, one row per week, dropping weekday columns with
@@ -5207,8 +5303,10 @@ function wallGridHTML(dates){
     weeks[weeks.length-1][dow]=dt;
   });
   const rows=weeks.filter(w=>cols.some(c=>w[c]));
+  // A week entirely in the past is a thin strip; the rest share the height.
+  const sizes=rows.map(w=>cols.every(c=>!w[c] || w[c]<today) ? 'auto' : 'minmax(0,1fr)');
   let h=`<div class="wallgrid" style="grid-template-columns:repeat(${cols.length},minmax(0,1fr));`
-      + `grid-template-rows:auto repeat(${rows.length},minmax(0,1fr))">`;
+      + `grid-template-rows:auto ${sizes.join(' ')}">`;
   cols.forEach(d=>h+=`<div class="walldow">${DOW3[d]}</div>`);
   rows.forEach(w=>cols.forEach(dow=>{
     h+= w[dow] ? wallCellHTML(w[dow], today) : `<div class="wcell off"></div>`;
@@ -5472,6 +5570,7 @@ function renderCalendar(){
       <button class="calnav" id="calnext" aria-label="Next">›</button>`:''}
       <h2 class="caltitle">${calTitle()}</h2>
       ${calView.startsWith('wall')?`<span class="wallstamp">Updated ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>`:''}
+      <button class="tvexit" id="tvexit" type="button">Exit TV</button>
       <select class="calsel" id="calviewsel">
         <option value="day">Day</option><option value="week">Week</option>
         <option value="month">Month</option><option value="wall">Wall: month</option>
@@ -6853,4 +6952,8 @@ selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
 if(VIEWONLY) enterViewOnly();
 else if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
 render();
+if(!VIEWONLY && tvPref()==='1') enterTV();
+// The host may have mounted us before it could hear the answer; say it again.
+window.addEventListener('message', e=>{
+  if(e.source===window.parent && e.data && e.data.type==='tbdg-auth') tellHost(); });
 </script></body></html>
