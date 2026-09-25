@@ -25,6 +25,8 @@ async def get_me(user: AuthorizedUser) -> dict:
         "role": role,
         "isAdmin": roles.at_least(role, "admin"),
         "isSuperAdmin": role == "super_admin",
-        "fieldOnly": not roles.at_least(role, "staff"),
+        "fieldOnly": role in ("crew", "lead"),
+        # The warehouse display: the install schedule, read-only, nothing else.
+        "viewOnly": role == "viewer",
         "person": person,
     }

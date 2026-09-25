@@ -442,6 +442,49 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .calbox{color:#8a5a00}
 .caltag{display:inline-block;padding:0 5px;border-radius:4px;background:#0f766e;color:#fff;
   font-size:9px;font-weight:800;margin-left:4px;vertical-align:2px}
+/* ---------- wall calendar (warehouse TV) ----------
+   Month at a glance for the shop floor: every client going out, by crew, on
+   the day it goes -- no clock times. Sized to fill the screen; fitWall()
+   shrinks the type until the busiest week fits. */
+.wallgrid{display:grid;gap:6px;--wfs:18px;font-size:var(--wfs)}
+.walldow{font-size:.7em;font-weight:800;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.06em;text-align:center}
+.wcell{border:2px solid var(--line);border-radius:8px;background:#fff;padding:.25em .4em .3em;
+  overflow:hidden;cursor:pointer;min-height:0}
+.wcell.empty{background:#faf9f7;border-style:dashed;cursor:default}
+.wcell.off{visibility:hidden}
+.wcell.past{opacity:.45}
+.wcell.today{border-color:var(--brand);border-width:4px}
+.wcell.tagged{border-color:#0f766e}
+.wnum{display:flex;align-items:baseline;gap:.3em;line-height:1.05;margin-bottom:.1em}
+.wnum b{font-size:1.25em;font-weight:800}
+.wnum span{font-size:.62em;font-weight:700;color:var(--mut);text-transform:uppercase}
+.wnum em{font-style:normal;padding:0 .35em;border-radius:.3em;background:#0f766e;
+  color:#fff;font-size:.58em;font-weight:800;letter-spacing:.03em}
+.wnum i{font-style:normal;margin-left:auto;font-size:.66em;font-weight:800;white-space:nowrap}
+.wcrew{list-style:none;margin:.15em 0 0;padding:0 0 0 .35em;border-left:.28em solid var(--cc,#555)}
+.wcrew li{font-weight:650;line-height:1.16;color:#1c1917;cursor:pointer}
+.wcb{display:inline-block;margin-right:.3em;padding:0 .3em;border-radius:.25em;background:var(--cc,#555);
+  color:#fff;font-size:.7em;font-weight:800;vertical-align:.08em;line-height:1.35}
+.wcb.night{background:#1e293b}
+.wallstamp{font-size:12px;color:var(--mut);margin-left:auto}
+/* View-only login (warehouse iPad / TV): nothing on screen that edits. The
+   readonly rules above already disable the controls; this removes them. */
+body.viewonly #newclientbtn,body.viewonly #newdatebtn,body.viewonly #billexportbtn,
+body.viewonly #seasonpick,body.viewonly #robanner,body.viewonly .undobar,
+body.viewonly .okbtn,body.viewonly .mv,body.viewonly .ordbtn,body.viewonly .cshiftrm,
+body.viewonly .cshiftadd,body.viewonly .shcbtn,body.viewonly .dchiprm,body.viewonly .stfadd,
+body.viewonly .cautoorder,body.viewonly [data-act],body.viewonly .pkeditbtn,
+body.viewonly .pkcommentrm,body.viewonly #pkcommentadd,body.viewonly #pkcommenttext,
+body.viewonly #peekmove,body.viewonly #headtitle,body.viewonly #summarybar{display:none!important}
+/* It's a shared screen on the shop floor: installers' ratings and private
+   notes stay off it. */
+body.viewonly .ratcell,body.viewonly .stftable th[title^="Alberto"],
+body.viewonly .stfrating,body.viewonly .stfnotes{display:none!important}
+/* The iPad is mirrored to a 4:3 TV: one slim bar of controls, then calendar. */
+body.viewonly header{padding:6px 12px}
+body.viewonly #calwrap{padding:6px 10px 8px}
+body.viewonly .calbar{margin-bottom:6px}
 /* ---------- staffing ---------- */
 #staffwrap{padding:16px 20px 40px;width:100%;box-sizing:border-box;
   align-self:stretch;overflow-y:auto;min-height:0}
@@ -1063,6 +1106,12 @@ const SEASON_SPAN_LABEL='Oct __SEASON__ – Jan __SEASON_NEXT__';
 // standalone copy, an offline load, or a deployment whose backend has no
 // /seasons endpoint behaves exactly as it always has.
 let READONLY=false;
+// VIEW-ONLY LOGIN (the warehouse iPad on the shop TV). Set by the host app
+// before this script runs (InstallSchedule.tsx injects window.TBDG_VIEWONLY
+// for a `viewer` role), so it is read-only from the first paint -- and the
+// server refuses that login's saves regardless. Unlike an archived season it
+// can never be unlocked: exitReadOnly() checks this first.
+const VIEWONLY = !!window.TBDG_VIEWONLY;
 const RO_MSG='This is an archived season — it is kept as a record and cannot be changed.';
 /** The one gate every mutating path goes through. True means "don't".
  *  Callers `if(roBlocked()) return;` FIRST, before pushUndo() or any state
@@ -1894,7 +1943,7 @@ let _roKill = null;
  *  last season's and is the only place work can happen. Locking it then would
  *  leave the team with no editable schedule for months. */
 function exitReadOnly(){
-  if(!READONLY) return;
+  if(!READONLY || VIEWONLY) return;
   READONLY = false;
   document.body.classList.remove('readonly');
   const b = document.getElementById('robanner');
@@ -1907,6 +1956,28 @@ function exitReadOnly(){
     _roKill = null;
   }
   render();
+}
+/** The view-only login: read-only like an archived season, but with no
+ *  banner (it is not an exception to explain, it is the whole point), and it
+ *  opens on the wall calendar at today's month and keeps itself current. */
+function enterViewOnly(){
+  READONLY = true;
+  document.body.classList.add('readonly','viewonly');
+  _roKill = e => { e.preventDefault(); e.stopPropagation(); };
+  document.addEventListener('dragstart', _roKill, true);
+  document.addEventListener('drop', _roKill, true);
+  calView = 'wall';
+  calAnchor = wallHome();
+  let shownDay = todayISO();
+  // Someone else's edits reach the TV without anyone touching it, and at
+  // midnight it moves on to the new day (and month) by itself.
+  setInterval(()=>{ if(AUTH && !document.hidden) pullShared(); }, 2*60*1000);
+  setInterval(()=>{
+    if(todayISO()===shownDay) return;
+    shownDay = todayISO(); calAnchor = wallHome();
+    if(viewMode==='cal') renderCalendar();
+  }, 60*1000);
+  setView('cal');
 }
 function enterReadOnly(current){
   if(READONLY) return;
@@ -5089,6 +5160,89 @@ const PERIOD=1440, REPEATS=3, PXM=0.85;
 function calDaysOn(iso){ return days.filter(x=>x.date===iso)
   .sort((a,b)=>a.crew.localeCompare(b.crew)); }
 
+/** Where the wall opens: today, or -- outside the season -- the first date
+ *  with work, so a TV switched on in September isn't showing a blank month. */
+function wallHome(){
+  const t=todayISO();
+  if(SEASON.length && t>=SEASON[0] && t<=SEASON[SEASON.length-1]) return t;
+  return SEASON.find(dt=>calDaysOn(dt).length) || SEASON[0] || t;
+}
+/** One day on the wall: the date (and its box count -- what the warehouse
+ *  has to pull), then each crew-day as a colour-keyed group of full client
+ *  names. Deliberately no clock times; a night shift is a dark badge. */
+function wallCellHTML(dt, today){
+  const ci=SPEC.calendar.find(c=>c.date===dt), ds=calDaysOn(dt);
+  const cls=['wcell'];
+  if(!ds.length) cls.push('empty');
+  if(dt===today) cls.push('today'); else if(dt<today) cls.push('past');
+  if(ci&&ci.label) cls.push('tagged');
+  const boxes=ds.reduce((a,d)=>a+dayBoxes(d),0);
+  const [,mm,dd]=dt.split('-').map(Number);
+  let inner=`<div class="wnum"><b>${dd===1?`${MONTHS[mm-1].slice(0,3)} `:''}${dd}</b>`
+          + `<span>${DOW3[dateOf(dt).getDay()]}</span>`
+          + (ci&&ci.label?`<em>${peekEsc(ci.label)}</em>`:'')
+          + (boxes?`<i class="calbox">${boxes} box${boxes===1?'':'es'}</i>`:'')+`</div>`;
+  ds.forEach(d=>{
+    const night=d.win===K.NIGHT;
+    const badge=`<span class="wcb${night?' night':''}">${d.training?'Training':crewLabelShort(d)}${night?' ☾':''}</span>`;
+    const names=d.stops.map(r=>`<li data-row="${r}" data-dayid="${d.id}">`
+                  + `${peekEsc(C[r].name.split('|')[0].trim())}</li>`);
+    inner+=`<ul class="wcrew" style="--cc:${CREW_COLORS[d.crew]||'#57534e'}">`
+         + (names.length ? names.map((li,i)=>i?li:li.replace('>', '>'+badge)).join('')
+                         : `<li>${badge}</li>`)
+         + `</ul>`;
+  });
+  return `<div class="${cls.join(' ')}"${ds.length?` data-date="${dt}"`:''}>${inner}</div>`;
+}
+/** Lay dates out Sun..Sat, one row per week, dropping weekday columns with
+ *  no work in the range (usually Sunday) so the rest get the width. */
+function wallGridHTML(dates){
+  const today=todayISO();
+  const used=new Set(dates.filter(dt=>calDaysOn(dt).length).map(dt=>dateOf(dt).getDay()));
+  const cols=[0,1,2,3,4,5,6].filter(d=>!used.size || used.has(d) || (d>=1 && d<=5));
+  const weeks=[];
+  dates.forEach(dt=>{
+    const dow=dateOf(dt).getDay();
+    if(!weeks.length || dow===0) weeks.push({});
+    weeks[weeks.length-1][dow]=dt;
+  });
+  const rows=weeks.filter(w=>cols.some(c=>w[c]));
+  let h=`<div class="wallgrid" style="grid-template-columns:repeat(${cols.length},minmax(0,1fr));`
+      + `grid-template-rows:auto repeat(${rows.length},minmax(0,1fr))">`;
+  cols.forEach(d=>h+=`<div class="walldow">${DOW3[d]}</div>`);
+  rows.forEach(w=>cols.forEach(dow=>{
+    h+= w[dow] ? wallCellHTML(w[dow], today) : `<div class="wcell off"></div>`;
+  }));
+  return h+`</div>`;
+}
+/** Wall calendar, month: every client going out that month, at a glance. */
+function wallHTML(anchor){
+  const [y,m]=anchor.split('-').map(Number), last=new Date(y,m,0).getDate();
+  const dates=[];
+  for(let n=1;n<=last;n++) dates.push(`${y}-${String(m).padStart(2,'0')}-${String(n).padStart(2,'0')}`);
+  return wallGridHTML(dates);
+}
+/** Wall calendar, two weeks from the anchor's Sunday: the same cells with
+ *  room for big type -- the TV view when a month is too dense to read. */
+function wall2Dates(anchor){
+  const start=addDays(anchor,-dateOf(anchor).getDay());
+  return Array.from({length:14},(_,i)=>addDays(start,i));
+}
+function wall2HTML(anchor){ return wallGridHTML(wall2Dates(anchor)); }
+/** Fill the screen below the calendar bar, then shrink the type one step at
+ *  a time until no day cell overflows -- a light week reads from across the
+ *  shop, a packed one still shows every name. */
+function fitWall(){
+  const g=document.querySelector('#calwrap .wallgrid');
+  if(!g) return;
+  const top=g.getBoundingClientRect().top;
+  g.style.height=Math.max(420, window.innerHeight-top-14)+'px';
+  const over=()=>[...g.querySelectorAll('.wcell:not(.off)')].some(c=>c.scrollHeight>c.clientHeight+1);
+  let fs=34;
+  g.style.setProperty('--wfs', fs+'px');
+  while(fs>9 && over()){ fs-=1; g.style.setProperty('--wfs', fs+'px'); }
+}
+window.addEventListener('resize', ()=>{ if(viewMode==='cal' && calView.startsWith('wall')) fitWall(); });
 function monthHTML(anchor){
   const [y,m]=anchor.split('-').map(Number);
   const first=new Date(y,m-1,1), last=new Date(y,m,0).getDate();
@@ -5288,8 +5442,11 @@ function agendaHTML(){
 }
 let calView='month', calAnchor=(SEASON[0]||todayISO());
 function calTitle(){
-  if(calView==='month'){ const [y,m]=calAnchor.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; }
+  if(calView==='month'||calView==='wall'){ const [y,m]=calAnchor.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; }
   if(calView==='agenda') return 'Schedule';
+  if(calView==='wall2'){ const ds=wall2Dates(calAnchor), a=dateOf(ds[0]), b=dateOf(ds[13]);
+    return a.getMonth()===b.getMonth() ? `${MONTHS[a.getMonth()]} ${a.getDate()} – ${b.getDate()}`
+      : `${MONTHS[a.getMonth()].slice(0,3)} ${a.getDate()} – ${MONTHS[b.getMonth()].slice(0,3)} ${b.getDate()}`; }
   if(calView==='day') return `${DOW3[dateOf(calAnchor).getDay()]} ${fmtMDYYYY(calAnchor)}`;
   const s=addDays(calAnchor,-dateOf(calAnchor).getDay()), e=addDays(s,6);
   const [sy,sm,sd]=s.split('-'), [ey,em,ed]=e.split('-');
@@ -5299,9 +5456,10 @@ function calTitle(){
 function calShift(n){
   // setDate(1) BEFORE setMonth: stepping back from a 31st would otherwise land
   // on a short month, normalise forward, and leave you in the month you started.
-  if(calView==='month'){ const d=dateOf(calAnchor); d.setDate(1); d.setMonth(d.getMonth()+n);
+  if(calView==='month'||calView==='wall'){ const d=dateOf(calAnchor); d.setDate(1); d.setMonth(d.getMonth()+n);
     calAnchor=isoOf(d); }
   else if(calView==='week') calAnchor=addDays(calAnchor,7*n);
+  else if(calView==='wall2') calAnchor=addDays(calAnchor,14*n);
   else if(calView==='day')  calAnchor=addDays(calAnchor,n);
   renderCalendar();
 }
@@ -5313,12 +5471,17 @@ function renderCalendar(){
       ${nav?`<button class="calnav" id="calprev" aria-label="Previous">‹</button>
       <button class="calnav" id="calnext" aria-label="Next">›</button>`:''}
       <h2 class="caltitle">${calTitle()}</h2>
+      ${calView.startsWith('wall')?`<span class="wallstamp">Updated ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>`:''}
       <select class="calsel" id="calviewsel">
         <option value="day">Day</option><option value="week">Week</option>
-        <option value="month">Month</option><option value="agenda">Schedule</option>
+        <option value="month">Month</option><option value="wall">Wall: month</option>
+        <option value="wall2">Wall: 2 weeks</option>
+        <option value="agenda">Schedule</option>
       </select>
     </div><div id="calbodywrap">${
       calView==='month'?monthHTML(calAnchor):
+      calView==='wall' ?wallHTML(calAnchor):
+      calView==='wall2'?wall2HTML(calAnchor):
       calView==='week' ?weekHTML(calAnchor):
       calView==='day'  ?dayHTML(calAnchor):agendaHTML()}</div>`;
   document.getElementById('calviewsel').value=calView;
@@ -5341,7 +5504,8 @@ function renderCalendar(){
   if(nav){ document.getElementById('calprev').onclick=()=>calShift(-1);
            document.getElementById('calnext').onclick=()=>calShift(1); }
   initCylinder(wrap);
-  wrap.querySelectorAll('.calcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
+  if(calView.startsWith('wall')) fitWall();
+  wrap.querySelectorAll('.calcell[data-date],.wcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
     c.onclick=()=>{ calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
@@ -6686,6 +6850,7 @@ selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
 // window between load and the auth token arriving. loadSeasons() confirms it
 // against the server's clock a moment later; this is what makes the
 // guarantee immediate rather than eventual.
-if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
+if(VIEWONLY) enterViewOnly();
+else if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
 render();
 </script></body></html>

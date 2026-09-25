@@ -115,6 +115,7 @@ def test_require_role_blocks_leads_from_staff_routers(fake_db, board, fake_reque
     fake_db.on_fetchval("FROM ll_app.user_roles", None)
     dep = roles.require_role("staff")
     req = fake_request("x")
+    req.method = "GET"
     orig = supabase_auth.get_current_user
     roles.get_current_user = lambda _r: supabase_auth.AuthUser(sub="x", email="ana@example.com")
     try:
@@ -296,3 +297,47 @@ def test_set_role_writes_and_clears_cache(fake_db, board):
     assert out == {"email": "bo@example.com", "role": "lead"}
     assert fake_db.calls("INSERT INTO ll_app.user_roles (email, role, updated_by) VALUES ($1, $2, $3)")[0][1] == (
         "bo@example.com", "lead", "justice@wenzdays.com")
+
+
+# ─── viewer (warehouse display) ──────────────────────────────────────────────
+
+
+def test_viewer_reads_the_schedule_and_nothing_else():
+    assert roles.allowed("viewer", "staff", "GET", viewer_read=True)
+    assert not roles.allowed("viewer", "staff", "PUT", viewer_read=True)  # can't save the board
+    assert not roles.allowed("viewer", "staff", "GET")                    # clients, orders, ...
+    assert not roles.allowed("viewer", "lead", "GET")                     # lead pages
+    assert roles.allowed("viewer", "crew", "GET")                         # /me, preferences
+    assert not roles.allowed("lead", "staff", "GET", viewer_read=True)    # leads still can't read the tool
+    from app.apis import install_schedule
+
+    assert install_schedule.VIEWER_READ is True
+
+
+def test_viewer_dependency_uses_the_request_method(fake_db, fake_request, monkeypatch):
+    from app.auth import supabase_auth
+
+    roles.clear_cache()
+    fake_db.on_fetchval("FROM ll_app.user_roles", "viewer")
+    monkeypatch.setattr(roles, "get_current_user",
+                        lambda _r: supabase_auth.AuthUser(sub="i", email="ipad@example.com"))
+    dep = roles.require_role("staff", viewer_read=True)
+    req = fake_request("i")
+    req.method = "GET"
+    assert run(dep(req)) == "viewer"
+    req.method = "PUT"
+    with pytest.raises(HTTPException) as exc:
+        run(dep(req))
+    assert exc.value.status_code == 403
+    roles.clear_cache()
+
+
+def test_me_flags_the_display_login(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", "viewer")
+    out = run(me.get_me(user("ipad@example.com")))
+    assert (out["role"], out["viewOnly"], out["fieldOnly"]) == ("viewer", True, False)
+
+
+def test_roles_ddl_widens_an_existing_table_for_viewer():
+    assert "DROP CONSTRAINT IF EXISTS user_roles_role_check" in roles.DDL
+    assert "'viewer'" in roles.DDL

@@ -3,6 +3,7 @@ import { Loader2, TreePine } from "components/icons";
 import Layout from "components/Layout";
 import { auth } from "app/auth/auth";
 import { apiFetch } from "utils/apiFetch";
+import { currentMe } from "utils/me";
 
 /**
  * TBDG Install Schedule — the Christmas install scheduling tool.
@@ -30,6 +31,16 @@ import { apiFetch } from "utils/apiFetch";
  * listener exists; sending in direct response to that is what actually
  * guarantees delivery. `onLoad` stays wired too, as a second attempt.
  */
+/**
+ * The warehouse display login gets the tool in view-only mode from its very
+ * first paint (a flag the tool reads at startup), rather than after the token
+ * message arrives. The server refuses that login's saves either way.
+ */
+function asViewOnly(html: string): string {
+  const flag = "<script>window.TBDG_VIEWONLY=true</script>";
+  return html.includes("<head>") ? html.replace("<head>", `<head>${flag}`) : flag + html;
+}
+
 export default function InstallSchedule() {
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +56,7 @@ export default function InstallSchedule() {
           throw new Error(detail?.detail || `Failed to load (${res.status})`);
         }
         const text = await res.text();
-        if (!cancelled) setHtml(text);
+        if (!cancelled) setHtml(currentMe()?.viewOnly ? asViewOnly(text) : text);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
