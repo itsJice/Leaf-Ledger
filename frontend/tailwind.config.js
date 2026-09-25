@@ -45,6 +45,13 @@ export default {
 	content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
 	theme: {
 		extend: {
+			fontFamily: {
+				sans: ["'Nunito Sans'", "system-ui", "sans-serif"],
+				heading: ["Sora", "system-ui", "sans-serif"],
+				/* `serif` is kept as an alias of the heading face: the few
+				   `font-serif` usages were headings under the old Playfair. */
+				serif: ["Sora", "system-ui", "sans-serif"],
+			},
 			borderRadius: {
 				lg: "var(--radius)",
 				md: "calc(var(--radius) - 2px)",

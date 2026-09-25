@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Nunito+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -873,17 +873,21 @@ html.dark {
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Montserrat', sans-serif;
+    /* Type follows the logo (a bold rounded geometric): Sora for headings --
+       geometric with softened corners -- and Nunito Sans, a rounded humanist
+       that stays crisp at table sizes, for everything else. Chosen 2026-09-25
+       from a side-by-side of eight pairings. */
+    font-family: 'Nunito Sans', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Sora', system-ui, sans-serif;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
-  /* Data-dense areas stay in clean sans-serif */
+  /* Data-dense areas stay in the body face */
   table, .font-mono {
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Nunito Sans', system-ui, sans-serif;
   }
 }
 

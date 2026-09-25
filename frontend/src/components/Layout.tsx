@@ -489,7 +489,7 @@ function StaffLayout({ children }: Props) {
   // The wrapper uses `bg-background` (previously a hardcoded #f7f4ef) so the
   // content area follows the theme while the sidebar keeps its dark identity.
   return (
-    <div className="min-h-screen flex bg-background" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="min-h-screen flex bg-background" style={{ fontFamily: "'Nunito Sans', system-ui, sans-serif" }}>
       {/* Phone / tablet top bar. Same dark chrome as the sidebar; hidden at lg
           where the sidebar is always on screen. */}
       <header

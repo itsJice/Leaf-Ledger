@@ -91,7 +91,7 @@ export default function Mockups() {
     <Layout>
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10 py-4 border-b border-stone-200" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
-          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>AI Mockups</h1>
+          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>AI Mockups</h1>
           <p className="text-xs text-stone-500 mt-0.5">Generate visual renders of your arrangements</p>
         </div>
       </header>
@@ -99,7 +99,7 @@ export default function Mockups() {
       <div className="px-4 sm:px-10 py-8 max-w-5xl">
         {/* Generator panel */}
         <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-8">
-          <h2 className="text-base font-semibold text-stone-700 mb-4" style={{ fontFamily: "Georgia, serif" }}>Generate a new mockup</h2>
+          <h2 className="text-base font-semibold text-stone-700 mb-4" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Generate a new mockup</h2>
           <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Arrangement select */}
             <div>
@@ -168,7 +168,7 @@ export default function Mockups() {
 
         {/* Mockup gallery */}
         <div>
-          <h2 className="text-base font-semibold text-stone-700 mb-4" style={{ fontFamily: "Georgia, serif" }}>Generated mockups</h2>
+          <h2 className="text-base font-semibold text-stone-700 mb-4" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Generated mockups</h2>
           {loadingMockups ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />

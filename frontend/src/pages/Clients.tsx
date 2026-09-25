@@ -442,7 +442,7 @@ function NewClientModal({ client, onClose, onSaved }: {
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 ll-overlay">
       <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl ll-modal">
         <div className="flex items-center justify-between border-b border-stone-100 px-6 py-4">
-          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{editing ? "Edit Client" : "New Client"}</h2>
+          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{editing ? "Edit Client" : "New Client"}</h2>
           <button type="button" onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void saveClient(); }}>
@@ -596,7 +596,7 @@ function DeleteClientDialog({
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/35 ll-overlay">
       <div className="mx-4 w-full max-w-sm rounded-2xl bg-white shadow-2xl ll-modal">
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
-          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>Delete client</h2>
+          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Delete client</h2>
           <button type="button" onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         <div className="space-y-4 px-5 py-4">
@@ -1001,7 +1001,7 @@ export default function Clients() {
               </>
             )}
           </div>
-          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {focusedClient ? focusedClient : "Clients"}
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">

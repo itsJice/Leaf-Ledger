@@ -214,7 +214,7 @@ export default function FeedbackWidget() {
       {open && (
         <div className="flex w-[380px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
-            <p className="text-sm font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+            <p className="text-sm font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
               Suggest a feature
             </p>
             <button onClick={close} className="rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700" aria-label="Close">

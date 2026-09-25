@@ -77,7 +77,7 @@ export function ProductModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ll-overlay">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden ll-modal">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {form.id ? "Edit Product" : "Add Product"}
           </h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600">

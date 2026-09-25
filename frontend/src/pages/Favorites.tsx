@@ -113,7 +113,7 @@ export default function Favorites() {
         <div>
           <h1
             className="text-xl font-semibold text-stone-800"
-            style={{ fontFamily: "Georgia, serif" }}
+            style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
           >
             Favorites
           </h1>

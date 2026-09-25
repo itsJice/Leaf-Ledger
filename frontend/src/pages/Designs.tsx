@@ -159,7 +159,7 @@ export default function Designs() {
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+            <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
               <Shapes size={18} className="text-emerald-700" />
               Designs
             </h1>

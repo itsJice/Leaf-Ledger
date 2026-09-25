@@ -178,7 +178,7 @@ export default function App() {
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
         <div>
-          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             Welcome back
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">
@@ -221,7 +221,7 @@ export default function App() {
         </div>
 
         <div className="mb-10">
-          <h2 className="mb-4 text-base font-semibold text-stone-700" style={{ fontFamily: "Georgia, serif" }}>
+          <h2 className="mb-4 text-base font-semibold text-stone-700" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             Quick actions
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -273,7 +273,7 @@ function RecentDesigns({ designs, loading }: { designs: RecentDesign[]; loading:
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-stone-700" style={{ fontFamily: "Georgia, serif" }}>
+        <h2 className="text-base font-semibold text-stone-700" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
           Recent designs
         </h2>
         <button

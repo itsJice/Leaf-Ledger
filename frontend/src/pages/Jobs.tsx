@@ -169,7 +169,7 @@ export default function Jobs() {
     <Layout>
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             <ClipboardList size={18} className="text-emerald-700" /> Jobs
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">Pin from the catalog, compare side by side, pick.</p>
@@ -351,7 +351,7 @@ function JobTile({ job, onOpen }: { job: BoardJob; onOpen: () => void }) {
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800"><Star size={9} fill="currentColor" /> {job.chosen_count} picked</span>
         )}
       </div>
-      <p className="mt-2 line-clamp-2 text-sm font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>{job.name}</p>
+      <p className="mt-2 line-clamp-2 text-sm font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{job.name}</p>
       <p className="mt-0.5 truncate text-xs text-stone-500">{job.client_name || "No client"}{job.collection ? ` · ${job.collection}` : ""}</p>
       <div className="mt-auto flex items-center gap-1.5 pt-3 text-xs text-stone-400">
         <Layers size={12} />
@@ -398,7 +398,7 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
           <input value={name} onChange={(e) => setName(e.target.value)}
             onBlur={() => name.trim() && name !== board.name && onRename(name.trim())}
             className="w-full max-w-xl bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500"
-            style={{ fontFamily: "Georgia, serif" }} />
+            style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
           <p className="text-xs text-stone-500">
             {board.client_name || "No client"}{board.collection ? ` · ${board.collection}` : ""} · {board.items.length} pinned
           </p>
@@ -483,9 +483,9 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
         {group ? (
           <input value={gname} onChange={(e) => setGname(e.target.value)}
             onBlur={() => gname.trim() && gname !== group.name && run(() => updateGroup(group.id, { name: gname.trim() }))}
-            className="min-w-0 max-w-full bg-transparent text-base font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500" style={{ fontFamily: "Georgia, serif" }} />
+            className="min-w-0 max-w-full bg-transparent text-base font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500" style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
         ) : (
-          <h3 className="text-base font-semibold text-stone-500" style={{ fontFamily: "Georgia, serif" }}>Not in a group</h3>
+          <h3 className="text-base font-semibold text-stone-500" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Not in a group</h3>
         )}
         <span className="text-xs text-stone-400">{order.length} option{order.length === 1 ? "" : "s"}{chosen ? ` · picked: ${chosen.name}` : ""}{order.length > 1 ? " · drag a column to reorder" : ""}</span>
         <button onClick={onPinMore} className={btnGhost}><Plus size={12} /> Add options</button>

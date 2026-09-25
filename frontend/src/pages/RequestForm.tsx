@@ -96,7 +96,7 @@ export default function RequestForm() {
     <Layout>
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             <NotebookPen size={18} className="text-emerald-700" /> Request Form
           </h1>
           <p className="mt-0.5 text-xs text-stone-500">One request per project — every item, in one sitting.</p>
@@ -191,7 +191,7 @@ function RequestPanel({ req, meta, run, onDelete, onSave, saving }: {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "Georgia, serif" }}>
+          <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {[req.client_name, req.project_name].filter(Boolean).join(" · ") || "New request"}
           </h2>
           {req.job_name && <p className="text-xs text-emerald-700">Loaded onto the job: {req.job_name}</p>}
