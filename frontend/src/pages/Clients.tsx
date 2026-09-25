@@ -107,6 +107,7 @@ type ClientGroup = {
   state?: string | null;
   zip?: string | null;
   timePreference?: TimePreference | null;
+  formerNames: string[];
   secondaryContacts: SecondaryContact[];
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
@@ -264,6 +265,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       state: client.state,
       zip: client.zip,
       timePreference: client.time_preference ?? null,
+      formerNames: client.former_names || [],
       secondaryContacts: client.secondary_contacts || [],
       activity: client.activity || [],
       source: client.source,
@@ -279,6 +281,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
     if (groups.has(key)) return;
     groups.set(key, {
       name: stats.name,
+      formerNames: [],
       secondaryContacts: [],
       activity: [],
       source: "from_projects" as const,
@@ -822,6 +825,7 @@ export default function Clients() {
       list = list.filter((c) => {
         const hay = [
           c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes,
+          ...c.formerNames,  // a client renamed on this tab is still found by the old spelling
           ...c.secondaryContacts.flatMap((s) => [s.label, s.phone, s.email]),
           ...c.activity.map((a) => `${a.season} ${a.summary}`),
         ].filter(Boolean).join(" ").toLowerCase();
