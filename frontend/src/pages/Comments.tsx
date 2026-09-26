@@ -15,8 +15,8 @@ import { toast } from "sonner";
 // A daily Claude Code run reviews every open item and leaves a note on it:
 // what it fixed (with a link to test), or why it needs a person. Answering
 // that note here puts the item back in Claude's queue for the next run.
-// The notes, replies, filters and check-off are the owner's (Justice -- the
-// server decides, GET /api/feedback/access); everyone else sees each item as "Under review" or "Complete", and the API
+// The notes, replies, filters and check-off are the owner's (super_admin --
+// the server decides, GET /api/feedback/access); everyone else sees each item as "Under review" or "Complete", and the API
 // leaves the review fields out for them.
 
 interface FeedbackRow {

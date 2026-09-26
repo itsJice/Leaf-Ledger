@@ -140,19 +140,17 @@ def test_changes_are_owner_only():
     assert guarded == {("/feedback/{feedback_id}", "PUT"), ("/feedback/{feedback_id}/reply", "PUT")}
 
 
-def test_owner_is_super_admin_or_work_login(fake_user, as_role):
-    from app.auth.user import User
-
-    work = User(sub="u2", user_id="u2", email=" Justice@TheBranchDesignGroup.com ", name="justice")
-    assert run(feedback.feedback_access(work)) == {"owner": True}
+def test_owner_is_super_admin(fake_user, as_role):
     assert run(feedback.feedback_access(fake_user)) == {"owner": False}
     with pytest.raises(HTTPException) as exc:
         run(feedback._require_owner(fake_user))
     assert exc.value.status_code == 403
-    as_role("admin")
-    assert run(feedback.feedback_access(fake_user)) == {"owner": False}
+    for role in ("admin", "viewer"):
+        as_role(role)
+        assert run(feedback.feedback_access(fake_user)) == {"owner": False}
     as_role("super_admin")
     assert run(feedback.feedback_access(fake_user)) == {"owner": True}
+    assert run(feedback._require_owner(fake_user)) is None
 
 
 def test_reply_validation(fake_db, fake_user):

@@ -19,8 +19,8 @@ talks to the database directly, so there is no API route that writes a
 review. People answer a review from the Comments tab (`PUT /{id}/reply`),
 which queues the item for Claude's next run.
 
-Claude's notes, the replies and the check-off belong to the owner (Justice:
-any super_admin, plus the work account in `OWNER_EMAILS`). Everyone else still sees every submission, but only as
+Claude's notes, the replies and the check-off belong to the owner (any
+super_admin -- in practice Justice). Everyone else still sees every submission, but only as
 "under review" or "complete": the list strips the review fields for them,
 and the routes that change a submission refuse them.
 """
@@ -77,13 +77,7 @@ CLAUDE_REVIEW_STATUSES = {
 #: Set by a person answering a review; Claude picks these up on its next run.
 CLAUDE_QUEUE_STATUSES = {"approved", "replied"}
 
-#: Justice's work login, which is plain staff everywhere else in the app.
-OWNER_EMAILS = frozenset({"justice@thebranchdesigngroup.com"})
-
-
 async def is_owner(user) -> bool:
-    if roles.norm_email(user.email) in OWNER_EMAILS:
-        return True
     return await roles.role_of(user) == "super_admin"
 
 
