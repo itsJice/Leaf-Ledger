@@ -114,7 +114,13 @@
     "GET",
     "POST"
   ],
+  "/api/feedback/access": [
+    "GET"
+  ],
   "/api/feedback/{feedback_id}": [
+    "PUT"
+  ],
+  "/api/feedback/{feedback_id}/reply": [
     "PUT"
   ],
   "/api/feedback/{feedback_id}/screenshot": [
