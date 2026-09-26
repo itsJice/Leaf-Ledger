@@ -51,7 +51,8 @@ type Row = {
   client: ClientRecord;
   entry: ActivityEntry;
   d: Record<string, unknown>;
-  prev: Record<string, unknown> | null;
+  /** Every season's detail for this client, by season label -- the year-over-year columns read these. */
+  hist: Record<string, Record<string, unknown>>;
 };
 
 type EditKind = "text" | "int" | "number" | "money" | "date" | "storing" | "role";
@@ -68,7 +69,9 @@ type Col = {
   render?: (r: Row) => React.ReactNode;
 };
 
-const COLS_KEY = "ll.christmasGrid.cols";
+// Remembered as the HIDDEN set, so a column added later (a new season's
+// year-over-year block, a new field) shows up without anyone re-enabling it.
+const HIDDEN_KEY = "ll.christmasGrid.hidden";
 
 function str(v: unknown): string {
   return v === null || v === undefined ? "" : String(v);
@@ -106,7 +109,7 @@ function statusOf(d: Record<string, unknown>): string {
   return "Installing";
 }
 
-const COLUMNS: Col[] = [
+const BASE: Col[] = [
   { key: "group", label: "Client", width: 180, get: (r) => r.group },
   { key: "site", label: "Site", width: 150, get: (r) => r.site },
   { key: "address", label: "Address", width: 180, get: (r) => str(r.client.street) },
@@ -116,8 +119,6 @@ const COLUMNS: Col[] = [
   { key: "phone", label: "Phone", width: 110, get: (r) => str(r.client.phone) },
   { key: "email", label: "Email", width: 170, get: (r) => str(r.client.email) },
   { key: "status", label: "Status", width: 96, get: (r) => statusOf(r.d) },
-  { key: "install_date", label: "Install", width: 92, get: (r) => mdy(r.d.install_date), edit: { kind: "date", field: "install_date" } },
-  { key: "takedown_date", label: "Takedown", width: 92, get: (r) => mdy(r.d.takedown_date), edit: { kind: "date", field: "takedown_date" } },
   { key: "storing", label: "Storing", width: 70, get: (r) => (r.d.storing === true ? "Yes" : r.d.storing === false ? "No" : ""), edit: { kind: "storing", field: "storing" } },
   { key: "boxes", label: "Boxes", width: 60, get: (r) => num(r.d.boxes), edit: { kind: "int", field: "boxes" } },
   { key: "leads", label: "Leads", width: 56, get: (r) => num(role(r.d).leads), edit: { kind: "role", field: "role_need", role: "leads" } },
@@ -125,10 +126,9 @@ const COLUMNS: Col[] = [
   { key: "designer", label: "Design.", width: 60, get: (r) => num(role(r.d).designer), edit: { kind: "role", field: "role_need", role: "designer" } },
   { key: "general", label: "General", width: 64, get: (r) => num(role(r.d).general), edit: { kind: "role", field: "role_need", role: "general" } },
   { key: "est_hours", label: "Est. hrs", width: 64, get: (r) => num(r.d.est_hours), edit: { kind: "number", field: "est_hours" } },
-  { key: "real_hours", label: "Real hrs", width: 64, get: (r) => num(r.d.real_hours) },
   { key: "inventory", label: "Inventory", width: 200, get: (r) => inventorySummary(r.d) },
-  { key: "drive_out", label: "Drive out", width: 70, get: (r) => num(r.d.drive_min_out), edit: { kind: "number", field: "drive_min_out" } },
-  { key: "drive_back", label: "Drive back", width: 74, get: (r) => num(r.d.drive_min_back), edit: { kind: "number", field: "drive_min_back" } },
+  { key: "drive_out", label: "Drive out (min)", width: 84, get: (r) => num(r.d.drive_min_out), edit: { kind: "number", field: "drive_min_out" } },
+  { key: "drive_back", label: "Drive back (min)", width: 90, get: (r) => num(r.d.drive_min_back), edit: { kind: "number", field: "drive_min_back" } },
   { key: "install_fee", label: "Install $", width: 90, money: true, get: (r) => num(r.d.install_fee), edit: { kind: "money", field: "install_fee" } },
   { key: "takedown_fee", label: "Takedown $", width: 90, money: true, get: (r) => num(r.d.takedown_fee), edit: { kind: "money", field: "takedown_fee" } },
   { key: "storage_fee", label: "Storage $", width: 90, money: true, get: (r) => num(r.d.storage_fee), edit: { kind: "money", field: "storage_fee" } },
@@ -145,7 +145,6 @@ const COLUMNS: Col[] = [
       return <span className={p > 0.05 ? "text-amber-700" : p < -0.05 ? "text-emerald-700" : ""}>{discountLabel(p)}</span>;
     },
   },
-  { key: "prev_invoice", label: "Prev. invoice", width: 96, money: true, get: (r) => (r.prev ? num(r.prev.invoice_total) : null) },
   { key: "invoice_total", label: "Invoiced", width: 96, money: true, get: (r) => num(r.d.invoice_total), edit: { kind: "money", field: "invoice_total" } },
   { key: "price_basis", label: "Pricing basis", width: 240, get: (r) => str(r.entry.pricing?.basis ?? r.d.price_basis), edit: { kind: "text", field: "price_basis" } },
   { key: "production_notes", label: "Repairs / notes", width: 200, get: (r) => str(r.d.production_notes), edit: { kind: "text", field: "production_notes" } },
@@ -153,12 +152,50 @@ const COLUMNS: Col[] = [
 ];
 const FROZEN = 2; // Client + Site stay put while the rest scrolls
 
-function readCols(): Set<string> {
+/** How many seasons back the year-over-year columns reach (this one plus three). */
+const YEARS_BACK = 3;
+
+/** The columns for one season: the base set with the year-over-year block
+ *  spliced in after Status -- install dates for this season and the three
+ *  before it, takedown dates the same, then real install hours and the
+ *  actual invoice for the three prior seasons. Keys are by OFFSET
+ *  ("install_1" = last season), so a hidden column stays hidden when the
+ *  season picker moves. Only this season's dates are editable here; an
+ *  earlier season is edited on its own row of the client's history. */
+function buildColumns(season: string): Col[] {
+  const y = Number(season);
+  const at = (r: Row, k: number) => r.hist[String(y - k)] || null;
+  const yoy: Col[] = [];
+  for (let k = 0; k <= YEARS_BACK; k++) {
+    yoy.push({
+      key: `install_${k}`, label: `${y - k} install`, width: 92,
+      get: (r) => mdy(at(r, k)?.install_date),
+      edit: k === 0 ? { kind: "date", field: "install_date" } : undefined,
+    });
+  }
+  for (let k = 0; k <= YEARS_BACK; k++) {
+    yoy.push({
+      key: `takedown_${k}`, label: `${y - k} takedown`, width: 100,
+      get: (r) => mdy(at(r, k)?.takedown_date),
+      edit: k === 0 ? { kind: "date", field: "takedown_date" } : undefined,
+    });
+  }
+  for (let k = 1; k <= YEARS_BACK; k++) {
+    yoy.push({ key: `real_hours_${k}`, label: `${y - k} real hrs`, width: 84, get: (r) => num(at(r, k)?.real_hours) });
+  }
+  for (let k = 1; k <= YEARS_BACK; k++) {
+    yoy.push({ key: `invoice_${k}`, label: `${y - k} invoice`, width: 96, money: true, get: (r) => num(at(r, k)?.invoice_total) });
+  }
+  const i = BASE.findIndex((c) => c.key === "status") + 1;
+  return [...BASE.slice(0, i), ...yoy, ...BASE.slice(i)];
+}
+
+function readHidden(): Set<string> {
   try {
-    const raw = JSON.parse(localStorage.getItem(COLS_KEY) || "null");
-    if (Array.isArray(raw) && raw.length) return new Set(raw.filter((k) => COLUMNS.some((c) => c.key === k)));
+    const raw = JSON.parse(localStorage.getItem(HIDDEN_KEY) || "null");
+    if (Array.isArray(raw)) return new Set(raw.filter((k) => typeof k === "string"));
   } catch { /* fresh */ }
-  return new Set(COLUMNS.map((c) => c.key));
+  return new Set();
 }
 
 function csvCell(v: unknown): string {
@@ -242,13 +279,13 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
   const [season, setSeason] = useState(currentSeasonLabel());
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 }>({ key: "group", dir: 1 });
-  const [cols, setCols] = useState<Set<string>>(readCols);
+  const [hidden, setHidden] = useState<Set<string>>(readHidden);
   const [colsOpen, setColsOpen] = useState(false);
   const [editing, setEditing] = useState<{ id: number; key: string } | null>(null);
 
   useEffect(() => {
-    try { localStorage.setItem(COLS_KEY, JSON.stringify([...cols])); } catch { /* fine */ }
-  }, [cols]);
+    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden])); } catch { /* fine */ }
+  }, [hidden]);
 
   const seasons = useMemo(() => {
     const s = new Set<string>([currentSeasonLabel()]);
@@ -257,24 +294,23 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
   }, [clients]);
 
   const rows = useMemo<Row[]>(() => {
-    const prevSeason = String(Number(season) - 1);
     const out: Row[] = [];
     clients.forEach((c) => {
       if (c.id == null) return;
       const entry = (c.activity || []).find((a) => a.kind === "christmas_install" && a.season === season);
       if (!entry) return;
-      const prev = (c.activity || []).find((a) => a.kind === "christmas_install" && a.season === prevSeason);
-      const [group, site] = splitName(c.name);
-      out.push({
-        clientId: c.id, name: c.name, group, site, client: c, entry,
-        d: (entry.detail && typeof entry.detail === "object" ? entry.detail : {}) as Record<string, unknown>,
-        prev: prev?.detail && typeof prev.detail === "object" ? (prev.detail as Record<string, unknown>) : null,
+      const hist: Record<string, Record<string, unknown>> = {};
+      (c.activity || []).forEach((a) => {
+        if (a.kind === "christmas_install" && a.detail && typeof a.detail === "object") hist[a.season] = a.detail as Record<string, unknown>;
       });
+      const [group, site] = splitName(c.name);
+      out.push({ clientId: c.id, name: c.name, group, site, client: c, entry, d: hist[season] || {}, hist });
     });
     return out;
   }, [clients, season]);
 
-  const active = useMemo(() => COLUMNS.filter((c) => cols.has(c.key) || c.key === "group"), [cols]);
+  const columns = useMemo(() => buildColumns(season), [season]);
+  const active = useMemo(() => columns.filter((c) => !hidden.has(c.key) || c.key === "group"), [columns, hidden]);
 
   const visible = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -285,7 +321,7 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
         return words.every((w) => hay.includes(w));
       });
     }
-    const col = COLUMNS.find((c) => c.key === sort.key) || COLUMNS[0];
+    const col = columns.find((c) => c.key === sort.key) || columns[0];
     return [...list].sort((a, b) => {
       const x = col.get(a), y = col.get(b);
       if (x === null || x === "") return y === null || y === "" ? 0 : 1;
@@ -293,7 +329,7 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
       if (typeof x === "number" && typeof y === "number") return (x - y) * sort.dir;
       return String(x).localeCompare(String(y), undefined, { numeric: true }) * sort.dir || a.site.localeCompare(b.site);
     });
-  }, [rows, query, sort, active]);
+  }, [rows, query, sort, active, columns]);
 
   const totals = useMemo(() => {
     const t: Record<string, number> = {};
@@ -344,12 +380,12 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
             {colsOpen && (
               <div className="absolute right-0 z-30 mt-1 max-h-80 w-56 overflow-y-auto rounded-lg border border-stone-200 bg-white p-2 text-xs shadow-lg">
                 <div className="mb-1 flex justify-between px-1 text-[10px] uppercase tracking-wide text-stone-400">
-                  <button type="button" onClick={() => setCols(new Set(COLUMNS.map((c) => c.key)))}>all</button>
-                  <button type="button" onClick={() => setCols(new Set(["group", "site"]))}>none</button>
+                  <button type="button" onClick={() => setHidden(new Set())}>all</button>
+                  <button type="button" onClick={() => setHidden(new Set(columns.map((c) => c.key).filter((k) => k !== "group" && k !== "site")))}>none</button>
                 </div>
-                {COLUMNS.map((c) => (
+                {columns.map((c) => (
                   <label key={c.key} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-stone-50">
-                    <input type="checkbox" disabled={c.key === "group"} checked={cols.has(c.key)} onChange={(e) => setCols((s) => { const n = new Set(s); if (e.target.checked) n.add(c.key); else n.delete(c.key); return n; })} />
+                    <input type="checkbox" disabled={c.key === "group"} checked={!hidden.has(c.key)} onChange={(e) => setHidden((s) => { const n = new Set(s); if (e.target.checked) n.delete(c.key); else n.add(c.key); return n; })} />
                     {c.label}
                   </label>
                 ))}
