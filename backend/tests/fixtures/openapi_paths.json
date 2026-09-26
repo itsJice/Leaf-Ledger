@@ -297,6 +297,10 @@
     "GET",
     "PUT"
   ],
+  "/api/pricing/rates": [
+    "GET",
+    "PUT"
+  ],
   "/api/products/by-ids": [
     "GET"
   ],

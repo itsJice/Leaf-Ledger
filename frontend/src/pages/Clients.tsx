@@ -15,6 +15,7 @@ import {
   Plus,
   Search,
   Trash2,
+  TreePine,
   X,
   Users,
 } from "components/icons";
@@ -28,6 +29,7 @@ import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
 import { CLIENTS_PAGE_CACHE_KEY } from "../constants";
 import { notifyProjectsChanged } from "utils/projectsChanged";
 import { SeasonHistory } from "./clients/SeasonHistory";
+import { ChristmasGridView } from "./ChristmasGrid";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
@@ -770,6 +772,7 @@ export default function Clients() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const focusedClient = searchParams.get("client") || "";
+  const view: "all" | "christmas" = searchParams.get("view") === "christmas" ? "christmas" : "all";
   const localClientsOnLoad = useMemo(() => readLocalClients(), []);
   const cachedPage = useMemo(() => readClientsPageCache(), []);
 
@@ -1069,7 +1072,34 @@ export default function Clients() {
         </button>
       </header>
 
+      {/* Two views of the one client list: every client (greenery and
+          Christmas alike), or the Christmas-only grid for a season -- the
+          same pair of tabs the install schedule uses for calendar / roster. */}
       {!focusedClient && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 sm:px-10 pt-3 pb-2" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+          {([["all", "All clients", Users], ["christmas", "Christmas grid", TreePine]] as const).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setSearchParams(id === "all" ? {} : { view: id })}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${view === id ? "bg-stone-900 text-white" : "border border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!focusedClient && view === "christmas" && (
+        <ChristmasGridView
+          clients={clientRows}
+          loading={!initialDataSettled && clientRows.length === 0}
+          onSaved={(clientId, entry) => upsertSeasonEntry(clientId, entry)}
+        />
+      )}
+
+      {!focusedClient && view === "all" && (
         <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 sm:px-10 py-3" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
           <label className="relative flex min-w-[220px] flex-1 items-center sm:max-w-md">
             <Search size={14} className="pointer-events-none absolute left-3 text-stone-400" />
@@ -1113,6 +1143,7 @@ export default function Clients() {
         </div>
       )}
 
+      {(focusedClient || view === "all") && (
       <main className="px-4 sm:px-10 py-6">
         {loading || (!initialDataSettled && visibleClients.length === 0) ? (
           <div className="flex items-center justify-center py-24">
@@ -1361,6 +1392,7 @@ export default function Clients() {
           </div>
         )}
       </main>
+      )}
       {showNewClientModal && (
         <NewClientModal
           onClose={() => setShowNewClientModal(false)}

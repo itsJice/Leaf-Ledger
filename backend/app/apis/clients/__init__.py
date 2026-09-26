@@ -15,7 +15,7 @@ import asyncpg
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.libs import client_season
+from app.libs import client_season, pricing
 from app.libs.db import get_conn, has_item_status_column
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -166,6 +166,32 @@ class ActivityOut(BaseModel):
     detail: Optional[Any] = None
     occurred_at: Optional[str] = None
     created_at: Optional[datetime] = None
+    #: On a christmas_install row: the ideal price from the card and that
+    #: season's rate card, what was charged, and the discount between them
+    #: (app.libs.pricing). Computed on the way out, never stored.
+    pricing: Optional[dict] = None
+
+
+async def load_rate_rows(conn) -> List[dict]:
+    """The rate card rows, from the pricing API's own loader (a missing
+    table reads as no rates, not a failed client list)."""
+    from app.apis.pricing import load_rate_rows as _load
+    return await _load(conn)
+
+
+def with_pricing(activity: dict, rate_rows: List[dict], cache: Optional[dict] = None) -> dict:
+    """Attach ``pricing`` to one activity dict. ``cache`` memoises the
+    resolved card per season across a whole client list."""
+    if activity.get("kind") != "christmas_install":
+        return activity
+    season = str(activity.get("season") or "")
+    cache = cache if cache is not None else {}
+    rates = cache.get(season)
+    if rates is None:
+        rates = cache[season] = pricing.resolve_rates(rate_rows, season)
+    detail = activity.get("detail")
+    activity["pricing"] = pricing.price_view(detail if isinstance(detail, dict) else None, rates)
+    return activity
 
 
 class ClientOut(BaseModel):
@@ -205,6 +231,11 @@ async def build_client_list(conn) -> List[dict]:
     """Saved clients plus rollups from every project the team has."""
     saved_clients = await load_saved_clients(conn)
     activity_by_client = await load_activity_by_client(conn)
+    rate_rows = await load_rate_rows(conn)
+    rates_by_season: dict = {}
+    for entries in activity_by_client.values():
+        for a in entries:
+            with_pricing(a, rate_rows, rates_by_season)
     status_expression = (
         "CASE WHEN ci.status = 'selected' THEN ci.quantity * p.current_price ELSE 0 END"
         if await has_item_status_column(conn)
@@ -503,7 +534,9 @@ async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn
             out["detail"] = json.loads(out["detail"])
         if out.get("occurred_at") is not None and not isinstance(out["occurred_at"], str):
             out["occurred_at"] = out["occurred_at"].isoformat()
-        return out
+        # The Clients tab replaces its row with this response, so it has to
+        # carry the same pricing block the list does.
+        return with_pricing(out, await load_rate_rows(conn))
     finally:
         await conn.close()
 

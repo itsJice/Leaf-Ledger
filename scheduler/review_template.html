@@ -1118,10 +1118,13 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 <dialog id="billdlg">
   <b>Export</b>
   <p class="billnote">One row per client: name, bill-to, address / city / state /
-    zip, install date, and __SEASON__ install / takedown / storage priced off
-    the client's real __SEASON_PREV__ invoice +5% (storage carried over flat).
-    Shows the __SEASON_PREV__ figure it was derived from, so every number is checkable. Contract accounts
-    are marked, not guessed. Column totals at the bottom.</p>
+    zip, install date, and the __SEASON__ install / takedown / storage price
+    exactly as it is on the Clients tab in Leaf &amp; Ledger — nothing is
+    priced here. Beside it, that season's ideal price (the client's Christmas
+    card × the rate card) and the discount between the two, plus the real
+    __SEASON_PREV__ invoice so every number is checkable. A client with no
+    price on the Clients tab exports blank with a basis that says so. Column
+    totals at the bottom.</p>
   <label class="nclabel">Who</label>
   <div class="billscope">
     <button data-scope="all" class="sel">Everyone</button>
@@ -4949,75 +4952,36 @@ function addrParts(c){
   street=street.replace(/,?\s*(TX|Texas)\s*\d{0,5}\s*$/i,'').replace(/,\s*$/,'').trim();
   return {street, city, st, zip};
 }
-/** 2026 price from what the client was ACTUALLY invoiced in 2025 (user,
- * 2026-08-12), so the number is defensible line by line:
+/** The price for one client, read LIVE off the app's client directory
+ * (GET /api/clients/list, the same fetch the stop popup uses) -- never
+ * computed here. Until 2026-09-25 this page priced every client itself
+ * ("last year's invoice + 5%", with the rates, the club list and the uplift
+ * as literals in this file) and nothing stored the result. Now the Clients
+ * tab is the record: the season row carries the price as SENT
+ * (install_fee / takedown_fee / storage_fee / total, frozen once out the
+ * door), and the backend attaches `pricing` -- the ideal from the client's
+ * Christmas card and that season's rate card, and the discount between the
+ * two (backend/app/libs/pricing.py). This just reads them off.
  *
- *   storage      = boxes x $75, carried over UNCHANGED (the rate didn't move)
- *   remainder    = 2025 actual invoice - storage
- *   install      = remainder / 2, +5%
- *   takedown     = remainder / 2, +5%
- *   2026 total   = install + takedown + storage
- *
- * Only clients with a real 2025 invoice are priced this way. M Crowd and the
- * contract accounts bill on their own terms, so they're marked rather than
- * guessed at; a 2025 invoice smaller than the storage owed is a data gap,
- * not a $0 job, so it goes to manual review instead of a negative. */
-const UPLIFT = 1.05;
-// Storage is boxes x this rate, flat -- NOT uplifted (user, 2026-09-08: "$75
-// that's still the right rate don't add the 5% to the boxes"). This was
-// already the DOCUMENTED formula above; the code just never actually read
-// box count -- it read c.storageFee, this season's own "STORAGE FEE (BASED
-// ON # OF BOXES)" column, which is a broken formula returning 0 for
-// effectively every row (same failure mode as install/takedown labor fee,
-// just failing to 0 instead of #VALUE!). boxCount() is what actually
-// implements the formula the comment always claimed.
-const BOX_STORAGE_RATE = 75;
-function boxCount(c){
-  const n = +c.boxes;
-  return Number.isFinite(n) && n>0 ? n : 0;
-}
-/** 2026 price for one client, in preference order:
- *   1. M Crowd -- contract, billed outside this sheet entirely.
- *   2. Carlton Woods and Woodlands CC -- negotiated per club, left blank on
- *      purpose (user, 2026-08-17) rather than guessed. Matched by NAME, not
- *      by the "Country Club" category: Royal Oaks is also a country club but
- *      has a real 2025 invoice, and blanketing the category silently dropped
- *      it from the priced list.
- *   3. A real 2025 invoice -> that +5%. Storage is boxes x $75 flat (no
- *      uplift), and the remainder (invoice minus that storage) splits evenly
- *      between install and takedown because the 2025 sheet's own takedown
- *      formula is literally "=install".
- *   4. Didn't install with us in 2025 -> they forfeit the historical
- *      preferred rate and slide up to the IDEAL TOTAL (crew x rate x hours
- *      off the 2026 rate card). This is the pricing policy, not a fallback
- *      guess (user, 2026-08-17). No +5% on top: that rate card is already
- *      2026 pricing, so an uplift would double-count the increase.
- *   5. Nothing to price install/takedown from, but box count is known ->
- *      storage alone, install/takedown left for manual pricing.
- *   6. Nothing to work from at all -> blank, flagged for manual pricing. */
-function price2026(c){
-  const S = boxCount(c) * BOX_STORAGE_RATE;
-  const R = c.invoice25;
-  // A donated install is $0 on purpose -- it must read as free, never as
-  // "we forgot to price this".
-  if(c.noCharge)            return {inst:0, tdwn:0, stor:0, total:0, basis:c.noCharge};
-  if(c.cat==='M Crowd')     return {basis:'Contract — M Crowd billed separately'};
-  if(/carlton woods|woodlands cc/i.test(c.name))
-                            return {basis:'Club contract — priced separately'};
-  if(typeof R==='number'){
-    if(R - S < 0)           return {basis:'MANUAL — __SEASON_PREV__ invoice below storage owed', stor:S};
-    const inst = Math.round(((R - S) / 2) * UPLIFT * 100) / 100;
-    return {inst, tdwn:inst, stor:S, total:Math.round((inst*2 + S)*100)/100,
-            basis:'__SEASON_PREV__ invoice +5% (storage: boxes × $75, no uplift)'};
-  }
-  if(typeof c.installFee==='number'){
-    const inst = c.installFee;
-    const tdwn = typeof c.takedownFee==='number' ? c.takedownFee : inst;
-    return {inst, tdwn, stor:S, total:Math.round((inst + tdwn + S)*100)/100,
-            basis:'IDEAL TOTAL — no __SEASON_PREV__ install, preferred rate not carried forward'};
-  }
-  if(S)                     return {stor:S, basis:'MANUAL — storage known (boxes × $75), install/takedown need manual pricing'};
-  return {basis:'MANUAL — no __SEASON_PREV__ invoice and no rate-card estimate'};
+ * The lookup is by THIS page's season, not the newest row, so an archived
+ * page exports its own year's prices. A client added inside this tool has
+ * no app row yet and exports blank with a basis that says so; standalone
+ * (no token) the directory never loads and every row says to open the
+ * page inside Leaf & Ledger. */
+function priceFor(row){
+  const ac = appClientFor(row);
+  if(!ac) return {basis: clientDirectory
+    ? 'UNPRICED — not on the Clients tab yet (add the client, then price the season there)'
+    : 'Open inside Leaf & Ledger to price'};
+  const en = (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===PAGE_SEASON);
+  if(!en) return {basis:`UNPRICED — no ${PAGE_SEASON} season on the Clients tab yet`};
+  const d = en.detail || {}, p = en.pricing || {}, ide = p.ideal || {};
+  const n = v => (typeof v==='number' && Number.isFinite(v)) ? v : null;
+  const total = n(d.total);
+  return {inst:n(d.install_fee), tdwn:n(d.takedown_fee), stor:n(d.storage_fee), total,
+          ideal:n(ide.total), disc:n(p.discount_pct),
+          basis: p.basis || d.price_basis
+                 || (total!==null ? 'Priced on the Clients tab' : 'UNPRICED — set the price on the Clients tab')};
 }
 // One entry per exportable column: `get` reads it off a client/date/price
 // bundle, `money` marks it for currency formatting + column totals. Order
@@ -5036,6 +5000,8 @@ const BILL_COLUMNS = [
   {key:'tdwn',    label:'__SEASON__ takedown price',   width:14, money:true, get:x=>x.p.tdwn ?? ''},
   {key:'stor',    label:'__SEASON__ storage price',    width:14, money:true, get:x=>x.p.stor ?? ''},
   {key:'total',   label:'__SEASON__ TOTAL invoice',    width:14, money:true, get:x=>x.p.total ?? '', isTotal:true},
+  {key:'ideal',   label:'__SEASON__ ideal price',      width:14, money:true, get:x=>x.p.ideal ?? ''},
+  {key:'disc',    label:'Discount %',                  width:12, get:x=>x.p.disc ?? ''},
   {key:'prev',    label:'__SEASON_PREV__ total invoice (actual)', width:14, money:true, get:x=>x.c.invoice25 ?? ''},
   {key:'basis',   label:'Pricing basis',               width:34, get:x=>x.p.basis},
   {key:'notes',   label:'Repairs & install notes',     width:34, get:x=>x.c.repairNotes || ''},
@@ -5070,7 +5036,7 @@ function buildBillingRows(scope, cols){
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
-      const c = C[r], a = addrParts(c), p = price2026(c);
+      const c = C[r], a = addrParts(c), p = priceFor(r);
       const x = {c, a, p, date};
       rows.push(active.map(col=>col.get(x)));
     });
@@ -5234,7 +5200,11 @@ function openPrintView(rows, moneyCols, title){
   </body></html>`);
   w.document.close();
 }
-function runExport(scope, fmt){
+async function runExport(scope, fmt){
+  // Prices come off the app's client directory (priceFor); make sure it has
+  // loaded before building the sheet, or the first export after opening the
+  // page could go out with every price blank.
+  try{ await loadClientDirectory(); }catch(e){}
   const {rows, MONEY, widths} = buildBillingRows(scope);
   const label = scope==='houston' ? 'Houston' : scope==='dallas' ? 'Dallas' : 'All clients';
   const base = `TBDG __SEASON__ install billing — ${label}`;
@@ -5312,10 +5282,10 @@ document.getElementById('billcolsnone').onclick = ()=>{
 };
 document.getElementById('billgo').onclick = ()=>{
   if(!billCols.size) return;
-  runExport(billScope, billFmt); billdlg.close();
+  void runExport(billScope, billFmt); billdlg.close();
 };
 // Back-compat for anything still calling the old name.
-function exportBilling(scope){ runExport(scope||'all','csv'); }
+function exportBilling(scope){ void runExport(scope||'all','csv'); }
 function resetAll(){ if(roBlocked()) return;
   if(confirm('Discard all moves & approvals?')){
   localStorage.removeItem(LS_KEY); location.reload(); }}

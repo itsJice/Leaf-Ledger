@@ -92,3 +92,32 @@ def test_extract_current_season_labels_prior_seasons_from_the_label(tmp_path, mo
     assert set(rec["supplements"]) == {"2026", "2025"}
     assert rec["supplements"]["2026"]["crew"] == "Crew A"
     assert rec["install_date"] is None
+
+
+def test_load_drive_minutes_reads_depot_legs(tmp_path):
+    path = tmp_path / "matrix.json"
+    path.write_text(json.dumps({"durations": [
+        [0, 1578.2, 2846.4],     # depot -> each client (seconds)
+        [1578.9, 0, 900],
+        [2828.1, 900, 0],
+    ]}))
+    assert S.load_drive_minutes(str(path)) == {1: (26.3, 26.3), 2: (47.4, 47.1)}
+    # missing or malformed reads as nothing, never an error
+    assert S.load_drive_minutes(str(tmp_path / "nope.json")) == {}
+    path.write_text('{"durations": "x"}')
+    assert S.load_drive_minutes(str(path)) == {}
+    path.write_text(json.dumps({"durations": [[0, None], [None, 0]]}))
+    assert S.load_drive_minutes(str(path)) == {}
+
+
+def test_extract_current_season_files_drive_minutes_by_matrix_index(tmp_path, monkeypatch):
+    monkeypatch.setattr(S, "CACHE", _cache(tmp_path, [
+        {"row": 2, "name": "Test Client A", "midx": 1, "install_2026_no_install": False},
+        {"row": 3, "name": "Test Client Unmapped", "midx": None, "install_2026_no_install": False},
+    ], days=[]))
+    matrix = tmp_path / "matrix.json"
+    matrix.write_text(json.dumps({"durations": [[0, 1500], [1800, 0]]}))
+    monkeypatch.setattr(S, "MATRIX", str(matrix))
+    a, b = S.extract_current_season("2026")
+    assert (a["drive_min_out"], a["drive_min_back"]) == (25.0, 30.0)
+    assert (b["drive_min_out"], b["drive_min_back"]) == (None, None)
