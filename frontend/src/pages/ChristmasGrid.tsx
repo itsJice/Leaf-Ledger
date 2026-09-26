@@ -103,6 +103,18 @@ function inventorySummary(d: Record<string, unknown>): string {
   if (!Array.isArray(raw)) return "";
   return (raw as InventoryLine[]).map((l) => `${l.qty} ${l.type}${l.size ? ` ${l.size}` : ""}`).join(", ");
 }
+/** What a past season billed: the real invoice, else the total, else the
+ *  fees added up -- the 2023 and 2024 sheets only ever kept the fees. */
+function billed(d: Record<string, unknown> | null): number | null {
+  if (!d) return null;
+  const inv = num(d.invoice_total);
+  if (inv !== null) return inv;
+  const total = num(d.total);
+  if (total !== null) return total;
+  const fees = [num(d.install_fee), num(d.takedown_fee), num(d.storage_fee)];
+  if (fees.every((f) => f === null)) return null;
+  return fees.reduce<number>((a, f) => a + (f || 0), 0);
+}
 function statusOf(d: Record<string, unknown>): string {
   if (d.not_installing) return "Not installing";
   if (d.hold) return "On hold";
@@ -184,7 +196,10 @@ function buildColumns(season: string): Col[] {
     yoy.push({ key: `real_hours_${k}`, label: `${y - k} real hrs`, width: 84, get: (r) => num(at(r, k)?.real_hours) });
   }
   for (let k = 1; k <= YEARS_BACK; k++) {
-    yoy.push({ key: `invoice_${k}`, label: `${y - k} invoice`, width: 96, money: true, get: (r) => num(at(r, k)?.invoice_total) });
+    yoy.push({
+      key: `invoice_${k}`, label: `${y - k} invoice`, width: 96, money: true, get: (r) => billed(at(r, k)),
+      title: (r) => (num(at(r, k)?.invoice_total) !== null ? "The actual invoice" : billed(at(r, k)) !== null ? "No invoice on record: the season's fees added up" : ""),
+    });
   }
   const i = BASE.findIndex((c) => c.key === "status") + 1;
   return [...BASE.slice(0, i), ...yoy, ...BASE.slice(i)];
