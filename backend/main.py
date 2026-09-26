@@ -74,12 +74,13 @@ def import_api_routers() -> APIRouter:
                 # (app.libs.roles); one that says nothing is office-staff only,
                 # so a field lead can never reach it by accident.
                 min_role = getattr(api_module, "MIN_ROLE", DEFAULT_ROLE)
+                viewer_read = bool(getattr(api_module, "VIEWER_READ", False))
                 routes.include_router(
                     api_router,
                     dependencies=(
                         []
                         if is_auth_disabled(name)
-                        else [Depends(get_authorized_user), Depends(require_role(min_role))]
+                        else [Depends(get_authorized_user), Depends(require_role(min_role, viewer_read))]
                     ),
                 )
         except Exception as e:

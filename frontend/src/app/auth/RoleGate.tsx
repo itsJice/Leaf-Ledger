@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { FIELD_HOME, useMe } from "utils/me";
+import { DISPLAY_HOME, FIELD_HOME, useMe } from "utils/me";
 import { useUserGuardContext } from "./UserGuard";
 
 /**
@@ -34,6 +34,9 @@ export const RoleGate = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
+  if (me.viewOnly && location.pathname !== DISPLAY_HOME) {
+    return <Navigate to={DISPLAY_HOME} replace />;
+  }
   if (me.fieldOnly && location.pathname !== FIELD_HOME) {
     return <Navigate to={FIELD_HOME} replace />;
   }

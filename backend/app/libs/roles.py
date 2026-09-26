@@ -8,6 +8,12 @@ Roles, lowest to highest:
 
     crew < lead < staff < admin < super_admin
 
+plus ``viewer``, which sits outside that ladder: a read-only display login
+(the warehouse iPad on the shop TV). It ranks with crew for every router,
+except that it may make GET requests to a router that sets
+``VIEWER_READ = True`` -- the install schedule. A lead can't read those, and
+a viewer can't write anything.
+
 How a login's role is decided, first match wins:
 
 1. ``SUPER_ADMIN_EMAILS`` -- hard-coded so the owner can never be locked out,
@@ -35,8 +41,9 @@ from app.auth.user import User
 from app.libs import db
 from app.libs.db import ensure_schema_once
 
-ROLES = ("crew", "lead", "staff", "admin", "super_admin")
-RANK = {r: i for i, r in enumerate(ROLES)}
+ROLES = ("crew", "viewer", "lead", "staff", "admin", "super_admin")
+RANK = {"crew": 0, "viewer": 0, "lead": 1, "staff": 2, "admin": 3, "super_admin": 4}
+READ_METHODS = frozenset({"GET", "HEAD"})
 DEFAULT_ROLE = "staff"
 
 SUPER_ADMIN_EMAILS = frozenset({"justice@wenzdays.com"})
@@ -50,10 +57,15 @@ DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
 CREATE TABLE IF NOT EXISTS ll_app.user_roles (
     email      text PRIMARY KEY,
-    role       text NOT NULL CHECK (role IN ('crew','lead','staff','admin','super_admin')),
+    role       text NOT NULL,
     updated_by text,
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- Re-stated on every boot rather than inline, so adding a role widens an
+-- existing table too (this is how 'viewer' arrived -- migrations/016).
+ALTER TABLE ll_app.user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE ll_app.user_roles ADD CONSTRAINT user_roles_role_check
+    CHECK (role IN ('crew','viewer','lead','staff','admin','super_admin'));
 INSERT INTO ll_app.user_roles (email, role, updated_by)
 VALUES ('justice@wenzdays.com', 'super_admin', 'seed')
 ON CONFLICT (email) DO NOTHING;
@@ -124,8 +136,15 @@ async def resolve_role(email: Optional[str], roster_lookup: RosterLookup = None)
     return role
 
 
-def require_role(minimum: str):
-    """Router/endpoint dependency: 403 unless the user's role is >= minimum."""
+def allowed(role: str, minimum: str, method: str, viewer_read: bool = False) -> bool:
+    if role == "viewer" and viewer_read and method.upper() in READ_METHODS:
+        return True
+    return at_least(role, minimum)
+
+
+def require_role(minimum: str, viewer_read: bool = False):
+    """Router/endpoint dependency: 403 unless the user's role is >= minimum
+    (or it's a viewer reading a ``viewer_read`` router)."""
     if minimum not in RANK:
         raise ValueError(f"unknown role {minimum!r}")
 
@@ -134,7 +153,7 @@ def require_role(minimum: str):
         if os.getenv("AUTH_DISABLED", "").lower() == "true" and os.getenv("ENV", "dev") == "dev":
             return "super_admin"
         role = await resolve_role(get_current_user(request).email)
-        if not at_least(role, minimum):
+        if not allowed(role, minimum, request.method, viewer_read):
             raise HTTPException(status_code=403, detail="You don't have access to this")
         return role
 

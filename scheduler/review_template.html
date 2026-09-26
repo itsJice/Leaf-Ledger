@@ -150,6 +150,10 @@ header h1 svg{color:var(--brand)}
 .badge.pref{background:#e0ecf8;color:#1e3a5f}
 .badge.hold{background:#fef3c7;color:#92400e;font-weight:800}
 .stop.onhold{border-left:3px solid #d97706}
+.badge.pinpos{background:#ede9fe;color:#4c1d95;font-weight:800}
+.pkpos{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 4px}
+.pkpos .pksec{margin:0 4px 0 0}
+.pkpos .mv.on{background:#4c1d95;border-color:#4c1d95;color:#fff}
 .dayhead{padding:4px 2px 8px;margin-bottom:10px;border-bottom:1.5px solid var(--line)}
 .dayhead b{display:block;font-size:15px;color:var(--ink);font-weight:800}
 .dayhead span{font-size:11px;color:var(--mut);line-height:1.4}
@@ -422,6 +426,8 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .calcell.off{visibility:hidden}
 .calcell:hover:not(.empty){border-color:var(--brand)}
 .calcell.tagged{border-color:#0f766e;border-width:2px}
+.calcell.today{border-color:var(--brand);border-width:3px;background:#e3f1e5}
+.calcell.today .calnum{color:var(--brand)}
 .calnum{font-weight:800;font-size:15px}
 .calnum small{font-weight:600;color:var(--mut);font-size:10.5px;margin-left:4px}
 /* Month cells read as chips, one per crew-day, colour-keyed to the crew and
@@ -442,6 +448,92 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 .calbox{color:#8a5a00}
 .caltag{display:inline-block;padding:0 5px;border-radius:4px;background:#0f766e;color:#fff;
   font-size:9px;font-weight:800;margin-left:4px;vertical-align:2px}
+/* ---------- wall calendar (warehouse TV) ----------
+   Month at a glance for the shop floor: every client going out, by crew, on
+   the day it goes -- no clock times. Sized to fill the screen; fitWall()
+   shrinks the type until the busiest week fits. */
+.wallgrid{display:grid;gap:6px;--wfs:18px;font-size:var(--wfs)}
+.walldow{font-size:.7em;font-weight:800;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.06em;text-align:center}
+.wcell{border:2px solid var(--line);border-radius:8px;background:#fff;padding:.25em .4em .3em;
+  overflow:hidden;cursor:pointer;min-height:0;min-width:0}
+.wcell.empty{background:#faf9f7;border-style:dashed;cursor:default}
+.wcell.off{visibility:hidden}
+.wcell.past{opacity:.45}
+.wcell.today{border-color:var(--brand);border-width:4px;background:#e3f1e5}
+.wcell.today .wnum b,.wcell.today .wnum span{color:var(--brand)}
+.wcell.today .wnum span::after{content:' · Today';font-weight:800}
+.wcell.tagged{border-color:#0f766e}
+.wnum{display:flex;align-items:baseline;gap:.3em;line-height:1;margin-bottom:.05em}
+.wnum b{font-size:1.15em;font-weight:800}
+.wnum span{font-size:.62em;font-weight:700;color:var(--mut);text-transform:uppercase}
+.wnum em{font-style:normal;padding:0 .35em;border-radius:.3em;background:#0f766e;
+  color:#fff;font-size:.58em;font-weight:800;letter-spacing:.03em}
+.wlist{list-style:none;margin:.2em 0 0;padding:0}
+.wlist li{font-weight:650;line-height:1.15;color:#1c1917;cursor:pointer;padding:.08em 0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wlist li+li{border-top:1px solid var(--line)}
+.wcell.wide .wlist{column-count:var(--wcols,3);column-gap:1.4em}
+.wcell.wide .wlist li{break-inside:avoid}
+.wcell.wkend .wlist li{white-space:normal;overflow:visible}
+.wlist li.wgroup{cursor:default;white-space:normal;overflow:visible}
+.wlist li.wgroup span{color:var(--mut);font-weight:700}
+.wlist li.wtrain{color:var(--mut);font-style:italic;cursor:default}
+.wlist li.wmore{color:var(--brand);font-weight:800;font-size:.85em}
+.wallstamp{font-size:12px;color:var(--mut);margin-left:auto}
+/* View-only login (warehouse iPad / TV): nothing on screen that edits. The
+   readonly rules above already disable the controls; this removes them. */
+body.viewonly #newclientbtn,body.viewonly #newdatebtn,body.viewonly #billexportbtn,
+body.viewonly #seasonpick,body.viewonly #robanner,body.viewonly .undobar,
+body.viewonly .okbtn,body.viewonly .mv,body.viewonly .ordbtn,body.viewonly .cshiftrm,
+body.viewonly .cshiftadd,body.viewonly .shcbtn,body.viewonly .dchiprm,body.viewonly .stfadd,
+body.viewonly .cautoorder,body.viewonly [data-act],body.viewonly .pkeditbtn,
+body.viewonly .pkcommentrm,body.viewonly #pkcommentadd,body.viewonly #pkcommenttext,
+body.viewonly #peekmove,body.viewonly #headtitle,body.viewonly #summarybar{display:none!important}
+/* It's a shared screen on the shop floor: installers' ratings and private
+   notes stay off it. */
+body.viewonly .ratcell,body.viewonly .stftable th[title^="Alberto"],
+body.viewonly .stfrating,body.viewonly .stfnotes{display:none!important}
+/* The iPad is mirrored to a 4:3 TV: one slim bar of controls, then calendar. */
+body.viewonly header{padding:6px 12px}
+body.viewonly #calwrap{padding:6px 10px 8px}
+body.viewonly .calbar{margin-bottom:6px}
+/* ---------- TV mode ----------
+   A wall display nobody touches: header gone, the month fills the screen,
+   type as large as the busiest day allows. Exit sits faded in a corner. */
+#tvbtn{padding:7px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
+  font-weight:700;font-size:12.5px;cursor:pointer}
+.tvexit,#tvhint,#tvback{display:none}
+.calback{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:800}
+body.tv #tvback:not([hidden]){display:block;position:fixed;left:14px;top:12px;z-index:60;
+  padding:12px 20px;border:0;border-radius:12px;background:var(--brand);color:#fff;
+  font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+/* TV has no header, so a day, Days, Staffing or Roster opened from a tap
+   leaves room at the top for the floating Back button. */
+body.tv.tvaway #calwrap,body.tv.tvaway #main,body.tv.tvaway #staffwrap{padding-top:64px}
+body.tv #peekdlg .pkclose{width:44px;height:44px}
+body.tv #peekdlg .btns button:first-child{padding:10px 20px;font-size:15px;font-weight:800}
+body.tv header{display:none}
+body.tv #calwrap{padding:10px 14px 10px}
+body.tv .calbar{margin-bottom:8px}
+/* iPad Safari's full-screen close button sits over the top-left corner. */
+body.tv .calbar{padding-left:88px}
+/* Month arrows stay: someone at the TV can flip ahead, and it comes back to
+   this month on its own after a few idle minutes (tvIdleReturn). */
+body.tv #caltoday{padding:10px 22px;font-size:16px}
+body.tv .calnav{width:48px;height:48px;font-size:28px;background:#fff;border:1.5px solid var(--line)}
+body.tv .caltitle{font-size:34px}
+body.tv .wallstamp{font-size:15px}
+body.tv .tvexit{display:block;padding:5px 10px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer}
+body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14px;z-index:50;
+  padding:10px 16px;border:0;border-radius:10px;background:var(--brand);color:#fff;
+  font-weight:800;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+/* Weeks that are over shrink to a strip: their names are done, the room
+   goes to what is still coming. */
+.wcell.past .wlist{display:none}
+.wcell .wdone{display:none}
+.wcell.past .wdone{display:block;font-size:.62em;font-weight:700;color:var(--mut)}
 /* ---------- staffing ---------- */
 #staffwrap{padding:16px 20px 40px;width:100%;box-sizing:border-box;
   align-self:stretch;overflow-y:auto;min-height:0}
@@ -869,6 +961,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
     <button id="viewstaff" type="button">Staffing</button>
     <button id="viewroster" type="button">Roster</button>
   </div>
+  <button id="tvbtn" type="button" title="Full-screen wall calendar for the studio TV">📺 TV mode</button>
   <button id="newclientbtn" type="button">+ New client</button>
   <button id="newdatebtn" type="button">+ New date</button>
   <button id="billexportbtn" type="button">⬇ Export</button>
@@ -878,6 +971,8 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
   <div id="datestrip"></div>
 </header>
 <div id="calwrap" style="display:none"></div>
+<button id="tvhint" type="button" hidden>Tap for full screen</button>
+<button id="tvback" type="button" hidden>← Back</button>
 <div id="staffwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
@@ -1063,6 +1158,12 @@ const SEASON_SPAN_LABEL='Oct __SEASON__ – Jan __SEASON_NEXT__';
 // standalone copy, an offline load, or a deployment whose backend has no
 // /seasons endpoint behaves exactly as it always has.
 let READONLY=false;
+// VIEW-ONLY LOGIN (the warehouse iPad on the shop TV). Set by the host app
+// before this script runs (InstallSchedule.tsx injects window.TBDG_VIEWONLY
+// for a `viewer` role), so it is read-only from the first paint -- and the
+// server refuses that login's saves regardless. Unlike an archived season it
+// can never be unlocked: exitReadOnly() checks this first.
+const VIEWONLY = !!window.TBDG_VIEWONLY;
 const RO_MSG='This is an archived season — it is kept as a record and cannot be changed.';
 /** The one gate every mutating path goes through. True means "don't".
  *  Callers `if(roBlocked()) return;` FIRST, before pushUndo() or any state
@@ -1328,6 +1429,18 @@ let notInstalling = new Set();
 // Same row-id set shape as notInstalling; written through to the client
 // record as `holdNames` on save (see snapshot).
 let hold = new Set();
+// Position locks: row -> 'first' | 'middle' | 'last'. A client who has to be
+// the day's first (or last, or anything but either end) stop keeps that place
+// through every re-route, drop and manual reorder until the lock is released
+// (user, 2026-09-25: "lock her in so she doesn't get slid around on
+// accident"). Travels with the row across days; shared state like the rest.
+let stopPin = {};
+const PIN_LABEL={first:'goes first', middle:'goes in the middle', last:'goes last'};
+function normStopPins(obj){
+  const out={};
+  Object.entries(obj||{}).forEach(([r,v])=>{ if(C[+r] && PIN_LABEL[v]) out[+r]=v; });
+  return out;
+}
 function normNotInstalling(list){
   return new Set((Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]));
 }
@@ -1612,6 +1725,7 @@ try{
     trainingDays = normTrainingDays(s.trainingDays);
     notInstalling = normNotInstalling(s.notInstalling);
     hold = normNotInstalling(s.hold);
+    stopPin = normStopPins(s.stopPin);
     lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
     materializeTrainingDays();
@@ -1671,7 +1785,7 @@ function snapshot(){
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays],
-          notInstalling:[...notInstalling], hold:[...hold], lastScheduledFrom,
+          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
 }
@@ -1894,7 +2008,7 @@ let _roKill = null;
  *  last season's and is the only place work can happen. Locking it then would
  *  leave the team with no editable schedule for months. */
 function exitReadOnly(){
-  if(!READONLY) return;
+  if(!READONLY || VIEWONLY) return;
   READONLY = false;
   document.body.classList.remove('readonly');
   const b = document.getElementById('robanner');
@@ -1908,6 +2022,128 @@ function exitReadOnly(){
   }
   render();
 }
+/** The view-only login: read-only like an archived season, but with no
+ *  banner (it is not an exception to explain, it is the whole point), and it
+ *  opens on the wall calendar at today's month and keeps itself current. */
+function enterViewOnly(){
+  READONLY = true;
+  document.body.classList.add('readonly','viewonly');
+  _roKill = e => { e.preventDefault(); e.stopPropagation(); };
+  document.addEventListener('dragstart', _roKill, true);
+  document.addEventListener('drop', _roKill, true);
+  calView = tvView();
+  calAnchor = wallHome();
+  startLiveRefresh();
+  setView('cal');
+  // The display is a TV unless someone on this device has turned TV mode off.
+  if(tvPref()!=='0') enterTV();
+}
+let liveRefresh=false;
+/** For a screen nobody touches: someone else's edits arrive every 2 minutes,
+ *  and at midnight it moves on to the new day (and month) by itself. */
+function startLiveRefresh(){
+  if(liveRefresh) return;
+  liveRefresh=true;
+  let shownDay=todayISO();
+  setInterval(()=>{ if(AUTH && !document.hidden && (VIEWONLY||TVMODE)) pullShared(); }, 2*60*1000);
+  setInterval(()=>{
+    if(todayISO()!==shownDay){
+      shownDay=todayISO();
+      if(VIEWONLY||TVMODE){ calAnchor=wallHome(); if(viewMode==='cal') renderCalendar(); }
+      return;
+    }
+    tvIdleReturn();
+  }, 60*1000);
+}
+// A wall display drifts back to the month being worked: if someone flipped
+// to another month (or opened a day) and walked away, return after 5 idle
+// minutes.
+const TV_IDLE_MS=5*60*1000;
+let lastTouch=Date.now();
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ lastTouch=Date.now(); }, true));
+function tvIdleReturn(){
+  if(!TVMODE || Date.now()-lastTouch<TV_IDLE_MS) return;
+  const home=wallHome(), view=tvView();
+  if(viewMode==='cal' && calView===view && calAnchor.slice(0,7)===home.slice(0,7)) return;
+  calReturn=null; calView=view; calAnchor=home;
+  if(viewMode!=='cal') setView('cal'); else renderCalendar();
+}
+// ---------- TV mode ----------
+// Toggle in the header. Remembered per device, so the studio iPad comes back
+// in TV mode after a reload or a restart. The browser only allows full
+// screen from a tap, so after a reload a "Tap for full screen" button waits.
+let TVMODE=false, tvPrev=null;
+function tvPref(){ try{ return localStorage.getItem('tbdg-tv-mode'); }catch(e){ return null; } }
+// The calendar view picked while in TV mode (month wall by default), so a
+// restarted iPad comes back on the same view.
+function tvView(){ try{ return localStorage.getItem('tbdg-tv-view')||'wall'; }catch(e){ return 'wall'; } }
+function setTvView(v){ try{ localStorage.setItem('tbdg-tv-view', v); }catch(e){} }
+function setTvPref(v){ try{ localStorage.setItem('tbdg-tv-mode', v); }catch(e){} }
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
+function fsSupported(){ const el=document.documentElement;
+  return !!(el.requestFullscreen||el.webkitRequestFullscreen); }
+function requestFS(){
+  const el=document.documentElement;
+  try{ const r=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);
+       if(r&&r.catch) r.catch(()=>{}); }catch(e){}
+}
+function exitFS(){
+  if(!fsEl()) return;
+  try{ const r=(document.exitFullscreen||document.webkitExitFullscreen).call(document);
+       if(r&&r.catch) r.catch(()=>{}); }catch(e){}
+}
+/** In TV mode, anywhere but the month wall gets a big Back button. */
+function syncTvBack(){
+  const b=document.getElementById('tvback');
+  if(!b) return;
+  // A view chosen from the menu is where TV mode lives; the Back button is
+  // for a day or a Days/Staffing/Roster screen opened by tapping.
+  const away = TVMODE && (viewMode!=='cal' || (calView==='day' && !!calReturn));
+  b.hidden = !away;
+  document.body.classList.toggle('tvaway', away);
+}
+function syncTvHint(){
+  const h=document.getElementById('tvhint');
+  if(h) h.hidden = !(TVMODE && fsSupported() && !fsEl());
+}
+function tellHost(){
+  // The app hides its sidebar around us while TV mode is on.
+  try{ window.parent.postMessage({type:'tbdg-tv', on:TVMODE}, '*'); }catch(e){}
+}
+function enterTV(fromTap){
+  if(TVMODE) return;
+  TVMODE=true;
+  if(fromTap) setTvPref('1');
+  tvPrev={viewMode, calView, calAnchor};
+  document.body.classList.add('tv');
+  calView=tvView(); calAnchor=wallHome();
+  startLiveRefresh();
+  setView('cal');
+  if(fromTap) requestFS();
+  tellHost(); syncTvHint();
+}
+function exitTV(){
+  if(!TVMODE) return;
+  TVMODE=false; setTvPref('0');
+  document.body.classList.remove('tv');
+  exitFS();
+  if(tvPrev){ calView=tvPrev.calView; calAnchor=tvPrev.calAnchor; setView(tvPrev.viewMode); }
+  tellHost(); syncTvHint();
+}
+document.getElementById('tvbtn').onclick=()=>enterTV(true);
+// Exit lives in the calendar bar, which re-renders -- so delegate.
+document.addEventListener('click', e=>{ if(e.target.closest('#tvexit')) exitTV(); });
+document.getElementById('tvhint').onclick=()=>{ requestFS(); };
+// By id, not the `peekdlg` const: that is declared further down this
+// script, and touching it here would throw before the page finishes loading.
+document.getElementById('tvback').onclick=()=>{
+  const dlg=document.getElementById('peekdlg'); if(dlg.open) dlg.close(); backToMonth(); };
+// Tapping outside the stop popup closes it (a <dialog>'s backdrop click
+// lands on the dialog element itself).
+document.getElementById('peekdlg').addEventListener('click', e=>{
+  if(e.target===e.currentTarget) e.currentTarget.close(); });
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
+  syncTvHint(); if(TVMODE && viewMode==='cal') setTimeout(fitWall, 60); }));
 function enterReadOnly(current){
   if(READONLY) return;
   READONLY = true;
@@ -1966,7 +2202,27 @@ function loadClientDirectory(){
   clientDirectoryPromise = fetch('/api/clients/list', {headers:{Authorization:AUTH}})
     .then(r=>r.ok?r.json():[])
     .then(rows=>{
-      clientDirectory = new Map((Array.isArray(rows)?rows:[]).map(c=>[normName(c.name), c]));
+      // Indexed by every spelling the app knows for a client -- the current
+      // name, every former name, and the spreadsheet's own -- so a name baked
+      // into this page at build time still resolves after a rename on the
+      // Clients tab.
+      clientDirectory = new Map();
+      (Array.isArray(rows)?rows:[]).forEach(c=>{
+        [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
+          const k=normName(n); if(k && !clientDirectory.has(k)) clientDirectory.set(k, c);
+        });
+      });
+      // The Clients tab is the source of truth for the name: show its spelling
+      // everywhere here (cards, sheets, the find box, the change log) rather
+      // than the one the sheet had when this page was built. The sheet's
+      // spelling is kept on the row for anything still keyed on it.
+      Object.values(C).forEach(c=>{
+        const ac=clientDirectory.get(normName(c.name));
+        if(ac && ac.name && normName(ac.name)!==normName(c.name)){
+          c.sheetName = c.sheetName || c.name;
+          c.name = ac.name;
+        }
+      });
     })
     .catch(()=>{ clientDirectory = null; });
   return clientDirectoryPromise;
@@ -2032,6 +2288,7 @@ async function pullShared(){
       trainingDays = normTrainingDays(j.state.trainingDays);
       notInstalling = normNotInstalling(j.state.notInstalling);
       hold = normNotInstalling(j.state.hold);
+      stopPin = normStopPins(j.state.stopPin);
       lastScheduledFrom = normLastScheduledFrom(j.state.lastScheduledFrom);
       const missing = applyPlacement(j.state.placement);
       materializeTrainingDays();
@@ -2220,6 +2477,7 @@ async function restoreHistoryEntry(entryId, btn){
     trainingDays = normTrainingDays(st.trainingDays);
     notInstalling = normNotInstalling(st.notInstalling);
     hold = normNotInstalling(st.hold);
+    stopPin = normStopPins(st.stopPin);
     lastScheduledFrom = normLastScheduledFrom(st.lastScheduledFrom);
     applyPlacement(st.placement);
     materializeTrainingDays();
@@ -2253,7 +2511,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         notInstalling:[...notInstalling], hold:[...hold], lastScheduledFrom, roster, staffing});
+                         notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -2263,6 +2521,7 @@ function restoreBlob(blob){
   trainingDays = normTrainingDays(s.trainingDays);
   notInstalling = normNotInstalling(s.notInstalling);
   hold = normNotInstalling(s.hold);
+  stopPin = normStopPins(s.stopPin);
   lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
   applyPlacement(s.placement);
   materializeTrainingDays();
@@ -2303,6 +2562,26 @@ document.addEventListener('keydown', e=>{
 
 // ---------- routing (embedded OSRM matrix) ----------
 function leg(a,b){ return D[a][b]||0; }
+/** Honour position locks without re-routing: stops locked "first" lead (in
+ *  the order given), "last" trail, and a "middle" stop is kept off both ends
+ *  whenever another stop can take that spot. Stable -- an order with no
+ *  locks comes back untouched -- so every ordering path can run it last. */
+function applyPins(order){
+  if(!order.some(r=>stopPin[r])) return order;
+  const firsts=order.filter(r=>stopPin[r]==='first');
+  const lasts=order.filter(r=>stopPin[r]==='last');
+  let mid=order.filter(r=>!firsts.includes(r) && !lasts.includes(r));
+  if(!firsts.length && mid.length>1 && stopPin[mid[0]]==='middle'){
+    const k=mid.findIndex(r=>stopPin[r]!=='middle');
+    if(k>0){ const [x]=mid.splice(k,1); mid.unshift(x); }
+  }
+  if(!lasts.length && mid.length>1 && stopPin[mid[mid.length-1]]==='middle'){
+    const rev=[...mid].reverse();
+    const k=rev.findIndex(r=>stopPin[r]!=='middle');
+    if(k>0){ const x=rev[k]; mid=mid.filter(r=>r!==x); mid.push(x); }
+  }
+  return [...firsts, ...mid, ...lasts];
+}
 function routeDay(d){
   const idx = d.stops.map(r=>N[r]).filter(i=>i!==undefined);
   if(!idx.length) return {order:[],drive:0};
@@ -2315,11 +2594,14 @@ function routeDay(d){
     // -- UNLESS a stop's position was manually pinned (the reorder arrows
     // on a stop row), in which case that pin overrides the optimizer the
     // same way: trust d.stops's order exactly, don't re-permute it away.
+    // Position locks still apply -- they are the one thing a person has
+    // said outright about the order, and they beat both the pipeline's plan
+    // and a manual sequence a later drop appended to.
+    const order=applyPins([...d.stops]);
     let drive=0;
-    const seq=(d.anchored?[0]:[]).concat(d.stops.map(r=>N[r])).concat(d.anchored?[0]:[]);
+    const seq=(d.anchored?[0]:[]).concat(order.map(r=>N[r])).concat(d.anchored?[0]:[]);
     for(let i=0;i<seq.length-1;i++) drive+=leg(seq[i],seq[i+1]);
-    return {order:[...d.stops], drive:drive/60,
-            path:d.stops.map(r=>N[r])};
+    return {order, drive:drive/60, path:order.map(r=>N[r])};
   }
   // Edited day: re-route with the SAME algorithm the Python pipeline uses
   // (route_exact -- exhaustive permutation over the true asymmetric
@@ -2335,22 +2617,34 @@ function routeDay(d){
   // and drive time decides the order within it. A day where everyone is in
   // one group is routed exactly as before. The pipeline's forced-first stop
   // (d.startRow) still leads its own group.
+  // Position locks come before everything: stops locked "first" open the
+  // day (routed among themselves), stops locked "last" close it, and only
+  // what is left is grouped by preference and routed in between. A "middle"
+  // lock is settled by applyPins afterwards -- it keeps that stop off both
+  // ends of the finished order.
   const idx2row={}; d.stops.forEach(r=>idx2row[N[r]]=r);
   const startIdx = (d.startRow!=null && d.stops.includes(d.startRow))
                  ? N[d.startRow] : null;
+  const firstsIdx=idx.filter(i=>stopPin[idx2row[i]]==='first');
+  const lastsIdx=idx.filter(i=>stopPin[idx2row[i]]==='last');
+  const rest=idx.filter(i=>!firstsIdx.includes(i) && !lastsIdx.includes(i));
   const groups=[[],[],[],[]];
-  idx.forEach(i=>groups[prefRank(idx2row[i])].push(i));
+  rest.forEach(i=>groups[prefRank(idx2row[i])].push(i));
   const nonEmpty=groups.filter(g=>g.length);
+  const depotTail = d.anchored ? [0] : [];
   let seq = d.anchored ? [0] : [];
+  seq = solveOrder(seq, firstsIdx, (!nonEmpty.length && !lastsIdx.length) ? depotTail : []);
   nonEmpty.forEach((g, gi)=>{
-    const last = gi===nonEmpty.length-1;
+    const last = gi===nonEmpty.length-1 && !lastsIdx.length;
     const pin = (startIdx!=null && g.includes(startIdx)) ? startIdx : null;
     const free = pin==null ? g : g.filter(i=>i!==pin);
-    seq = solveOrder(seq.concat(pin==null?[]:[pin]), free, (d.anchored && last) ? [0] : []);
+    seq = solveOrder(seq.concat(pin==null?[]:[pin]), free, last ? depotTail : []);
   });
-  const bestSeq = seq;
+  if(lastsIdx.length) seq = solveOrder(seq, lastsIdx, depotTail);
+  let inner = d.anchored? seq.slice(1,-1): seq;
+  inner = applyPins(inner.map(i=>idx2row[i])).map(r=>N[r]);
+  const bestSeq = d.anchored ? [0, ...inner, 0] : inner;
   let drive=0; for(let i=0;i<bestSeq.length-1;i++) drive+=leg(bestSeq[i],bestSeq[i+1]);
-  const inner = d.anchored? bestSeq.slice(1,-1): bestSeq;
   return {order: inner.map(i=>idx2row[i]), drive: drive/60, path:bestSeq};
 }
 /** Shortest visiting order of `free` after the fixed prefix `head` (possibly
@@ -2599,6 +2893,12 @@ function reorderStop(d, row, dir){
   const i = d.stops.indexOf(row);
   const j = i + dir;
   if(i<0 || j<0 || j>=d.stops.length) return;
+  const locked = stopPin[row] ? row : (stopPin[d.stops[j]] ? d.stops[j] : null);
+  if(locked){
+    alert(`${C[locked].name} ${PIN_LABEL[stopPin[locked]]} -- their position is locked.\n\n`
+      +`Open their card and set the position to "any" first if it really needs to move.`);
+    return;
+  }
   pushUndo();
   const next = [...d.stops];
   [next[i], next[j]] = [next[j], next[i]];
@@ -3414,6 +3714,7 @@ function markNotInstalling(row){
   confirmed.delete(row);
   notInstalling.add(row);
   hold.delete(row);
+  delete stopPin[row];
   // What date/crew they were pulled off of -- shown in the "not installing"
   // panel so staff can see what was booked before deciding whether to put
   // someone back on that same date.
@@ -3437,6 +3738,18 @@ function putBackOnSchedule(row){
 /** Put a client on hold, or release them. On hold they stay exactly where
  *  they are on the board -- this only flags them -- so a "yes, we're in"
  *  costs nothing and a "no" is one click to "not installing". */
+/** Lock a stop's place in its day -- first, last, anywhere but the ends --
+ *  or release it (pos null). Kept when the stop moves to another day. */
+function setStopPin(row, pos){
+  if(roBlocked()) return;
+  if(!C[row]) return;
+  if((stopPin[row]||null)===(pos||null)) return;
+  pushUndo();
+  if(pos && PIN_LABEL[pos]) stopPin[row]=pos; else delete stopPin[row];
+  const d=days.find(x=>x.stops.includes(row));
+  moves.push({row, name:C[row].name, from: d?d.id:'', to: pos ? `LOCK:${pos}` : 'LOCK:any'});
+  persist(); render();
+}
 function toggleHold(row){
   if(roBlocked()) return;
   if(!C[row]) return;
@@ -3691,15 +4004,16 @@ function buildDayCard(d){
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
     el.innerHTML=`<div class="numwrap">
-        <button type="button" class="ordbtn up" ${i===0?'disabled':''} title="Move up one stop">${IC.down}</button>
+        <button type="button" class="ordbtn up" ${i===0||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move up one stop'}">${IC.down}</button>
         <span class="num" style="background:${col}">${i+1}</span>
-        <button type="button" class="ordbtn down" ${i===d.stops.length-1?'disabled':''} title="Move down one stop">${IC.down}</button>
+        <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.down}</button>
       </div>
       <div class="body"><div class="nm">${c.name}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
-        ${SPEC.forceFirst[r]?'<span class="badge">goes first</span>':''}
+        ${stopPin[r]?`<span class="badge pinpos" title="Position locked — set from the client's card">${IC.lock} ${PIN_LABEL[stopPin[r]]}</span>`
+          :(SPEC.forceFirst[r]?'<span class="badge">goes first</span>':'')}
         ${prefBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
@@ -3799,7 +4113,8 @@ function renderNotInstalling(){
       .filter(Boolean).join(', ');
   };
   const existingRow = name => {
-    const c = Object.values(C).find(x=>normName(x.name)===normName(name));
+    const k=normName(name);
+    const c = Object.values(C).find(x=>normName(x.name)===k || (x.sheetName && normName(x.sheetName)===k));
     return c ? c.row : null;
   };
 
@@ -4047,7 +4362,8 @@ function buildAddCrewButton(date){
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
   const fmtId=id=>{if(!id) return 'new'; if(id==='NOINSTALL') return 'not installing';
-    if(id==='HOLD') return 'on hold'; const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
+    if(id==='HOLD') return 'on hold'; if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
+    const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
     moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${fmtId(m.from)} → ${fmtId(m.to)}</div>`).join('')+
     `<div class="undobar">
@@ -5089,6 +5405,144 @@ const PERIOD=1440, REPEATS=3, PXM=0.85;
 function calDaysOn(iso){ return days.filter(x=>x.date===iso)
   .sort((a,b)=>a.crew.localeCompare(b.crew)); }
 
+/** Where the wall opens: today, or -- outside the season -- the first date
+ *  with work, so a TV switched on in September isn't showing a blank month. */
+function wallHome(){
+  const t=todayISO();
+  if(SEASON.length && t>=SEASON[0] && t<=SEASON[SEASON.length-1]) return t;
+  return SEASON.find(dt=>calDaysOn(dt).length) || SEASON[0] || t;
+}
+/** A client's name as the wall shows it. The M Crowd restaurants all read
+ *  "M Crowd <location>"; on the wall the location alone is the useful part
+ *  (user, 2026-09-25), so the prefix goes. */
+function wallName(name){
+  const n=String(name||'').split('|')[0].trim();
+  return n.replace(/^M\s*Crowd\s+/i,'') || n;
+}
+/** One day on the wall: the date (and its box count -- what the warehouse
+ *  has to pull), then each crew-day as a colour-keyed group of full client
+ *  names. Deliberately no clock times; a night shift is a dark badge. */
+function wallCellHTML(dt, today){
+  const ci=SPEC.calendar.find(c=>c.date===dt), ds=calDaysOn(dt);
+  const cls=['wcell'];
+  if(!ds.length) cls.push('empty');
+  if(dt===today) cls.push('today'); else if(dt<today) cls.push('past');
+  if(ci&&ci.label) cls.push('tagged');
+  const [,mm,dd]=dt.split('-').map(Number);
+  let inner=`<div class="wnum"><b>${dd===1?`${MONTHS[mm-1].slice(0,3)} `:''}${dd}</b>`
+          + `<span>${DOW3[dateOf(dt).getDay()]}</span>`
+          + (ci&&ci.label?`<em>${peekEsc(ci.label)}</em>`:'')+`</div>`;
+  // Every client going out that day, one per line, in crew then route
+  // order -- no crew labels or box counts (user, 2026-09-25: the wall is
+  // for "what is on what day", nothing else).
+  const items=[];
+  const stops=[];
+  ds.forEach(d=>{
+    if(d.training && !d.stops.length){ items.push(`<li class="wtrain">Training</li>`); return; }
+    d.stops.forEach(r=>stops.push({r, d, name:wallName(C[r].name)}));
+  });
+  // Two crews at the same client on the same day is one thing for the
+  // design team to have ready: list it once here (the day view still shows
+  // each crew's stops -- user, 2026-09-25).
+  const seenName=new Set();
+  const uniq=stops.filter(s=>{ const k=s.name.toLowerCase(); if(seenName.has(k)) return false; seenName.add(k); return true; });
+  stops.length=0; stops.push(...uniq);
+  // One client at many locations the same day ("Capital Bank - Katy",
+  // "Capital Bank - Pasadena", ...) reads as one line: "Capital Bank ·
+  // 8 locations". Tapping the day still lists every one (user, 2026-09-25).
+  const brand=n=>n.includes(' - ') ? n.split(' - ')[0].trim() : null;
+  const count={};
+  stops.forEach(s=>{ const b=brand(s.name); if(b) count[b]=(count[b]||0)+1; });
+  const shown=new Set();
+  stops.forEach(s=>{
+    const b=brand(s.name);
+    if(b && count[b]>=WALL_GROUP_MIN){
+      if(!shown.has(b)){ shown.add(b);
+        items.push(`<li class="wgroup">${peekEsc(b)} <span>· ${count[b]} locations</span></li>`); }
+      return;
+    }
+    items.push(`<li data-row="${s.r}" data-dayid="${s.d.id}">${peekEsc(s.name)}</li>`);
+  });
+  if(items.length) inner+=`<ul class="wlist">${items.join('')}</ul>`;
+  const n=ds.reduce((a,d)=>a+d.stops.length,0);
+  if(n) inner+=`<div class="wdone">✓ ${n} stop${n===1?'':'s'}</div>`;
+  return `<div class="${cls.join(' ')}"${ds.length?` data-date="${dt}"`:''}>${inner}</div>`;
+}
+/** Lay dates out Sun..Sat, one row per week, dropping weekday columns with
+ *  no work in the range (usually Sunday) so the rest get the width. */
+function wallGridHTML(dates){
+  const today=todayISO();
+  const used=new Set(dates.filter(dt=>calDaysOn(dt).length).map(dt=>dateOf(dt).getDay()));
+  const cols=[0,1,2,3,4,5,6].filter(d=>!used.size || used.has(d) || (d>=1 && d<=5));
+  const weeks=[];
+  dates.forEach(dt=>{
+    const dow=dateOf(dt).getDay();
+    if(!weeks.length || dow===0) weeks.push({});
+    weeks[weeks.length-1][dow]=dt;
+  });
+  const rows=weeks.filter(w=>cols.some(c=>w[c]));
+  // A week entirely in the past is a thin strip; the rest share the height.
+  const sizes=rows.map(w=>cols.every(c=>!w[c] || w[c]<today) ? 'auto' : 'minmax(max-content,1fr)');
+  // Weekends carry a stop or two at most; weekdays get the width.
+  const widths=cols.map(d=>(d===0||d===6)?'minmax(0,.6fr)':'minmax(0,1fr)');
+  let h=`<div class="wallgrid" style="grid-template-columns:${widths.join(' ')};`
+      + `grid-template-rows:auto ${sizes.join(' ')}">`;
+  cols.forEach(d=>h+=`<div class="walldow">${DOW3[d]}</div>`);
+  rows.forEach((w,ri)=>{
+    // The month's last day, when the rest of its week is empty, stretches
+    // across that space and lays its names out in columns -- a long list
+    // then costs width, not height (user, 2026-09-25: the 30th).
+    const lastIdx=cols.reduce((m,dow,i)=>w[dow]?i:m,-1);
+    const span=(ri===rows.length-1) ? cols.length-lastIdx : 1;
+    cols.forEach((dow,i)=>{
+      if(i>lastIdx && span>1) return;
+      if(!w[dow]){ h+=`<div class="wcell off"></div>`; return; }
+      let cell=wallCellHTML(w[dow], today);
+      // Weekend columns are narrow, and carry a stop or two: wrap their
+      // names instead of cutting them off (user, 2026-09-25).
+      if(dow===0||dow===6) cell=cell.replace('<div class="wcell', '<div class="wkend wcell');
+      if(i===lastIdx && span>1)
+        cell=cell.replace('<div class="wcell', `<div style="grid-column:span ${span};--wcols:${Math.min(span,4)}" class="wide wcell`);
+      h+=cell;
+    });
+  });
+  return h+`</div>`;
+}
+/** Wall calendar, month: every client going out that month, at a glance. */
+function wallHTML(anchor){
+  const [y,m]=anchor.split('-').map(Number), last=new Date(y,m,0).getDate();
+  const dates=[];
+  for(let n=1;n<=last;n++) dates.push(`${y}-${String(m).padStart(2,'0')}-${String(n).padStart(2,'0')}`);
+  return wallGridHTML(dates);
+}
+/** Wall calendar, two weeks from the anchor's Sunday: the same cells with
+ *  room for big type -- the TV view when a month is too dense to read. */
+function wall2Dates(anchor){
+  const start=addDays(anchor,-dateOf(anchor).getDay());
+  return Array.from({length:14},(_,i)=>addDays(start,i));
+}
+function wall2HTML(anchor){ return wallGridHTML(wall2Dates(anchor)); }
+/** Fill the screen below the calendar bar, then shrink the type one step at
+ *  a time until no day cell overflows -- a light week reads from across the
+ *  shop, a packed one still shows every name. */
+/** One fixed type size, month after month (user, 2026-09-25: text that
+ *  grows and shrinks with the month reads as noise). Every name is shown:
+ *  each week's row is as tall as its busiest day, and any spare height is
+ *  shared out so the month still fills the screen. */
+const WALL_FS=13;
+/** A client with at least this many locations on one day collapses to one line. */
+const WALL_GROUP_MIN=3;
+function fitWall(){
+  const g=document.querySelector('#calwrap .wallgrid');
+  if(!g) return;
+  g.style.setProperty('--wfs', WALL_FS+'px');
+  const top=g.getBoundingClientRect().top;
+  // A definite height (not min-height): with an indefinite one, every
+  // 1fr row grows to the tallest week's height and the month overflows.
+  g.style.minHeight='';
+  g.style.height=Math.max(300, window.innerHeight-top-12)+'px';
+}
+window.addEventListener('resize', ()=>{ if(viewMode==='cal' && calView.startsWith('wall')) fitWall(); });
 function monthHTML(anchor){
   const [y,m]=anchor.split('-').map(Number);
   const first=new Date(y,m-1,1), last=new Date(y,m,0).getDate();
@@ -5098,7 +5552,7 @@ function monthHTML(anchor){
   for(let n=1;n<=last;n++){
     const iso=`${y}-${String(m).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
     const ci=SPEC.calendar.find(c=>c.date===iso), ds=calDaysOn(iso);
-    if(!ci && !ds.length){ h+=`<div class="calcell empty"><div class="calnum">${n}</div></div>`; continue; }
+    if(!ci && !ds.length){ h+=`<div class="calcell empty${iso===todayISO()?' today':''}"><div class="calnum">${n}</div></div>`; continue; }
     let inner=`<div class="calnum">${n}<small>${DOW3[dateOf(iso).getDay()]}</small>`
             + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div>`;
     let stops=0,boxes=0,hrs=0;
@@ -5119,7 +5573,7 @@ function monthHTML(anchor){
     if(ds.length) inner+=`<div class="calfoot">${stops} stops · ${hrs.toFixed(1)}h`
                        + (boxes?` · <span class="calbox">${boxes} boxes</span>`:'')
                        + (appr?` · <span class="apprdot">${appr}/${ds.length} ✓</span>`:'')+`</div>`;
-    h+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}" data-date="${iso}">${inner}</div>`;
+    h+=`<div class="calcell${ds.length?'':' empty'}${ci&&ci.label?' tagged':''}${iso===todayISO()?' today':''}" data-date="${iso}">${inner}</div>`;
   }
   return h+`</div>`;
 }
@@ -5287,9 +5741,19 @@ function agendaHTML(){
   return h||`<p class="nothingyet">Nothing scheduled.</p>`;
 }
 let calView='month', calAnchor=(SEASON[0]||todayISO());
+// Where "Back to month" goes: the month/wall view a date was opened from.
+let calReturn=null;
+function backToMonth(){
+  const r=calReturn||{view:TVMODE?tvView():'month', anchor:calAnchor};
+  calReturn=null; calView=r.view; calAnchor=r.anchor;
+  if(viewMode!=='cal') setView('cal'); else renderCalendar();
+}
 function calTitle(){
-  if(calView==='month'){ const [y,m]=calAnchor.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; }
+  if(calView==='month'||calView==='wall'){ const [y,m]=calAnchor.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; }
   if(calView==='agenda') return 'Schedule';
+  if(calView==='wall2'){ const ds=wall2Dates(calAnchor), a=dateOf(ds[0]), b=dateOf(ds[13]);
+    return a.getMonth()===b.getMonth() ? `${MONTHS[a.getMonth()]} ${a.getDate()} – ${b.getDate()}`
+      : `${MONTHS[a.getMonth()].slice(0,3)} ${a.getDate()} – ${MONTHS[b.getMonth()].slice(0,3)} ${b.getDate()}`; }
   if(calView==='day') return `${DOW3[dateOf(calAnchor).getDay()]} ${fmtMDYYYY(calAnchor)}`;
   const s=addDays(calAnchor,-dateOf(calAnchor).getDay()), e=addDays(s,6);
   const [sy,sm,sd]=s.split('-'), [ey,em,ed]=e.split('-');
@@ -5299,9 +5763,10 @@ function calTitle(){
 function calShift(n){
   // setDate(1) BEFORE setMonth: stepping back from a 31st would otherwise land
   // on a short month, normalise forward, and leave you in the month you started.
-  if(calView==='month'){ const d=dateOf(calAnchor); d.setDate(1); d.setMonth(d.getMonth()+n);
+  if(calView==='month'||calView==='wall'){ const d=dateOf(calAnchor); d.setDate(1); d.setMonth(d.getMonth()+n);
     calAnchor=isoOf(d); }
   else if(calView==='week') calAnchor=addDays(calAnchor,7*n);
+  else if(calView==='wall2') calAnchor=addDays(calAnchor,14*n);
   else if(calView==='day')  calAnchor=addDays(calAnchor,n);
   renderCalendar();
 }
@@ -5312,17 +5777,26 @@ function renderCalendar(){
       <button class="calbtn" id="caltoday">Today</button>
       ${nav?`<button class="calnav" id="calprev" aria-label="Previous">‹</button>
       <button class="calnav" id="calnext" aria-label="Next">›</button>`:''}
+      ${calView==='day'&&calReturn?`<button class="calbtn calback" id="calback">← Back</button>`:''}
       <h2 class="caltitle">${calTitle()}</h2>
+      ${calView.startsWith('wall')?`<span class="wallstamp">Updated ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>`:''}
+      <button class="tvexit" id="tvexit" type="button">Exit TV</button>
       <select class="calsel" id="calviewsel">
         <option value="day">Day</option><option value="week">Week</option>
-        <option value="month">Month</option><option value="agenda">Schedule</option>
+        <option value="month">Month</option><option value="wall">Wall: month</option>
+        <option value="wall2">Wall: 2 weeks</option>
+        <option value="agenda">Schedule</option>
       </select>
     </div><div id="calbodywrap">${
       calView==='month'?monthHTML(calAnchor):
+      calView==='wall' ?wallHTML(calAnchor):
+      calView==='wall2'?wall2HTML(calAnchor):
       calView==='week' ?weekHTML(calAnchor):
       calView==='day'  ?dayHTML(calAnchor):agendaHTML()}</div>`;
   document.getElementById('calviewsel').value=calView;
-  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; renderCalendar(); };
+  document.getElementById('calviewsel').onchange=e=>{ calView=e.target.value; calReturn=null;
+    if(TVMODE) setTvView(calView);
+    renderCalendar(); };
   const TODAY=todayISO();
   document.getElementById('caltoday').onclick=()=>{
     // "Today" outside the season would land on an empty screen -- fall back to
@@ -5338,11 +5812,15 @@ function renderCalendar(){
     }
     renderCalendar();
   };
+  const back=document.getElementById('calback'); if(back) back.onclick=backToMonth;
   if(nav){ document.getElementById('calprev').onclick=()=>calShift(-1);
            document.getElementById('calnext').onclick=()=>calShift(1); }
   initCylinder(wrap);
-  wrap.querySelectorAll('.calcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
-    c.onclick=()=>{ calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
+  if(calView.startsWith('wall')) fitWall();
+  syncTvBack();
+  wrap.querySelectorAll('.calcell[data-date],.wcell[data-date],.calgh[data-date],.agdate[data-date]').forEach(c=>{
+    c.onclick=()=>{ if(calView==='month'||calView.startsWith('wall')||TVMODE) calReturn={view:calView, anchor:calAnchor};
+                    calAnchor=c.dataset.date; calView='day'; renderCalendar(); };
   });
   wrap.querySelectorAll('[data-row]').forEach(el=>{
     if(confirmed.has(+el.dataset.row)) el.classList.add('confirmed');
@@ -5696,6 +6174,11 @@ function openStopPeek(row,dayId){
     ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
     ${d && confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
     ${hold.has(row)?`<p class="pkrow"><span class="badge hold">on hold — about to cancel, not decided</span></p>`:''}
+    ${d?`<div class="pkpos"><span class="pksec">Position on the day</span>
+      ${[['first','First'],['middle','Middle'],['last','Last'],['','Any']].map(([v,l])=>
+        `<button type="button" class="mv${(stopPin[row]||'')===v?' on':''}" data-pos="${v}" `
+        +`title="${v?'Lock this stop as the day\'s '+l.toLowerCase()+' stop':'No lock — drive time decides'}">${l}</button>`).join('')}
+      ${stopPin[row]?`<span class="pkhstale">locked — re-routing and drops won't move it</span>`:''}</div>`:''}
     ${profileSectionHTML(row)}
     <div class="pkcomments">
       <p class="pksec">Comments</p>
@@ -5707,6 +6190,9 @@ function openStopPeek(row,dayId){
     </div>`;
   wireContactBlock(row);
   wireProfileLink(row);
+  document.querySelectorAll('#peekbody .pkpos button').forEach(b=>{
+    b.onclick=()=>{ peekdlg.close(); setStopPin(row, b.dataset.pos||null); };
+  });
   const addComment=async()=>{
     if(roBlocked()) return;
     const inp=document.getElementById('pkcommenttext');
@@ -6564,7 +7050,7 @@ function manifestHTML(d){
     const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(c.name)}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
+      <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone||'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${note?`<div class="nt">${esc(note)}</div>`:''}
@@ -6635,6 +7121,7 @@ function printManifests(list, title){
     .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
     .hold{color:#92400e;font-weight:800;font-size:10px;border:1px solid #d97706;border-radius:4px;padding:0 4px;vertical-align:middle}
     .pref{color:#1e3a5f;font-size:10.5px;font-weight:600}
+    .pos{color:#4c1d95;font-weight:800;font-size:10px;border:1px solid #4c1d95;border-radius:4px;padding:0 4px;vertical-align:middle}
     tr.drive td{border:0;padding:2px 6px 2px 32px;color:#777;font-size:10.5px}
     tr.depot td{border:0;padding:4px 6px;color:#2d5a33;font-weight:700;font-size:11px;
       text-transform:uppercase;letter-spacing:.3px}
@@ -6662,8 +7149,15 @@ function render(){
       // that arrived from a move) goes on the end rather than vanishing.
       const known = mo.filter(r=>d.stops.includes(r));
       const extra = d.stops.filter(r=>!known.includes(r));
-      d.stops = [...known, ...extra];
+      d.stops = applyPins([...known, ...extra]);
     } else if(d.edited) d.stops = dayCalc(d).order;
+    else {
+      // A pipeline day is trusted as planned -- unless a position lock says
+      // otherwise. Moving a stop makes it an edited day (re-routed live, and
+      // drawn from a fresh path rather than the stale precomputed one).
+      const pinned = applyPins([...d.stops]);
+      if(pinned.some((r,i)=>r!==d.stops[i])){ d.stops = pinned; d.edited = true; d.stops = dayCalc(d).order; }
+    }
   });
   // Leaving Staffing must drop its maps -- renderStaffing() is the only
   // other thing that tears them down, and it does not run from here.
@@ -6676,6 +7170,7 @@ function render(){
     `${n} stops · ${days.length} crew-days · ${approved.size} approved`;
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
+  if(typeof syncTvBack==='function') syncTvBack();
 }
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.
@@ -6686,6 +7181,11 @@ selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
 // window between load and the auth token arriving. loadSeasons() confirms it
 // against the server's clock a moment later; this is what makes the
 // guarantee immediate rather than eventual.
-if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
+if(VIEWONLY) enterViewOnly();
+else if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
 render();
+if(!VIEWONLY && tvPref()==='1') enterTV();
+// The host may have mounted us before it could hear the answer; say it again.
+window.addEventListener('message', e=>{
+  if(e.source===window.parent && e.data && e.data.type==='tbdg-auth') tellHost(); });
 </script></body></html>

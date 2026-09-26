@@ -202,6 +202,20 @@ the rest of this file is the WHY behind it.*
   `ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment'` must
   name the partial index's predicate (migration 009) or Postgres refuses it.
 
+### 10.1a Renaming a client
+- The Clients tab is the source of truth for the NAME too. `PUT
+  /clients/update` writes a changed name through, in one transaction, to
+  every table that keeps it as text (arrangements, ll_app.jobs,
+  product_requests, shift_notes, shift_time_entries -- `NAME_MIRRORS`) and
+  appends the old spelling to `clients.former_names` (migration 017).
+- `clients.sheet_name` is the spreadsheet's own spelling, written by every
+  sync. `sync_clients.py` matches on sheet_name, then name, then
+  former_names, so a rename never makes the next sync create a duplicate.
+  (It did, three times, before this existed -- 2026-09-25.)
+- The scheduler's client directory indexes every spelling and, once loaded,
+  shows the app's current name on cards, sheets and the find box, keeping
+  the sheet's spelling on `C[row].sheetName` for anything still keyed on it.
+
 ### 10.2 Install-time preference (morning / afternoon / late)
 - `clients.time_preference` (migration 015) is per CLIENT — a daycare that
   needs mornings needs them every year. Set on the Clients tab.
@@ -225,6 +239,22 @@ the rest of this file is the WHY behind it.*
   hold. Saved in shared state as `hold` (row ids) + `holdNames`, written
   through to `client_activity.detail.hold` on save; the Clients tab shows
   and sets the same flag (status Installing / Hold / Not installing).
+
+### 10.4 Position locks — first / middle / last
+- A stop can be locked to a place in its day from the client's popup
+  ("Position on the day": First · Middle · Last · Any). Locked stops keep
+  that place through every ordering path -- the pipeline's plan, a live
+  re-route after a drop, a manual sequence -- and the reorder arrows refuse
+  to move them (release to "Any" first). "Middle" means never the first or
+  last stop when another stop can take that end.
+- Implementation: `stopPin` (row -> first|middle|last) in shared state next
+  to `hold`; `applyPins()` is a stable pass every ordering path runs last,
+  and `routeDay` routes the firsts, then the preference groups, then the
+  lasts. A pinned pipeline day that has to move becomes an edited day. Locks
+  travel with the row when it moves days; "not installing" clears one.
+  Badge on the card and the printed sheet ("GOES FIRST" / "GOES LAST").
+- Time preference (10.2) says WHEN in the day; a lock says WHERE in the
+  order. Set both for a client who wants mornings AND has to be first.
 
 ## 11. Real road geometry, mileage & map robustness
 - `route_geometry.py` fetches each day's REAL road-following path + actual

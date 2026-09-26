@@ -36,6 +36,7 @@ modify-write so concurrent saves serialise rather than both landing on the
 same stale snapshot.
 """
 import json
+import os
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Request
@@ -48,6 +49,10 @@ from app.libs.jsonutil import loads_json as _loads
 from app.libs.season import season_for
 
 router = APIRouter(prefix="/install-schedule")
+
+#: The warehouse display login (role `viewer`) may read the tool and its
+#: state, never save -- see app.libs.roles.
+VIEWER_READ = True
 
 ALLOWED = {"index.html", "map.html"}
 
@@ -91,6 +96,14 @@ async def get_install_schedule_page(
 ) -> str:
     if file not in ALLOWED:
         raise HTTPException(status_code=404, detail="Unknown page")
+    # Local template preview (scheduler/preview_template.py): serve a file
+    # built from this checkout's template instead of the published page.
+    # Only honoured when the variable is set AND the file exists, so a
+    # deployment that has neither behaves exactly as before.
+    preview = os.getenv("INSTALL_SCHEDULE_PREVIEW_PAGE")
+    if preview and file == "index.html" and os.path.isfile(preview):
+        with open(preview, encoding="utf-8") as f:
+            return f.read()
     want = _clean_season(season) if season is not None else None
     try:
         conn = await get_conn()
