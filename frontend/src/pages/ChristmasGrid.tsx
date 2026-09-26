@@ -175,9 +175,14 @@ function CellEditor({ col, row, onDone }: { col: Col; row: Row; onDone: (saved?:
     : str(row.d[edit.field]);
   const [v, setV] = useState(initial);
   const ref = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  // Enter saves and unmounts the input, which fires its blur -- one save,
+  // not two.
+  const done = useRef(false);
   useEffect(() => { ref.current?.focus(); if (ref.current instanceof HTMLInputElement) ref.current.select(); }, []);
 
   const save = async () => {
+    if (done.current) return;
+    done.current = true;
     if (v === initial) { onDone(); return; }
     let fields: Record<string, unknown>;
     if (edit.kind === "storing") fields = { storing: v === "" ? null : v === "yes" };
@@ -204,7 +209,7 @@ function CellEditor({ col, row, onDone }: { col: Col; row: Row; onDone: (saved?:
   };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); void save(); }
-    if (e.key === "Escape") onDone();
+    if (e.key === "Escape") { done.current = true; onDone(); }
   };
   const cls = "h-7 w-full rounded border border-emerald-400 bg-white px-1.5 text-xs text-stone-800 outline-none ring-2 ring-emerald-200";
   if (edit.kind === "storing") {
