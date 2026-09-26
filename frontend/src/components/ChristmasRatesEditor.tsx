@@ -161,7 +161,7 @@ export default function ChristmasRatesEditor() {
                   {ROWS.filter((r) => r.group === g).map(({ key, label, unit, help }) => {
                     const own = data.own.includes(key);
                     return (
-                      <div key={key} className="grid items-center gap-3 px-3 py-2 text-xs sm:grid-cols-[180px_130px_1fr]">
+                      <div key={key} className="grid items-center gap-3 px-3 py-2 text-xs sm:grid-cols-[180px_190px_1fr]">
                         <div>
                           <span className="font-medium text-stone-800">{label}</span>
                           {rates[key] != null && !own && <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700">inherited</span>}
