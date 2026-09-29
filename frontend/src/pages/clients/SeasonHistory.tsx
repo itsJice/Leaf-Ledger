@@ -238,7 +238,14 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
     ["Takedown start / end", [detail.takedown_real_start, detail.takedown_real_end].filter(Boolean).join(" – ")],
     ["Takedown hours", detail.takedown_real_hours ?? detail.takedown_real_note ?? detail.takedown_est_hours ?? detail.takedown_est_note],
     ["Storage note", detail.storage_note],
+    ["Storage location", detail.storage_loc],
+    ["Takedown crew", detail.takedown_crew],
+    ["Service visits", Array.isArray(detail.service_visits) ? (detail.service_visits as unknown[]).join("; ") : null],
     ["Was scheduled", detail.was_scheduled ? mdy(detail.was_scheduled) : null],
+    // Seasons brought over from an old office calendar say so, and keep the
+    // entries exactly as the calendar had them (scheduler/import_calendar_history.py).
+    ["Source", detail.source],
+    ["Calendar entries", Array.isArray(detail.calendar_entries) ? (detail.calendar_entries as unknown[]).join(" · ") : null],
   ].filter(([, v]) => v !== null && v !== undefined && v !== "") as [string, unknown][];
 
   return (
