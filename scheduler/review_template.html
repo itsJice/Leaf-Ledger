@@ -6,6 +6,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
   /* Leaf & Ledger tokens */
@@ -941,35 +942,324 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   border:1px solid rgba(0,0,0,.06)}
 .edited{font-size:10px;color:#c2410c;font-weight:700;margin-left:6px;font-family:'Montserrat',sans-serif}
 .ic{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;display:inline-block}
+
+/* =====================================================================
+   Apple-informational layout (design/apple-pass). Everything below only
+   restyles or re-places existing elements; ids and handlers are unchanged.
+   ===================================================================== */
+body.apple{--page:#f7f4ef;--side:#efebe4;--line:#e6e1d7;--line2:#efebe4;--ink:#1d2a21;--mut:#5b6558;
+  --faint:#8b9388;--serif:'Sora',system-ui,sans-serif;--glass:rgba(255,255,255,.9)}
+body.apple #app *,body.apple dialog,body.apple dialog *{font-family:'Nunito Sans',system-ui,sans-serif}
+body.apple #app .cname,body.apple #app .ovtitle,body.apple #app .dayhead b,body.apple #app #log h3,
+body.apple dialog b,body.apple #peekbody h3,body.apple #app .calmonth h2,body.apple #app .caltitle,
+body.apple #app .sfdate{font-family:'Sora',system-ui,sans-serif;letter-spacing:-.01em}
+body.apple .ic{flex:none}
+
+/* ---- toolbar ---- */
+body.apple header{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 16px;
+  background:var(--page);border-bottom:1px solid var(--line)}
+body.apple #headtitle{display:none}
+body.apple #tbedit{display:flex;align-items:center;gap:2px;flex:1 1 auto;min-width:0}
+body.apple #tbright{display:flex;align-items:center;gap:4px;flex:1 1 auto;justify-content:flex-end;min-width:0}
+body.apple .tbicon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;
+  border:0;border-radius:10px;background:transparent;color:#3b4a3f;cursor:pointer;padding:0}
+body.apple .tbicon:hover:not(:disabled){background:rgba(31,61,43,.07)}
+body.apple .tbicon:disabled{opacity:.35;cursor:default}
+body.apple .tbicon .ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+body.apple #tbsaved{display:inline-flex;align-items:center;gap:5px;margin-left:6px;font-size:12.5px;
+  font-weight:700;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.apple #tbsaved .ic{width:14px;height:14px;color:#15803d;stroke:currentColor;fill:none;stroke-width:2.4}
+body.apple .viewtog{display:inline-flex;gap:2px;padding:2px;border:0;border-radius:10px;background:#e8e3da;margin:0;flex:none}
+body.apple .viewtog button{height:30px;padding:0 16px;border:0;border-radius:8px;background:transparent;
+  font-size:13px;font-weight:700;color:#46544a;cursor:pointer}
+body.apple .viewtog button.sel{background:#fff;color:var(--brand-deep);font-weight:800;
+  box-shadow:0 1px 2px rgba(28,46,30,.16),0 0 0 .5px rgba(28,46,30,.08)}
+body.apple #searchwrap{position:relative;margin:0 4px 0 0;width:230px;flex:0 1 230px;min-width:120px}
+body.apple #searchbox{width:100%;height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;
+  padding:0 12px 0 32px;font-size:13.5px;color:var(--ink);box-sizing:border-box;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%235b6558' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:11px center}
+body.apple #searchbox:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(45,90,51,.14)}
+body.apple #newmenu{position:relative;margin-left:4px}
+body.apple #newbtn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 10px;border:0;
+  border-radius:17px;background:var(--brand);color:#fff;font-size:13.5px;font-weight:800;cursor:pointer}
+body.apple #newbtn:hover{background:var(--brand-hover)}
+body.apple #newbtn .ic{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+body.apple #newbtn .ic:last-child{width:12px;height:12px;opacity:.85}
+body.apple #newpop{position:absolute;right:0;top:40px;z-index:2000;min-width:170px;padding:6px;border-radius:12px;
+  background:#fff;box-shadow:0 10px 30px rgba(28,46,30,.18),0 0 0 .5px rgba(28,46,30,.16);display:flex;flex-direction:column}
+body.apple #newpop[hidden]{display:none!important}
+body.apple #newpop button{all:unset;box-sizing:border-box;display:block;padding:9px 12px;border-radius:8px;
+  font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif}
+body.apple #newpop button:hover,body.apple #newpop button:focus-visible{background:var(--brand-soft)}
+body.apple #seasonpick{height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;padding:0 10px;font-weight:700}
+body.apple #statewarn,body.apple #robanner{flex:1 1 100%}
+body.readonly #newmenu,body.readonly #tbundo,body.readonly #tbredo{opacity:.4;pointer-events:none}
+body.viewonly #newmenu,body.viewonly #tbedit,body.viewonly #tbprint{display:none!important}
+body.tv #datecol,body.tv header{display:none!important}
+body.apple #tvbtn,body.apple #billexportbtn,body.apple #tbprint{width:34px;height:34px;padding:0;border:0;
+  border-radius:10px;background:transparent;align-self:center}
+body.apple #tvbtn:hover,body.apple #billexportbtn:hover,body.apple #tbprint:hover{background:rgba(31,61,43,.07)}
+
+/* ---- date column ---- */
+body.apple #datecol{display:flex;flex-direction:column;gap:12px;min-height:0;background:var(--side);
+  border-right:1px solid #e1dcd1;padding:14px 12px 10px}
+body.apple #datecolhd .scopepick{width:100%;height:36px;margin:0;border-radius:10px;border:1px solid #d9d3c7;
+  background:#fff;font-size:14px;font-weight:800;color:var(--brand-deep);padding:0 8px;cursor:pointer}
+body.apple #summarybar{margin:0;padding:0 4px;white-space:normal}
+body.apple .sbrow{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);font-weight:800}
+body.apple .sbrow b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+body.apple .sbbar{height:6px;border-radius:6px;background:#dcd6ca;overflow:hidden;margin-top:6px}
+body.apple .sbbar i{display:block;height:100%;border-radius:6px;background:var(--brand)}
+body.apple .sbsub{font-size:12px;color:var(--mut);margin-top:5px;font-variant-numeric:tabular-nums}
+body.apple #datestrip{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-height:0;overflow-y:auto;
+  margin:0 -6px;padding:0 6px 8px;flex-wrap:nowrap}
+body.apple .dsec{font-size:12px;font-weight:800;color:var(--mut);padding:12px 10px 4px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+body.apple .dsec:first-child{padding-top:0}
+body.apple #datefoot{display:flex;flex-direction:column;gap:1px;border-top:1px solid #e1dcd1;margin:0 -12px;padding:8px 12px 0}
+body.apple .dchip{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;margin:0;padding:0 10px;
+  border:0;border-radius:8px;background:transparent;color:var(--ink);font-size:13.5px;font-weight:600;
+  text-align:left;letter-spacing:0;cursor:pointer;transition:background .12s}
+body.apple .dchip:hover{background:rgba(31,61,43,.07)}
+body.apple .dchip .dlab{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:9px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+body.apple .dchip .dlab .ic{width:16px;height:16px;color:var(--brand);stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body.apple .dchip .dcount{font-size:12.5px;font-weight:800;color:var(--mut);font-variant-numeric:tabular-nums;min-width:18px;text-align:right}
+body.apple .dchip .dstat{display:inline-flex}
+body.apple .dchip .dstat .ic{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+body.apple .dchip .dstat.ok{color:#15803d}
+body.apple .dchip .dstat.warn{color:#b45309}
+body.apple .dchip.empty{color:var(--mut);font-weight:600;border:0;background:transparent}
+body.apple .dchip.empty .dcount{font-weight:600}
+body.apple .dchip.wknd{background:transparent;color:var(--ink);border:0}
+body.apple .dchip.wknd.empty{color:var(--mut)}
+body.apple .dchip.tagged{border:0}
+body.apple .dchip.added{border:1px dashed #b9d3bd}
+body.apple .dchip .dtag{margin:0;padding:1px 6px;border-radius:5px;background:#dcf1ee;color:#0f766e;
+  font-size:11px;font-weight:800;letter-spacing:.02em;line-height:16px;vertical-align:0}
+body.apple .dchip.sel,body.apple .dchip.sel:hover{background:var(--brand);color:#fff;font-weight:800}
+body.apple .dchip.sel .dcount{color:#d7e6da}
+body.apple .dchip.sel .dlab .ic{color:#d7e6da}
+body.apple .dchip.sel .dstat.ok{color:#bbf7d0}
+body.apple .dchip.sel .dstat.warn{color:#fde68a}
+body.apple .dchip.sel .dtag{background:rgba(255,255,255,.2);color:#fff}
+body.apple .dchip.dragover{outline:2px dashed var(--brand);outline-offset:-2px;background:var(--brand-soft)}
+body.apple .dchip.noinstall{margin:0;font-style:normal;color:var(--ink)}
+body.apple .dchip.hold{color:var(--ink);border:0}
+body.apple .dchip.hold.sel{background:#d97706;color:#fff}
+body.apple .dchipwrap{display:flex;position:relative;width:100%}
+body.apple .dchipwrap .dchip{padding-right:30px}
+body.apple .dchiprm{top:50%;right:6px;transform:translateY(-50%)}
+body.apple .dchip.janpick{height:32px;margin-top:6px;border:1px dashed #cfc8ba;background:#fff;color:var(--mut);max-width:none}
+
+/* ---- day pane ---- */
+body.apple #main{background:var(--page)}
+body.apple #side{width:520px;min-width:400px;padding:20px 20px 28px;background:var(--page)}
+body.apple .dayhead{padding:0 4px;margin:0 0 14px;border:0}
+body.apple .dayhead b{font-size:25px;line-height:1.2;font-weight:600;color:var(--brand-deep)}
+body.apple .dayhead .dhsub{display:block;font-size:14px;color:var(--mut);margin-top:4px}
+body.apple .dayhead .dhhint{display:block;font-size:12.5px;color:var(--mut);margin-top:6px;line-height:1.45}
+body.apple .daystats{display:flex;background:#fff;border-radius:12px;margin:0 0 20px;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(31,61,43,.07),0 1px 3px rgba(31,61,43,.05)}
+body.apple .daystats > div{flex:1;min-width:0;padding:11px 14px;border-right:1px solid var(--line2)}
+body.apple .daystats > div:last-child{border-right:0}
+body.apple .daystats span{display:block;font-size:12px;font-weight:800;color:var(--mut)}
+body.apple .daystats b{display:block;font-family:'Sora',system-ui,sans-serif;font-size:19px;font-weight:600;
+  color:var(--brand-deep);font-variant-numeric:tabular-nums;margin-top:2px}
+body.apple .daystats i{display:block;height:4px;border-radius:4px;background:#e4dfd4;margin-top:6px;overflow:hidden}
+body.apple .daystats i u{display:block;height:100%;background:var(--brand);border-radius:4px}
+body.apple #side > .printbtn{width:auto!important;margin:-6px 0 14px!important;border:0;background:transparent;
+  color:var(--brand);font-weight:800;font-size:13px;padding:4px 4px;cursor:pointer}
+body.apple .card{border:0;border-radius:12px;margin-bottom:20px;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(31,61,43,.07),0 1px 3px rgba(31,61,43,.05)}
+body.apple .card.approved{border:0;box-shadow:0 0 0 1.5px #86c79a,0 1px 3px rgba(31,61,43,.05)}
+body.apple .card.overwin{border:0;box-shadow:0 0 0 1.5px #e7a9a9,0 1px 3px rgba(31,61,43,.05)}
+body.apple .card.focused{box-shadow:0 0 0 2px var(--brand)}
+body.apple .chead{background:#fff;border-bottom:1px solid var(--line2);padding:11px 14px;gap:8px}
+body.apple .cname{font-size:16px;font-weight:600;color:var(--brand-deep);letter-spacing:-.01em}
+body.apple .cdot{width:11px;height:11px}
+body.apple .cpeople{font-size:12.5px;font-weight:700;color:var(--mut)}
+body.apple .chead .printbtn{border:0;background:transparent;color:var(--brand);font-size:12.5px;font-weight:800;
+  padding:5px 6px;border-radius:8px;cursor:pointer}
+body.apple .chead .printbtn:hover{background:var(--brand-soft)}
+body.apple .okbtn{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);
+  padding:6px 12px;font-size:12.5px;font-weight:800;display:inline-flex;align-items:center;gap:5px}
+body.apple .okbtn .ic{width:13px;height:13px}
+body.apple .okbtn:hover{background:#dbe8dc}
+body.apple .okbtn.on{background:#e5f4ea;color:#15803d}
+body.apple .cstaff{padding:8px 14px 0}
+body.apple .stfchip{border-radius:999px;font-size:12px;font-weight:800}
+body.apple .sched{background:#fbfaf7;border-bottom:1px solid var(--line2);font-size:12.5px}
+body.apple .stop{gap:12px;padding:10px 14px;border-bottom:1px solid var(--line2);background:#fff}
+body.apple .stop:hover{background:#fbfaf7}
+body.apple .stop.peeking{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
+body.apple .stop.confirmed{border-left:0}
+body.apple .stop.onhold{border-left:0;box-shadow:inset 3px 0 0 #d97706}
+body.apple .stop .num{width:24px;height:24px;font-size:12px;font-weight:800}
+body.apple .stop .nm{font-size:14.5px;font-weight:800;line-height:1.35}
+body.apple .stop .sub{font-size:12.5px;color:var(--mut);margin-top:2px}
+body.apple .badge{font-size:11px;font-weight:800;border-radius:6px;padding:1.5px 7px}
+body.apple .stop .stopbtns{flex-direction:row;gap:4px}
+body.apple .mv{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);font-size:12px;
+  font-weight:800;padding:5px 10px}
+body.apple .mv:hover{background:#dbe8dc}
+body.apple .mv.confirm{color:#15803d;background:#e5f4ea}
+body.apple .mv.confirm.on{background:#15803d;color:#fff}
+body.apple .mv:disabled{opacity:.4;cursor:default}
+body.apple .stop::after{content:'';flex:none;width:8px;height:8px;border-right:2px solid #a3aa9f;border-top:2px solid #a3aa9f;
+  transform:rotate(45deg);margin:0 2px 0 -2px}
+@media (hover:hover) and (min-width:1024px){
+  body.apple .stop .stopbtns{display:none}
+  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{display:flex}
+  body.apple .stop.peeking .stopbtns{display:none}
+  body.apple .stop:hover::after{display:none}
+  body.apple .stop.peeking::after{display:block}
+}
+body.apple .leg{font-size:12px;font-weight:700;color:var(--mut);padding:3px 14px 3px 50px;background:#fff;position:relative}
+body.apple .leg .ic{width:12px;height:12px;vertical-align:-2px}
+body.apple .cfoot{background:#fcfbf8;border-top:1px solid var(--line2);padding:11px 14px 12px;font-size:12.5px}
+body.apple .cfoot .tot{align-items:baseline;gap:8px}
+body.apple .cfoot .tot span{font-weight:800;color:var(--mut)}
+body.apple .cfoot .tot b{font-weight:800}
+body.apple .cfoot .tot em{margin-left:auto;font-style:normal;font-weight:800}
+body.apple .cfoot .bar{height:5px;margin-top:7px;background:#e4dfd4}
+body.apple .cfoot .cfsub{margin-top:7px;color:var(--mut);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+body.apple .cfoot .cfsub .ic{width:12px;height:12px;vertical-align:-2px}
+body.apple .cshifthd{background:#fff}
+body.apple #log{border:0;border-radius:12px;box-shadow:0 0 0 1px rgba(31,61,43,.07),0 1px 3px rgba(31,61,43,.05);padding:14px 16px}
+body.apple #log h3{font-size:14.5px;font-weight:600;color:var(--brand-deep)}
+body.apple #log button{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);font-weight:800;font-size:12px;padding:6px 11px}
+body.apple #log button:hover{background:#dbe8dc}
+body.apple #log button[onclick^="resetAll"]{background:transparent;color:#b91c1c}
+body.apple .addcrewbtn,body.apple .emptycrew{border-radius:12px}
+
+/* ---- map ---- */
+body.apple #map{position:relative;z-index:0}
+/* Muted base map: the same street tiles, desaturated and lightened so the
+   crew routes and pins carry the colour. Markers and routes are untouched. */
+body.apple .leaflet-tile-pane{filter:saturate(.3) brightness(1.06) contrast(.9)}
+body.apple #datestrip > *{flex:none}
+body.apple .leaflet-bar{border:0!important;border-radius:12px!important;overflow:hidden;
+  box-shadow:0 4px 16px rgba(28,46,30,.16),0 0 0 .5px rgba(28,46,30,.18)!important}
+body.apple .leaflet-bar a{width:36px!important;height:36px!important;line-height:36px!important;
+  background:rgba(255,255,255,.9)!important;backdrop-filter:blur(12px);color:#26352b!important;border-bottom-color:#ebe6dc!important}
+body.apple .leaflet-control-zoom{margin:16px 16px 0 0!important}
+body.apple .name-label{border:0;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:700;
+  box-shadow:0 1px 4px rgba(28,46,30,.22)}
+body.apple .leaflet-tooltip.name-label:before{display:none}
+
+/* ---- the stop panel, floating over the map on the Days screen ---- */
+body.apple #peekdlg .btns{flex-wrap:wrap}
+body.apple #peekdlg.inspector{position:fixed;inset:auto 16px 16px auto;margin:0;width:370px;max-width:calc(100vw - 32px);
+  max-height:calc(100vh - 96px);overflow:auto;padding:18px 18px 16px;border-radius:18px;z-index:1200;
+  border:1px solid rgba(255,255,255,.75);background:rgba(255,255,255,.95);backdrop-filter:blur(18px) saturate(1.4);
+  box-shadow:0 12px 40px rgba(28,46,30,.24),0 0 0 .5px rgba(28,46,30,.18)}
+body.apple #peekdlg.inspector #peekbody h3{font-size:19px;font-weight:600;color:var(--brand-deep);margin:0 36px 2px 0}
+body.apple #peekdlg.inspector .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+body.apple #peekdlg.inspector .btns > button:first-child{display:none}
+body.apple #peekdlg.inspector .btns button{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);
+  font-weight:800;font-size:13px;padding:9px 10px}
+body.apple #peekdlg.inspector .btns button:hover{background:#dbe8dc}
+body.apple #peekdlg.inspector #peekconfirm{grid-column:1 / -1;background:var(--brand);color:#fff}
+body.apple #peekdlg.inspector #peekconfirm.on{background:#15803d}
+body.apple #peekdlg.inspector #peekconfirm .ic{width:14px;height:14px}
+body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;background:#ece8e0}
+
+/* ---- wide screens: dates | toolbar over the day and map ---- */
+@media (min-width:1024px){
+  body.apple #app{display:grid;grid-template-columns:272px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:"dates head" "dates view";height:100%}
+  body.apple.nodates #app{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "view"}
+  body.apple.nodates #datecol{display:none}
+  body.apple #datecol{grid-area:dates}
+  body.apple header{grid-area:head;flex-wrap:nowrap}
+  body.apple header:has(#statewarn[style*="block"]),body.apple header:has(#robanner:not([hidden])){flex-wrap:wrap}
+  body.apple #viewarea{grid-area:view;min-height:0;display:flex;flex-direction:column}
+}
+/* ---- narrower screens: toolbar, then a swipeable row of dates ---- */
+@media (max-width:1023px){
+  body.apple #app{display:flex;flex-direction:column}
+  body.apple header{order:1}
+  body.apple #datecol{order:2;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px;
+    border-right:0;border-bottom:1px solid var(--line)}
+  body.apple.nodates #datecol{display:none}
+  body.apple #viewarea{order:3;flex:1;min-height:0;display:flex;flex-direction:column}
+  body.apple #datecolhd .scopepick{width:auto;height:32px;font-size:13px}
+  body.apple #summarybar{flex:1 1 200px}
+  body.apple .sbsub{display:none}
+  body.apple #datestrip{flex:1 1 100%;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;margin:0;padding:0 0 4px}
+  body.apple .dsec{display:none}
+  body.apple #datefoot{flex-direction:row;border:0;margin:0;padding:0;gap:6px}
+  body.apple .dchip{width:auto;flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;min-height:32px;padding:0 12px}
+  body.apple .dchipwrap{width:auto;flex:none}
+  body.apple #side{width:400px;min-width:0}
+  body.apple .stop{flex-wrap:wrap;row-gap:8px}
+  body.apple .stop .stopbtns{order:3;flex:1 1 100%;padding-left:36px;flex-wrap:wrap}
+  body.apple .stop::after{display:none}
+  body.apple #tbsaved{display:none}
+  body.apple #searchwrap{flex:1 1 160px}
+}
+@media (max-width:767px){
+  body.apple header{padding:8px 10px;gap:6px}
+  body.apple .viewtog{order:5;flex:1 1 100%}
+  body.apple .viewtog button{flex:1;padding:0 6px}
+  body.apple #side{width:100%;flex:0 0 55%;max-height:55%;padding:12px}
+  body.apple #tbedit{flex:0 0 auto}
+  body.apple #tbright{flex:1 1 0;gap:2px}
+  body.apple #searchwrap{min-width:80px}
+  body.apple #newbtn{width:34px;padding:0;justify-content:center}
+  body.apple #newbtn span,body.apple #newbtn .ic:last-child{display:none}
+  body.apple .dayhead b{font-size:21px}
+  body.apple .daystats b{font-size:16px}
+}
 </style></head>
-<body><div id="app">
+<body class="apple"><div id="app">
+<aside id="datecol" aria-label="Dates">
+  <div id="datecolhd"></div>
+  <div id="summarybar"></div>
+  <nav id="datestrip" aria-label="Install dates"></nav>
+  <div id="datefoot"></div>
+</aside>
 <header>
   <div id="headtitle">
     <h1><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 7 9h2.5L5 15h3l-3.5 5h15L16 15h3l-4.5-6H17L12 2Z"/><path d="M12 22v-2"/></svg>TBDG · __SEASON__ Install Schedule</h1>
     <p>Crew routes, drive times &amp; approvals for every install day — drag a stop to reschedule it.</p>
   </div>
-  <div id="searchwrap">
-    <input id="searchbox" type="text" placeholder="Find a client… (which day are they on?)" autocomplete="off">
-    <div id="searchresults"></div>
+  <div id="tbedit">
+    <button id="tbundo" class="tbicon" type="button" title="Undo" aria-label="Undo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button id="tbredo" class="tbicon" type="button" title="Redo" aria-label="Redo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <span id="tbsaved" aria-live="polite"></span>
   </div>
-  <!-- Populated (and un-hidden) only if the backend can list published
-       seasons. No endpoint, no seasons, one season: no control. -->
-  <select id="seasonpick" class="seasonpick" hidden aria-label="Season"></select>
   <div class="viewtog">
     <button id="viewdays" class="sel" type="button">Days</button>
     <button id="viewcal" type="button">Calendar</button>
     <button id="viewstaff" type="button">Staffing</button>
     <button id="viewroster" type="button">Roster</button>
   </div>
-  <button id="tvbtn" type="button" title="Full-screen wall calendar for the studio TV">📺 TV mode</button>
-  <button id="newclientbtn" type="button">+ New client</button>
-  <button id="newdatebtn" type="button">+ New date</button>
-  <button id="billexportbtn" type="button">⬇ Export</button>
-  <div id="summarybar"></div>
+  <div id="tbright">
+  <div id="searchwrap">
+    <input id="searchbox" type="text" placeholder="Find a client" title="Which day is a client on?" autocomplete="off">
+    <div id="searchresults"></div>
+  </div>
+  <!-- Populated (and un-hidden) only if the backend can list published
+       seasons. No endpoint, no seasons, one season: no control. -->
+  <select id="seasonpick" class="seasonpick" hidden aria-label="Season"></select>
+    <button id="tbprint" class="tbicon" type="button" title="Print the crew sheets for what's on screen" aria-label="Print crew sheets"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg></button>
+    <button id="billexportbtn" class="tbicon" type="button" title="Export" aria-label="Export"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></button>
+    <button id="tvbtn" class="tbicon" type="button" title="TV mode: full-screen wall calendar for the studio TV" aria-label="TV mode"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></button>
+    <div id="newmenu">
+      <button id="newbtn" type="button" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>New</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div id="newpop" role="menu" hidden>
+        <button id="newclientbtn" type="button" role="menuitem">New client</button>
+        <button id="newdatebtn" type="button" role="menuitem">New date</button>
+      </div>
+    </div>
+  </div>
   <div id="statewarn" style="display:none"></div>
   <div id="robanner" hidden></div>
-  <div id="datestrip"></div>
 </header>
+<div id="viewarea">
 <div id="calwrap" style="display:none"></div>
 <button id="tvhint" type="button" hidden>Tap for full screen</button>
 <button id="tvback" type="button" hidden>← Back</button>
@@ -977,6 +1267,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 <div id="main">
   <div id="side"></div>
   <div id="map"></div>
+</div>
 </div>
 </div>
 <dialog id="perdlg">
@@ -3768,21 +4059,68 @@ function toggleHold(row){
  * then every Houston date -- one flowing wrapped row, chip width sized to
  * its own label (user, 2026-09-02: back to this after a detour through
  * grouping it into calendar-week rows). */
+const DICON={
+  ok:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>',
+  warn:'<svg class="ic" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  grid:'<svg class="ic" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
+  pin:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+  cal:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>',
+  out:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+  hold:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/></svg>',
+};
+const MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+/** "Mon, Nov 2" -- the list reads like a calendar, not a code. */
+function listDate(dt){ return `${dowOf(dt)}, ${MON3[+dt.slice(5,7)-1]} ${+dt.slice(8,10)}`; }
+/** Dallas / Houston for a set of dates, from the crews actually booked. */
+function cityOfDays(ds){
+  if(!ds.length) return '';
+  const dal=ds.some(d=>d.cat==='M Crowd'), hou=ds.some(d=>d.cat!=='M Crowd');
+  return dal&&hou ? 'Dallas + Houston' : (dal ? 'Dallas' : 'Houston');
+}
+/** Monday of dt's week, as an ISO date. */
+function weekOf(dt){
+  const d=dateOf(dt); const back=(d.getDay()+6)%7; d.setDate(d.getDate()-back);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+let stripScrolledFor=null;
+/** The dates list: the scope picker, an Overview group (All / city / month),
+ * then every date grouped by week with its stop count and a status mark,
+ * then Not installing and On hold. Same targets, clicks and drop behaviour
+ * as the old chip strip -- on narrow screens CSS lays it out as one
+ * swipeable row of chips again. */
 function renderStrip(){
   strip.innerHTML='';
-  const mk=(label,val,wknd,empty,tag)=>{
+  const hd=document.getElementById('datecolhd'), foot=document.getElementById('datefoot');
+  hd.innerHTML=''; foot.innerHTML='';
+  const stopsIn=val=>daysFor(val).reduce((a,d)=>a+d.stops.length,0);
+  const mk=(label,val,wknd,empty,tag,o={})=>{
+    const into=o.into||strip;
     const b=document.createElement('button');
+    b.type='button';
     b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
-             +(tag?' tagged':'')+(newDates.has(val)?' added':'');
-    b.textContent=label; b.dataset.val=val;
+             +(tag?' tagged':'')+(newDates.has(val)?' added':'')+(o.cls?' '+o.cls:'');
+    b.dataset.val=val;
+    if(selDate===val) b.setAttribute('aria-current','true');
+    const lab=document.createElement('span'); lab.className='dlab';
+    if(o.icon) lab.insertAdjacentHTML('beforeend', o.icon);
+    lab.appendChild(document.createTextNode(label));
+    b.appendChild(lab);
     if(tag){
-      // Chips are small: the flag's first part only ("EVENT"), the full text stays in the title and day heading.
-      const s=document.createElement('span'); s.className='dtag'; s.textContent=String(tag).split(/\s*[\u2014\u2013-]\s*/)[0];
+      // Small: the flag's first part only ("EVENT"); the full text stays in the title and day heading.
+      const s=document.createElement('span'); s.className='dtag'; s.textContent=String(tag).split(/\s*[—–-]\s*/)[0];
       b.appendChild(s);
       b.title=`${tag} — still bookable, just flagged`;
     }
+    if(o.status){
+      const s=document.createElement('span'); s.className='dstat '+o.status;
+      s.innerHTML=DICON[o.status];
+      s.title=o.status==='ok'?'Every crew approved':'A crew is over its hours';
+      b.appendChild(s);
+    }
+    if(o.count!=null){
+      const s=document.createElement('span'); s.className='dcount'; s.textContent=o.count; b.appendChild(s);
+    }
     b.onclick=()=>{selDate=val; focusDayId=null; render();};
-    // returned so callers can tag a specific chip (see the NOINSTALL bubble)
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
     b.ondragleave=()=>b.classList.remove('dragover');
     b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
@@ -3792,9 +4130,7 @@ function renderStrip(){
       if(val==='NOINSTALL'){ markNotInstalling(row); return; }
       if(val==='HOLD'){ if(!hold.has(row)) toggleHold(row); return; }
       if(!isOverview(val)) openMoveDlg(row,val);};
-    // A date THIS session added gets its own remove button, right on the
-    // strip -- no need to reopen "Add a date" and hunt for it in the
-    // "Added" list to take it back off.
+    // A date THIS session added keeps its own remove button.
     if(newDates.has(val)){
       const wrap=document.createElement('span');
       wrap.className='dchipwrap';
@@ -3805,79 +4141,89 @@ function renderStrip(){
       rm.textContent='×';
       rm.onclick=e=>{ e.stopPropagation(); removeAddedDate(val); };
       wrap.appendChild(rm);
-      strip.appendChild(wrap);
+      into.appendChild(wrap);
       return b;
     }
-    strip.appendChild(b);
+    into.appendChild(b);
     return b;
   };
+  const sec=(text)=>{ const h=document.createElement('div'); h.className='dsec'; h.textContent=text; strip.appendChild(h); };
+  const ov=(label,val,icon)=>mk(label,val,false,false,'',{icon:DICON[icon], count:stopsIn(val), cls:'ov'});
   const dateChip=dt=>{
     const ci=SPEC.calendar.find(x=>x.date===dt);
     const dow=dowOf(dt);
     const wknd=['Sat','Sun'].includes(dow);
-    const empty=!days.some(x=>x.date===dt);
-    return mk(`${dow} ${dt.slice(5).replace('-','/')}`,dt,wknd,empty,(ci&&ci.label)||'');
+    const ds=days.filter(x=>x.date===dt);
+    const n=ds.reduce((a,d)=>a+d.stops.length,0);
+    let st=null;
+    if(ds.length){
+      if(ds.every(d=>approved.has(d.id))) st='ok';
+      else if(ds.some(d=>dayCalc(d).total>(d.win||600))) st='warn';
+    }
+    return mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:'Open'});
   };
 
   const scope=document.createElement('select');
   scope.className='dchip scopepick';
   scope.title='Which part of the season the dates below cover';
-  scope.innerHTML=`<option value="install">Christmas install dates ${MONTH_YEAR['12']}</option>`
-    +`<option value="takedown">Christmas takedown dates ${MONTH_YEAR['01']}</option>`
+  scope.setAttribute('aria-label','Which dates to list');
+  scope.innerHTML=`<option value="install">Christmas install ${MONTH_YEAR['12']}</option>`
+    +`<option value="takedown">Christmas takedown ${MONTH_YEAR['01']}</option>`
     +`<option value="all">All dates</option>`;
   scope.value=stripScope;
   scope.onchange=()=>setStripScope(scope.value);
-  strip.appendChild(scope);
+  hd.appendChild(scope);
   const showTakedown=stripScope!=='install';
 
-  // Overview chips for the chosen half of the season: the same "All / city /
-  // month" idea, but every one of them means "...of these dates".
+  // Overview rows for the chosen half of the season, each with its stop count.
   const cutDay=Number(TAKEDOWN_CUTOFF.slice(8,10));
   const decInstall=`All Dec 1–${cutDay}`, decTakedown=`All Dec ${cutDay+1}–31`;
   const hasFeb=[...allDates()].some(dt=>dt.slice(5,7)==='02');
+  sec('Overview');
   if(stripScope==='install'){
-    mk('All','ALL-INSTALL',false);
-    mk('All Dallas installs','ALL-DAL-INSTALL',false);
-    mk('All Houston installs','ALL-HOU-INSTALL',false);
-    mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
-    mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
-    mk(decInstall,'ALL-DEC-INSTALL',false);
+    ov('All','ALL-INSTALL','grid');
+    ov('All Dallas installs','ALL-DAL-INSTALL','pin');
+    ov('All Houston installs','ALL-HOU-INSTALL','pin');
+    ov(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT','cal');
+    ov(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV','cal');
+    ov(decInstall,'ALL-DEC-INSTALL','cal');
   } else if(stripScope==='takedown'){
-    mk('All','ALL-TAKEDOWN',false);
-    mk('All Dallas takedowns','ALL-DAL-TAKEDOWN',false);
-    mk('All Houston takedowns','ALL-HOU-TAKEDOWN',false);
-    mk(decTakedown,'ALL-DEC-TAKEDOWN',false);
-    mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
-    if(hasFeb) mk(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB',false);
+    ov('All','ALL-TAKEDOWN','grid');
+    ov('All Dallas takedowns','ALL-DAL-TAKEDOWN','pin');
+    ov('All Houston takedowns','ALL-HOU-TAKEDOWN','pin');
+    ov(decTakedown,'ALL-DEC-TAKEDOWN','cal');
+    ov(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN','cal');
+    if(hasFeb) ov(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB','cal');
   } else {
-    mk('All','ALL',false);
-    mk('All Dallas · installs + takedowns','ALL-DAL',false);
-    mk('All Houston · installs + takedowns','ALL-HOU',false);
-    mk(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT',false);
-    mk(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV',false);
-    mk(decInstall,'ALL-DEC-INSTALL',false);
-    mk(decTakedown,'ALL-DEC-TAKEDOWN',false);
-    mk(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN',false);
-    if(hasFeb) mk(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB',false);
+    ov('All','ALL','grid');
+    ov('All Dallas · installs + takedowns','ALL-DAL','pin');
+    ov('All Houston · installs + takedowns','ALL-HOU','pin');
+    ov(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT','cal');
+    ov(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV','cal');
+    ov(decInstall,'ALL-DEC-INSTALL','cal');
+    ov(decTakedown,'ALL-DEC-TAKEDOWN','cal');
+    ov(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN','cal');
+    if(hasFeb) ov(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB','cal');
   }
-  // A flex-basis:100% item forces the wrap here even when the header
-  // chips above don't fill the line -- the actual dates always start on
-  // their own row (user, 2026-09-02), not wherever they happened to fit.
-  const brk=document.createElement('div'); brk.style.flexBasis='100%'; strip.appendChild(brk);
 
-  // One plain chronological pass -- the Dallas nights (Nov 2-6) are already
-  // five consecutive calendar days, so this reads as "Dallas week, then
-  // Houston" on its own without splitting the list; splitting it instead
-  // pulled the Dallas block ahead of any earlier date (like an added
-  // October date), landing it out of order.
-  [...allDates()].sort().filter(dt=>inStripScope(dt)||dt===selDate).forEach(dateChip);
+  // Every date in scope, chronological, under a heading per week.
+  const list=[...allDates()].sort().filter(dt=>inStripScope(dt)||dt===selDate);
+  const weeks=[];
+  list.forEach(dt=>{
+    const wk=weekOf(dt), last=weeks[weeks.length-1];
+    if(last && last.wk===wk) last.dates.push(dt); else weeks.push({wk, dates:[dt]});
+  });
+  weeks.forEach(w=>{
+    const a=w.dates[0], z=w.dates[w.dates.length-1];
+    const span=a===z ? listDate(a).split(', ')[1]
+      : (a.slice(5,7)===z.slice(5,7) ? `${MON3[+a.slice(5,7)-1]} ${+a.slice(8,10)} – ${+z.slice(8,10)}`
+                                     : `${listDate(a).split(', ')[1]} – ${listDate(z).split(', ')[1]}`);
+    const city=cityOfDays(days.filter(d=>w.dates.includes(d.date)));
+    sec(city ? `${span} · ${city}` : span);
+    w.dates.forEach(dateChip);
+  });
 
-  // January takedown dates, one at a time from a dropdown rather than 31
-  // more chips (user, 2026-09-02: "I don't want to take up space on
-  // here"). Picking one runs the exact same add-and-select path as
-  // "+ New date" -- it just turns into a normal chip from here on, same
-  // as any other added date. Shrinks and disappears once every day in
-  // January has been added.
+  // January takedown dates, one at a time from a dropdown rather than 31 more rows.
   const JAN_PREFIX=`${MONTH_YEAR['01']}-01`;
   const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)===JAN_PREFIX
     && !newDates.has(ci.date));
@@ -3897,17 +4243,22 @@ function renderStrip(){
     strip.appendChild(sel);
   }
 
-  // Trailing bubble, deliberately AFTER every date (user, 2026-08-31):
-  // everyone who isn't getting an install this season. Drag a stop onto it to
-  // take them out of the season -- the place for a cancellation, instead of
-  // parking them on a real date where they'd still print on a crew sheet.
+  // Pinned at the bottom: everyone not getting an install, and the maybes.
+  // Drop a stop on either, same as the old trailing bubbles.
   const outCount = notInstallingPins().length;
-  const nb = mk(`Not installing${outCount?` (${outCount})`:''}`,'NOINSTALL',false,false,'');
+  const nb = mk('Not installing','NOINSTALL',false,false,'',{into:foot, icon:DICON.out, count:outCount||null});
   if(nb) nb.classList.add('noinstall');
-  // Beside it: the maybes. Drop a stop here to flag it without moving it.
   const holdCount = [...hold].filter(r=>C[r]).length;
-  const hb = mk(`On hold${holdCount?` (${holdCount})`:''}`,'HOLD',false,false,'');
+  const hb = mk('On hold','HOLD',false,false,'',{into:foot, icon:DICON.hold, count:holdCount||null});
   if(hb) hb.classList.add('hold');
+
+  // Keep the chosen date in view in the list (wide screens only -- on a
+  // phone the list is a sideways row and scrolling it would jump the page).
+  if(stripScrolledFor!==selDate && window.matchMedia('(min-width:1024px)').matches){
+    stripScrolledFor=selDate;
+    const on=strip.querySelector('.dchip.sel');
+    if(on) on.scrollIntoView({block:'nearest'});
+  }
 }
 
 function fmtH(m){ return (m/60).toFixed(1)+'h'; }
@@ -4019,9 +4370,8 @@ function buildDayCard(d){
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}
         ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
-      <div class="sub">${c.zone}</div>
-      <div class="sub">Est install time: <b>${isHalf?(c.h26/2).toFixed(1):c.h26}h</b></div>
-      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+      <div class="sub">${[c.zone, `${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
+        `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</div>
       ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
@@ -4065,13 +4415,14 @@ function buildDayCard(d){
   const winH=(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0);
   const shiftTxt=(d.lunchMin??40)?`incl. ${((d.lunchMin??40)/60).toFixed(1)}h lunch`:
     (d.win===480?`${IC.sun} day shift 9am-5pm`:`${IC.moon} night shift`);
+  const overBy=calc.total-WIN;
   card.insertAdjacentHTML('beforeend',`<div class="cfoot">
-    <div class="tot"><span>Total day hours</span>
-    <b style="color:${barcol}">${fmtH(calc.total)} / ${winH}h</b></div>
+    <div class="tot"><span>Day length</span>
+    <b style="color:${barcol}">${fmtH(calc.total)} of ${winH}h</b>
+    <em style="color:${overBy>0?'#b91c1c':'var(--mut)'}">${overBy>0?`${(overBy/60).toFixed(1)}h over`:`${(-overBy/60).toFixed(1)}h spare`}</em></div>
     <div class="bar"><i style="width:${pct}%;background:${barcol}"></i></div>
-    <div class="tot" style="margin-top:6px"><span>Total Install Time:</span><b>${calc.inst.toFixed(1)}h</b></div>
-    <div class="tot"><span>Total Drive Time:</span><b>${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</b></div>
-    <div class="tot"><span>Total Day Work Time (estimated):</span><b style="color:${barcol}">${fmtH(calc.total)} · ${shiftTxt}</b></div>
+    <div class="cfsub"><span>Install ${calc.inst.toFixed(1)}h</span><span>·</span>
+      <span>Drive ${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</span><span>·</span><span>${shiftTxt}</span></div>
   </div>`);
   card.appendChild(crewShiftSection(d));
   card.ondragover=e=>{e.preventDefault();card.classList.add('dragover');};
@@ -4275,14 +4626,28 @@ function renderCards(){
   const nStops=onThisDate.reduce((a,d)=>a+d.stops.length,0);
   const nHold=onThisDate.reduce((a,d)=>a+d.stops.filter(r=>hold.has(r)).length,0);
   const hd=document.createElement('div'); hd.className='dayhead';
-  hd.innerHTML=`<b>${esc(dowOf(selDate))} ${esc(fmtMDYYYY(selDate))}</b>`
-    + `<span>${onThisDate.length
+  const longDate=dateOf(selDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const city=cityOfDays(onThisDate);
+  hd.innerHTML=`<b>${esc(longDate)}</b>`
+    + `<span class="dhsub">${[city, onThisDate.length
         ? `${onThisDate.length} crew${onThisDate.length===1?'':'s'} · ${nStops} stop${nStops===1?'':'s'}`
-        : 'No crews yet'}`
-    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}`
-    + ` — each card below is one crew's run for this date, stops numbered in driving order. `
-    + `Drag a stop between crews, or onto a date above, to move it.</span>`;
+        : 'No crews yet'].filter(Boolean).join(' · ')}`
+    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}</span>`
+    + `<span class="dhhint">Each card is one crew's run, stops in driving order. `
+    + `Drag a stop to another crew, or onto a date in the list, to move it.</span>`;
   side.appendChild(hd);
+  if(onThisDate.length){
+    const calcs=onThisDate.map(d=>dayCalc(d));
+    const inst=calcs.reduce((a,c)=>a+c.inst,0), drive=calcs.reduce((a,c)=>a+c.drive,0)/60;
+    const appr=onThisDate.filter(d=>approved.has(d.id)).length;
+    const st=document.createElement('div'); st.className='daystats';
+    st.innerHTML=`<div><span>Stops</span><b>${nStops}</b></div>`
+      + `<div><span>Install</span><b>${inst.toFixed(1)} h</b></div>`
+      + `<div><span>Drive</span><b>${drive.toFixed(1)} h</b></div>`
+      + `<div><span>Approved</span><b>${appr} of ${onThisDate.length}</b>`
+      + `<i><u style="width:${(appr/onThisDate.length*100).toFixed(0)}%"></u></i></div>`;
+    side.appendChild(st);
+  }
   // Standing commitment for this date (HYROX etc.) -- advisory banner, shown
   // whether or not anything is booked, so an empty tagged day still explains
   // itself rather than just looking free.
@@ -6300,8 +6665,21 @@ function openStopPeek(row,dayId){
       if(notInstalling.has(row)) putBackOnSchedule(row); else openSlotFinder(row);
     };
   }
-  peekdlg.showModal();
+  if(peekdlg.open) peekdlg.close();
+  const asInspector = viewMode==='days' && window.matchMedia('(min-width:1024px)').matches;
+  peekdlg.classList.toggle('inspector', asInspector);
+  if(asInspector) peekdlg.show(); else peekdlg.showModal();
+  markPeekRow(row, dayId);
 }
+/** Highlight the row whose details are open in the stop panel. */
+function markPeekRow(row, dayId){
+  document.querySelectorAll('.stop.peeking').forEach(el=>el.classList.remove('peeking'));
+  if(row==null) return;
+  const card=dayId!=null ? document.querySelector(`.card[data-dayid="${CSS.escape(dayId)}"]`) : null;
+  const el=(card||document).querySelector(`.stop[data-row="${row}"]`);
+  if(el) el.classList.add('peeking');
+}
+peekdlg.addEventListener('close', ()=>markPeekRow(null));
 let viewMode='days';
 // ---------- staffing UI ----------
 // Shifts first: the question people open this on is "who is working what",
@@ -7029,6 +7407,7 @@ function setView(v){
   document.getElementById('staffwrap').style.display = v==='staff' ? 'block':'none';
   document.getElementById('main').style.display   = (v==='cal'||v==='staff') ? 'none':'';
   document.getElementById('datestrip').style.display = v==='days' ? '':'none';
+  document.body.classList.toggle('nodates', v!=='days');
   render();
 }
 
@@ -7166,12 +7545,49 @@ function render(){
   else if(viewMode==='staff'){ renderStaffing(); }
   else { renderStrip(); renderCards(); drawDate(selDate); }
   const n=days.reduce((a,d)=>a+d.stops.length,0);
-  document.getElementById('summarybar').textContent=
-    `${n} stops · ${days.length} crew-days · ${approved.size} approved`;
+  const apprN=days.filter(d=>approved.has(d.id)).length;
+  document.getElementById('summarybar').innerHTML=
+    `<div class="sbrow"><span>Approved</span><b>${apprN} of ${days.length} crew-days</b></div>`
+    + `<div class="sbbar"><i style="width:${days.length?(apprN/days.length*100).toFixed(1):0}%"></i></div>`
+    + `<div class="sbsub">${n} stops · ${days.length} crew-days · ${approved.size} approved</div>`;
+  syncToolbar();
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
   if(typeof syncTvBack==='function') syncTvBack();
 }
+// ---------- toolbar (undo / redo / saved, print, New menu) ----------
+function syncToolbar(){
+  const u=document.getElementById('tbundo'), r=document.getElementById('tbredo');
+  if(u){ u.disabled=!undoStack.length; u.title=undoStack.length?`Undo (${undoStack.length})`:'Nothing to undo'; }
+  if(r){ r.disabled=!redoStack.length; r.title=redoStack.length?`Redo (${redoStack.length})`:'Nothing to redo'; }
+  const sv=document.getElementById('tbsaved');
+  if(sv){
+    const where = AUTH ? (syncState==='shared' ? 'Saved' : 'Saved on this device') : 'Saved on this device';
+    sv.innerHTML=`${IC.check}<span>${where}${moves.length?` · ${moves.length} change${moves.length===1?'':'s'}`:''}</span>`;
+    sv.title = AUTH ? 'Every change saves on its own and syncs to everyone'
+                    : 'Not connected to the app: changes are kept in this browser only';
+  }
+}
+document.getElementById('tbundo').onclick=()=>undo();
+document.getElementById('tbredo').onclick=()=>redo();
+document.getElementById('tbprint').onclick=()=>{
+  if(viewMode!=='days' || selDate==='NOINSTALL' || selDate==='HOLD'){
+    alert('Pick a date or an overview in the Days view to print its crew sheets.'); return; }
+  if(isOverview(selDate)){
+    printManifests(daysFor(selDate).sort((a,b)=>a.date.localeCompare(b.date)||a.crew.localeCompare(b.crew)),
+      `Crew sheets — ${overviewTitle(selDate)||'overview'}`);
+  } else printDate(selDate);
+};
+(function(){
+  const btn=document.getElementById('newbtn'), pop=document.getElementById('newpop');
+  const shut=()=>{ pop.hidden=true; btn.setAttribute('aria-expanded','false'); };
+  btn.onclick=e=>{ e.stopPropagation(); const willOpen=pop.hidden; pop.hidden=!willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen));
+    if(willOpen){ const f=pop.querySelector('button'); if(f) f.focus(); } };
+  pop.addEventListener('click', shut);
+  document.addEventListener('click', e=>{ if(!pop.hidden && !e.target.closest('#newmenu')) shut(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ shut(); btn.focus(); } });
+})();
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.
 selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
