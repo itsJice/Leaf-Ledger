@@ -4276,11 +4276,33 @@ function renderCards(){
     const title=overviewTitle(selDate)||'Overview';
     const hdr=document.createElement('h3'); hdr.className='ovtitle'; hdr.textContent=title;
     side.appendChild(hdr);
+    // One file for the whole view -- every crew sheet in it, date by date,
+    // crew by crew, behind a one-page index (user, 2026-09-29: "print all
+    // the days crews and shifts in one file ... like you can for a regular
+    // date"). Days with no stops (a staffed training day) have no sheet.
+    const printable=overviewSheets(pool);
+    if(printable.length){
+      const nDates=new Set(printable.map(d=>d.date)).size;
+      const all=document.createElement('button');
+      all.className='printbtn'; all.style.cssText='margin:0 0 10px;width:100%';
+      all.textContent=`Print all ${printable.length} crew sheet${printable.length===1?'':'s'} — ${nDates} date${nDates===1?'':'s'}`;
+      all.title='One file: an index page, then every crew sheet in this view in date order';
+      all.onclick=()=>printManifests(printable, `Crew sheets — ${title}`, {cover:title});
+      side.appendChild(all);
+    }
     const dates=[...new Set(pool.map(d=>d.date))].sort();
     dates.forEach(dt=>{
       const ds=pool.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
       const dh=document.createElement('div'); dh.className='ovdate';
-      dh.textContent=`${ds[0].dow} ${dt}`;
+      dh.style.cssText='display:flex;align-items:center;gap:8px';
+      dh.innerHTML=`<span>${esc(dowOf(dt)||ds[0].dow||'')} ${esc(fmtMDYYYY(dt))}</span>`;
+      if(ds.some(d=>d.stops.length)){
+        const pb=document.createElement('button');
+        pb.className='printbtn'; pb.style.cssText='margin-left:auto;padding:2px 8px;font-size:11px';
+        pb.textContent='Print this date';
+        pb.onclick=()=>printDate(dt);
+        dh.appendChild(pb);
+      }
       side.appendChild(dh);
       ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });
@@ -7111,7 +7133,34 @@ function manifestHTML(d){
       ${order.length?` · Lunch ${((d.lunchMin??LUNCH)/60).toFixed(1)}h`:''} · Boxes ${boxes||0}</div>
   </section>`;
 }
-function printManifests(list, title){
+/** Every crew-day in a pool that has a run sheet, date then crew order. */
+function overviewSheets(pool){
+  return pool.filter(d=>d.stops.length)
+    .sort((a,b)=>a.date.localeCompare(b.date) || a.crew.localeCompare(b.crew));
+}
+/** Index page for a multi-date print: every sheet in the file, one line each. */
+function coverHTML(list, heading){
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const dates=[...new Set(list.map(d=>d.date))];
+  const first=dates[0], last=dates[dates.length-1];
+  let prev='', rows='';
+  list.forEach((d,i)=>{
+    const calc=dayCalc(d), sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
+    const who=cv.who.map(pn=>esc(pn.name)).join(', ');
+    rows+=`<tr${d.date!==prev?' class="nd"':''}><td>${d.date!==prev?`${esc(dowOf(d.date)||d.dow||'')} ${fmtMDYYYY(d.date)}`:''}</td>`
+        +`<td>${esc(crewLabel(d))}</td><td class="c">${d.stops.length}</td>`
+        +`<td class="c">${(calc.total/60).toFixed(1)}h</td><td>${who||'<i>nobody assigned</i>'}</td>`
+        +`<td class="c">${i+2}</td></tr>`;
+    prev=d.date;
+  });
+  const stops=list.reduce((a,d)=>a+d.stops.length,0);
+  return `<section class="sheet cover"><div class="shead"><div><h1>${esc(heading)}</h1>
+      <p>${fmtMDYYYY(first)}${last!==first?` – ${fmtMDYYYY(last)}`:''} · ${dates.length} date${dates.length===1?'':'s'} · `
+      +`${list.length} crew sheet${list.length===1?'':'s'} · ${stops} stops</p></div></div>
+    <table><thead><tr><th>Date</th><th>Crew</th><th class="c">Stops</th><th class="c">Day</th><th>On the truck</th><th class="c">Page</th></tr></thead>
+    <tbody>${rows}</tbody></table></section>`;
+}
+function printManifests(list, title, opts={}){
   if(!list.length){ alert('Nothing scheduled to print for that selection.'); return; }
   const w=window.open('','_blank');
   if(!w){ alert('Pop-up blocked — allow pop-ups for this page to print.'); return; }
@@ -7146,7 +7195,9 @@ function printManifests(list, title){
       text-transform:uppercase;letter-spacing:.3px}
     tr.stop{break-inside:avoid}
     .sfoot{margin-top:11px;padding-top:6px;border-top:1.5px solid #333;font-weight:700;font-size:11.5px}
-  </style></head><body>${list.map(manifestHTML).join('')}
+    .cover td{padding:5px 6px}
+    .cover tr.nd td{border-top:1.5px solid #bbb}
+  </style></head><body>${opts.cover?coverHTML(list, opts.cover):''}${list.map(manifestHTML).join('')}
   <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
   </body></html>`);
   w.document.close();
