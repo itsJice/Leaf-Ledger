@@ -1024,9 +1024,16 @@ body.apple .sbbar i{display:block;height:100%;border-radius:6px;background:var(-
 body.apple .sbsub{font-size:12px;color:var(--mut);margin-top:5px;font-variant-numeric:tabular-nums}
 body.apple #datestrip{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-height:0;overflow-y:auto;
   margin:0 -6px;padding:0 6px 8px;flex-wrap:nowrap}
-body.apple .dsec{font-size:14px;font-weight:800;color:var(--brand-deep);letter-spacing:-.005em;padding:16px 10px 5px;white-space:nowrap;
+body.apple .dsec{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:10px 0 3px;
+  padding:7px 8px 7px 10px;border-radius:9px;background:#e2dccf;box-shadow:0 1px 0 rgba(31,61,43,.06);
+  font-size:14px;font-weight:800;color:var(--brand-deep);letter-spacing:-.005em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-body.apple .dsec:first-child{padding-top:0}
+body.apple .dsec:first-child{margin-top:0}
+body.apple .dsectxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+body.apple .dcity{flex:none;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;line-height:16px}
+body.apple .dcity.dal{background:#fde7c7;color:#8a3b0a}
+body.apple .dcity.hou{background:#d7ebdb;color:#1f5c2e}
+body.apple .dcity.both{background:#fff;color:var(--mut);box-shadow:inset 0 0 0 1px #d6cfc1}
 body.apple #datefoot{display:flex;flex-direction:column;gap:1px;border-top:1px solid #e1dcd1;margin:0 -12px;padding:8px 12px 0}
 body.apple .dchip{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;margin:0;padding:0 10px;
   border:0;border-radius:8px;background:transparent;color:var(--ink);font-size:13.5px;font-weight:600;
@@ -4161,7 +4168,11 @@ function renderStrip(){
     into.appendChild(b);
     return b;
   };
-  const sec=(text)=>{ const h=document.createElement('div'); h.className='dsec'; h.textContent=text; strip.appendChild(h); };
+  const sec=(text,city)=>{ const h=document.createElement('div'); h.className='dsec';
+    const t=document.createElement('span'); t.className='dsectxt'; t.textContent=text; h.appendChild(t);
+    if(city){ const c=document.createElement('span');
+      c.className='dcity '+(city==='Dallas'?'dal':city==='Houston'?'hou':'both'); c.textContent=city; h.appendChild(c); }
+    strip.appendChild(h); };
   const ov=(label,val,icon)=>mk(label,val,false,false,'',{icon:DICON[icon], count:stopsIn(val), cls:'ov'});
   const dateChip=dt=>{
     const ci=SPEC.calendar.find(x=>x.date===dt);
@@ -4233,7 +4244,7 @@ function renderStrip(){
       : (a.slice(5,7)===z.slice(5,7) ? `${MON3[+a.slice(5,7)-1]} ${+a.slice(8,10)} – ${+z.slice(8,10)}`
                                      : `${listDate(a).split(', ')[1]} – ${listDate(z).split(', ')[1]}`);
     const city=cityOfDays(days.filter(d=>w.dates.includes(d.date)));
-    sec(city ? `${span} · ${city}` : span);
+    sec(span, city);
     w.dates.forEach(dateChip);
   });
 
