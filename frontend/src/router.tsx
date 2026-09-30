@@ -56,6 +56,7 @@ const SomethingWentWrongPage = lazy(
 );
 const Login = lazy(() => import("./pages/Login"));
 const SetPassword = lazy(() => import("./pages/SetPassword"));
+const AuthConfirm = lazy(() => import("./pages/AuthConfirm"));
 
 export const router = createBrowserRouter([
   // The only page reachable without signing in.
@@ -65,6 +66,15 @@ export const router = createBrowserRouter([
     element: (
       <SuspenseWrapper>
         <SetPassword />
+      </SuspenseWrapper>
+    ),
+  },
+  // Where magic-link, confirm-signup and change-email emails land.
+  {
+    path: "/auth/confirm",
+    element: (
+      <SuspenseWrapper>
+        <AuthConfirm />
       </SuspenseWrapper>
     ),
   },

@@ -17,6 +17,8 @@ type AuthContextValue = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  /** Passwordless: email an existing user a one-time sign-in link. */
+  sendSignInLink: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -78,6 +80,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
         return { error: error ? error.message : null };
       },
+      sendSignInLink: async (email) => {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          // Accounts are invite-only: never create one from the sign-in page.
+          options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/confirm` },
+        });
+        return { error: error ? friendlyAuthError(error.message) : null };
+      },
       signOut: async () => {
         await supabase.auth.signOut();
         setSession(null);
@@ -97,6 +107,9 @@ function friendlyAuthError(message: string): string {
   }
   if (m.includes("email not confirmed")) {
     return "This account hasn't been confirmed yet. Check your email for the confirmation link.";
+  }
+  if (m.includes("signups not allowed") || m.includes("user not found")) {
+    return "There's no account for that email. Ask your administrator to invite you.";
   }
   if (m.includes("rate limit") || m.includes("too many")) {
     return "Too many attempts. Please wait a minute and try again.";
