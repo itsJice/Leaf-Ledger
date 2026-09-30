@@ -1116,7 +1116,8 @@ body.apple .sfwrap{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14
 body.apple .sflist{max-height:62vh;overflow-y:auto;padding-right:4px;position:relative}
 body.apple .sfsec{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:14px 0 8px;padding:7px 10px;
   border-radius:9px;background:#e2dccf;font-family:'Sora',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--brand-deep)}
-body.apple .sfsec:first-child{margin-top:0}
+body.apple .sfanchor{display:block;height:0}
+body.apple .sfanchor:first-child + .sfsec{margin-top:0}
 body.apple .sfsec span{margin-left:auto;font-family:'Nunito Sans',system-ui,sans-serif;font-size:12px;font-weight:700;color:var(--mut)}
 body.apple .sfnav{display:flex;flex-direction:column;gap:2px;max-height:62vh;overflow-y:auto;border-right:1px solid var(--line);padding-right:10px}
 body.apple .sfnav button{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 9px;border-radius:8px;font-family:'Nunito Sans',system-ui,sans-serif;
@@ -5533,8 +5534,8 @@ function openSlotFinder(row){
           ${groups.map(g=>`<button type="button" data-go="${g.k}">${g.name}</button>`).join('')}
         </nav>
         <div class="sflist">${head}
-          <div class="sfsec" data-wk="best">Best fit</div>${card(res[0], true)}
-          ${groups.map(g=>`<div class="sfsec" data-wk="${g.k}">${g.name}<span>${g.items.length} option${g.items.length===1?'':'s'}</span></div>`
+          <i class="sfanchor" data-wk="best"></i><div class="sfsec">Best fit</div>${card(res[0], true)}
+          ${groups.map(g=>`<i class="sfanchor" data-wk="${g.k}"></i><div class="sfsec">${g.name}<span>${g.items.length} option${g.items.length===1?'':'s'}</span></div>`
             + g.items.map(r=>card(r,false)).join('')).join('')}
           ${manual}
         </div>
@@ -5547,9 +5548,12 @@ function openSlotFinder(row){
     body.querySelector('.sfmanual').onclick=()=>{ sfdlg.close(); openMoveDlg(row, want); };
     const list=body.querySelector('.sflist'), nav=body.querySelector('.sfnav');
     if(list && nav){
-      const secs=[...list.querySelectorAll('.sfsec')];
+      // Measure un-stuck anchors, not the pinned headers: a stuck sticky
+      // header reports where it is pinned, not where its week starts --
+      // which made every week above the current one unreachable.
+      const secs=[...list.querySelectorAll('.sfanchor')];
       nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{
-        const t=list.querySelector(`.sfsec[data-wk="${b.dataset.go}"]`);
+        const t=list.querySelector(`.sfanchor[data-wk="${b.dataset.go}"]`);
         if(t) list.scrollTo({top:t.offsetTop, behavior: pkReduced()?'auto':'smooth'});
       });
       list.onscroll=()=>{
