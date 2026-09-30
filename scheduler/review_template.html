@@ -1175,10 +1175,13 @@ body.apple .mv:disabled{opacity:.4;cursor:default}
 body.apple .stop::after{content:'';flex:none;width:8px;height:8px;border-right:2px solid #a3aa9f;border-top:2px solid #a3aa9f;
   transform:rotate(45deg);margin:0 2px 0 -2px}
 @media (hover:hover) and (min-width:1024px){
-  body.apple .stop .stopbtns{display:none}
-  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{display:flex}
-  body.apple .stop.peeking .stopbtns{display:none}
-  body.apple .stop:hover::after{display:none}
+  body.apple .stop{position:relative}
+  body.apple .stop .stopbtns{display:flex;position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    padding-left:28px;background:linear-gradient(90deg,rgba(251,250,247,0),#fbfaf7 24px);
+    opacity:0;pointer-events:none;transition:opacity .14s ease-out}
+  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{opacity:1;pointer-events:auto}
+  body.apple .stop.peeking .stopbtns{opacity:0;pointer-events:none}
+  body.apple .stop:hover::after{opacity:0}
   body.apple .stop.peeking::after{display:block}
 }
 body.apple .leg{font-size:12px;font-weight:700;color:var(--mut);padding:3px 14px 3px 50px;background:#fff;position:relative}
@@ -4585,8 +4588,10 @@ function buildDayCard(d){
       // Clicking the open row again folds it (the outside-click handler has
       // just closed it on mousedown -- don't reopen straight away).
       if(pkClosedRow===r && Date.now()-pkClosedAt<400) return;
-      focusStopOnMap(r);
       openStopPeek(r, d.id);
+      // Pan the map once the drop-down has settled, so the two animations
+      // don't fight for the same frames.
+      setTimeout(()=>focusStopOnMap(r), pkReduced()?0:220);
     };
     el.querySelector('.ordbtn.up').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, -1); };
     el.querySelector('.ordbtn.down').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, 1); };
@@ -6896,7 +6901,14 @@ function openStopPeek(row,dayId){
     ? document.querySelector(`#side .card[data-dayid="${CSS.escape(dayId)}"] .stop[data-row="${row}"]`) : null;
   peekdlg.classList.remove('inspector');
   peekdlg.classList.toggle('inline', !!rowEl);
-  if(rowEl){ rowEl.after(peekdlg); peekdlg.show(); animatePeekOpen(); }
+  if(rowEl){
+    const sc=document.getElementById('side'), top=sc.scrollTop;
+    rowEl.after(peekdlg); peekdlg.show();
+    // show() focuses the first control inside, which can scroll the list.
+    if(peekdlg.contains(document.activeElement)) document.activeElement.blur();
+    sc.scrollTop=top;
+    animatePeekOpen();
+  }
   else { if(peekdlg.parentNode!==document.body) document.body.appendChild(peekdlg); peekdlg.showModal(); }
   markPeekRow(row, dayId);
 }
@@ -6927,7 +6939,13 @@ const pkReduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matche
   let closing=null;
   peekdlg.closeNow=function(v){
     if(closing){ closing.cancel(); closing=null; peekdlg.style.overflow=''; }
+    // Closing a dialog hands focus back to whatever had it before, and the
+    // browser scrolls that into view -- which threw the crew list back to the
+    // top (user, 2026-09-29). Hold the scroll where the user left it.
+    const sc=document.getElementById('side'), top=sc?sc.scrollTop:0;
+    if(peekdlg.contains(document.activeElement)) document.activeElement.blur();
     const was=peekdlg.open; nativeClose(v); if(was) afterPeekClose();
+    if(sc){ sc.scrollTop=top; requestAnimationFrame(()=>{ sc.scrollTop=top; }); }
   };
   peekdlg.close=function(v){
     if(!peekdlg.open || closing) return;
@@ -6937,12 +6955,12 @@ const pkReduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matche
     closing=peekdlg.animate([
       {height:peekdlg.offsetHeight+'px', paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, opacity:1},
       {height:'0px', paddingTop:'0px', paddingBottom:'0px', opacity:0}],
-      {duration:170, easing:PK_EASE});
+      {duration:240, easing:'cubic-bezier(0.32, 0.72, 0, 1)'});
     const row=document.querySelector('.stop.peeking'); if(row) row.classList.remove('peeking');
     const done=()=>{ if(!closing) return; closing=null; peekdlg.style.overflow=''; peekdlg.closeNow(v); };
     closing.onfinish=done;
     // Backstop: a paused animation (hidden tab) must never leave it half-closed.
-    setTimeout(()=>{ if(closing){ closing.cancel(); done(); } }, 260);
+    setTimeout(()=>{ if(closing){ closing.cancel(); done(); } }, 340);
   };
 }
 function animatePeekOpen(){
@@ -6952,10 +6970,9 @@ function animatePeekOpen(){
   const a=peekdlg.animate([
     {height:'0px', paddingTop:'0px', paddingBottom:'0px', opacity:0},
     {height:h+'px', paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, opacity:1}],
-    {duration:260, easing:PK_EASE});
-  a.onfinish=a.oncancel=()=>{ peekdlg.style.overflow=''; };
-  peekdlg.querySelectorAll('#peekbody, .btns').forEach(el=>el.animate(
-    [{transform:'translateY(-4px)'},{transform:'none'}], {duration:300, easing:PK_EASE}));
+    {duration:300, easing:'cubic-bezier(0.32, 0.72, 0, 1)'});
+  peekdlg.style.willChange='height';
+  a.onfinish=a.oncancel=()=>{ peekdlg.style.overflow=''; peekdlg.style.willChange=''; };
 }
 peekdlg.addEventListener('close', afterPeekClose);
 let viewMode='days';
