@@ -1566,6 +1566,13 @@ const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
 const SPEC = DATA.spec, K = SPEC.const;
+// Every day from Oct 21 through the install cutoff is a regular schedule
+// date (user, 2026-09-29: "add all the dates that are in between") -- no
+// more greyed gaps to add one at a time. Takedown days stay add-as-needed.
+(function(){
+  const from=`${String(DATA.spec.calendar.map(c=>c.date).sort()[0]||'').slice(0,4)}-10-21`, to='__CUTOFF__';
+  SPEC.calendar.forEach(ci=>{ if(ci.optional && ci.date>=from && ci.date<=to) ci.optional=false; });
+})();
 const LUNCH = K.LUNCH;
 const N = DATA.node, D = DATA.durs, C = DATA.clients;
 
