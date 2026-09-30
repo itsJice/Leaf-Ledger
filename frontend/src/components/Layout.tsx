@@ -18,6 +18,7 @@ import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
 import { currentMe } from "utils/me";
 import {
+  NAV_GROUPS,
   resolveSidebarRender,
   SIDEBAR_PREFS_EVENT,
 } from "components/sidebarNav";
@@ -108,6 +109,8 @@ function sortProjectsByUpdated(rows: SidebarProject[]) {
  * office sidebar, whose data calls they aren't allowed to make. RoleGate has
  * already loaded the account before any page renders.
  */
+const NAV_PATHS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.path));
+
 export default function Layout(props: Props) {
   const me = currentMe();
   if (me?.viewOnly) return <DisplayLayout>{props.children}</DisplayLayout>;
@@ -387,7 +390,10 @@ function StaffLayout({ children }: Props) {
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === APP_BASE_PATH || location.pathname === APP_BASE_PATH + "/" || location.pathname === "/";
-    return location.pathname.includes(path);
+    if (!location.pathname.includes(path)) return false;
+    // A longer sidebar entry that also matches wins: on /forms/x/responses
+    // only "Product Requests" is active, not "Request Form" (/forms/x) too.
+    return !NAV_PATHS.some((p) => p !== path && p.startsWith(path) && location.pathname.includes(p));
   };
   const activeProjectId = new URLSearchParams(location.search).get("id");
   const activeClientName = new URLSearchParams(location.search).get("client");

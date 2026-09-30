@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   MapPinned,
+  ListChecks,
   NotebookPen,
   FileText,
   Heart,
@@ -64,7 +65,8 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { path: "/requests", label: "Request Form", icon: NotebookPen },
+      { path: "/forms/product-request", label: "Request Form", icon: NotebookPen },
+      { path: "/forms/product-request/responses", label: "Product Requests", icon: ListChecks },
       { path: "/jobs", label: "Jobs", icon: ClipboardList },
       { path: "/designs", label: "Designs", icon: Shapes },
       { path: "/mockups", label: "AI Mockups", icon: Sparkles },

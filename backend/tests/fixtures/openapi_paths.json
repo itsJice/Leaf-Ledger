@@ -120,6 +120,23 @@
   "/api/feedback/{feedback_id}/screenshot": [
     "GET"
   ],
+  "/api/forms/responses/{response_id}": [
+    "PATCH"
+  ],
+  "/api/forms/{slug}": [
+    "GET",
+    "PATCH"
+  ],
+  "/api/forms/{slug}/export.csv": [
+    "GET"
+  ],
+  "/api/forms/{slug}/responses": [
+    "GET",
+    "POST"
+  ],
+  "/api/forms/{slug}/suggestions": [
+    "GET"
+  ],
   "/api/historical/complete": [
     "POST"
   ],
