@@ -580,7 +580,9 @@ function StaffLayout({ children }: Props) {
         {...railHandlers}
       >
         {/* Logo */}
-        <div className={`relative mb-10 px-2${collapsed ? " lg:mb-6 lg:px-0" : ""}`}>
+        {/* In rail mode the logo block keeps ONE height folded and open, so the
+            items below never shift under the cursor as the menu slides out. */}
+        <div className={`relative mb-10 px-2${railMode ? " lg:mb-4 lg:h-[124px]" : ""}${collapsed ? " lg:px-0" : ""}`}>
           <button
             type="button"
             onClick={() => setNavOpen(false)}
