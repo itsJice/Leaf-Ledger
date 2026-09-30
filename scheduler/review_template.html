@@ -1109,6 +1109,11 @@ body.apple .dchiprm{top:50%;right:6px;transform:translateY(-50%)}
   body.apple .dchip.hold.sel{background:#d97706}
   body.apple .dchip.noinstall.sel{background:#78716c}
 }
+body.apple .dchip.off{color:#a8a29e;font-weight:600}
+body.apple .dchip.off .dcount{color:var(--brand);font-weight:800;opacity:0}
+body.apple .dchip.off:hover .dcount,body.apple .dchip.off:focus-visible .dcount{opacity:1}
+body.apple .dchip.off:disabled{cursor:default;opacity:.7}
+@media (min-width:1024px){ body.apple .dchip.off,body.apple .dchip.off.wknd{background:transparent;border:0} }
 body.apple .dchip.janpick{height:32px;margin-top:6px;border:1px dashed #cfc8ba;background:#fff;color:var(--mut);max-width:none}
 
 /* ---- day pane ---- */
@@ -4232,6 +4237,30 @@ function renderStrip(){
     return mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:'Open'});
   };
 
+  const offChip=dt=>{
+    const addable=optionalDates().includes(dt);
+    const b=document.createElement('button');
+    b.type='button'; b.className='dchip off'+(['Sat','Sun'].includes(dowOf(dt)||DOW3[dateOf(dt).getDay()])?' wknd':'');
+    b.dataset.val=dt;
+    const lab=document.createElement('span'); lab.className='dlab';
+    lab.textContent=`${DOW3[dateOf(dt).getDay()]}, ${MON3[+dt.slice(5,7)-1]} ${+dt.slice(8,10)}`;
+    b.appendChild(lab);
+    const c=document.createElement('span'); c.className='dcount'; c.textContent=addable?'+ Add':''; b.appendChild(c);
+    b.title=addable?'Not on the schedule yet — click to add this date':'Outside the dates this build can schedule';
+    if(!addable){ b.disabled=true; strip.appendChild(b); return b; }
+    const add=()=>{ if(roBlocked()) return false; const r=addDate(dt); if(!r.ok){ alert(r.msg); return false; } return true; };
+    b.onclick=()=>{ if(confirm(`Add ${lab.textContent} to the schedule?`)) add(); };
+    b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
+    b.ondragleave=()=>b.classList.remove('dragover');
+    b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
+      const dayid=e.dataTransfer.getData('dayid'); const row=+e.dataTransfer.getData('row');
+      if(!dayid && !row) return;
+      if(!confirm(`${lab.textContent} isn't on the schedule yet. Add it and move there?`)) return;
+      if(!add()) return;
+      if(dayid) moveWholeDay(dayid, dt); else openMoveDlg(row, dt); };
+    strip.appendChild(b);
+    return b;
+  };
   const scope=document.createElement('select');
   scope.className='dchip scopepick';
   scope.title='Which part of the season the dates below cover';
@@ -4275,8 +4304,24 @@ function renderStrip(){
     if(hasFeb) ov(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB','cal');
   }
 
-  // Every date in scope, chronological, under a heading per week.
-  const list=[...allDates()].sort().filter(dt=>inStripScope(dt)||dt===selDate);
+  // Every DAY in scope, one continuous run from Oct 21 (user, 2026-09-29) --
+  // so each week bar holds a whole week. Days not on the working calendar
+  // are greyed; clicking one offers to add it (same as + New date).
+  // A day with crews on it is a real date even if the calendar marks it optional.
+  const working=new Set([...allDates(), ...days.map(d=>d.date)]);
+  const calDates=SPEC.calendar.map(ci=>ci.date).filter(dt=>inStripScope(dt)).sort();
+  const firstInstall=`${MONTH_YEAR['10']}-10-21`;
+  const firstWorking=[...working].filter(inStripScope).sort()[0];
+  let startDt=stripScope==='takedown' ? (calDates[0]||firstInstall)
+                                      : [firstInstall, ...(firstWorking?[firstWorking]:[])].sort()[0];
+  const endDt=[...calDates, ...[...working].filter(inStripScope)].sort().pop()||startDt;
+  const list=[];
+  for(let d=dateOf(startDt); ; d.setDate(d.getDate()+1)){
+    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(iso>endDt) break;
+    if(inStripScope(iso)) list.push(iso);
+  }
+  if(working.has(selDate) && !list.includes(selDate)){ list.push(selDate); list.sort(); }
   const weeks=[];
   list.forEach(dt=>{
     const wk=weekOf(dt), last=weeks[weeks.length-1];
@@ -4293,14 +4338,14 @@ function renderStrip(){
     const f=dateOf(a), lead=(new Date(f.getFullYear(), f.getMonth(), 1).getDay()+6)%7;
     const wk=Math.floor((f.getDate()-1+lead)/7)+1;
     sec(`${MON3[f.getMonth()]} | Week ${wk}`, city, span);
-    w.dates.forEach(dateChip);
+    w.dates.forEach(dt=> working.has(dt) ? dateChip(dt) : offChip(dt));
   });
 
   // January takedown dates, one at a time from a dropdown rather than 31 more rows.
   const JAN_PREFIX=`${MONTH_YEAR['01']}-01`;
   const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)===JAN_PREFIX
     && !newDates.has(ci.date));
-  if(janLeft.length && showTakedown){
+  if(false && janLeft.length && showTakedown){
     const sel=document.createElement('select');
     sel.className='dchip janpick';
     sel.innerHTML=`<option value="">+ January ${MONTH_YEAR['01']} takedown date…</option>`
