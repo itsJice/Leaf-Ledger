@@ -1219,7 +1219,7 @@ body.apple .leaflet-tooltip.name-label:before{display:none}
    2026-09-29): clearly part of the row above, clearly ended before the next. */
 body.apple #peekdlg.inline{position:relative;isolation:isolate;display:block;margin:0;width:auto;max-width:none;max-height:none;
   border:0;border-bottom:1px solid #cfe0d2;border-radius:0;background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand);
-  padding:20px 30px 30px 62px;color:var(--ink);animation:pkdrop .16s ease-out}
+  padding:20px 30px 30px 62px;color:var(--ink)}
 body.apple #peekdlg.inline::before{content:'';position:absolute;z-index:-1;inset:6px 16px 16px 48px;background:#fff;
   border-radius:14px;border:1px solid #d6e3d8;box-shadow:0 4px 14px rgba(28,46,30,.10)}
 body.apple #peekdlg.inline::after{content:'';position:absolute;z-index:-1;top:1px;left:64px;width:12px;height:12px;background:#fff;
@@ -1236,7 +1236,9 @@ body.apple #peekdlg.inline .btns button{border:0;border-radius:999px;background:
 body.apple #peekdlg.inline .btns button:hover{background:#dbe8dc}
 body.apple #peekdlg.inline #peekconfirm{grid-column:1 / -1;background:var(--brand);color:#fff}
 body.apple #peekdlg.inline #peekconfirm.on{background:#15803d}
+body.apple .stop::after{transition:transform .26s cubic-bezier(0.23,1,0.32,1)}
 body.apple .stop.peeking::after{transform:rotate(135deg);margin-top:-4px}
+@media (prefers-reduced-motion: reduce){ body.apple .stop::after{transition:none} }
 /* ---- the stop panel, floating over the map on the Days screen ---- */
 body.apple #peekdlg .btns{flex-wrap:wrap}
 body.apple #peekdlg.inspector{position:fixed;inset:auto 16px 16px auto;margin:0;width:370px;max-width:calc(100vw - 32px);
@@ -6886,7 +6888,7 @@ function openStopPeek(row,dayId){
       if(notInstalling.has(row)) putBackOnSchedule(row); else openSlotFinder(row);
     };
   }
-  if(peekdlg.open) peekdlg.close();
+  if(peekdlg.open) (peekdlg.closeNow||peekdlg.close).call(peekdlg);
   // On the Days list the details drop down right under the stop's row
   // (user, 2026-09-29); everywhere else (calendar, staffing, search) they
   // stay a pop-up.
@@ -6894,7 +6896,7 @@ function openStopPeek(row,dayId){
     ? document.querySelector(`#side .card[data-dayid="${CSS.escape(dayId)}"] .stop[data-row="${row}"]`) : null;
   peekdlg.classList.remove('inspector');
   peekdlg.classList.toggle('inline', !!rowEl);
-  if(rowEl){ rowEl.after(peekdlg); peekdlg.show(); }
+  if(rowEl){ rowEl.after(peekdlg); peekdlg.show(); animatePeekOpen(); }
   else { if(peekdlg.parentNode!==document.body) document.body.appendChild(peekdlg); peekdlg.showModal(); }
   markPeekRow(row, dayId);
 }
@@ -6917,8 +6919,44 @@ function afterPeekClose(){
 // Every close path (buttons, the x, outside clicks) goes through close();
 // the 'close' event is only a backup (Esc) -- it isn't reliably delivered
 // for a non-modal dialog.
+// Motion: quick, subtle, ease-out (emilkowalski/skills) -- grow + fade in,
+// fold a little faster on the way out. Off for prefers-reduced-motion.
+const PK_EASE='cubic-bezier(0.23, 1, 0.32, 1)';
+const pkReduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 { const nativeClose=peekdlg.close.bind(peekdlg);
-  peekdlg.close=function(v){ const was=peekdlg.open; nativeClose(v); if(was) afterPeekClose(); }; }
+  let closing=null;
+  peekdlg.closeNow=function(v){
+    if(closing){ closing.cancel(); closing=null; peekdlg.style.overflow=''; }
+    const was=peekdlg.open; nativeClose(v); if(was) afterPeekClose();
+  };
+  peekdlg.close=function(v){
+    if(!peekdlg.open || closing) return;
+    if(!peekdlg.classList.contains('inline') || pkReduced() || !peekdlg.animate) return peekdlg.closeNow(v);
+    const cs=getComputedStyle(peekdlg);
+    peekdlg.style.overflow='hidden';
+    closing=peekdlg.animate([
+      {height:peekdlg.offsetHeight+'px', paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, opacity:1},
+      {height:'0px', paddingTop:'0px', paddingBottom:'0px', opacity:0}],
+      {duration:170, easing:PK_EASE});
+    const row=document.querySelector('.stop.peeking'); if(row) row.classList.remove('peeking');
+    const done=()=>{ if(!closing) return; closing=null; peekdlg.style.overflow=''; peekdlg.closeNow(v); };
+    closing.onfinish=done;
+    // Backstop: a paused animation (hidden tab) must never leave it half-closed.
+    setTimeout(()=>{ if(closing){ closing.cancel(); done(); } }, 260);
+  };
+}
+function animatePeekOpen(){
+  if(pkReduced() || !peekdlg.animate) return;
+  const cs=getComputedStyle(peekdlg), h=peekdlg.offsetHeight;
+  peekdlg.style.overflow='hidden';
+  const a=peekdlg.animate([
+    {height:'0px', paddingTop:'0px', paddingBottom:'0px', opacity:0},
+    {height:h+'px', paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, opacity:1}],
+    {duration:260, easing:PK_EASE});
+  a.onfinish=a.oncancel=()=>{ peekdlg.style.overflow=''; };
+  peekdlg.querySelectorAll('#peekbody, .btns').forEach(el=>el.animate(
+    [{transform:'translateY(-4px)'},{transform:'none'}], {duration:300, easing:PK_EASE}));
+}
 peekdlg.addEventListener('close', afterPeekClose);
 let viewMode='days';
 // ---------- staffing UI ----------
@@ -7758,7 +7796,7 @@ function printDate(dt){
 
 function render(){
   { const pk=document.getElementById('peekdlg');
-    if(pk && pk.parentNode!==document.body){ if(pk.open) pk.close(); document.body.appendChild(pk); } }
+    if(pk && pk.parentNode!==document.body){ if(pk.open) (pk.closeNow||pk.close).call(pk); document.body.appendChild(pk); } }
   if(hostingSeason) return;      // our DOM belongs to a hosted season now
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
