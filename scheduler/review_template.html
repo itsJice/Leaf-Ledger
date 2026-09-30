@@ -1165,7 +1165,10 @@ body.apple .stop .num{width:24px;height:24px;font-size:12px;font-weight:800}
 body.apple .stop .nm{font-size:14.5px;font-weight:800;line-height:1.35}
 body.apple .stop .sub{font-size:12.5px;color:var(--mut);margin-top:2px}
 body.apple .badge{font-size:11px;font-weight:800;border-radius:6px;padding:1.5px 7px}
-body.apple .stop .stopbtns{flex-direction:row;gap:4px}
+body.apple .stop .subrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px}
+body.apple .stop .subrow > span{flex:1 1 auto;min-width:0}
+body.apple .stop .stopbtns{flex-direction:row;gap:4px;flex:none;margin-left:auto}
+@media (hover:hover) and (min-width:1024px){ body.apple .stop .stopbtns .mv{padding:4px 9px;font-size:11.5px} }
 body.apple .mv{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);font-size:12px;
   font-weight:800;padding:5px 10px}
 body.apple .mv:hover{background:#dbe8dc}
@@ -1176,11 +1179,12 @@ body.apple .stop::after{content:'';flex:none;width:8px;height:8px;border-right:2
   transform:rotate(45deg);margin:0 2px 0 -2px}
 @media (hover:hover) and (min-width:1024px){
   body.apple .stop{position:relative}
-  body.apple .stop .stopbtns{display:flex;position:absolute;right:12px;top:50%;transform:translateY(-50%);
-    padding-left:28px;background:linear-gradient(90deg,rgba(251,250,247,0),#fbfaf7 24px);
-    opacity:0;pointer-events:none;transition:opacity .14s ease-out}
-  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{opacity:1;pointer-events:auto}
-  body.apple .stop.peeking .stopbtns{opacity:0;pointer-events:none}
+  /* The buttons live at the end of the short hours · boxes line, in space
+     that is always kept for them -- so they only fade in, and never cover or
+     re-wrap anything (user, 2026-09-29). */
+  body.apple .stop .stopbtns{visibility:hidden;opacity:0;transition:opacity .14s ease-out,visibility 0s .14s}
+  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{visibility:visible;opacity:1;transition:opacity .14s ease-out}
+  body.apple .stop.peeking .stopbtns{visibility:hidden;opacity:0}
   body.apple .stop:hover::after{opacity:0}
   body.apple .stop.peeking::after{display:block}
 }
@@ -1301,7 +1305,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .dchipwrap{width:auto;flex:none}
   body.apple #side{width:400px;min-width:0}
   body.apple .stop{flex-wrap:wrap;row-gap:8px}
-  body.apple .stop .stopbtns{order:3;flex:1 1 100%;padding-left:36px;flex-wrap:wrap}
+  body.apple .stop .stopbtns{flex:1 1 100%;margin-left:0;flex-wrap:wrap}
   body.apple .stop::after{display:none}
   body.apple #tbsaved{display:none}
   body.apple #searchwrap{flex:1 1 160px}
@@ -4570,15 +4574,15 @@ function buildDayCard(d){
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}
         ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
-      <div class="sub">${[c.zone, `${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
-        `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</div>
-      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
+      <div class="sub subrow" title="${c.zone||''}"><span>${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
+        `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</span>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
           ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
         <button class="mv find"${isConfirmed?' disabled':''}>find date</button>
         <button class="mv"${isConfirmed?' disabled':''}>move ▾</button>
-      </div>`;
+      </div></div>
+      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>`;
     // Clicking the row itself (name, zone, box count -- anywhere that isn't
     // one of the buttons below) opens the same client-profile popup the
     // Calendar/Agenda views already open on click. The buttons stop the
