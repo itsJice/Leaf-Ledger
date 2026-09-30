@@ -3731,14 +3731,15 @@ function parseOverview(sel){
   return m ? {group:m[1]||null, phase:m[2]||null} : null;
 }
 function overviewTitle(sel){
+  // Title case, no dash (user, 2026-09-29): "December 2026 Install Days".
   const o=parseOverview(sel);
   if(!o) return '';
-  const half = o.phase==='INSTALL' ? 'install days' : o.phase==='TAKEDOWN' ? 'takedown days' : 'all days';
-  if(!o.group) return o.phase ? (o.phase==='INSTALL' ? 'Install — all days' : 'Takedown — all days') : 'Overview';
-  if(o.group==='HOU') return `Houston — ${half}`;
-  if(o.group==='DAL') return `Dallas — ${o.phase ? half : 'all nights (Mi Cocina)'}`;
+  const half = o.phase==='INSTALL' ? 'Install Days' : o.phase==='TAKEDOWN' ? 'Takedown Days' : 'All Days';
+  if(!o.group) return o.phase ? (o.phase==='INSTALL' ? 'All Install Days' : 'All Takedown Days') : 'Overview';
+  if(o.group==='HOU') return `Houston ${half}`;
+  if(o.group==='DAL') return o.phase ? `Dallas ${half}` : 'Dallas All Nights (Mi Cocina)';
   const mn=MONTH_NUM[o.group];
-  return `${MONTH_NAME[o.group]} ${MONTH_YEAR[mn]} — ${half}`;
+  return o.phase ? `${MONTH_NAME[o.group]} ${MONTH_YEAR[mn]} ${half}` : `${MONTH_NAME[o.group]} ${MONTH_YEAR[mn]}`;
 }
 function isOverview(sel){
   return sel==='NOINSTALL' || sel==='HOLD' || !!parseOverview(sel);
