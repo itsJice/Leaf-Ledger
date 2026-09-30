@@ -1668,7 +1668,8 @@ const WORK_WINDOW = {from:'', to:''};
 (function(){
   // The calendar's own optional flags are left alone -- flipping them made
   // normDates drop staff-added dates (and their training days) from the
-  // shared state on the next save. activeCalendar() includes the window.
+  // shared state on the next save. listCalendar() adds the window for the
+  // Days list and Find a date only.
   WORK_WINDOW.from=`${String(DATA.spec.calendar.map(c=>c.date).sort()[0]||'').slice(0,4)}-10-21`;
   WORK_WINDOW.to='__CUTOFF__';
   // Thanksgiving is a hard no; weekends are allowed but discouraged (user,
@@ -1859,6 +1860,14 @@ let newDates = new Set();
  *  optional date staff explicitly added. */
 function inWorkWindow(dt){ return !!WORK_WINDOW.from && dt>=WORK_WINDOW.from && dt<=WORK_WINDOW.to; }
 function activeCalendar(){
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date));
+}
+/** The Days list and Find a date also offer every day Oct 21 - cutoff (user,
+ *  2026-09-29). Deliberately NOT activeCalendar(): the roster's availability
+ *  (workDates/normRoster), the calendar views and everything saved keep the
+ *  working calendar exactly as it was (user, 2026-09-30: "make sure the
+ *  calendar is not edited"). */
+function listCalendar(){
   return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inWorkWindow(ci.date));
 }
 function normDates(list){
@@ -3655,7 +3664,7 @@ function planFor(row, toId){
 // "This client wants Nov 18" -> ranked legal (date, crew) options.
 function candidateSlots(){
   const out = [];
-  activeCalendar().forEach(ci=>{
+  listCalendar().forEach(ci=>{
     const existing = days.filter(d=>d.date===ci.date);
     existing.forEach(d=>out.push({id:d.id, date:d.date, crew:d.crew, day:d, isNew:false}));
     BASE_CREWS.filter(cr=>!existing.some(d=>d.crew===cr)).forEach(cr=>{
@@ -4144,7 +4153,7 @@ const side = document.getElementById('side');
 // Every date on the working calendar, not just ones that happen to have a
 // crew-day -- an empty date used to be invisible in the strip, which meant
 // there was nowhere to drag a stop TO if you wanted to start a fresh day.
-function allDates(){ return activeCalendar().map(ci=>ci.date); }
+function allDates(){ return listCalendar().map(ci=>ci.date); }
 
 const NOINSTALL_COLOR = '#7f1d1d';   // maroon -- distinct from every crew colour
 /** Everyone not getting an install this season, from all three sources, in one
