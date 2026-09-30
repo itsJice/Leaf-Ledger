@@ -1214,6 +1214,23 @@ body.apple .name-label{border:0;border-radius:999px;padding:1px 8px;font-size:11
   box-shadow:0 1px 4px rgba(28,46,30,.22)}
 body.apple .leaflet-tooltip.name-label:before{display:none}
 
+/* ---- the stop details, dropped down under its row on the Days list ---- */
+body.apple #peekdlg.inline{position:relative;display:block;margin:0;width:auto;max-width:none;max-height:none;
+  border:0;border-top:1px solid var(--line2);border-radius:0;background:#fbfaf7;box-shadow:inset 3px 0 0 var(--brand);
+  padding:12px 16px 16px 52px;color:var(--ink);animation:pkdrop .16s ease-out}
+body.apple #peekdlg.inline:not([open]){display:none}
+@keyframes pkdrop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+body.apple #peekdlg.inline #peekbody h3{display:none}
+body.apple #peekdlg.inline #peekopen{display:none}
+body.apple #peekdlg.inline .pkclose{top:8px;right:10px;border-radius:50%;background:#ece8e0}
+body.apple #peekdlg.inline .btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+body.apple #peekdlg.inline .btns > button:first-child{display:none}
+body.apple #peekdlg.inline .btns button{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);
+  font-weight:800;font-size:13px;padding:9px 10px}
+body.apple #peekdlg.inline .btns button:hover{background:#dbe8dc}
+body.apple #peekdlg.inline #peekconfirm{grid-column:1 / -1;background:var(--brand);color:#fff}
+body.apple #peekdlg.inline #peekconfirm.on{background:#15803d}
+body.apple .stop.peeking::after{transform:rotate(135deg);margin-top:-4px}
 /* ---- the stop panel, floating over the map on the Days screen ---- */
 body.apple #peekdlg .btns{flex-wrap:wrap}
 body.apple #peekdlg.inspector{position:fixed;inset:auto 16px 16px auto;margin:0;width:370px;max-width:calc(100vw - 32px);
@@ -3806,7 +3823,16 @@ function minAllowedDate(row){
 function pastBlockers(row, date){
   return date < minAllowedDate(row) ? ['PAST'] : [];
 }
+// row -> its circle marker on the Days map, so a click in the crew list can
+// centre the map on that stop and open its pop-up.
+var markerByRow = {};
+function focusStopOnMap(r){
+  const mk = markerByRow[r]; if(!mk) return;
+  map.setView(mk.getLatLng(), Math.max(map.getZoom(), 14), {animate:true});
+  mk.openPopup();
+}
 function drawDate(date){
+  markerByRow = {};
   layerGroup.clearLayers();
   // Not-installing clients still belong on the map -- staff want to see
   // WHERE the hole in the season is -- but they are on nobody's run, so
@@ -3899,7 +3925,7 @@ function drawDate(date){
           `<br>Est. time: ${estH}h · Box count: ${c.boxes||'—'}`,
           {direction:'top',offset:[0,-8]});
       }
-      layerGroup.addLayer(mk);
+      layerGroup.addLayer(mk); markerByRow[r]=mk;
     });
   });
   if(bounds.length>1){ map.invalidateSize(); map.fitBounds(bounds,{padding:[40,40]}); }
@@ -3988,7 +4014,11 @@ document.addEventListener('click', e=>{
 // so a stale dialog is already closed by the time a fresh one opens.
 document.addEventListener('mousedown', e=>{
   document.querySelectorAll('dialog[open]').forEach(dlg=>{
-    if(!dlg.contains(e.target)) dlg.close();
+    if(dlg.classList.contains('inline') && e.target.closest && e.target.closest('#map')) return;
+    if(!dlg.contains(e.target)){
+      if(dlg.id==='peekdlg'){ pkClosedRow=peekRow; pkClosedAt=Date.now(); }
+      dlg.close();
+    }
   });
 });
 
@@ -4528,7 +4558,13 @@ function buildDayCard(d){
     // Calendar/Agenda views already open on click. The buttons stop the
     // click from bubbling up to this, so pressing "move" doesn't ALSO pop
     // the peek dialog underneath it.
-    el.onclick=()=>openStopPeek(r, d.id);
+    el.onclick=()=>{
+      // Clicking the open row again folds it (the outside-click handler has
+      // just closed it on mousedown -- don't reopen straight away).
+      if(pkClosedRow===r && Date.now()-pkClosedAt<400) return;
+      focusStopOnMap(r);
+      openStopPeek(r, d.id);
+    };
     el.querySelector('.ordbtn.up').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, -1); };
     el.querySelector('.ordbtn.down').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, 1); };
     el.querySelector('.mv.confirm').onclick=(e)=>{
@@ -6830,9 +6866,15 @@ function openStopPeek(row,dayId){
     };
   }
   if(peekdlg.open) peekdlg.close();
-  const asInspector = viewMode==='days' && window.matchMedia('(min-width:1024px)').matches;
-  peekdlg.classList.toggle('inspector', asInspector);
-  if(asInspector) peekdlg.show(); else peekdlg.showModal();
+  // On the Days list the details drop down right under the stop's row
+  // (user, 2026-09-29); everywhere else (calendar, staffing, search) they
+  // stay a pop-up.
+  const rowEl = (viewMode==='days' && dayId!=null)
+    ? document.querySelector(`#side .card[data-dayid="${CSS.escape(dayId)}"] .stop[data-row="${row}"]`) : null;
+  peekdlg.classList.remove('inspector');
+  peekdlg.classList.toggle('inline', !!rowEl);
+  if(rowEl){ rowEl.after(peekdlg); peekdlg.show(); }
+  else { if(peekdlg.parentNode!==document.body) document.body.appendChild(peekdlg); peekdlg.showModal(); }
   markPeekRow(row, dayId);
 }
 /** Highlight the row whose details are open in the stop panel. */
@@ -6843,7 +6885,20 @@ function markPeekRow(row, dayId){
   const el=(card||document).querySelector(`.stop[data-row="${row}"]`);
   if(el) el.classList.add('peeking');
 }
-peekdlg.addEventListener('close', ()=>markPeekRow(null));
+var pkClosedRow=null, pkClosedAt=0;
+function afterPeekClose(){
+  if(peekdlg.open) return;          // reopened meanwhile -- leave it be
+  markPeekRow(null);
+  // Park the dialog back on <body> so a re-render of the list can't take it with it.
+  if(peekdlg.parentNode!==document.body) document.body.appendChild(peekdlg);
+  peekdlg.classList.remove('inline');
+}
+// Every close path (buttons, the x, outside clicks) goes through close();
+// the 'close' event is only a backup (Esc) -- it isn't reliably delivered
+// for a non-modal dialog.
+{ const nativeClose=peekdlg.close.bind(peekdlg);
+  peekdlg.close=function(v){ const was=peekdlg.open; nativeClose(v); if(was) afterPeekClose(); }; }
+peekdlg.addEventListener('close', afterPeekClose);
 let viewMode='days';
 // ---------- staffing UI ----------
 // Shifts first: the question people open this on is "who is working what",
@@ -7681,6 +7736,8 @@ function printDate(dt){
 }
 
 function render(){
+  { const pk=document.getElementById('peekdlg');
+    if(pk && pk.parentNode!==document.body){ if(pk.open) pk.close(); document.body.appendChild(pk); } }
   if(hostingSeason) return;      // our DOM belongs to a hosted season now
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
