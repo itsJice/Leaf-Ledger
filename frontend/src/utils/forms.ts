@@ -1,5 +1,3 @@
-import { apiFetch } from "utils/apiFetch";
-
 /**
  * Forms (the built-in Google Forms replacement): types, API calls, and the
  * pure rules the pages share. Validation mirrors backend/app/libs/forms.py
@@ -35,6 +33,10 @@ export interface FormResponse {
 export const REQUIRED_MESSAGE = "This is a required question";
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
+  // Loaded on first request, not at import: apiFetch pulls in the Supabase
+  // auth client, and the pure helpers below are imported by tests running on
+  // a Node without a native WebSocket (CI).
+  const { apiFetch } = await import("utils/apiFetch");
   const res = await apiFetch(url, init);
   if (!res.ok) {
     let detail: unknown = null;
