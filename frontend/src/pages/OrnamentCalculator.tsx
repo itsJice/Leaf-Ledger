@@ -811,6 +811,7 @@ function PrintSheet(p: PrintSheetProps) {
     ["Tree height", `${p.heightFt} ft`],
     ["Tree width", `${p.widthIn} in`],
     ["Profile", p.profile ? WIDTH_PROFILES[p.profile].label : "Custom"],
+    ["Coverage", `${p.density}%`],
     ["Recipe rules", p.recipeMode === "leafledger" ? "Leaf & Ledger" : "Vickerman"],
   ];
   if (p.recipeMode === "leafledger") {
@@ -827,52 +828,55 @@ function PrintSheet(p: PrintSheetProps) {
         <span className="text-sm text-stone-600">{new Date().toLocaleDateString()}</span>
       </div>
 
-      <div className="grid grid-cols-[2fr_3fr] gap-8">
-        <div className="flex flex-col items-center">
-          <img
-            src={treeDensityImage(p.density)}
-            alt={`Tree with ${p.density}% ornament coverage`}
-            className="h-[4.5in] w-auto object-contain"
-          />
-          <p className="mt-3 text-lg font-semibold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-            Total Coverage: {p.density}%
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
-            {details.map(([label, value]) => (
-              <React.Fragment key={label}>
-                <dt className="text-stone-500">{label}</dt>
-                <dd className="font-semibold">{value}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
-
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b-2 border-stone-800 text-left">
-                <th className="py-1.5 font-semibold">Ornament size</th>
-                <th className="py-1.5 text-right font-semibold">Quantity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((o) => (
-                <tr key={o.size} className="border-b border-stone-200">
-                  <td className="py-1.5">{o.display}&quot;</td>
-                  <td className="py-1.5 text-right tabular-nums">{p.quantities[o.size]}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-stone-800 font-semibold">
-                <td className="py-2">Total ornaments</td>
-                <td className="py-2 text-right tabular-nums">{p.totalOrnaments}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+      {/* Blank lines for the team to write the client and site on by hand. */}
+      <div className="mb-8 grid grid-cols-2 gap-8">
+        {["Client name", "Location"].map((label) => (
+          <div key={label} className="flex items-end gap-3">
+            <span className="shrink-0 text-sm font-semibold text-stone-700">{label}</span>
+            <span className="h-8 flex-1 border-b border-stone-500" />
+          </div>
+        ))}
       </div>
+
+      {/* The details and the quantities are the point; the tree is a small reference. */}
+      <div className="flex items-start gap-8">
+        <dl className="grid flex-1 grid-cols-3 gap-x-6 gap-y-4">
+          {details.map(([label, value]) => (
+            <div key={label}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</dt>
+              <dd className="mt-0.5 text-lg font-semibold">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <img
+          src={treeDensityImage(p.density)}
+          alt={`Tree with ${p.density}% ornament coverage`}
+          className="h-[2.25in] w-auto shrink-0 object-contain"
+        />
+      </div>
+
+      <table className="mt-8 w-full border-collapse">
+        <thead>
+          <tr className="border-b-2 border-stone-800 text-left text-sm uppercase tracking-wide text-stone-600">
+            <th className="py-2 font-semibold">Ornament size</th>
+            <th className="py-2 text-right font-semibold">Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((o) => (
+            <tr key={o.size} className="border-b border-stone-200">
+              <td className="py-2.5 text-lg">{o.display}&quot;</td>
+              <td className="py-2.5 text-right text-xl font-semibold tabular-nums">{p.quantities[o.size]}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-stone-800">
+            <td className="py-3 text-lg font-semibold">Total ornaments</td>
+            <td className="py-3 text-right text-2xl font-bold tabular-nums">{p.totalOrnaments}</td>
+          </tr>
+        </tfoot>
+      </table>
 
       <p className="mt-8 text-xs leading-relaxed text-stone-500">
         The tree image illustrates approximate coverage for the ornaments listed. It is a
