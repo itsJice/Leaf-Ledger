@@ -996,6 +996,16 @@ body.apple #seasonpick{height:34px;border-radius:17px;border:1px solid #ddd7cb;b
 body.apple #statewarn,body.apple #robanner{flex:1 1 100%}
 body.readonly #newmenu,body.readonly #tbundo,body.readonly #tbredo{opacity:.4;pointer-events:none}
 body.viewonly #newmenu,body.viewonly #tbedit,body.viewonly #tbprint{display:none!important}
+body.apple #histwrap{position:relative}
+body.apple #tbhist{position:relative}
+body.apple #tbhist[aria-expanded="true"]{background:rgba(31,61,43,.1)}
+body.apple #tbhistn{position:absolute;top:2px;right:0;min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+  background:var(--brand);color:#fff;font-size:10.5px;font-weight:800;line-height:16px;text-align:center;box-sizing:border-box}
+body.apple #histpop{position:absolute;left:0;top:42px;z-index:2000;width:400px;max-width:calc(100vw - 24px);
+  max-height:70vh;overflow:auto;border-radius:14px;background:#fff;
+  box-shadow:0 12px 36px rgba(28,46,30,.2),0 0 0 .5px rgba(28,46,30,.16)}
+body.apple #histpop[hidden]{display:none!important}
+body.apple #histpop #log{box-shadow:none;border-radius:14px}
 body.tv #datecol,body.tv header{display:none!important}
 body.apple #tvbtn,body.apple #billexportbtn,body.apple #tbprint{width:34px;height:34px;padding:0;border:0;
   border-radius:10px;background:transparent;align-self:center}
@@ -1229,6 +1239,10 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <div id="tbedit">
     <button id="tbundo" class="tbicon" type="button" title="Undo" aria-label="Undo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
     <button id="tbredo" class="tbicon" type="button" title="Redo" aria-label="Redo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <div id="histwrap">
+      <button id="tbhist" class="tbicon" type="button" title="Changes and version history" aria-label="Changes and version history" aria-haspopup="dialog" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg><span id="tbhistn" hidden></span></button>
+      <div id="histpop" role="dialog" aria-label="Changes and version history" hidden></div>
+    </div>
     <span id="tbsaved" aria-live="polite"></span>
   </div>
   <div class="viewtog">
@@ -4616,7 +4630,7 @@ function renderCards(){
       side.appendChild(dh);
       ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });
-    renderLog(); return;
+    return;
   }
   const onThisDate = days.filter(d=>d.date===selDate);
   // Every date gets a heading. A single-crew day used to show nothing but its
@@ -4679,7 +4693,6 @@ function renderCards(){
     .filter(cr=>!onThisDate.some(d=>d.crew===cr));
   pendingSlots[selDate].forEach(cr=>side.appendChild(buildCrewSlot(selDate, cr)));
   side.appendChild(buildAddCrewButton(selDate));
-  renderLog();
 }
 let pendingSlots = {};   // date -> ["Crew 4", ...] clicked but not yet filled
 /** The next unused occurrence id for (date, crew) -- ids are
@@ -4742,7 +4755,8 @@ function renderLog(){
      <button onclick="exportCSV()">${IC.down} Export CSV</button>
      <button onclick="exportJSON()">${IC.down} Export JSON</button>
      <button onclick="resetAll()">Reset all</button></div>`;
-  side.appendChild(log);
+  const pop=document.getElementById('histpop'); pop.innerHTML=''; pop.appendChild(log);
+  const hn=document.getElementById('tbhistn'); hn.hidden=!moves.length; hn.textContent=moves.length>99?'99+':moves.length;
   const u=log.querySelector('#undoBtn'), r=log.querySelector('#redoBtn');
   if(u) u.onclick=undo;
   if(r) r.onclick=redo;
@@ -7551,6 +7565,7 @@ function render(){
     + `<div class="sbbar"><i style="width:${days.length?(apprN/days.length*100).toFixed(1):0}%"></i></div>`
     + `<div class="sbsub">${n} stops · ${days.length} crew-days · ${approved.size} approved</div>`;
   syncToolbar();
+  renderLog();
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
   if(typeof syncTvBack==='function') syncTvBack();
@@ -7578,6 +7593,18 @@ document.getElementById('tbprint').onclick=()=>{
       `Crew sheets — ${overviewTitle(selDate)||'overview'}`);
   } else printDate(selDate);
 };
+(function(){
+  const btn=document.getElementById('tbhist'), pop=document.getElementById('histpop');
+  const shut=()=>{ pop.hidden=true; btn.setAttribute('aria-expanded','false'); };
+  btn.onclick=e=>{ e.stopPropagation(); const willOpen=pop.hidden; pop.hidden=!willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen)); };
+  // composedPath, not closest: Undo inside the panel re-draws it, so the
+  // clicked button is already detached by the time this runs.
+  document.addEventListener('click', e=>{ if(!pop.hidden && !e.composedPath().some(n=>n.id==='histwrap')) shut(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ shut(); btn.focus(); } });
+  // Opening the full server history or a dialog: get the panel out of the way.
+  pop.addEventListener('click', e=>{ const b=e.target.closest('button'); if(b && (b.id==='histBtn')) shut(); });
+})();
 (function(){
   const btn=document.getElementById('newbtn'), pop=document.getElementById('newpop');
   const shut=()=>{ pop.hidden=true; btn.setAttribute('aria-expanded','false'); };
