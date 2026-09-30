@@ -5552,11 +5552,18 @@ function openSlotFinder(row){
       // header reports where it is pinned, not where its week starts --
       // which made every week above the current one unreachable.
       const secs=[...list.querySelectorAll('.sfanchor')];
+      // The clicked week lights up at once, and holds while the list glides
+      // there -- the scroll-follow only takes over again once it has landed.
+      let navHold=0;
+      const setOn=k=>nav.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x.dataset.go===k));
+      list.addEventListener('scrollend', ()=>{ navHold=0; });
       nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+        setOn(b.dataset.go); navHold=Date.now()+1200;
         const t=list.querySelector(`.sfanchor[data-wk="${b.dataset.go}"]`);
         if(t) list.scrollTo({top:t.offsetTop, behavior: pkReduced()?'auto':'smooth'});
       });
       list.onscroll=()=>{
+        if(Date.now()<navHold) return;
         const y=list.scrollTop+8; let cur=secs[0];
         secs.forEach(sc=>{ if(sc.offsetTop<=y) cur=sc; });
         nav.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.go===cur.dataset.wk));
