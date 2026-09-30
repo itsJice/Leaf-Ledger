@@ -767,8 +767,12 @@ html.dark {
      exists, print only the sheet. */
   body:has(> #ornament-print-sheet) > *:not(#ornament-print-sheet) { display: none !important; }
   html:has(#ornament-print-sheet), body:has(> #ornament-print-sheet) { background: #fff !important; }
-  #ornament-print-sheet { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #ornament-print-sheet { page: ornament-sheet; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+/* Standard 1-inch paper margins for the ornament sheet only (a named page, so
+   other printed pages keep their own). */
+@page ornament-sheet { size: letter; margin: 1in; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════

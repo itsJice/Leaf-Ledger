@@ -820,7 +820,7 @@ function PrintSheet(p: PrintSheetProps) {
   }
 
   return createPortal(
-    <div id="ornament-print-sheet" className="hidden bg-white p-2 text-stone-900 print:block">
+    <div id="ornament-print-sheet" className="hidden bg-white text-stone-900 print:block">
       <div className="mb-6 flex items-end justify-between border-b-2 border-stone-800 pb-3">
         <h1 className="text-2xl font-semibold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
           Ornament Recipe
@@ -855,7 +855,7 @@ function PrintSheet(p: PrintSheetProps) {
         />
       </div>
 
-      <table className="mt-8 w-full border-collapse">
+      <table className="mt-8 w-full border-collapse" style={{ breakInside: "avoid" }}>
         <thead>
           <tr className="border-b-2 border-stone-800 text-left text-sm uppercase tracking-wide text-stone-600">
             <th className="py-2 font-semibold">Ornament size</th>
@@ -869,13 +869,12 @@ function PrintSheet(p: PrintSheetProps) {
               <td className="py-2.5 text-right text-xl font-semibold tabular-nums">{p.quantities[o.size]}</td>
             </tr>
           ))}
-        </tbody>
-        <tfoot>
+          {/* The total is a body row, not a <tfoot>: Chrome can push a footer row onto its own page. */}
           <tr className="border-t-2 border-stone-800">
             <td className="py-3 text-lg font-semibold">Total ornaments</td>
             <td className="py-3 text-right text-2xl font-bold tabular-nums">{p.totalOrnaments}</td>
           </tr>
-        </tfoot>
+        </tbody>
       </table>
 
       <p className="mt-8 text-xs leading-relaxed text-stone-500">
