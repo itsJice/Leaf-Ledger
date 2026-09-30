@@ -5,6 +5,18 @@
   <meta charset="UTF-8" />
   <link href="/icon.png" rel="icon">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Supabase's default invite/reset links land on the site root with the
+      // session (or an error) in the #hash. Send them to the set-password page
+      // before the app boots, so the person is asked for a password instead of
+      // being signed in with none (see src/pages/SetPassword.tsx).
+      (function () {
+        var h = location.hash, p = location.pathname;
+        if (p !== "/set-password" && /(^|[#&])(type=(invite|recovery)|error_code=otp_expired)/.test(h)) {
+          location.replace("/set-password" + location.search + h);
+        }
+      })();
+    </script>
     <!-- Opened from an iPad Home Screen icon, run without Safari's bars (the
          warehouse display is mirrored to the studio TV). -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
