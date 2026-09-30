@@ -1,5 +1,6 @@
 import { apiFetch } from "utils/apiFetch";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Calculator,
   TreePine,
@@ -22,6 +23,7 @@ import {
   ListChecks,
   MessageSquareText,
   ArrowUpRight,
+  Printer,
 } from "components/icons";
 import Layout from "components/Layout";
 import { toast } from "sonner";
@@ -297,6 +299,8 @@ export default function OrnamentCalculator() {
   // The purchase list's name — what Charles reads first. Profile and style are
   // Leaf & Ledger modifiers, so under the Vickerman rules the label has neither.
   const effectiveProfile = widthProfile ?? (dimsValid ? profileForWidth(h, w) : null);
+  // Printing needs a real tree and at least one ornament to list.
+  const canPrint = dimsValid && !tooSmall && totalOrnaments > 0;
   const configLabel = useMemo(
     () =>
       treeConfigLabel({
@@ -655,6 +659,16 @@ export default function OrnamentCalculator() {
             clone of Vickerman&apos;s tool.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => window.print()}
+          disabled={!canPrint}
+          title={canPrint ? "Print the tree, its size and the ornament list" : "Populate the ornament quantities first"}
+          className="flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:border-emerald-400 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Printer size={14} />
+          Print
+        </button>
         {/* Step switcher */}
         <div className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white p-1 text-sm">
           <button
@@ -673,6 +687,7 @@ export default function OrnamentCalculator() {
           >
             2 · Colors
           </button>
+        </div>
         </div>
       </header>
 
@@ -748,7 +763,123 @@ export default function OrnamentCalculator() {
           />
         )}
       </div>
+      {canPrint && (
+        <PrintSheet
+          heightFt={h}
+          widthIn={w}
+          profile={effectiveProfile}
+          density={density}
+          recipeMode={recipeMode}
+          designStyle={designStyle}
+          quantities={quantities}
+          totalOrnaments={totalOrnaments}
+          enhancers={enhancers}
+        />
+      )}
     </Layout>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Print sheet                                                                */
+/* -------------------------------------------------------------------------- */
+
+interface PrintSheetProps {
+  heightFt: number;
+  widthIn: number;
+  profile: WidthProfile | null;
+  density: number;
+  recipeMode: RecipeMode;
+  designStyle: DesignStyle;
+  quantities: QtyMap;
+  totalOrnaments: number;
+  enhancers: number;
+}
+
+/**
+ * The printed recipe: tree photo, coverage, dimensions and profile, and the
+ * ornament list with its total. Rendered straight into <body> and hidden on
+ * screen; while it exists, printing hides everything else (see index.css), so
+ * both the Print button and Cmd/Ctrl+P give this sheet instead of the app.
+ */
+function PrintSheet(p: PrintSheetProps) {
+  const rows = ORNAMENT_OPTIONS.filter((o) => {
+    const v = p.quantities[o.size];
+    return typeof v === "number" && v > 0;
+  });
+  const details: [string, string][] = [
+    ["Tree height", `${p.heightFt} ft`],
+    ["Tree width", `${p.widthIn} in`],
+    ["Profile", p.profile ? WIDTH_PROFILES[p.profile].label : "Custom"],
+    ["Recipe rules", p.recipeMode === "leafledger" ? "Leaf & Ledger" : "Vickerman"],
+  ];
+  if (p.recipeMode === "leafledger") {
+    details.push(["Style", p.designStyle === "contemporary" ? "Contemporary" : "Traditional"]);
+    if (p.enhancers > 0) details.push(["Enhancers", String(p.enhancers)]);
+  }
+
+  return createPortal(
+    <div id="ornament-print-sheet" className="hidden bg-white p-2 text-stone-900 print:block">
+      <div className="mb-6 flex items-end justify-between border-b-2 border-stone-800 pb-3">
+        <h1 className="text-2xl font-semibold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+          Ornament Recipe
+        </h1>
+        <span className="text-sm text-stone-600">{new Date().toLocaleDateString()}</span>
+      </div>
+
+      <div className="grid grid-cols-[2fr_3fr] gap-8">
+        <div className="flex flex-col items-center">
+          <img
+            src={treeDensityImage(p.density)}
+            alt={`Tree with ${p.density}% ornament coverage`}
+            className="h-[4.5in] w-auto object-contain"
+          />
+          <p className="mt-3 text-lg font-semibold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+            Total Coverage: {p.density}%
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+            {details.map(([label, value]) => (
+              <React.Fragment key={label}>
+                <dt className="text-stone-500">{label}</dt>
+                <dd className="font-semibold">{value}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-stone-800 text-left">
+                <th className="py-1.5 font-semibold">Ornament size</th>
+                <th className="py-1.5 text-right font-semibold">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((o) => (
+                <tr key={o.size} className="border-b border-stone-200">
+                  <td className="py-1.5">{o.display}&quot;</td>
+                  <td className="py-1.5 text-right tabular-nums">{p.quantities[o.size]}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-stone-800 font-semibold">
+                <td className="py-2">Total ornaments</td>
+                <td className="py-2 text-right tabular-nums">{p.totalOrnaments}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <p className="mt-8 text-xs leading-relaxed text-stone-500">
+        The tree image illustrates approximate coverage for the ornaments listed. It is a
+        planning guide, not an exact representation of a specific tree.
+      </p>
+    </div>,
+    document.body
   );
 }
 
