@@ -1109,6 +1109,7 @@ body.apple .dchiprm{top:50%;right:6px;transform:translateY(-50%)}
   body.apple .dchip.hold.sel{background:#d97706}
   body.apple .dchip.noinstall.sel{background:#78716c}
 }
+body.apple .badge.sftag{background:#0f766e;color:#fff;letter-spacing:.03em}
 body.apple .dchip.off{color:#a8a29e;font-weight:600}
 body.apple .dchip.off .dcount{color:var(--brand);font-weight:800;opacity:0}
 body.apple .dchip.off:hover .dcount,body.apple .dchip.off:focus-visible .dcount{opacity:1}
@@ -1572,6 +1573,10 @@ const SPEC = DATA.spec, K = SPEC.const;
 (function(){
   const from=`${String(DATA.spec.calendar.map(c=>c.date).sort()[0]||'').slice(0,4)}-10-21`, to='__CUTOFF__';
   SPEC.calendar.forEach(ci=>{ if(ci.optional && ci.date>=from && ci.date<=to) ci.optional=false; });
+  // Thanksgiving is a hard no; weekends are allowed but discouraged (user,
+  // 2026-09-29). WEEKEND is a soft code: it warns and asks, never blocks.
+  SPEC.codes.THANKS = {...(SPEC.codes.THANKS||{}), rule:'CAL', msg:'Thanksgiving Day — no installs', soft:false};
+  SPEC.codes.WEEKEND = {rule:'CAL', msg:'Weekend — allowed, but avoid unless the client asks for it', soft:true};
 })();
 const LUNCH = K.LUNCH;
 const N = DATA.node, D = DATA.durs, C = DATA.clients;
@@ -3323,7 +3328,19 @@ function staticBlockers(row, date){
   const seq = ELIG.byRow[row];
   const i = DATE_IX[date];
   if(i===undefined) return ['NO_DATE'];
-  return seq ? ELIG.sets[seq[i]] : [];
+  const base = seq ? ELIG.sets[seq[i]] : [];
+  const extra = [];
+  const ci = calOf(date);
+  if(ci && ci.kind==='thanksgiving' && !base.includes('THANKS')) extra.push('THANKS');
+  const wd = dateOf(date).getDay();
+  if((wd===0||wd===6) && !base.some(c=>['SUNDAY','BIZ_SAT','SAT_HIST','ROTARY','WEEKEND'].includes(c)))
+    extra.push('WEEKEND');
+  return extra.length ? base.concat(extra) : base;
+}
+let CAL_MAP=null;
+function calOf(date){
+  if(!CAL_MAP){ CAL_MAP={}; SPEC.calendar.forEach(ci=>CAL_MAP[ci.date]=ci); }
+  return CAL_MAP[date];
 }
 function codeMsg(c){ return (SPEC.codes[c]||{}).msg || c; }
 // Soft codes constrain how the schedule is BUILT but must not stop a human
@@ -5369,6 +5386,8 @@ function openSlotFinder(row){
           <span class="sfdate">${fmtDate(s.date)}</span>
           <span class="sfcrew"><i style="background:${dot}"></i>${r.anyCrew?'any crew':s.crew}</span>
           ${want&&s.date===want?'<span class="badge store">their date</span>':''}
+          ${(calOf(s.date)||{}).label?`<span class="badge sftag">${esc(String(calOf(s.date).label).split(/\s*[\u2014\u2013-]\s*/)[0])}</span>`:''}
+          ${[0,6].includes(dateOf(s.date).getDay())?'<span class="badge approx">weekend</span>':''}
           ${s.isNew?'<span class="badge">new crew-day</span>':''}
           ${i===0?'<span class="badge best">best fit</span>':''}
         </div>
