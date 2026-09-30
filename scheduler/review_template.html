@@ -3885,10 +3885,10 @@ function drawDate(date){
       const approx = !['street','manual','census'].includes(c.geo);
       const mk=L.circleMarker([c.lat,c.lon],{radius:8,color:'#222',weight:1.5,
         fillColor:col,fillOpacity:.95,dashArray:approx?'3 3':null});
+      // Just who and where (user, 2026-09-29) -- phone, hours, storage and
+      // crew/stop live in the stop's card and its details panel.
       mk.bindPopup(`<b>${c.name}</b><br>${c.street}, ${c.city} ${c.zip}`+
-        `<br>${IC.phone} ${c.phone||'—'}<br>__SEASON__: ${c.h26}h · __SEASON_PREV__ real: ${c.real25??'—'}h`+
-        `<br>Storage: ${c.storage||'—'} ${c.boxes?('· '+c.boxes+' boxes'):''}`+
-        `<br><i>${crewLabel(d)} · stop ${i+1}${approx?' · approx pin':''}</i>`);
+        `${approx?'<br><i>approx pin</i>':''}`);
       if(!isOverview(date)){
         mk.bindTooltip(`${i+1}. ${c.name}`,{permanent:true,direction:'right',
           offset:[9,0],className:'name-label'});
