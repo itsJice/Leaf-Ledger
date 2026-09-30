@@ -44,6 +44,7 @@ import {
   profileForWidth,
   enhancerLookup,
   enhancerAllocation,
+  splitAcrossColors,
   ENHANCER_MAX_SIZE_IN,
   WIDTH_PROFILES,
   LL_CONTEMPORARY_FILL,
@@ -61,6 +62,7 @@ import {
   type WidthProfile,
   type DesignStyle,
   type EnhancerLookup,
+  type EnhancerSource,
   type EnhancerAllocationLine,
 } from "utils/ornamentRecipe";
 import { formatMoneyGrouped as money } from "utils/money";
@@ -165,18 +167,29 @@ function equalShareBlocks(count: number): ColorBlock[] {
 }
 
 /** One line on which enhancer-table row the count came from. */
+/** Where an enhancer count came from, in words; `count` is that source's result. */
+function describeEnhancerSource(src: EnhancerSource, count: number): string {
+  if (src.kind === "table") return `Card row ${src.row.label} → ${src.row.count}`;
+  if (src.kind === "nearestWidth") return `No width bucket fits — nearest row ${src.row.label} → ${src.row.count}`;
+  if (src.kind === "interpolated")
+    return `Between card rows ${src.lower.label} (${src.lower.count}) and ${src.upper.label} (${src.upper.count}) → ${count}`;
+  if (src.kind === "widthScaled")
+    return `${describeEnhancerSource(src.base, src.standardCount)} for a standard ${src.standardWidthIn}" tree · scaled to this width by surface area → ${count}`;
+  return `Beyond the card — row ${src.row.label} (${src.row.count}) scaled by surface area → ${count}`;
+}
+
+/** One line on which enhancer-card row the count came from. */
 function describeEnhancers(lookup: EnhancerLookup | null, touched: boolean): string {
-  if (!lookup) return "Enter tree dimensions to look up the enhancer table";
-  const src = lookup.source;
-  const from =
-    src.kind === "table"
-      ? `Table row ${src.row.label} → ${src.row.count}`
-      : src.kind === "nearestWidth"
-      ? `No width bucket fits — nearest row ${src.row.label} → ${src.row.count}`
-      : src.kind === "interpolated"
-      ? `Between rows ${src.lower.label} (${src.lower.count}) and ${src.upper.label} (${src.upper.count}) → ${lookup.count}`
-      : `Beyond the table — row ${src.row.label} (${src.row.count}) scaled by surface area → ${lookup.count}`;
-  return touched ? `Edited by hand · table says ${lookup.count}: ${from}` : from;
+  if (!lookup) return "Enter tree dimensions to look up the enhancer card";
+  const from = describeEnhancerSource(lookup.source, lookup.count);
+  return touched ? `Edited by hand · card says ${lookup.count}: ${from}` : from;
+}
+
+/** "Color 1: 10 · Color 2: 10 · Color 3: 10" for one size's quantity. */
+function colorSplitLabel(quantity: number, colorCount: number): string {
+  return splitAcrossColors(quantity, colorCount)
+    .map((n, i) => `Color ${i + 1}: ${n}`)
+    .join(" · ");
 }
 
 /**
@@ -774,6 +787,7 @@ export default function OrnamentCalculator() {
           quantities={quantities}
           totalOrnaments={totalOrnaments}
           enhancers={enhancers}
+          colorCount={recipeMode === "leafledger" ? colorCount : 1}
         />
       )}
     </Layout>
@@ -794,6 +808,8 @@ interface PrintSheetProps {
   quantities: QtyMap;
   totalOrnaments: number;
   enhancers: number;
+  /** The design's colors; 1 hides the Colors column. */
+  colorCount: number;
 }
 
 /**
@@ -807,6 +823,12 @@ function PrintSheet(p: PrintSheetProps) {
     const v = p.quantities[o.size];
     return typeof v === "number" && v > 0;
   });
+  const showColors = p.colorCount > 1;
+  // Per-color totals: the sum of each size's split, so they always add up to the total.
+  const colorTotals = rows.reduce<number[]>((acc, o) => {
+    splitAcrossColors(p.quantities[o.size] as number, p.colorCount).forEach((n, i) => (acc[i] = (acc[i] ?? 0) + n));
+    return acc;
+  }, []);
   const details: [string, string][] = [
     ["Tree height", `${p.heightFt} ft`],
     ["Tree width", `${p.widthIn} in`],
@@ -859,6 +881,7 @@ function PrintSheet(p: PrintSheetProps) {
         <thead>
           <tr className="border-b-2 border-stone-800 text-left text-sm uppercase tracking-wide text-stone-600">
             <th className="py-2 font-semibold">Ornament size</th>
+            {showColors && <th className="py-2 font-semibold">Colors</th>}
             <th className="py-2 text-right font-semibold">Quantity</th>
           </tr>
         </thead>
@@ -866,12 +889,20 @@ function PrintSheet(p: PrintSheetProps) {
           {rows.map((o) => (
             <tr key={o.size} className="border-b border-stone-200">
               <td className="py-2.5 text-lg">{o.display}&quot;</td>
+              {showColors && (
+                <td className="py-2.5 text-base text-stone-700">{colorSplitLabel(p.quantities[o.size] as number, p.colorCount)}</td>
+              )}
               <td className="py-2.5 text-right text-xl font-semibold tabular-nums">{p.quantities[o.size]}</td>
             </tr>
           ))}
           {/* The total is a body row, not a <tfoot>: Chrome can push a footer row onto its own page. */}
           <tr className="border-t-2 border-stone-800">
             <td className="py-3 text-lg font-semibold">Total ornaments</td>
+            {showColors && (
+              <td className="py-3 text-base font-semibold text-stone-700">
+                {colorTotals.map((n, i) => `Color ${i + 1}: ${n}`).join(" · ")}
+              </td>
+            )}
             <td className="py-3 text-right text-2xl font-bold tabular-nums">{p.totalOrnaments}</td>
           </tr>
         </tbody>
@@ -930,6 +961,8 @@ interface CalcProps {
 }
 
 function CalculatorStep(p: CalcProps) {
+  // Each size split across the design's colors (Leaf & Ledger's Colors setting).
+  const showColorSplit = p.recipeMode === "leafledger" && p.colorCount > 1;
   const showTree = p.dimsValid && !p.tooSmall;
   const inEnhancerLines = p.enhancerLines.filter((l) => l.inEnhancers > 0);
   const inEnhancerTotal = inEnhancerLines.reduce((sum, l) => sum + l.inEnhancers, 0);
@@ -1093,6 +1126,7 @@ function CalculatorStep(p: CalcProps) {
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
                 <th className="px-6 py-2 font-medium">Size (in)</th>
+                {showColorSplit && <th className="px-6 py-2 font-medium">Colors</th>}
                 <th className="px-6 py-2 font-medium">Quantity</th>
                 <th className="px-6 py-2 font-medium">To Order</th>
               </tr>
@@ -1114,6 +1148,11 @@ function CalculatorStep(p: CalcProps) {
                         {o.display}&quot;
                       </span>
                     </td>
+                    {showColorSplit && (
+                      <td className="px-6 py-2 text-xs text-stone-600">
+                        {active ? colorSplitLabel(numeric, p.colorCount) : "—"}
+                      </td>
+                    )}
                     <td className="px-6 py-2">
                       <input
                         type="number"
