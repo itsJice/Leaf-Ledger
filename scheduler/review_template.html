@@ -1156,19 +1156,20 @@ body.apple .okbtn.on{background:#e5f4ea;color:#15803d}
 body.apple .cstaff{padding:8px 14px 0}
 body.apple .stfchip{border-radius:999px;font-size:12px;font-weight:800}
 body.apple .sched{background:#fbfaf7;border-bottom:1px solid var(--line2);font-size:12.5px}
-body.apple .stop{gap:12px;padding:10px 14px;border-bottom:1px solid var(--line2);background:#fff}
+body.apple .stop{gap:12px;padding:12px 16px 12px 14px;border-bottom:1px solid var(--line2);background:#fff;align-items:center}
 body.apple .stop:hover{background:#fbfaf7}
 body.apple .stop.peeking{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
 body.apple .stop.confirmed{border-left:0}
 body.apple .stop.onhold{border-left:0;box-shadow:inset 3px 0 0 #d97706}
 body.apple .stop .num{width:24px;height:24px;font-size:12px;font-weight:800}
-body.apple .stop .nm{font-size:14.5px;font-weight:800;line-height:1.35}
-body.apple .stop .sub{font-size:12.5px;color:var(--mut);margin-top:2px}
+body.apple .stop .nm{font-size:14.5px;font-weight:800;line-height:1.3}
+body.apple .stop .sub{font-size:12.5px;line-height:1.35;color:var(--mut);margin-top:2px}
+body.apple .stop .sub.loc{margin-top:3px}
+body.apple .stop .sub.loc:empty{display:none}
+body.apple .stop .sub.advice{margin-top:5px}
 body.apple .badge{font-size:11px;font-weight:800;border-radius:6px;padding:1.5px 7px}
-body.apple .stop .subrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px}
-body.apple .stop .subrow > span{flex:1 1 auto;min-width:0}
-body.apple .stop .stopbtns{flex-direction:row;gap:4px;flex:none;margin-left:auto}
-@media (hover:hover) and (min-width:1024px){ body.apple .stop .stopbtns .mv{padding:4px 9px;font-size:11.5px} }
+body.apple .stop .stopbtns{flex:none;gap:4px}
+body.apple .stop .stopbtns .mv{justify-content:center;white-space:nowrap}
 body.apple .mv{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);font-size:12px;
   font-weight:800;padding:5px 10px}
 body.apple .mv:hover{background:#dbe8dc}
@@ -1178,15 +1179,16 @@ body.apple .mv:disabled{opacity:.4;cursor:default}
 body.apple .stop::after{content:'';flex:none;width:8px;height:8px;border-right:2px solid #a3aa9f;border-top:2px solid #a3aa9f;
   transform:rotate(45deg);margin:0 2px 0 -2px}
 @media (hover:hover) and (min-width:1024px){
-  body.apple .stop{position:relative}
-  /* The buttons live at the end of the short hours · boxes line, in space
-     that is always kept for them -- so they only fade in, and never cover or
-     re-wrap anything (user, 2026-09-29). */
-  body.apple .stop .stopbtns{visibility:hidden;opacity:0;transition:opacity .14s ease-out,visibility 0s .14s}
-  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{visibility:visible;opacity:1;transition:opacity .14s ease-out}
+  /* Confirm / find date / move: a compact column beside the text, centred
+     on the row, in a slot that is always kept for it -- so on hover it only
+     fades in and nothing covers, moves or re-wraps (user, 2026-09-29). */
+  body.apple .stop .stopbtns{display:flex;flex-direction:column;width:104px;align-self:center;
+    visibility:hidden;opacity:0;transform:translateX(4px);
+    transition:opacity .16s ease-out,transform .2s cubic-bezier(0.23,1,0.32,1),visibility 0s .16s}
+  body.apple .stop .stopbtns .mv{width:100%;height:24px;padding:0 8px;font-size:11.5px;line-height:1}
+  body.apple .stop:hover .stopbtns,body.apple .stop:focus-within .stopbtns{visibility:visible;opacity:1;transform:none;
+    transition:opacity .16s ease-out,transform .2s cubic-bezier(0.23,1,0.32,1)}
   body.apple .stop.peeking .stopbtns{visibility:hidden;opacity:0}
-  body.apple .stop:hover::after{opacity:0}
-  body.apple .stop.peeking::after{display:block}
 }
 body.apple .leg{font-size:12px;font-weight:700;color:var(--mut);padding:3px 14px 3px 50px;background:#fff;position:relative}
 body.apple .leg .ic{width:12px;height:12px;vertical-align:-2px}
@@ -1263,6 +1265,12 @@ body.apple #peekdlg.inspector #peekconfirm.on{background:#15803d}
 body.apple #peekdlg.inspector #peekconfirm .ic{width:14px;height:14px}
 body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;background:#ece8e0}
 
+/* Touch screens and narrow widths: the row's buttons sit on their own line
+   under the text, always visible. */
+@media (hover:none), (max-width:1023px){
+  body.apple .stop{flex-wrap:wrap;row-gap:10px}
+  body.apple .stop .stopbtns{display:flex;flex-direction:row;flex:1 1 100%;flex-wrap:wrap;padding-left:36px}
+}
 /* ---- draggable column borders (user, 2026-09-29) ---- */
 .colgrip{display:none}
 @media (min-width:1024px){
@@ -1304,8 +1312,6 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .dchip{width:auto;flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;min-height:32px;padding:0 12px}
   body.apple .dchipwrap{width:auto;flex:none}
   body.apple #side{width:400px;min-width:0}
-  body.apple .stop{flex-wrap:wrap;row-gap:8px}
-  body.apple .stop .stopbtns{flex:1 1 100%;margin-left:0;flex-wrap:wrap}
   body.apple .stop::after{display:none}
   body.apple #tbsaved{display:none}
   body.apple #searchwrap{flex:1 1 160px}
@@ -4574,15 +4580,16 @@ function buildDayCard(d){
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}
         ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
-      <div class="sub subrow" title="${c.zone||''}"><span>${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
-        `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</span>
+      <div class="sub loc">${c.zone||''}</div>
+      <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
+        `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</div>
+      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
           ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
         <button class="mv find"${isConfirmed?' disabled':''}>find date</button>
         <button class="mv"${isConfirmed?' disabled':''}>move ▾</button>
-      </div></div>
-      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>`;
+      </div>`;
     // Clicking the row itself (name, zone, box count -- anywhere that isn't
     // one of the buttons below) opens the same client-profile popup the
     // Calendar/Agenda views already open on click. The buttons stop the
