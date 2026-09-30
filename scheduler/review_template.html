@@ -4305,22 +4305,22 @@ function renderStrip(){
   sec('Overview');
   if(stripScope==='install'){
     ov('All','ALL-INSTALL','grid');
-    ov('All Dallas installs','ALL-DAL-INSTALL','pin');
-    ov('All Houston installs','ALL-HOU-INSTALL','pin');
+    ov('All Dallas Installations','ALL-DAL-INSTALL','pin');
+    ov('All Houston Installations','ALL-HOU-INSTALL','pin');
     ov(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT','cal');
     ov(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV','cal');
     ov(decInstall,'ALL-DEC-INSTALL','cal');
   } else if(stripScope==='takedown'){
     ov('All','ALL-TAKEDOWN','grid');
-    ov('All Dallas takedowns','ALL-DAL-TAKEDOWN','pin');
-    ov('All Houston takedowns','ALL-HOU-TAKEDOWN','pin');
+    ov('All Dallas Takedowns','ALL-DAL-TAKEDOWN','pin');
+    ov('All Houston Takedowns','ALL-HOU-TAKEDOWN','pin');
     ov(decTakedown,'ALL-DEC-TAKEDOWN','cal');
     ov(`All Jan ${MONTH_YEAR['01']}`,'ALL-JAN','cal');
     if(hasFeb) ov(`All Feb ${MONTH_YEAR['02']}`,'ALL-FEB','cal');
   } else {
     ov('All','ALL','grid');
-    ov('All Dallas · installs + takedowns','ALL-DAL','pin');
-    ov('All Houston · installs + takedowns','ALL-HOU','pin');
+    ov('All Dallas Installations + Takedowns','ALL-DAL','pin');
+    ov('All Houston Installations + Takedowns','ALL-HOU','pin');
     ov(`All Oct ${MONTH_YEAR['10']}`,'ALL-OCT','cal');
     ov(`All Nov ${MONTH_YEAR['11']}`,'ALL-NOV','cal');
     ov(decInstall,'ALL-DEC-INSTALL','cal');
