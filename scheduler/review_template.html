@@ -1029,7 +1029,8 @@ body.apple .dsec{position:sticky;top:0;z-index:2;display:flex;align-items:center
   font-size:14px;font-weight:800;color:var(--brand-deep);letter-spacing:-.005em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 body.apple .dsec:first-child{margin-top:0}
-body.apple .dsectxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+body.apple .dsectxt{flex:none;white-space:nowrap}
+body.apple .dsecspan{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.apple .dcity{flex:none;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;line-height:16px}
 body.apple .dcity.dal{background:#fde7c7;color:#8a3b0a}
 body.apple .dcity.hou{background:#d7ebdb;color:#1f5c2e}
@@ -1093,6 +1094,21 @@ body.apple .dchiprm{top:50%;right:6px;transform:translateY(-50%)}
   body.apple .dchip.hold.sel{background:#d97706;color:#fff}
   body.apple .dchip.noinstall.sel{background:#78716c;color:#fff}
 }
+/* Desktop: flat rows, no bubbles (user, 2026-09-29) -- the live colours stay
+   as light tints and text colour. Phones keep the chip bubbles. */
+@media (min-width:1024px){
+  body.apple #datestrip,body.apple #datefoot{gap:1px}
+  body.apple .dchip,body.apple .dchip.wknd,body.apple .dchip.empty,body.apple .dchip.tagged,
+  body.apple .dchip.added,body.apple .dchip.noinstall,body.apple .dchip.hold{border:0;background:transparent}
+  body.apple .dchip:hover{background:rgba(31,61,43,.07)}
+  body.apple .dchip.wknd{background:#fdf1dc}
+  body.apple .dchip.wknd:hover{background:#fbe6c2}
+  body.apple .dchip.empty{color:#8b857d}
+  body.apple .dchip.added .dlab{text-decoration:underline dashed #9bbfa1;text-underline-offset:3px}
+  body.apple .dchip.sel,body.apple .dchip.sel:hover{background:var(--brand);color:#fff;border:0}
+  body.apple .dchip.hold.sel{background:#d97706}
+  body.apple .dchip.noinstall.sel{background:#78716c}
+}
 body.apple .dchip.janpick{height:32px;margin-top:6px;border:1px dashed #cfc8ba;background:#fff;color:var(--mut);max-width:none}
 
 /* ---- day pane ---- */
@@ -1101,6 +1117,7 @@ body.apple #side{width:520px;min-width:400px;padding:20px 20px 28px;background:v
 body.apple .dayhead{padding:0 4px;margin:0 0 14px;border:0}
 body.apple .dayhead b{font-size:25px;line-height:1.2;font-weight:600;color:var(--brand-deep)}
 body.apple .dayhead .dhsub{display:block;font-size:14px;color:var(--mut);margin-top:4px}
+body.apple .dhnote{font-size:12.5px;color:var(--mut);margin:-6px 4px 18px!important;line-height:1.45}
 body.apple .dayhead .dhhint{display:block;font-size:12.5px;color:var(--mut);margin-top:6px;line-height:1.45}
 body.apple .daystats{display:flex;background:#fff;border-radius:10px;margin:0 0 16px;overflow:hidden;
   box-shadow:0 0 0 1px rgba(31,61,43,.07),0 1px 3px rgba(31,61,43,.05)}
@@ -4193,10 +4210,12 @@ function renderStrip(){
     into.appendChild(b);
     return b;
   };
-  const sec=(text,city)=>{ const h=document.createElement('div'); h.className='dsec';
+  const sec=(text,city,dates)=>{ const h=document.createElement('div'); h.className='dsec';
     const t=document.createElement('span'); t.className='dsectxt'; t.textContent=text; h.appendChild(t);
+    if(dates){ const d=document.createElement('span'); d.className='dsecspan'; d.textContent=dates; h.appendChild(d); }
     if(city){ const c=document.createElement('span');
-      c.className='dcity '+(city==='Dallas'?'dal':city==='Houston'?'hou':'both'); c.textContent=city; h.appendChild(c); }
+      c.className='dcity '+(city==='Dallas'?'dal':city==='Houston'?'hou':'both');
+      c.textContent=(city==='Dallas'||city==='Houston')?city:'Both'; c.title=city; h.appendChild(c); }
     strip.appendChild(h); };
   const ov=(label,val,icon)=>mk(label,val,false,false,'',{icon:DICON[icon], count:stopsIn(val), cls:'ov'});
   const dateChip=dt=>{
@@ -4269,7 +4288,11 @@ function renderStrip(){
       : (a.slice(5,7)===z.slice(5,7) ? `${MON3[+a.slice(5,7)-1]} ${+a.slice(8,10)} – ${+z.slice(8,10)}`
                                      : `${listDate(a).split(', ')[1]} – ${listDate(z).split(', ')[1]}`);
     const city=cityOfDays(days.filter(d=>w.dates.includes(d.date)));
-    sec(span, city);
+    // "Nov | Week 2": the month of the week's first listed date, and which
+    // Monday-start row of that month's calendar it sits on.
+    const f=dateOf(a), lead=(new Date(f.getFullYear(), f.getMonth(), 1).getDay()+6)%7;
+    const wk=Math.floor((f.getDate()-1+lead)/7)+1;
+    sec(`${MON3[f.getMonth()]} | Week ${wk}`, city, span);
     w.dates.forEach(dateChip);
   });
 
@@ -4487,13 +4510,12 @@ function buildDayCard(d){
  *  data and read-only here; the ones staff dropped on the bubble are an
  *  editable decision and can go back on the board. */
 function renderNotInstalling(){
-  const hdr=document.createElement('h3'); hdr.className='ovtitle';
-  hdr.textContent='Not installing';
-  side.appendChild(hdr);
+  const nOut=notInstallingPins().length;
+  pageHead('Not installing', `${nOut} client${nOut===1?'':'s'} not getting an install this season`);
 
   const pins=notInstallingPins();
   const mapped=pins.filter(p=>p.lat!=null&&p.lon!=null).length;
-  const note=document.createElement('p'); note.className='nothingyet';
+  const note=document.createElement('p'); note.className='nothingyet dhnote';
   note.style.cssText='margin:0 0 12px';
   note.textContent='Drag any stop onto this bubble to take that client out of '
     + 'the season. They stop appearing on crew sheets and day counts. '
@@ -4612,10 +4634,8 @@ function renderNotInstalling(){
 }
 function renderHold(){
   const rows=[...hold].filter(r=>C[r]).sort((a,b)=>C[a].name.localeCompare(C[b].name));
-  const sh=document.createElement('div'); sh.className='ovdate';
-  sh.textContent=`On hold — ${rows.length}`;
-  side.appendChild(sh);
-  const note=document.createElement('p'); note.className='nothingyet';
+  pageHead('On hold', `${rows.length} client${rows.length===1?'':'s'} about to cancel, not decided`);
+  const note=document.createElement('p'); note.className='nothingyet dhnote';
   note.style.cssText='margin:0 0 12px';
   note.textContent='Clients who are about to cancel but haven\'t decided. They keep '
     + 'their date and crew -- drag a stop onto this bubble to flag it, release it '
@@ -4646,6 +4666,20 @@ function renderHold(){
     side.appendChild(el);
   });
 }
+/** The big page header every Days-view list opens with: title, one summary
+ * line, an optional stats row. Same look as a single day's header. */
+function pageHead(title, sub, statsCells){
+  const hd=document.createElement('div'); hd.className='dayhead';
+  hd.innerHTML=`<b>${esc(title)}</b>`+(sub?`<span class="dhsub">${sub}</span>`:'');
+  side.appendChild(hd);
+  if(statsCells && statsCells.length){
+    const st=document.createElement('div'); st.className='daystats';
+    st.innerHTML=statsCells.map(([l,v,bar])=>`<div><span>${esc(l)}</span><b>${esc(v)}</b>`
+      +(bar!=null?`<i><u style="width:${(bar*100).toFixed(0)}%"></u></i>`:'')+`</div>`).join('');
+    side.appendChild(st);
+  }
+  return hd;
+}
 function renderCards(){
   side.innerHTML='';
   if(selDate==='NOINSTALL'){ renderNotInstalling(); return; }
@@ -4656,13 +4690,20 @@ function renderCards(){
     // stacked for the whole Houston or Dallas run).
     const pool=daysFor(selDate);
     const title=overviewTitle(selDate)||'Overview';
-    const hdr=document.createElement('h3'); hdr.className='ovtitle'; hdr.textContent=title;
-    side.appendChild(hdr);
     const dates=[...new Set(pool.map(d=>d.date))].sort();
+    const nS=pool.reduce((a,d)=>a+d.stops.length,0);
+    const calcs=pool.map(d=>dayCalc(d));
+    const apprN=pool.filter(d=>approved.has(d.id)).length;
+    const hd=pageHead(title, `${dates.length} date${dates.length===1?'':'s'} · ${pool.length} crew-day${pool.length===1?'':'s'} · ${nS} stop${nS===1?'':'s'}`,
+      pool.length ? [['Stops', String(nS)], ['Install', `${calcs.reduce((a,c)=>a+c.inst,0).toFixed(1)} h`],
+                     ['Drive', `${(calcs.reduce((a,c)=>a+c.drive,0)/60).toFixed(1)} h`],
+                     ['Approved', `${apprN} of ${pool.length}`, apprN/pool.length]] : null);
+    hd.insertAdjacentHTML('beforeend', `<span class="dhhint">Every crew-day in this group, by date. `
+      + `Drag a stop onto a date in the list to move it.</span>`);
     dates.forEach(dt=>{
       const ds=pool.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
       const dh=document.createElement('div'); dh.className='ovdate';
-      dh.textContent=`${ds[0].dow} ${dt}`;
+      dh.textContent=dateOf(dt).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
       side.appendChild(dh);
       ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });

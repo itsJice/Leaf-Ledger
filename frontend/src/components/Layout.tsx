@@ -23,7 +23,7 @@ import {
 } from "components/sidebarNav";
 import type { ResolvedNavItem, SidebarPrefsEventDetail } from "components/sidebarNav";
 import FeedbackWidget from "components/FeedbackWidget";
-import { LeafLedgerLogo } from "components/LeafLedgerLogo";
+import { LeafLedgerLogo, LeafLedgerMark } from "components/LeafLedgerLogo";
 import { readJsonCache, writeJsonCache } from "utils/jsonCache";
 import { CLIENTS_PAGE_CACHE_KEY, PROJECTS_LIST_CACHE_KEY } from "../constants";
 import { PROJECTS_CHANGED_EVENT } from "utils/projectsChanged";
@@ -208,6 +208,22 @@ function StaffLayout({ children }: Props) {
   // the top bar. It closes on every navigation and on Escape.
   const [navOpen, setNavOpen] = useState(false);
   useEffect(() => { setNavOpen(false); }, [location.pathname, location.search]);
+  // The Install Schedule needs the width for its map, so on desktop the menu
+  // folds to an icon rail there and slides open OVER the page on hover (or
+  // keyboard focus) -- the page underneath never jumps. Everywhere else, and
+  // in the phone/tablet drawer, the menu is unchanged.
+  const railMode = location.pathname.includes("/install-schedule");
+  const [railOpen, setRailOpen] = useState(false);
+  useEffect(() => { setRailOpen(false); }, [location.pathname]);
+  const railTimer = React.useRef<number | undefined>(undefined);
+  const collapsed = railMode && !railOpen;
+  const RC = collapsed ? " lg:hidden" : "";   // hidden while folded (desktop only)
+  const railHandlers = railMode ? {
+    onMouseEnter: () => { window.clearTimeout(railTimer.current); railTimer.current = window.setTimeout(() => setRailOpen(true), 120); },
+    onMouseLeave: () => { window.clearTimeout(railTimer.current); setRailOpen(false); },
+    onFocus: (e: React.FocusEvent<HTMLElement>) => { if ((e.target as HTMLElement).matches(":focus-visible")) setRailOpen(true); },
+    onBlur: (e: React.FocusEvent<HTMLElement>) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRailOpen(false); },
+  } : {};
   useEffect(() => {
     if (!navOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setNavOpen(false); };
@@ -397,11 +413,12 @@ function StaffLayout({ children }: Props) {
   // Projects trees keep a single implementation no matter where they land.
   const clientsProjectsSection = (
     <div>
-      <p className={GROUP_LABEL}>Clients &amp; Projects</p>
+      <p className={`${GROUP_LABEL}${RC}`}>Clients &amp; Projects</p>
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1">
           <Link
             to="/clients"
+            title={collapsed ? "Clients" : undefined}
             className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
               isActive("/clients") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
@@ -416,11 +433,11 @@ function StaffLayout({ children }: Props) {
                 />
               )}
             </span>
-            Clients
+            <span className={`truncate${RC}`}>Clients</span>
           </Link>
           <button
             onClick={() => setClientsOpen((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/5 hover:text-white"
+            className={`flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/5 hover:text-white${RC}`}
             title={clientsOpen ? "Hide client list" : "Show client list"}
             aria-label={clientsOpen ? "Hide client list" : "Show client list"}
           >
@@ -428,7 +445,7 @@ function StaffLayout({ children }: Props) {
           </button>
         </div>
         {clientsOpen && (
-          <div className="ml-5 mt-1 flex flex-col gap-0.5 border-l border-white/10 pl-2">
+          <div className={`ml-5 mt-1 flex flex-col gap-0.5 border-l border-white/10 pl-2${RC}`}>
             {projectClients.slice(0, 12).map((client) => {
               const active = isActive("/clients") && activeClientName === client.name;
               return (
@@ -462,16 +479,17 @@ function StaffLayout({ children }: Props) {
         <div className="flex items-center gap-1">
           <Link
             to="/projects"
+            title={collapsed ? "All Projects" : undefined}
             className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
               isActive("/projects") ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
             }`}
           >
             <Package size={16} strokeWidth={1.8} />
-            All Projects
+            <span className={`truncate${RC}`}>All Projects</span>
           </Link>
           <button
             onClick={() => setProjectsOpen((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/5 hover:text-white"
+            className={`flex h-9 w-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/5 hover:text-white${RC}`}
             title={projectsOpen ? "Hide project list" : "Show project list"}
             aria-label={projectsOpen ? "Hide project list" : "Show project list"}
           >
@@ -479,7 +497,7 @@ function StaffLayout({ children }: Props) {
           </button>
         </div>
         {projectsOpen && (
-          <div className="ml-5 mt-1 flex flex-col gap-0.5 border-l border-white/10 pl-2">
+          <div className={`ml-5 mt-1 flex flex-col gap-0.5 border-l border-white/10 pl-2${RC}`}>
             {sidebarProjects.map((project) => {
               const active = isActive("/projects") && activeProjectId === String(project.id);
               return (
@@ -552,14 +570,17 @@ function StaffLayout({ children }: Props) {
         // sidebar renders identically in both modes. Without it the stylesheet
         // falls back to matching `aside.w-60`, which is brittle.
         data-ll-chrome="dark"
-        className={`w-60 flex-shrink-0 flex flex-col border-r border-white/10 py-8 px-4 fixed top-0 left-0 h-full z-40 transition-transform duration-200 ease-drawer motion-reduce:transition-none lg:z-20 lg:translate-x-0 lg:shadow-none ${
+        className={`w-60 px-4 ${collapsed ? "lg:w-[68px] lg:px-3" : ""} flex-shrink-0 flex flex-col border-r border-white/10 py-8 fixed top-0 left-0 h-full z-40 overflow-x-hidden transition-[transform,width,padding] duration-200 ease-drawer motion-reduce:transition-none lg:translate-x-0 ${
+          railMode && railOpen ? "lg:z-50 lg:shadow-2xl" : "lg:z-20 lg:shadow-none"
+        } ${
           navOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
         style={{ backgroundColor: "#1c2e1e" }}
         aria-label="Main navigation"
+        {...railHandlers}
       >
         {/* Logo */}
-        <div className="relative mb-10 px-2">
+        <div className={`relative mb-10 px-2${collapsed ? " lg:mb-6 lg:px-0" : ""}`}>
           <button
             type="button"
             onClick={() => setNavOpen(false)}
@@ -568,10 +589,15 @@ function StaffLayout({ children }: Props) {
           >
             <X size={18} />
           </button>
-          <Link to="/" className="block w-[176px] pr-8" aria-label="Leaf & Ledger home">
+          <Link to="/" className={`block w-[176px] pr-8${RC}`} aria-label="Leaf & Ledger home">
             <LeafLedgerLogo className="h-auto w-full" />
           </Link>
-          <p className="mt-2 text-xs text-white/45 leading-tight">Catalog &amp; project operations</p>
+          {collapsed && (
+            <Link to="/" className="hidden justify-center py-1 lg:flex" aria-label="Leaf & Ledger home">
+              <LeafLedgerMark className="h-7 w-auto" />
+            </Link>
+          )}
+          <p className={`mt-2 text-xs text-white/45 leading-tight${RC}`}>Catalog &amp; project operations</p>
         </div>
 
         {/* Nav */}
@@ -579,7 +605,7 @@ function StaffLayout({ children }: Props) {
           {navRuns.map((run) => (
             <React.Fragment key={run.key}>
               <div>
-                {run.label && <p className={GROUP_LABEL}>{run.label}</p>}
+                {run.label && <p className={`${GROUP_LABEL}${RC}`}>{run.label}</p>}
                 <div className="flex flex-col gap-0.5">
                   {run.items.map(({ path, label, icon: Icon }) => {
                     const active = isActive(path);
@@ -587,13 +613,14 @@ function StaffLayout({ children }: Props) {
                       <Link
                         key={path}
                         to={path}
+                        title={collapsed ? label : undefined}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left w-full ${
                           active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
                         }`}
                       >
-                        <Icon size={16} strokeWidth={1.8} />
-                        {label}
-                        {active && <ChevronRight size={12} className="ml-auto opacity-60" />}
+                        <Icon size={16} strokeWidth={1.8} className="flex-none" />
+                        <span className={`truncate${RC}`}>{label}</span>
+                        {active && <ChevronRight size={12} className={`ml-auto opacity-60${RC}`} />}
                       </Link>
                     );
                   })}
@@ -607,8 +634,8 @@ function StaffLayout({ children }: Props) {
         </nav>
 
         {/* Appearance quick toggle + user info + sign out */}
-        <div className="px-2 pt-6 border-t border-white/10">
-          <div className="mb-3 flex items-center gap-1 rounded-lg bg-white/5 p-1">
+        <div className={`px-2 pt-6 border-t border-white/10${collapsed ? " lg:px-0 lg:flex lg:justify-center" : ""}`}>
+          <div className={`mb-3 flex items-center gap-1 rounded-lg bg-white/5 p-1${RC}`}>
             {THEME_MODE_OPTIONS.map((option) => {
               const OptionIcon = option.icon;
               const selected = mode === option.mode;
@@ -629,17 +656,18 @@ function StaffLayout({ children }: Props) {
             })}
           </div>
           {user && (
-            <div className="mb-3">
+            <div className={`mb-3${RC}`}>
               <p className="text-xs font-medium text-white/80 truncate">{user.user_metadata?.full_name || user.email?.split("@")[0]}</p>
               <p className="text-xs text-white/40 truncate">{user.email}</p>
             </div>
           )}
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 text-xs text-white/45 hover:text-white transition-colors w-full"
+            className={`flex items-center gap-2 text-xs text-white/45 hover:text-white transition-colors w-full${collapsed ? " lg:w-auto lg:justify-center" : ""}`}
+            title={collapsed ? "Sign out" : undefined}
           >
             <LogOut size={13} />
-            Sign out
+            <span className={RC.trim()}>Sign out</span>
           </button>
         </div>
       </aside>
@@ -651,7 +679,7 @@ function StaffLayout({ children }: Props) {
           content, so it never overflowed, the window scrolled instead, and
           every `sticky top-0` page header rode away inside a container that
           never moved -- while this comment claimed the opposite. */}
-      <div data-scroll-root className="mt-14 h-[calc(100dvh-3.5rem)] flex-1 overflow-auto lg:ml-60 lg:mt-0 lg:h-screen">
+      <div data-scroll-root className={`mt-14 h-[calc(100dvh-3.5rem)] flex-1 overflow-auto lg:mt-0 lg:h-screen ${railMode ? "lg:ml-[68px]" : "lg:ml-60"}`}>
         {children}
       </div>
       <FeedbackWidget />
