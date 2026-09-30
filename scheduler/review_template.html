@@ -1248,9 +1248,22 @@ body.apple #peekdlg.inspector #peekconfirm.on{background:#15803d}
 body.apple #peekdlg.inspector #peekconfirm .ic{width:14px;height:14px}
 body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;background:#ece8e0}
 
+/* ---- draggable column borders (user, 2026-09-29) ---- */
+.colgrip{display:none}
+@media (min-width:1024px){
+  body.apple #datecol{position:relative}
+  body.apple .colgrip{display:block;position:relative;flex:none;width:0;z-index:5;cursor:col-resize;touch-action:none;outline:none}
+  body.apple .colgrip::before{content:'';position:absolute;top:0;bottom:0;left:-5px;width:10px}
+  body.apple .colgrip::after{content:'';position:absolute;top:0;bottom:0;left:-1px;width:2px;background:transparent;transition:background .12s}
+  body.apple .colgrip:hover::after,body.apple .colgrip.dragging::after,body.apple .colgrip:focus-visible::after{background:var(--brand)}
+  body.apple #gripdates{position:absolute;top:0;bottom:0;right:0}
+  body.apple #side{width:var(--side-w,520px);min-width:0;flex:none}
+  body.apple.resizing, body.apple.resizing *{cursor:col-resize!important;user-select:none!important}
+  body.apple.resizing iframe, body.apple.resizing #map{pointer-events:none}
+}
 /* ---- wide screens: dates | toolbar over the day and map ---- */
 @media (min-width:1024px){
-  body.apple #app{display:grid;grid-template-columns:272px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);
+  body.apple #app{display:grid;grid-template-columns:var(--datecol-w,272px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);
     grid-template-areas:"dates head" "dates view";height:100%}
   body.apple.nodates #app{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "view"}
   body.apple.nodates #datecol{display:none}
@@ -1302,6 +1315,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <div id="summarybar"></div>
   <nav id="datestrip" aria-label="Install dates"></nav>
   <div id="datefoot"></div>
+  <div class="colgrip" id="gripdates" role="separator" aria-orientation="vertical" aria-label="Resize the dates list" title="Drag to resize · double-click to reset" tabindex="0"></div>
 </aside>
 <header>
   <div id="headtitle">
@@ -1352,6 +1366,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
 <div id="staffwrap" style="display:none"></div>
 <div id="main">
   <div id="side"></div>
+  <div class="colgrip" id="gripside" role="separator" aria-orientation="vertical" aria-label="Resize the crew list" title="Drag to resize · double-click to reset" tabindex="0"></div>
   <div id="map"></div>
 </div>
 </div>
@@ -7777,6 +7792,41 @@ function render(){
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
   if(typeof syncTvBack==='function') syncTvBack();
 }
+// ---------- resizable columns ----------
+// Drag either vertical border (dates | day, day | map) to resize; double-
+// click resets. Widths are a per-device preference, like the date scope.
+(function(){
+  const KEY='tbdg-col-widths', root=document.documentElement;
+  const DEF={dates:272, side:520};
+  const LIM={dates:[200,460], side:[340,1000]};
+  let w={...DEF};
+  try{ Object.assign(w, JSON.parse(localStorage.getItem(KEY)||'{}')); }catch(e){}
+  const clamp=(k,v)=>Math.round(Math.max(LIM[k][0], Math.min(LIM[k][1], v)));
+  const apply=()=>{ root.style.setProperty('--datecol-w', clamp('dates',w.dates)+'px');
+                    root.style.setProperty('--side-w', clamp('side',w.side)+'px'); };
+  const save=()=>{ try{ localStorage.setItem(KEY, JSON.stringify(w)); }catch(e){} };
+  let raf=0;
+  const refit=()=>{ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>{ try{ map.invalidateSize(); }catch(e){} }); };
+  apply();
+  const wire=(el,key,fromX)=>{
+    if(!el) return;
+    el.addEventListener('pointerdown', e=>{
+      e.preventDefault(); el.setPointerCapture(e.pointerId);
+      el.classList.add('dragging'); document.body.classList.add('resizing');
+      const move=ev=>{ w[key]=clamp(key, fromX(ev.clientX)); apply(); refit(); };
+      const up=()=>{ el.classList.remove('dragging'); document.body.classList.remove('resizing');
+        el.removeEventListener('pointermove',move); el.removeEventListener('pointerup',up);
+        el.removeEventListener('pointercancel',up); save(); refit(); };
+      el.addEventListener('pointermove',move); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+    });
+    el.addEventListener('dblclick', ()=>{ w[key]=DEF[key]; apply(); save(); refit(); });
+    el.addEventListener('keydown', e=>{
+      if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
+      e.preventDefault(); w[key]=clamp(key, w[key]+(e.key==='ArrowRight'?16:-16)); apply(); save(); refit(); });
+  };
+  wire(document.getElementById('gripdates'),'dates', x=>x);
+  wire(document.getElementById('gripside'),'side', x=>x-document.getElementById('side').getBoundingClientRect().left);
+})();
 // ---------- toolbar (undo / redo / saved, print, New menu) ----------
 function syncToolbar(){
   const u=document.getElementById('tbundo'), r=document.getElementById('tbredo');
