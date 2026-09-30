@@ -1000,6 +1000,7 @@ body.apple #newpop button{all:unset;box-sizing:border-box;display:block;padding:
 body.apple #newpop button:hover,body.apple #newpop button:focus-visible{background:var(--brand-soft)}
 body.apple #seasonpick{height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;padding:0 10px;font-weight:700}
 body.apple #statewarn,body.apple #robanner{flex:1 1 100%}
+body.apple #tbsaved.bad{color:#b91c1c}
 body.readonly #newmenu,body.readonly #tbundo,body.readonly #tbredo{opacity:.4;pointer-events:none}
 body.viewonly #newmenu,body.viewonly #tbedit,body.viewonly #tbprint{display:none!important}
 body.apple #histwrap{position:relative}
@@ -1135,9 +1136,12 @@ body.apple .sfmanual{all:unset;box-sizing:border-box;display:block;width:100%;ma
 body.apple .sfmanual:hover{background:var(--brand-soft);border-color:var(--brand)}
 @media (max-width:640px){ body.apple .sfwrap{grid-template-columns:1fr} body.apple .sfnav{display:none} }
 body.apple .badge.sftag{background:#0f766e;color:#fff;letter-spacing:.03em}
+body.apple .dchip.holiday,body.apple .dchip.holiday .dcount{color:#8b857d}
+body.apple .dchip.holiday .dlab{text-decoration:line-through;text-decoration-color:rgba(139,133,125,.5)}
 body.apple .dchip.off{color:#a8a29e;font-weight:600}
 body.apple .dchip.off .dcount{color:var(--brand);font-weight:800;opacity:0}
 body.apple .dchip.off:hover .dcount,body.apple .dchip.off:focus-visible .dcount{opacity:1}
+@media (hover:none){ body.apple .dchip.off .dcount{opacity:1} }
 body.apple .dchip.off:disabled{cursor:default;opacity:.7}
 @media (min-width:1024px){ body.apple .dchip.off,body.apple .dchip.off.wknd{background:transparent;border:0} }
 body.apple .dchip.janpick{height:32px;margin-top:6px;border:1px dashed #cfc8ba;background:#fff;color:var(--mut);max-width:none}
@@ -1657,12 +1661,16 @@ const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
 const SPEC = DATA.spec, K = SPEC.const;
+const WORK_WINDOW = {from:'', to:''};
 // Every day from Oct 21 through the install cutoff is a regular schedule
 // date (user, 2026-09-29: "add all the dates that are in between") -- no
 // more greyed gaps to add one at a time. Takedown days stay add-as-needed.
 (function(){
-  const from=`${String(DATA.spec.calendar.map(c=>c.date).sort()[0]||'').slice(0,4)}-10-21`, to='__CUTOFF__';
-  SPEC.calendar.forEach(ci=>{ if(ci.optional && ci.date>=from && ci.date<=to) ci.optional=false; });
+  // The calendar's own optional flags are left alone -- flipping them made
+  // normDates drop staff-added dates (and their training days) from the
+  // shared state on the next save. activeCalendar() includes the window.
+  WORK_WINDOW.from=`${String(DATA.spec.calendar.map(c=>c.date).sort()[0]||'').slice(0,4)}-10-21`;
+  WORK_WINDOW.to='__CUTOFF__';
   // Thanksgiving is a hard no; weekends are allowed but discouraged (user,
   // 2026-09-29). WEEKEND is a soft code: it warns and asks, never blocks.
   SPEC.codes.THANKS = {...(SPEC.codes.THANKS||{}), rule:'CAL', msg:'Thanksgiving Day — no installs', soft:false};
@@ -1849,8 +1857,9 @@ let confirmed = new Set();
 let newDates = new Set();
 /** Calendar entries actually on the board: the working calendar, plus any
  *  optional date staff explicitly added. */
+function inWorkWindow(dt){ return !!WORK_WINDOW.from && dt>=WORK_WINDOW.from && dt<=WORK_WINDOW.to; }
 function activeCalendar(){
-  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date));
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inWorkWindow(ci.date));
 }
 function normDates(list){
   const ok = new Set(SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date));
@@ -2615,6 +2624,9 @@ document.getElementById('tvback').onclick=()=>{
 // Tapping outside the stop popup closes it (a <dialog>'s backdrop click
 // lands on the dialog element itself).
 document.getElementById('peekdlg').addEventListener('click', e=>{
+  // Only the modal pop-up has a backdrop; the inline drop-down's padding is
+  // part of its card and must not fold it.
+  if(e.currentTarget.classList.contains('inline')) return;
   if(e.target===e.currentTarget) e.currentTarget.close(); });
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
   syncTvHint(); if(TVMODE && viewMode==='cal') setTimeout(fitWall, 60); }));
@@ -2854,9 +2866,11 @@ async function pushSharedNow(){
       headers:{'Content-Type':'application/json', Authorization:AUTH},
       body: JSON.stringify({version:SPEC.version, state:sharedSnapshot()}),
     });
+    lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
     return r.ok;
-  }catch(e){ return false; }
+  }catch(e){ lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false; }
 }
+var lastPushOk = null;   // null: nothing pushed yet this session
 // Flush a pending debounced push when the page is going away. Without
 // this, an edit made in the last 200ms before the tab is closed, the phone
 // is locked, or the app navigates to another tab only lives in this
@@ -4391,7 +4405,14 @@ function renderStrip(){
       if(ds.every(d=>approved.has(d.id))) st='ok';
       else if(ds.some(d=>dayCalc(d).total>(d.win||600))) st='warn';
     }
-    return mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:'Open'});
+    const holiday = ci && ci.kind==='thanksgiving';
+    const b = mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:(holiday?'No installs':'Open'), cls:holiday?'holiday':''});
+    if(holiday){
+      b.title='Thanksgiving Day — no installs';
+      b.ondragover=e=>{ e.dataTransfer.dropEffect='none'; };
+      b.ondrop=e=>{ e.preventDefault(); b.classList.remove('dragover'); alert('Thanksgiving Day — no installs. Drop it on another date.'); };
+    }
+    return b;
   };
 
   const offChip=dt=>{
@@ -4404,7 +4425,7 @@ function renderStrip(){
     b.appendChild(lab);
     const c=document.createElement('span'); c.className='dcount'; c.textContent=addable?'+ Add':''; b.appendChild(c);
     b.title=addable?'Not on the schedule yet — click to add this date':'Outside the dates this build can schedule';
-    if(!addable){ b.disabled=true; strip.appendChild(b); return b; }
+    if(!addable || READONLY){ b.disabled=true; if(READONLY) b.title='Read-only'; strip.appendChild(b); return b; }
     const add=()=>{ if(roBlocked()) return false; const r=addDate(dt); if(!r.ok){ alert(r.msg); return false; } return true; };
     b.onclick=()=>{ if(confirm(`Add ${lab.textContent} to the schedule?`)) add(); };
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
@@ -4498,26 +4519,6 @@ function renderStrip(){
     sec(`${MON3[f.getMonth()]} | Week ${wk}`, city);
     w.dates.forEach(dt=> working.has(dt) ? dateChip(dt) : offChip(dt));
   });
-
-  // January takedown dates, one at a time from a dropdown rather than 31 more rows.
-  const JAN_PREFIX=`${MONTH_YEAR['01']}-01`;
-  const janLeft=SPEC.calendar.filter(ci=>ci.optional && ci.date.slice(0,7)===JAN_PREFIX
-    && !newDates.has(ci.date));
-  if(false && janLeft.length && showTakedown){
-    const sel=document.createElement('select');
-    sel.className='dchip janpick';
-    sel.innerHTML=`<option value="">+ January ${MONTH_YEAR['01']} takedown date…</option>`
-      + janLeft.map(ci=>`<option value="${ci.date}">${ci.dow} ${fmtMDYYYY(ci.date)}</option>`).join('');
-    sel.onchange=()=>{
-      const v=sel.value;
-      if(!v) return;
-      sel.value='';
-      if(roBlocked()) return;
-      const result=addDate(v);
-      if(!result.ok) alert(result.msg);
-    };
-    strip.appendChild(sel);
-  }
 
   // Pinned at the bottom: everyone not getting an install, and the maybes.
   // Drop a stop on either, same as the old trailing bubbles.
@@ -5053,7 +5054,7 @@ function renderLog(){
     if(id==='HOLD') return 'on hold'; if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
     const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
-    moves.slice(-8).map(m=>`<div class="ent">→ ${m.name}: ${fmtId(m.from)} → ${fmtId(m.to)}</div>`).join('')+
+    moves.slice(-8).map(m=>`<div class="ent">→ ${esc(m.name)}: ${esc(fmtId(m.from))} → ${esc(fmtId(m.to))}</div>`).join('')+
     `<div class="undobar">
        <button id="undoBtn" ${undoStack.length?'':'disabled'}>${IC.undo} Undo${
          undoStack.length>1?` (${undoStack.length})`:''}</button>
@@ -5338,7 +5339,11 @@ function addDate(v){
 document.getElementById('ndgo').onclick=()=>{
   const v=document.getElementById('nddate').value;
   const err=document.getElementById('nderr');
-  const result=addDate(v);
+  // Oct 21 - cutoff is already listed; recording it as added keeps it
+  // removable and lets it carry a training day, exactly as before.
+  const result = (v && inWorkWindow(v) && !newDates.has(v) && optionalDates().includes(v))
+    ? (roBlocked() ? {ok:false, msg:RO_MSG} : (pushUndo(), newDates.add(v), persist(), selDate=v, focusDayId=null, render(), {ok:true}))
+    : addDate(v);
   if(!result.ok){ err.textContent=result.msg; err.style.display='block'; return; }
   if(document.getElementById('ndtrain').checked) addTrainingDay(v);
   renderAddedDates();
@@ -6895,7 +6900,7 @@ function openStopPeek(row,dayId){
   const c=C[row];
   const d = dayId==null ? null : days.find(x=>x.id===dayId);
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
-  peekRow=row;
+  peekRow=row; pkDayId=dayId;
   pkEditingContact=false;
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
@@ -7067,7 +7072,7 @@ function markPeekRow(row, dayId){
   const el=(card||document).querySelector(`.stop[data-row="${row}"]`);
   if(el) el.classList.add('peeking');
 }
-var pkClosedRow=null, pkClosedAt=0;
+var pkClosedRow=null, pkClosedAt=0, pkDayId=null;
 function afterPeekClose(){
   if(peekdlg.open) return;          // reopened meanwhile -- leave it be
   markPeekRow(null);
@@ -7094,6 +7099,7 @@ const pkReduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matche
     const was=peekdlg.open; nativeClose(v); if(was) afterPeekClose();
     if(sc){ sc.scrollTop=top; requestAnimationFrame(()=>{ sc.scrollTop=top; }); }
   };
+  peekdlg.isClosing=()=>!!closing;
   peekdlg.close=function(v){
     if(!peekdlg.open || closing) return;
     if(!peekdlg.classList.contains('inline') || pkReduced() || !peekdlg.animate) return peekdlg.closeNow(v);
@@ -7122,6 +7128,8 @@ function animatePeekOpen(){
   a.onfinish=a.oncancel=()=>{ peekdlg.style.overflow=''; peekdlg.style.willChange=''; };
 }
 peekdlg.addEventListener('close', afterPeekClose);
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && peekdlg.open && peekdlg.classList.contains('inline')) peekdlg.close(); });
 let viewMode='days';
 // ---------- staffing UI ----------
 // Shifts first: the question people open this on is "who is working what",
@@ -7988,8 +7996,12 @@ function printDate(dt){
 }
 
 function render(){
+  let pkKeep=null;
   { const pk=document.getElementById('peekdlg');
-    if(pk && pk.parentNode!==document.body){ if(pk.open) (pk.closeNow||pk.close).call(pk); document.body.appendChild(pk); } }
+    if(pk && pk.parentNode!==document.body){
+      if(pk.open && !(pk.isClosing && pk.isClosing()) && viewMode==='days'){ pkKeep=pk; pk.style.display='none'; document.body.appendChild(pk); }
+      else { if(pk.open) (pk.closeNow||pk.close).call(pk); document.body.appendChild(pk); }
+    } }
   if(hostingSeason) return;      // our DOM belongs to a hosted season now
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
@@ -8017,6 +8029,14 @@ function render(){
   if(viewMode==='cal'){ renderCalendar(); }
   else if(viewMode==='staff'){ renderStaffing(); }
   else { renderStrip(); renderCards(); markSearchHit(); drawDate(selDate); }
+  if(pkKeep){
+    // Put the open drop-down back under its row; if that stop left this view, close it.
+    const card=pkDayId!=null ? side.querySelector(`.card[data-dayid="${CSS.escape(pkDayId)}"]`) : null;
+    const rowEl=(card||side).querySelector(`.stop[data-row="${peekRow}"]`);
+    pkKeep.style.display='';
+    if(rowEl){ rowEl.after(pkKeep); markPeekRow(peekRow, pkDayId); }
+    else (pkKeep.closeNow||pkKeep.close).call(pkKeep);
+  }
   const n=days.reduce((a,d)=>a+d.stops.length,0);
   const apprN=days.filter(d=>approved.has(d.id)).length;
   document.getElementById('summarybar').innerHTML=
@@ -8039,8 +8059,12 @@ function render(){
   let w={...DEF};
   try{ Object.assign(w, JSON.parse(localStorage.getItem(KEY)||'{}')); }catch(e){}
   const clamp=(k,v)=>Math.round(Math.max(LIM[k][0], Math.min(LIM[k][1], v)));
+  // Never let the crew list squeeze the map below ~320px, whatever was saved.
+  const sideMax=()=>{ const m=document.getElementById('main'); const mw=m?m.getBoundingClientRect().width:0;
+    return mw ? Math.max(LIM.side[0], Math.min(LIM.side[1], mw-320)) : LIM.side[1]; };
   const apply=()=>{ root.style.setProperty('--datecol-w', clamp('dates',w.dates)+'px');
-                    root.style.setProperty('--side-w', clamp('side',w.side)+'px'); };
+                    root.style.setProperty('--side-w', Math.min(clamp('side',w.side), sideMax())+'px'); };
+  window.addEventListener('resize', ()=>{ apply(); });
   const save=()=>{ try{ localStorage.setItem(KEY, JSON.stringify(w)); }catch(e){} };
   let raf=0;
   const refit=()=>{ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>{ try{ map.invalidateSize(); }catch(e){} }); };
@@ -8071,10 +8095,15 @@ function syncToolbar(){
   if(r){ r.disabled=!redoStack.length; r.title=redoStack.length?`Redo (${redoStack.length})`:'Nothing to redo'; }
   const sv=document.getElementById('tbsaved');
   if(sv){
-    const where = AUTH ? (syncState==='shared' ? 'Saved' : 'Saved on this device') : 'Saved on this device';
-    sv.innerHTML=`${IC.check}<span>${where}${moves.length?` · ${moves.length} change${moves.length===1?'':'s'}`:''}</span>`;
-    sv.title = AUTH ? 'Every change saves on its own and syncs to everyone'
-                    : 'Not connected to the app: changes are kept in this browser only';
+    const failed = AUTH && lastPushOk===false;
+    const where = READONLY ? 'Read-only' : failed ? 'Not saved to the server'
+      : (AUTH ? (syncState==='shared' ? 'Saved' : 'Saved on this device') : 'Saved on this device');
+    sv.classList.toggle('bad', failed);
+    sv.innerHTML=`${failed?'':IC.check}<span>${where}${!READONLY&&moves.length?` · ${moves.length} change${moves.length===1?'':'s'}`:''}</span>`;
+    sv.title = READONLY ? 'This season is archived -- nothing here can be changed'
+      : failed ? 'The last save did not reach the server -- your changes are kept on this device and will retry with your next change'
+      : AUTH ? 'Every change saves on its own and syncs to everyone'
+             : 'Not connected to the app: changes are kept in this browser only';
   }
 }
 document.getElementById('tbundo').onclick=()=>undo();
