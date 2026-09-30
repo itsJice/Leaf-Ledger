@@ -4169,9 +4169,9 @@ function cityOfDays(ds){
   const dal=ds.some(d=>d.cat==='M Crowd'), hou=ds.some(d=>d.cat!=='M Crowd');
   return dal&&hou ? 'Dallas + Houston' : (dal ? 'Dallas' : 'Houston');
 }
-/** Monday of dt's week, as an ISO date. */
+/** Sunday of dt's week (weeks run Sunday-Saturday), as an ISO date. */
 function weekOf(dt){
-  const d=dateOf(dt); const back=(d.getDay()+6)%7; d.setDate(d.getDate()-back);
+  const d=dateOf(dt); const back=d.getDay(); d.setDate(d.getDate()-back);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 let stripScrolledFor=null;
@@ -4358,10 +4358,11 @@ function renderStrip(){
                                      : `${listDate(a).split(', ')[1]} – ${listDate(z).split(', ')[1]}`);
     const city=cityOfDays(days.filter(d=>w.dates.includes(d.date)));
     // "Nov | Week 2": the month of the week's first listed date, and which
-    // Monday-start row of that month's calendar it sits on.
-    const f=dateOf(a), lead=(new Date(f.getFullYear(), f.getMonth(), 1).getDay()+6)%7;
+    // Sunday-start row of that month's calendar it sits on. No date range on
+    // the bar (user, 2026-09-29) -- the rows under it say the dates.
+    const f=dateOf(a), lead=new Date(f.getFullYear(), f.getMonth(), 1).getDay();
     const wk=Math.floor((f.getDate()-1+lead)/7)+1;
-    sec(`${MON3[f.getMonth()]} | Week ${wk}`, city, span);
+    sec(`${MON3[f.getMonth()]} | Week ${wk}`, city);
     w.dates.forEach(dt=> working.has(dt) ? dateChip(dt) : offChip(dt));
   });
 
