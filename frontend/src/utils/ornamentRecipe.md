@@ -288,40 +288,43 @@ rules instead.
 ### Enhancers
 
 Enhancers (picks/sprays) are a parallel bill of materials, counted from the designers'
-own table by tree height **and** width bucket (`ENHANCER_TABLE`, `enhancerLookup` /
-`enhancerCount` in `ornamentRecipe.ts`). Leaf & Ledger mode only — Vickerman's tool has
-no enhancers, so nothing changes there.
+enhancer card for **standard** trees (`ENHANCER_TABLE`, `enhancerLookup` / `enhancerCount`
+in `ornamentRecipe.ts`). Leaf & Ledger mode only — Vickerman's tool has no enhancers, so
+nothing changes there.
 
-| Tree (height, width) | Enhancers |
+| Tree (standard) | Enhancers |
 | --- | --- |
-| 7.5' 30–32" pencil | 8 |
-| 7–7.5' 40–45" | 8 |
-| 7.5' 48–65" | 14 |
-| 8.5–9' 49–50" | 16 |
-| 8.5–9' 57–80" | 18 |
-| 9.5–10' 60–82" | 24 |
-| 12' 60–72" | 30 |
-| 12' 73–86" | 36 |
+| 7' | 18 |
+| 8' | 24 |
+| 9' | 30 |
+| 10' | 32 |
+| 12' | 36 |
 | 14' | 48 |
 | 15' | 60 |
 
-Open conflict: the designer also said "an 8 has 24 enhancers" in conversation, which
-the table doesn't support (8 ft interpolates to 16). The table wins until she confirms.
+The card (warehouse clipboard, photographed 2026-09-30) replaced the designers' earlier
+height-and-width table and settled its open conflict: an 8 ft tree takes 24. The card stops
+at 12 ft; 14' and 15' are carried over from the earlier table until the designer confirms.
 
-**Lookup order** (`enhancerLookup`). A direct hit (1–2) returns the designer's table
-count verbatim, unrounded — her enhancer table is hers, as written. Only a computed
-value (3–4, interpolated or extrapolated) is rounded to a multiple of the color count
+**Lookup order** (`enhancerLookup`). A direct card hit returns the designers' count
+verbatim, unrounded. Only a computed value is rounded to a multiple of the color count
 (even by default):
 
-1. **Table** — a row whose height range (single heights ±0.25 ft) and width bucket both fit.
-2. **Nearest width** — the height fits but no bucket does: the closest bucket at that height
-   (7.5 ft x 36 in -> pencil row, 8).
-3. **Between rows** — no height fits: interpolate linearly between the nearest rows below
-   and above, each picked by width as in 1–2 (11 ft x 72 in -> between 24 and 30 -> 28;
-   8 ft x 52 in -> between 14 and 16 -> 16).
-4. **Beyond the table** — under 7 ft or over 15 ft: the end row's count scaled by surface
-   area against the row's width (bucket edge nearest the tree, or the default width when
-   the row has no bucket), never below 0 (16 ft x 104 in -> 70).
+1. **Card row** — the height is a card row (±0.25 ft) and the width reads as standard
+   (9 ft x 59 in -> 30).
+2. **Between rows** — interpolate linearly between the card rows below and above
+   (7.5 ft -> between 18 and 24 -> 22; 11 ft -> 34).
+3. **Beyond the card** — under 7 ft or over 15 ft: the end row scaled by surface area
+   against its standard width (6 ft -> 10; 16 ft -> 70).
+4. **Other widths** — pencil, slim, full or custom (outside the standard ratio's ±6%):
+   the standard tree's count from 1–3, scaled by this tree's surface area against the
+   standard width. An assumption, not the card; it reproduces the old pencil row
+   (7.5 ft x 32 in -> 8). Examples: 9 ft slim 50 in -> 22, 9 ft full 70 in -> 40.
+
+**Colors on each line** (`splitAcrossColors`). With Colors set to 2 or more, the ornament
+table and the printed sheet show each size split across the colors, as evenly as possible:
+30 over 3 colors -> Color 1: 10 · Color 2: 10 · Color 3: 10; a hand-edited 31 -> 11 / 10 / 10
+(remainder to the first colors). The printed total row shows the per-color totals.
 
 **Allocation** (`enhancerAllocation`) — a first guess for the designers to react to:
 
