@@ -55,9 +55,19 @@ const SomethingWentWrongPage = lazy(
   () => import("./pages/SomethingWentWrongPage"),
 );
 const Login = lazy(() => import("./pages/Login"));
+const SetPassword = lazy(() => import("./pages/SetPassword"));
 
 export const router = createBrowserRouter([
   // The only page reachable without signing in.
+  // Where invite and password-reset emails land -- also reachable signed out.
+  {
+    path: "/set-password",
+    element: (
+      <SuspenseWrapper>
+        <SetPassword />
+      </SuspenseWrapper>
+    ),
+  },
   {
     path: "/login",
     element: (
