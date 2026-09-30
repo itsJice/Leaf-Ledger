@@ -3731,11 +3731,11 @@ function parseOverview(sel){
   return m ? {group:m[1]||null, phase:m[2]||null} : null;
 }
 function overviewTitle(sel){
-  // Title case, no dash (user, 2026-09-29): "December 2026 Install Days".
+  // Title case, no dash (user, 2026-09-29): "Dallas Installs", "December 2026 Installs".
   const o=parseOverview(sel);
   if(!o) return '';
-  const half = o.phase==='INSTALL' ? 'Install Days' : o.phase==='TAKEDOWN' ? 'Takedown Days' : 'All Days';
-  if(!o.group) return o.phase ? (o.phase==='INSTALL' ? 'All Install Days' : 'All Takedown Days') : 'Overview';
+  const half = o.phase==='INSTALL' ? 'Installs' : o.phase==='TAKEDOWN' ? 'Takedowns' : 'Installs + Takedowns';
+  if(!o.group) return o.phase ? (o.phase==='INSTALL' ? 'All Installs' : 'All Takedowns') : 'Overview';
   if(o.group==='HOU') return `Houston ${half}`;
   if(o.group==='DAL') return o.phase ? `Dallas ${half}` : 'Dallas All Nights (Mi Cocina)';
   const mn=MONTH_NUM[o.group];
