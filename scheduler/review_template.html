@@ -408,7 +408,7 @@ body.readonly #newclientbtn,body.readonly #newdatebtn,
 body.readonly .cautoorder,body.readonly .undobar button,
 body.readonly [data-act],body.readonly .pkeditbtn,body.readonly .pkcommentrm,
 body.readonly #pkcommentadd,body.readonly #pkcommenttext,
-body.readonly #peekmove,body.readonly #peekout,body.readonly #stflist input[data-pid]{
+body.readonly #peekmove,body.readonly #peekout,body.readonly #sfout,body.readonly #sfpick,body.readonly #stflist input[data-pid]{
   opacity:.4;pointer-events:none;cursor:not-allowed}
 body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:default}
 /* ---- view toggle + calendar ---- */
@@ -1133,8 +1133,9 @@ body.apple .sfnav button:hover{background:rgba(31,61,43,.07);color:var(--ink)}
 body.apple .sfnav button.on{background:var(--brand);color:#fff}
 body.apple .sfmanual{all:unset;box-sizing:border-box;display:block;width:100%;margin:10px 0 4px;padding:10px;border-radius:10px;
   border:1.5px dashed #cfc8ba;text-align:center;cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif;font-size:13px;font-weight:800;color:var(--brand)}
-body.apple .sfmanual.sfout{color:#7f1d1d;border-color:#e3c5c5}
-body.apple .sfmanual.sfout:hover{background:#fdecec;border-color:#b91c1c}
+body.apple #sfdlg .sfbtns{align-items:center}
+body.apple #sfdlg .sfbtns #sfout{margin-right:auto;color:#7f1d1d;border-color:#e3c5c5;background:#fff}
+body.apple #sfdlg .sfbtns #sfout:hover{background:#fdecec;border-color:#b91c1c}
 body.apple .sfmanual:hover{background:var(--brand-soft);border-color:var(--brand)}
 @media (max-width:640px){ body.apple .sfwrap{grid-template-columns:1fr} body.apple .sfnav{display:none} }
 body.apple .badge.sftag{background:#0f766e;color:#fff;letter-spacing:.03em}
@@ -1511,7 +1512,10 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <label id="sflab">Client asked for</label>
   <select id="sfwant"></select>
   <div id="sfbody"></div>
-  <div class="btns"><button onclick="sfdlg.close()">Close</button></div>
+  <div class="btns sfbtns">
+    <button type="button" id="sfout" class="sfoutbtn" title="Take them out of this season — off every crew sheet and day count">Move to Not installing __SEASON__</button>
+    <button type="button" id="sfpick">Pick a date and crew yourself…</button>
+    <button onclick="sfdlg.close()">Close</button></div>
 </dialog>
 <dialog id="ncdlg">
   <b>New client / job</b>
@@ -5610,8 +5614,7 @@ function openSlotFinder(row){
     [...res].sort((a,b)=>a.slot.date.localeCompare(b.slot.date)||String(a.slot.crew).localeCompare(String(b.slot.crew)))
       .forEach(r=>{ const k=weekOf(r.slot.date), g=groups[groups.length-1];
         if(g && g.k===k) g.items.push(r); else groups.push({k, name:weekName(r.slot.date), items:[r]}); });
-    const manual=`<button type="button" class="sfmanual">Pick a date and crew yourself…</button>`
-      + `<button type="button" class="sfmanual sfout">Move to Not installing __SEASON__</button>`;
+    const manual='';
     body.innerHTML = res.length ? `
       <div class="sfwrap">
         <nav class="sfnav" aria-label="Jump to a week">
@@ -5630,10 +5633,10 @@ function openSlotFinder(row){
       const to=b.closest('.sfrow').dataset.to;
       if(commitPlan(planFor(row, to))) sfdlg.close();
     });
-    body.querySelector('.sfmanual:not(.sfout)').onclick=()=>{ sfdlg.close(); openMoveDlg(row, want); };
-    // Taking a client out of the season (user, 2026-10-01): same action as
-    // dropping their stop on Not installing.
-    body.querySelector('.sfout').onclick=()=>{ sfdlg.close(); markNotInstalling(row); };
+    // Always-visible footer actions (user, 2026-10-01): take them out of the
+    // season (same as dropping on Not installing), or pick by hand.
+    document.getElementById('sfout').onclick=()=>{ sfdlg.close(); markNotInstalling(row); };
+    document.getElementById('sfpick').onclick=()=>{ sfdlg.close(); openMoveDlg(row, want); };
     const list=body.querySelector('.sflist'), nav=body.querySelector('.sfnav');
     if(list && nav){
       // Measure un-stuck anchors, not the pinned headers: a stuck sticky
