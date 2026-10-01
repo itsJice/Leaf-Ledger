@@ -385,7 +385,7 @@ def test_production_allowlist(method, path, ok):
 def test_production_me_lists_pages_and_home(fake_db, board):
     fake_db.on_fetchval("FROM ll_app.user_roles", "production")
     out = run(me.get_me(user("production@example.com")))
-    assert out["readOnly"] and out["home"] == "/forms/product-request"
+    assert out["readOnly"] and out["home"] == "/search"
     assert "/jobs" in out["pages"] and "/settings" not in out["pages"]
     assert not out["fieldOnly"] and not out["viewOnly"]
 

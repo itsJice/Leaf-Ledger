@@ -183,7 +183,7 @@ PRODUCTION_DENY = (
 
 #: Pages (app routes) production may open, and where it lands -- read by the
 #: frontend from /api/me to build its menu and route guard.
-PRODUCTION_HOME = "/forms/product-request"
+PRODUCTION_HOME = "/search"
 PRODUCTION_PAGES = (
     "/forms/product-request", "/forms/product-request/responses", "/search",
     "/favorites", "/jobs", "/suppliers", "/ornament-calculator", "/clients",
