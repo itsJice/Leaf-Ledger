@@ -252,6 +252,15 @@ async def update_supplier(supplier_id: int, body: SupplierUpdate):
         next_name = sent.get("name") or existing["name"]
         next_scraper_key = _infer_scraper_key(
             next_name, sent["scraper_key"] if "scraper_key" in sent else existing["scraper_key"])
+        # Saved vendor logins took the team a long time to gather (user,
+        # 2026-09-30: "we don't want to lose those"). A blank username or
+        # password box on save means "not changing it", never "erase it" -- an
+        # edit form opened with the login unlocked and the password left empty
+        # used to wipe the saved one. Blank keys are dropped from `sent` so
+        # the rest of this function, and the UPDATE below, keep what is stored.
+        for cred in ("login_username", "login_password"):
+            if cred in sent and not (sent[cred] or "").strip() and existing[cred]:
+                sent.pop(cred)
         next_username = sent["login_username"] if "login_username" in sent else existing["login_username"]
         next_password = sent["login_password"] if "login_password" in sent else existing["login_password"]
         creds_changed = "login_username" in sent or "login_password" in sent
@@ -307,13 +316,32 @@ async def update_supplier(supplier_id: int, body: SupplierUpdate):
         await conn.close()
 
 @router.delete("/delete/{supplier_id}")
-async def delete_supplier(supplier_id: int):
+async def delete_supplier(supplier_id: int, confirm_name: Optional[str] = None):
+    """Delete a supplier.
+
+    Deleting a supplier CASCADES: every product it supplies (Vickerman alone is
+    ~22,000), their scrape history and catalog filters go with it, and there is
+    no undo. A browser confirm() was the only thing in the way. So a supplier
+    that still has products is only deleted when the request names it exactly
+    (`confirm_name`, typed by a person); otherwise this refuses with 409 and
+    says what would be lost. A supplier with no products deletes as before.
+    """
     conn = await get_conn()
     try:
+        row = await conn.fetchrow("SELECT name FROM suppliers WHERE id = $1", supplier_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Supplier not found")
+        products = await conn.fetchval("SELECT COUNT(*) FROM products WHERE supplier_id = $1", supplier_id) or 0
+        if products and (confirm_name or "").strip() != (row["name"] or "").strip():
+            raise HTTPException(
+                status_code=409,
+                detail=(f"{row['name']} still has {products:,} products. Deleting the supplier deletes them too, "
+                        f"with no undo. Type the supplier's name to confirm."),
+            )
         result = await conn.execute("DELETE FROM suppliers WHERE id = $1", supplier_id)
         if result == "DELETE 0":
             raise HTTPException(status_code=404, detail="Supplier not found")
-        return {"ok": True}
+        return {"ok": True, "products_deleted": products}
     finally:
         await conn.close()
 

@@ -255,7 +255,7 @@ export function ChristmasCard({ clientId, season, detail, previousDetail, pricin
         </p>
         <button
           type="button"
-          onClick={() => setEditing((v) => !v)}
+          data-edit onClick={() => setEditing((v) => !v)}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-stone-500 hover:bg-stone-100 hover:text-emerald-700"
         >
           {editing ? <><X size={12} /> Close</> : <><Pencil size={12} /> Edit card</>}

@@ -440,21 +440,20 @@ export interface EnhancerRow {
 }
 
 /**
- * The designers' enhancer table, verbatim, shortest tree first.
- *
- * Conflict on record: in conversation the designer also said "an 8 has 24
- * enhancers", which doesn't match this table (8 ft falls between the 7.5' rows
- * at 14 and the 8.5–9' rows at 16–18). The table wins until she confirms.
+ * The designers' enhancer card for STANDARD-profile trees, verbatim (the card on
+ * the warehouse clipboard, photographed 2026-09-30), shortest tree first. It
+ * replaces their earlier height-and-width table and settles its open conflict:
+ * an 8 ft tree takes 24, as the designer said. The card stops at 12 ft; the 14'
+ * and 15' counts are carried over from the earlier table until she confirms them.
+ * Rows are height-only: other widths scale from the standard count (see
+ * `enhancerLookup`).
  */
 export const ENHANCER_TABLE: EnhancerRow[] = [
-  { heightMinFt: 7.5, heightMaxFt: 7.5, widthMinIn: 30, widthMaxIn: 32, count: 8, label: "7.5' 30–32\" pencil" },
-  { heightMinFt: 7, heightMaxFt: 7.5, widthMinIn: 40, widthMaxIn: 45, count: 8, label: "7–7.5' 40–45\"" },
-  { heightMinFt: 7.5, heightMaxFt: 7.5, widthMinIn: 48, widthMaxIn: 65, count: 14, label: "7.5' 48–65\"" },
-  { heightMinFt: 8.5, heightMaxFt: 9, widthMinIn: 49, widthMaxIn: 50, count: 16, label: "8.5–9' 49–50\"" },
-  { heightMinFt: 8.5, heightMaxFt: 9, widthMinIn: 57, widthMaxIn: 80, count: 18, label: "8.5–9' 57–80\"" },
-  { heightMinFt: 9.5, heightMaxFt: 10, widthMinIn: 60, widthMaxIn: 82, count: 24, label: "9.5–10' 60–82\"" },
-  { heightMinFt: 12, heightMaxFt: 12, widthMinIn: 60, widthMaxIn: 72, count: 30, label: "12' 60–72\"" },
-  { heightMinFt: 12, heightMaxFt: 12, widthMinIn: 73, widthMaxIn: 86, count: 36, label: "12' 73–86\"" },
+  { heightMinFt: 7, heightMaxFt: 7, widthMinIn: null, widthMaxIn: null, count: 18, label: "7' standard" },
+  { heightMinFt: 8, heightMaxFt: 8, widthMinIn: null, widthMaxIn: null, count: 24, label: "8' standard" },
+  { heightMinFt: 9, heightMaxFt: 9, widthMinIn: null, widthMaxIn: null, count: 30, label: "9' standard" },
+  { heightMinFt: 10, heightMaxFt: 10, widthMinIn: null, widthMaxIn: null, count: 32, label: "10' standard" },
+  { heightMinFt: 12, heightMaxFt: 12, widthMinIn: null, widthMaxIn: null, count: 36, label: "12' standard" },
   { heightMinFt: 14, heightMaxFt: 14, widthMinIn: null, widthMaxIn: null, count: 48, label: "14'" },
   { heightMinFt: 15, heightMaxFt: 15, widthMinIn: null, widthMaxIn: null, count: 60, label: "15'" },
 ];
@@ -471,7 +470,9 @@ export type EnhancerSource =
   | { kind: "table"; row: EnhancerRow }
   | { kind: "nearestWidth"; row: EnhancerRow }
   | { kind: "interpolated"; lower: EnhancerRow; upper: EnhancerRow }
-  | { kind: "extrapolated"; row: EnhancerRow };
+  | { kind: "extrapolated"; row: EnhancerRow }
+  /** A non-standard width: the standard tree's count (from `base`) scaled by surface area. */
+  | { kind: "widthScaled"; base: EnhancerSource; standardCount: number; standardWidthIn: number };
 
 export interface EnhancerLookup {
   count: number;
@@ -505,7 +506,8 @@ function roundEnhancers(raw: number, colorCount: number): number {
 }
 
 /**
- * Enhancer count for a tree, with where it came from. Lookup order:
+ * Enhancer count for a STANDARD-width tree of this height, with where it came
+ * from. Lookup order:
  *   1. table   — a row whose height range (±0.25 ft) and width bucket both fit;
  *   2. nearest — the height fits but no width bucket does: the closest bucket;
  *   3. between — no height fits: interpolate linearly between the nearest rows
@@ -518,14 +520,8 @@ function roundEnhancers(raw: number, colorCount: number): number {
  * extrapolated) is rounded to a multiple of the color count (even by default).
  * Non-finite height/width are treated as invalid input (same as 0).
  */
-export function enhancerLookup(
-  heightFt: number,
-  widthIn: number,
-  colorCount: number = LL_DEFAULT_COLOR_COUNT
-): EnhancerLookup {
-  const colors = clampColorCount(colorCount);
-  const height = Number.isFinite(heightFt) ? heightFt : 0;
-  const width = Number.isFinite(widthIn) ? widthIn : 0;
+function standardEnhancerLookup(height: number, colors: number): EnhancerLookup {
+  const width = defaultWidthForHeight(height);
   const atHeight = ENHANCER_TABLE.filter((row) => rowMatchesHeight(row, height));
   if (atHeight.length) {
     const row = bestWidthRow(atHeight, width);
@@ -559,6 +555,33 @@ export function enhancerLookup(
   return { count: roundEnhancers(row.count * ratio, colors), source: { kind: "extrapolated", row } };
 }
 
+/**
+ * Enhancer count for a tree, with where it came from. The designers' card is for
+ * standard trees, so the count is the standard tree's (`standardEnhancerLookup`)
+ * whenever the width reads as the standard profile (within its tolerance). A
+ * pencil, slim, full or custom width scales that count by surface area against
+ * the standard width, rounded to the color count: an assumption, not the card,
+ * though it reproduces the old table's pencil row (7.5 ft x 32 in -> 8).
+ * Non-finite height/width are treated as invalid input (same as 0).
+ */
+export function enhancerLookup(
+  heightFt: number,
+  widthIn: number,
+  colorCount: number = LL_DEFAULT_COLOR_COUNT
+): EnhancerLookup {
+  const colors = clampColorCount(colorCount);
+  const height = Number.isFinite(heightFt) ? heightFt : 0;
+  const width = Number.isFinite(widthIn) ? widthIn : 0;
+  const standard = standardEnhancerLookup(height, colors);
+  if (height <= 0 || width <= 0 || profileForWidth(height, width) === "standard") return standard;
+  const standardWidthIn = defaultWidthForHeight(height);
+  const ratio = treeSurfaceArea(height, width) / treeSurfaceArea(height, standardWidthIn) || 0;
+  return {
+    count: roundEnhancers(standard.count * ratio, colors),
+    source: { kind: "widthScaled", base: standard.source, standardCount: standard.count, standardWidthIn },
+  };
+}
+
 /** Enhancer count for a tree — see `enhancerLookup` for the fallback order. */
 export function enhancerCount(
   heightFt: number,
@@ -566,6 +589,19 @@ export function enhancerCount(
   colorCount: number = LL_DEFAULT_COLOR_COUNT
 ): number {
   return enhancerLookup(heightFt, widthIn, colorCount).count;
+}
+
+/**
+ * Split one size's quantity across the design's colors, as evenly as possible:
+ * 30 over 3 colors -> [10, 10, 10]; a hand-edited 31 -> [11, 10, 10] (any
+ * remainder goes to the first colors). One color, or none, returns the quantity whole.
+ */
+export function splitAcrossColors(quantity: number, colorCount: number): number[] {
+  const colors = Math.max(1, Math.floor(colorCount) || 1);
+  const qty = Math.max(0, Math.floor(quantity) || 0);
+  const each = Math.floor(qty / colors);
+  const remainder = qty - each * colors;
+  return Array.from({ length: colors }, (_, i) => each + (i < remainder ? 1 : 0));
 }
 
 /** A recipe line split between the tree and the enhancers. */

@@ -7,7 +7,7 @@ import { apiFetch } from "utils/apiFetch";
 // Users. The server enforces every rule on its own -- this only decides what
 // to show.
 
-export type Role = "crew" | "viewer" | "lead" | "staff" | "admin" | "super_admin";
+export type Role = "crew" | "viewer" | "production" | "lead" | "staff" | "admin" | "super_admin";
 
 export interface RosterPerson {
   id: string;
@@ -26,6 +26,12 @@ export interface Me {
   fieldOnly: boolean;
   /** The warehouse display login: the install schedule, read-only, full screen. */
   viewOnly: boolean;
+  /** The production login: view-only apart from what the server allows. */
+  readOnly?: boolean;
+  /** For a restricted login, the only pages it may open (else null). */
+  pages?: string[] | null;
+  /** Where a restricted login lands. */
+  home?: string | null;
   person: RosterPerson | null;
 }
 
@@ -69,6 +75,9 @@ export function useMe(userId: string | undefined) {
     loadMe(userId)
       .then((m) => {
         current = { userId, me: m };
+        // CSS hook: `[data-readonly] [data-edit]` hides edit controls for the
+        // production login (index.css). The server refuses those writes anyway.
+        document.documentElement.toggleAttribute("data-readonly", Boolean(m.readOnly));
         if (live) {
           setMe(m);
           setError(null);
@@ -81,6 +90,18 @@ export function useMe(userId: string | undefined) {
   }, [userId, attempt]);
 
   return { me, error, retry: () => setAttempt((n) => n + 1) };
+}
+
+/** May this account open `path`? A page in `pages` covers its sub-pages
+ *  ("/jobs" allows "/jobs/12"). Unrestricted accounts may open anything. */
+export function pageAllowed(me: Me | null, path: string): boolean {
+  if (!me?.pages) return true;
+  return me.pages.some((p) => path === p || path.startsWith(p + "/"));
+}
+
+/** View-only apart from what the server allows (the production login). */
+export function isReadOnly(): boolean {
+  return Boolean(current?.me.readOnly);
 }
 
 /** The loaded account, for components rendered under the router gate. */

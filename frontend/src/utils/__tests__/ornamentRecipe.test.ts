@@ -17,6 +17,7 @@ import {
   enhancerAllocation,
   enhancerCount,
   enhancerLookup,
+  splitAcrossColors,
   leafLedgerMinTopCount,
   leafLedgerSizes,
   leafLedgerSource,
@@ -41,7 +42,8 @@ describe("constants", () => {
   it("pins table sizes and shapes", () => {
     expect(ORNAMENT_OPTIONS.map((o) => o.display)).toEqual(["1", "1.6", "2.4", "2.75", "3", "4", "4.75", "6", "8", "10", "12", "15.75", "20", "24"]);
     expect(GOLDEN_RECIPES.map((g) => [g.heightFt, g.widthIn])).toEqual([[7.5, 49], [8, 52], [10, 65], [12, 78]]);
-    expect(ENHANCER_TABLE.map((r) => r.count)).toEqual([8, 8, 14, 16, 18, 24, 30, 36, 48, 60]);
+    // The designers' standard-tree card (7' 18, 8' 24, 9' 30, 10' 32, 12' 36) plus the carried-over 14' and 15'.
+    expect(ENHANCER_TABLE.map((r) => [r.heightMinFt, r.count])).toEqual([[7, 18], [8, 24], [9, 30], [10, 32], [12, 36], [14, 48], [15, 60]]);
     expect(Object.keys(WIDTH_PROFILES)).toEqual(["pencil", "slim", "standard", "full"]);
     // FIX: the doc comment said "All 58"; no rules doc names a 58th color,
     // so the comment (in ornamentRecipe.ts and ornamentRecipe.md) was
@@ -195,37 +197,47 @@ describe("leaf & ledger helpers", () => {
   });
 });
 
+describe("splitAcrossColors", () => {
+  it("splits a size's quantity evenly, remainder to the first colors", () => {
+    expect(splitAcrossColors(30, 3)).toEqual([10, 10, 10]);
+    expect(splitAcrossColors(31, 3)).toEqual([11, 10, 10]);
+    expect(splitAcrossColors(17, 2)).toEqual([9, 8]);
+    expect(splitAcrossColors(25, 1)).toEqual([25]);
+    expect(splitAcrossColors(0, 2)).toEqual([0, 0]);
+  });
+});
+
 describe("enhancers", () => {
   it("enhancerLookup covers every source kind", () => {
     const view = (h: number, w: number, c?: number) => {
       const e = enhancerLookup(h, w, c);
       return [e.count, e.source.kind];
     };
-    expect(view(10, 65)).toEqual([24, "table"]);
-    expect(view(7.5, 70)).toEqual([14, "nearestWidth"]);
-    expect(view(7.5, 20)).toEqual([8, "nearestWidth"]);
-    expect(view(8, 52)).toEqual([16, "interpolated"]);
-    expect(view(11, 71)).toEqual([28, "interpolated"]);
-    expect(view(6, 39)).toEqual([6, "extrapolated"]);
-    expect(view(20, 130)).toEqual([118, "extrapolated"]);
+    // Standard trees read the card verbatim.
+    expect(view(9, 59)).toEqual([30, "table"]);
+    expect(view(10, 65)).toEqual([32, "table"]);
+    // Between card rows: interpolated, rounded to even.
+    expect(view(7.5, 49)).toEqual([22, "interpolated"]);
+    expect(view(11, 72)).toEqual([34, "interpolated"]);
+    // Beyond the card: the end row scaled by surface area.
+    expect(view(6, 39)).toEqual([10, "extrapolated"]);
+    expect(view(16, 104)).toEqual([70, "extrapolated"]);
     expect(view(0, 0)).toEqual([0, "extrapolated"]);
     expect(view(-3, 40)).toEqual([0, "extrapolated"]);
+    // Pencil, slim, full or custom widths: the standard count scaled by surface area.
+    expect(view(7.5, 32)).toEqual([8, "widthScaled"]);
+    expect(view(9, 70)).toEqual([40, "widthScaled"]);
+    expect(view(12, 60)).toEqual([24, "widthScaled"]);
   });
 
-  it("enhancerCount rounds interpolated/extrapolated counts to the color count", () => {
-    expect([enhancerCount(13, 85), enhancerCount(5, 30), enhancerCount(18, 117), enhancerCount(8, 52, 3)]).toEqual([42, 2, 92, 15]);
+  it("enhancerCount rounds computed counts to the color count", () => {
+    expect([enhancerCount(13, 85), enhancerCount(18, 117), enhancerCount(7.5, 49, 3), enhancerCount(9, 70, 3)]).toEqual([42, 92, 21, 42]);
   });
 
-  // DECISION (not a bug): a direct table/nearest-width hit returns the
-  // designer's row count verbatim, unrounded. designer-recipe-plan.md calls
-  // the table "hers, verbatim" (### Enhancer table (hers, verbatim)) and rule
-  // 4's "every per-size quantity should divide by the color count" is about
-  // the ornament-recipe sizes, not the enhancer table entries — there's no
-  // rule saying her literal enhancer counts get re-rounded. The stale claim
-  // was the JSDoc/README comment ("always rounded"), which has been corrected
-  // to say only a computed (interpolated/extrapolated) count is rounded.
-  it("a direct table hit returns the designer's row count verbatim, not rounded to the color count", () => {
-    expect(enhancerCount(7.5, 49, 3)).toBe(14);
+  // A direct card hit returns the designers' count verbatim, unrounded, even when
+  // it isn't a multiple of the color count (32 with 3 colors).
+  it("a direct card hit returns the designer's count verbatim, not rounded to the color count", () => {
+    expect(enhancerCount(10, 65, 3)).toBe(32);
   });
 
   // FIX: a non-finite height used to fall through every lookup branch to

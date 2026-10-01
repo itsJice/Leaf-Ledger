@@ -5,7 +5,7 @@ import { isSupabaseConfigured } from "app/auth/supabase";
 import { LeafLedgerLogo } from "components/LeafLedgerLogo";
 
 export default function Login() {
-  const { user, loading, signIn, sendPasswordReset } = useAuth();
+  const { user, loading, signIn, sendPasswordReset, sendSignInLink } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,7 +14,10 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [resetMode, setResetMode] = useState(false);
+  // "password" signs in; "reset" emails a set-password link; "link" emails a
+  // one-time sign-in link (no password).
+  const [mode, setMode] = useState<"password" | "reset" | "link">("password");
+  const resetMode = mode !== "password";
 
   const next = new URLSearchParams(location.search).get("next") || "/";
 
@@ -37,12 +40,16 @@ export default function Login() {
 
     setBusy(true);
     if (resetMode) {
-      const { error } = await sendPasswordReset(email);
+      const { error } = mode === "link" ? await sendSignInLink(email) : await sendPasswordReset(email);
       setBusy(false);
       if (error) {
         setError(error);
       } else {
-        setNotice("Check your email for a link to reset your password.");
+        setNotice(
+          mode === "link"
+            ? "Check your email for a sign-in link."
+            : "Check your email for a link to reset your password.",
+        );
       }
       return;
     }
@@ -66,12 +73,14 @@ export default function Login() {
 
         <div className="ll-enter rounded-lg border border-brand-deep/10 bg-white p-6 shadow-sm">
           <h2 className="mb-1 text-lg font-medium text-brand-deep">
-            {resetMode ? "Reset your password" : "Sign in"}
+            {mode === "reset" ? "Reset your password" : mode === "link" ? "Email me a sign-in link" : "Sign in"}
           </h2>
           <p className="mb-5 text-sm text-brand-deep/60">
-            {resetMode
+            {mode === "reset"
               ? "We'll email you a link to set a new password."
-              : "Welcome back."}
+              : mode === "link"
+                ? "We'll email you a one-time link. No password needed."
+                : "Welcome back."}
           </p>
 
           {!isSupabaseConfigured && (
@@ -139,23 +148,28 @@ export default function Login() {
             >
               {busy
                 ? "Please wait…"
-                : resetMode
+                : mode === "reset"
                   ? "Send reset link"
-                  : "Sign in"}
+                  : mode === "link"
+                    ? "Send sign-in link"
+                    : "Sign in"}
             </button>
           </form>
 
-          <button
-            type="button"
-            onClick={() => {
-              setResetMode(!resetMode);
-              setError(null);
-              setNotice(null);
-            }}
-            className="mt-4 w-full text-center text-sm text-brand-deep/60 underline-offset-2 hover:text-brand-deep hover:underline"
-          >
-            {resetMode ? "Back to sign in" : "Forgot your password?"}
-          </button>
+          {(mode === "password" ? (["reset", "link"] as const) : (["password"] as const)).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                setMode(m);
+                setError(null);
+                setNotice(null);
+              }}
+              className="mt-3 w-full text-center text-sm text-brand-deep/60 underline-offset-2 hover:text-brand-deep hover:underline"
+            >
+              {m === "reset" ? "Forgot your password?" : m === "link" ? "Email me a sign-in link instead" : "Back to sign in"}
+            </button>
+          ))}
         </div>
 
         <p className="mt-6 text-center text-xs text-brand-deep/40">
