@@ -708,51 +708,121 @@ function SupplierCardWrapper(props: {
 }
 
 // ── Main Page ────────────────────────────────────────────────────────────────
+
+// The last list this device loaded successfully, so a failed load shows what
+// was there instead of an empty page (user, 2026-09-30: a teammate saw "No
+// suppliers yet" on a load that had failed, and read it as the suppliers
+// being gone -- they weren't). Login usernames are left out of it.
+const SUPPLIERS_CACHE_KEY = "ll-suppliers-last-good-v1";
+function readSupplierCache(): { at: number; suppliers: Supplier[] } | null {
+  try {
+    const raw = localStorage.getItem(SUPPLIERS_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && Array.isArray(parsed.suppliers) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+function writeSupplierCache(list: Supplier[]) {
+  try {
+    const safe = list.map((s) => ({ ...s, login_username: null }));
+    localStorage.setItem(SUPPLIERS_CACHE_KEY, JSON.stringify({ at: Date.now(), suppliers: safe }));
+  } catch { /* storage full or blocked -- the page still works */ }
+}
+
 export default function Suppliers() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = React.useMemo(() => readSupplierCache(), []);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => cached?.suppliers || []);
+  const [loading, setLoading] = useState(() => !cached?.suppliers?.length);
   const [refreshing, setRefreshing] = useState(false);
+  // "No suppliers yet" is only ever said after the SERVER said so. Until a
+  // load succeeds, a failure is shown as a failure, with the saved copy.
+  const [loadedFromServer, setLoadedFromServer] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [showingSavedAt, setShowingSavedAt] = useState<number | null>(() => (cached?.suppliers?.length ? cached.at : null));
   const [showModal, setShowModal] = useState(false);
   const [editSupplier, setEditSupplier] = useState<Partial<Supplier> | null>(null);
 
-  const load = async () => {
+  const fetchList = async (): Promise<Supplier[]> => {
+    // Generous timeout: right after a deploy the server's first request can
+    // be slow, and giving up early is what used to empty this page.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    try {
+      const res = await apiFetch("/api/suppliers/list", { credentials: "include", signal: controller.signal });
+      if (!res.ok) throw new Error(`the server answered ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("the server sent something unexpected");
+      return data;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const load = async (attempt = 1) => {
     if (suppliers.length === 0) setLoading(true);
     else setRefreshing(true);
     try {
-      // Race against a 10-second timeout so the page never hangs forever
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const res = await apiFetch("/api/suppliers/list", {
-        credentials: "include",
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) throw new Error(`Supplier list failed with ${res.status}`);
-      const data = await res.json();
-      if (!Array.isArray(data)) throw new Error("Supplier list returned an unexpected shape");
+      const data = await fetchList();
       setSuppliers(data);
+      setLoadedFromServer(true);
+      setLoadError(null);
+      setShowingSavedAt(null);
+      writeSupplierCache(data);
+      setLoading(false);
+      setRefreshing(false);
     } catch (err: any) {
-      if (err?.name === "AbortError") {
-        toast.error("Suppliers took too long to load — the server may be busy. Try refreshing.");
-      } else {
-        toast.error("Failed to load suppliers — try refreshing the page.");
+      // One quiet retry covers the usual culprits: a request made in the same
+      // moment as sign-in (no token yet), or a server mid-restart after a deploy.
+      // The spinner stays up through it.
+      if (attempt === 1) {
+        setTimeout(() => void load(2), 2000);
+        return;
       }
-    } finally {
+      setLoadError(err?.name === "AbortError" ? "the server took too long to answer" : String(err?.message || err));
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const deleteSupplier = async (id: number) => {
-    if (!confirm("Delete this supplier? All associated products will also be removed.")) return;
+    const s = suppliers.find((x) => x.id === id);
+    if (!s) return;
+    // Deleting a supplier deletes every product it supplies, with no undo. A
+    // supplier with products needs its name typed; the server enforces the
+    // same rule (backend/app/apis/suppliers delete_supplier).
+    let confirmName = "";
+    if (s.product_count > 0) {
+      const typed = window.prompt(
+        `Delete ${s.name} and all ${s.product_count.toLocaleString()} of its products? This cannot be undone.\n\n` +
+        `Type the supplier's name exactly to confirm:`,
+      );
+      if (typed == null) return;
+      if (typed.trim() !== s.name.trim()) { toast.error("The name didn't match — nothing was deleted."); return; }
+      confirmName = typed.trim();
+    } else if (!confirm(`Delete ${s.name}? It has no products.`)) {
+      return;
+    }
     try {
-      await apiClient.delete_supplier({ supplierId: id });
-      setSuppliers((prev) => prev.filter((s) => s.id !== id));
-      toast.success("Supplier deleted");
-    } catch {
-      toast.error("Failed to delete supplier");
+      const res = await apiFetch(
+        `/api/suppliers/delete/${id}${confirmName ? `?confirm_name=${encodeURIComponent(confirmName)}` : ""}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        let detail = "";
+        try { detail = (await res.json())?.detail || ""; } catch { /* no body */ }
+        throw new Error(detail || `failed with ${res.status}`);
+      }
+      setSuppliers((prev) => {
+        const next = prev.filter((x) => x.id !== id);
+        writeSupplierCache(next);
+        return next;
+      });
+      toast.success(`${s.name} deleted`);
+    } catch (e: any) {
+      toast.error(`Nothing was deleted: ${e?.message || "the delete failed"}`);
     }
   };
 
@@ -782,10 +852,32 @@ export default function Suppliers() {
       </header>
 
       <div className="px-4 sm:px-10 py-6 max-w-4xl">
-        {loading ? (
+        {loadError && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+            <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+            <span className="min-w-0 flex-1">
+              <b>Couldn't load the supplier list</b> ({loadError}). Nothing has been deleted — this is a loading problem.
+              {showingSavedAt ? ` Showing the list this device saved ${new Date(showingSavedAt).toLocaleString()}.` : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setLoadError(null); void load(2); }}
+              className="rounded-lg border border-amber-400 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        {loading && !loadError ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : suppliers.length === 0 && !loadedFromServer ? (
+          loadError ? null : (
+            <div className="flex items-center justify-center py-24">
+              <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )
         ) : suppliers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>

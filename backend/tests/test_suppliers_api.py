@@ -103,16 +103,33 @@ def test_update_writes_only_sent_columns(fake_db, storage):
     assert out["has_credentials"] is True
 
 
-def test_update_blank_credentials_marks_missing_and_404(fake_db, storage):
+def test_update_404(fake_db, storage):
     with pytest.raises(HTTPException) as exc:
         run(suppliers.update_supplier(7, suppliers.SupplierUpdate(name="x")))
     assert exc.value.status_code == 404
-    fake_db.on_fetchrow("SELECT * FROM suppliers WHERE id = $1", supplier_row())
-    fake_db.on_fetchrow("UPDATE suppliers SET", supplier_row(login_username=""))
+
+
+def test_blank_login_boxes_never_erase_saved_credentials(fake_db, storage):
+    # Saved vendor logins took the team a long time to gather; an edit saved
+    # with the username/password boxes empty must keep them, not wipe them.
+    saved = supplier_row()
+    assert saved["login_username"] and saved["login_password"]
+    fake_db.on_fetchrow("SELECT * FROM suppliers WHERE id = $1", saved)
+    fake_db.on_fetchrow("UPDATE suppliers SET", saved)
+    fake_db.on_fetchval("SELECT COUNT(*) FROM products WHERE supplier_id", 10)
+    out = run(suppliers.update_supplier(7, suppliers.SupplierUpdate(login_username="", login_password="  ", notes="hi")))
+    (sql, args), = fake_db.calls("UPDATE suppliers SET")
+    assert "login_username" not in sql and "login_password" not in sql
+    assert "" not in args and "  " not in args
+    assert out["has_credentials"] is True
+
+
+def test_blank_login_on_a_supplier_without_one_marks_missing(fake_db, storage):
+    fake_db.on_fetchrow("SELECT * FROM suppliers WHERE id = $1", supplier_row(login_username=None, login_password=None))
+    fake_db.on_fetchrow("UPDATE suppliers SET", supplier_row(login_username="", login_password=None))
     run(suppliers.update_supplier(7, suppliers.SupplierUpdate(login_username="")))
     (sql, args), = fake_db.calls("UPDATE suppliers SET")
-    assert not sql.startswith("UPDATE suppliers SET name")  # name wasn't sent, so it's untouched
-    assert args == ("", "vickerman", "missing", 7)
+    assert args[-2:] == ("missing", 7)
 
 
 def test_update_rejects_blank_name(fake_db, storage):
@@ -127,13 +144,33 @@ def test_update_rejects_blank_name(fake_db, storage):
     ]
 
 
-def test_delete_404_on_zero_rows(fake_db, storage):
-    fake_db.on_execute("DELETE FROM suppliers", "DELETE 0")
+def test_delete_404_when_missing(fake_db, storage):
     with pytest.raises(HTTPException) as exc:
         run(suppliers.delete_supplier(7))
-    assert exc.value.detail == "Supplier not found"
+    assert (exc.value.status_code, exc.value.detail) == (404, "Supplier not found")
+    assert not fake_db.seen("DELETE FROM suppliers")
+
+
+def test_delete_supplier_without_products(fake_db, storage):
+    fake_db.on_fetchrow("SELECT name FROM suppliers WHERE id = $1", {"name": "Old Vendor"})
+    fake_db.on_fetchval("FROM products WHERE supplier_id = $1", 0)
     fake_db.on_execute("DELETE FROM suppliers", "DELETE 1")
-    assert run(suppliers.delete_supplier(7)) == {"ok": True}
+    assert run(suppliers.delete_supplier(7)) == {"ok": True, "products_deleted": 0}
+
+
+def test_delete_supplier_with_products_needs_its_name_typed(fake_db, storage):
+    # Deleting a supplier cascades to every product it supplies -- one stray
+    # click must not take 22,000 Vickerman products with it.
+    fake_db.on_fetchrow("SELECT name FROM suppliers WHERE id = $1", {"name": "Vickerman"})
+    fake_db.on_fetchval("FROM products WHERE supplier_id = $1", 22000)
+    fake_db.on_execute("DELETE FROM suppliers", "DELETE 1")
+    for typed in (None, "", "vickerman ", "Vickermann"):
+        with pytest.raises(HTTPException) as exc:
+            run(suppliers.delete_supplier(7, confirm_name=typed))
+        assert exc.value.status_code == 409
+        assert "22,000 products" in exc.value.detail
+    assert not fake_db.seen("DELETE FROM suppliers")
+    assert run(suppliers.delete_supplier(7, confirm_name=" Vickerman ")) == {"ok": True, "products_deleted": 22000}
 
 
 def test_credentials(fake_db, storage):
