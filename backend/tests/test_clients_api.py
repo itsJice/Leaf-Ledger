@@ -19,6 +19,7 @@ from fastapi import HTTPException
 
 from app.apis import clients
 from app.apis.clients import ClientCreate, ClientUpdate, CommentIn, SecondaryContact
+from app.libs import pricing
 
 T0 = datetime(2026, 1, 2, 3, 4, 5)
 T1 = datetime(2026, 2, 3, 4, 5, 6)
@@ -86,8 +87,11 @@ def test_list_clients(fake_db, fake_request):
          "project_count": 2, "bucket_count": 5, "selected_cost": 120.5, "last_project_at": T1,
          "source": "saved",
          "activity": [
+             # a season row carries its pricing block (no rate rows in this
+             # fake db, so the ideal is all "missing"); a comment does not
              {"id": 50, "kind": "christmas_install", "season": "2025", "summary": "Installed",
-              "detail": {"crew": "A"}, "occurred_at": "2025-12-01T09:00:00", "created_at": T0},
+              "detail": {"crew": "A"}, "occurred_at": "2025-12-01T09:00:00", "created_at": T0,
+              "pricing": pricing.price_view({"crew": "A"}, {})},
              {"id": 51, "kind": "comment", "season": "x", "summary": "hi",
               "detail": None, "occurred_at": None, "created_at": T1},
          ]},
@@ -378,6 +382,32 @@ def test_update_client_season_merges_and_stamps(fake_db, fake_request, monkeypat
     assert out["occurred_at"] == "2026-11-20"
     ((cid, season, summary, detail, occurred),) = args_of(fake_db, "INSERT INTO client_activity")
     assert (cid, season) == (5, "2026") and json.loads(detail) == out["detail"]
+    # the saved row comes back priced, like the list, so the tab's in-place
+    # row swap keeps its Ideal / Charged columns
+    assert out["pricing"]["charged"] == 1065.0 and out["pricing"]["charged_source"] == "invoice"
+    assert fake_db.seen("FROM ll_app.pricing_rates")
+
+
+def test_update_client_season_prices_with_rate_rows(fake_db, fake_request):
+    fake_db.on_fetchval("SELECT 1 FROM clients WHERE id = $1", 1)
+    fake_db.on_fetchrow("FOR UPDATE", {"id": 9, "detail": {"total": 2820}})
+    fake_db.on_fetch("FROM ll_app.pricing_rates", [
+        {"season": "2026", "key": k, "amount": a} for k, a in (
+            ("crew_lead", 100), ("general", 75), ("storage_box", 75),
+            ("van_crew_rate", 150), ("handling_min_per_box", 2), ("drive_min_default", 30))])
+    fake_db.on("INSERT INTO client_activity",
+               lambda sql, cid, season, summary, detail, occurred: {
+                   "id": 9, "kind": "christmas_install", "season": season, "summary": summary,
+                   "detail": detail, "occurred_at": occurred, "created_at": T0}, method="fetchrow")
+    body = clients.SeasonFieldsIn(fields={
+        "role_need": {"leads": 1, "general": 4}, "est_hours": 3, "boxes": 10, "storing": True,
+        "drive_min_out": 25, "drive_min_back": 30,
+        "inventory": [{"type": "tree", "size": "12 ft", "qty": 1}],
+    })
+    out = run(clients.update_client_season(5, "2026", body, fake_request()))
+    assert out["detail"]["inventory"] == [{"type": "tree", "qty": 1, "size": "12 ft"}]
+    assert out["pricing"]["ideal"]["total"] == 3525.0
+    assert out["pricing"]["charged"] == 2820.0 and out["pricing"]["discount_pct"] == 20.0
 
 
 def test_update_client_season_validation(fake_db, fake_request):

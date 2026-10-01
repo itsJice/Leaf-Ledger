@@ -62,13 +62,21 @@ SEASON_FIELDS: dict[str, str] = {
     # storage
     "storing": "bool",
     "boxes": "int",
-    # money
+    # money -- install/takedown/storage/total are the price as SENT to the
+    # client; invoice_total is what was actually billed. The ideal price is
+    # computed from the card (app.libs.pricing), never stored: the sheet's
+    # old "IDEAL TOTAL" column is no longer an app field.
     "install_fee": "money",
     "takedown_fee": "money",
     "storage_fee": "money",
     "total": "money",
-    "ideal_total": "money",
     "invoice_total": "money",
+    "price_basis": "text",
+    # the Christmas card: what the client owns and what the job takes
+    "inventory": "inventory",
+    "role_need": "role_need",
+    "drive_min_out": "number",
+    "drive_min_back": "number",
     # dates
     "install_date": "date",
     "takedown_date": "date",
@@ -253,6 +261,69 @@ def _as_text(v: Any) -> str | None:
     return s or None
 
 
+#: What a client can own. Free text would make "12 ft tree" and "tree, 12ft"
+#: two different things; a fixed type plus a size keeps the inventory
+#: countable across clients and years.
+INVENTORY_TYPES = ("tree", "wreath", "garland", "spray", "swag", "other")
+INVENTORY_MAX_LINES = 200
+
+#: The four headcounts the spreadsheet has always carried per client.
+ROLE_KEYS = ("leads", "specialty", "designer", "general")
+
+
+def _as_inventory(v: Any) -> list | None:
+    """[{type, size, qty, note}] -- every line a known type with a whole
+    quantity of one or more. An empty list clears the field."""
+    if v is None or v == "":
+        return None
+    if not isinstance(v, list):
+        raise FieldError("inventory must be a list of lines")
+    if len(v) > INVENTORY_MAX_LINES:
+        raise FieldError(f"inventory has more than {INVENTORY_MAX_LINES} lines")
+    out = []
+    for i, line in enumerate(v):
+        if not isinstance(line, dict):
+            raise FieldError(f"inventory line {i + 1} is not an object")
+        t = _as_text(line.get("type"))
+        t = t.lower() if t else t
+        if t not in INVENTORY_TYPES:
+            raise FieldError(f"inventory line {i + 1}: type must be one of {', '.join(INVENTORY_TYPES)}")
+        qty = _as_number(line.get("qty", 1), integer=True)
+        if qty is None or qty < 1:
+            raise FieldError(f"inventory line {i + 1}: qty must be 1 or more")
+        item: dict[str, Any] = {"type": t, "qty": qty}
+        size = _as_text(line.get("size"))
+        if size:
+            item["size"] = size
+        note = _as_text(line.get("note"))
+        if note:
+            item["note"] = note
+        out.append(item)
+    return out or None
+
+
+def _as_role_need(v: Any) -> dict | None:
+    """{leads, specialty, designer, general} whole numbers, zero or more.
+    Unknown keys are rejected; a key left out reads as zero. An object
+    with nothing in it clears the field."""
+    if v is None or v == "":
+        return None
+    if not isinstance(v, dict):
+        raise FieldError("role_need must be an object of headcounts")
+    bad = sorted(k for k in v if k not in ROLE_KEYS)
+    if bad:
+        raise FieldError(f"role_need: unknown role(s) {', '.join(bad)}")
+    out = {}
+    for k in ROLE_KEYS:
+        n = _as_number(v.get(k), integer=True)
+        if n is None:
+            continue
+        if n < 0:
+            raise FieldError(f"role_need.{k} must be zero or more")
+        out[k] = n
+    return out or None
+
+
 def coerce_field(key: str, value: Any):
     """Validate one app-side edit. Raises FieldError on an unknown key or a
     value that does not fit the key's type. An empty string clears the key."""
@@ -269,6 +340,10 @@ def coerce_field(key: str, value: Any):
         return _as_number(value)
     if kind == "date":
         return _as_date(value)
+    if kind == "inventory":
+        return _as_inventory(value)
+    if kind == "role_need":
+        return _as_role_need(value)
     return _as_text(value)
 
 

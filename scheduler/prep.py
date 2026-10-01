@@ -159,6 +159,7 @@ OPTIONAL_HEADERS = [
 ]
 
 
+
 def norm_name(n):
     """Loose match key for a client name across seasons -- spacing/
     punctuation drifts year to year ("Mcrowd Chapel Hill" vs "M Crowd
@@ -574,6 +575,12 @@ def parse():
             real = float(real) if real is not None else None
         except (ValueError, TypeError):
             real = None
+        # "Real Hours" is a formula over the Real Start / Real End cells, and
+        # the saved workbook carries no cached value for it (every row read
+        # None on 2026-09-26) while the two times it is computed from are
+        # there. Derive it the same way the sheet would.
+        if real is None:
+            real = common.hours_between(h(r, COL["real_start"]), h(r, COL["real_end"]))
 
         def as_date(v):
             return (v.date().isoformat() if hasattr(v, "date")

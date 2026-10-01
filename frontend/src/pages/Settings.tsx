@@ -16,9 +16,11 @@ import {
   Sun,
   Tags,
   Trash2,
+  TreePine,
   Users,
 } from "components/icons";
 import Layout from "components/Layout";
+import ChristmasRatesEditor from "components/ChristmasRatesEditor";
 import SidebarTabsEditor from "components/SidebarTabsEditor";
 import UserRolesEditor from "components/UserRolesEditor";
 import { currentMe } from "utils/me";
@@ -66,6 +68,7 @@ type BuildTemplateListKey = "slots" | "usedFor" | "regularMaterials" | "premiumM
 
 const TABS = [
   { id: "markup", label: "Markup", icon: DollarSign },
+  { id: "christmas", label: "Christmas Rates", icon: TreePine },
   { id: "pricing", label: "Pricing Rules", icon: SettingsIcon },
   { id: "sku", label: "SKU Standards", icon: Tags },
   { id: "ai", label: "AI Reference Data", icon: Image },
@@ -584,6 +587,8 @@ export default function Settings() {
             the markup / pricing / import fetches. */}
         {activeTab === "users" ? (
           <UserRolesEditor />
+        ) : activeTab === "christmas" ? (
+          <ChristmasRatesEditor />
         ) : loading && activeTab !== "appearance" ? (
           <div className="flex items-center justify-center py-24">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />

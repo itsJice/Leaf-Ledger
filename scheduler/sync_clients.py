@@ -66,6 +66,8 @@ DEFAULT_XLSX = os.path.join(
     HERE, "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx"
 )
 CACHE = os.path.join(HERE, "cache", "schedule.json")
+#: prep.py's OSRM drive-time matrix (node 0 = the depot, seconds).
+MATRIX = os.path.join(HERE, "cache", "matrix.json")
 
 MERGE_FIELDS = ["phone", "email", "street", "city", "state", "zip"]
 
@@ -218,6 +220,30 @@ def as_int(v) -> Optional[int]:
         return None
 
 
+def load_drive_minutes(path: Optional[str] = None) -> dict:
+    """{matrix index: (minutes warehouse -> client, minutes client -> warehouse)}
+    from prep.py's OSRM matrix (node 0 is the depot, durations in seconds).
+    No matrix on disk, or a malformed one, reads as no drive times -- the
+    price then falls back to the rate card's default leg, it does not fail."""
+    path = path or MATRIX
+    try:
+        with open(path) as f:
+            m = json.load(f)
+        durs = m["durations"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    out = {}
+    for i in range(1, len(durs)):
+        try:
+            to_client, to_depot = durs[0][i], durs[i][0]
+        except (IndexError, TypeError):
+            continue
+        if not isinstance(to_client, (int, float)) or not isinstance(to_depot, (int, float)):
+            continue
+        out[i] = (round(to_client / 60.0, 1), round(to_depot / 60.0, 1))
+    return out
+
+
 def extract_current_season(season: str):
     """This season's clients, from the pipeline cache prep.py/schedule.py left.
 
@@ -237,6 +263,7 @@ def extract_current_season(season: str):
             row_dates.setdefault(s["row"], day["date"])
     prior = str(int(season) - 1)
     prior2 = str(int(season) - 2)
+    drive = load_drive_minutes()
     out = []
     for c in sched["all_clients"]:
         # Default False, not None: an unresolvable key must not silently drop
@@ -249,6 +276,7 @@ def extract_current_season(season: str):
             continue
         storing, storage_note = storing_from_sheet(c.get("storage"))
         role_need = c.get("role_need") if isinstance(c.get("role_need"), dict) else None
+        legs = drive.get(c.get("midx")) or (None, None)
         rec = {
             "name": name,
             "street": clean_str(c.get("street")), "city": clean_str(c.get("city")),
@@ -275,6 +303,11 @@ def extract_current_season(season: str):
             "role_need": role_need,
             "people_needed": as_int(c.get("people_needed")),
             "specialty": clean_str(c.get("specialty_needed")),
+            # Real one-way drive minutes each way between the warehouse and
+            # this client, off prep.py's OSRM matrix: the pickup & delivery
+            # part of the ideal price (app.libs.pricing) is built from them.
+            "drive_min_out": legs[0],
+            "drive_min_back": legs[1],
             "confirmation_notes": clean_str(c.get("confirmation_notes")),
             "supplements": {
                 prior: {
@@ -455,25 +488,34 @@ def merge_field(live: Optional[str], last_synced: Optional[str], new_value: Opti
     return new_value
 
 
-async def upsert_client(conn, rec: dict, season: str, counts: dict):
-    name = rec["name"]
-    # "Beaver, Austin" (this season's sheet, comma convention) and "Beaver
-    # Austin" (an older row -- pre-Christmas-sync manual entry, or an
-    # earlier import that didn't use commas) are the same person, but a
-    # plain LOWER(TRIM(name)) match treats them as different clients and
-    # inserts a duplicate every time. Stripping commas/periods before
-    # comparing catches that; the stored `name` is left untouched either
-    # way, so this doesn't disturb arrangements.client_name's free-text
-    # matching against whichever row already exists.
-    #
-    # A client renamed on the Clients tab keeps the sheet's spelling in
-    # `sheet_name` (written below on every sync) and every earlier spelling in
-    # `former_names` (migrations/017), and both are matched here -- otherwise
-    # the first sync after a rename would fail to find her and create a second
-    # client under the old sheet name. The app is the source of truth for the
-    # name, so `name` is never in MERGE_FIELDS and is never written back.
-    row = await conn.fetchrow(
-        "SELECT id, phone, email, street, city, state, zip, christmas_synced_snapshot "
+#: The columns a matched client row carries back (see find_client_by_name).
+CLIENT_MATCH_COLUMNS = "id, name, phone, email, street, city, state, zip, christmas_synced_snapshot"
+
+
+async def find_client_by_name(conn, name: str):
+    """The `clients` row a spreadsheet spelling refers to, or None.
+
+    "Beaver, Austin" (this season's sheet, comma convention) and "Beaver
+    Austin" (an older row -- pre-Christmas-sync manual entry, or an
+    earlier import that didn't use commas) are the same person, but a
+    plain LOWER(TRIM(name)) match treats them as different clients and
+    inserts a duplicate every time. Stripping commas/periods before
+    comparing catches that; the stored `name` is left untouched either
+    way, so this doesn't disturb arrangements.client_name's free-text
+    matching against whichever row already exists.
+
+    A client renamed on the Clients tab keeps the sheet's spelling in
+    `sheet_name` (written on every sync) and every earlier spelling in
+    `former_names` (migrations/017), and both are matched here -- otherwise
+    the first sync after a rename would fail to find her and create a second
+    client under the old sheet name. The app is the source of truth for the
+    name, so `name` is never in MERGE_FIELDS and is never written back.
+
+    Shared with load_prices.py, which matches the billing export's
+    "Bill-to" column (the same spreadsheet spelling) the same way.
+    """
+    return await conn.fetchrow(
+        f"SELECT {CLIENT_MATCH_COLUMNS} "
         "  FROM clients "
         " WHERE sheet_name = $1 "
         "    OR regexp_replace(LOWER(TRIM(name)), '[,.]', '', 'g') "
@@ -485,16 +527,21 @@ async def upsert_client(conn, rec: dict, season: str, counts: dict):
         " LIMIT 1",
         name,
     )
+
+
+async def upsert_client(conn, rec: dict, season: str, counts: dict):
+    name = rec["name"]
+    row = await find_client_by_name(conn, name)
     if row is None:
         row = await conn.fetchrow(
             "INSERT INTO clients (name, created_by) VALUES ($1, $2) "
             "ON CONFLICT (LOWER(TRIM(name))) DO NOTHING "
-            "RETURNING id, phone, email, street, city, state, zip, christmas_synced_snapshot",
+            f"RETURNING {CLIENT_MATCH_COLUMNS}",
             name, "sync_clients.py",
         )
         if row is None:  # lost a create race against another process -- reselect
             row = await conn.fetchrow(
-                "SELECT id, phone, email, street, city, state, zip, christmas_synced_snapshot "
+                f"SELECT {CLIENT_MATCH_COLUMNS} "
                 "FROM clients WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))", name,
             )
         counts["clients_created"] += 1
