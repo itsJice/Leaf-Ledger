@@ -329,3 +329,100 @@ def crew_days(board: Board, prices: dict[str, dict], card: dict, assignments: di
         },
         "days": out_days,
     }
+
+
+# ---------------------------------------------------------------------------
+# The install & takedown view: every install crew-day plus its takedown.
+
+def totals(days: list[dict]) -> dict:
+    """Season totals over any set of crew-days (install, takedown or both)."""
+    rev = sum(d["revenue"] or 0 for d in days)
+    cost_all = sum(d["cost"]["total"] for d in days)
+    priced = sum(d["priced_cost"] or 0 for d in days)
+    oh = sum(d["overhead"] or 0 for d in days)
+    counts: dict[str, int] = {}
+    for d in days:
+        counts[d["status"]] = counts.get(d["status"], 0) + 1
+    net = rev - priced - oh
+    return {
+        "days": len(days), "staffed_days": sum(1 for d in days if d["staffed"]),
+        "revenue": _r(rev), "cost": _r(cost_all), "priced_cost": _r(priced),
+        "unpriced_cost": _r(cost_all - priced), "labor": _r(sum(d["cost"]["labor"] for d in days)),
+        "person_hours": _r(sum(d["paid_hours"] * len(d["crew_people"]) for d in days), 1),
+        "overhead": _r(oh), "net": _r(net), "net_pct": _r(net / rev * 100, 1) if rev else None,
+        "counts": counts, "missing": sorted({m for d in days for m in d["cost"]["missing"]}),
+    }
+
+
+def takedown_price(sched_client: dict, entry: Optional[dict]) -> tuple[Optional[float], str]:
+    """``(takedown price, source)``, like ``install_price``."""
+    if entry and entry.get("takedown") is not None:
+        return entry["takedown"], "clients"
+    fee = _num(sched_client.get("takedownFee"))
+    if fee is not None:
+        return fee, "schedule"
+    if sched_client.get("noCharge"):
+        return 0.0, "no_charge"
+    return None, "unpriced"
+
+
+def _takedown_of(day: dict, board: Board, prices: dict[str, dict], card: dict,
+                 overhead: Optional[float], target: Optional[float], factor: float) -> dict:
+    """The takedown trip for one planned install crew-day: the same crew and
+    route in January, on-site time x the takedown factor, everything else
+    (warehouse time, drives, lunch) as on the install day; earning the
+    takedown price."""
+    onsite_h = sum(s["onsite_h"] for s in day["stops"])
+    paid_h = max(0.0, day["paid_hours"] - onsite_h) + onsite_h * factor
+    cost = ic.crew_day_cost([c["rate"] for c in day["crew_people"]], paid_h, day["miles"], card)
+    if not day["crew_people"]:
+        cost["missing"].append("crew")
+    stops = []
+    for s in day["stops"]:
+        c = board.clients.get(s["row"]) or {}
+        price, source = takedown_price(c, prices.get(norm_name(c.get("name"))))
+        part = s["onsite_h"] / onsite_h if onsite_h else 1 / max(1, len(day["stops"]))
+        revenue = None if price is None else price * s["share"]
+        stop_cost = cost["total"] * part
+        stops.append({**s, "onsite_h": _r(s["onsite_h"] * factor), "price": price, "revenue": _r(revenue),
+                      "source": source, "cost": _r(stop_cost), "paid_h": _r(paid_h * part, 3),
+                      "labor_cost": _r(cost["labor"] * part), "other_cost": _r((cost["total"] - cost["labor"]) * part)})
+    priced = [s for s in stops if s["revenue"] is not None]
+    revenue = sum(s["revenue"] for s in priced) if priced else None
+    priced_cost = sum(s["cost"] for s in priced)
+    oh = revenue * overhead / 100 if revenue is not None and overhead is not None else None
+    net = revenue - priced_cost - (oh or 0) if revenue is not None else None
+    net_pct = net / revenue * 100 if net is not None and revenue else None
+    for s in stops:
+        if s["revenue"] is not None:
+            s["net"] = _r(s["revenue"] - s["cost"] - s["revenue"] * (overhead or 0) / 100)
+            s["net_pct"] = _r(s["net"] / s["revenue"] * 100, 1) if s["revenue"] else None
+        else:
+            s["net"] = s["net_pct"] = None
+    return {
+        **day, "id": day["id"] + "|takedown", "kind": "takedown", "takedown_of": day["date"],
+        "paid_hours": _r(paid_h), "cost": cost, "revenue": _r(revenue), "overhead": _r(oh),
+        "net": _r(net), "net_pct": _r(net_pct, 1), "priced_cost": _r(priced_cost),
+        "unpriced_cost": _r(sum(s["cost"] for s in stops if s["revenue"] is None)),
+        "status": "losing" if revenue == 0 and priced_cost > 0 else _status(net_pct, target),
+        "times": "estimated", "stops": stops,
+        "notes": [f"Takedown estimate: the {day['date']} install crew and route, {factor:g} x the on-site time; "
+                  "not on the calendar yet"] + [n for n in day["notes"] if "stops have no price" not in n],
+    }
+
+
+def plan_days(board: Board, prices: dict[str, dict], card: dict, assignments: dict[str, dict]) -> dict:
+    """The season being planned, install AND takedown: every crew-day from
+    ``crew_days`` plus the takedown trip each one implies."""
+    out = crew_days(board, prices, card, assignments)
+    factor = ic.value(card, "takedown_time_factor") or 0.6
+    installs = [{**d, "kind": "install", "times": "planned"} for d in out["days"]]
+    takedowns = [_takedown_of(d, board, prices, card, out["overhead_pct"], out["target_profit_pct"], factor)
+                 for d in installs]
+    days = installs + takedowns
+    return {
+        **out, "mode": "plan", "takedown_time_factor": factor,
+        "summary": totals(days),
+        "by_kind": {"install": totals(installs), "takedown": totals(takedowns)},
+        "days": days,
+    }

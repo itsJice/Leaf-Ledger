@@ -8,15 +8,17 @@ import { formatCurrency } from "utils/format";
 import { currentSeasonLabel } from "utils/season";
 
 /**
- * Crew-Day Profit (admin only): every install crew-day on the schedule, its
- * jobs' install revenue against what the day costs to run -- crew pay, van,
- * trailer, gas, the day's extras -- and the overhead share, as a net profit
- * percentage. All arithmetic is server-side (backend app.libs.crew_day_profit,
- * GET /install-costs/crew-days) off the saved install cost card, so a change
- * in Settings > Install Costs moves every number here.
+ * Install & Takedown Profit (admin only): every install and takedown
+ * crew-day, its jobs' revenue against what the day costs to run -- crew pay,
+ * van, trailer, gas, the day's extras -- and the overhead share, as a net
+ * profit percentage. The season on the install board is the plan (installs
+ * plus the takedown each implies, backend app.libs.crew_day_profit); an
+ * earlier season is what actually happened, rebuilt from real clock times,
+ * real crews and real invoices (app.libs.season_history). All arithmetic is
+ * server-side (GET /install-costs/crew-days) off the saved install cost card.
  */
 
-type CrewSeat = { name: string | null; pay_class: string; label: string; rate: number | null };
+type CrewSeat = { name: string | null; pay_class: string | null; label: string; rate: number | null; half?: boolean; temp?: boolean };
 type Cost = {
   labor: number; van: number; trailer: number; insurance: number; gas: number; wear: number;
   ancillary: number; tolls: number; parking: number; total: number; missing: string[];
@@ -25,22 +27,30 @@ type Stop = {
   row: number; name: string; client_id: number | null; onsite_h: number; share: number; boxes: number;
   price: number | null; revenue: number | null; source: string; basis: string | null;
   cost: number; net: number | null; net_pct: number | null;
+  start?: number | null; end?: number | null; real_times?: boolean; invoice?: number | null; storage?: number | null;
 };
+type Kind = "install" | "takedown";
 type Status = "healthy" | "tight" | "losing" | "unpriced";
 type Day = {
   id: string; date: string; crew: string; night: boolean; anchored: boolean;
+  kind: Kind; times?: "real" | "mixed" | "estimated" | "planned"; crew_source?: string; takedown_of?: string;
+  clock_out_min?: number | null; drive_min?: number;
   staffed: boolean; staffed_count: number; estimated_count: number; crew_basis: string | null; crew_people: CrewSeat[];
   paid_hours: number; pretrip_min: number; lunch_min: number; boxes: number; miles: number;
   cost: Cost; revenue: number | null; overhead: number | null; net: number | null; net_pct: number | null;
   priced_cost: number; unpriced_cost: number; status: Status; placeholder: boolean;
   stops: Stop[]; notes: string[];
 };
+type Totals = {
+  days: number; staffed_days: number; revenue: number; cost: number; priced_cost: number; unpriced_cost: number;
+  labor?: number; person_hours?: number;
+  overhead: number; net: number; net_pct: number | null; counts: Partial<Record<Status, number>>; missing: string[];
+};
 type Out = {
   season: string; overhead_pct: number | null; target_profit_pct: number | null;
-  summary: {
-    days: number; staffed_days: number; revenue: number; cost: number; priced_cost: number; unpriced_cost: number;
-    overhead: number; net: number; net_pct: number | null; counts: Partial<Record<Status, number>>; missing: string[];
-  };
+  mode?: "plan" | "actual"; card_season?: string; history_source?: string; takedown_time_factor?: number;
+  summary: Totals;
+  by_kind?: Record<Kind, Totals>;
   days: Day[];
   missing_card: string[];
 };
@@ -58,6 +68,20 @@ const FILTERS: Array<{ id: "all" | Status; label: string }> = [
   { id: "healthy", label: "On target" },
   { id: "unpriced", label: "No price" },
 ];
+
+const KINDS: Array<{ id: "all" | Kind; label: string }> = [
+  { id: "all", label: "Installs + takedowns" },
+  { id: "install", label: "Installs" },
+  { id: "takedown", label: "Takedowns" },
+];
+const TIMES: Record<string, string> = {
+  real: "real clock times", mixed: "some real times", estimated: "estimated times", planned: "planned",
+};
+const clock = (m: number | null | undefined) => {
+  if (m == null) return "—";
+  const h = Math.floor(m / 60) % 24, mm = Math.round(m % 60);
+  return `${((h + 11) % 12) + 1}:${String(mm).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
+};
 
 const money0 = (v: number | null | undefined) =>
   v == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
@@ -113,6 +137,7 @@ export default function CrewDayProfit() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | Status>("all");
+  const [kind, setKind] = useState<"all" | Kind>("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -141,18 +166,20 @@ export default function CrewDayProfit() {
     return () => { live = false; };
   }, [season, isAdmin]);
 
-  const days = useMemo(() => (data?.days || []).filter((d) => filter === "all" || d.status === filter), [data, filter]);
+  const days = useMemo(() => (data?.days || []).filter((d) => (filter === "all" || d.status === filter)
+    && (kind === "all" || d.kind === kind)), [data, filter, kind]);
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   if (!isAdmin) {
     return (
       <Layout>
-        <div className="p-8 text-sm text-stone-600">Crew-Day Profit is for admins only.</div>
+        <div className="p-8 text-sm text-stone-600">Install &amp; Takedown Profit is for admins only.</div>
       </Layout>
     );
   }
 
-  const s = data?.summary;
+  const s = kind === "all" ? data?.summary : data?.by_kind?.[kind] ?? data?.summary;
+  const actual = data?.mode === "actual";
   const target = data?.target_profit_pct ?? null;
 
   return (
@@ -160,9 +187,11 @@ export default function CrewDayProfit() {
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-stone-900">Crew-Day Profit</h1>
+            <h1 className="text-2xl font-semibold text-stone-900">Install &amp; Takedown Profit</h1>
             <p className="mt-1 max-w-2xl text-sm text-stone-500">
-              Every install crew-day: what its jobs bring in against crew pay, van, trailer, gas and overhead. Only admins see this page.
+              {actual
+                ? `What ${data?.season}'s installs and takedowns really cost and earned: real clock times, real crews, real invoices. Only admins see this page.`
+                : "Every install and takedown crew-day: what its jobs bring in against crew pay, van, trailer, gas and overhead. Only admins see this page."}
             </p>
           </div>
           <div className="flex items-center gap-3 text-xs text-stone-600">
@@ -176,7 +205,7 @@ export default function CrewDayProfit() {
               Season
               <select className="rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm" value={season} onChange={(e) => setSeason(e.target.value)}>
                 {[Number(currentSeasonLabel()) + 1, Number(currentSeasonLabel()), Number(currentSeasonLabel()) - 1].map((y) => (
-                  <option key={y} value={String(y)}>{y}</option>
+                  <option key={y} value={String(y)}>{y}{y < Number(currentSeasonLabel()) ? " · what happened" : y === Number(currentSeasonLabel()) ? " · plan" : ""}</option>
                 ))}
               </select>
             </label>
@@ -191,6 +220,13 @@ export default function CrewDayProfit() {
           <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-500">{error || "Nothing to show."}</div>
         ) : (
           <>
+            {actual && (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                Built from the {data.season} client sheet{data.history_source ? ` (${data.history_source})` : ""}: real start and end times, the crews written
+                on each job and the day-by-day crew lists, and each job's invoice. Every crew is paid from 8:00 am at the warehouse until it gets back.
+                {data.card_season && data.card_season !== data.season ? ` Priced at the ${data.card_season} cost card (same rates in ${data.season}).` : ""}
+              </div>
+            )}
             {data.missing_card.length > 0 && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
                 Some numbers are placeholders: the install cost card still needs {data.missing_card.join(", ")}.{" "}
@@ -213,8 +249,11 @@ export default function CrewDayProfit() {
             <div className="grid overflow-hidden rounded-xl border border-stone-200 bg-white sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] lg:divide-x lg:divide-stone-100">
               <Tile hero label={`Net profit, ${s.days} crew-days`} value={pct(s.net_pct)}
                 detail={<>{money0(s.net)} after every day's costs and {data.overhead_pct}% overhead</>} />
-              <Tile label="Install revenue" value={money0(s.revenue)} detail="install prices of the scheduled jobs" />
-              <Tile label="Crew-day costs" value={money0(s.cost)} detail={`${s.staffed_days} of ${s.days} days staffed`} />
+              <Tile label="Revenue" value={money0(s.revenue)}
+                detail={actual ? "(invoice − storage) ÷ 2 for the install, the same for the takedown" : "install price on install days, takedown price on takedown days"} />
+              <Tile label="Crew-day costs" value={money0(s.cost)}
+                detail={<>{s.labor != null ? `${money0(s.labor)} crew pay · ` : ""}{actual ? `${s.staffed_days} of ${s.days} with a real crew` : `${s.staffed_days} of ${s.days} days staffed`}
+                  {s.unpriced_cost > 0 && <span className="block">{money0(s.unpriced_cost)} on jobs with no price</span>}</>} />
               <Tile label="Overhead share" value={money0(s.overhead)} detail={`${data.overhead_pct}% of revenue`} />
               <Tile label="Days" value={String(s.days)}
                 detail={
@@ -226,7 +265,30 @@ export default function CrewDayProfit() {
                 } />
             </div>
 
+            {data.by_kind && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["install", "takedown"] as Kind[]).map((k) => {
+                  const t = data.by_kind![k];
+                  return (
+                    <button key={k} type="button" onClick={() => setKind(kind === k ? "all" : k)}
+                      className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-xl border bg-white px-4 py-3 text-left text-xs ${kind === k ? "border-stone-900" : "border-stone-200 hover:border-stone-300"}`}>
+                      <span className="text-sm font-semibold text-stone-900">{k === "install" ? "Installs" : "Takedowns"}</span>
+                      <span className="text-stone-500">{t.days} crew-days · {money0(t.revenue)} in · {money0(t.cost)} cost</span>
+                      <span className="text-base font-semibold tabular-nums text-stone-900">{pct(t.net_pct)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-2">
+              {KINDS.map((k) => (
+                <button key={k.id} type="button" onClick={() => setKind(k.id)}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${kind === k.id ? "border-emerald-800 bg-emerald-800 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
+                  {k.label}
+                </button>
+              ))}
+              <span className="mx-1 h-4 w-px bg-stone-200" />
               {FILTERS.filter((f) => f.id === "all" || s.counts[f.id as Status]).map((f) => (
                 <button key={f.id} type="button" onClick={() => setFilter(f.id)}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold ${filter === f.id ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
@@ -259,8 +321,17 @@ export default function CrewDayProfit() {
                       <React.Fragment key={d.id}>
                         <tr onClick={() => toggle(d.id)} className={`cursor-pointer border-b border-stone-100 hover:bg-stone-50 ${isOpen ? "bg-stone-50" : ""}`}>
                           <td className="whitespace-nowrap px-4 py-2.5 align-top">
-                            <div className="font-medium text-stone-900">{fmtDate(d.date)}</div>
-                            <div className="text-xs text-stone-500">{d.crew}{d.night ? " · night" : ""}</div>
+                            <div className="flex items-center gap-1.5 font-medium text-stone-900">
+                              {d.kind === "takedown" && !actual ? "January" : fmtDate(d.date)}
+                              <span className={`rounded px-1 py-px text-[9px] font-bold uppercase tracking-wide ${d.kind === "takedown" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700"}`}>
+                                {d.kind === "takedown" ? "Takedown" : "Install"}
+                              </span>
+                            </div>
+                            <div className="text-xs text-stone-500">
+                              {d.crew}{d.night ? " · night" : ""}
+                              {d.kind === "takedown" && !actual && d.takedown_of ? ` · installed ${fmtDate(d.takedown_of)}` : ""}
+                            </div>
+                            {d.times && <div className="text-[10px] text-stone-400">{TIMES[d.times]}</div>}
                           </td>
                           <td className="max-w-[260px] px-2 py-2.5 align-top">
                             <div className="truncate text-stone-800" title={d.stops.map((x) => x.name).join(", ")}>
@@ -271,8 +342,10 @@ export default function CrewDayProfit() {
                           <td className="px-2 py-2.5 align-top text-xs">
                             <div className="text-stone-700">{d.crew_people.length} people</div>
                             <div className="text-stone-500">
-                              {d.staffed_count === 0 ? "estimated" : d.estimated_count ? `${d.staffed_count} staffed + ${d.estimated_count} est.` : "staffed"}
-                              {d.crew_basis && <span className="block text-[10px] text-stone-400">from {d.crew_basis === "2025 crew" ? "last year's crew" : "role needs"}</span>}
+                              {actual
+                                ? (d.crew_source || "")
+                                : d.staffed_count === 0 ? "estimated" : d.estimated_count ? `${d.staffed_count} staffed + ${d.estimated_count} est.` : "staffed"}
+                              {!actual && d.crew_basis && <span className="block text-[10px] text-stone-400">from {d.crew_basis === "2025 crew" ? "last year's crew" : "role needs"}</span>}
                             </div>
                           </td>
                           <td className="px-2 py-2.5 text-right align-top tabular-nums text-stone-700">{hrs(d.paid_hours)}</td>
@@ -297,18 +370,32 @@ export default function CrewDayProfit() {
                 </tbody>
               </table>
             </div>
+            {actual ? (
             <p className="text-xs leading-relaxed text-stone-500">
-              Revenue is each job's install price (takedown is earned on the takedown trip; storage covers the warehouse, which is in overhead).
+              Each crew is paid from 8:00 am at the warehouse until it is back: loading (2 min a box), the drive out, every job from its real start to its
+              real end, the drives between, and the drive back. A job with no real times takes its estimate, after the crew's last timed job. A takedown with
+              no written time takes {data.takedown_time_factor ?? 0.6} x its real install time. The crew is, most specific first: the names written on the job,
+              the job's head count ("Crew A (6)"), the day's crew list from the crew schedule tabs, then the job's role needs. Revenue is (invoice − boxes × $75
+              storage) ÷ 2 for the install and the same for the takedown. Dallas nights are costed from the first job to the last; the drive to Dallas and the
+              hotel are not included.
+            </p>
+            ) : (
+            <p className="text-xs leading-relaxed text-stone-500">
+              Takedown days are estimates: each install crew-day's crew and route in January, with on-site time × the takedown factor, earning the takedown price.
+              Revenue on install days is each job's install price (takedown is earned on the takedown trip; storage covers the warehouse, which is in overhead).
               A job worked over several days is split across them by on-site time. Paid hours run depot to depot: the longer of the 30-minute early
               arrival and the warehouse loading, then drives, on-site time and lunch. Until a day is fully staffed, the rest of the crew is estimated from last year's real crew on those jobs (one lead, the rest general), or from the jobs' role needs when there's no 2025 crew on record.
               Miles are straight-line between stops times the scheduler's road factor.
             </p>
+            )}
           </>
         )}
       </div>
     </Layout>
   );
 }
+
+const actualStop = (x: Stop) => x.invoice !== undefined;
 
 function DayDetail({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
   const c = d.cost;
@@ -337,8 +424,11 @@ function DayDetail({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
               {c.missing.length > 0 && <div className="px-3 py-1.5 text-red-700">* placeholder: still needs {c.missing.join(", ")}</div>}
             </div>
             <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-600">
-              <p className="mb-1 font-semibold text-stone-700">Crew</p>
-              {d.crew_basis && (
+              <p className="mb-1 font-semibold text-stone-700">Crew{d.crew_source ? ` · ${d.crew_source}` : ""}</p>
+              {d.clock_out_min != null && d.anchored && (
+                <p className="mb-1 text-stone-500">On the clock 8:00 am → {clock(d.clock_out_min)} back at the warehouse.</p>
+              )}
+              {d.crew_basis && !d.crew_source && (
                 <p className="mb-1 text-stone-500">
                   {d.crew_basis === "2025 crew"
                     ? "Estimated seats: last year's real crew on these jobs (the largest), one lead and the rest general."
@@ -348,7 +438,9 @@ function DayDetail({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
               <ul className="space-y-0.5">
                 {d.crew_people.map((p, i) => (
                   <li key={i} className="flex justify-between gap-2">
-                    <span className={p.name ? "text-stone-800" : "italic text-stone-500"}>{p.name || `${p.label} (estimated)`}</span>
+                    <span className={p.name ? "text-stone-800" : "italic text-stone-500"}>
+                      {p.name || `${p.label} (estimated)`}{p.half ? " · half day" : ""}{p.temp ? " · Xclusive temp" : ""}
+                    </span>
                     <span className="tabular-nums">{p.name ? `${p.label} · ` : ""}{p.rate == null ? "no rate" : `${formatCurrency(p.rate)}/h`}</span>
                   </li>
                 ))}
@@ -366,24 +458,33 @@ function DayDetail({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
               <thead>
                 <tr className="border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
                   <th className="px-3 py-1.5 font-semibold">Job</th>
+                  {d.stops.some((x) => x.start != null) && <th className="px-2 py-1.5 font-semibold">Clock</th>}
                   <th className="px-2 py-1.5 text-right font-semibold">On site</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">Install price</th>
+                  <th className="px-2 py-1.5 text-right font-semibold">{d.kind === "takedown" ? "Takedown price" : "Install price"}</th>
                   <th className="px-2 py-1.5 text-right font-semibold">Share of day cost</th>
                   <th className="px-2 py-1.5 text-right font-semibold">Net</th>
                   <th className="px-3 py-1.5 text-right font-semibold">Net %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {d.stops.map((x) => (
-                  <tr key={x.row}>
+                {d.stops.map((x, i) => (
+                  <tr key={`${x.row}-${i}`}>
                     <td className="px-3 py-1.5">
                       <div className="text-stone-800">{x.name}</div>
                       <div className="text-[10px] text-stone-500">
-                        {x.source === "unpriced" ? "no price yet" : x.source === "no_charge" ? "no charge" : x.source === "schedule" ? "price from the schedule" : "price from Clients"}
+                        {x.source === "unpriced" ? (actualStop(x) ? "no invoice on file" : "no price yet") : x.source === "no_charge" ? "no charge"
+                          : x.source === "schedule" ? "price from the schedule"
+                          : x.source === "invoice" ? `invoice ${money0(x.invoice)} − ${money0(x.storage)} storage, half` : "price from Clients"}
                         {x.share < 0.999 ? ` · ${Math.round(x.share * 100)}% of the job today` : ""}
                         {x.basis ? ` · ${x.basis}` : ""}
                       </div>
                     </td>
+                    {d.stops.some((y) => y.start != null) && (
+                      <td className="whitespace-nowrap px-2 py-1.5 tabular-nums">
+                        {x.start != null ? `${clock(x.start)}–${clock(x.end)}` : "—"}
+                        <span className="block text-[10px] text-stone-400">{x.real_times ? "real" : "estimated"}</span>
+                      </td>
+                    )}
                     <td className="px-2 py-1.5 text-right tabular-nums">{hrs(x.onsite_h)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{x.revenue == null ? "—" : money0(x.revenue)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{money0(x.cost)}</td>
