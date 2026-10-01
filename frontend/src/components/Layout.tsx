@@ -16,7 +16,7 @@ import { APP_BASE_PATH, apiClient } from "app";
 import { apiFetch } from "utils/apiFetch";
 import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
-import { currentMe, pageAllowed } from "utils/me";
+import { appHome, currentMe, pageAllowed } from "utils/me";
 import {
   NAV_GROUPS,
   resolveSidebarRender,
@@ -577,7 +577,7 @@ function StaffLayout({ children }: Props) {
         >
           <Menu size={20} />
         </button>
-        <Link to="/" className="flex items-center rounded-lg px-1 py-1" aria-label="Leaf & Ledger home">
+        <Link to={appHome()} className="flex items-center rounded-lg px-1 py-1" aria-label="Leaf & Ledger home">
           <LeafLedgerLogo className="h-9 w-auto" />
         </Link>
       </header>
@@ -616,11 +616,11 @@ function StaffLayout({ children }: Props) {
           >
             <X size={18} />
           </button>
-          <Link to="/" className={`block w-[176px] pr-8${RC}`} aria-label="Leaf & Ledger home">
+          <Link to={appHome()} className={`block w-[176px] pr-8${RC}`} aria-label="Leaf & Ledger home">
             <LeafLedgerLogo className="h-auto w-full" />
           </Link>
           {collapsed && (
-            <Link to="/" className="hidden justify-center py-1 lg:flex" aria-label="Leaf & Ledger home">
+            <Link to={appHome()} className="hidden justify-center py-1 lg:flex" aria-label="Leaf & Ledger home">
               <LeafLedgerMark className="h-7 w-auto" />
             </Link>
           )}

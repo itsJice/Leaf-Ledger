@@ -63,7 +63,7 @@ export default function WorkingJobBar({ value, onChange }: Props) {
   };
 
   return (
-    <div className="relative">
+    <div data-edit className="relative">
       <button
         onClick={() => { setOpen((o) => !o); if (!open) refreshJobs(); }}
         className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${job ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-stone-300 bg-white text-stone-600"}`}

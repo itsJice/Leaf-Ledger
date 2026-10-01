@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { appHome } from "utils/me";
 import { ArrowLeft, CheckCircle2, Loader2 } from "components/icons";
 import {
   carryOver, getForm, getSuggestions, submitForm, validateAnswers,
@@ -281,7 +282,7 @@ export default function FormPage() {
   return (
     <div className="min-h-screen px-3 pb-24 pt-4 sm:px-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
       <div ref={topRef} className="mx-auto max-w-[640px] space-y-3">
-        <Link to="/" className="inline-flex items-center gap-1 px-1 text-xs font-medium text-emerald-800 hover:underline">
+        <Link to={appHome()} className="inline-flex items-center gap-1 px-1 text-xs font-medium text-emerald-800 hover:underline">
           <ArrowLeft size={12} /> Leaf &amp; Ledger
         </Link>
 
