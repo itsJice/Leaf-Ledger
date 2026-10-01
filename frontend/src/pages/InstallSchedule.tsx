@@ -36,8 +36,10 @@ import { currentMe } from "utils/me";
  * first paint (a flag the tool reads at startup), rather than after the token
  * message arrives. The server refuses that login's saves either way.
  */
-function asViewOnly(html: string): string {
-  const flag = "<script>window.TBDG_VIEWONLY=true</script>";
+function asViewOnly(html: string, display: boolean): string {
+  // TBDG_DISPLAY: the warehouse TV login also opens in TV mode on the wall
+  // calendar; a view-only office login (production) opens normally.
+  const flag = `<script>window.TBDG_VIEWONLY=true;window.TBDG_DISPLAY=${display};</script>`;
   return html.includes("<head>") ? html.replace("<head>", `<head>${flag}`) : flag + html;
 }
 
@@ -59,7 +61,8 @@ export default function InstallSchedule() {
           throw new Error(detail?.detail || `Failed to load (${res.status})`);
         }
         const text = await res.text();
-        if (!cancelled) setHtml(currentMe()?.viewOnly ? asViewOnly(text) : text);
+        const me = currentMe();
+        if (!cancelled) setHtml(me?.viewOnly || me?.readOnly ? asViewOnly(text, Boolean(me?.viewOnly)) : text);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }

@@ -66,7 +66,7 @@ async def list_users() -> dict:
 class RoleIn(BaseModel):
     email: str
     # None clears the row, so the role falls back to the roster/default.
-    role: Literal["crew", "viewer", "lead", "staff", "admin", "super_admin"] | None
+    role: Literal["crew", "viewer", "production", "lead", "staff", "admin", "super_admin"] | None
 
 
 @router.put("")

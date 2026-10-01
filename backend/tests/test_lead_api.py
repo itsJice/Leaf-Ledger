@@ -341,3 +341,84 @@ def test_me_flags_the_display_login(fake_db, board):
 def test_roles_ddl_widens_an_existing_table_for_viewer():
     assert "DROP CONSTRAINT IF EXISTS user_roles_role_check" in roles.DDL
     assert "'viewer'" in roles.DDL
+
+
+# ─── production ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("method,path,ok", [
+    ("GET", "/api/forms/{slug}", True),
+    ("POST", "/api/forms/{slug}/responses", True),
+    ("GET", "/api/forms/{slug}/responses", True),
+    ("PATCH", "/api/forms/responses/{response_id}", True),
+    ("PATCH", "/api/forms/{slug}", False),                    # editing the form itself
+    ("GET", "/api/products/search", True),
+    ("POST", "/api/products/favorite/{product_id}", True),
+    ("POST", "/api/products/ornament-match", True),
+    ("GET", "/api/jobs/board-list", True),
+    ("POST", "/api/jobs/create", False),                      # jobs are view-only
+    ("POST", "/api/jobs/{job_id}/touch", True),               # opening a job stamps it
+    ("GET", "/api/jobs/po/{order_id}/lines", False),          # purchasing isn't theirs
+    ("GET", "/api/jobs/open-orders/search", False),
+    ("GET", "/api/suppliers/{supplier_id}/credentials", True),  # they order from vendors
+    ("PUT", "/api/suppliers/{supplier_id}", False),           # but can't edit logins
+    ("GET", "/api/clients/list", True),
+    ("PUT", "/api/clients/{client_id}", False),
+    ("POST", "/api/clients/{client_id}/comments", True),
+    ("POST", "/api/feedback", True),
+    ("GET", "/api/install-schedule/page", True),
+    ("PUT", "/api/install-schedule/state", False),
+    ("GET", "/api/lead/shifts", True),
+    ("POST", "/api/lead/time/start", False),
+    ("GET", "/api/pricing/rates", False),                     # Settings rates and costs
+    ("GET", "/api/settings/markup", False),
+    ("GET", "/api/recipe-intelligence/pricing-rules", False),
+    ("GET", "/api/dashboard/summary", False),
+    ("GET", "/api/admin/category-index", False),               # Sync Operations
+    ("GET", "/api/orders/list", False),
+    ("GET", "/api/users", False),
+])
+def test_production_allowlist(method, path, ok):
+    assert roles.allowed("production", "staff", method, False, path) is ok
+
+
+def test_production_me_lists_pages_and_home(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", "production")
+    out = run(me.get_me(user("production@example.com")))
+    assert out["readOnly"] and out["home"] == "/forms/product-request"
+    assert "/jobs" in out["pages"] and "/settings" not in out["pages"]
+    assert not out["fieldOnly"] and not out["viewOnly"]
+
+
+def test_production_sees_every_shift_read_only(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", "production")
+    out = run(lead.my_shifts(user("production@example.com")))
+    assert len(out["days"]) == 2 and out["readOnly"] is True and out["supervisor"] is False
+
+
+def test_production_comments_are_own_only(fake_db):
+    from app.apis import feedback
+
+    roles.clear_cache()
+    fake_db.on_fetchval("FROM ll_app.user_roles", "production")
+    t = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    fake_db.on_fetch("FROM ll_app.feature_requests", [{
+        "id": 1, "message": "Add a size filter", "has_screenshot": False, "page_path": "/search",
+        "submitted_name": "production", "status": "new", "created_at": t,
+        "claude_status": "fixed", "claude_note": "internal", "claude_link": None,
+        "claude_reviewed_at": t, "reply": "On it", "reply_name": "Justice", "replied_at": t}])
+    out = run(feedback.list_feedback(User(sub="prod-1", user_id="prod-1", email="production@example.com", name="p")))
+    (sql, args), = fake_db.calls("FROM ll_app.feature_requests")
+    assert "submitted_by = $2" in sql and args[1] == "prod-1"
+    row = out[0]
+    assert row.stage == "In process" and row.reply == "On it" and row.claude_note is None
+    roles.clear_cache()
+
+
+def test_stage_wording():
+    from app.apis.feedback import stage_of
+
+    assert stage_of("done", None, None) == "Completed"
+    assert stage_of("new", "fixed", None) == "In process"
+    assert stage_of("new", "needs_human", object()) == "Reviewed"
+    assert stage_of("new", None, None) == "Submitted"

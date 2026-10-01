@@ -168,14 +168,29 @@ class FeedbackRow(BaseModel):
     reply: Optional[str] = None
     reply_name: Optional[str] = None
     replied_at: Optional[str] = None
+    #: Where the comment stands, in words anyone can show: Submitted,
+    #: Reviewed, In process or Completed (see stage_of).
+    stage: str = "Submitted"
 
 
 def _iso(value) -> Optional[str]:
     return value.isoformat() if value is not None else None
 
 
+def stage_of(status: Optional[str], claude_status: Optional[str], reviewed_at) -> str:
+    """The submitter's view of progress, from the owner's review fields."""
+    if status == "done":
+        return "Completed"
+    if claude_status in ("fixed", "needs_approval", "approved"):
+        return "In process"
+    if reviewed_at is not None or claude_status:
+        return "Reviewed"
+    return "Submitted"
+
+
 def to_row(r) -> FeedbackRow:
     return FeedbackRow(
+        stage=stage_of(r["status"], r.get("claude_status"), r.get("claude_reviewed_at")),
         id=r["id"], message=r["message"], has_screenshot=r["has_screenshot"],
         page_path=r["page_path"], submitted_name=r["submitted_name"],
         status=r["status"], created_at=r["created_at"].isoformat(),
@@ -183,6 +198,15 @@ def to_row(r) -> FeedbackRow:
         claude_link=r.get("claude_link"), claude_reviewed_at=_iso(r.get("claude_reviewed_at")),
         reply=r.get("reply"), reply_name=r.get("reply_name"), replied_at=_iso(r.get("replied_at")),
     )
+
+
+async def _own_only(user) -> bool:
+    """Below office staff, a person sees only their own submissions. If the
+    role can't be worked out, assume the narrower view."""
+    try:
+        return not roles.at_least(await roles.resolve_role(user.email), "staff")
+    except Exception:  # noqa: BLE001
+        return True
 
 
 @router.get("/access")
@@ -200,22 +224,34 @@ async def list_feedback(user: AuthorizedUser, limit: int = 100) -> Any:
     notes and the replies; everyone else gets the submission and its
     open/done status."""
     limit = max(1, min(limit, 500))
+    # Office staff see the whole inbox; anyone below that (the production
+    # login) sees only what they submitted -- with the owner's reply to it,
+    # since it was written to them (user, 2026-10-01).
+    own_only = await _own_only(user)
     try:
         conn = await get_conn()
     except Exception:
         return []
     try:
         await ensure_schema(conn)
-        rows = await conn.fetch(
-            f"SELECT {ROW_COLUMNS} "
-            "FROM ll_app.feature_requests ORDER BY created_at DESC LIMIT $1",
-            limit,
-        )
+        if own_only:
+            rows = await conn.fetch(
+                f"SELECT {ROW_COLUMNS} FROM ll_app.feature_requests "
+                "WHERE submitted_by = $2 ORDER BY created_at DESC LIMIT $1",
+                limit, user.sub,
+            )
+        else:
+            rows = await conn.fetch(
+                f"SELECT {ROW_COLUMNS} "
+                "FROM ll_app.feature_requests ORDER BY created_at DESC LIMIT $1",
+                limit,
+            )
     finally:
         await conn.close()
     out = [to_row(r) for r in rows]
     if not await is_owner(user):
-        out = [row.model_copy(update=dict.fromkeys(OWNER_FIELDS)) for row in out]
+        hidden = [f for f in OWNER_FIELDS if not (own_only and f in ("reply", "reply_name", "replied_at"))]
+        out = [row.model_copy(update=dict.fromkeys(hidden)) for row in out]
     return out
 
 
@@ -287,7 +323,8 @@ async def reply_to_claude(feedback_id: int, body: ReplyIn, user: AuthorizedUser)
 
 
 @router.get("/{feedback_id}/screenshot")
-async def get_feedback_screenshot(feedback_id: int) -> dict:
+async def get_feedback_screenshot(feedback_id: int, user: AuthorizedUser) -> dict:
+    own_only = await _own_only(user)
     try:
         conn = await get_conn()
     except Exception as exc:
@@ -295,10 +332,12 @@ async def get_feedback_screenshot(feedback_id: int) -> dict:
     try:
         await ensure_schema(conn)
         row = await conn.fetchrow(
-            "SELECT screenshot FROM ll_app.feature_requests WHERE id = $1", feedback_id
+            "SELECT screenshot, submitted_by FROM ll_app.feature_requests WHERE id = $1", feedback_id
         )
     finally:
         await conn.close()
+    if row and own_only and row["submitted_by"] != user.sub:
+        row = None  # someone else's: same answer as "no such screenshot"
     if not row or not row["screenshot"]:
         raise HTTPException(status_code=404, detail="No screenshot for this submission")
     return {"screenshot": row["screenshot"]}

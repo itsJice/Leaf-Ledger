@@ -4,6 +4,7 @@ import {
   CheckCircle2, AlertTriangle, HelpCircle, ShieldCheck, Clock, ExternalLink,
 } from "components/icons";
 import Layout from "components/Layout";
+import { isReadOnly } from "utils/me";
 import { apiFetch } from "utils/apiFetch";
 import { toast } from "sonner";
 
@@ -33,6 +34,9 @@ interface FeedbackRow {
   claude_reviewed_at?: string | null;
   reply?: string | null;
   reply_name?: string | null;
+  /** Where it stands for the person who sent it: Submitted, Reviewed,
+   *  In process or Completed (server: feedback.stage_of). */
+  stage?: string;
   replied_at?: string | null;
 }
 
@@ -48,6 +52,14 @@ const REVIEW_STYLES: Record<string, { label: string; icon: typeof Sparkles; tone
 };
 
 const NEEDS_YOU = new Set(["needs_approval", "needs_human", "unclear"]);
+
+/** Badge colours for the submitter's view of progress. */
+const STAGE_STYLE: Record<string, string> = {
+  Submitted: "bg-stone-100 text-stone-600",
+  Reviewed: "bg-sky-50 text-sky-700",
+  "In process": "bg-amber-50 text-amber-700",
+  Completed: "bg-emerald-50 text-emerald-700",
+};
 
 function matchesFilter(row: FeedbackRow, filter: Filter): boolean {
   const cs = row.claude_status ?? "";
@@ -246,12 +258,11 @@ function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
           {!owner && (
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                done ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-              }`}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${STAGE_STYLE[row.stage ?? ""] ?? (
+                done ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}`}
             >
               {done ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-              {done ? "Complete" : "Under review"}
+              {row.stage ?? (done ? "Completed" : "Under review")}
             </span>
           )}
           {row.submitted_name && <span className="font-medium text-stone-500">{row.submitted_name}</span>}
@@ -271,6 +282,11 @@ function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
           )}
         </div>
         {owner && <ClaudeReview row={row} onReply={onReply} />}
+        {!owner && row.reply && (
+          <p className="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600">
+            <span className="font-medium text-stone-700">{row.reply_name || "The office"} replied:</span> {row.reply}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -364,7 +380,9 @@ export default function Comments() {
         <p className="mt-0.5 text-xs text-stone-500">
           {owner
             ? "Feature requests and notes sent in from around the app. Claude reviews open ones every morning — check one off once it's handled."
-            : "Feature requests and notes sent in from around the app, and where each one stands."}
+            : isReadOnly()
+              ? "The notes you've sent in, and where each one stands."
+              : "Feature requests and notes sent in from around the app, and where each one stands."}
         </p>
       </header>
 

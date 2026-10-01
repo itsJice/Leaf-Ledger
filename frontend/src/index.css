@@ -1067,3 +1067,9 @@ html.dark {
   --logo-wordmark: rgb(214 228 218);
   --logo-accent: rgb(var(--p-400));
 }
+
+/* View-only logins (production): edit controls are marked data-edit and
+   hidden here. The server refuses those writes regardless (app/libs/roles.py). */
+[data-readonly] [data-edit] {
+  display: none !important;
+}
