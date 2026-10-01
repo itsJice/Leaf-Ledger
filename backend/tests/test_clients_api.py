@@ -104,7 +104,7 @@ def test_list_clients(fake_db, fake_request):
          "last_project_at": T0, "source": "from_projects", "activity": []},
     ]
     assert fake_db.seen("COALESCE(SUM(CASE WHEN ci.status = 'selected' THEN ci.quantity * p.current_price ELSE 0 END), 0)::float AS selected_cost")
-    assert fake_db.seen("FROM client_activity ORDER BY occurred_at DESC NULLS LAST, season DESC")
+    assert fake_db.seen("FROM client_activity WHERE ($1::int IS NULL OR client_id = $1) ORDER BY occurred_at DESC NULLS LAST, season DESC")
     assert not fake_db.seen("created_by")  # team-owned rollup
 
 
@@ -177,6 +177,8 @@ def test_update_client(fake_db, fake_request):
     # -> no rename flag, nothing mirrored.
     assert args_of(fake_db, "UPDATE clients SET") == [(5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith")]
     assert not fake_db.seen("UPDATE arrangements")
+    # Only this client's activity is read back, not every client's.
+    assert args_of(fake_db, "FROM client_activity") == [(5,)]
 
 
 def test_update_client_404(fake_db, fake_request):

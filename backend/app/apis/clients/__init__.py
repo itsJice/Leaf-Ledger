@@ -76,13 +76,16 @@ async def load_saved_clients(conn) -> List[dict]:
     return out
 
 
-async def load_activity_by_client(conn) -> dict:
+async def load_activity_by_client(conn, client_id: Optional[int] = None) -> dict:
     """Every client's activity feed (Christmas install history today), one
     query -- grouped in Python rather than a SQL json_agg so a NULL detail
-    or an odd jsonb decode doesn't need its own SQL-side special case."""
+    or an odd jsonb decode doesn't need its own SQL-side special case.
+    With client_id, just that client's -- an edit only needs its own."""
     rows = await conn.fetch(
         "SELECT client_id, id, kind, season, summary, detail, occurred_at, created_at "
-        "FROM client_activity ORDER BY occurred_at DESC NULLS LAST, season DESC"
+        "FROM client_activity WHERE ($1::int IS NULL OR client_id = $1) "
+        "ORDER BY occurred_at DESC NULLS LAST, season DESC",
+        client_id,
     )
     by_client: dict = {}
     for r in rows:
@@ -416,7 +419,13 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
         if row is None:
             raise HTTPException(status_code=404, detail="No client with that id")
 
-        activity_by_client = await load_activity_by_client(conn)
+        # Only this client's feed, priced the same way the list prices it, so
+        # the card doesn't lose its numbers after a save.
+        activity = (await load_activity_by_client(conn, client_id)).get(client_id, [])
+        rate_rows = await load_rate_rows(conn)
+        rates_by_season: dict = {}
+        for a in activity:
+            with_pricing(a, rate_rows, rates_by_season)
         result = dict(row)
         sc = result.get("secondary_contacts")
         result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
@@ -425,7 +434,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
             **result,
             "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
             "last_project_at": None, "source": "saved",
-            "activity": activity_by_client.get(client_id, []),
+            "activity": activity,
             "renamed": renamed,
         }
     finally:
