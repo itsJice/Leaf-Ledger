@@ -14,6 +14,13 @@ except that it may make GET requests to a router that sets
 ``VIEWER_READ = True`` -- the install schedule. A lead can't read those, and
 a viewer can't write anything.
 
+and ``production`` (the production team's login), also outside the ladder.
+It works from an explicit allowlist below -- PRODUCTION_READ (GET-only
+areas), PRODUCTION_WRITES (the few things it may change) and PRODUCTION_DENY
+(always refused) -- checked against the matched route for every request, so
+a page it can open can't be used to reach anything else. It never sees the
+rates and costs kept in Settings, Sync Operations, or anyone else's comments.
+
 How a login's role is decided, first match wins:
 
 1. ``SUPER_ADMIN_EMAILS`` -- hard-coded so the owner can never be locked out,
@@ -41,8 +48,8 @@ from app.auth.user import User
 from app.libs import db
 from app.libs.db import ensure_schema_once
 
-ROLES = ("crew", "viewer", "lead", "staff", "admin", "super_admin")
-RANK = {"crew": 0, "viewer": 0, "lead": 1, "staff": 2, "admin": 3, "super_admin": 4}
+ROLES = ("crew", "viewer", "production", "lead", "staff", "admin", "super_admin")
+RANK = {"crew": 0, "viewer": 0, "production": 0, "lead": 1, "staff": 2, "admin": 3, "super_admin": 4}
 READ_METHODS = frozenset({"GET", "HEAD"})
 DEFAULT_ROLE = "staff"
 
@@ -65,7 +72,7 @@ CREATE TABLE IF NOT EXISTS ll_app.user_roles (
 -- existing table too (this is how 'viewer' arrived -- migrations/016).
 ALTER TABLE ll_app.user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
 ALTER TABLE ll_app.user_roles ADD CONSTRAINT user_roles_role_check
-    CHECK (role IN ('crew','viewer','lead','staff','admin','super_admin'));
+    CHECK (role IN ('crew','viewer','production','lead','staff','admin','super_admin'));
 INSERT INTO ll_app.user_roles (email, role, updated_by)
 VALUES ('justice@wenzdays.com', 'super_admin', 'seed')
 ON CONFLICT (email) DO NOTHING;
@@ -136,9 +143,68 @@ async def resolve_role(email: Optional[str], roster_lookup: RosterLookup = None)
     return role
 
 
-def allowed(role: str, minimum: str, method: str, viewer_read: bool = False) -> bool:
+# ── production (user, 2026-10-01) ────────────────────────────────────────────
+# Paths are FastAPI route templates as matched (request.scope["route"].path),
+# so "/api/forms/{slug}/responses" -- not the concrete URL.
+
+#: Areas production may READ (GET/HEAD), by path prefix: the request form and
+#: product requests, catalog + favorites + ornament calculator, jobs, suppliers
+#: (vendor logins included -- they order -- but never editable), clients and
+#: projects, the install schedule and crew shifts (view-only), its own comments.
+PRODUCTION_READ = (
+    "/api/me", "/api/preferences", "/api/bootstrap",
+    "/api/forms/", "/api/products/", "/api/jobs/", "/api/requests/",
+    "/api/suppliers/", "/api/clients", "/api/arrangements",
+    "/api/designs/hierarchy", "/api/builder/build-types",
+    "/api/recipe-intelligence", "/api/install-schedule/", "/api/lead/shifts",
+    "/api/feedback",
+)
+#: The only changes production may make.
+PRODUCTION_WRITES = frozenset({
+    "POST /api/forms/{slug}/responses",          # submit the request form
+    "PATCH /api/forms/responses/{response_id}",  # update a product request's status
+    "POST /api/products/favorite/{product_id}",  # their favorites
+    "POST /api/products/ornament-match",         # ornament calculator (a lookup)
+    "POST /api/feedback",                        # leave a comment
+    "POST /api/clients/{client_id}/comments",    # comment on a client
+    "PUT /api/preferences",                      # their own theme / sidebar
+    "POST /api/jobs/{job_id}/touch",             # "last opened" stamp when viewing a job
+})
+#: Refused even inside an allowed area: the rates and costs kept in Settings.
+PRODUCTION_DENY = (
+    "/api/pricing", "/api/settings", "/api/pricing-rules", "/api/sku-standards",
+    "/api/recipe-intelligence/pricing-rules",
+    # Purchasing lives under the jobs router but isn't production's: purchase
+    # orders, the sourcing worksheet, open orders and vendor POs.
+    "/api/jobs/po", "/api/jobs/sourcing", "/api/jobs/open-orders", "/api/jobs/vendors",
+    "/api/jobs/order-items", "/api/jobs/needs",
+)
+
+
+#: Pages (app routes) production may open, and where it lands -- read by the
+#: frontend from /api/me to build its menu and route guard.
+PRODUCTION_HOME = "/forms/product-request"
+PRODUCTION_PAGES = (
+    "/forms/product-request", "/forms/product-request/responses", "/search",
+    "/favorites", "/jobs", "/suppliers", "/ornament-calculator", "/clients",
+    "/projects", "/arrangements", "/install-schedule", "/shifts", "/comments",
+)
+
+
+def production_may(method: str, path: str) -> bool:
+    if any(path.startswith(d) for d in PRODUCTION_DENY):
+        return False
+    if method.upper() in READ_METHODS and any(path.startswith(p) for p in PRODUCTION_READ):
+        return True
+    return f"{method.upper()} {path}" in PRODUCTION_WRITES
+
+
+def allowed(role: str, minimum: str, method: str, viewer_read: bool = False, path: str = "") -> bool:
     if role == "viewer" and viewer_read and method.upper() in READ_METHODS:
         return True
+    if role == "production":
+        # Allowlist only: a router's MIN_ROLE never opens anything extra.
+        return production_may(method, path)
     return at_least(role, minimum)
 
 
@@ -153,7 +219,10 @@ def require_role(minimum: str, viewer_read: bool = False):
         if os.getenv("AUTH_DISABLED", "").lower() == "true" and os.getenv("ENV", "dev") == "dev":
             return "super_admin"
         role = await resolve_role(get_current_user(request).email)
-        if not allowed(role, minimum, request.method, viewer_read):
+        route = (getattr(request, "scope", None) or {}).get("route")
+        url = getattr(request, "url", None)
+        path = getattr(route, "path", None) or (url.path if url else "")
+        if not allowed(role, minimum, request.method, viewer_read, path):
             raise HTTPException(status_code=403, detail="You don't have access to this")
         return role
 

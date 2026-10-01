@@ -16,7 +16,7 @@ import { APP_BASE_PATH, apiClient } from "app";
 import { apiFetch } from "utils/apiFetch";
 import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
-import { currentMe } from "utils/me";
+import { currentMe, pageAllowed } from "utils/me";
 import {
   NAV_GROUPS,
   resolveSidebarRender,
@@ -375,8 +375,11 @@ function StaffLayout({ children }: Props) {
     const plan = resolveSidebarRender(sidebarOverride || prefs?.sidebar);
     const runs: NavRun[] = [];
     const isAdmin = Boolean(currentMe()?.isAdmin);
+    const me = currentMe();
     plan.items.forEach(({ item, showGroupLabel }, index) => {
       if (item.adminOnly && !isAdmin) return;
+      // A restricted login (production) sees only the pages it may open.
+      if (!pageAllowed(me, item.path)) return;
       const current = runs[runs.length - 1];
       if (!current || current.groupId !== item.groupId) {
         runs.push({

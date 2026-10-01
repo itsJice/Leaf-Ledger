@@ -2526,11 +2526,16 @@ function enterViewOnly(){
   _roKill = e => { e.preventDefault(); e.stopPropagation(); };
   document.addEventListener('dragstart', _roKill, true);
   document.addEventListener('drop', _roKill, true);
+  startLiveRefresh();
+  // TBDG_DISPLAY is the warehouse TV login: open on the wall calendar, in TV
+  // mode unless someone on this device turned it off. A view-only office login
+  // (production, TBDG_DISPLAY=false) opens the tool as normal, just read-only.
+  // Undefined means a host page from before production existed: a display.
+  const display = window.TBDG_DISPLAY===undefined ? true : !!window.TBDG_DISPLAY;
+  if(!display){ render(); return; }
   calView = tvView();
   calAnchor = wallHome();
-  startLiveRefresh();
   setView('cal');
-  // The display is a TV unless someone on this device has turned TV mode off.
   if(tvPref()!=='0') enterTV();
 }
 let liveRefresh=false;

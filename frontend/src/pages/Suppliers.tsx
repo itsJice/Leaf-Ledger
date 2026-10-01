@@ -184,6 +184,7 @@ function SupplierModal({
                     setSavedPassword(null);
                     setCredsLocked(false);
                   }}
+                  data-edit
                   className="flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 border border-emerald-200 bg-white rounded-md px-2 py-0.5 transition-colors"
                 >
                   <Pencil size={10} /> Edit
@@ -397,7 +398,7 @@ function SupplierModal({
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-100">
           <button onClick={onClose} className="text-sm text-stone-500 hover:text-stone-700 px-4 py-2">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
+          <button data-edit onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
             {saving ? "Saving..." : form.id ? "Update Supplier" : "Add Supplier"}
           </button>
         </div>
@@ -551,7 +552,7 @@ function SupplierCard({
             <button onClick={onEdit} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors" title="Edit supplier">
               <Pencil size={14} />
             </button>
-            <button onClick={onDelete} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors" title="Delete supplier">
+            <button data-edit onClick={onDelete} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors" title="Delete supplier">
               <Trash2 size={14} />
             </button>
           </div>
@@ -843,6 +844,7 @@ export default function Suppliers() {
           </p>
         </div>
         <button
+          data-edit
           onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-colors"
           style={{ backgroundColor: "rgb(var(--ll-brand))" }}
@@ -885,7 +887,7 @@ export default function Suppliers() {
             </div>
             <p className="text-base font-medium text-stone-600 mb-1">No suppliers yet</p>
             <p className="text-sm text-stone-400 max-w-xs leading-relaxed mb-4">Add your first supplier to keep its site link and login credentials handy.</p>
-            <button onClick={openNew} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>Add First Supplier</button>
+            <button data-edit onClick={openNew} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>Add First Supplier</button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

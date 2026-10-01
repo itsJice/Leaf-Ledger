@@ -661,7 +661,7 @@ function DeleteClientDialog({
           ) : (
             <button
               type="button"
-              onClick={() => onConfirm(deleteProjects)}
+              data-edit onClick={() => onConfirm(deleteProjects)}
               className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-900"
             >
               Confirm delete
@@ -1063,7 +1063,7 @@ export default function Clients() {
           </p>
         </div>
         <button
-          onClick={() => setShowNewClientModal(true)}
+          data-edit onClick={() => setShowNewClientModal(true)}
           className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           style={{ backgroundColor: "rgb(var(--ll-brand))" }}
         >
@@ -1171,7 +1171,7 @@ export default function Clients() {
             </div>
             <p className="mb-1 text-base font-medium text-stone-600">No clients yet</p>
             <p className="mb-4 max-w-xs text-sm leading-relaxed text-stone-400">Create a client first, then attach projects and scope buckets to that client.</p>
-            <button onClick={() => setShowNewClientModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
+            <button data-edit onClick={() => setShowNewClientModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
               Create First Client
             </button>
           </div>
@@ -1222,7 +1222,7 @@ export default function Clients() {
                           Add project for this client
                         </button>
                         <button
-                          onClick={() => setEditingClient(client)}
+                          data-edit onClick={() => setEditingClient(client)}
                           className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
                         >
                           <Pencil size={14} />
@@ -1291,7 +1291,7 @@ export default function Clients() {
                                 {entry.created_at ? new Date(entry.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}
                               </span>
                               <button
-                                onClick={() => removeComment(client, entry)}
+                                data-edit onClick={() => removeComment(client, entry)}
                                 className="shrink-0 text-stone-300 hover:text-red-500"
                                 title="Delete comment"
                               >
@@ -1360,7 +1360,7 @@ export default function Clients() {
                                   <ArrowRight size={13} />
                                 </button>
                                 <button
-                                  onClick={() => deleteProject(project)}
+                                  data-edit onClick={() => deleteProject(project)}
                                   className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500"
                                   title="Delete project"
                                   aria-label={`Delete ${project.name}`}

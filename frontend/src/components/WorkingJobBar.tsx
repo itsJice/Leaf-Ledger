@@ -90,7 +90,7 @@ export default function WorkingJobBar({ value, onChange }: Props) {
                 <option value="">— none —</option>
                 {jobs.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
               </select>
-              <button onClick={newJob} className="rounded-md border border-stone-300 px-2 text-stone-600 hover:border-emerald-400 hover:text-emerald-700" title="New job"><Plus size={14} /></button>
+              <button data-edit onClick={newJob} className="rounded-md border border-stone-300 px-2 text-stone-600 hover:border-emerald-400 hover:text-emerald-700" title="New job"><Plus size={14} /></button>
             </div>
           </label>
           <div className="mt-3 flex items-center justify-between text-[11px] text-stone-400">

@@ -410,7 +410,7 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
                     <td className="px-2 py-2 text-right">
                       <button
                         type="button"
-                        onClick={() => setEditing(editing === season ? null : season)}
+                        data-edit onClick={() => setEditing(editing === season ? null : season)}
                         className="rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-emerald-700"
                         title={empty ? `Record the ${season} season` : `Edit the ${season} season`}
                       >

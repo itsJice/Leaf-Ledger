@@ -107,15 +107,15 @@ def test_update_status(fake_db):
     assert [a for _, a in fake_db.calls("UPDATE ll_app.feature_requests")] == [(42, "done"), (42, "done")]
 
 
-def test_screenshot(fake_db):
+def test_screenshot(fake_db, fake_user):
     with pytest.raises(HTTPException) as exc:
-        run(feedback.get_feedback_screenshot(42))
+        run(feedback.get_feedback_screenshot(42, fake_user))
     assert (exc.value.status_code, exc.value.detail) == (404, "No screenshot for this submission")
-    fake_db.on_fetchrow("SELECT screenshot FROM ll_app.feature_requests", {"screenshot": ""})
+    fake_db.on_fetchrow("SELECT screenshot, submitted_by FROM ll_app.feature_requests", {"screenshot": "", "submitted_by": "user-1"})
     with pytest.raises(HTTPException):
-        run(feedback.get_feedback_screenshot(42))
-    fake_db.on_fetchrow("SELECT screenshot FROM ll_app.feature_requests", {"screenshot": "data:image/png;base64,AAA"})
-    assert run(feedback.get_feedback_screenshot(42)) == {"screenshot": "data:image/png;base64,AAA"}
+        run(feedback.get_feedback_screenshot(42, fake_user))
+    fake_db.on_fetchrow("SELECT screenshot, submitted_by FROM ll_app.feature_requests", {"screenshot": "data:image/png;base64,AAA", "submitted_by": "user-1"})
+    assert run(feedback.get_feedback_screenshot(42, fake_user)) == {"screenshot": "data:image/png;base64,AAA"}
 
 
 def test_list_shows_claude_review_to_owner_only(fake_db, fake_user, as_role):
@@ -169,3 +169,16 @@ def test_reply_queues_for_claude(fake_db, fake_user):
     run(feedback.reply_to_claude(42, feedback.ReplyIn(reply=" It's the Jobs page "), fake_user))
     args = [a for _, a in fake_db.calls("UPDATE ll_app.feature_requests SET claude_status")]
     assert args == [(42, "approved", None, "crew"), (42, "replied", "It's the Jobs page", "crew")]
+
+
+def test_production_cannot_open_someone_elses_screenshot(fake_db, fake_user):
+    from app.libs import roles
+
+    roles.clear_cache()
+    fake_db.on_fetchval("FROM ll_app.user_roles", "production")
+    fake_db.on_fetchrow("SELECT screenshot, submitted_by FROM ll_app.feature_requests",
+                        {"screenshot": "data:image/png;base64,AAA", "submitted_by": "someone-else"})
+    with pytest.raises(HTTPException) as exc:
+        run(feedback.get_feedback_screenshot(42, fake_user))
+    assert exc.value.status_code == 404
+    roles.clear_cache()

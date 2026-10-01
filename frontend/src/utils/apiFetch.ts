@@ -1,4 +1,6 @@
+import { toast } from "sonner";
 import { auth } from "app/auth/auth";
+import { isReadOnly } from "utils/me";
 
 /**
  * fetch() for our own /api routes, with the signed-in user's token attached.
@@ -17,9 +19,16 @@ export async function apiFetch(
   if (authHeader && !headers.has("Authorization")) {
     headers.set("Authorization", authHeader);
   }
-  return fetch(input, {
+  const res = await fetch(input, {
     ...init,
     headers,
     credentials: init.credentials ?? "include",
   });
+  // A view-only login that reaches a change the server refuses gets one
+  // plain explanation rather than a page-specific error.
+  const method = (init.method || "GET").toUpperCase();
+  if (res.status === 403 && method !== "GET" && isReadOnly()) {
+    toast.info("This account is view only. Ask the office to make this change.", { id: "ll-readonly" });
+  }
+  return res;
 }
