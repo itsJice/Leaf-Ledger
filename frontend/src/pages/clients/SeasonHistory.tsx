@@ -94,12 +94,18 @@ function editedOn(d: Record<string, unknown>, key: string): string | null {
 function EditedDot({ d, k }: { d: Record<string, unknown>; k: string }) {
   const when = editedOn(d, k);
   if (!when) return null;
-  const date = new Date(when);
-  const label = Number.isNaN(date.getTime()) ? when : date.toLocaleDateString();
+  // scheduler/import_workbook.py stamps what it brings over as "import:<date>":
+  // owned by the app from then on, but it came from the workbook, not a person.
+  const imported = when.startsWith("import:");
+  const raw = imported ? when.slice("import:".length) : when;
+  const date = new Date(imported ? `${raw}T12:00:00` : raw);
+  const label = Number.isNaN(date.getTime()) ? raw : date.toLocaleDateString();
   return (
     <span
-      className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle"
-      title={`Set in Leaf & Ledger ${label} — the spreadsheet sync won't overwrite it`}
+      className={`ml-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${imported ? "bg-sky-500" : "bg-emerald-500"}`}
+      title={imported
+        ? `Imported from the Christmas workbook ${label} — kept on the card, the spreadsheet sync won't overwrite it`
+        : `Set in Leaf & Ledger ${label} — the spreadsheet sync won't overwrite it`}
     />
   );
 }
@@ -333,7 +339,7 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
       <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
         <TreePine size={12} />
         Christmas history
-        <span className="ml-1 font-normal normal-case tracking-normal text-stone-400">· a green dot marks a value set here, which the spreadsheet sync keeps</span>
+        <span className="ml-1 font-normal normal-case tracking-normal text-stone-400">· a green dot marks a value set here, a blue dot one imported from the workbook; the spreadsheet sync keeps both</span>
       </p>
       <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
         <table className="w-full min-w-[820px] text-xs">
