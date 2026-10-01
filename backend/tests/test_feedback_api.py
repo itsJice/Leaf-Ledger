@@ -94,17 +94,64 @@ def test_list_degrades_to_empty_on_outage(monkeypatch, fake_user):
     assert run(feedback.list_feedback(fake_user)) == []
 
 
-def test_update_status(fake_db):
+def test_update_status(fake_db, fake_user):
     with pytest.raises(HTTPException) as exc:
-        run(feedback.update_feedback_status(42, feedback.StatusIn(status="archived")))
+        run(feedback.update_feedback_status(42, feedback.StatusIn(status="archived"), fake_user))
     assert (exc.value.status_code, exc.value.detail) == (400, "status must be one of ['done', 'new']")
     with pytest.raises(HTTPException) as exc:
-        run(feedback.update_feedback_status(42, feedback.StatusIn(status="done")))
+        run(feedback.update_feedback_status(42, feedback.StatusIn(status="done"), fake_user))
     assert (exc.value.status_code, exc.value.detail) == (404, "No submission with that id")
     fake_db.on_fetchrow("UPDATE ll_app.feature_requests SET status", feedback_row(status="done"))
-    out = run(feedback.update_feedback_status(42, feedback.StatusIn(status="done")))
+    out = run(feedback.update_feedback_status(42, feedback.StatusIn(status="done"), fake_user))
     assert out.status == "done" and out.created_at == "2026-09-01T12:00:00+00:00"
-    assert [a for _, a in fake_db.calls("UPDATE ll_app.feature_requests")] == [(42, "done"), (42, "done")]
+    # No note sent: the existing note is left alone ($3 false).
+    assert [a for _, a in fake_db.calls("UPDATE ll_app.feature_requests")] == [
+        (42, "done", False, "", "crew"), (42, "done", False, "", "crew")]
+
+
+def test_check_off_with_what_we_fixed_note(fake_db, fake_user):
+    fake_db.on_fetchrow("UPDATE ll_app.feature_requests SET status", feedback_row(
+        status="done", resolution_note="Added a dark mode toggle in Settings",
+        resolved_by_name="crew", resolved_at=T0))
+    out = run(feedback.update_feedback_status(
+        42, feedback.StatusIn(status="done", resolution_note="  Added a dark mode toggle in Settings  "), fake_user))
+    assert (out.stage, out.resolution_note, out.resolved_by_name, out.resolved_at) == (
+        "Completed", "Added a dark mode toggle in Settings", "crew", "2026-09-01T12:00:00+00:00")
+    # A blank note is allowed and clears it; unchecking keeps the note.
+    run(feedback.update_feedback_status(42, feedback.StatusIn(status="done", resolution_note="  "), fake_user))
+    run(feedback.update_feedback_status(42, feedback.StatusIn(status="new"), fake_user))
+    (sql, _), *_ = fake_db.calls("UPDATE ll_app.feature_requests")
+    assert "resolved_at = CASE WHEN $2 = 'done' THEN COALESCE(resolved_at, now()) END" in sql
+    assert [a for _, a in fake_db.calls("UPDATE ll_app.feature_requests")] == [
+        (42, "done", True, "Added a dark mode toggle in Settings", "crew"),
+        (42, "done", True, "", "crew"),
+        (42, "new", False, "", "crew"),
+    ]
+    with pytest.raises(HTTPException) as exc:
+        run(feedback.update_feedback_status(
+            42, feedback.StatusIn(status="done", resolution_note="x" * 4001), fake_user))
+    assert exc.value.status_code == 413
+
+
+def test_what_we_fixed_note_is_visible_to_everyone(fake_db, fake_user, as_role):
+    fake_db.on_fetch("FROM ll_app.feature_requests", [feedback_row(
+        status="done", claude_status="fixed", claude_note="PR #51", claude_reviewed_at=T0,
+        resolution_note="Dark mode is in Settings now", resolved_by_name="Justice", resolved_at=T0)])
+    for role in ("super_admin", "admin", "staff", "production"):
+        as_role(role)
+        (out,) = run(feedback.list_feedback(fake_user))
+        assert (out.stage, out.resolution_note, out.resolved_by_name, out.resolved_at) == (
+            "Completed", "Dark mode is in Settings now", "Justice", "2026-09-01T12:00:00+00:00"), role
+        assert (out.claude_note is not None) == (role == "super_admin")
+    for field in ("resolution_note", "resolved_by_name", "resolved_at"):
+        assert field not in feedback.OWNER_FIELDS and field in feedback.ROW_COLUMNS
+
+
+def test_reply_on_fixed_item_requeues_for_claude(fake_db, fake_user):
+    fake_db.on_fetchrow("UPDATE ll_app.feature_requests SET claude_status",
+                        feedback_row(claude_status="replied", reply="Tested, still broken"))
+    out = run(feedback.reply_to_claude(42, feedback.ReplyIn(reply="Tested, still broken"), fake_user))
+    assert out.claude_status in feedback.CLAUDE_QUEUE_STATUSES
 
 
 def test_screenshot(fake_db, fake_user):
