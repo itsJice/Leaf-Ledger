@@ -408,7 +408,7 @@ body.readonly #newclientbtn,body.readonly #newdatebtn,
 body.readonly .cautoorder,body.readonly .undobar button,
 body.readonly [data-act],body.readonly .pkeditbtn,body.readonly .pkcommentrm,
 body.readonly #pkcommentadd,body.readonly #pkcommenttext,
-body.readonly #peekmove,body.readonly #stflist input[data-pid]{
+body.readonly #peekmove,body.readonly #peekout,body.readonly #sfout,body.readonly #sfpick,body.readonly #stflist input[data-pid]{
   opacity:.4;pointer-events:none;cursor:not-allowed}
 body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:default}
 /* ---- view toggle + calendar ---- */
@@ -496,7 +496,7 @@ body.viewonly .okbtn,body.viewonly .mv,body.viewonly .ordbtn,body.viewonly .cshi
 body.viewonly .cshiftadd,body.viewonly .shcbtn,body.viewonly .dchiprm,body.viewonly .stfadd,
 body.viewonly .cautoorder,body.viewonly [data-act],body.viewonly .pkeditbtn,
 body.viewonly .pkcommentrm,body.viewonly #pkcommentadd,body.viewonly #pkcommenttext,
-body.viewonly #peekmove,body.viewonly #headtitle,body.viewonly #summarybar{display:none!important}
+body.viewonly #peekmove,body.viewonly #peekout,body.viewonly #headtitle,body.viewonly #summarybar{display:none!important}
 /* It's a shared screen on the shop floor: installers' ratings and private
    notes stay off it. */
 body.viewonly .ratcell,body.viewonly .stftable th[title^="Alberto"],
@@ -1133,6 +1133,9 @@ body.apple .sfnav button:hover{background:rgba(31,61,43,.07);color:var(--ink)}
 body.apple .sfnav button.on{background:var(--brand);color:#fff}
 body.apple .sfmanual{all:unset;box-sizing:border-box;display:block;width:100%;margin:10px 0 4px;padding:10px;border-radius:10px;
   border:1.5px dashed #cfc8ba;text-align:center;cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif;font-size:13px;font-weight:800;color:var(--brand)}
+body.apple #sfdlg .sfbtns{align-items:center}
+body.apple #sfdlg .sfbtns #sfout{margin-right:auto;color:#7f1d1d;border-color:#e3c5c5;background:#fff}
+body.apple #sfdlg .sfbtns #sfout:hover{background:#fdecec;border-color:#b91c1c}
 body.apple .sfmanual:hover{background:var(--brand-soft);border-color:var(--brand)}
 @media (max-width:640px){ body.apple .sfwrap{grid-template-columns:1fr} body.apple .sfnav{display:none} }
 body.apple .badge.sftag{background:#0f766e;color:#fff;letter-spacing:.03em}
@@ -1509,7 +1512,10 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <label id="sflab">Client asked for</label>
   <select id="sfwant"></select>
   <div id="sfbody"></div>
-  <div class="btns"><button onclick="sfdlg.close()">Close</button></div>
+  <div class="btns sfbtns">
+    <button type="button" id="sfout" class="sfoutbtn" title="Take them out of this season — off every crew sheet and day count">Move to Not installing __SEASON__</button>
+    <button type="button" id="sfpick">Pick a date and crew yourself…</button>
+    <button onclick="sfdlg.close()">Close</button></div>
 </dialog>
 <dialog id="ncdlg">
   <b>New client / job</b>
@@ -1564,6 +1570,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <div class="btns"><button onclick="peekdlg.close()">Close</button>
   <button class="mv confirm" id="peekconfirm">confirm date</button>
   <button class="mv" id="peekhold" title="About to cancel but not decided — keeps their date, flags every card and sheet">put on hold</button>
+  <button class="mv" id="peekout" title="Take them out of this season — off every crew sheet and day count">not installing __SEASON__</button>
   <button class="okbtn" id="peekappr">Approve day</button>
   <button id="peekprint">Print sheet</button>
   <button id="peekmove">Reschedule</button>
@@ -4429,7 +4436,7 @@ function renderStrip(){
       else if(ds.some(d=>dayCalc(d).total>(d.win||600))) st='warn';
     }
     const holiday = ci && ci.kind==='thanksgiving';
-    const b = mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:(holiday?'No installs':'Open'), cls:holiday?'holiday':''});
+    const b = mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:(holiday?null:'Open'), cls:holiday?'holiday':''});
     if(holiday){
       b.title='Thanksgiving Day — no installs';
       b.ondragover=e=>{ e.dataTransfer.dropEffect='none'; };
@@ -4546,7 +4553,7 @@ function renderStrip(){
   // Pinned at the bottom: everyone not getting an install, and the maybes.
   // Drop a stop on either, same as the old trailing bubbles.
   const outCount = notInstallingPins().length;
-  const nb = mk('Not installing','NOINSTALL',false,false,'',{into:foot, icon:DICON.out, count:outCount||null});
+  const nb = mk('Not installing __SEASON__','NOINSTALL',false,false,'',{into:foot, icon:DICON.out, count:outCount||null});
   if(nb) nb.classList.add('noinstall');
   const holdCount = [...hold].filter(r=>C[r]).length;
   const hb = mk('On hold','HOLD',false,false,'',{into:foot, icon:DICON.hold, count:holdCount||null});
@@ -4677,7 +4684,7 @@ function buildDayCard(d){
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
           ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
-        <button class="mv find"${isConfirmed?' disabled':''} title="Every workable date and crew for this stop, best fit first">move to new date</button>
+        <button class="mv find"${isConfirmed?' disabled':''} title="Move to a new date — every workable date and crew, best fit first, or take them out of this season">move</button>
       </div>`;
     // Clicking the row itself (name, zone, box count -- anywhere that isn't
     // one of the buttons below) opens the same client-profile popup the
@@ -4745,7 +4752,7 @@ function buildDayCard(d){
  *  editable decision and can go back on the board. */
 function renderNotInstalling(){
   const nOut=notInstallingPins().length;
-  pageHead('Not installing', `${nOut} client${nOut===1?'':'s'} not getting an install this season`);
+  pageHead('Not installing __SEASON__', `${nOut} client${nOut===1?'':'s'} not getting an install this season`);
 
   const pins=notInstallingPins();
   const mapped=pins.filter(p=>p.lat!=null&&p.lon!=null).length;
@@ -5607,7 +5614,7 @@ function openSlotFinder(row){
     [...res].sort((a,b)=>a.slot.date.localeCompare(b.slot.date)||String(a.slot.crew).localeCompare(String(b.slot.crew)))
       .forEach(r=>{ const k=weekOf(r.slot.date), g=groups[groups.length-1];
         if(g && g.k===k) g.items.push(r); else groups.push({k, name:weekName(r.slot.date), items:[r]}); });
-    const manual=`<button type="button" class="sfmanual">Pick a date and crew yourself…</button>`;
+    const manual='';
     body.innerHTML = res.length ? `
       <div class="sfwrap">
         <nav class="sfnav" aria-label="Jump to a week">
@@ -5626,7 +5633,10 @@ function openSlotFinder(row){
       const to=b.closest('.sfrow').dataset.to;
       if(commitPlan(planFor(row, to))) sfdlg.close();
     });
-    body.querySelector('.sfmanual').onclick=()=>{ sfdlg.close(); openMoveDlg(row, want); };
+    // Always-visible footer actions (user, 2026-10-01): take them out of the
+    // season (same as dropping on Not installing), or pick by hand.
+    document.getElementById('sfout').onclick=()=>{ sfdlg.close(); markNotInstalling(row); };
+    document.getElementById('sfpick').onclick=()=>{ sfdlg.close(); openMoveDlg(row, want); };
     const list=body.querySelector('.sflist'), nav=body.querySelector('.sfnav');
     if(list && nav){
       // Measure un-stuck anchors, not the pinned headers: a stuck sticky
@@ -6995,14 +7005,16 @@ function openStopPeek(row,dayId){
   const cfBtn=document.getElementById('peekconfirm');
   const apBtn=document.getElementById('peekappr');
   const hdBtn=document.getElementById('peekhold');
+  const outBtn=document.getElementById('peekout');
   // Approve, print, confirm and hold all act on a day. Off the schedule there
   // is no day to act on, so they are hidden rather than shown disabled -- a
   // greyed "Approve day" invites a click that can never do anything.
-  [prBtn, cfBtn, apBtn, hdBtn].forEach(b=>{ b.hidden = !d; });
+  [prBtn, cfBtn, apBtn, hdBtn, outBtn].forEach(b=>{ b.hidden = !d; });
   if(d){
     hdBtn.textContent = hold.has(row) ? 'release hold' : 'put on hold';
     hdBtn.classList.toggle('on', hold.has(row));
     hdBtn.onclick=()=>{ peekdlg.close(); toggleHold(row); };
+    outBtn.onclick=()=>{ peekdlg.close(); markNotInstalling(row); };
     openBtn.hidden=false;
     openBtn.textContent='Open day';
     openBtn.onclick=()=>{
@@ -8130,7 +8142,22 @@ document.getElementById('tbprint').onclick=()=>{
 })();
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.
-selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
+// Open on TODAY when today is a date in the list (from Oct 21 on); before
+// that, and once the list has no date for today, open on the Overview "All"
+// view (user, 2026-10-01). Same range renderStrip() lists.
+function stripListsDate(dt){
+  if(!inStripScope(dt)) return false;
+  const working=new Set([...allDates(), ...days.map(d=>d.date)]);
+  const calDates=SPEC.calendar.map(ci=>ci.date).filter(inStripScope).sort();
+  const firstInstall=`${MONTH_YEAR['10']}-10-21`;
+  const firstWorking=[...working].filter(inStripScope).sort()[0];
+  const start=stripScope==='takedown' ? (calDates[0]||firstInstall)
+                                      : [firstInstall, ...(firstWorking?[firstWorking]:[])].sort()[0];
+  const end=[...calDates, ...[...working].filter(inStripScope)].sort().pop()||start;
+  return dt>=start && dt<=end;
+}
+{ const T=todayISO();
+  selDate = stripListsDate(T) ? T : ({install:'ALL-INSTALL', takedown:'ALL-TAKEDOWN', all:'ALL'}[stripScope]||'ALL'); }
 // Archive mode, decided locally and applied before anything can be touched.
 // The season this page was built for is either the one we are in or it is
 // already over -- and if it is over, nobody should be able to edit it in the
