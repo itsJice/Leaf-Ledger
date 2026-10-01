@@ -155,6 +155,12 @@ header h1 svg{color:var(--brand)}
 .pkpos .pksec{margin:0 4px 0 0}
 .pkpos .mv.on{background:#4c1d95;border-color:#4c1d95;color:#fff}
 .dayhead{padding:4px 2px 8px;margin-bottom:10px;border-bottom:1.5px solid var(--line)}
+/* The date stays pinned to the top of the left column while its crews scroll
+   under it (user, 2026-09-29). #side scrolls and has 14px of padding, so the
+   heading sticks at -14px to sit flush with the column's top edge. */
+.dayhead,#side .ovdate{position:sticky;top:-14px;z-index:6;background:var(--page);
+  margin-left:-14px;margin-right:-14px;padding-left:16px;padding-right:16px;padding-top:10px}
+@media (max-width:767px){ .dayhead,#side .ovdate{top:-10px;margin-left:-10px;margin-right:-10px;padding-left:12px;padding-right:12px} }
 .dayhead b{display:block;font-size:15px;color:var(--ink);font-weight:800}
 .dayhead span{font-size:11px;color:var(--mut);line-height:1.4}
 .dayhead .holdn{color:#92400e;font-weight:700}
@@ -1510,6 +1516,8 @@ const RATING_DIMENSIONS=[
   {key:'teamwork', label:'Teamwork', hint:'Works well with teammates'},
   {key:'leadership', label:'Leadership'},
   {key:'teachability', label:'Teachability'},
+  // user, 2026-09-29: "how detailed the person is" -- one word for it.
+  {key:'detail', label:'Detail', hint:'Thorough — finishing touches, clean-up, nothing missed'},
 ];
 const RATING_KEYS=new Set(RATING_DIMENSIONS.map(d=>d.key));
 const RATING_MAX=10;
@@ -1526,6 +1534,17 @@ function normRatings(obj){
     if(RATING_KEYS.has(k) && n>=1 && n<=RATING_MAX) out[k]=n;
   });
   return out;
+}
+/** US phone numbers read "(xxx) xxx-xxxx" everywhere in this tool (user,
+ *  2026-09-29). Anything that is not one plain 10-digit number (an
+ *  extension, a second number, a note typed into the field) is left as
+ *  typed, so nothing is ever lost to the formatter. */
+function fmtPhone(v){
+  const s=String(v==null?'':v).trim();
+  let d=s.replace(/\D/g,'');
+  if(d.length===11 && d[0]==='1') d=d.slice(1);
+  if(d.length!==10 || /[a-z]/i.test(s)) return s;
+  return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
 }
 function ratingOf(p,key){ return (p&&p.ratings&&p.ratings[key])||0; }
 /** Average of whatever traits are actually rated, rounded to the nearest
@@ -1597,7 +1616,7 @@ function normRoster(list){
       lang: LANGS.includes(p.lang) ? p.lang : 'Both',
       gender: p.gender==='Male' ? 'Male' : 'Female',
       email: String(p.email||'').trim(),
-      phone: String(p.phone||'').trim(),
+      phone: fmtPhone(p.phone),
       notes: String(p.notes||'').trim(),
       ratings: normRatings(p.ratings),
       // No stored availability (an older record) means no restriction --
@@ -4257,11 +4276,33 @@ function renderCards(){
     const title=overviewTitle(selDate)||'Overview';
     const hdr=document.createElement('h3'); hdr.className='ovtitle'; hdr.textContent=title;
     side.appendChild(hdr);
+    // One file for the whole view -- every crew sheet in it, date by date,
+    // crew by crew, behind a one-page index (user, 2026-09-29: "print all
+    // the days crews and shifts in one file ... like you can for a regular
+    // date"). Days with no stops (a staffed training day) have no sheet.
+    const printable=overviewSheets(pool);
+    if(printable.length){
+      const nDates=new Set(printable.map(d=>d.date)).size;
+      const all=document.createElement('button');
+      all.className='printbtn'; all.style.cssText='margin:0 0 10px;width:100%';
+      all.textContent=`Print all ${printable.length} crew sheet${printable.length===1?'':'s'} — ${nDates} date${nDates===1?'':'s'}`;
+      all.title='One file: an index page, then every crew sheet in this view in date order';
+      all.onclick=()=>printManifests(printable, `Crew sheets — ${title}`, {cover:title});
+      side.appendChild(all);
+    }
     const dates=[...new Set(pool.map(d=>d.date))].sort();
     dates.forEach(dt=>{
       const ds=pool.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
       const dh=document.createElement('div'); dh.className='ovdate';
-      dh.textContent=`${ds[0].dow} ${dt}`;
+      dh.style.cssText='display:flex;align-items:center;gap:8px';
+      dh.innerHTML=`<span>${esc(dowOf(dt)||ds[0].dow||'')} ${esc(fmtMDYYYY(dt))}</span>`;
+      if(ds.some(d=>d.stops.length)){
+        const pb=document.createElement('button');
+        pb.className='printbtn'; pb.style.cssText='margin-left:auto;padding:2px 8px;font-size:11px';
+        pb.textContent='Print this date';
+        pb.onclick=()=>printDate(dt);
+        dh.appendChild(pb);
+      }
       side.appendChild(dh);
       ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });
@@ -6009,10 +6050,10 @@ function contactViewHTML(row, editable){
   const f=contactFieldsFor(row);
   const addr=[f.street,[f.city,f.state].filter(Boolean).join(', '),f.zip].filter(Boolean).join(', ');
   const secondary=f.secondary.map(s=>`<p class="pkrow pksecrow">👤 ${peekEsc(s.label||'Contact')}`
-      +`${s.phone?': '+peekEsc(s.phone):''}${s.email?(s.phone?' · ':': ')+peekEsc(s.email):''}</p>`).join('');
+      +`${s.phone?': '+peekEsc(fmtPhone(s.phone)):''}${s.email?(s.phone?' · ':': ')+peekEsc(s.email):''}</p>`).join('');
   return `
     ${addr?`<p class="pkrow">📍 ${peekEsc(addr)}</p>`:''}
-    ${f.phone?`<p class="pkrow">📞 ${peekEsc(f.phone)}</p>`:''}
+    ${f.phone?`<p class="pkrow">📞 ${peekEsc(fmtPhone(f.phone))}</p>`:''}
     ${f.email?`<p class="pkrow">✉ ${peekEsc(f.email)}</p>`:''}
     ${secondary}
     ${!addr && !f.phone && !f.email && !secondary?`<p class="pknone">No contact info on file.</p>`:''}
@@ -6450,7 +6491,7 @@ document.getElementById('pergo').onclick=()=>{
     lang:document.getElementById('perlang').value,
     gender:document.getElementById('pergender').value,
     email:document.getElementById('peremail').value.trim(),
-    phone:document.getElementById('perphone').value.trim(),
+    phone:fmtPhone(document.getElementById('perphone').value),
     notes:document.getElementById('pernotes').value.trim(),
     ratings:normRatings(perRatings),
     times:[...perTimes], dates:[...perDates]};
@@ -6643,7 +6684,7 @@ function personRow(p){
   return `<tr class="${p.active?'':'inactive'}${selPerson===p.id?' sel':''}" data-pid="${p.id}">
     <td><b>${esc(p.name)}</b>${p.phone||p.email
         ? `<br><span style="color:var(--mut);font-size:10.5px">${
-            esc(p.phone||p.email)}</span>`:''}</td>
+            esc(p.phone?fmtPhone(p.phone):p.email)}</span>`:''}</td>
     <td><span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span></td>
     <td><span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></td>
     <td>${p.gender==='Male'?'M':'F'}</td>
@@ -6756,7 +6797,7 @@ function personDetailHTML(){
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
     </div>
     <div class="stfcard">
-      <div class="stfphone">${IC.phone} ${p.phone?esc(p.phone):'no phone on file'}</div>
+      <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div>
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
@@ -7052,7 +7093,7 @@ function manifestHTML(d){
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
       <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
-      ${c.phone||c.email?`<div class="ct">${esc(c.phone||'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
+      ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${note?`<div class="nt">${esc(note)}</div>`:''}
     </td>
     <td class="c">${c.boxes||'—'}</td>
@@ -7092,7 +7133,34 @@ function manifestHTML(d){
       ${order.length?` · Lunch ${((d.lunchMin??LUNCH)/60).toFixed(1)}h`:''} · Boxes ${boxes||0}</div>
   </section>`;
 }
-function printManifests(list, title){
+/** Every crew-day in a pool that has a run sheet, date then crew order. */
+function overviewSheets(pool){
+  return pool.filter(d=>d.stops.length)
+    .sort((a,b)=>a.date.localeCompare(b.date) || a.crew.localeCompare(b.crew));
+}
+/** Index page for a multi-date print: every sheet in the file, one line each. */
+function coverHTML(list, heading){
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const dates=[...new Set(list.map(d=>d.date))];
+  const first=dates[0], last=dates[dates.length-1];
+  let prev='', rows='';
+  list.forEach((d,i)=>{
+    const calc=dayCalc(d), sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
+    const who=cv.who.map(pn=>esc(pn.name)).join(', ');
+    rows+=`<tr${d.date!==prev?' class="nd"':''}><td>${d.date!==prev?`${esc(dowOf(d.date)||d.dow||'')} ${fmtMDYYYY(d.date)}`:''}</td>`
+        +`<td>${esc(crewLabel(d))}</td><td class="c">${d.stops.length}</td>`
+        +`<td class="c">${(calc.total/60).toFixed(1)}h</td><td>${who||'<i>nobody assigned</i>'}</td>`
+        +`<td class="c">${i+2}</td></tr>`;
+    prev=d.date;
+  });
+  const stops=list.reduce((a,d)=>a+d.stops.length,0);
+  return `<section class="sheet cover"><div class="shead"><div><h1>${esc(heading)}</h1>
+      <p>${fmtMDYYYY(first)}${last!==first?` – ${fmtMDYYYY(last)}`:''} · ${dates.length} date${dates.length===1?'':'s'} · `
+      +`${list.length} crew sheet${list.length===1?'':'s'} · ${stops} stops</p></div></div>
+    <table><thead><tr><th>Date</th><th>Crew</th><th class="c">Stops</th><th class="c">Day</th><th>On the truck</th><th class="c">Page</th></tr></thead>
+    <tbody>${rows}</tbody></table></section>`;
+}
+function printManifests(list, title, opts={}){
   if(!list.length){ alert('Nothing scheduled to print for that selection.'); return; }
   const w=window.open('','_blank');
   if(!w){ alert('Pop-up blocked — allow pop-ups for this page to print.'); return; }
@@ -7127,7 +7195,9 @@ function printManifests(list, title){
       text-transform:uppercase;letter-spacing:.3px}
     tr.stop{break-inside:avoid}
     .sfoot{margin-top:11px;padding-top:6px;border-top:1.5px solid #333;font-weight:700;font-size:11.5px}
-  </style></head><body>${list.map(manifestHTML).join('')}
+    .cover td{padding:5px 6px}
+    .cover tr.nd td{border-top:1.5px solid #bbb}
+  </style></head><body>${opts.cover?coverHTML(list, opts.cover):''}${list.map(manifestHTML).join('')}
   <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
   </body></html>`);
   w.document.close();
