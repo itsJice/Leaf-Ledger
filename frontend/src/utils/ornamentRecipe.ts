@@ -420,46 +420,34 @@ export function buildRecipeFor(
 // ---------------------------------------------------------------------------
 // Enhancers — the parallel bill of materials (designer rule 6).
 //
-// Enhancers (picks/sprays) are counted from the designers' own table, keyed by
-// tree height AND width bucket (pencil / slim / standard / full). Some of the
+// Enhancers (picks/sprays) are counted from the designers' card, keyed by tree
+// height AND width profile (pencil / slim / standard / full). Some of the
 // small ornaments live inside the enhancers rather than loose on the tree
 // ("9 loose and 9 in the enhancers"), so the loose list and the enhancer list
 // are produced together: `enhancerLookup` for the count, `enhancerAllocation`
 // for the loose / in-enhancer split of each recipe line.
 // ---------------------------------------------------------------------------
 
-export interface EnhancerRow {
-  heightMinFt: number;
-  heightMaxFt: number;
-  /** Width bucket (in); null = any width (the designer gave height only). */
-  widthMinIn: number | null;
-  widthMaxIn: number | null;
-  count: number;
-  /** The row as the designer wrote it — shown in the UI. */
-  label: string;
-}
-
 /**
- * The designers' enhancer card for STANDARD-profile trees, verbatim (the card on
- * the warehouse clipboard, photographed 2026-09-30), shortest tree first. It
- * replaces their earlier height-and-width table and settles its open conflict:
- * an 8 ft tree takes 24, as the designer said. The card stops at 12 ft; the 14'
- * and 15' counts are carried over from the earlier table until she confirms them.
- * Rows are height-only: other widths scale from the standard count (see
- * `enhancerLookup`).
+ * The designers' enhancer card, verbatim: a count for every tree height and width
+ * profile, confirmed by the lead designer 2026-10-01. It replaces the standard-only
+ * card of 2026-09-30 and the surface-area scaling that stood in for the other
+ * profiles (which gave a 9 ft slim 22 by accident and a 14 ft standard 48). Columns
+ * follow `ENHANCER_CARD_HEIGHTS`.
  */
-export const ENHANCER_TABLE: EnhancerRow[] = [
-  { heightMinFt: 7, heightMaxFt: 7, widthMinIn: null, widthMaxIn: null, count: 18, label: "7' standard" },
-  { heightMinFt: 8, heightMaxFt: 8, widthMinIn: null, widthMaxIn: null, count: 24, label: "8' standard" },
-  { heightMinFt: 9, heightMaxFt: 9, widthMinIn: null, widthMaxIn: null, count: 30, label: "9' standard" },
-  { heightMinFt: 10, heightMaxFt: 10, widthMinIn: null, widthMaxIn: null, count: 32, label: "10' standard" },
-  { heightMinFt: 12, heightMaxFt: 12, widthMinIn: null, widthMaxIn: null, count: 36, label: "12' standard" },
-  { heightMinFt: 14, heightMaxFt: 14, widthMinIn: null, widthMaxIn: null, count: 48, label: "14'" },
-  { heightMinFt: 15, heightMaxFt: 15, widthMinIn: null, widthMaxIn: null, count: 60, label: "15'" },
-];
+export const ENHANCER_CARD_HEIGHTS = [7, 7.5, 8, 9, 10, 12, 14, 15];
+export const ENHANCER_CARD: Record<WidthProfile, number[]> = {
+  pencil: [8, 10, 14, 20, 24, 28, 32, 36],
+  slim: [10, 12, 16, 22, 26, 30, 34, 38],
+  standard: [18, 20, 24, 30, 32, 36, 40, 44],
+  full: [22, 24, 28, 34, 36, 40, 44, 48],
+};
 
-/** A row's height bounds stretch this far, so a "7.5'" row also takes 7.3 ft. */
-const ENHANCER_HEIGHT_TOLERANCE_FT = 0.25;
+/** Profiles from narrowest to widest, for custom widths that fall between two. */
+const PROFILES_BY_WIDTH = (Object.keys(WIDTH_PROFILES) as WidthProfile[]).sort(
+  (a, b) => WIDTH_PROFILES[a].inchesPerFt - WIDTH_PROFILES[b].inchesPerFt
+);
+
 /** Ornaments this size and under split between the tree and the enhancers. */
 export const ENHANCER_MAX_SIZE_IN = 4.75;
 /** Share of an enhancer-sized quantity that goes into the enhancers ("9 and 9"). */
@@ -467,37 +455,20 @@ export const ENHANCER_SHARE = 0.5;
 
 /** Where an enhancer count came from — shown in the UI. */
 export type EnhancerSource =
-  | { kind: "table"; row: EnhancerRow }
-  | { kind: "nearestWidth"; row: EnhancerRow }
-  | { kind: "interpolated"; lower: EnhancerRow; upper: EnhancerRow }
-  | { kind: "extrapolated"; row: EnhancerRow }
-  /** A non-standard width: the standard tree's count (from `base`) scaled by surface area. */
-  | { kind: "widthScaled"; base: EnhancerSource; standardCount: number; standardWidthIn: number };
+  /** The tree's height and profile are on the card. */
+  | { kind: "card"; profile: WidthProfile; heightFt: number }
+  /** Between two card heights, same profile. */
+  | { kind: "interpolated"; profile: WidthProfile; lowerFt: number; upperFt: number; lowerCount: number; upperCount: number }
+  /** Shorter or taller than the card: its first or last two rows' trend, continued. */
+  | { kind: "extrapolated"; profile: WidthProfile; fromFt: number; fromCount: number }
+  /** A custom width: blended between the neighbouring profiles (the same one twice past either end). */
+  | { kind: "customWidth"; narrower: WidthProfile; wider: WidthProfile; narrowerCount: number; widerCount: number }
+  /** No usable tree dimensions. */
+  | { kind: "none" };
 
 export interface EnhancerLookup {
   count: number;
   source: EnhancerSource;
-}
-
-/** Does the row's (tolerance-padded) height range contain this height? */
-function rowMatchesHeight(row: EnhancerRow, heightFt: number): boolean {
-  return (
-    heightFt >= row.heightMinFt - ENHANCER_HEIGHT_TOLERANCE_FT &&
-    heightFt <= row.heightMaxFt + ENHANCER_HEIGHT_TOLERANCE_FT
-  );
-}
-
-/** Inches outside the row's width bucket (0 when inside or the row has no bucket). */
-function widthDistance(row: EnhancerRow, widthIn: number): number {
-  if (row.widthMinIn === null || row.widthMaxIn === null) return 0;
-  if (widthIn < row.widthMinIn) return row.widthMinIn - widthIn;
-  if (widthIn > row.widthMaxIn) return widthIn - row.widthMaxIn;
-  return 0;
-}
-
-/** Of several rows at the same height, the one whose width bucket fits best. */
-function bestWidthRow(rows: EnhancerRow[], widthIn: number): EnhancerRow {
-  return rows.reduce((best, row) => (widthDistance(row, widthIn) < widthDistance(best, widthIn) ? row : best));
 }
 
 /** Enhancer counts round to the color count like everything else. */
@@ -505,64 +476,52 @@ function roundEnhancers(raw: number, colorCount: number): number {
   return Math.max(0, Math.round(raw / colorCount) * colorCount);
 }
 
-/**
- * Enhancer count for a STANDARD-width tree of this height, with where it came
- * from. Lookup order:
- *   1. table   — a row whose height range (±0.25 ft) and width bucket both fit;
- *   2. nearest — the height fits but no width bucket does: the closest bucket;
- *   3. between — no height fits: interpolate linearly between the nearest rows
- *                below and above (each chosen by width as in 1–2);
- *   4. beyond  — shorter than the table's first row or taller than its last:
- *                scale that end row's count by surface area, against the row's
- *                default width, never below 0.
- * A direct table/nearest-width hit (1–2) returns the designer's row count
- * verbatim, unrounded; only a computed value (3–4, interpolated or
- * extrapolated) is rounded to a multiple of the color count (even by default).
- * Non-finite height/width are treated as invalid input (same as 0).
- */
-function standardEnhancerLookup(height: number, colors: number): EnhancerLookup {
-  const width = defaultWidthForHeight(height);
-  const atHeight = ENHANCER_TABLE.filter((row) => rowMatchesHeight(row, height));
-  if (atHeight.length) {
-    const row = bestWidthRow(atHeight, width);
-    const kind = widthDistance(row, width) === 0 ? "table" : "nearestWidth";
-    return { count: row.count, source: { kind, row } };
+/** One profile's count at a height, unrounded, with where it came from. */
+function cardValue(profile: WidthProfile, heightFt: number): { raw: number; source: EnhancerSource } {
+  const heights = ENHANCER_CARD_HEIGHTS;
+  const counts = ENHANCER_CARD[profile];
+  const exact = heights.findIndex((h) => Math.abs(h - heightFt) < 1e-6);
+  if (exact !== -1) return { raw: counts[exact], source: { kind: "card", profile, heightFt: heights[exact] } };
+
+  const upperIdx = heights.findIndex((h) => h > heightFt);
+  if (upperIdx > 0) {
+    const [lo, hi] = [upperIdx - 1, upperIdx];
+    const t = (heightFt - heights[lo]) / (heights[hi] - heights[lo]);
+    return {
+      raw: counts[lo] + t * (counts[hi] - counts[lo]),
+      source: {
+        kind: "interpolated",
+        profile,
+        lowerFt: heights[lo],
+        upperFt: heights[hi],
+        lowerCount: counts[lo],
+        upperCount: counts[hi],
+      },
+    };
   }
 
-  const below = ENHANCER_TABLE.filter((row) => row.heightMaxFt + ENHANCER_HEIGHT_TOLERANCE_FT < height);
-  const above = ENHANCER_TABLE.filter((row) => row.heightMinFt - ENHANCER_HEIGHT_TOLERANCE_FT > height);
-  const lowerFt = Math.max(...below.map((row) => row.heightMaxFt));
-  const upperFt = Math.min(...above.map((row) => row.heightMinFt));
-  const lower = below.length ? bestWidthRow(below.filter((row) => row.heightMaxFt === lowerFt), width) : null;
-  const upper = above.length ? bestWidthRow(above.filter((row) => row.heightMinFt === upperFt), width) : null;
-
-  if (lower && upper) {
-    const t = (height - lowerFt) / (upperFt - lowerFt);
-    const raw = lower.count + t * (upper.count - lower.count);
-    return { count: roundEnhancers(raw, colors), source: { kind: "interpolated", lower, upper } };
-  }
-
-  // Beyond the table: the end row scales with the tree's surface area. The row's
-  // reference width is its bucket edge nearest the tree, or the default width
-  // for its height when the designer gave no bucket.
-  const row = (lower ?? upper)!;
-  const rowFt = lower ? lowerFt : upperFt;
-  const rowWidth =
-    row.widthMinIn === null || row.widthMaxIn === null
-      ? defaultWidthForHeight(rowFt)
-      : Math.min(Math.max(width, row.widthMinIn), row.widthMaxIn);
-  const ratio = treeSurfaceArea(height, width) / treeSurfaceArea(rowFt, rowWidth) || 0;
-  return { count: roundEnhancers(row.count * ratio, colors), source: { kind: "extrapolated", row } };
+  // Beyond either end: continue the trend of the two end rows (+4 per foot on every
+  // profile at both ends of the card), never below 0.
+  const [a, b] = upperIdx === 0 ? [0, 1] : [heights.length - 2, heights.length - 1];
+  const from = upperIdx === 0 ? a : b;
+  const slope = (counts[b] - counts[a]) / (heights[b] - heights[a]);
+  return {
+    raw: Math.max(0, counts[from] + (heightFt - heights[from]) * slope),
+    source: { kind: "extrapolated", profile, fromFt: heights[from], fromCount: counts[from] },
+  };
 }
 
 /**
- * Enhancer count for a tree, with where it came from. The designers' card is for
- * standard trees, so the count is the standard tree's (`standardEnhancerLookup`)
- * whenever the width reads as the standard profile (within its tolerance). A
- * pencil, slim, full or custom width scales that count by surface area against
- * the standard width, rounded to the color count: an assumption, not the card,
- * though it reproduces the old table's pencil row (7.5 ft x 32 in -> 8).
- * Non-finite height/width are treated as invalid input (same as 0).
+ * Enhancer count for a tree, with where it came from. The tree's profile comes
+ * from its width (`profileForWidth`); the count is then, in order:
+ *   1. card         — the height and profile are on the card: the designer's count, verbatim;
+ *   2. interpolated — between two card heights: a straight line between them;
+ *   3. extrapolated — shorter than 7 ft or taller than 15 ft: the card's end trend continued;
+ *   4. customWidth  — a width that matches no profile: blended between the two
+ *                     profiles either side of it by inches per foot (past pencil or
+ *                     full, that end profile's count).
+ * Everything except a direct card hit rounds to a multiple of the color count.
+ * Non-finite or non-positive height/width give 0 enhancers.
  */
 export function enhancerLookup(
   heightFt: number,
@@ -572,17 +531,29 @@ export function enhancerLookup(
   const colors = clampColorCount(colorCount);
   const height = Number.isFinite(heightFt) ? heightFt : 0;
   const width = Number.isFinite(widthIn) ? widthIn : 0;
-  const standard = standardEnhancerLookup(height, colors);
-  if (height <= 0 || width <= 0 || profileForWidth(height, width) === "standard") return standard;
-  const standardWidthIn = defaultWidthForHeight(height);
-  const ratio = treeSurfaceArea(height, width) / treeSurfaceArea(height, standardWidthIn) || 0;
+  if (height <= 0 || width <= 0) return { count: 0, source: { kind: "none" } };
+
+  const profile = profileForWidth(height, width);
+  if (profile) {
+    const { raw, source } = cardValue(profile, height);
+    return { count: source.kind === "card" ? raw : roundEnhancers(raw, colors), source };
+  }
+
+  const ratio = width / height;
+  const widerIdx = PROFILES_BY_WIDTH.findIndex((p) => WIDTH_PROFILES[p].inchesPerFt > ratio);
+  const narrower = widerIdx === 0 ? PROFILES_BY_WIDTH[0] : PROFILES_BY_WIDTH[widerIdx === -1 ? PROFILES_BY_WIDTH.length - 1 : widerIdx - 1];
+  const wider = widerIdx === -1 ? narrower : PROFILES_BY_WIDTH[widerIdx];
+  const lo = cardValue(narrower, height).raw;
+  const hi = cardValue(wider, height).raw;
+  const span = WIDTH_PROFILES[wider].inchesPerFt - WIDTH_PROFILES[narrower].inchesPerFt;
+  const t = span > 0 ? Math.min(1, Math.max(0, (ratio - WIDTH_PROFILES[narrower].inchesPerFt) / span)) : 0;
   return {
-    count: roundEnhancers(standard.count * ratio, colors),
-    source: { kind: "widthScaled", base: standard.source, standardCount: standard.count, standardWidthIn },
+    count: roundEnhancers(lo + t * (hi - lo), colors),
+    source: { kind: "customWidth", narrower, wider, narrowerCount: roundEnhancers(lo, colors), widerCount: roundEnhancers(hi, colors) },
   };
 }
 
-/** Enhancer count for a tree — see `enhancerLookup` for the fallback order. */
+/** Enhancer count for a tree — see `enhancerLookup` for the order of rules. */
 export function enhancerCount(
   heightFt: number,
   widthIn: number,
