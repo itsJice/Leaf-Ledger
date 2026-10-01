@@ -317,7 +317,7 @@ function JobGrid({ jobs, onOpen, onNew }: { jobs: BoardJob[]; onOpen: (id: numbe
         </div>
         <p className="mb-1 text-base font-medium text-stone-600">No jobs yet</p>
         <p className="max-w-sm text-sm leading-relaxed text-stone-400">Start one here, or from the “Pinning to” picker in Catalog Search.</p>
-        <button onClick={onNew} className={`${btnPrimary} mt-4`}><Plus size={14} /> New job</button>
+        <button data-edit onClick={onNew} className={`${btnPrimary} mt-4`}><Plus size={14} /> New job</button>
       </div>
     );
   }
@@ -327,7 +327,7 @@ function JobGrid({ jobs, onOpen, onNew }: { jobs: BoardJob[]; onOpen: (id: numbe
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {jobs.map((j) => <JobTile key={j.id} job={j} onOpen={() => onOpen(j.id)} />)}
         <button
-          onClick={onNew}
+          data-edit onClick={onNew}
           className="flex min-h-[168px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:border-emerald-400 hover:text-emerald-700"
         >
           <Plus size={20} />
@@ -406,8 +406,8 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button onClick={() => onPinMore(null)} className={btnPrimary}><Search size={14} /> Pin and search more from the catalog</button>
           <button onClick={newGroup} className={btnGhost}><FolderPlus size={13} /> New group</button>
-          <a href={`/sourcing/${board.id}`} className="text-[11px] text-stone-400 hover:text-emerald-700" title="The purchaser's full worksheet for this job">Worksheet</a>
-          <button onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
+          <a data-edit href={`/sourcing/${board.id}`} className="text-[11px] text-stone-400 hover:text-emerald-700" title="The purchaser's full worksheet for this job">Worksheet</a>
+          <button data-edit onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
         </div>
       </div>
 
@@ -555,7 +555,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     <option value="">No group</option>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
-                  <button onClick={() => run(() => removePin(it.item_id))} className="text-stone-300 hover:text-rose-600" aria-label="Unpin"><Trash2 size={13} /></button>
+                  <button data-edit onClick={() => run(() => removePin(it.item_id))} className="text-stone-300 hover:text-rose-600" aria-label="Unpin"><Trash2 size={13} /></button>
                 </div>
               )} />
             </tbody>

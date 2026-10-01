@@ -15,12 +15,17 @@ const AdminDashboard = lazyWithReload(() => import("./pages/AdminDashboard.tsx")
 const App = lazyWithReload(() => import("./pages/App.tsx"));
 const Arrangements = lazyWithReload(() => import("./pages/Arrangements.tsx"));
 const Clients = lazyWithReload(() => import("./pages/Clients.tsx"));
+const CrewDayProfit = lazyWithReload(() => import("./pages/CrewDayProfit.tsx"));
+const JobBudgets = lazyWithReload(() => import("./pages/JobBudgets.tsx"));
+const QuoteCalculator = lazyWithReload(() => import("./pages/QuoteCalculator.tsx"));
 const Designs = lazyWithReload(() => import("./pages/Designs.tsx"));
 const Favorites = lazyWithReload(() => import("./pages/Favorites.tsx"));
 const Comments = lazyWithReload(() => import("./pages/Comments.tsx"));
 const Invoice = lazyWithReload(() => import("./pages/Invoice.tsx"));
 const Jobs = lazyWithReload(() => import("./pages/Jobs.tsx"));
 const RequestForm = lazyWithReload(() => import("./pages/RequestForm.tsx"));
+const FormPage = lazyWithReload(() => import("./pages/forms/FormPage.tsx"));
+const FormResponses = lazyWithReload(() => import("./pages/forms/FormResponses.tsx"));
 const Sourcing = lazyWithReload(() => import("./pages/Sourcing.tsx"));
 const Mockups = lazyWithReload(() => import("./pages/Mockups.tsx"));
 const Orders = lazyWithReload(() => import("./pages/Orders.tsx"));
@@ -38,6 +43,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/", element: <App /> },
 	{ path: "/arrangements", element: <Arrangements /> },
 	{ path: "/clients", element: <Clients /> },
+	{ path: "/crew-profit", element: <CrewDayProfit /> },
+	{ path: "/job-budgets", element: <JobBudgets /> },
+	{ path: "/quote-calculator", element: <QuoteCalculator /> },
 	{ path: "/clients/project", element: <Arrangements /> },
 	{ path: "/designs", element: <Designs /> },
 	// Both design routes render <Designs>; it keeps the header + All Designs /
@@ -49,8 +57,16 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/invoice", element: <Invoice /> },
 	{ path: "/jobs", element: <Jobs /> },
 	{ path: "/jobs/:jobId", element: <Jobs /> },
+	// The old per-project request sheet. Out of the sidebar since the built-in
+	// Product Request form replaced it; still reachable, and its requests are
+	// what the Jobs page's "Load a request" reads (form submissions are filed
+	// onto them -- backend/app/apis/forms).
 	{ path: "/requests", element: <RequestForm /> },
 	{ path: "/requests/:requestId", element: <RequestForm /> },
+	// Built-in forms (the Google Forms replacement). The form itself is open
+	// to field logins too (app/auth/RoleGate.tsx); the responses are staff's.
+	{ path: "/forms/:slug", element: <FormPage /> },
+	{ path: "/forms/:slug/responses", element: <FormResponses /> },
 	// The purchaser's full worksheet. Not in the sidebar; reachable by link.
 	{ path: "/sourcing", element: <Sourcing /> },
 	{ path: "/sourcing/:jobId", element: <Sourcing /> },

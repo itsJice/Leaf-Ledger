@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { DISPLAY_HOME, FIELD_HOME, useMe } from "utils/me";
+import { DISPLAY_HOME, FIELD_HOME, pageAllowed, useMe } from "utils/me";
 import { useUserGuardContext } from "./UserGuard";
 
 /**
@@ -34,10 +34,18 @@ export const RoleGate = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
+  // Restricted logins (production): only their pages; anything else -- the
+  // Dashboard at "/" included -- goes to their home page.
+  if (me.pages && !pageAllowed(me, location.pathname)) {
+    return <Navigate to={me.home || me.pages[0] || "/login"} replace />;
+  }
   if (me.viewOnly && location.pathname !== DISPLAY_HOME) {
     return <Navigate to={DISPLAY_HOME} replace />;
   }
-  if (me.fieldOnly && location.pathname !== FIELD_HOME) {
+  // Installers and leads can fill out a form (the product request form is
+  // filled in the field, on a phone) -- the form page only, never responses.
+  const onFormPage = /^\/forms\/[^/]+\/?$/.test(location.pathname);
+  if (me.fieldOnly && location.pathname !== FIELD_HOME && !onFormPage) {
     return <Navigate to={FIELD_HOME} replace />;
   }
 

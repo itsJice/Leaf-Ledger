@@ -52,6 +52,8 @@ export interface ShiftsResponse {
   season: string;
   today: string;
   supervisor: boolean;
+  /** The production login: sees every crew-day, records nothing. */
+  readOnly?: boolean;
   me: Person | null;
   leads: Person[];
   days: Day[];

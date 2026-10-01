@@ -110,6 +110,7 @@ export default function PinToggle({ productId, jobId, groupId, groups, isPinned,
   // keyboard affordance a button gets for free.
   return (
     <div
+      data-edit
       role="button"
       aria-disabled={!ready || busy}
       tabIndex={0}

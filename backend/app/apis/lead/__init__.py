@@ -230,8 +230,11 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
     """
     board = await _board()
     viewer = await _viewer(user, board)
+    # The production login sees every crew-day, like the office, but read-only:
+    # its writes are refused by app.libs.roles, and readOnly tells the page.
+    sees_all = viewer.supervisor or viewer.role == "production"
 
-    if viewer.supervisor:
+    if sees_all:
         if person_id:
             days = board.days_led_by(person_id)
         else:
@@ -264,7 +267,7 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
         by_day_n.setdefault(n["dayId"], []).append(n)
 
     leads = []
-    if viewer.supervisor:
+    if sees_all:
         seen = {}
         for did in board.days:
             lead = board.lead_of(did)
@@ -277,6 +280,7 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
         "today": today(),
         "role": viewer.role,
         "supervisor": viewer.supervisor,
+        "readOnly": viewer.role == "production",
         "me": viewer.person,
         "leads": leads,
         "days": [_day_out(board, d, by_day_e.get(d["id"], []), by_day_n.get(d["id"], [])) for d in days],

@@ -28,5 +28,10 @@ async def get_me(user: AuthorizedUser) -> dict:
         "fieldOnly": role in ("crew", "lead"),
         # The warehouse display: the install schedule, read-only, nothing else.
         "viewOnly": role == "viewer",
+        # The production login: these pages only, read-only except where the
+        # server allows a change (app.libs.roles PRODUCTION_WRITES).
+        "readOnly": role == "production",
+        "pages": list(roles.PRODUCTION_PAGES) if role == "production" else None,
+        "home": roles.PRODUCTION_HOME if role == "production" else None,
         "person": person,
     }

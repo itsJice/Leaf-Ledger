@@ -98,7 +98,9 @@ export default function Shifts() {
     };
   }, [data]);
 
-  const title = data?.supervisor ? "Crew Shifts" : "My Shifts";
+  // The office, and the read-only production login, see every crew.
+  const allCrews = Boolean(data?.supervisor || data?.readOnly);
+  const title = allCrews ? "Crew Shifts" : "My Shifts";
 
   return (
     <Layout>
@@ -108,7 +110,7 @@ export default function Shifts() {
             <h1 className="text-xl font-semibold text-stone-900">{title}</h1>
             {data && <p className="text-xs text-stone-500">{data.season} install season</p>}
           </div>
-          {data?.supervisor && (
+          {allCrews && data && (
             <select
               value={leadFilter}
               onChange={(e) => {
@@ -137,7 +139,7 @@ export default function Shifts() {
 
         {data && data.days.length === 0 && (
           <div className="rounded-xl border border-stone-200 bg-white p-6 text-center text-sm text-stone-600">
-            {data.supervisor
+            {allCrews
               ? "No crew-days on the schedule yet."
               : data.me
                 ? "You aren't the Lead on any shifts yet. The office assigns leads in the install schedule."
@@ -211,7 +213,7 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
   reload: () => Promise<void>;
 }) {
   const isToday = day.date === data.today;
-  const canRecord = isToday || data.supervisor;
+  const canRecord = !data.readOnly && (isToday || data.supervisor);
   const next = nextStopRow(day);
   const nextStop = day.stops.find((s) => s.row === next);
   const done = day.stops.filter((s) => stopStatus(s) === "done").length;
@@ -226,7 +228,7 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
           </p>
           <p className="mt-0.5 text-xs text-stone-500">
             {day.crewLabel}
-            {data.supervisor && day.lead ? ` · Lead: ${day.lead.name}` : ""} · {day.stops.length} stop{day.stops.length === 1 ? "" : "s"}
+            {(data.supervisor || data.readOnly) && day.lead ? ` · Lead: ${day.lead.name}` : ""} · {day.stops.length} stop{day.stops.length === 1 ? "" : "s"}
             {done ? ` · ${done} done` : ""}
             {total ? ` · ${formatMinutes(total)} logged` : ""}
           </p>
@@ -395,7 +397,7 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
             );
           })}
         </ul>
-        {!canRecord && !supervisor && <p className="mt-1 text-[11px] text-stone-500">Time can be recorded on the day of the shift.</p>}
+        {!canRecord && !supervisor && <p data-edit className="mt-1 text-[11px] text-stone-500">Time can be recorded on the day of the shift.</p>}
       </div>
 
       <Notes stop={stop} day={day} reload={reload} />
@@ -497,7 +499,7 @@ function Notes({ stop, day, reload }: { stop: Stop; day: Day; reload: () => Prom
                   <span className="font-semibold">{n.kind === "client_request" ? "Client request: " : "Note: "}</span>
                   {n.text}
                 </p>
-                <button type="button" onClick={() => remove(n.id)} aria-label="Delete note" className="shrink-0 text-stone-400 hover:text-red-600">
+                <button data-edit type="button" onClick={() => remove(n.id)} aria-label="Delete note" className="shrink-0 text-stone-400 hover:text-red-600">
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -538,7 +540,7 @@ function Notes({ stop, day, reload }: { stop: Stop; day: Day; reload: () => Prom
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs font-semibold text-emerald-800">
+        <button data-edit type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs font-semibold text-emerald-800">
           <MessageSquarePlus size={14} /> Add note or client request
         </button>
       )}

@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   MapPinned,
+  ListChecks,
   NotebookPen,
   FileText,
   Heart,
@@ -64,7 +65,8 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { path: "/requests", label: "Request Form", icon: NotebookPen },
+      { path: "/forms/product-request", label: "Request Form", icon: NotebookPen },
+      { path: "/forms/product-request/responses", label: "Product Requests", icon: ListChecks },
       { path: "/jobs", label: "Jobs", icon: ClipboardList },
       { path: "/designs", label: "Designs", icon: Shapes },
       { path: "/mockups", label: "AI Mockups", icon: Sparkles },
@@ -85,6 +87,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Admin",
     items: [
       { path: "/admin-dashboard", label: "Sync Operations", icon: Activity, adminOnly: true },
+      { path: "/crew-profit", label: "Crew-Day Profit", icon: Calculator, adminOnly: true },
+      { path: "/job-budgets", label: "Job Budgets", icon: ClipboardCheck, adminOnly: true },
+      { path: "/quote-calculator", label: "Quote Calculator", icon: FileText, adminOnly: true },
       { path: "/settings", label: "Settings", icon: Settings },
     ],
   },

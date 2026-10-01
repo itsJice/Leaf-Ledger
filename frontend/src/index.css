@@ -762,7 +762,17 @@ html.dark {
     --badge-other-bg: 241 245 249; --badge-other-fg: 71 85 105;
   }
   html.dark [class~="bg-white"] { background-color: #fff; }
+
+  /* The ornament calculator's print sheet lives beside the app root; while it
+     exists, print only the sheet. */
+  body:has(> #ornament-print-sheet) > *:not(#ornament-print-sheet) { display: none !important; }
+  html:has(#ornament-print-sheet), body:has(> #ornament-print-sheet) { background: #fff !important; }
+  #ornament-print-sheet { page: ornament-sheet; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+/* Standard 1-inch paper margins for the ornament sheet only (a named page, so
+   other printed pages keep their own). */
+@page ornament-sheet { size: letter; margin: 1in; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1056,4 +1066,10 @@ html.dark {
 [data-ll-chrome="dark"] {
   --logo-wordmark: rgb(214 228 218);
   --logo-accent: rgb(var(--p-400));
+}
+
+/* View-only logins (production): edit controls are marked data-edit and
+   hidden here. The server refuses those writes regardless (app/libs/roles.py). */
+[data-readonly] [data-edit] {
+  display: none !important;
 }

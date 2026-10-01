@@ -13,6 +13,7 @@ this module takes the strictest of the six).
 """
 import math
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -132,3 +133,33 @@ def haversine_mi(a, b) -> float:
     dphi, dl = math.radians(b[0] - a[0]), math.radians(b[1] - a[1])
     h = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * R * math.asin(math.sqrt(h))
+
+def _minutes_of_day(v):
+    """A time cell (datetime.time, datetime, or "H:MM" / "3:30 PM" text) ->
+    minutes since midnight, or None."""
+    if v is None or v == "":
+        return None
+    if hasattr(v, "hour") and hasattr(v, "minute"):
+        return v.hour * 60 + v.minute
+    m = re.match(r"^\s*(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?\s*$", str(v))
+    if not m:
+        return None
+    hh, mm, ap = int(m.group(1)), int(m.group(2)), (m.group(3) or "").lower()
+    if ap == "pm" and hh < 12:
+        hh += 12
+    if ap == "am" and hh == 12:
+        hh = 0
+    if hh > 23 or mm > 59:
+        return None
+    return hh * 60 + mm
+
+
+def hours_between(start, end):
+    """Hours from a start time to an end time, wrapping past midnight (a
+    10 PM to 1 AM night install is 3 hours). None when either is missing
+    or unreadable, or when they are the same moment."""
+    a, b = _minutes_of_day(start), _minutes_of_day(end)
+    if a is None or b is None:
+        return None
+    mins = (b - a) % (24 * 60)
+    return round(mins / 60.0, 2) if mins else None
