@@ -37,7 +37,10 @@ export const RoleGate = ({ children }: { children: React.ReactNode }) => {
   if (me.viewOnly && location.pathname !== DISPLAY_HOME) {
     return <Navigate to={DISPLAY_HOME} replace />;
   }
-  if (me.fieldOnly && location.pathname !== FIELD_HOME) {
+  // Installers and leads can fill out a form (the product request form is
+  // filled in the field, on a phone) -- the form page only, never responses.
+  const onFormPage = /^\/forms\/[^/]+\/?$/.test(location.pathname);
+  if (me.fieldOnly && location.pathname !== FIELD_HOME && !onFormPage) {
     return <Navigate to={FIELD_HOME} replace />;
   }
 
