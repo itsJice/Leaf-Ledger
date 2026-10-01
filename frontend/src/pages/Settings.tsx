@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Calculator,
   Check,
   CheckCircle2,
   Database,
@@ -21,6 +22,7 @@ import {
 } from "components/icons";
 import Layout from "components/Layout";
 import ChristmasRatesEditor from "components/ChristmasRatesEditor";
+import InstallCostCardEditor from "components/InstallCostCardEditor";
 import SidebarTabsEditor from "components/SidebarTabsEditor";
 import UserRolesEditor from "components/UserRolesEditor";
 import { currentMe } from "utils/me";
@@ -69,6 +71,7 @@ type BuildTemplateListKey = "slots" | "usedFor" | "regularMaterials" | "premiumM
 const TABS = [
   { id: "markup", label: "Markup", icon: DollarSign },
   { id: "christmas", label: "Christmas Rates", icon: TreePine },
+  { id: "costs", label: "Install Costs", icon: Calculator },
   { id: "pricing", label: "Pricing Rules", icon: SettingsIcon },
   { id: "sku", label: "SKU Standards", icon: Tags },
   { id: "ai", label: "AI Reference Data", icon: Image },
@@ -571,7 +574,7 @@ export default function Settings() {
 
       <div className="px-4 sm:px-10 py-8">
         <div className="mb-6 flex flex-wrap gap-2">
-          {TABS.filter(({ id }) => id !== "users" || currentMe()?.isSuperAdmin).map(({ id, label, icon: Icon }) => (
+          {TABS.filter(({ id }) => (id !== "users" || currentMe()?.isSuperAdmin) && (id !== "costs" || currentMe()?.isAdmin)).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -589,6 +592,8 @@ export default function Settings() {
           <UserRolesEditor />
         ) : activeTab === "christmas" ? (
           <ChristmasRatesEditor />
+        ) : activeTab === "costs" ? (
+          <InstallCostCardEditor />
         ) : loading && activeTab !== "appearance" ? (
           <div className="flex items-center justify-center py-24">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />

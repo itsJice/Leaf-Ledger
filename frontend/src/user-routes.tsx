@@ -15,6 +15,9 @@ const AdminDashboard = lazyWithReload(() => import("./pages/AdminDashboard.tsx")
 const App = lazyWithReload(() => import("./pages/App.tsx"));
 const Arrangements = lazyWithReload(() => import("./pages/Arrangements.tsx"));
 const Clients = lazyWithReload(() => import("./pages/Clients.tsx"));
+const CrewDayProfit = lazyWithReload(() => import("./pages/CrewDayProfit.tsx"));
+const JobBudgets = lazyWithReload(() => import("./pages/JobBudgets.tsx"));
+const QuoteCalculator = lazyWithReload(() => import("./pages/QuoteCalculator.tsx"));
 const Designs = lazyWithReload(() => import("./pages/Designs.tsx"));
 const Favorites = lazyWithReload(() => import("./pages/Favorites.tsx"));
 const Comments = lazyWithReload(() => import("./pages/Comments.tsx"));
@@ -40,6 +43,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/", element: <App /> },
 	{ path: "/arrangements", element: <Arrangements /> },
 	{ path: "/clients", element: <Clients /> },
+	{ path: "/crew-profit", element: <CrewDayProfit /> },
+	{ path: "/job-budgets", element: <JobBudgets /> },
+	{ path: "/quote-calculator", element: <QuoteCalculator /> },
 	{ path: "/clients/project", element: <Arrangements /> },
 	{ path: "/designs", element: <Designs /> },
 	// Both design routes render <Designs>; it keeps the header + All Designs /
