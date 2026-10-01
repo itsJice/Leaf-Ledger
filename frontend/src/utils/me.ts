@@ -99,6 +99,16 @@ export function pageAllowed(me: Me | null, path: string): boolean {
   return me.pages.some((p) => path === p || path.startsWith(p + "/"));
 }
 
+/** Where "back to Leaf & Ledger" goes from a standalone page (the request
+ *  form). Normally the Dashboard; a restricted login can't open that -- and
+ *  its home IS the form -- so send it to its first page that has the app
+ *  around it, or the link would bounce straight back to the form. */
+export function appHome(): string {
+  const me = current?.me;
+  if (!me?.pages) return "/";
+  return me.pages.find((p) => !p.startsWith("/forms/")) ?? me.pages[0] ?? "/";
+}
+
 /** View-only apart from what the server allows (the production login). */
 export function isReadOnly(): boolean {
   return Boolean(current?.me.readOnly);
