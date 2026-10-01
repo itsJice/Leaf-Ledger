@@ -824,6 +824,10 @@ function PrintSheet(p: PrintSheetProps) {
     return typeof v === "number" && v > 0;
   });
   const showColors = p.colorCount > 1;
+  const colorIndexes = Array.from({ length: showColors ? p.colorCount : 0 }, (_, i) => i);
+  // The color columns are only a breakdown of the total, so they sit on two shades of
+  // gray with lighter numbers; the Total column stays white, dark and largest.
+  const colorBand = (i: number) => (i % 2 === 0 ? "bg-stone-200" : "bg-stone-100");
   // Per-color totals: the sum of each size's split, so they always add up to the total.
   const colorTotals = rows.reduce<number[]>((acc, o) => {
     splitAcrossColors(p.quantities[o.size] as number, p.colorCount).forEach((n, i) => (acc[i] = (acc[i] ?? 0) + n));
@@ -881,29 +885,61 @@ function PrintSheet(p: PrintSheetProps) {
         <thead>
           <tr className="border-b-2 border-stone-800 text-left text-sm uppercase tracking-wide text-stone-600">
             <th className="py-2 font-semibold">Ornament size</th>
-            {showColors && <th className="py-2 font-semibold">Colors</th>}
-            <th className="py-2 text-right font-semibold">Quantity</th>
+            {colorIndexes.map((i) => (
+              <th key={i} className={`border-l border-stone-300 px-3 py-2 text-center font-semibold text-stone-500 ${colorBand(i)}`}>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-stone-500 text-xs text-white">
+                    {i + 1}
+                  </span>
+                  Color {i + 1}
+                </span>
+                {/* Write-in line for the actual color name. */}
+                <span className="mt-1.5 block h-5 border-b border-stone-400" />
+              </th>
+            ))}
+            <th className={`py-2 text-right font-bold text-stone-900 ${showColors ? "border-l-2 border-stone-800 pl-3" : ""}`}>
+              {showColors ? "Total" : "Quantity"}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((o) => (
-            <tr key={o.size} className="border-b border-stone-200">
-              <td className="py-2.5 text-lg">{o.display}&quot;</td>
-              {showColors && (
-                <td className="py-2.5 text-base text-stone-700">{colorSplitLabel(p.quantities[o.size] as number, p.colorCount)}</td>
-              )}
-              <td className="py-2.5 text-right text-xl font-semibold tabular-nums">{p.quantities[o.size]}</td>
-            </tr>
-          ))}
+          {rows.map((o) => {
+            const split = splitAcrossColors(p.quantities[o.size] as number, p.colorCount);
+            return (
+              <tr key={o.size} className="border-b border-stone-200">
+                <td className="py-2.5 text-lg">{o.display}&quot;</td>
+                {colorIndexes.map((i) => (
+                  <td
+                    key={i}
+                    className={`border-l border-stone-300 px-3 py-2.5 text-center text-lg font-medium text-stone-500 tabular-nums ${colorBand(i)}`}
+                  >
+                    {split[i]}
+                  </td>
+                ))}
+                <td
+                  className={`py-2.5 text-right text-2xl font-bold text-stone-900 tabular-nums ${showColors ? "border-l-2 border-stone-800 pl-3" : ""}`}
+                >
+                  {p.quantities[o.size]}
+                </td>
+              </tr>
+            );
+          })}
           {/* The total is a body row, not a <tfoot>: Chrome can push a footer row onto its own page. */}
           <tr className="border-t-2 border-stone-800">
             <td className="py-3 text-lg font-semibold">Total ornaments</td>
-            {showColors && (
-              <td className="py-3 text-base font-semibold text-stone-700">
-                {colorTotals.map((n, i) => `Color ${i + 1}: ${n}`).join(" · ")}
+            {colorIndexes.map((i) => (
+              <td
+                key={i}
+                className={`border-l border-stone-300 px-3 py-3 text-center text-lg font-semibold text-stone-600 tabular-nums ${colorBand(i)}`}
+              >
+                {colorTotals[i]}
               </td>
-            )}
-            <td className="py-3 text-right text-2xl font-bold tabular-nums">{p.totalOrnaments}</td>
+            ))}
+            <td
+              className={`py-3 text-right text-3xl font-bold text-stone-900 tabular-nums ${showColors ? "border-l-2 border-stone-800 pl-3" : ""}`}
+            >
+              {p.totalOrnaments}
+            </td>
           </tr>
         </tbody>
       </table>
