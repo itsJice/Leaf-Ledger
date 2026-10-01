@@ -85,6 +85,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Admin",
     items: [
       { path: "/admin-dashboard", label: "Sync Operations", icon: Activity, adminOnly: true },
+      { path: "/crew-profit", label: "Crew-Day Profit", icon: Calculator, adminOnly: true },
+      { path: "/job-budgets", label: "Job Budgets", icon: ClipboardCheck, adminOnly: true },
+      { path: "/quote-calculator", label: "Quote Calculator", icon: FileText, adminOnly: true },
       { path: "/settings", label: "Settings", icon: Settings },
     ],
   },

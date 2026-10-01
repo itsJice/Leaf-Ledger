@@ -126,6 +126,25 @@
   "/api/install-calendar/feed.ics": [
     "GET"
   ],
+  "/api/install-costs/card": [
+    "GET",
+    "PUT"
+  ],
+  "/api/install-costs/crew-days": [
+    "GET"
+  ],
+  "/api/install-costs/people": [
+    "GET"
+  ],
+  "/api/install-costs/people/{person_id}": [
+    "PUT"
+  ],
+  "/api/install-quote/calc": [
+    "POST"
+  ],
+  "/api/install-quote/jobs": [
+    "GET"
+  ],
   "/api/install-schedule/history": [
     "GET"
   ],
@@ -141,6 +160,9 @@
   "/api/install-schedule/state": [
     "GET",
     "PUT"
+  ],
+  "/api/job-budgets": [
+    "GET"
   ],
   "/api/jobs/board-list": [
     "GET"
