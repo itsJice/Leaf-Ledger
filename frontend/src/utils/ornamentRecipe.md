@@ -342,6 +342,46 @@ drives the split). Example, 10 ft x 65 in (32 enhancers): `4" 18 loose / 18 in e
 4.75" 18 / 18`, 6" and up all loose. Step 2's Copy / Export CSV append a final
 `Enhancers, <count>` line when the count is above 0.
 
+### Whole packs
+
+Ornaments come in packs and each color is ordered separately, so a size only orders
+cleanly in steps of **pack × colors** (`orderUnit`). Vickerman's packs, checked against
+vickerman.com: 3" 12, 4" 6, 4.75" 4, 6" 4, 8" and up single. With two colors: 3" in 24s,
+4" in 12s, 4.75" and 6" in 8s, 8"+ in 2s. Before this, the recipe ignored packs and the
+order rounded each color up: 25 x 3" became 13 + 12 a color, two 12-packs and one, 36
+pieces for a recipe of 25.
+
+**What an order brings in** (`packOrder`): split the size evenly across the colors, round
+each color up to whole packs, add them up. `spare` = pieces ordered − pieces needed.
+
+**Rounding a recipe** (`roundToWholePacks`). Each size may go to the whole-pack quantity
+just below or just above its own: never to 0 for a size in use, and the largest size keeps
+the minimum top count. Of every combination, keep the one that changes the least ornament
+area (net change in coverage + area moved between sizes); on a tie, more ornaments. Sizes
+already on whole packs stay put.
+
+| Tree (2 colors) | Changes | Coverage |
+| --- | --- | --- |
+| 7.5 ft | 3" 25 → 24 | −0.5% |
+| 8 ft | 4" 25 → 24, 4.75" 30 → 24, 6" 20 → 24 | −0.2% |
+| 10 ft | 4.75" 36 → 32, 6" 30 → 32 | −0.4% |
+| 12 ft | 6" 30 → 32, 8" 17 → 18, 10" 15 → 14 | +0.6% |
+
+Three colors means coarser steps (3" in 36s), so coverage can move up to about 4%.
+
+**In the calculator.** Leaf & Ledger mode rounds every populated recipe to whole packs
+(the **Whole packs** switch, on by default) and shows what moved under the table. The To
+Order column shows packs per color and flags spare pieces in either mode; a hand-edited
+table that isn't whole packs gets a **Round to whole packs** button. A price-aware size
+swap is re-rounded the same way.
+
+**Before ordering (Step 2).** Each picked product shows its packs, the pieces that arrive
+and, when the supplier reports it, its stock (`in_stock` from `/api/products/ornament-match`;
+Vickerman stores a number). The order check lists lines whose stock is short, lines that
+bring spare pieces at the picked product's own pack size, and lines with no pick. Copy,
+Export CSV and Copy for Charles warn when the check has anything, and Charles's text opens
+with the list. Stock comes from the last catalog scrape, not a live feed.
+
 ### Purchase list
 
 Designer rules 8 and 9: the output is a bill of materials Charles can pull, named by its
