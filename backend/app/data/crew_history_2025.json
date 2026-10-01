@@ -1,0 +1,4088 @@
+{
+ "source": "CHRISTMAS CLIENTS - Storage - Delivery - Install +Takedown.xlsx",
+ "tabs": [
+  "2025 Christmas Install Crew Sch",
+  "2025 Christmas Takedown Crew Sc",
+  "2025 Christmas"
+ ],
+ "days": [
+  {
+   "date": "2025-11-19",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 6,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolvia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Dayanne",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-20",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 15,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": true,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": true,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": true,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Daniel",
+     "half": true,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Daniela",
+     "half": true,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Claudia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Gleibys Sanchez",
+     "half": false,
+     "temp": true,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Luis Batista Acosta",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayori",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Jose",
+     "half": false,
+     "temp": true,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Sayuth",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Andrés Cardozo",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-21",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 10,
+   "people": [
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Claudia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Gleibys Sanchez",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Anthony Perez",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayori",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Annie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Daniella",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayo",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-22",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 10,
+   "people": [
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Claudia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayori",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Gleibys Sanchez",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Luis",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Annie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Julie Mendoza",
+     "half": false,
+     "temp": false,
+     "tags": [
+      "F45"
+     ],
+     "group": "main"
+    },
+    {
+     "name": "Pilar",
+     "half": false,
+     "temp": false,
+     "tags": [
+      "f45"
+     ],
+     "group": "main"
+    },
+    {
+     "name": "Daniella",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Miyo",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-24",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 14,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Daniela",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Claudia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Sulay",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Gleibys Sanchez",
+     "half": false,
+     "temp": true,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Luis Baptista",
+     "half": false,
+     "temp": true,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Lourdes",
+     "half": false,
+     "temp": true,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-25",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 6,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Veronica",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Claudia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": [
+    "RELIGHT"
+   ]
+  },
+  {
+   "date": "2025-11-26",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 8,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Luis",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-28",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 10,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Joel",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Laura",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Reyna",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Reynita",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Erika",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Justice",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Caleb",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    }
+   ],
+   "notes": [
+    "CHRIS CREW",
+    "(Banks)"
+   ]
+  },
+  {
+   "date": "2025-11-29",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 11,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Pilar",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Annie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Joel",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayo",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Julie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Sulay",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-11-30",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 10,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Annie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayo",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Pilar",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Julie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Sulay",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-12-01",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 11,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Daniela",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Claudia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Sulay",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-12-02",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 12,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Sulay",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Luis",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    },
+    {
+     "name": "Pilar",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "Chris Crew"
+    }
+   ],
+   "notes": [
+    "CHRIS CREW"
+   ]
+  },
+  {
+   "date": "2025-12-03",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 12,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Maria",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karol",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Sulay",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Mayo",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": [
+    "Kenneth Team",
+    "Start Crane by 2pm"
+   ]
+  },
+  {
+   "date": "2025-12-04",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 10,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolbia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Pilar",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-12-05",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 5,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Annie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlynn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nuirka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-12-06",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 7,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Annie",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Diane",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Pilar",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2025-12-07",
+   "kind": "install",
+   "crew": null,
+   "ppl_needed": 4,
+   "people": [
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-10",
+   "kind": "takedown",
+   "crew": "A",
+   "ppl_needed": 6,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolvia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Dayanne",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-11",
+   "kind": "takedown",
+   "crew": "A",
+   "ppl_needed": 6,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolvia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Dayanne",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-12",
+   "kind": "takedown",
+   "crew": "A",
+   "ppl_needed": 5,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolvia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlyn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Niurka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-13",
+   "kind": "takedown",
+   "crew": "A",
+   "ppl_needed": 7,
+   "people": [
+    {
+     "name": "Lesly",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Alberto",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Nolvia",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Dayanne",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Karen",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Rolando",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Niurka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Evlyn",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-10",
+   "kind": "takedown",
+   "crew": "B",
+   "ppl_needed": 4,
+   "people": [
+    {
+     "name": "Laura",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Reyna",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Reinita",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Ericka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-12",
+   "kind": "takedown",
+   "crew": "B",
+   "ppl_needed": 5,
+   "people": [
+    {
+     "name": "Laura",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Reyna",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Reinita",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Ericka",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    },
+    {
+     "name": "Daniel",
+     "half": false,
+     "temp": false,
+     "tags": [],
+     "group": "main"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "date": "2026-01-13",
+   "kind": "takedown",
+   "crew": "B",
+   "ppl_needed": 5,
+   "people": [],
+   "notes": []
+  }
+ ],
+ "jobs": [
+  {
+   "name": "Royal Oaks CC",
+   "crew_lines": [
+    "Crew A"
+   ],
+   "dallas_crew": [],
+   "est_hours": 8.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 0,
+    "general": 10
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Lakewood",
+   "crew_lines": [
+    "Chris Wenz"
+   ],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": {
+    "start": 930,
+    "end": 946,
+    "source": "note",
+    "note": "Lakewood Arrive 3:30 Depart 3:46"
+   }
+  },
+  {
+   "name": "M Crowd  Southlake Town Square",
+   "crew_lines": [
+    "Chris Wenz"
+   ],
+   "dallas_crew": [
+    "Chris Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": {
+    "start": 840,
+    "end": 877,
+    "source": "note",
+    "note": "Southlake Start 2:00 Finish 2:37"
+   }
+  },
+  {
+   "name": "M Crowd  Sundance Square",
+   "crew_lines": [
+    "Chris Wenz"
+   ],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": {
+    "start": 673,
+    "end": 706,
+    "source": "note",
+    "note": "Sundance Start 11:13 Sundance End 11:46"
+   }
+  },
+  {
+   "name": "The Club at Carlton Woods | Nicklaus Clubhouse",
+   "crew_lines": [
+    "Lesly-Monday",
+    "Carlton Woods CC",
+    "Rolando",
+    "Osmani",
+    "Karen",
+    "Niurka",
+    "Evlyn",
+    "Dayanne",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "The Club at Carlton Woods | Outdoor Tree & Frame",
+   "crew_lines": [
+    "Lesly Crew (8)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 2,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Woodlands CC Legacy",
+   "crew_lines": [
+    "Chris -Monday",
+    "Woodlands CC",
+    "Alberto",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka",
+    "Nolvia"
+   ],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 1,
+    "designer": 0,
+    "general": 10
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Woodlands CC Palmer",
+   "crew_lines": [
+    "Chris -Monday",
+    "Woodlands CC",
+    "Alberto",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka",
+    "Nolvia"
+   ],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 1,
+    "designer": 0,
+    "general": 10
+   },
+   "takedown_real": {
+    "start": 540,
+    "end": 621,
+    "source": "times"
+   }
+  },
+  {
+   "name": "Woodlands CC Tavern at The Trails",
+   "crew_lines": [
+    "Chris -Monday",
+    "Woodlands CC",
+    "Alberto",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka",
+    "Nolvia"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": {
+    "start": 720,
+    "end": 755,
+    "source": "note",
+    "note": "Tavern Arrive 12:00 Depart 12:35"
+   }
+  },
+  {
+   "name": "Woodlands CC Tournament",
+   "crew_lines": [
+    "Chris -Monday",
+    "Woodlands CC",
+    "Alberto",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka",
+    "Nolvia"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": {
+    "start": 640,
+    "end": 687,
+    "source": "times"
+   }
+  },
+  {
+   "name": "A Hug Away | Frazier, Marissa Residence",
+   "crew_lines": [
+    "Crew B",
+    "Chris -Tuesday",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "A Hug Away | Office",
+   "crew_lines": [
+    "Crew B",
+    "Chris -Tuesday",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Charlton, Anna",
+   "crew_lines": [
+    "Crew A",
+    "Alberto - Tuesday",
+    "Niurkita",
+    "Nolvia",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Eilers, Sarah",
+   "crew_lines": [
+    "Crew A",
+    "Alberto - Tuesday",
+    "Niurkita",
+    "Nolvia",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Ingram, Donna",
+   "crew_lines": [
+    "Crew A",
+    "Alberto - Tuesday",
+    "Niurkita",
+    "Nolvia",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Jinks, Amy",
+   "crew_lines": [
+    "Crew B",
+    "Chris -Tuesday",
+    "Laura",
+    "Reyna",
+    "Reinita",
+    "Ericka"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Juban, Chris (Sarah Eilers Designer)",
+   "crew_lines": [
+    "Crew A",
+    "Alberto - Tuesday",
+    "Niurkita",
+    "Nolvia",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 2,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Keffer, Pam",
+   "crew_lines": [
+    "Crew A",
+    "Alberto - Tuesday",
+    "Niurkita",
+    "Nolvia",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Mattix, Margaret & Rick",
+   "crew_lines": [
+    "Crew C",
+    "Lesly - Tuesday",
+    "Rolando",
+    "Karen",
+    "Evlyn",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Roane, Sheri",
+   "crew_lines": [
+    "Crew A",
+    "Alberto - Tuesday",
+    "Niurkita",
+    "Nolvia",
+    "Carolina",
+    "Gloria"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Sullivan, Kristine",
+   "crew_lines": [
+    "Crew C",
+    "Lesly - Tuesday",
+    "Rolando",
+    "Karen",
+    "Evlyn",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "The Club at Carlton Woods | Fazio Clubhouse",
+   "crew_lines": [
+    "Crew C",
+    "Lesly - Tuesday",
+    "Rolando",
+    "Karen",
+    "Evlyn",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Byler, Kerri - House",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Byler, Kerri - Office",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": {
+    "start": 855,
+    "end": 915,
+    "source": "times"
+   }
+  },
+  {
+   "name": "Byler, Kerri - Store Buck Ferguson",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Ecklund, Michol",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Marek Bros",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 7
+   },
+   "takedown_real": {
+    "start": 525,
+    "end": 585,
+    "source": "note",
+    "note": "Marek Brothers Arrived 8:45 am Finished 9:45 am"
+   }
+  },
+  {
+   "name": "Musser, Kristy",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": {
+    "start": 570,
+    "end": 730,
+    "source": "note",
+    "note": "Musser 9:30am start 12:10 finish"
+   }
+  },
+  {
+   "name": "O'Brien, Pamela (Hope)",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": {
+    "start": 792,
+    "end": 820,
+    "source": "note",
+    "note": "O'Brian Pamela Arrived 1:12 pm Finished 1:40 pm"
+   }
+  },
+  {
+   "name": "Ryan, Brenda",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Serenity Retreat, Tiffany Pardue",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": {
+    "start": 770,
+    "end": 800,
+    "source": "note",
+    "note": "serenity 12:50- 1:20"
+   }
+  },
+  {
+   "name": "William Brothers Office",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Woodlands CC Players",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 1,
+    "general": 5
+   },
+   "takedown_real": {
+    "start": 650,
+    "end": 710,
+    "source": "note",
+    "note": "Players Arrived: 10:50 am Start: 11:15 am ( we was waiting for the Players manager) Finished: 11:50 pm"
+   }
+  },
+  {
+   "name": "Wright, Lynell",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Evlyn",
+    "Nolvia",
+    "Dayanne"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "A Hug Away | Daycare \"A Creative Genius Academy Learning\"",
+   "crew_lines": [
+    "Crew B (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Akinola, Joke",
+   "crew_lines": [
+    "Crew B (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Capital Bank - Baytown",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Capital Bank - Clearlake",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": {
+    "start": 753,
+    "end": 794,
+    "source": "times"
+   }
+  },
+  {
+   "name": "Capital Bank - Deer Park",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": {
+    "start": 862,
+    "end": 890,
+    "source": "times"
+   }
+  },
+  {
+   "name": "Capital Bank - I-10",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Capital Bank - Katy",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Capital Bank - Pasadena",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": {
+    "start": 822,
+    "end": 849,
+    "source": "times"
+   }
+  },
+  {
+   "name": "Capital Bank - Pearland",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Capital Bank - Sugarland",
+   "crew_lines": [
+    "Crew A",
+    "Reyna",
+    "Laura",
+    "Chris",
+    "Erika",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "DInkins, Carol (Melissa Snow-Designer)",
+   "crew_lines": [
+    "Crew B (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Harter, Suzanne",
+   "crew_lines": [
+    "Crew B (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Moss, Dave",
+   "crew_lines": [
+    "Crew B (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 7
+   },
+   "takedown_real": {
+    "start": 795,
+    "end": 900,
+    "source": "times"
+   }
+  },
+  {
+   "name": "Bergstrom, Debbie and Steve",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Nolvia"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 7
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Citizens State Bank",
+   "crew_lines": [
+    "Chris Crew",
+    "Reyna",
+    "Laura",
+    "Reinita",
+    "Ericka"
+   ],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 1,
+    "designer": 1,
+    "general": 10
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Elizabeth Cole",
+   "crew_lines": [
+    "Chris Crew",
+    "Reyna",
+    "Laura",
+    "Reinita",
+    "Ericka"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Hanover Corporate",
+   "crew_lines": [
+    "Lesly Crew",
+    "Alberto",
+    "Rolando",
+    "Niurka",
+    "Karen",
+    "Nolvia"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Eisbrenner, Ray",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Jensen, Traci",
+   "crew_lines": [
+    "Crew B (4)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Larson, Susan",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Sikkel, Maria",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 5.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Valley Forge",
+   "crew_lines": [
+    "Crew B (4)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 1,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Williams, Sandra",
+   "crew_lines": [
+    "Crew B (4)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 1,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Rotary House",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 1,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Birdwall, Ashley",
+   "crew_lines": [
+    "Crew B (4)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Crane Worldwide Logistics",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Love That Smile",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Northside Import",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Origin Bank Tanglewood",
+   "crew_lines": [
+    "Crew B (4)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Semple, Lauren",
+   "crew_lines": [
+    "Crew B (4)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 1,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Waterway Wealth Waterway",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Allums, Jennifer",
+   "crew_lines": [
+    "Crew A (5)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Casperson, Erik",
+   "crew_lines": [
+    "Crew A (5)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Pitcock, James",
+   "crew_lines": [
+    "Crew A (7)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 5.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 2,
+    "designer": 0,
+    "general": 10
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Schultea, Kathy",
+   "crew_lines": [
+    "Crew A (7)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Bourque, Stacey",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 0,
+    "general": 10
+   },
+   "takedown_real": {
+    "start": 860,
+    "end": 1060,
+    "source": "note",
+    "note": "Bourque Arrive: 2:20 pm Depart: 5:40 pm"
+   }
+  },
+  {
+   "name": "Byers, Merlene (Bellville)",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Ericka",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Byers, Merlene (Chapel Hill)",
+   "crew_lines": [
+    "Justice Crew",
+    "Reyna",
+    "Laura",
+    "Ericka",
+    "Reynita"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Cain, Andria",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Lewis, Holly",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 5.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 1,
+    "general": 10
+   },
+   "takedown_real": {
+    "start": 585,
+    "end": 790,
+    "source": "note",
+    "note": "Holly Lewis Arrive to her storage: 9:45 am Arrive to her house: 10:15 am Depart to her storage: 12:35 am Arrive to her storage: 12:45 am Depart to her storage: 1:10 pm"
+   }
+  },
+  {
+   "name": "Scheib, Nataliya",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 1,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Parker, Guy",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "A Hug Away Takisha",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Hensley, Rodney",
+   "crew_lines": [
+    "Crew A (6)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Gitu, Patrick",
+   "crew_lines": [
+    "Crew B (3)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "REPAIR Ecklund, Michol",
+   "crew_lines": [
+    "Crew B (3)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "REPAIR Harter, Suzanne\n\n1/16 - Talked with Suzane she said 'just leave em' - command strips can stay in place - she got new curtains and it hides the command strip.",
+   "crew_lines": [
+    "Crew B (3)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Dr. Francis",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Allen Market Street",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Bent Tree",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Corporate Office",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  District 121",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Galleria Dallas",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Highlands Ranch",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Lake Highlands",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Lakeside Market",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Legacy Plano",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Lennox Center",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Monkey Bar on 9",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Nebraska Furniture Mart",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  On The Park",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Rockwall",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  The Mercury Grill",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd  Uptown",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd Alliance Town Center",
+   "crew_lines": [
+    "Chris Wenz"
+   ],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": {
+    "start": 780,
+    "end": 813,
+    "source": "note",
+    "note": "Alliance Start 1:00 End 1:33"
+   }
+  },
+  {
+   "name": "M Crowd Chapel Hill",
+   "crew_lines": [
+    "Chris Wenz"
+   ],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": {
+    "start": 729,
+    "end": 761,
+    "source": "note",
+    "note": "Chapel Hill Start 12:09 Finish 12:41"
+   }
+  },
+  {
+   "name": "M Crowd Highland Park Village",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd Las Colinas Village",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd Preston Forest",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "M Crowd The Star – Frisco",
+   "crew_lines": [],
+   "dallas_crew": [
+    "Lesly Padilla",
+    "Alejandro Padilla",
+    "Daniel Padilla",
+    "Alberto Ortiz",
+    "Nolbia",
+    "Chris Wenz",
+    "Justice Wenz"
+   ],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Beaver, Austin",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Beaver, Cindy",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Buenrostro, Felecia",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Cathy Houston",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 1,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Cornith Church",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Drone, Carolyn",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Hampton Inn",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 5.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 2,
+    "designer": 0,
+    "general": 8
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Hilton Garden Inn | Home2 Suites",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 5.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 0,
+    "general": 10
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Junious, Carvis Dr.",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Kanyi, Joy and Kenneth (Celestial)",
+   "crew_lines": [
+    "Crew B (3)"
+   ],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Lee, Evelyn",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 1,
+    "general": 10
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Madden, Misty",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 2.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Mercedes Benz",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 6.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 0,
+    "general": 12
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Omni Hotel",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 7.0,
+   "role_need": {
+    "leads": 2,
+    "specialty": 2,
+    "designer": 1,
+    "general": 9
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Paramo, Paloma",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 1,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Pullin, Myra",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 3.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 5
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Quinn, Kerri",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Seetheram, Rani",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Tenaris",
+   "crew_lines": [
+    "Crew B"
+   ],
+   "dallas_crew": [],
+   "est_hours": 1.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 0,
+    "designer": 0,
+    "general": 4
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "Valenzuela, Melinda",
+   "crew_lines": [
+    "Crew A (7)"
+   ],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "William Brothers-NRG",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": 4.0,
+   "role_need": {
+    "leads": 1,
+    "specialty": 1,
+    "designer": 0,
+    "general": 6
+   },
+   "takedown_real": {
+    "start": 780,
+    "end": 870,
+    "source": "times"
+   }
+  },
+  {
+   "name": "GENERAL INSTALL LABOR",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "PICKUP & DELIVERY - INSTALL",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "PICKUP & DELIVERY - TAKEDOWN",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "SPECIALTY INSTALL LABOR",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "STORAGE FEE PER BOX",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "CREW LEAD",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  },
+  {
+   "name": "DESIGNER ART DIRECTOR LEAD",
+   "crew_lines": [],
+   "dallas_crew": [],
+   "est_hours": null,
+   "role_need": {
+    "leads": 0,
+    "specialty": 0,
+    "designer": 0,
+    "general": 0
+   },
+   "takedown_real": null
+  }
+ ]
+}

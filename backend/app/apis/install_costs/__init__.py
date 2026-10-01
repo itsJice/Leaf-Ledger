@@ -12,13 +12,15 @@ warehouse display and by crew leads, and pay is not.
 """
 from __future__ import annotations
 
+import json
+import pathlib
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
-from app.libs import crew_day_profit
+from app.libs import crew_day_profit, season_history
 from app.libs import install_costs as ic
 from app.libs import schedule_board
 from app.libs.db import ensure_schema_once, get_conn
@@ -313,25 +315,64 @@ async def put_person(person_id: str, body: PersonPayIn, user: AuthorizedUser):
         await conn.close()
 
 
+#: Past seasons' crew lists pulled from the client workbook
+#: (scheduler/extract_crew_history.py).
+DATA_DIR = pathlib.Path(__file__).resolve().parents[2] / "data"
+
+
+def history_for(season: str) -> Optional[dict]:
+    path = DATA_DIR / f"crew_history_{season}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text())
+
+
+def card_for(rows: List[dict], season: str) -> tuple[dict, Optional[str]]:
+    """The cost card for ``season``. A season older than every card (2025,
+    before its own card is saved) borrows the earliest later season's, and
+    says which -- the user set 2025 = 2026."""
+    card = ic.resolve_card(rows, season)
+    if card["costs"] or card["classes"]:
+        return card, None
+    later = sorted({str(r["season"]) for r in rows if str(r["season"]) > season})
+    if not later:
+        return card, None
+    return ic.resolve_card(rows, later[0]), later[0]
+
+
 @router.get("/crew-days")
 async def get_crew_days(season: Optional[str] = None):
-    """Net profit for every install crew-day on the board: the day's install
-    revenue against its crew, vans, gas and overhead (app.libs.crew_day_profit)."""
+    """Every install and takedown crew-day of a season with its net profit.
+
+    The season on the install board is the plan (app.libs.crew_day_profit:
+    planned installs plus the takedown each implies); an earlier season with
+    crew history on file is what actually happened (app.libs.season_history:
+    real clock times, real crews, real invoices)."""
     season = _clean_season(season)
     board = await schedule_board.load_board(season)
-    if not board:
-        raise HTTPException(status_code=404, detail=f"No {season} install schedule has been published")
+    history = None if board else history_for(season)
+    if not board and not history:
+        raise HTTPException(status_code=404, detail=f"No {season} install schedule or crew history on file")
     # Deferred: the clients API pulls in the whole directory machinery.
     from app.apis.clients import build_client_list
 
     conn = await get_conn()
     try:
         await ensure_schema(conn)
-        card = ic.resolve_card(await load_card_rows(conn), season)
+        rows = await load_card_rows(conn)
         assignments = await load_assignments(conn)
         clients = await build_client_list(conn)
     finally:
         await conn.close()
-    out = crew_day_profit.crew_days(board, crew_day_profit.price_index(clients, season), card, assignments)
+    card, borrowed = card_for(rows, season)
+    if board:
+        out = crew_day_profit.plan_days(board, crew_day_profit.price_index(clients, season), card, assignments)
+    else:
+        # Drive times and map points come from the newest board.
+        geo = await schedule_board.load_board()
+        out = season_history.season_days(clients, season, history, geo, card,
+                                         geo.roster if geo else [], assignments)
+        out["history_source"] = history.get("source")
     out["missing_card"] = card["missing"]
+    out["card_season"] = borrowed or season
     return out
