@@ -8149,7 +8149,22 @@ document.getElementById('tbprint').onclick=()=>{
 })();
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.
-selDate = (days.map(d=>d.date).sort()[0]) || allDates()[0];
+// Open on TODAY when today is a date in the list (from Oct 21 on); before
+// that, and once the list has no date for today, open on the Overview "All"
+// view (user, 2026-10-01). Same range renderStrip() lists.
+function stripListsDate(dt){
+  if(!inStripScope(dt)) return false;
+  const working=new Set([...allDates(), ...days.map(d=>d.date)]);
+  const calDates=SPEC.calendar.map(ci=>ci.date).filter(inStripScope).sort();
+  const firstInstall=`${MONTH_YEAR['10']}-10-21`;
+  const firstWorking=[...working].filter(inStripScope).sort()[0];
+  const start=stripScope==='takedown' ? (calDates[0]||firstInstall)
+                                      : [firstInstall, ...(firstWorking?[firstWorking]:[])].sort()[0];
+  const end=[...calDates, ...[...working].filter(inStripScope)].sort().pop()||start;
+  return dt>=start && dt<=end;
+}
+{ const T=todayISO();
+  selDate = stripListsDate(T) ? T : ({install:'ALL-INSTALL', takedown:'ALL-TAKEDOWN', all:'ALL'}[stripScope]||'ALL'); }
 // Archive mode, decided locally and applied before anything can be touched.
 // The season this page was built for is either the one we are in or it is
 // already over -- and if it is over, nobody should be able to edit it in the

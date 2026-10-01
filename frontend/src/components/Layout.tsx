@@ -169,6 +169,10 @@ function FieldLayout({ children }: Props) {
   );
 }
 
+/** Whether the last page shown used the folded rail -- survives the per-page
+ * remount of Layout, so arriving on the schedule can animate the menu closed. */
+let lastLayoutWasRail = false;
+
 function StaffLayout({ children }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -213,8 +217,20 @@ function StaffLayout({ children }: Props) {
   // keyboard focus) -- the page underneath never jumps. Everywhere else, and
   // in the phone/tablet drawer, the menu is unchanged.
   const railMode = location.pathname.includes("/install-schedule");
-  const [railOpen, setRailOpen] = useState(false);
-  useEffect(() => { setRailOpen(false); }, [location.pathname]);
+  // Arriving from another page, the menu starts full width and then glides
+  // closed to the rail (user, 2026-10-01) instead of snapping -- every page
+  // mounts its own Layout, so "where we came from" lives at module scope.
+  const arrivingFromWide = railMode && !lastLayoutWasRail;
+  const [railOpen, setRailOpen] = useState(arrivingFromWide);
+  useEffect(() => {
+    lastLayoutWasRail = railMode;
+    if (!railMode) { setRailOpen(false); return; }
+    if (!arrivingFromWide) { setRailOpen(false); return; }
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t = window.setTimeout(() => setRailOpen(false), reduce ? 0 : 450);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
   const railTimer = React.useRef<number | undefined>(undefined);
   const collapsed = railMode && !railOpen;
   const RC = collapsed ? " lg:hidden" : "";   // hidden while folded (desktop only)
@@ -570,7 +586,7 @@ function StaffLayout({ children }: Props) {
         // sidebar renders identically in both modes. Without it the stylesheet
         // falls back to matching `aside.w-60`, which is brittle.
         data-ll-chrome="dark"
-        className={`w-60 px-4 ${collapsed ? "lg:w-[68px] lg:px-3" : ""} flex-shrink-0 flex flex-col border-r border-white/10 py-8 fixed top-0 left-0 h-full z-40 overflow-x-hidden transition-[transform,width,padding] duration-200 ease-drawer motion-reduce:transition-none lg:translate-x-0 ${
+        className={`w-60 px-4 ${collapsed ? "lg:w-[68px] lg:px-3" : ""} flex-shrink-0 flex flex-col border-r border-white/10 py-8 fixed top-0 left-0 h-full z-40 overflow-x-hidden transition-[transform,width,padding] duration-300 ease-drawer motion-reduce:transition-none lg:translate-x-0 ${
           railMode && railOpen ? "lg:z-50 lg:shadow-2xl" : "lg:z-20 lg:shadow-none"
         } ${
           navOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
