@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   COLORS,
-  ENHANCER_TABLE,
   FINISHES,
   GOLDEN_RECIPES,
   ORNAMENT_OPTIONS,
@@ -17,6 +16,8 @@ import {
   enhancerAllocation,
   enhancerCount,
   enhancerLookup,
+  ENHANCER_CARD,
+  ENHANCER_CARD_HEIGHTS,
   splitAcrossColors,
   leafLedgerMinTopCount,
   leafLedgerSizes,
@@ -32,6 +33,7 @@ import {
   treeSurfaceArea,
   widthForProfile,
   type RecipeResult,
+  type WidthProfile,
 } from "../ornamentRecipe";
 
 /** [size, quantity] pairs — compact form of a recipe's lines. */
@@ -42,8 +44,14 @@ describe("constants", () => {
   it("pins table sizes and shapes", () => {
     expect(ORNAMENT_OPTIONS.map((o) => o.display)).toEqual(["1", "1.6", "2.4", "2.75", "3", "4", "4.75", "6", "8", "10", "12", "15.75", "20", "24"]);
     expect(GOLDEN_RECIPES.map((g) => [g.heightFt, g.widthIn])).toEqual([[7.5, 49], [8, 52], [10, 65], [12, 78]]);
-    // The designers' standard-tree card (7' 18, 8' 24, 9' 30, 10' 32, 12' 36) plus the carried-over 14' and 15'.
-    expect(ENHANCER_TABLE.map((r) => [r.heightMinFt, r.count])).toEqual([[7, 18], [8, 24], [9, 30], [10, 32], [12, 36], [14, 48], [15, 60]]);
+    // The designers' enhancer card, every height and profile (confirmed 2026-10-01).
+    expect(ENHANCER_CARD_HEIGHTS).toEqual([7, 7.5, 8, 9, 10, 12, 14, 15]);
+    expect(ENHANCER_CARD).toEqual({
+      pencil: [8, 10, 14, 20, 24, 28, 32, 36],
+      slim: [10, 12, 16, 22, 26, 30, 34, 38],
+      standard: [18, 20, 24, 30, 32, 36, 40, 44],
+      full: [22, 24, 28, 34, 36, 40, 44, 48],
+    });
     expect(Object.keys(WIDTH_PROFILES)).toEqual(["pencil", "slim", "standard", "full"]);
     // FIX: the doc comment said "All 58"; no rules doc names a 58th color,
     // so the comment (in ornamentRecipe.ts and ornamentRecipe.md) was
@@ -208,30 +216,43 @@ describe("splitAcrossColors", () => {
 });
 
 describe("enhancers", () => {
+  it("returns the designer's card verbatim for every height and profile", () => {
+    for (const profile of Object.keys(ENHANCER_CARD) as WidthProfile[]) {
+      ENHANCER_CARD_HEIGHTS.forEach((h, i) => {
+        const e = enhancerLookup(h, widthForProfile(h, profile));
+        expect([h, profile, e.count, e.source.kind]).toEqual([h, profile, ENHANCER_CARD[profile][i], "card"]);
+      });
+    }
+    // Spot-check the card itself (designer, 2026-10-01).
+    expect(enhancerCount(9, widthForProfile(9, "slim"))).toBe(22);
+    expect(enhancerCount(14, widthForProfile(14, "standard"))).toBe(40);
+    expect(enhancerCount(15, widthForProfile(15, "full"))).toBe(48);
+    expect(enhancerCount(7, widthForProfile(7, "pencil"))).toBe(8);
+  });
+
   it("enhancerLookup covers every source kind", () => {
     const view = (h: number, w: number, c?: number) => {
       const e = enhancerLookup(h, w, c);
       return [e.count, e.source.kind];
     };
-    // Standard trees read the card verbatim.
-    expect(view(9, 59)).toEqual([30, "table"]);
-    expect(view(10, 65)).toEqual([32, "table"]);
-    // Between card rows: interpolated, rounded to even.
-    expect(view(7.5, 49)).toEqual([22, "interpolated"]);
+    // Between card heights, same profile: a straight line, rounded to even.
     expect(view(11, 72)).toEqual([34, "interpolated"]);
-    // Beyond the card: the end row scaled by surface area.
-    expect(view(6, 39)).toEqual([10, "extrapolated"]);
-    expect(view(16, 104)).toEqual([70, "extrapolated"]);
-    expect(view(0, 0)).toEqual([0, "extrapolated"]);
-    expect(view(-3, 40)).toEqual([0, "extrapolated"]);
-    // Pencil, slim, full or custom widths: the standard count scaled by surface area.
-    expect(view(7.5, 32)).toEqual([8, "widthScaled"]);
-    expect(view(9, 70)).toEqual([40, "widthScaled"]);
-    expect(view(12, 60)).toEqual([24, "widthScaled"]);
+    expect(view(13, 73)).toEqual([32, "interpolated"]);
+    // Beyond the card: its end trend (+4 a foot) continued.
+    expect(view(6, 39)).toEqual([14, "extrapolated"]);
+    expect(view(16, 125)).toEqual([52, "extrapolated"]);
+    // A custom width: blended between the profiles either side, or the end profile past them.
+    expect(view(9, 54)).toEqual([26, "customWidth"]);
+    expect(view(9, 63)).toEqual([32, "customWidth"]);
+    expect(view(9, 30)).toEqual([20, "customWidth"]);
+    expect(view(9, 90)).toEqual([34, "customWidth"]);
+    // No usable dimensions.
+    expect(view(0, 0)).toEqual([0, "none"]);
+    expect(view(-3, 40)).toEqual([0, "none"]);
   });
 
   it("enhancerCount rounds computed counts to the color count", () => {
-    expect([enhancerCount(13, 85), enhancerCount(18, 117), enhancerCount(7.5, 49, 3), enhancerCount(9, 70, 3)]).toEqual([42, 92, 21, 42]);
+    expect([enhancerCount(11, 72, 3), enhancerCount(7.25, 47), enhancerCount(18, 76)]).toEqual([33, 20, 48]);
   });
 
   // A direct card hit returns the designers' count verbatim, unrounded, even when

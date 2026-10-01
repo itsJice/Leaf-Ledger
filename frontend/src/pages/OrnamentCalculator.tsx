@@ -169,13 +169,17 @@ function equalShareBlocks(count: number): ColorBlock[] {
 /** One line on which enhancer-table row the count came from. */
 /** Where an enhancer count came from, in words; `count` is that source's result. */
 function describeEnhancerSource(src: EnhancerSource, count: number): string {
-  if (src.kind === "table") return `Card row ${src.row.label} → ${src.row.count}`;
-  if (src.kind === "nearestWidth") return `No width bucket fits — nearest row ${src.row.label} → ${src.row.count}`;
+  const label = (p: WidthProfile) => WIDTH_PROFILES[p].label.toLowerCase();
+  if (src.kind === "card") return `Card: ${src.heightFt} ft ${label(src.profile)} → ${count}`;
   if (src.kind === "interpolated")
-    return `Between card rows ${src.lower.label} (${src.lower.count}) and ${src.upper.label} (${src.upper.count}) → ${count}`;
-  if (src.kind === "widthScaled")
-    return `${describeEnhancerSource(src.base, src.standardCount)} for a standard ${src.standardWidthIn}" tree · scaled to this width by surface area → ${count}`;
-  return `Beyond the card — row ${src.row.label} (${src.row.count}) scaled by surface area → ${count}`;
+    return `Between card rows ${src.lowerFt} ft (${src.lowerCount}) and ${src.upperFt} ft (${src.upperCount}), ${label(src.profile)} → ${count}`;
+  if (src.kind === "extrapolated")
+    return `Beyond the card — ${label(src.profile)} trend continued from ${src.fromFt} ft (${src.fromCount}) → ${count}`;
+  if (src.kind === "customWidth")
+    return src.narrower === src.wider
+      ? `Custom width outside the card's profiles — ${label(src.narrower)} count → ${count}`
+      : `Custom width between ${label(src.narrower)} (${src.narrowerCount}) and ${label(src.wider)} (${src.widerCount}) → ${count}`;
+  return "Enter tree dimensions to look up the enhancer card";
 }
 
 /** One line on which enhancer-card row the count came from. */
