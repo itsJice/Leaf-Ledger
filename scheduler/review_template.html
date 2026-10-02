@@ -815,7 +815,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .txtprog{font-size:12.5px;color:var(--mut);margin-bottom:10px}
 .txtprog b{color:var(--ink)}
 /* assign dialog */
-#perdlg{max-width:520px}
+#perdlg{max-width:600px}
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .availhd{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:14px 0 2px;
   padding-top:12px;border-top:1px solid var(--line)}
@@ -832,10 +832,16 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .bub.preset:hover{background:var(--brand-soft)}
 .bub.preset:disabled{color:var(--faint);cursor:default;background:#fff}
 .bub.preset:disabled:hover{background:#fff}
-.wkrows{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px}
-.wkrow{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:8px}
-.wklbl{font-size:11.5px;font-weight:800;color:var(--brand-deep);white-space:nowrap}
-.wkbubs{display:flex;flex-wrap:wrap;gap:5px}
+.wkrows{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
+.wkrow{display:grid;grid-template-columns:92px repeat(7,minmax(0,1fr));align-items:center;gap:4px}
+/* Labels match the shaded week bars in the dates list */
+.wklbl{align-self:stretch;display:flex;align-items:center;padding:0 8px;border-radius:8px;background:#e2dccf;
+  font-size:11.5px;font-weight:800;color:var(--brand-deep);white-space:nowrap}
+.wksec{margin:8px 0 2px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);
+  border-top:1px solid var(--line);padding-top:8px}
+.wkslot{min-width:0;display:flex}
+.wkslot .bub{flex:1;min-width:0;margin:0;padding:3px 0;text-align:center;font-size:11px;line-height:1.15;white-space:nowrap}
+.wkslot .bub .bd{font-size:8.5px}
 #perdays{display:block}
 .presetbrk{flex-basis:100%;height:0}
 .presetmonths{display:contents}
@@ -7308,13 +7314,22 @@ function weekLabel(dt){
 /** Availability dates laid out one week per row (user, 2026-10-02): the week's
  *  label, then that week's date bubbles. `bubble(dt)` returns one bubble. */
 function weekRowsHTML(dates, bubble){
+  // One line per Sunday-Saturday week, seven fixed day slots, so a week never
+  // wraps or doubles back (user, 2026-10-02); days not on the list are blank.
+  // A "Takedown" divider sits before the first week after the cutoff.
   const rows=[];
   [...dates].sort().forEach(dt=>{
     const k=weekOf(dt), last=rows[rows.length-1];
     if(last && last.k===k) last.dates.push(dt); else rows.push({k, dates:[dt]});
   });
-  return `<div class="wkrows">${rows.map(r=>`<div class="wkrow"><span class="wklbl">${esc(weekLabel(r.dates[0]))}</span>`
-    + `<span class="wkbubs">${r.dates.map(bubble).join('')}</span></div>`).join('')}</div>`;
+  let td=false;
+  return `<div class="wkrows">${rows.map(r=>{
+    let pre='';
+    if(!td && r.dates[0]>TAKEDOWN_CUTOFF){ td=true; pre=`<div class="wksec">Takedown</div>`; }
+    const slots=Array(7).fill('<span class="wkslot"></span>');
+    r.dates.forEach(dt=>{ slots[dateOf(dt).getDay()]=`<span class="wkslot">${bubble(dt)}</span>`; });
+    return pre+`<div class="wkrow"><span class="wklbl">${esc(weekLabel(r.dates[0]))}</span>${slots.join('')}</div>`;
+  }).join('')}</div>`;
 }
 /** Dates a Dallas / Houston crew is booked on (a date with both counts for both). */
 function datesForCity(all, city){
