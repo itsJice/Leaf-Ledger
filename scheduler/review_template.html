@@ -1778,7 +1778,9 @@ const IC={
  clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
  close:'<svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
  lock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
- unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'};
+ unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>',
+ // Staff alert (the amber triangle by a client's name) -- see staffAlertOf().
+ alert:'<svg class="ic" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
@@ -2435,6 +2437,7 @@ window.addEventListener('message', e=>{
   if(e.source !== window.parent) return;
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
+    loadMeRole();
     loadSeasons();
     pullShared();
     loadClientDirectory().then(()=>{
@@ -2867,6 +2870,71 @@ function loadClientDirectory(){
 }
 function appClientFor(row){
   return clientDirectory ? (clientDirectory.get(normName(C[row].name)) || null) : null;
+}
+// ---------- staff alert + live client notes (from the Clients tab) ----------
+// A staff alert is a short warning pinned to the CLIENT (like MindBody's):
+// an amber triangle by their name everywhere the name shows on a stop, hover
+// (or tap) to read it, click to edit for staff. It lives on the client record
+// (clients.staff_alert, PUT /api/clients/{id}/staff-alert), never in this
+// build, so a change reaches every open scheduler on its next directory load.
+// Missing fields (an older backend) simply mean no icon and no "+ Staff alert".
+let ME_ROLE=null;               // from /api/me once AUTH lands; '' if unknown
+let alertEditDenied=false;      // the server said 403 once -- stop offering edits
+const ALERT_EDIT_ROLES=new Set(['staff','admin','super_admin']);
+function loadMeRole(){
+  if(!AUTH || ME_ROLE!==null) return;
+  ME_ROLE='';
+  fetch('/api/me', {headers:{Authorization:AUTH}})
+    .then(r=>r.ok?r.json():null).then(m=>{ ME_ROLE=(m && m.role) || ''; })
+    .catch(()=>{});
+}
+/** Viewer/TV/archived/production/lead logins read alerts but never edit them
+ *  (the server refuses those saves regardless). */
+function canEditAlerts(){
+  return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && !alertEditDenied
+    && (!ME_ROLE || ALERT_EDIT_ROLES.has(ME_ROLE));
+}
+/** True once the backend serves staff alerts at all (part of the client record). */
+function alertsSupported(ac){ return !!ac && Object.prototype.hasOwnProperty.call(ac,'staff_alert'); }
+function staffAlertOf(row){
+  const ac=appClientFor(row);
+  const t=ac && typeof ac.staff_alert==='string' ? ac.staff_alert.trim() : '';
+  return t ? {text:t, by:ac.staff_alert_by||'', at:ac.staff_alert_at||''} : null;
+}
+function alertByline(a){
+  let when='';
+  if(a.at){ const dt=new Date(a.at); if(!isNaN(dt)) when=dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+  const parts=[a.by, when].filter(Boolean);
+  return parts.length ? '— '+parts.join(', ') : '';
+}
+/** The amber icon for a stop's client name, or '' when there's no alert. */
+function alertIconHTML(row){
+  const a=staffAlertOf(row);
+  if(!a) return '';
+  return `<span class="salert" data-alert-row="${row}" role="button" tabindex="0" draggable="false" `
+       + `aria-label="Staff alert: ${peekEsc(a.text).replace(/"/g,'&quot;')}">${IC.alert}</span>`;
+}
+/** This season's install note: the Clients tab's (activity detail.notes) when
+ *  it has one, else the spreadsheet's note baked into this build. */
+function installNoteFor(row){
+  const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
+  const en=ac && (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
+  const live=en && en.detail && typeof en.detail.notes==='string' ? en.detail.notes.trim() : '';
+  if(live) return {text:live, season:yr, live:true};
+  const c=C[row];
+  return c && c.advice ? {text:String(c.advice), season:yr, live:false} : null;
+}
+/** Production & repair notes: the latest season on the client record that has
+ *  any (detail.production_notes), else the spreadsheet's baked repair notes. */
+function productionNoteFor(row){
+  const ac=appClientFor(row);
+  const en=ac && (ac.activity||[])
+    .filter(a=>a.kind==='christmas_install' && a.detail && typeof a.detail.production_notes==='string'
+               && a.detail.production_notes.trim())
+    .sort((a,b)=>String(b.season||'').localeCompare(String(a.season||'')))[0];
+  if(en) return {text:en.detail.production_notes.trim(), season:String(en.season||''), live:true};
+  const c=C[row];
+  return c && c.repairNotes ? {text:String(c.repairNotes), season:'', live:false} : null;
 }
 // ---------- install-time preference (from the Clients tab) ----------
 // clients.time_preference: morning | afternoon | late | null. Read live off
