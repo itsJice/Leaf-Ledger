@@ -97,7 +97,7 @@ def _norm_person(p: dict) -> Optional[dict]:
     pid, name = str(p.get("id") or ""), " ".join(x for x in (first, last) if x)
     if not pid or not name:
         return None
-    title = p.get("title") if p.get("title") in ("Lead", "Lead Assist", "General Installer") else "General Installer"
+    title = p.get("title") if p.get("title") in ("Lead", "Lead Assist", "Designer", "General Installer") else "General Installer"
     return {"id": pid, "name": name, "title": title,
             "email": str(p.get("email") or "").strip(), "phone": str(p.get("phone") or "").strip()}
 

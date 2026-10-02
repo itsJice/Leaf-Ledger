@@ -587,6 +587,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   letter-spacing:.03em;white-space:nowrap}
 .pill.lead{background:#1f3d2b;color:#fff}
 .pill.assist{background:var(--brand-soft);color:var(--brand-deep)}
+.pill.designer{background:#f5effb;color:#6b21a8}
 .pill.gen{background:#f1efec;color:var(--mut)}
 .pill.en{background:#eef2ff;color:#3730a3}
 .pill.es{background:#fff1e7;color:#9a3412}
@@ -739,6 +740,80 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .stfchip.bad{background:var(--danger-soft);color:var(--danger)}
 .stfchip.none{background:#f1efec;color:var(--mut);border-color:var(--line)}
 .stfchip:hover{filter:brightness(.96)}
+/* Send mass text (Roster) */
+.stftxt{margin-left:auto;padding:7px 14px;border-radius:9px;border:1.5px solid var(--brand);
+  background:var(--brand);color:#fff;font-family:'Montserrat',sans-serif;font-weight:600;
+  font-size:12.5px;cursor:pointer}
+.stftxt:hover{background:var(--brand-hover)}
+.stftxt~.stfadd{margin-left:0}
+.stfvcf{padding:7px 14px;border-radius:9px;border:1.5px solid var(--brand);background:#fff;
+  color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer}
+.stfvcf:hover{background:var(--brand-soft)}
+#txtdlg{max-width:780px;width:calc(100vw - 32px);padding:0}
+#txtdlg[open]{display:flex;flex-direction:column;max-height:88vh}
+.txthd{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.txthd b{font-size:17px}
+.txtsteps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.txtstep{font-size:11.5px;font-weight:700;color:var(--faint);padding:3px 10px;border-radius:999px;
+  border:1.5px solid var(--line)}
+.txtstep.on{color:#fff;background:var(--brand);border-color:var(--brand)}
+.txtstep.done{color:var(--brand);border-color:var(--brand)}
+.txtbody{padding:14px 18px;overflow-y:auto;flex:1 1 auto}
+.txtfoot{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line)}
+.txtfoot .sp{flex:1;font-size:12px;color:var(--mut)}
+#txtdlg .txtfoot button:disabled{opacity:.45;cursor:default}
+.txthint{font-size:12px;color:var(--mut);margin:0 0 10px;line-height:1.45}
+.txtfields{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px;
+  padding:9px 10px;background:var(--page);border-radius:9px}
+.txtfields .lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
+  font-weight:700;margin-right:2px}
+.txttok{display:inline-block;padding:1px 9px;margin:0 1px;border-radius:999px;background:var(--brand-soft);
+  color:var(--brand-deep);border:1.5px solid #b9d3bb;font-size:12px;font-weight:700;line-height:1.5;
+  white-space:nowrap;user-select:none;vertical-align:baseline}
+.txtfields .txttok{cursor:grab;padding:3px 11px}
+.txtfields .txttok:active{cursor:grabbing}
+.txtfields .txttok:before{content:"\2807";margin-right:5px;opacity:.5;font-weight:400}
+.txtedlbl{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 4px}
+.txtedlbl b{font-size:14px}
+.txtedlbl span{font-size:11px;color:var(--faint)}
+.txted{min-height:150px;max-height:34vh;overflow-y:auto;padding:10px 12px;border:1.5px solid var(--line);
+  border-radius:9px;background:#fff;font-size:13.5px;line-height:1.55;white-space:pre-wrap;
+  word-wrap:break-word;outline:none;font-family:-apple-system,system-ui,'Montserrat',sans-serif}
+.txted:focus{border-color:var(--brand)}
+.txted.dropping{border-color:var(--brand);background:var(--brand-soft)}
+.txted:empty:before{content:attr(data-ph);color:var(--faint)}
+.txtpick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.txtpick button{padding:5px 11px;font-size:11.5px;border-radius:999px}
+.txtrow{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;font-size:13px;cursor:pointer}
+.txtrow:hover{background:var(--brand-soft)}
+.txtrow.off{opacity:.5;cursor:default}
+.txtrow.off:hover{background:none}
+.txtrow .nm{font-weight:600;flex:1 1 auto;min-width:0}
+.txtrow .ph{color:var(--mut);font-size:11.5px;white-space:nowrap}
+.txtchip{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.txtchip.none{background:var(--danger-soft);color:var(--danger)}
+.txtchip.some{background:var(--warn-soft);color:var(--warn-ink)}
+.txtchip.all{background:var(--brand-soft);color:var(--brand)}
+.txtcard{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;background:#fff}
+.txtcard.sent{opacity:.5}
+.txtcard .top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.txtcard .top label{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;cursor:pointer}
+.txtcard .top .txtchip{margin-left:auto}
+.txtcard .notes{font-size:12px;color:var(--mut);margin-top:6px}
+.txtcard details{margin-top:6px}
+.txtcard summary{font-size:11.5px;color:var(--mut);cursor:pointer}
+.txtcard .bubrow{margin:6px 0 0}
+.txtcard .acts{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px;padding-top:9px;
+  border-top:1px solid var(--line)}
+.txtcard .acts .ph{flex:1;color:var(--mut);font-size:12.5px;white-space:nowrap}
+@media(max-width:520px){.txtcard .acts .ph{flex-basis:100%}}
+.txtsend{padding:7px 13px;border-radius:7px;font-size:12.5px;font-weight:700;text-decoration:none;
+  color:#0a7cff;box-shadow:inset 0 0 0 1.5px #0a7cff;white-space:nowrap}
+.txtsend.primary{background:#0a7cff;color:#fff;box-shadow:none}
+.txtcopy{background:none!important;border:0!important;padding:3px 4px!important;color:var(--mut)!important;
+  font-size:11.5px!important;text-decoration:underline}
+.txtprog{font-size:12.5px;color:var(--mut);margin-bottom:10px}
+.txtprog b{color:var(--ink)}
 /* assign dialog */
 #perdlg{max-width:520px}
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1447,7 +1522,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <div class="perrow">
     <div><span class="nclabel">Title</span>
       <select id="pertitle2">
-        <option>Lead</option><option>Lead Assist</option>
+        <option>Lead</option><option>Lead Assist</option><option>Designer</option>
         <option selected>General Installer</option>
       </select></div>
     <div><span class="nclabel">Language</span>
@@ -1497,6 +1572,17 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div class="asglist" id="stflist"></div>
   <div class="btns"><button onclick="stfdlg.close()">Done</button></div>
+</dialog>
+<dialog id="txtdlg" aria-labelledby="txttitle">
+  <div class="txthd"><b id="txttitle">Send mass text</b>
+    <div class="txtsteps" id="txtsteps"></div></div>
+  <div class="txtbody" id="txtbody"></div>
+  <div class="txtfoot">
+    <button type="button" id="txtback">Back</button>
+    <span class="sp" id="txtfootnote"></span>
+    <button type="button" onclick="txtdlg.close()">Close</button>
+    <button type="button" class="go" id="txtnext">Next</button>
+  </div>
 </dialog>
 <dialog id="mvdlg">
   <b id="mvtitle">Move stop</b>
@@ -1983,7 +2069,9 @@ function normManualOrder(obj){
 // a crew-day id -> the installer ids working it. Both start empty and are
 // filled in the tool, and both ride along in the same shared state as
 // placements/approvals, so they undo, sync and version identically.
-const TITLES = ['Lead','Lead Assist','General Installer'];
+// Designer (user, 2026-10-02): the design hands on a crew. Counts as Lead
+// Assist coverage -- dayNeed() already maps the stops' designer need there.
+const TITLES = ['Lead','Lead Assist','Designer','General Installer'];
 const LANGS  = ['English','Spanish','Both'];
 // Alberto rating (user, 2026-09-04): NOT year-over-year -- that got
 // scrapped the same day it shipped. "People are who they are": one
@@ -3282,7 +3370,7 @@ function shiftCoverage(sh){
   // reuse dayCoverage's fill-down logic against the block's own need
   const who=ids.map(personById).filter(p=>p&&p.active);
   const lead=who.filter(p=>p.title==='Lead').length;
-  const assist=who.filter(p=>p.title==='Lead Assist').length;
+  const assist=who.filter(p=>p.title==='Lead Assist'||p.title==='Designer').length;
   const gen=who.filter(p=>p.title==='General Installer').length;
   const shortLead=Math.max(0,need.lead-lead);
   let spareLead=Math.max(0,lead-need.lead);
@@ -3328,7 +3416,7 @@ function dayCoverage(d){
   const need=dayNeed(d);
   const who=(staffing[d.id]||[]).map(personById).filter(p=>p&&p.active);
   let lead=who.filter(p=>p.title==='Lead').length;
-  let assist=who.filter(p=>p.title==='Lead Assist').length;
+  let assist=who.filter(p=>p.title==='Lead Assist'||p.title==='Designer').length;
   let gen=who.filter(p=>p.title==='General Installer').length;
   const shortLead=Math.max(0,need.lead-lead);
   let spareLead=Math.max(0,lead-need.lead);
@@ -7140,8 +7228,8 @@ let staffTab='shifts', selPerson=null;
 // Inactive people have their own collapsed section now, so the default view
 // is both -- 'Active' as a default would have hidden that section entirely.
 let stfFilter={title:'',lang:'',gender:'',active:'',sort:''};
-const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','General Installer':'gen'};
-const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','General Installer':'General'};
+const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','Designer':'designer','General Installer':'gen'};
+const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','Designer':'Designer','General Installer':'General'};
 const LANG_CLS={'English':'en','Spanish':'es','Both':'both'};
 const LANG_ABBR={'English':'EN','Spanish':'ES','Both':'EN/ES'};
 function esc(x){ return String(x==null?'':x)
@@ -7655,7 +7743,7 @@ function shiftCardHTML(sh){
     ? `<div class="shcrew">${cv.who.slice().sort((a,b)=>
          TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
         .map(pn=>`<span class="shcp ${TITLE_CLS[pn.title]}">${esc(pn.name)}`
-          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':''}</span>`)
+          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':pn.title==='Designer'?' · designer':''}</span>`)
         .join('')}</div>`
     : `<div class="shcempty">No one assigned yet.</div>`;
   return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
@@ -7808,11 +7896,17 @@ function renderStaffing(){
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
       <button class="stftab${staffTab==='shifts'?' sel':''}" data-tab="shifts">Shifts${
         short?` (${short})`:''}</button>
+      ${staffTab==='roster'?'<button class="stftxt" id="masstext">Send mass text</button>'
+        +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts">Download contacts</button>':''}
       <button class="stfadd" id="addperson">+ Add installer</button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   wrap.querySelectorAll('.stftab').forEach(b=>
     b.onclick=()=>{ staffTab=b.dataset.tab; renderStaffing(); });
   document.getElementById('addperson').onclick=()=>openPersonDlg(null);
+  const mt=document.getElementById('masstext');
+  if(mt) mt.onclick=openTextDlg;
+  const dl=document.getElementById('dlcontacts');
+  if(dl) dl.onclick=downloadContacts;
   wrap.querySelectorAll('select[data-f]').forEach(sl=>
     sl.onchange=()=>{ stfFilter[sl.dataset.f]=sl.value; renderStaffing(); });
   wrap.querySelectorAll('tr[data-pid]').forEach(tr=>
@@ -7849,6 +7943,359 @@ function renderStaffing(){
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
                      selDate=d.date; focusDayId=d.id; setView('days'); });
 }
+
+// ---- Download contacts (Roster) ----
+// Everyone on the roster as contact cards in one .vcf file (user, 2026-10-02:
+// "download all of the contact cards and import them into my contacts"). On a
+// Mac, opening the file imports them into Contacts. Company is TBDG and job
+// title is their roster title; what the roster knows beyond that, apart from
+// availability, goes in the card's note: language, gender, Alberto rating
+// and the roster notes.
+function vcfEsc(v){
+  return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1');
+}
+function vcardFor(p){
+  const ov=overallRating(p);
+  const note=[
+    `TBDG · ${p.title}`,
+    `Language: ${p.lang==='Both'?'English + Spanish':p.lang}`,
+    `Gender: ${p.gender}`,
+    p.active===false?'Not working this season':'',
+    `Alberto rating: ${ov?ratingScale(ov)+'/5':'not rated'}`,
+    ...RATING_DIMENSIONS.filter(d=>ratingOf(p,d.key))
+      .map(d=>`   ${d.label}: ${ratingText(ratingOf(p,d.key))}`),
+    p.notes?`Notes: ${p.notes}`:'',
+  ].filter(Boolean).join('\n');
+  const lines=['BEGIN:VCARD', 'VERSION:3.0',
+    `N:${vcfEsc(p.last)};${vcfEsc(p.first)};;;`,
+    `FN:${vcfEsc(p.name)}`,
+    'ORG:TBDG',
+    `TITLE:${vcfEsc(p.title)}`];
+  if(String(p.phone||'').trim()) lines.push(`TEL;type=CELL;type=VOICE;type=pref:${vcfEsc(fmtPhone(p.phone))}`);
+  if(String(p.email||'').trim()) lines.push(`EMAIL;type=INTERNET;type=pref:${vcfEsc(String(p.email).trim())}`);
+  lines.push(`NOTE:${vcfEsc(note)}`, 'END:VCARD');
+  return lines.join('\r\n');
+}
+function downloadContacts(){
+  const people=roster.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(!people.length) return;
+  const blob=new Blob([people.map(vcardFor).join('\r\n')+'\r\n'], {type:'text/vcard;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='TBDG Installers.vcf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+// ---- Send mass text (Roster) ----
+// One message, written once with name fields dragged in, sent to each
+// installer as their OWN text -- never a group chat (user, 2026-10-01). Each
+// "Send" is an sms: link, so the user's Messages app opens with that person's
+// text filled in and the user presses Return themselves: this page never sends
+// anything and needs no access to their phone or iMessage. Draft, picks and
+// checkmarks live in this browser only, not in the shared schedule state.
+const TXT_KEY='tbdg-masstext';
+const TXT_FIELDS=[
+  {key:'first', label:'First name', val:p=>p.first||String(p.name||'').split(' ')[0]},
+  {key:'name',  label:'Full name',  val:p=>p.name||''},
+  {key:'last',  label:'Last name',  val:p=>p.last||''},
+];
+const TXT_LANGS=[{key:'en', label:'English', ph:'Hello {First name}! Write the English text here…'},
+                 {key:'es', label:'Spanish', ph:'¡Hola {First name}! Escribe el texto en español aquí…'}];
+let txt=(()=>{
+  let s={};
+  try{ s=JSON.parse(localStorage.getItem(TXT_KEY)||'{}')||{}; }catch(e){}
+  return {en:s.en||'', es:s.es||'', picked:Array.isArray(s.picked)?s.picked:null,
+          sent:s.sent&&typeof s.sent==='object'?s.sent:{}, step:1};
+})();
+let txtRange=null;          // where a clicked field goes: the caret last seen in an editor
+function txtSave(){
+  try{ localStorage.setItem(TXT_KEY, JSON.stringify(
+    {en:txt.en, es:txt.es, picked:txt.picked, sent:txt.sent})); }catch(e){}
+}
+/** "+1XXXXXXXXXX" for a plain US number, null for anything a text can't go to. */
+function smsNumber(v){
+  let d=String(v==null?'':v).replace(/\D/g,'');
+  if(d.length===10) d='1'+d;
+  return d.length===11 && d[0]==='1' ? '+'+d : null;
+}
+/** Their usual language: English speakers get English, Spanish and bilingual
+ *  people get Spanish -- the same default the first send used. */
+function txtLangFor(p){ return p.lang==='English' ? 'en' : 'es'; }
+function txtFill(tpl, p){
+  return tpl.replace(/\{\{(\w+)\}\}/g, (m,k)=>{
+    const f=TXT_FIELDS.find(x=>x.key===k);
+    return f ? f.val(p) : '';
+  });
+}
+function txtPeople(){
+  // No dates marked first: they are who the text is chasing. Then by name.
+  return roster.filter(p=>p.active!==false).sort((a,b)=>
+    ((a.dates||[]).length>0)-((b.dates||[]).length>0) || a.name.localeCompare(b.name));
+}
+function txtStatus(p){
+  const n=(p.dates||[]).length, all=workDates().length;
+  if(!n) return `<span class="txtchip none">No dates marked yet</span>`;
+  return `<span class="txtchip ${n>=all?'all':'some'}">${n}/${all} days marked</span>`;
+}
+
+// The editor holds text, line breaks and field bubbles; the draft is saved as
+// plain text with {{key}} where each bubble sits.
+function txtTok(key){
+  const f=TXT_FIELDS.find(x=>x.key===key);
+  const s=document.createElement('span');
+  s.className='txttok'; s.contentEditable='false'; s.dataset.tok=key;
+  s.textContent=f?f.label:key;
+  return s;
+}
+function txtRender(ed, str){
+  ed.textContent='';
+  String(str||'').split(/(\{\{\w+\}\})/).forEach(part=>{
+    const m=part.match(/^\{\{(\w+)\}\}$/);
+    if(m){ ed.appendChild(txtTok(m[1])); return; }
+    part.split('\n').forEach((line,i)=>{
+      if(i) ed.appendChild(document.createElement('br'));
+      if(line) ed.appendChild(document.createTextNode(line));
+    });
+  });
+}
+function txtSerialize(ed){
+  let out='';
+  const walk=n=>n.childNodes.forEach(c=>{
+    if(c.nodeType===3){ out+=c.nodeValue; return; }
+    if(c.nodeType!==1) return;
+    if(c.dataset && c.dataset.tok){ out+=`{{${c.dataset.tok}}}`; return; }
+    if(c.tagName==='BR'){ out+='\n'; return; }
+    // Chrome wraps new lines in <div>s on some edits; each one starts a line.
+    if(/^(DIV|P)$/.test(c.tagName) && out && !out.endsWith('\n')) out+='\n';
+    walk(c);
+  });
+  walk(ed);
+  return out.replace(/ /g,' ').replace(/\s+$/,'');
+}
+function txtInsertTok(ed, key, range){
+  const tok=txtTok(key);
+  ed.focus();
+  if(range && ed.contains(range.startContainer)){
+    range.deleteContents(); range.insertNode(tok);
+  } else ed.appendChild(tok);
+  const r=document.createRange(); r.setStartAfter(tok); r.collapse(true);
+  const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  txtRange=r.cloneRange();
+  txtEdited(ed);
+}
+function txtRangeAt(x, y){
+  if(document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+  const p=document.caretPositionFromPoint && document.caretPositionFromPoint(x, y);
+  if(!p) return null;
+  const r=document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true);
+  return r;
+}
+document.addEventListener('selectionchange', ()=>{
+  const sel=getSelection();
+  if(!sel.rangeCount) return;
+  const r=sel.getRangeAt(0);
+  const host=r.startContainer.nodeType===1?r.startContainer:r.startContainer.parentElement;
+  if(host && host.closest && host.closest('.txted')) txtRange=r.cloneRange();
+});
+
+function txtEdited(ed){
+  txt[ed.dataset.lang]=txtSerialize(ed); txtSave(); txtDrawFoot();
+}
+
+function txtWriteHTML(){
+  return `<p class="txthint">Write the message once — or paste it in — in English, Spanish or both.
+      Drag a bubble into the text (or click it to drop it where your cursor is) and each person's
+      text gets their own name in that spot. On the send list you pick which version each person gets.</p>
+    <div class="txtfields"><span class="lbl">Drag in</span>${TXT_FIELDS.map(f=>
+      `<span class="txttok" draggable="true" data-field="${f.key}" title="Drag into the message, or click to add it at your cursor">${esc(f.label)}</span>`).join('')}</div>
+    ${TXT_LANGS.map(l=>`<div class="txtedlbl"><b>${l.label} message</b>
+        <span>${l.key==='es'?'optional if everyone gets English':'optional if everyone gets Spanish'}</span></div>
+      <div class="txted" contenteditable="true" data-lang="${l.key}" data-ph="${esc(l.ph)}"
+           role="textbox" aria-multiline="true" aria-label="${l.label} message"></div>`).join('')}`;
+}
+function txtWireWrite(body){
+  const eds=[...body.querySelectorAll('.txted')];
+  eds.forEach(ed=>{
+    txtRender(ed, txt[ed.dataset.lang]);
+    ed.oninput=()=>{
+      txtEdited(ed);
+      // A field the browser dropped as plain "{{first}}" text (the drag
+      // fallback) is redrawn as a bubble, caret at the end.
+      const raw=[...ed.childNodes].some(n=>n.nodeType===3 && /\{\{\w+\}\}/.test(n.nodeValue));
+      if(raw){
+        txtRender(ed, txt[ed.dataset.lang]);
+        const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+        const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+    };
+    // Enter is a line break, not a new <div>; pasted text comes in plain.
+    ed.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); document.execCommand('insertLineBreak'); } };
+    ed.onpaste=e=>{ e.preventDefault();
+      document.execCommand('insertText', false, (e.clipboardData||window.clipboardData).getData('text/plain')); };
+    ed.ondragover=e=>{
+      if(![...e.dataTransfer.types].includes('application/x-txtfield')) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='copy'; ed.classList.add('dropping'); };
+    ed.ondragleave=()=>ed.classList.remove('dropping');
+    ed.ondrop=e=>{
+      const plain=(e.dataTransfer.getData('text/plain')||'').match(/^\{\{(\w+)\}\}$/);
+      const key=e.dataTransfer.getData('application/x-txtfield') || (plain&&plain[1]);
+      ed.classList.remove('dropping');
+      if(!key) return;
+      e.preventDefault();
+      txtInsertTok(ed, key, txtRangeAt(e.clientX, e.clientY));
+    };
+  });
+  body.querySelectorAll('.txtfields [data-field]').forEach(ch=>{
+    ch.ondragstart=e=>{ e.dataTransfer.setData('application/x-txtfield', ch.dataset.field);
+                        // Plain-text copy for browsers that hide custom types mid-drag.
+                        e.dataTransfer.setData('text/plain', `{{${ch.dataset.field}}}`);
+                        e.dataTransfer.effectAllowed='copy'; };
+    ch.onmousedown=e=>e.preventDefault();      // keep the editor's caret where it was
+    ch.onclick=()=>{
+      const host=txtRange && (txtRange.startContainer.nodeType===1
+        ? txtRange.startContainer : txtRange.startContainer.parentElement);
+      const ed=(host && host.closest('.txted')) || eds[0];
+      txtInsertTok(ed, ch.dataset.field, txtRange);
+    };
+  });
+}
+
+function txtPickHTML(){
+  const ppl=txtPeople(), picked=new Set(txt.picked);
+  return `<p class="txthint">Who should get it? People without a phone number that can take a text are greyed out.</p>
+    <div class="txtpick">
+      <button type="button" data-pick="all">Everyone</button>
+      <button type="button" data-pick="nodates">No dates marked</button>
+      <button type="button" data-pick="en">English speakers</button>
+      <button type="button" data-pick="es">Spanish + bilingual</button>
+      <button type="button" data-pick="none">Clear</button>
+    </div>
+    ${ppl.map(p=>{
+      const ok=!!smsNumber(p.phone);
+      return `<label class="txtrow${ok?'':' off'}">
+        <input type="checkbox" data-pid="${esc(p.id)}"${ok&&picked.has(p.id)?' checked':''}${ok?'':' disabled'}>
+        <span class="nm">${esc(p.name)}</span>
+        <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+        ${txtStatus(p)}
+        <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
+    }).join('')}`;
+}
+function txtWirePick(body){
+  body.querySelectorAll('input[data-pid]').forEach(cb=>cb.onchange=()=>{
+    const s=new Set(txt.picked);
+    cb.checked ? s.add(cb.dataset.pid) : s.delete(cb.dataset.pid);
+    txt.picked=[...s]; txtSave(); txtDrawFoot();
+  });
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.pick;
+    const want=p=>k==='all' || (k==='nodates'&&!(p.dates||[]).length)
+      || (k==='en'&&p.lang==='English') || (k==='es'&&p.lang!=='English');
+    txt.picked = k==='none' ? [] : txtPeople().filter(p=>smsNumber(p.phone)&&want(p)).map(p=>p.id);
+    txtSave(); txtDraw();
+  });
+}
+
+function txtSendHTML(){
+  const picked=new Set(txt.picked);
+  const ppl=txtPeople().filter(p=>picked.has(p.id)&&smsNumber(p.phone));
+  const done=ppl.filter(p=>txt.sent[p.id]).length;
+  const langs=TXT_LANGS.filter(l=>txt[l.key].trim());
+  return `<div class="txtprog"><b>${done} of ${ppl.length}</b> opened in Messages.
+      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.
+      <a href="#" data-clearsent>Clear checkmarks</a></div>
+    ${ppl.map(p=>{
+      const num=smsNumber(p.phone), mine=txtLangFor(p);
+      const sends=langs.map(l=>{
+        const body=txtFill(txt[l.key], p);
+        return {l, body, href:`sms:${num}&body=${encodeURIComponent(body)}`};
+      });
+      return `<div class="txtcard${txt.sent[p.id]?' sent':''}" data-pid="${esc(p.id)}">
+        <div class="top"><label><input type="checkbox" data-sent${txt.sent[p.id]?' checked':''}>${esc(p.name)}</label>
+          <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+          <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+          ${txtStatus(p)}</div>
+        ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
+        <details><summary>Their days · ${(p.times||[]).length===2?'day + night'
+            :(p.times||[]).length?esc(p.times[0])+' only':'no shift times set'}</summary>
+          <div class="bubrow">${workDates().map(dt=>{
+            const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
+            return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
+                title="${fmtMDYYYY(dt)} — ${has?'available':'not marked available'}"><span
+                class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
+          }).join('')}</div></details>
+        <div class="acts"><span class="ph">${esc(fmtPhone(p.phone))}</span>
+          ${sends.map(s=>`<a class="txtsend${s.l.key===mine||sends.length===1?' primary':''}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')}
+          ${sends.map(s=>`<button type="button" class="txtcopy" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}
+        </div></div>`;
+    }).join('')}`;
+}
+function txtWireSend(body){
+  const mark=(card, on)=>{
+    const id=card.dataset.pid;
+    if(on) txt.sent[id]=true; else delete txt.sent[id];
+    card.classList.toggle('sent', on);
+    card.querySelector('[data-sent]').checked=on;
+    txtSave();
+    const ppl=body.querySelectorAll('.txtcard').length;
+    body.querySelector('.txtprog b').textContent=
+      `${body.querySelectorAll('.txtcard.sent').length} of ${ppl}`;
+  };
+  body.querySelectorAll('.txtcard').forEach(card=>{
+    card.querySelector('[data-sent]').onchange=e=>mark(card, e.target.checked);
+    // Opening Messages counts as done; untick it if the text never went.
+    card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',
+      ()=>setTimeout(()=>mark(card, true), 400)));
+    card.querySelectorAll('[data-copy]').forEach(b=>{
+      const lbl=b.textContent;
+      b.onclick=async()=>{
+        try{ await navigator.clipboard.writeText(b.dataset.copy); b.textContent='Copied'; }
+        catch(e){ b.textContent='Copy failed'; }
+        setTimeout(()=>b.textContent=lbl, 1500);
+      };
+    });
+  });
+  const clr=body.querySelector('[data-clearsent]');
+  if(clr) clr.onclick=e=>{ e.preventDefault(); txt.sent={}; txtSave(); txtDraw(); };
+}
+
+function txtDrawFoot(){
+  const back=document.getElementById('txtback'), next=document.getElementById('txtnext');
+  const note=document.getElementById('txtfootnote');
+  const textable=new Set(txtPeople().filter(p=>smsNumber(p.phone)).map(p=>p.id));
+  const n=txt.picked.filter(id=>textable.has(id)).length;
+  back.style.visibility = txt.step>1 ? 'visible' : 'hidden';
+  next.style.display = txt.step<3 ? '' : 'none';
+  if(txt.step===1){
+    next.textContent='Next: choose people';
+    next.disabled=!(txt.en.trim()||txt.es.trim());
+    note.textContent=next.disabled?'Write at least one message to continue.':'';
+  } else if(txt.step===2){
+    next.textContent=`Next: send to ${n}`;
+    next.disabled=!n;
+    note.textContent=`${n} selected`;
+  } else note.textContent='';
+}
+function txtDraw(){
+  const body=document.getElementById('txtbody');
+  document.getElementById('txtsteps').innerHTML=['Write','Choose people','Send'].map((s,i)=>
+    `<span class="txtstep${i+1===txt.step?' on':i+1<txt.step?' done':''}">${i+1} · ${s}</span>`).join('');
+  if(txt.step===1){ body.innerHTML=txtWriteHTML(); txtWireWrite(body); }
+  else if(txt.step===2){ body.innerHTML=txtPickHTML(); txtWirePick(body); }
+  else { body.innerHTML=txtSendHTML(); txtWireSend(body); }
+  body.scrollTop=0;
+  txtDrawFoot();
+}
+function openTextDlg(){
+  // First time: everyone active who can take a text.
+  if(!txt.picked) txt.picked=txtPeople().filter(p=>smsNumber(p.phone)).map(p=>p.id);
+  txt.step=1; txtRange=null;
+  document.getElementById('txtback').onclick=()=>{ txt.step--; txtDraw(); };
+  document.getElementById('txtnext').onclick=()=>{ txt.step++; txtDraw(); };
+  txtDraw();
+  document.getElementById('txtdlg').showModal();
+}
+
 function setView(v){
   viewMode=v;
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
@@ -7906,7 +8353,7 @@ function manifestHTML(d){
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
           // Who is actually on this truck, printed where the crew will see it.
           const who=cv.who.map(pn=>esc(pn.name)
-              +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':'')).join(' · ');
+              +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':pn.title==='Designer'?' (designer)':'')).join(' · ');
           // Same wording as the on-screen chip -- coverageLabel is the one
           // place that decides "no lead" vs "short a lead".
           return `<p class="crew">${who||'<i>nobody assigned yet</i>'}`
