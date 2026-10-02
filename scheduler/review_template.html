@@ -837,6 +837,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 /* Labels match the shaded week bars in the dates list */
 .wklbl{align-self:stretch;display:flex;align-items:center;padding:0 8px;border-radius:8px;background:#e2dccf;
   font-size:11.5px;font-weight:800;color:var(--brand-deep);white-space:nowrap}
+.wksec.wksec1{margin-top:0;border-top:0;padding-top:0}
 .wksec{margin:8px 0 2px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);
   border-top:1px solid var(--line);padding-top:8px}
 .wkslot{min-width:0;display:flex}
@@ -7322,9 +7323,10 @@ function weekRowsHTML(dates, bubble){
     const k=weekOf(dt), last=rows[rows.length-1];
     if(last && last.k===k) last.dates.push(dt); else rows.push({k, dates:[dt]});
   });
-  let td=false;
+  let td=false, inst=false;
   return `<div class="wkrows">${rows.map(r=>{
     let pre='';
+    if(!inst && r.dates[0]<=TAKEDOWN_CUTOFF){ inst=true; pre=`<div class="wksec wksec1">Installs</div>`; }
     if(!td && r.dates[0]>TAKEDOWN_CUTOFF){ td=true; pre=`<div class="wksec">Takedown</div>`; }
     const slots=Array(7).fill('<span class="wkslot"></span>');
     r.dates.forEach(dt=>{ slots[dateOf(dt).getDay()]=`<span class="wkslot">${bubble(dt)}</span>`; });
