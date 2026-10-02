@@ -202,6 +202,13 @@ function bucketQuantity(bucket: Bucket) {
   return Math.max(1, Number(bucket.requested_quantity || 1));
 }
 
+/** The HTTP status of a failed request (apiClient throws the Response), or
+ *  0 when it never answered -- a timeout or no connection. */
+function failedStatus(error: unknown): number {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : 0;
+}
+
 function withClientTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error("Request timed out")), ms);
@@ -385,22 +392,24 @@ function NewClientModal({ client, onClose, onSaved }: {
         const res = await withClientTimeout(apiClient.request<ClientRecord>({
           path: `/routes/clients/update/${client!.id}`,
           method: "PUT",
+          // Send every field as-is: "" clears it server-side, so blanking the
+          // notes or an old phone number actually sticks. (undefined would
+          // leave it untouched -- the old value came back on the next load.)
           body: {
             name: payload.name,
-            email: payload.email || undefined,
-            phone: payload.phone || undefined,
-            notes: payload.notes || undefined,
-            street: payload.street || undefined,
-            city: payload.city || undefined,
-            state: payload.state || undefined,
-            zip: payload.zip || undefined,
-            // "" clears it server-side; undefined would leave it untouched
+            email: payload.email,
+            phone: payload.phone,
+            notes: payload.notes,
+            street: payload.street,
+            city: payload.city,
+            state: payload.state,
+            zip: payload.zip,
             time_preference: timePreference ?? "",
             secondary_contacts: secondaryContacts.filter((c) => c.label.trim() || c.phone?.trim() || c.email?.trim()),
           },
           type: ContentType.Json,
-        }), 4000);
-        if (!res.ok) throw new Error("Could not save client");
+        }), 15000);
+        if (!res.ok) throw res;
         const updated = await res.json();
         onSaved(updated);
         if (updated.renamed) {
@@ -440,9 +449,15 @@ function NewClientModal({ client, onClose, onSaved }: {
       notifyProjectsChanged();
       toast.success("Client created");
       onClose();
-    } catch {
+    } catch (error) {
       if (editing) {
-        toast.error("Couldn't save that change -- try again in a moment.");
+        const status = failedStatus(error);
+        toast.error(
+          status === 409 ? "Another client already has that name -- pick a different one."
+          : status === 403 ? "This login can view clients but can't edit them."
+          : status === 0 ? "The save is taking too long -- check your connection and try again."
+          : "Couldn't save that change -- try again in a moment."
+        );
         return;
       }
       const localClient = makeLocalClient(payload);
