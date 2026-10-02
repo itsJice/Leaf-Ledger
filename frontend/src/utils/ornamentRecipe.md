@@ -288,38 +288,38 @@ rules instead.
 ### Enhancers
 
 Enhancers (picks/sprays) are a parallel bill of materials, counted from the designers'
-enhancer card for **standard** trees (`ENHANCER_TABLE`, `enhancerLookup` / `enhancerCount`
-in `ornamentRecipe.ts`). Leaf & Ledger mode only — Vickerman's tool has no enhancers, so
-nothing changes there.
+enhancer card (`ENHANCER_CARD`, `enhancerLookup` / `enhancerCount` in `ornamentRecipe.ts`).
+Leaf & Ledger mode only — Vickerman's tool has no enhancers, so nothing changes there.
 
-| Tree (standard) | Enhancers |
-| --- | --- |
-| 7' | 18 |
-| 8' | 24 |
-| 9' | 30 |
-| 10' | 32 |
-| 12' | 36 |
-| 14' | 48 |
-| 15' | 60 |
+| Tree | Pencil | Slim | Standard | Full |
+| --- | --- | --- | --- | --- |
+| 7' | 8 | 10 | 18 | 22 |
+| 7.5' | 10 | 12 | 20 | 24 |
+| 8' | 14 | 16 | 24 | 28 |
+| 9' | 20 | 22 | 30 | 34 |
+| 10' | 24 | 26 | 32 | 36 |
+| 12' | 28 | 30 | 36 | 40 |
+| 14' | 32 | 34 | 40 | 44 |
+| 15' | 36 | 38 | 44 | 48 |
 
-The card (warehouse clipboard, photographed 2026-09-30) replaced the designers' earlier
-height-and-width table and settled its open conflict: an 8 ft tree takes 24. The card stops
-at 12 ft; 14' and 15' are carried over from the earlier table until the designer confirms.
+Confirmed by the lead designer 2026-10-01. It replaces the standard-only card of
+2026-09-30 (whose 14' and 15' rows, 48 and 60, came from an older table) and the
+surface-area scaling that stood in for pencil, slim and full trees.
 
-**Lookup order** (`enhancerLookup`). A direct card hit returns the designers' count
-verbatim, unrounded. Only a computed value is rounded to a multiple of the color count
-(even by default):
+**Lookup order** (`enhancerLookup`). The tree's profile comes from its width
+(`profileForWidth`, ±6% of the profile's inches per foot). A direct card hit returns the
+designers' count verbatim; everything else rounds to a multiple of the color count (even
+by default):
 
-1. **Card row** — the height is a card row (±0.25 ft) and the width reads as standard
-   (9 ft x 59 in -> 30).
-2. **Between rows** — interpolate linearly between the card rows below and above
-   (7.5 ft -> between 18 and 24 -> 22; 11 ft -> 34).
-3. **Beyond the card** — under 7 ft or over 15 ft: the end row scaled by surface area
-   against its standard width (6 ft -> 10; 16 ft -> 70).
-4. **Other widths** — pencil, slim, full or custom (outside the standard ratio's ±6%):
-   the standard tree's count from 1–3, scaled by this tree's surface area against the
-   standard width. An assumption, not the card; it reproduces the old pencil row
-   (7.5 ft x 32 in -> 8). Examples: 9 ft slim 50 in -> 22, 9 ft full 70 in -> 40.
+1. **Card** — the height is on the card and the width reads as a profile
+   (9 ft x 50 in slim -> 22).
+2. **Between heights** — a straight line between the two card heights, same profile
+   (11 ft standard -> between 32 and 36 -> 34; 13 ft slim -> 32).
+3. **Beyond the card** — under 7 ft or over 15 ft: the card's end trend continued, +4 a
+   foot on every profile (6 ft standard -> 14; 16 ft full -> 52).
+4. **Custom width** — a width that matches no profile: blended between the profiles
+   either side of it by inches per foot (9 ft x 54 in, between slim and standard -> 26).
+   Narrower than pencil or wider than full takes that end profile's count.
 
 **Colors on each line** (`splitAcrossColors`). With Colors set to 2 or more, the ornament
 table and the printed sheet show each size split across the colors, as evenly as possible:
@@ -338,9 +338,49 @@ loose       = qty − inEnhancers
 
 Larger sizes are all loose, and so is everything when the tree has no enhancers. The
 calculator's enhancer count follows the table until edited by hand (then the edited count
-drives the split). Example, 10 ft x 65 in (24 enhancers): `4" 18 loose / 18 in enhancers,
+drives the split). Example, 10 ft x 65 in (32 enhancers): `4" 18 loose / 18 in enhancers,
 4.75" 18 / 18`, 6" and up all loose. Step 2's Copy / Export CSV append a final
 `Enhancers, <count>` line when the count is above 0.
+
+### Whole packs
+
+Ornaments come in packs and each color is ordered separately, so a size only orders
+cleanly in steps of **pack × colors** (`orderUnit`). Vickerman's packs, checked against
+vickerman.com: 3" 12, 4" 6, 4.75" 4, 6" 4, 8" and up single. With two colors: 3" in 24s,
+4" in 12s, 4.75" and 6" in 8s, 8"+ in 2s. Before this, the recipe ignored packs and the
+order rounded each color up: 25 x 3" became 13 + 12 a color, two 12-packs and one, 36
+pieces for a recipe of 25.
+
+**What an order brings in** (`packOrder`): split the size evenly across the colors, round
+each color up to whole packs, add them up. `spare` = pieces ordered − pieces needed.
+
+**Rounding a recipe** (`roundToWholePacks`). Each size may go to the whole-pack quantity
+just below or just above its own: never to 0 for a size in use, and the largest size keeps
+the minimum top count. Of every combination, keep the one that changes the least ornament
+area (net change in coverage + area moved between sizes); on a tie, more ornaments. Sizes
+already on whole packs stay put.
+
+| Tree (2 colors) | Changes | Coverage |
+| --- | --- | --- |
+| 7.5 ft | 3" 25 → 24 | −0.5% |
+| 8 ft | 4" 25 → 24, 4.75" 30 → 24, 6" 20 → 24 | −0.2% |
+| 10 ft | 4.75" 36 → 32, 6" 30 → 32 | −0.4% |
+| 12 ft | 6" 30 → 32, 8" 17 → 18, 10" 15 → 14 | +0.6% |
+
+Three colors means coarser steps (3" in 36s), so coverage can move up to about 4%.
+
+**In the calculator.** Leaf & Ledger mode rounds every populated recipe to whole packs
+(the **Whole packs** switch, on by default) and shows what moved under the table. The To
+Order column shows packs per color and flags spare pieces in either mode; a hand-edited
+table that isn't whole packs gets a **Round to whole packs** button. A price-aware size
+swap is re-rounded the same way.
+
+**Before ordering (Step 2).** Each picked product shows its packs, the pieces that arrive
+and, when the supplier reports it, its stock (`in_stock` from `/api/products/ornament-match`;
+Vickerman stores a number). The order check lists lines whose stock is short, lines that
+bring spare pieces at the picked product's own pack size, and lines with no pick. Copy,
+Export CSV and Copy for Charles warn when the check has anything, and Charles's text opens
+with the list. Stock comes from the last catalog scrape, not a live feed.
 
 ### Purchase list
 
