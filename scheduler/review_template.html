@@ -1125,6 +1125,9 @@ body.apple .dsec{position:sticky;top:0;z-index:2;display:flex;align-items:center
   font-size:14px;font-weight:800;color:var(--brand-deep);letter-spacing:-.005em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 body.apple .dsec:first-child{margin-top:0}
+body.apple .dphase{display:flex;align-items:center;gap:8px;margin:16px 0 4px;color:var(--brand-deep);
+  font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+body.apple .dphase::before,body.apple .dphase::after{content:'';flex:1;height:3px;border-radius:2px;background:var(--brand-deep)}
 body.apple .dsectxt{flex:none;white-space:nowrap}
 body.apple .dsecspan{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.apple .dcity{flex:none;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;line-height:16px}
@@ -1439,6 +1442,9 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .sbsub{display:none}
   body.apple #datestrip{flex:1 1 100%;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;margin:0;padding:0 0 4px}
   body.apple .dsec{display:none}
+  body.apple .dphase{flex:none;align-self:stretch;margin:0 4px;gap:0;width:3px;border-radius:2px;
+    background:var(--brand-deep);font-size:0}
+  body.apple .dphase::before,body.apple .dphase::after{display:none}
   body.apple #datefoot{flex-direction:row;border:0;margin:0;padding:0;gap:6px}
   body.apple .dchip{width:auto;flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;min-height:32px;padding:0 12px}
   body.apple .dchipwrap{width:auto;flex:none}
@@ -1780,7 +1786,8 @@ const SPEC = DATA.spec, K = SPEC.const;
 const WORK_WINDOW = {from:'', to:''};
 // Every day from Oct 21 through the install cutoff is a regular schedule
 // date (user, 2026-09-29: "add all the dates that are in between") -- no
-// more greyed gaps to add one at a time. Takedown days stay add-as-needed.
+// more greyed gaps to add one at a time. Takedown days (Dec 26 - Jan 31) are
+// regular calendar days too -- see inTakedownWindow().
 (function(){
   // The calendar's own optional flags are left alone -- flipping them made
   // normDates drop staff-added dates (and their training days) from the
@@ -1975,8 +1982,15 @@ let newDates = new Set();
 /** Calendar entries actually on the board: the working calendar, plus any
  *  optional date staff explicitly added. */
 function inWorkWindow(dt){ return !!WORK_WINDOW.from && dt>=WORK_WINDOW.from && dt<=WORK_WINDOW.to; }
+/** Every day after the install cutoff (Dec 26 - Jan 31) is the takedown
+ *  season's regular calendar (user, 2026-10-01). Built in here, not kept in
+ *  the shared newDates list: a tab opened before the dates were added saved
+ *  its older list over them and they vanished. The token, not
+ *  TAKEDOWN_CUTOFF, because bootstrap (normRoster -> workDates) runs before
+ *  that const is declared. */
+function inTakedownWindow(dt){ return dt>'__CUTOFF__'; }
 function activeCalendar(){
-  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date));
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inTakedownWindow(ci.date));
 }
 /** The Days list and Find a date also offer every day Oct 21 - cutoff (user,
  *  2026-09-29). Deliberately NOT activeCalendar(): the roster's availability
@@ -1984,7 +1998,7 @@ function activeCalendar(){
  *  working calendar exactly as it was (user, 2026-09-30: "make sure the
  *  calendar is not edited"). */
 function listCalendar(){
-  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inWorkWindow(ci.date));
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inWorkWindow(ci.date) || inTakedownWindow(ci.date));
 }
 function normDates(list){
   const ok = new Set(SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date));
@@ -3961,6 +3975,10 @@ const TAKEDOWN_CUTOFF='__CUTOFF__';
 const STRIP_SCOPE_KEY='tbdg-strip-scope';
 let stripScope=(()=>{ try{ const v=localStorage.getItem(STRIP_SCOPE_KEY); return ['install','takedown','all'].includes(v)?v:'install'; }catch(e){ return 'install'; } })();
 function inStripScope(dt){ return stripScope==='all' || (stripScope==='install' ? dt<=TAKEDOWN_CUTOFF : dt>TAKEDOWN_CUTOFF); }
+// Takedown-window days are regular calendar days (see inTakedownWindow), so
+// one that also sits in newDates still draws plain, without a remove button.
+// A training day keeps its remove button.
+function shownAsAdded(dt){ return newDates.has(dt) && (!inTakedownWindow(dt) || trainingDays.has(dt)); }
 function setStripScope(v){
   stripScope=v;
   try{ localStorage.setItem(STRIP_SCOPE_KEY,v); }catch(e){}
@@ -4475,7 +4493,7 @@ function renderStrip(){
     const b=document.createElement('button');
     b.type='button';
     b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
-             +(tag?' tagged':'')+(newDates.has(val)?' added':'')+(o.cls?' '+o.cls:'');
+             +(tag?' tagged':'')+(shownAsAdded(val)?' added':'')+(o.cls?' '+o.cls:'');
     b.dataset.val=val;
     if(selDate===val) b.setAttribute('aria-current','true');
     const lab=document.createElement('span'); lab.className='dlab';
@@ -4508,7 +4526,7 @@ function renderStrip(){
       if(val==='HOLD'){ if(!hold.has(row)) toggleHold(row); return; }
       if(!isOverview(val)) openMoveDlg(row,val);};
     // A date THIS session added keeps its own remove button.
-    if(newDates.has(val)){
+    if(shownAsAdded(val)){
       const wrap=document.createElement('span');
       wrap.className='dchipwrap';
       wrap.appendChild(b);
@@ -4640,10 +4658,21 @@ function renderStrip(){
   if(working.has(selDate) && !list.includes(selDate)){ list.push(selDate); list.sort(); }
   const weeks=[];
   list.forEach(dt=>{
-    const wk=weekOf(dt), last=weeks[weeks.length-1];
+    // The week holding the cutoff splits at it, so the install/takedown line
+    // falls between Dec 25 and Dec 26 rather than inside one week's block.
+    const wk=weekOf(dt)+(dt>TAKEDOWN_CUTOFF?'|takedown':''), last=weeks[weeks.length-1];
     if(last && last.wk===wk) last.dates.push(dt); else weeks.push({wk, dates:[dt]});
   });
-  weeks.forEach(w=>{
+  weeks.forEach((w,i)=>{
+    // A hard line where install season ends and takedown begins (user,
+    // 2026-10-01). Only when both halves are listed.
+    if(i>0 && w.dates[0]>TAKEDOWN_CUTOFF && weeks[i-1].dates[0]<=TAKEDOWN_CUTOFF){
+      const ln=document.createElement('div'); ln.className='dphase';
+      ln.setAttribute('role','separator');
+      ln.innerHTML=`<span>Takedown</span>`;
+      ln.title=`Install season ends ${listDate(TAKEDOWN_CUTOFF)} · takedown starts ${listDate(w.dates[0])}`;
+      strip.appendChild(ln);
+    }
     const a=w.dates[0], z=w.dates[w.dates.length-1];
     const span=a===z ? listDate(a).split(', ')[1]
       : (a.slice(5,7)===z.slice(5,7) ? `${MON3[+a.slice(5,7)-1]} ${+a.slice(8,10)} – ${+z.slice(8,10)}`
@@ -5402,7 +5431,7 @@ function removeAddedDate(date){
 }
 function renderAddedDates(){
   const box=document.getElementById('ndadded');
-  const list=[...newDates].sort();
+  const list=[...newDates].filter(shownAsAdded).sort();
   if(!list.length){ box.innerHTML=''; return; }
   box.innerHTML='<b>Added</b><br>'+list.map(d=>
     `<span class="ndchip">${dowOf(d)} ${fmtMDYYYY(d)}${trainingDays.has(d)?' · training':''}`
