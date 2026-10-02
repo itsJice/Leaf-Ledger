@@ -383,6 +383,12 @@ dialog option:disabled{color:#b6b3ae}
 #billdlg .billcols label:hover{background:var(--brand-soft)}
 #billdlg .billcols input{margin:0;accent-color:var(--brand)}
 #billdlg .billcols label.off{color:var(--mut)}
+#billdlg .billcal{margin:12px 0 2px;padding-top:10px;border-top:1px solid var(--line)}
+#billdlg .billcalrow{display:flex;gap:6px;margin:6px 0 4px}
+#billdlg .billcalrow input{flex:1;min-width:0;padding:7px 9px;border-radius:7px;
+  border:1.5px solid var(--line);font-size:11.5px;color:var(--ink);background:#fff}
+#billdlg .billcalrow button{padding:7px 12px;border-radius:7px;border:1.5px solid var(--brand);
+  background:var(--brand-soft);color:var(--brand);font-weight:700;font-size:12px;cursor:pointer}
 /* ---- season picker + archive (read-only) mode ---- */
 .seasonpick{align-self:center;padding:7px 10px;border-radius:8px;
   border:1.5px solid var(--line);background:#fff;color:var(--ink);
@@ -1689,6 +1695,17 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
     ><button type="button" id="billcolsnone">none</button></span>
   </label>
   <div class="billcols" id="billcols"></div>
+  <div class="billcal" id="billcal" hidden>
+    <label class="nclabel">Subscribe in Google Calendar</label>
+    <div class="billcalrow">
+      <input type="text" id="billcalurl" readonly aria-label="Install calendar subscribe link">
+      <button type="button" id="billcalcopy">Copy</button>
+    </div>
+    <p class="billnote">Every install with its time, crew, boxes, people needed and
+      storing-with-us. In Google Calendar: Other calendars → + → From URL, paste
+      this link. It contains client addresses and phone numbers — share it with the
+      office only.</p>
+  </div>
   <div class="btns"><button onclick="billdlg.close()">Cancel</button>
   <button class="go" id="billgo">Download</button></div>
 </dialog>
@@ -6130,7 +6147,32 @@ document.getElementById('viewdays').onclick = ()=> setView('days');
 document.getElementById('viewcal').onclick  = ()=> setView('cal');
 document.getElementById('viewstaff').onclick= ()=>{ staffTab='shifts'; setView('staff'); };
 document.getElementById('viewroster').onclick=()=>{ staffTab='roster'; setView('staff'); };
-document.getElementById('billexportbtn').onclick = ()=>{ drawBillCols(); syncBillBtn(); billdlg.showModal(); };
+document.getElementById('billexportbtn').onclick = ()=>{ drawBillCols(); syncBillBtn(); loadCalLink(); billdlg.showModal(); };
+// The office's calendar subscription link (comment #20). The server only
+// hands it to staff and up (403 for leads, crew, the viewer iPad and
+// production; 404 when the feed isn't configured), so on anything but a
+// clean answer the section simply stays hidden.
+let calLinkLoaded=false;
+function loadCalLink(){
+  if(calLinkLoaded || !AUTH || VIEWONLY) return;
+  fetch('/api/install-calendar-link/feed-url', {headers:{Authorization:AUTH}})
+    .then(r=>r.ok?r.json():null)
+    .then(j=>{
+      if(!j || typeof j.url!=='string') return;
+      calLinkLoaded=true;
+      document.getElementById('billcalurl').value=j.url;
+      document.getElementById('billcal').hidden=false;
+    })
+    .catch(()=>{});
+}
+document.getElementById('billcalurl').onfocus = e=>e.target.select();
+document.getElementById('billcalcopy').onclick = async ()=>{
+  const inp=document.getElementById('billcalurl'), btn=document.getElementById('billcalcopy');
+  try{ await navigator.clipboard.writeText(inp.value); }
+  catch(_){ inp.select(); document.execCommand('copy'); }
+  btn.textContent='Copied';
+  setTimeout(()=>{ btn.textContent='Copy'; }, 1500);
+};
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
   b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
 });
@@ -6995,7 +7037,7 @@ function openStopPeek(row,dayId){
   document.getElementById('peekbody').innerHTML=`
     <h3>${esc(c.name)}</h3>
     ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
-       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
+       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}${t.end>=1440?' (next day)':''}`:''} · ${esc(crewLabel(d))}</p>`
         : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes</p>
