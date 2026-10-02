@@ -12,11 +12,13 @@ import json
 from typing import Any, List, Optional
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from app.auth import AuthorizedUser
 from app.libs import client_season, pricing
-from app.libs.db import get_conn, has_item_status_column
+from app.libs.db import ensure_schema_once, get_conn, has_item_status_column
+from app.libs.roles import require_role
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -26,8 +28,43 @@ ADDRESS_FIELDS = ("street", "city", "state", "zip")
 #: RETURNING on create/update and the response model cannot drift apart.
 CLIENT_COLUMNS = (
     "id, name, email, phone, notes, street, city, state, zip, time_preference, "
-    "former_names, sheet_name, secondary_contacts, created_at, updated_at"
+    "former_names, sheet_name, secondary_contacts, created_at, updated_at, "
+    "staff_alert, staff_alert_by, staff_alert_at"
 )
+
+#: The staff alert (migrations/020): one short warning about a client that
+#: every screen showing the client's name flags with an amber icon -- the
+#: Clients tab, the install schedule, the leads' Shifts page, crew sheets.
+STAFF_ALERT_COLUMNS = ("staff_alert", "staff_alert_by", "staff_alert_at")
+STAFF_ALERT_MAX_CHARS = 500
+
+#: Nobody runs migrations by hand, so the columns are added on first use by
+#: any route that reads them. Checked first so a running app never takes the
+#: ALTER's table lock once the columns exist; lock_timeout keeps a first boot
+#: from queueing behind a long query on `clients`.
+STAFF_ALERT_DDL = (
+    "ALTER TABLE clients "
+    "ADD COLUMN IF NOT EXISTS staff_alert text, "
+    "ADD COLUMN IF NOT EXISTS staff_alert_by text, "
+    "ADD COLUMN IF NOT EXISTS staff_alert_at timestamptz"
+)
+
+
+async def ensure_schema(conn) -> None:
+    async def _ddl():
+        have = await conn.fetchval(
+            "SELECT count(*) FROM information_schema.columns "
+            " WHERE table_schema = current_schema() AND table_name = 'clients' "
+            "   AND column_name = ANY($1::text[])",
+            list(STAFF_ALERT_COLUMNS),
+        )
+        if (have or 0) >= len(STAFF_ALERT_COLUMNS):
+            return
+        async with conn.transaction():
+            await conn.execute("SET LOCAL lock_timeout = '5s'")
+            await conn.execute(STAFF_ALERT_DDL)
+
+    await ensure_schema_once("clients_staff_alert", _ddl)
 
 #: Everywhere else a client's name is stored as text (migrations/017). A rename
 #: on the Clients tab rewrites all of them in one transaction; each is matched
@@ -66,6 +103,7 @@ async def _rename_everywhere(conn, client_id: int, old: str, new: str) -> dict:
 
 
 async def load_saved_clients(conn) -> List[dict]:
+    await ensure_schema(conn)
     rows = await conn.fetch(f"SELECT {CLIENT_COLUMNS} FROM clients")
     out = []
     for r in rows:
@@ -215,6 +253,10 @@ class ClientOut(BaseModel):
     secondary_contacts: List[SecondaryContact] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    #: The staff alert, who set it and when (see PUT /{client_id}/staff-alert).
+    staff_alert: Optional[str] = None
+    staff_alert_by: Optional[str] = None
+    staff_alert_at: Optional[datetime] = None
     project_count: int = 0
     bucket_count: int = 0
     selected_cost: float = 0.0
@@ -284,6 +326,7 @@ async def build_client_list(conn) -> List[dict]:
             "time_preference": None,
             "former_names": [], "sheet_name": None,
             "secondary_contacts": [],
+            "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None,
             "created_at": None,
             "updated_at": stats.get("last_project_at"),
             "project_count": stats.get("project_count", 0),
@@ -318,6 +361,7 @@ async def create_client(body: ClientCreate, request: Request):
     signed_in = get_optional_user(request)
     conn = await get_conn()
     try:
+        await ensure_schema(conn)
         # One INSERT, guarded by the unique index — two people adding the same
         # client at the same moment produce one row and one clean 409, instead
         # of one silently overwriting the other.
@@ -370,6 +414,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
     new_name = clean_name(body.name)
     conn = await get_conn()
     try:
+        await ensure_schema(conn)
         # A rename has to reach every table that keeps the name as text, in the
         # same transaction as the clients row -- see NAME_MIRRORS. The old name
         # is read first so the mirrors know what to match, and it is kept on
@@ -539,6 +584,72 @@ async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn
         return with_pricing(out, await load_rate_rows(conn))
     finally:
         await conn.close()
+
+
+class StaffAlertIn(BaseModel):
+    #: "" or whitespace clears the alert.
+    text: str = ""
+
+
+class StaffAlertOut(BaseModel):
+    id: int
+    staff_alert: Optional[str] = None
+    staff_alert_by: Optional[str] = None
+    staff_alert_at: Optional[datetime] = None
+
+
+def clean_staff_alert(text: Optional[str]) -> Optional[str]:
+    """Trimmed alert text, None to clear; 400 when it is too long."""
+    t = (text or "").strip()
+    if not t:
+        return None
+    if len(t) > STAFF_ALERT_MAX_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A staff alert can be at most {STAFF_ALERT_MAX_CHARS} characters",
+        )
+    return t
+
+
+async def write_staff_alert(conn, client_id: int, text: Optional[str], by: Optional[str]):
+    """Set (or, with text None, clear) one client's staff alert. Shared with
+    scripts/migrate_client_notes.py. Returns the row, or None if no client."""
+    await ensure_schema(conn)
+    return await conn.fetchrow(
+        """
+        UPDATE clients SET
+            staff_alert = $2::text,
+            staff_alert_by = CASE WHEN $2::text IS NULL THEN NULL ELSE $3::text END,
+            staff_alert_at = CASE WHEN $2::text IS NULL THEN NULL ELSE now() END,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING id, staff_alert, staff_alert_by, staff_alert_at
+        """,
+        client_id, text, by,
+    )
+
+
+# Office staff and up only. The router already needs staff (no MIN_ROLE), and
+# production's allowlist (app.libs.roles PRODUCTION_WRITES) does not name this
+# route; the explicit dependency keeps it staff-only even if the router is
+# ever opened wider.
+@router.put(
+    "/{client_id}/staff-alert",
+    response_model=StaffAlertOut,
+    dependencies=[Depends(require_role("staff"))],
+)
+async def set_staff_alert(client_id: int, body: StaffAlertIn, user: AuthorizedUser):
+    """Set or clear a client's staff alert -- the amber icon next to the
+    client's name everywhere. Signed with the person's name and the time."""
+    text = clean_staff_alert(body.text)
+    conn = await get_conn()
+    try:
+        row = await write_staff_alert(conn, client_id, text, user.display_name if text else None)
+    finally:
+        await conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No client with that id")
+    return dict(row)
 
 
 class CommentIn(BaseModel):
