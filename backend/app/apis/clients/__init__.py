@@ -525,6 +525,41 @@ def _clean_season_label(season: str) -> str:
     return s
 
 
+async def save_season_fields(conn, client_id: int, season: str, fields: dict):
+    """Apply app-side edits to one client's season row (creating it if there
+    is none) and return the saved row. Every edited key is stamped in
+    detail.app_edits so the sheet sync keeps it. Raises
+    client_season.FieldError on a bad key or value. Shared by PUT
+    /{client_id}/seasons/{season} and scripts/migrate_client_notes.py."""
+    async with conn.transaction():
+        row = await conn.fetchrow(
+            "SELECT id, detail FROM client_activity "
+            " WHERE client_id = $1 AND kind = 'christmas_install' AND season = $2 FOR UPDATE",
+            client_id, season,
+        )
+        prior = row["detail"] if row else None
+        if isinstance(prior, str):
+            prior = json.loads(prior)
+        detail = client_season.apply_edits(prior if isinstance(prior, dict) else {}, fields)
+        summary = client_season.summarize(detail)
+        occurred = detail.get("install_date")
+        try:
+            occurred_at = date.fromisoformat(str(occurred)[:10]) if occurred else None
+        except ValueError:
+            occurred_at = None
+        return await conn.fetchrow(
+            """
+            INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at)
+            VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date)
+            ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment' DO UPDATE SET
+                summary = EXCLUDED.summary, detail = EXCLUDED.detail,
+                occurred_at = EXCLUDED.occurred_at, updated_at = now()
+            RETURNING id, kind, season, summary, detail, occurred_at, created_at
+            """,
+            client_id, season, summary, json.dumps(detail, default=str), occurred_at,
+        )
+
+
 @router.put("/{client_id}/seasons/{season}", response_model=ActivityOut)
 async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn, request: Request):
     """Edit one client's record for one season -- storing with us, on hold,
@@ -544,36 +579,10 @@ async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn
         exists = await conn.fetchval("SELECT 1 FROM clients WHERE id = $1", client_id)
         if not exists:
             raise HTTPException(status_code=404, detail="No client with that id")
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                "SELECT id, detail FROM client_activity "
-                " WHERE client_id = $1 AND kind = 'christmas_install' AND season = $2 FOR UPDATE",
-                client_id, season,
-            )
-            prior = row["detail"] if row else None
-            if isinstance(prior, str):
-                prior = json.loads(prior)
-            try:
-                detail = client_season.apply_edits(prior if isinstance(prior, dict) else {}, body.fields)
-            except client_season.FieldError as exc:
-                raise HTTPException(status_code=400, detail=str(exc)) from exc
-            summary = client_season.summarize(detail)
-            occurred = detail.get("install_date")
-            try:
-                occurred_at = date.fromisoformat(str(occurred)[:10]) if occurred else None
-            except ValueError:
-                occurred_at = None
-            saved = await conn.fetchrow(
-                """
-                INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at)
-                VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date)
-                ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment' DO UPDATE SET
-                    summary = EXCLUDED.summary, detail = EXCLUDED.detail,
-                    occurred_at = EXCLUDED.occurred_at, updated_at = now()
-                RETURNING id, kind, season, summary, detail, occurred_at, created_at
-                """,
-                client_id, season, summary, json.dumps(detail, default=str), occurred_at,
-            )
+        try:
+            saved = await save_season_fields(conn, client_id, season, body.fields)
+        except client_season.FieldError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         out = dict(saved)
         if isinstance(out.get("detail"), str):
             out["detail"] = json.loads(out["detail"])
