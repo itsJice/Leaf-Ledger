@@ -2960,14 +2960,22 @@ function alertByline(a){
   return parts.length ? '— '+parts.join(', ') : '';
 }
 /** The amber icon for a stop's client name, or '' when there's no alert. */
-function alertIconHTML(row){
+function alertIconHTML(row, opts={}){
   const a=staffAlertOf(row);
   if(!a) return '';
+  // Static: a plain marker (the stop popup's header, where the alert's full
+  // text sits right underneath it).
+  if(opts.static) return `<span class="salert static" title="Staff alert" aria-hidden="true">${IC.alert}</span>`;
   return `<span class="salert" data-alert-row="${row}" role="button" tabindex="0" draggable="false" `
        + `aria-label="Staff alert: ${peekEsc(a.text).replace(/"/g,'&quot;')}">${IC.alert}</span>`;
 }
 /** This season's install note: the Clients tab's (activity detail.notes) when
  *  it has one, else the spreadsheet's note baked into this build. */
+/** The italic one-liner under a stop card's details: this season's install note. */
+function adviceLineHTML(row){
+  const n=installNoteFor(row);
+  return n ? `<div class="sub advice">${peekEsc(n.text)}</div>` : '';
+}
 function installNoteFor(row){
   const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
   const en=ac && (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
@@ -5129,7 +5137,7 @@ function buildDayCard(d){
         <span class="num" style="background:${col}">${i+1}</span>
         <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.down}</button>
       </div>
-      <div class="body"><div class="nm">${c.name}
+      <div class="body"><div class="nm">${c.name}${alertIconHTML(r)}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
@@ -5143,7 +5151,7 @@ function buildDayCard(d){
       <div class="sub loc">${c.zone||''}</div>
       <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
         `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</div>
-      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
+      ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
           ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
@@ -5290,7 +5298,7 @@ function renderNotInstalling(){
       const noMap = c.lat==null || c.lon==null;
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
       const was=lastScheduledFrom[row];
-      el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+      el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
           <span class="badge niout">${esc(entry.badge)}</span>${prefBadge(row)}
           ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
@@ -5299,7 +5307,7 @@ function renderNotInstalling(){
         <div class="sub">${esc(c.zone||'—')}</div>
         <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
         <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
-        ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+        ${adviceLineHTML(row)}</div>
         <div class="stopbtns">
           <button class="mv find">find date</button>
           <button class="mv">move ▾</button>
@@ -5353,13 +5361,13 @@ function renderHold(){
     const c=C[row], d=days.find(x=>x.stops.includes(row));
     const el=document.createElement('div');
     el.className='stop nistop onhold'; el.dataset.row=row;
-    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
         <span class="badge hold">on hold</span>${prefBadge(row)}</div>
       ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewLabel(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
       <div class="sub">${esc(c.zone||'—')}</div>
       <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
-      ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+      ${adviceLineHTML(row)}</div>
       <div class="stopbtns">
         <button class="mv release">release hold</button>
         <button class="mv out">not installing</button>
@@ -6669,7 +6677,7 @@ function wallCellHTML(dt, today){
         items.push(`<li class="wgroup">${peekEsc(b)} <span>· ${count[b]} locations</span></li>`); }
       return;
     }
-    items.push(`<li data-row="${s.r}" data-dayid="${s.d.id}">${peekEsc(s.name)}</li>`);
+    items.push(`<li data-row="${s.r}" data-dayid="${s.d.id}">${alertIconHTML(s.r)}${peekEsc(s.name)}</li>`);
   });
   if(items.length) inner+=`<ul class="wlist">${items.join('')}</ul>`;
   const n=ds.reduce((a,d)=>a+d.stops.length,0);
@@ -6866,7 +6874,7 @@ function gridHTML(cols){
           + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
           + `data-row="${b.row}" data-dayid="${b.d.id}" `
           + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
-          + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
+          + `<span class="cevn">${alertIconHTML(b.row)}${C[b.row].name.split('|')[0].trim()}</span>`
           + `<span class="cevt">${gridHourLabel(b.start)} · ${crewLabel(b.d)}</span></div>`;
       }
     });
@@ -6941,7 +6949,7 @@ function agendaHTML(){
          + `data-row="${t.row}" data-dayid="${d.id}">`
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
-         + `<span class="agn">${C[t.row].name}</span>`
+         + `<span class="agn">${C[t.row].name}${alertIconHTML(t.row)}</span>`
          + `<span class="agm">${crewLabel(d)}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
       });
     h+=`</div></div>`;
@@ -7181,7 +7189,7 @@ function wirePeekAlert(row){
 }
 /** Re-draw the parts of an open popup that read the live client record. */
 function refreshPeekLive(row){
-  const h=document.getElementById('pkh3alert'); if(h) h.innerHTML=alertIconHTML(row);
+  const h=document.getElementById('pkh3alert'); if(h) h.innerHTML=alertIconHTML(row,{static:true});
   const al=document.getElementById('pkalert'); if(al){ al.innerHTML=peekAlertHTML(row); wirePeekAlert(row); }
   const nt=document.getElementById('pknotes'); if(nt) nt.innerHTML=peekNotesHTML(row);
   wireProfileLink(row);
@@ -7417,7 +7425,7 @@ function openStopPeek(row,dayId){
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   document.getElementById('peekbody').innerHTML=`
-    <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row)}</span></h3>
+    <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row,{static:true})}</span></h3>
     ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
        ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
         : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
@@ -8815,12 +8823,15 @@ function manifestHTML(d){
     const ap=addrParts(c);   // repairs the rows that jam the whole address into one cell
     const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
                .filter(Boolean).join(' · ');
-    const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
+    // Live Clients-tab notes when the record has them, else the spreadsheet's.
+    const note=[installNoteFor(r), productionNoteFor(r)].filter(Boolean).map(n=>n.text).join(' — ');
+    const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
       <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
+      ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
       ${note?`<div class="nt">${esc(note)}</div>`:''}
     </td>
     <td class="c">${c.boxes||'—'}</td>
@@ -8914,6 +8925,8 @@ function printManifests(list, title, opts={}){
     .ad{color:#444;font-size:11px;margin-top:1px}
     .ct{color:#666;font-size:10.5px;margin-top:1px}
     .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
+    .al{margin-top:4px;padding:3px 6px;border:1.5px solid #b45309;border-radius:4px;background:#fef3e2;
+      color:#7c2d12;font-weight:800;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .hold{color:#92400e;font-weight:800;font-size:10px;border:1px solid #d97706;border-radius:4px;padding:0 4px;vertical-align:middle}
     .pref{color:#1e3a5f;font-size:10.5px;font-weight:600}
     .pos{color:#4c1d95;font-weight:800;font-size:10px;border:1px solid #4c1d95;border-radius:4px;padding:0 4px;vertical-align:middle}
