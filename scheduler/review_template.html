@@ -4245,7 +4245,44 @@ document.addEventListener('mousedown', e=>{
   searchHit = null;
   document.querySelectorAll('.stop.searchhit').forEach(x=>x.classList.remove('searchhit'));
 }, true);
+// On the Roster screen the toolbar search filters installers instead of
+// finding clients (user, 2026-10-02).
+var rosterQ='';
+function rosterSearchOn(){ return viewMode==='staff' && staffTab==='roster'; }
+function syncSearchMode(){
+  const on=rosterSearchOn();
+  const ph = on ? 'Search roster' : 'Find a client';
+  if(searchBox.placeholder!==ph){
+    searchBox.placeholder=ph; searchBox.setAttribute('aria-label', ph);
+    searchBox.title = on ? 'Filter installers by name, phone, email, notes, title or language' : 'Which day is a client on?';
+    // Switching screens starts each search fresh.
+    searchBox.value=''; rosterQ=''; searchResults.style.display='none';
+  }
+}
+function rosterMatchesQuery(p){
+  const q=rosterQ.trim().toLowerCase(); if(!q) return true;
+  // Every text field on the record -- name, phone, email, title, language,
+  // gender, notes and anything added later (user: 'friend of alberto' must
+  // find everyone with that in their notes). Availability dates and ratings
+  // are left out so a search for '11' doesn't match every November date.
+  const vals=[];
+  Object.entries(p).forEach(([k,v])=>{
+    if(['id','dates','ratings','times'].includes(k) || v==null) return;
+    if(typeof v==='string' || typeof v==='number') vals.push(String(v));
+  });
+  if(p.phone) vals.push(fmtPhone(p.phone));
+  const hay=vals.join(' \u2022 ').toLowerCase().replace(/\s+/g,' ');
+  const digits=q.replace(/\D/g,'');
+  return hay.includes(q.replace(/\s+/g,' '))
+    || q.split(/\s+/).every(w=>hay.includes(w))
+    || (digits.length>=3 && String(p.phone||'').replace(/\D/g,'').includes(digits));
+}
 function renderSearch(q){
+  if(rosterSearchOn()){
+    rosterQ=q; searchResults.style.display='none';
+    renderStaffing();
+    return;
+  }
   const results = searchClients(q);
   if(!q.trim()){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
   searchResults.innerHTML = results.length ? results.map(r=>{
@@ -4264,7 +4301,8 @@ function renderSearch(q){
 searchBox.addEventListener('input', ()=>renderSearch(searchBox.value));
 searchBox.addEventListener('focus', ()=>{ if(searchBox.value) renderSearch(searchBox.value); });
 searchBox.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ searchBox.value=''; searchResults.style.display='none'; searchBox.blur(); }
+  if(e.key==='Escape'){ searchBox.value=''; searchResults.style.display='none'; searchBox.blur();
+    if(rosterSearchOn() && rosterQ){ rosterQ=''; renderStaffing(); } }
 });
 document.addEventListener('click', e=>{
   if(!e.target.closest('#searchwrap')) searchResults.style.display='none';
@@ -7702,7 +7740,7 @@ function rosterHTML(){
   const f=stfFilter;
   const matches=p=>
     (!f.title||p.title===f.title) && (!f.lang||p.lang===f.lang)
-    && (!f.gender||p.gender===f.gender);
+    && (!f.gender||p.gender===f.gender) && rosterMatchesQuery(p);
   // Ordered by how complete the record is, then by title, then by name. The
   // old order was title-then-name alone, which buried the people who still
   // need availability among the ones already working.
@@ -7737,7 +7775,9 @@ function rosterHTML(){
     h+=`<div class="stfnone">No installers yet. <b>+ Add installer</b> to start building the roster —
         then staff each crew-day from its card or from Coverage.</div>`;
   } else if(!list.length){
-    if(!off.length) h+=`<div class="stfnone">No installers match those filters.</div>`;
+    if(!off.length) h+= rosterQ.trim()
+      ? `<div class="stfnone">No installers match "${esc(rosterQ.trim())}".</div>`
+      : `<div class="stfnone">No installers match those filters.</div>`;
   } else if(sortByRating){
     const rated=list.filter(p=>overallRating(p)).length;
     h += rosterSection(`Alberto rating (overall)`
@@ -7983,6 +8023,7 @@ function wireShiftMaps(wrap){
   shiftMapsInReach(wrap);
 }
 function renderStaffing(){
+  syncSearchMode();
   const wrap=document.getElementById('staffwrap');
   // Keep the top-nav Staffing/Roster buttons in sync even when the tab
   // changes via the in-page sub-tabs rather than the top nav itself.
@@ -8407,6 +8448,7 @@ function openTextDlg(){
 
 function setView(v){
   viewMode=v;
+  if(typeof syncSearchMode==='function') syncSearchMode();
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
   document.getElementById('viewcal').classList.toggle('sel',v==='cal');
   document.getElementById('viewstaff').classList.toggle('sel',v==='staff'&&staffTab!=='roster');
