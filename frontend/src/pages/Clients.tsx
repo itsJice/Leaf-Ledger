@@ -31,6 +31,7 @@ import { notifyProjectsChanged } from "utils/projectsChanged";
 import { SeasonHistory } from "./clients/SeasonHistory";
 import { ChristmasGridView } from "./ChristmasGrid";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
+import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
  *  The scheduler orders a crew's stops morning -> flexible -> afternoon -> late. */
@@ -90,6 +91,10 @@ type ClientRecord = {
   secondary_contacts?: SecondaryContact[];
   created_at?: string | null;
   updated_at?: string | null;
+  /** The staff alert -- the amber icon next to the client's name. */
+  staff_alert?: string | null;
+  staff_alert_by?: string | null;
+  staff_alert_at?: string | null;
   project_count: number;
   bucket_count: number;
   selected_cost: number;
@@ -111,6 +116,7 @@ type ClientGroup = {
   timePreference?: TimePreference | null;
   formerNames: string[];
   secondaryContacts: SecondaryContact[];
+  staffAlert: StaffAlertValue | null;
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
   projects: ProjectSummary[];
@@ -269,6 +275,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       timePreference: client.time_preference ?? null,
       formerNames: client.former_names || [],
       secondaryContacts: client.secondary_contacts || [],
+      staffAlert: staffAlertOf(client),
       activity: client.activity || [],
       source: client.source,
       projects: stats?.projects || [],
@@ -285,6 +292,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       name: stats.name,
       formerNames: [],
       secondaryContacts: [],
+      staffAlert: null,
       activity: [],
       source: "from_projects" as const,
       projects: stats.projects,
@@ -298,12 +306,14 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
   return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function NewClientModal({ client, onClose, onSaved }: {
+function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
   client?: ClientGroup | null;
   onClose: () => void;
   onSaved: (client: ClientRecord) => void;
+  onAlertSaved?: (saved: StaffAlertSaved) => void;
 }) {
   const editing = Boolean(client?.id);
+  const [alert, setAlert] = useState<StaffAlertValue | null>(client?.staffAlert ?? null);
   const [form, setForm] = useState({
     name: client?.name || "", email: client?.email || "", phone: client?.phone || "",
     notes: client?.notes || "", street: client?.street || "", city: client?.city || "",
@@ -466,6 +476,29 @@ function NewClientModal({ client, onClose, onSaved }: {
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void saveClient(); }}>
           <div className="space-y-4 px-6 py-5">
+            {editing && (
+              <div className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${alert ? "border-amber-200 bg-amber-50 text-amber-900" : "border-dashed border-stone-200 text-stone-500"}`}>
+                <StaffAlert
+                  clientId={client!.id}
+                  alert={alert}
+                  showAdd="always"
+                  addLabel="+ Add a staff alert"
+                  className="mt-px"
+                  onSaved={(saved) => {
+                    setAlert(staffAlertOf(saved));
+                    onAlertSaved?.(saved);
+                  }}
+                />
+                {alert ? (
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold">Staff alert: </span>
+                    <span className="whitespace-pre-wrap">{alert.text}</span>
+                  </span>
+                ) : (
+                  <span className="min-w-0 flex-1 text-stone-400">Shown as an amber icon next to the client's name everywhere — Clients, Install Schedule, Shifts and crew sheets.</span>
+                )}
+              </div>
+            )}
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-stone-600">Client name *</span>
               <input ref={nameRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Joe Smith" />
@@ -577,8 +610,10 @@ function NewClientModal({ client, onClose, onSaved }: {
               </button>
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-stone-600">Notes</span>
-              <textarea ref={notesRef} rows={3} className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Designer, house, preferences, install notes..." />
+              <span className="mb-1 block text-xs font-medium text-stone-600">
+                General notes <span className="font-normal text-stone-400">— about the client, any year. Install notes and production & repair notes go on each season.</span>
+              </span>
+              <textarea ref={notesRef} rows={3} className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Designer, house, preferences..." />
             </label>
           </div>
           <div className="flex items-center justify-end gap-3 border-t border-stone-100 px-6 py-4">
@@ -827,7 +862,7 @@ export default function Clients() {
     if (words.length > 0 && !focusedClient) {
       list = list.filter((c) => {
         const hay = [
-          c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes,
+          c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes, c.staffAlert?.text,
           ...c.formerNames,  // a client renamed on this tab is still found by the old spelling
           ...c.secondaryContacts.flatMap((s) => [s.label, s.phone, s.email]),
           ...c.activity.map((a) => `${a.season} ${a.summary}`),
@@ -989,6 +1024,17 @@ export default function Clients() {
     if (clientId == null) return;
     setClientRows((rows) => rows.map((row) =>
       row.id === clientId ? { ...row, activity: updater(row.activity || []) } : row));
+  };
+
+  // A staff alert saved from the list or the edit form: patch that client's row.
+  const patchStaffAlert = (saved: StaffAlertSaved) => {
+    setClientRows((rows) => {
+      const next = rows.map((row) => row.id === saved.id
+        ? { ...row, staff_alert: saved.staff_alert, staff_alert_by: saved.staff_alert_by, staff_alert_at: saved.staff_alert_at }
+        : row);
+      writeClientsPageCache(next, projects);
+      return next;
+    });
   };
 
   // A season saved from the history table comes back as the whole row --
@@ -1183,12 +1229,17 @@ export default function Clients() {
 
               return (
                 <section key={client.name} className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-                  <button onClick={() => toggleClient(client)} className="flex w-full items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-stone-50">
+                  <button onClick={() => toggleClient(client)} className="group flex w-full items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-stone-50">
                     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                       <Users size={19} className="text-emerald-700" strokeWidth={1.6} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-semibold text-stone-800">{client.name}</p>
+                      <p className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-stone-800">
+                        <span className="truncate">{client.name}</span>
+                        {client.id != null && (
+                          <StaffAlert clientId={client.id} alert={client.staffAlert} onSaved={(saved) => patchStaffAlert(saved)} />
+                        )}
+                      </p>
                       <p className="mt-0.5 text-xs text-stone-400">
                         {client.projectCount} project{client.projectCount === 1 ? "" : "s"} · {client.bucketCount} scope{client.bucketCount === 1 ? "" : "s"}
                       </p>
@@ -1264,6 +1315,13 @@ export default function Clients() {
                               {[contact.phone, contact.email].filter(Boolean).join(" · ")}
                             </span>
                           ))}
+                        </div>
+                      )}
+
+                      {client.notes && (
+                        <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">General notes</p>
+                          <p className="whitespace-pre-wrap text-sm text-stone-700">{client.notes}</p>
                         </div>
                       )}
 
@@ -1406,6 +1464,7 @@ export default function Clients() {
       {editingClient && (
         <NewClientModal
           client={editingClient}
+          onAlertSaved={patchStaffAlert}
           onClose={() => setEditingClient(null)}
           onSaved={(client) => {
             upsertClientRow(client);
