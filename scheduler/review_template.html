@@ -2507,6 +2507,7 @@ window.addEventListener('message', e=>{
           if(old){ const tmp=document.createElement('div'); tmp.innerHTML=html; old.replaceWith(...tmp.childNodes); }
           else holder.insertAdjacentHTML('beforeend', html);
           wireProfileLink(peekRow);
+          refreshPeekLive(peekRow);
         }
       }
       // Same idea for the "not installing" panel: its "missing an
@@ -7124,17 +7125,66 @@ function profileSectionHTML(row){
     </div>`;
 }
 function fmtUSD(n){ return '$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function openClientsTab(row){
+  const ac=appClientFor(row);
+  const name=ac?ac.name:C[row].name;
+  // srcDoc keeps the parent's origin, so this opens the real app's
+  // Clients page (not a bare filesystem path) in a new tab -- the
+  // scheduler stays open exactly where it was.
+  window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
+}
 function wireProfileLink(row){
   const btn=document.getElementById('pkfullprofile');
-  if(!btn) return;
-  btn.onclick=()=>{
-    const ac=appClientFor(row);
-    const name=ac?ac.name:C[row].name;
-    // srcDoc keeps the parent's origin, so this opens the real app's
-    // Clients page (not a bare filesystem path) in a new tab -- the
-    // scheduler stays open exactly where it was.
-    window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
-  };
+  if(btn) btn.onclick=()=>openClientsTab(row);
+  const nl=document.getElementById('pknotelink');
+  if(nl) nl.onclick=()=>openClientsTab(row);
+}
+/** The popup's install / production notes. Live from the client record
+ *  (Clients tab) when it has them; otherwise the spreadsheet notes baked into
+ *  this build, so nothing disappears before the notes move over. */
+function peekNotesHTML(row){
+  const inst=installNoteFor(row), prod=productionNoteFor(row);
+  if(!inst && !prod) return '';
+  const src=n=>n.live?'':' <span class="pknotesrc">· from the spreadsheet</span>';
+  const ac=appClientFor(row);
+  return `${inst?`<p class="pknote"><span class="pknotelbl">Install notes ${peekEsc(inst.season)}${src(inst)}</span>${peekEsc(inst.text)}</p>`:''}
+    ${prod?`<p class="pknote"><span class="pknotelbl">Production &amp; repair notes${prod.season?' '+peekEsc(prod.season):''}${src(prod)}</span>${peekEsc(prod.text)}</p>`:''}
+    ${AUTH && ac?`<button type="button" class="pknotelink" id="pknotelink">Edit on the Clients tab ↗</button>`:''}`;
+}
+let pkEditingAlert=false;
+/** The staff alert block at the top of the popup: the alert itself (with
+ *  Edit for staff), a quiet "+ Staff alert" for staff when there is none,
+ *  or the inline editor. */
+function peekAlertHTML(row){
+  const a=staffAlertOf(row), ac=appClientFor(row);
+  const edit=canEditAlerts() && alertsSupported(ac);
+  if(pkEditingAlert && edit) return `<div class="pkalert">${alertEditorHTML(row, 'pkal')}</div>`;
+  if(a) return `<div class="pkalert">
+      <div class="sahead">${IC.alert}<span>Staff alert</span></div>
+      <p class="satext">${peekEsc(a.text)}</p>
+      ${alertByline(a)?`<p class="saby">${peekEsc(alertByline(a))}</p>`:''}
+      ${edit?`<button type="button" class="saeditbtn" id="pkalertedit">Edit</button>`:''}
+    </div>`;
+  return edit ? `<button type="button" class="pkalertadd" id="pkalertedit">+ Staff alert</button>` : '';
+}
+function wirePeekAlert(row){
+  const holder=document.getElementById('pkalert');
+  if(!holder) return;
+  const eb=document.getElementById('pkalertedit');
+  if(eb) eb.onclick=()=>{ pkEditingAlert=true; holder.innerHTML=peekAlertHTML(row); wirePeekAlert(row); };
+  if(pkEditingAlert && document.getElementById('pkal-text')){
+    wireAlertEditor(row, 'pkal', ()=>{
+      pkEditingAlert=false;
+      if(peekRow===row) refreshPeekLive(row);
+    });
+  }
+}
+/** Re-draw the parts of an open popup that read the live client record. */
+function refreshPeekLive(row){
+  const h=document.getElementById('pkh3alert'); if(h) h.innerHTML=alertIconHTML(row);
+  const al=document.getElementById('pkalert'); if(al){ al.innerHTML=peekAlertHTML(row); wirePeekAlert(row); }
+  const nt=document.getElementById('pknotes'); if(nt) nt.innerHTML=peekNotesHTML(row);
+  wireProfileLink(row);
 }
 /** Merges two comment sources into one timeline: server-backed ones from
  *  the app's client_activity (kind='comment' -- same feed the Clients tab
@@ -7363,22 +7413,22 @@ function openStopPeek(row,dayId){
   const d = dayId==null ? null : days.find(x=>x.id===dayId);
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row; pkDayId=dayId;
-  pkEditingContact=false;
+  pkEditingContact=false; pkEditingAlert=false;
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   document.getElementById('peekbody').innerHTML=`
-    <h3>${esc(c.name)}</h3>
+    <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row)}</span></h3>
     ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
        ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
         : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
+    <div id="pkalert">${peekAlertHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes</p>
     <p class="pkrow">⏱ ${d ? (effH(d,row)/(d.stacked||1)).toFixed(2)
                               : (+(c.h26||0)).toFixed(2)}h${
       d && (d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}</p>
     ${c.people?`<p class="pkrow">${c.people} people</p>`:''}
-    ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
-    ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
+    <div class="pknotes" id="pknotes">${peekNotesHTML(row)}</div>
     ${d && confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
     ${hold.has(row)?`<p class="pkrow"><span class="badge hold">on hold — about to cancel, not decided</span></p>`:''}
     ${d?`<div class="pkpos"><span class="pksec">Position on the day</span>
@@ -7397,6 +7447,7 @@ function openStopPeek(row,dayId){
     </div>`;
   wireContactBlock(row);
   wireProfileLink(row);
+  wirePeekAlert(row);
   document.querySelectorAll('#peekbody .pkpos button').forEach(b=>{
     b.onclick=()=>{ peekdlg.close(); setStopPin(row, b.dataset.pos||null); };
   });
@@ -7459,6 +7510,7 @@ function openStopPeek(row,dayId){
         old.replaceWith(...tmp.childNodes);
       } else holder.insertAdjacentHTML('beforeend', html);
       wireProfileLink(row);
+      refreshPeekLive(row);
     });
   }
   const openBtn=document.getElementById('peekopen');
