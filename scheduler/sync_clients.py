@@ -335,6 +335,18 @@ def extract_current_season(season: str):
                 },
             },
         }
+        # This season's INSTALL NOTES: the free text the sheet keeps in the
+        # "<season> Install Date" column when it is not a date ("1/3 same day
+        # as X", "after 2pm", "call first"). prep.py keeps it as
+        # install_2026_note -- a frozen key that means THIS season (see the
+        # KNOWN DEBT note in prep.py), so it is tried after the season-named
+        # spelling. Only set when the sheet has one; an install note edited
+        # in the app is stamped in app_edits and wins over this
+        # (client_season.merge_sheet_detail).
+        install_note = clean_str(season_field(
+            c, season, "install_{}_note", "install_2026_note", "install_note", default=None))
+        if install_note:
+            rec["notes"] = install_note
         out.append(rec)
     return out
 
