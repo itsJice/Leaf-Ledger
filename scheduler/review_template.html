@@ -999,6 +999,57 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   background:#fff;color:var(--brand);font-weight:700;font-size:11px;cursor:pointer;
   font-family:'Montserrat',sans-serif}
 .pkeditbtn:hover{background:var(--brand-soft);border-color:var(--brand)}
+/* ---- staff alert (amber triangle by a client's name) ---- */
+.salert{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+  margin:0 2px;border-radius:50%;background:var(--warn-soft);color:#b45309;cursor:pointer;
+  vertical-align:-3px;flex:none;-webkit-user-drag:none;user-select:none}
+.salert .ic{width:12px;height:12px;stroke-width:2.4;vertical-align:0}
+.salert:hover,.salert:focus-visible{background:#fde3ad;outline:none;box-shadow:0 0 0 2px #f59e0b}
+.salert.static{cursor:default}
+.wlist li .salert{width:1.05em;height:1.05em;vertical-align:-.12em}
+.wlist li .salert .ic{width:.72em;height:.72em}
+.cevn .salert{width:14px;height:14px;vertical-align:-2px;margin:0 2px 0 0}
+.cevn .salert .ic{width:9px;height:9px}
+#salertpop{position:fixed;z-index:9999;width:260px;max-width:calc(100vw - 16px);padding:10px 12px;
+  background:#fffdf8;border:1px solid #f5c26b;border-left:4px solid #d97706;border-radius:10px;
+  box-shadow:0 10px 28px rgba(28,25,23,.18);font-family:'Montserrat',sans-serif;color:var(--ink)}
+#salertpop.editing{width:300px}
+.sahead{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--warn-ink)}
+.sahead .ic{width:13px;height:13px;color:#b45309}
+.satext{margin:5px 0 0;font-size:12.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.saby{margin:5px 0 0;font-size:11px;color:var(--mut)}
+.saeditbtn{margin-top:8px;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  color:var(--brand);font-weight:700;font-size:11px;cursor:pointer;font-family:inherit}
+.saedit textarea{width:100%;min-height:64px;padding:7px 8px;border:1px solid var(--line);border-radius:7px;
+  font:12.5px/1.4 'Montserrat',sans-serif;color:var(--ink);resize:vertical;background:#fff}
+.saedit textarea:focus{outline:none;border-color:#d97706;box-shadow:0 0 0 2px rgba(217,119,6,.2)}
+.sahint{margin:4px 0 0;font-size:10.5px;color:var(--mut)}
+.sabtns{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.sabtns button{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;
+  font:700 11.5px 'Montserrat',sans-serif;cursor:pointer;color:var(--ink)}
+.sabtns .saclear{color:var(--danger)}
+.sabtns .sasave{background:var(--brand);border-color:var(--brand);color:#fff}
+.sabtns .sasave:hover{background:var(--brand-hover)}
+.sabtns button:disabled{opacity:.55;cursor:default}
+.pkalert{margin:8px 0 10px;padding:8px 10px;background:var(--warn-soft);border:1px solid #f5c26b;
+  border-left:4px solid #d97706;border-radius:8px}
+.pkalert .satext{margin-top:4px}
+.pkalert .saedit textarea{background:#fff}
+.pkalertadd{margin:0 0 8px;padding:0;border:0;background:none;color:var(--mut);font:600 11.5px 'Montserrat',sans-serif;
+  cursor:pointer}
+.pkalertadd:hover{color:var(--warn-ink);text-decoration:underline}
+#pkh3alert .salert{vertical-align:-2px}
+.pknotes .pknote{white-space:pre-wrap;word-break:break-word}
+.pknotelbl{display:block;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  margin-bottom:2px;opacity:.85}
+.pknotesrc{font-weight:600;text-transform:none;letter-spacing:0;opacity:.8}
+.pknotelink{margin-top:6px;padding:0;border:0;background:none;color:var(--brand);font:700 11px 'Montserrat',sans-serif;
+  cursor:pointer}
+.pknotelink:hover{text-decoration:underline}
+body.apple .salert{width:19px;height:19px}
+body.apple #salertpop,body.apple .pkalert{border-radius:12px}
+body.tv .salert{cursor:default}
 .pkce{margin:4px 0 2px}
 .pkce input[type=text]{margin:0 0 6px;padding:6px 8px;font-size:12px}
 .pkce-row{display:flex;gap:6px}
@@ -4393,12 +4444,180 @@ document.addEventListener('click', e=>{
 document.addEventListener('mousedown', e=>{
   document.querySelectorAll('dialog[open]').forEach(dlg=>{
     if(dlg.classList.contains('inline') && e.target.closest && e.target.closest('#map')) return;
+    // The staff-alert card and its icons float above the list; using them
+    // is not a click "outside" the open stop.
+    if(e.target.closest && e.target.closest('#salertpop, .salert')) return;
     if(!dlg.contains(e.target)){
       if(dlg.id==='peekdlg'){ pkClosedRow=peekRow; pkClosedAt=Date.now(); }
       dlg.close();
     }
   });
 });
+
+// ---------- staff alert popover ----------
+// One floating card on <body>: hover/focus an alert icon to read it, click
+// it (staff) to edit. On touch the first tap shows it (with an Edit button).
+// Clicking the icon must never open the stop's popup or start a drag of the
+// stop card it sits on -- the capture-phase listeners below see the event
+// before the card's own handlers do.
+let salertPop=null, salertAnchor=null, salertRow=null, salertMode=null,
+    salertHideT=null, salertPressed=false, salertPtr='mouse';
+function salertEl(){
+  if(!salertPop){
+    salertPop=document.createElement('div');
+    salertPop.id='salertpop'; salertPop.hidden=true;
+    salertPop.addEventListener('mouseenter', ()=>clearTimeout(salertHideT));
+    salertPop.addEventListener('mouseleave', ()=>{ if(salertMode==='view') hideAlertPopSoon(); });
+    document.body.appendChild(salertPop);
+  }
+  return salertPop;
+}
+function placeAlertPop(){
+  if(!salertPop || salertPop.hidden || !salertAnchor) return;
+  if(!salertAnchor.isConnected){ hideAlertPop(); return; }
+  const r=salertAnchor.getBoundingClientRect(), pw=salertPop.offsetWidth, ph=salertPop.offsetHeight;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  let left=Math.min(Math.max(8, r.left-10), vw-pw-8);
+  let top=r.bottom+6;
+  if(top+ph>vh-8 && r.top-ph-6>8) top=r.top-ph-6;
+  salertPop.style.left=Math.max(8,left)+'px'; salertPop.style.top=Math.max(8,top)+'px';
+}
+function alertEditorHTML(row, idp){
+  const a=staffAlertOf(row);
+  return `<div class="saedit">
+      <p class="pksec">Staff alert</p>
+      <textarea id="${idp}-text" rows="3" maxlength="500" placeholder="e.g. Gate code changed — call before arriving">${peekEsc(a?a.text:'')}</textarea>
+      <p class="sahint">Shows by the client's name for the whole team.</p>
+      <div class="sabtns">
+        <button type="button" class="sacancel" id="${idp}-cancel">Cancel</button>
+        ${a?`<button type="button" class="saclear" id="${idp}-clear">Clear</button>`:''}
+        <button type="button" class="sasave" id="${idp}-save">Save</button>
+      </div>
+    </div>`;
+}
+/** Wires an editor rendered by alertEditorHTML; onDone() after save/cancel. */
+function wireAlertEditor(row, idp, onDone){
+  const ta=document.getElementById(idp+'-text');
+  const save=document.getElementById(idp+'-save'), clr=document.getElementById(idp+'-clear');
+  const go=async(text)=>{
+    [save,clr].forEach(b=>{ if(b) b.disabled=true; });
+    const ok=await saveStaffAlert(row, text);
+    if(ok) onDone(true); else [save,clr].forEach(b=>{ if(b) b.disabled=false; });
+  };
+  document.getElementById(idp+'-cancel').onclick=()=>onDone(false);
+  save.onclick=()=>go(ta.value.trim());
+  if(clr) clr.onclick=()=>go('');
+  ta.onkeydown=e=>{
+    if(e.key==='Escape'){ e.stopPropagation(); onDone(false); }
+    if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) save.click();
+  };
+  setTimeout(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+}
+async function saveStaffAlert(row, text){
+  if(roBlocked()) return false;
+  const ac=appClientFor(row);
+  if(!AUTH || !ac || !canEditAlerts()) return false;
+  try{
+    const r=await fetch(`/api/clients/${ac.id}/staff-alert`, {
+      method:'PUT', headers:{'Content-Type':'application/json', Authorization:AUTH},
+      body:JSON.stringify({text}),
+    });
+    if(r.status===403){ alertEditDenied=true; alert("Your login can read staff alerts but can't change them."); return false; }
+    if(!r.ok) throw new Error(r.status);
+    const out=await r.json();
+    // Same object sits under every spelling in clientDirectory -- update in place.
+    ac.staff_alert=out.staff_alert ?? null;
+    ac.staff_alert_by=out.staff_alert_by ?? null;
+    ac.staff_alert_at=out.staff_alert_at ?? null;
+  }catch(err){
+    alert('Could not save that staff alert -- try again.');
+    return false;
+  }
+  hideAlertPop();
+  render();
+  if(peekdlg.open && peekRow===row) refreshPeekLive(row);
+  return true;
+}
+function showAlertPop(anchor, row, mode){
+  clearTimeout(salertHideT);
+  const a=staffAlertOf(row);
+  if(mode==='view' && !a) return;
+  const pop=salertEl();
+  salertAnchor=anchor; salertRow=row; salertMode=mode;
+  pop.classList.toggle('editing', mode==='edit');
+  if(mode==='edit'){
+    pop.innerHTML=alertEditorHTML(row, 'sapop');
+  } else {
+    pop.innerHTML=`<div class="sahead">${IC.alert}<span>Staff alert</span></div>
+      <p class="satext">${peekEsc(a.text)}</p>
+      ${alertByline(a)?`<p class="saby">${peekEsc(alertByline(a))}</p>`:''}
+      ${canEditAlerts()?`<button type="button" class="saeditbtn">Edit</button>`:''}`;
+    const eb=pop.querySelector('.saeditbtn');
+    if(eb) eb.onclick=()=>showAlertPop(anchor, row, 'edit');
+  }
+  pop.hidden=false;
+  placeAlertPop();
+  if(mode==='edit') wireAlertEditor(row, 'sapop', ()=>hideAlertPop());
+}
+function hideAlertPop(){
+  clearTimeout(salertHideT);
+  if(salertPop){ salertPop.hidden=true; salertPop.innerHTML=''; }
+  salertAnchor=null; salertRow=null; salertMode=null;
+}
+function hideAlertPopSoon(){
+  clearTimeout(salertHideT);
+  salertHideT=setTimeout(()=>{ if(salertMode==='view') hideAlertPop(); }, 220);
+}
+document.addEventListener('pointerdown', e=>{
+  salertPtr=e.pointerType||'mouse';
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  salertPressed=!!ic;
+  if(!ic && salertPop && !salertPop.hidden && !salertPop.contains(e.target)) hideAlertPop();
+}, true);
+document.addEventListener('pointerup', ()=>{ setTimeout(()=>{ salertPressed=false; }, 0); }, true);
+// A press that starts on the icon never picks up the stop card it sits on.
+document.addEventListener('dragstart', e=>{
+  if(salertPressed){ e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
+document.addEventListener('click', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(!ic) return;
+  e.preventDefault(); e.stopPropagation();
+  const row=+ic.dataset.alertRow;
+  const open=salertPop && !salertPop.hidden && salertAnchor===ic;
+  if(salertPtr==='touch' || !canEditAlerts()){
+    // Touch / read-only: a tap toggles the card (which carries Edit for staff).
+    if(open && salertMode==='view') hideAlertPop(); else showAlertPop(ic, row, 'view');
+    return;
+  }
+  if(open && salertMode==='edit') return;
+  showAlertPop(ic, row, 'edit');
+}, true);
+document.addEventListener('mouseover', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(!ic || salertMode==='edit') return;
+  if(salertAnchor!==ic || !salertPop || salertPop.hidden) showAlertPop(ic, +ic.dataset.alertRow, 'view');
+  else clearTimeout(salertHideT);
+});
+document.addEventListener('mouseout', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(ic && salertMode==='view' && !(e.relatedTarget && ic.contains(e.relatedTarget))) hideAlertPopSoon();
+});
+document.addEventListener('focusin', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(ic && salertMode!=='edit') showAlertPop(ic, +ic.dataset.alertRow, 'view');
+});
+document.addEventListener('keydown', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(ic && (e.key==='Enter' || e.key===' ')){
+    e.preventDefault(); e.stopPropagation();
+    if(canEditAlerts()) showAlertPop(ic, +ic.dataset.alertRow, 'edit');
+    return;
+  }
+  if(e.key==='Escape' && salertPop && !salertPop.hidden){ e.stopPropagation(); hideAlertPop(); }
+}, true);
+window.addEventListener('scroll', placeAlertPop, true);
+window.addEventListener('resize', placeAlertPop);
 
 // ---------- UI ----------
 const strip = document.getElementById('datestrip');
