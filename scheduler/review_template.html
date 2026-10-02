@@ -1006,9 +1006,9 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .salert .ic{width:12px;height:12px;stroke-width:2.4;vertical-align:0}
 .salert:hover,.salert:focus-visible{background:#fde3ad;outline:none;box-shadow:0 0 0 2px #f59e0b}
 .salert.static{cursor:default}
-.wlist li .salert{width:1.05em;height:1.05em;vertical-align:-.12em}
-.wlist li .salert .ic{width:.72em;height:.72em}
-.cevn .salert{width:14px;height:14px;vertical-align:-2px;margin:0 2px 0 0}
+body .wlist li .salert{width:1.05em;height:1.05em;vertical-align:-.12em}
+body .wlist li .salert .ic{width:.72em;height:.72em}
+body .cevn .salert{width:14px;height:14px;vertical-align:-2px;margin:0 2px 0 0}
 .cevn .salert .ic{width:9px;height:9px}
 #salertpop{position:fixed;z-index:9999;width:260px;max-width:calc(100vw - 16px);padding:10px 12px;
   background:#fffdf8;border:1px solid #f5c26b;border-left:4px solid #d97706;border-radius:10px;
@@ -4470,7 +4470,7 @@ document.addEventListener('mousedown', e=>{
 // stop card it sits on -- the capture-phase listeners below see the event
 // before the card's own handlers do.
 let salertPop=null, salertAnchor=null, salertRow=null, salertMode=null,
-    salertHideT=null, salertPressed=false, salertPtr='mouse';
+    salertHideT=null, salertPressed=false, salertPtr='mouse', salertShownAt=0;
 function salertEl(){
   if(!salertPop){
     salertPop=document.createElement('div');
@@ -4552,6 +4552,7 @@ function showAlertPop(anchor, row, mode){
   const a=staffAlertOf(row);
   if(mode==='view' && !a) return;
   const pop=salertEl();
+  if(pop.hidden || salertAnchor!==anchor || salertMode!==mode) salertShownAt=Date.now();
   salertAnchor=anchor; salertRow=row; salertMode=mode;
   pop.classList.toggle('editing', mode==='edit');
   if(mode==='edit'){
@@ -4596,7 +4597,10 @@ document.addEventListener('click', e=>{
   const open=salertPop && !salertPop.hidden && salertAnchor===ic;
   if(salertPtr==='touch' || !canEditAlerts()){
     // Touch / read-only: a tap toggles the card (which carries Edit for staff).
-    if(open && salertMode==='view') hideAlertPop(); else showAlertPop(ic, row, 'view');
+    // (The hover that a mouse or a tap's emulated mouseover fired a moment ago
+    // already opened it -- that click shouldn't immediately close it again.)
+    if(open && salertMode==='view' && Date.now()-salertShownAt>450) hideAlertPop();
+    else if(!open || salertMode!=='view') showAlertPop(ic, row, 'view');
     return;
   }
   if(open && salertMode==='edit') return;
