@@ -23,6 +23,7 @@ tool uses. Both are checked against the live board on every write.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timezone
 from typing import Literal, Optional
 from urllib.parse import quote_plus
@@ -166,6 +167,57 @@ def _require_today(viewer: Viewer, day: dict) -> None:
 # ─── read ────────────────────────────────────────────────────────────────────
 
 
+def norm_name(name) -> str:
+    """Case, spacing, commas and periods ignored -- the same match the sheet
+    sync uses (scheduler/sync_clients.py find_client_by_name)."""
+    return re.sub(r"\s+", " ", re.sub(r"[,.]", "", str(name or "").strip().lower()))
+
+
+def index_client_extras(rows) -> dict:
+    """{normalised name: row}, keyed on the sheet's spelling first, then the
+    app's name and every former name -- a stop carries the name baked into
+    the published schedule, which may predate a rename on the Clients tab."""
+    out: dict = {}
+    for keyset in ("sheet_name", "name", "former_names"):
+        for r in rows:
+            vals = r.get(keyset) or []
+            for v in ([vals] if isinstance(vals, str) else vals):
+                k = norm_name(v)
+                if k and k not in out:
+                    out[k] = r
+    return out
+
+
+def stop_extras(row: Optional[dict]) -> dict:
+    """What the Shifts page shows from the client record: the staff alert
+    (read-only here) and this season's install notes."""
+    if not row:
+        return {"staffAlert": None, "installNotes": ""}
+    alert = None
+    if row.get("staff_alert"):
+        alert = {"text": row["staff_alert"], "by": row.get("staff_alert_by"),
+                 "at": _iso(row.get("staff_alert_at"))}
+    return {"staffAlert": alert, "installNotes": row.get("install_notes") or ""}
+
+
+async def load_client_extras(conn, season: str) -> dict:
+    """Every client with a staff alert or install notes this season, indexed
+    for matching against stop names. One query."""
+    from app.apis import clients as clients_api
+
+    await clients_api.ensure_schema(conn)
+    rows = await conn.fetch(
+        "SELECT c.id, c.name, c.sheet_name, c.former_names, c.staff_alert, c.staff_alert_by, "
+        "       c.staff_alert_at, ca.detail->>'notes' AS install_notes "
+        "  FROM clients c "
+        "  LEFT JOIN client_activity ca ON ca.client_id = c.id "
+        "       AND ca.kind = 'christmas_install' AND ca.season = $1 "
+        " WHERE c.staff_alert IS NOT NULL OR (ca.detail->>'notes') IS NOT NULL",
+        season,
+    )
+    return index_client_extras([dict(r) for r in rows])
+
+
 def _iso(v):
     return v.isoformat() if isinstance(v, (datetime, date)) else v
 
@@ -188,7 +240,8 @@ def _note_out(r) -> dict:
     }
 
 
-def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list) -> dict:
+def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
+             extras: Optional[dict] = None) -> dict:
     lead = board.lead_of(day["id"])
     crew = [board.person(pid) for pid in board.staffing.get(day["id"], [])]
     stops = []
@@ -205,6 +258,7 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list)
             "mapsUrl": maps_url(c),
             "advice": c.get("advice") or "",
             "repairNotes": c.get("repairNotes") or "",
+            **stop_extras((extras or {}).get(norm_name(c.get("name")))),
             "hours": c.get("h26"),
             "people": c.get("people"),
             "timeEntries": [e for e in entries if e["row"] == row],
@@ -245,11 +299,15 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
         days = []
 
     ids = [d["id"] for d in days]
-    entries, notes = [], []
+    entries, notes, extras = [], [], {}
     if ids:
         conn = await get_conn()
         try:
             await ensure_schema(conn)
+            try:
+                extras = await load_client_extras(conn, board.season)
+            except Exception as exc:  # noqa: BLE001 - the shift itself matters more
+                print(f"shift client extras skipped: {exc}")
             entries = [_entry_out(r) for r in await conn.fetch(
                 "SELECT * FROM ll_app.shift_time_entries WHERE season = $1 AND day_id = ANY($2::text[]) "
                 "ORDER BY started_at", board.season, ids)]
@@ -283,7 +341,8 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
         "readOnly": viewer.role == "production",
         "me": viewer.person,
         "leads": leads,
-        "days": [_day_out(board, d, by_day_e.get(d["id"], []), by_day_n.get(d["id"], [])) for d in days],
+        "days": [_day_out(board, d, by_day_e.get(d["id"], []), by_day_n.get(d["id"], []), extras)
+                 for d in days],
     }
 
 

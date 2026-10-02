@@ -25,7 +25,8 @@ T0 = datetime(2026, 1, 2, 3, 4, 5)
 T1 = datetime(2026, 2, 3, 4, 5, 6)
 
 CLIENT_KEYS = ["id", "name", "email", "phone", "notes", "street", "city", "state", "zip",
-               "time_preference", "former_names", "sheet_name", "secondary_contacts", "created_at", "updated_at"]
+               "time_preference", "former_names", "sheet_name", "secondary_contacts", "created_at", "updated_at",
+               "staff_alert", "staff_alert_by", "staff_alert_at"]
 
 
 def run(coro):
@@ -99,7 +100,8 @@ def test_list_clients(fake_db, fake_request):
         # saved client does, instead of omitting the key entirely.
         {"id": None, "name": "Unassigned", "email": None, "phone": None, "notes": None,
          "street": None, "city": None, "state": None, "zip": None,
-         "time_preference": None, "former_names": [], "sheet_name": None, "secondary_contacts": [], "created_at": None,
+         "time_preference": None, "former_names": [], "sheet_name": None, "secondary_contacts": [],
+         "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None, "created_at": None,
          "updated_at": T0, "project_count": 1, "bucket_count": 0, "selected_cost": 0.0,
          "last_project_at": T0, "source": "from_projects", "activity": []},
     ]
@@ -431,3 +433,67 @@ def test_update_client_season_validation(fake_db, fake_request):
         run(clients.update_client_season(5, "2026", clients.SeasonFieldsIn(fields={"boxes": "lots"}), fake_request()))
     assert exc.value.status_code == 400
     assert not fake_db.seen("INSERT")
+
+
+# ─── staff alert ─────────────────────────────────────────────────────────────
+
+
+def test_list_adds_the_staff_alert_columns_once(fake_db, fake_request):
+    fake_db.on_fetch("FROM clients", [])
+    run(clients.list_clients(fake_request()))
+    run(clients.list_clients(fake_request()))
+    alters = fake_db.calls("ADD COLUMN IF NOT EXISTS staff_alert")
+    assert len(alters) == 1
+    assert "staff_alert_at timestamptz" in alters[0][0]
+    assert fake_db.seen("SET LOCAL lock_timeout")
+    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at FROM clients")
+
+
+def test_existing_columns_skip_the_alter(fake_db, fake_request):
+    fake_db.on_fetchval("information_schema.columns", 3)
+    fake_db.on_fetch("FROM clients", [])
+    run(clients.list_clients(fake_request()))
+    assert not fake_db.seen("ALTER TABLE clients")
+
+
+def test_set_staff_alert_trims_and_signs(fake_db, fake_user):
+    fake_db.on_fetchval("information_schema.columns", 3)
+    fake_db.on_fetchrow("UPDATE clients SET staff_alert",
+                        {"id": 7, "staff_alert": "Dog in yard", "staff_alert_by": "crew", "staff_alert_at": T0})
+    out = run(clients.set_staff_alert(7, clients.StaffAlertIn(text="  Dog in yard \n"), fake_user))
+    assert out == {"id": 7, "staff_alert": "Dog in yard", "staff_alert_by": "crew", "staff_alert_at": T0}
+    (args,) = args_of(fake_db, "UPDATE clients SET staff_alert")
+    assert args == (7, "Dog in yard", "crew")
+
+
+def test_clear_staff_alert_nulls_everything(fake_db, fake_user):
+    fake_db.on_fetchval("information_schema.columns", 3)
+    fake_db.on_fetchrow("UPDATE clients SET staff_alert",
+                        {"id": 7, "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None})
+    out = run(clients.set_staff_alert(7, clients.StaffAlertIn(text="   "), fake_user))
+    assert out["staff_alert"] is None
+    ((sql, args),) = fake_db.calls("UPDATE clients SET staff_alert")
+    assert args == (7, None, None)
+    assert "CASE WHEN $2::text IS NULL THEN NULL ELSE now() END" in sql
+
+
+def test_staff_alert_too_long_or_unknown_client(fake_db, fake_user):
+    with pytest.raises(HTTPException) as exc:
+        run(clients.set_staff_alert(7, clients.StaffAlertIn(text="x" * 501), fake_user))
+    assert exc.value.status_code == 400
+    assert fake_db.executed == []
+    fake_db.on_fetchval("information_schema.columns", 3)
+    with pytest.raises(HTTPException) as exc:
+        run(clients.set_staff_alert(404, clients.StaffAlertIn(text="hi"), fake_user))
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.parametrize("role, ok", [
+    ("crew", False), ("viewer", False), ("production", False), ("lead", False),
+    ("staff", True), ("admin", True), ("super_admin", True),
+])
+def test_staff_alert_needs_staff(role, ok):
+    from app.libs import roles
+
+    path = "/api/clients/{client_id}/staff-alert"
+    assert roles.allowed(role, "staff", "PUT", False, path) is ok

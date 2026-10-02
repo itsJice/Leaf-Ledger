@@ -282,8 +282,12 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
         ))}
         <Field label="Pricing basis" wide><input className={inputClass} value={draft.price_basis} onChange={(e) => set("price_basis", e.target.value)} placeholder="how this price was arrived at" /></Field>
         <Field label="Confirmation notes" wide><input className={inputClass} value={draft.confirmation_notes} onChange={(e) => set("confirmation_notes", e.target.value)} /></Field>
-        <Field label="Production notes" wide><input className={inputClass} value={draft.production_notes} onChange={(e) => set("production_notes", e.target.value)} placeholder="relight, replace, repair…" /></Field>
-        <Field label="Notes" wide><input className={inputClass} value={draft.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
+        <Field label="Install notes" wide>
+          <textarea rows={2} className={`${inputClass} resize-y`} value={draft.notes} onChange={(e) => set("notes", e.target.value)} placeholder="for this year's install: timing, same day as…, access" />
+        </Field>
+        <Field label="Production & repair notes" wide>
+          <textarea rows={2} className={`${inputClass} resize-y`} value={draft.production_notes} onChange={(e) => set("production_notes", e.target.value)} placeholder="relight, replace, repair…" />
+        </Field>
       </div>
       {extras.length > 0 && (
         <p className="mt-3 text-[11px] text-stone-500">
@@ -418,6 +422,27 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
                       </button>
                     </td>
                   </tr>
+                  {editing !== season && (str(d.notes).trim() || str(d.production_notes).trim()) && (
+                    <tr className="border-b border-stone-100 last:border-b-0">
+                      <td />
+                      <td colSpan={COLS.length - 1} className="px-3 pb-2.5 pt-0">
+                        <div className="grid gap-1.5 text-xs sm:grid-cols-2">
+                          {str(d.notes).trim() && (
+                            <p className="min-w-0">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-400">Install notes<EditedDot d={d} k="notes" /></span>
+                              <span className="whitespace-pre-wrap text-stone-700">{str(d.notes)}</span>
+                            </p>
+                          )}
+                          {str(d.production_notes).trim() && (
+                            <p className="min-w-0">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-400">Production &amp; repair notes<EditedDot d={d} k="production_notes" /></span>
+                              <span className="whitespace-pre-wrap text-stone-700">{str(d.production_notes)}</span>
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {editing === season && (
                     <tr>
                       <td colSpan={COLS.length} className="bg-stone-50/60 px-3 py-3">

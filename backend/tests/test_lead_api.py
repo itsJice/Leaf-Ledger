@@ -422,3 +422,46 @@ def test_stage_wording():
     assert stage_of("new", "fixed", None) == "In process"
     assert stage_of("new", "needs_human", object()) == "Reviewed"
     assert stage_of("new", None, None) == "Submitted"
+
+
+# ─── client record on a stop: staff alert, install notes ─────────────────────
+
+
+def test_stops_carry_staff_alert_and_install_notes(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    fake_db.on_fetchval("information_schema.columns", 3)
+    when = datetime(2026, 10, 1, 15, 0, tzinfo=timezone.utc)
+    fake_db.on_fetch("LEFT JOIN client_activity ca", [
+        # renamed in the app: the stop still carries the old (sheet) spelling
+        {"id": 1, "name": "Smith Residence", "sheet_name": "Smith Home", "former_names": [],
+         "staff_alert": "Dog in the yard", "staff_alert_by": "justice", "staff_alert_at": when,
+         "install_notes": "Same day as Jones"},
+        {"id": 2, "name": "Jones, Office.", "sheet_name": None, "former_names": ["Old Jones"],
+         "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None, "install_notes": None},
+    ])
+    out = run(lead.my_shifts(user("ana@example.com")))
+    by_name = {s["name"]: s for s in out["days"][0]["stops"]}
+    smith = by_name["Smith Home"]
+    assert smith["staffAlert"] == {"text": "Dog in the yard", "by": "justice", "at": when.isoformat()}
+    assert smith["installNotes"] == "Same day as Jones"
+    assert by_name["Jones Office"]["staffAlert"] is None
+    _, args = fake_db.calls("LEFT JOIN client_activity ca")[0]
+    assert args == ("2026",)
+
+
+def test_stop_extras_failure_does_not_break_shifts(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+
+    def boom(*_):
+        raise RuntimeError("no column")
+
+    fake_db.on("LEFT JOIN client_activity ca", boom, method="fetch")
+    out = run(lead.my_shifts(user("ana@example.com")))
+    assert all(s["staffAlert"] is None for s in out["days"][0]["stops"])
+
+
+def test_name_index_prefers_sheet_spelling():
+    rows = [{"name": "A", "sheet_name": "Shared", "former_names": []},
+            {"name": "Shared", "sheet_name": None, "former_names": []}]
+    assert lead.index_client_extras(rows)["shared"]["name"] == "A"
+    assert lead.norm_name("  Beaver,  Austin. ") == "beaver austin"
