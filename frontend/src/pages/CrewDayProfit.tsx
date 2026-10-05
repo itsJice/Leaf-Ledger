@@ -441,6 +441,13 @@ function DayCard({ d, actual, target, overheadPct, isOpen, onToggle }: {
               {d.crew}{d.night ? " · night" : ""} · {d.crew_people.length} people
               {d.kind === "takedown" && !actual && d.takedown_of ? ` · installed ${fmtDate(d.takedown_of)}` : ""}
             </div>
+            {/* The same staffing line the table's Crew column shows. */}
+            <div className="text-[11px] text-stone-400">
+              {actual
+                ? (d.crew_source || "")
+                : d.staffed_count === 0 ? "estimated" : d.estimated_count ? `${d.staffed_count} staffed + ${d.estimated_count} est.` : "staffed"}
+              {!actual && d.crew_basis ? ` · from ${d.crew_basis === "2025 crew" ? "last year's crew" : "role needs"}` : ""}
+            </div>
           </div>
           <div className="shrink-0 text-right">
             <div className="text-lg font-semibold tabular-nums text-stone-900">{pct(d.net_pct)}</div>

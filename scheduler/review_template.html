@@ -1493,7 +1493,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .dchipwrap{width:auto;flex:none}
   body.apple #side{width:400px;min-width:0}
   body.apple .stop::after{display:none}
-  body.apple #tbsaved{display:none}
+  body.apple #tbsaved:not(.bad){display:none} /* a failed save always shows */
   body.apple #searchwrap{flex:1 1 160px}
 }
 #phonebar,#dsheethd{display:none}
@@ -1503,11 +1503,13 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
 body.apple header{container-type:inline-size}
 @container (max-width:900px){
   body.apple .viewtog button{padding:0 10px}
-  body.apple #tbsaved{display:none}
+  body.apple #tbsaved:not(.bad){display:none} /* a failed save always shows */
 }
+@media (max-width:1023px){ /* from 1024 the toolbar never wraps */
 @container (max-width:690px){
   body.apple .viewtog{order:5;flex:1 1 100%}
   body.apple .viewtog button{flex:1}
+}
 }
 @media (max-width:767px){
   /* Day bar */

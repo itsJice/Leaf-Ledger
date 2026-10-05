@@ -537,7 +537,7 @@ function Levels({ out, hasPrice }: { out: Out; hasPrice: boolean }) {
           <thead>
             <tr className="border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
               {/* First column stays put while a phone scrolls the figures sideways. */}
-              <th className="sticky left-0 z-[1] bg-white px-4 py-2 font-semibold">Profit</th>
+              <th className="sticky left-0 z-[1] bg-white px-4 py-2 font-semibold sm:static">Profit</th>
               <th className="px-2 py-2 text-right font-semibold">Price needed</th>
               {hasPrice && (
                 <>
@@ -553,7 +553,7 @@ function Levels({ out, hasPrice }: { out: Out; hasPrice: boolean }) {
           <tbody className="divide-y divide-stone-100">
             {out.levels.map((l) => (
               <tr key={l.profit_pct} className={l.target ? "bg-emerald-50/70 font-semibold" : ""}>
-                <td className={`sticky left-0 z-[1] whitespace-nowrap px-4 py-2 tabular-nums text-stone-900 ${l.target ? "bg-emerald-50" : "bg-white"}`}>
+                <td className={`sticky left-0 z-[1] whitespace-nowrap px-4 py-2 tabular-nums text-stone-900 sm:static sm:bg-transparent ${l.target ? "bg-emerald-50" : "bg-white"}`}>
                   {l.profit_pct}%
                   {l.break_even && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">break-even</span>}
                   {l.target && <span className="ml-2 rounded-full border border-emerald-200 bg-white px-1.5 py-px text-[10px] font-semibold text-emerald-800">target</span>}

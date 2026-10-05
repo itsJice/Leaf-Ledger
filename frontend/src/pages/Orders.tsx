@@ -237,7 +237,7 @@ export default function Orders() {
                                     {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={26} className="text-stone-300" />}
                                   </button>
                                   <div className="min-w-0 flex-1">
-                                    <button onClick={() => openProduct(it.product_id)} className="line-clamp-2 block max-w-full text-left font-medium text-stone-800 hover:text-emerald-700 2xl:max-w-[22rem] 2xl:truncate" title={it.name}>{it.name}</button>
+                                    <button onClick={() => openProduct(it.product_id)} className="line-clamp-2 max-w-full text-left 2xl:block font-medium text-stone-800 hover:text-emerald-700 2xl:max-w-[22rem] 2xl:truncate" title={it.name}>{it.name}</button>
                                     {it.product_url && (
                                       <a href={it.product_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-stone-400 hover:text-emerald-700"><ExternalLink size={10} /> View on site</a>
                                     )}

@@ -390,13 +390,13 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
           const facts: [string, React.ReactNode][] = empty ? [] : [
             ["Install", <>{d.install_date ? mdy(d.install_date) : status === "not_installing" && d.was_scheduled ? <s>{mdy(d.was_scheduled)}</s> : "–"}<EditedDot d={d} k="install_date" /></>],
             ["Takedown", <>{d.takedown_date ? mdy(d.takedown_date) : "–"}<EditedDot d={d} k="takedown_date" /></>],
-            ["Storing", <>{d.storing === true ? "Yes" : d.storing === false ? "No" : "–"}<EditedDot d={d} k="storing" /></>],
+            ["Storing", <>{d.storing === true ? "Yes" : d.storing === false ? "No" : "–"}<EditedDot d={d} k="storing" />{d.storage_note ? <span className="mt-0.5 block text-xs text-stone-400">{String(d.storage_note)}</span> : null}</>],
             ["Boxes", <>{str(d.boxes) || "–"}<EditedDot d={d} k="boxes" /></>],
             ["Crew", <>{str(d.crew) || "–"}<EditedDot d={d} k="crew" /></>],
             ["Hours", <>{num(d.real_hours) !== null ? `${d.real_hours}h` : num(d.est_hours) !== null ? <span className="text-stone-400">est {String(d.est_hours)}h</span> : "–"}<EditedDot d={d} k="real_hours" /></>],
             ["Fees I / T / S", fees],
-            ["Ideal", ideal !== null ? formatCurrency(ideal) : <span className="text-stone-400">{missing ? "needs card" : "–"}</span>],
-            ["Charged", <>{charged !== null ? formatCurrency(charged) : "–"}{p?.charged_source === "invoice" && <span className="ml-1 text-[10px] text-stone-400">inv</span>}</>],
+            ["Ideal", ideal !== null ? formatCurrency(ideal) : <span className="text-stone-400">{missing ? `needs ${missing}` : "–"}</span>],
+            ["Charged", <>{charged !== null ? formatCurrency(charged) : "–"}{p?.charged_source === "invoice" && <span className="ml-1 text-[10px] text-stone-400">inv</span>}<EditedDot d={d} k={p?.charged_source === "invoice" ? "invoice_total" : "total"} /></>],
             ["Discount", p?.discount_pct !== null && p?.discount_pct !== undefined ? (
               <span className={p.discount_pct > 0.05 ? "text-amber-700" : p.discount_pct < -0.05 ? "text-emerald-700" : "text-stone-600"}>{discountLabel(p.discount_pct)}</span>
             ) : "–"],

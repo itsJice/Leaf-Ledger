@@ -32,6 +32,15 @@ const btnGhost = "inline-flex items-center gap-1.5 rounded-lg border border-ston
 
 type Run = (fn: () => Promise<Board>, ok?: string) => Promise<Board | null>;
 
+// Size a one-row textarea to its text (a long name wraps on a phone instead
+// of hiding its second line). An inline ref runs on every render, so it
+// follows typing.
+const growToFit = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+};
+
 function sizeText(it: BoardItem): string {
   const parts: string[] = [];
   if (it.height_in != null) parts.push(`${inch(it.height_in)} H`);
@@ -411,10 +420,10 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
         <div className="min-w-0 basis-full sm:basis-auto">
           {/* A textarea that sizes to its text so a long job name wraps on a
               phone instead of being cut off; Enter still just commits. */}
-          <textarea value={name} rows={1} onChange={(e) => setName(e.target.value.replace(/\n/g, " "))}
+          <textarea ref={(el) => growToFit(el)} value={name} rows={1} onChange={(e) => setName(e.target.value.replace(/\n/g, " "))}
             onBlur={() => name.trim() && name !== board.name && onRename(name.trim())}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
-            className="block w-full max-w-xl resize-none overflow-hidden bg-transparent text-lg font-semibold text-stone-800 outline-none max-sm:[field-sizing:content] focus:border-b sm:whitespace-pre focus:border-emerald-500"
+            className="block w-full max-w-xl resize-none overflow-hidden bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b sm:whitespace-pre focus:border-emerald-500"
             style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
           <p className="text-xs text-stone-500">
             {board.client_name || "No client"}{board.collection ? ` · ${board.collection}` : ""} · {board.items.length} pinned

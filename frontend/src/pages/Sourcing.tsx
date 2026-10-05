@@ -54,6 +54,15 @@ const btnGhost = "inline-flex items-center gap-1.5 rounded-lg border border-ston
 
 type Run = (fn: () => Promise<Job>, ok?: string) => Promise<Job | null>;
 
+// Size a one-row textarea to its text (a long name wraps on a phone instead
+// of hiding its second line). An inline ref runs on every render, so it
+// follows typing.
+const growToFit = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+};
+
 function stagePill(stage: Stage) {
   const tone: Record<Stage, string> = {
     new: "bg-stone-100 text-stone-600",
@@ -243,10 +252,10 @@ function JobHeader({ job, onDelete, onChange }: { job: Job; onDelete: () => void
         <div className="min-w-0 basis-full sm:basis-auto">
           {/* Sizes to its text on a phone so a long name wraps instead of
               being cut off; Enter still just commits. */}
-          <textarea value={name} rows={1} onChange={(e) => setName(e.target.value.replace(/\n/g, " "))}
+          <textarea ref={(el) => growToFit(el)} value={name} rows={1} onChange={(e) => setName(e.target.value.replace(/\n/g, " "))}
             onBlur={() => name.trim() && name !== job.name && onChange({ name: name.trim() })}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
-            className="block w-full max-w-xl resize-none overflow-hidden bg-transparent text-lg font-semibold text-stone-800 outline-none max-sm:[field-sizing:content] focus:border-b focus:border-emerald-500 sm:whitespace-pre"
+            className="block w-full max-w-xl resize-none overflow-hidden bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500 sm:whitespace-pre"
             style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
           <p className="text-xs text-stone-500">
             {job.client_name || "No client"}{job.collection ? ` · ${job.collection}` : ""}

@@ -55,6 +55,8 @@ function StatusSelect({ r, onChange }: { r: FormResponse; onChange: (s: Status) 
       value={r.status}
       onChange={(e) => onChange(e.target.value as Status)}
       onClick={(e) => e.stopPropagation()}
+      // The phone card around it opens on Enter; picking a status must not.
+      onKeyDown={(e) => e.stopPropagation()}
       className={`shrink-0 rounded-full border px-2 py-1.5 text-xs font-semibold outline-none sm:py-0.5 ${STATUS_STYLE[r.status]}`}
     >
       {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
