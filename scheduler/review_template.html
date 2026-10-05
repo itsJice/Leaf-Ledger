@@ -1127,6 +1127,28 @@ body.tv #datecol,body.tv header{display:none!important}
 body.apple #tvbtn,body.apple #billexportbtn,body.apple #tbprint{width:34px;height:34px;padding:0;border:0;
   border-radius:10px;background:transparent;align-self:center}
 body.apple #tvbtn:hover,body.apple #billexportbtn:hover,body.apple #tbprint:hover{background:rgba(31,61,43,.07)}
+/* Calendar view: the search bar gives up room and the subscribe button slides
+   in left of Print (user, 2026-10-05). max-width rather than flex-basis so the
+   same transition works under every breakpoint's flex rules below. */
+body.apple #searchwrap{max-width:640px;transition:max-width .32s cubic-bezier(.2,.8,.2,1)}
+body.apple.calview #searchwrap{max-width:170px}
+body.apple #calsubwrap{position:relative;display:flex;align-items:center}
+body.apple #calsubwrap[hidden]{display:none!important}
+body.apple #calsubbtn{width:34px;height:34px;padding:0;border:0;border-radius:10px;background:transparent;
+  align-self:center;overflow:hidden;opacity:1;
+  transition:width .32s cubic-bezier(.2,.8,.2,1),opacity .2s ease .08s,visibility 0s}
+body.apple #calsubbtn:hover,body.apple #calsubbtn[aria-expanded="true"]{background:rgba(31,61,43,.07)}
+body.apple:not(.calview) #calsubbtn{width:0;opacity:0;visibility:hidden;
+  transition:width .32s cubic-bezier(.2,.8,.2,1),opacity .12s ease,visibility 0s .32s}
+body.apple #calsubpop{position:absolute;right:0;top:40px;z-index:2000;width:250px;padding:6px;border-radius:12px;
+  background:#fff;box-shadow:0 10px 30px rgba(28,46,30,.18),0 0 0 .5px rgba(28,46,30,.16);display:flex;flex-direction:column}
+body.apple #calsubpop[hidden]{display:none!important}
+body.apple #calsubpop p{margin:2px 0 4px;padding:4px 12px;font-size:12px;line-height:1.4;color:var(--mut)}
+body.apple #calsubpop a,body.apple #calsubpop button{all:unset;box-sizing:border-box;display:block;padding:9px 12px;border-radius:8px;
+  font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif}
+body.apple #calsubpop a:hover,body.apple #calsubpop button:hover,
+body.apple #calsubpop a:focus-visible,body.apple #calsubpop button:focus-visible{background:var(--brand-soft)}
+@media (prefers-reduced-motion:reduce){body.apple #searchwrap,body.apple #calsubbtn{transition:none}}
 
 /* ---- date column ---- */
 body.apple #datecol{display:flex;flex-direction:column;gap:12px;min-height:0;background:var(--side);
@@ -1526,6 +1548,18 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <!-- Populated (and un-hidden) only if the backend can list published
        seasons. No endpoint, no seasons, one season: no control. -->
   <select id="seasonpick" class="seasonpick" hidden aria-label="Season"></select>
+    <!-- Office calendar subscription. Un-hidden only when the backend hands
+         this login the link (staff and up -- it carries the feed's secret);
+         shown only on the Calendar view (body.calview). -->
+    <div id="calsubwrap" hidden>
+      <button id="calsubbtn" class="tbicon" type="button" title="Add the install schedule to your calendar" aria-label="Add to your calendar" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="17" x="3" y="4" rx="2.5"/><path d="M3 9h18M8 2v4M16 2v4M12 12.5v5M9.5 15h5"/></svg></button>
+      <div id="calsubpop" role="menu" hidden>
+        <p>Add the install schedule to your calendar. Office only &mdash; it shows client addresses and phone numbers.</p>
+        <a id="calsubgoogle" role="menuitem" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
+        <a id="calsubapple" role="menuitem" target="_blank" rel="noopener noreferrer">Add to Apple Calendar</a>
+        <button id="calsubcopy" type="button" role="menuitem">Copy link</button>
+      </div>
+    </div>
     <button id="tbprint" class="tbicon" type="button" title="Print the crew sheets for what's on screen" aria-label="Print crew sheets"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg></button>
     <button id="billexportbtn" class="tbicon" type="button" title="Export" aria-label="Export"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></button>
     <button id="tvbtn" class="tbicon" type="button" title="TV mode: full-screen wall calendar for the studio TV" aria-label="TV mode"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></button>
@@ -2478,6 +2512,7 @@ window.addEventListener('message', e=>{
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
     loadSeasons();
+    loadCalSub();
     pullShared();
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
@@ -8608,6 +8643,8 @@ function setView(v){
   document.getElementById('main').style.display   = (v==='cal'||v==='staff') ? 'none':'';
   document.getElementById('datestrip').style.display = v==='days' ? '':'none';
   document.body.classList.toggle('nodates', v!=='days');
+  document.body.classList.toggle('calview', v==='cal');
+  if(v!=='cal' && typeof closeCalSub==='function') closeCalSub();
   render();
 }
 
@@ -8887,6 +8924,62 @@ document.getElementById('tbprint').onclick=()=>{
   pop.addEventListener('click', shut);
   document.addEventListener('click', e=>{ if(!pop.hidden && !e.target.closest('#newmenu')) shut(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ shut(); btn.focus(); } });
+})();
+// ---------- calendar subscription (Calendar view, office only) ----------
+// The office's calendar feed (backend app/apis/install_calendar). The link
+// carries the feed's secret, so /calendar-link answers staff and up only;
+// anyone else (leads, the warehouse display, production) gets a 403 and the
+// button stays hidden. Google's ?cid=webcal://... opens its own "Add
+// calendar?" prompt; webcal:// opens Apple Calendar's subscribe sheet.
+let calSubLoaded=false;
+async function loadCalSub(){
+  if(calSubLoaded || !AUTH) return;
+  try{
+    const r=await fetch('/api/install-schedule/calendar-link',{headers:{Authorization:AUTH}});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(typeof j.path!=='string') return;
+    // srcDoc: this document's own location.origin is "null"; the host's is real.
+    let origin=''; try{ origin=window.parent.location.origin; }catch(e){}
+    if(!origin) return;
+    const host=origin.replace(/^https?:\/\//,'');
+    const https=origin+j.path, webcal='webcal://'+host+j.path;
+    document.getElementById('calsubgoogle').href=
+      'https://calendar.google.com/calendar/r?cid='+encodeURIComponent(webcal);
+    document.getElementById('calsubapple').href=webcal;
+    document.getElementById('calsubcopy').dataset.url=https;
+    document.getElementById('calsubwrap').hidden=false;
+    calSubLoaded=true;
+  }catch(e){ /* no button */ }
+}
+function closeCalSub(){
+  const pop=document.getElementById('calsubpop');
+  if(pop && !pop.hidden){ pop.hidden=true; document.getElementById('calsubbtn').setAttribute('aria-expanded','false'); }
+}
+(function(){
+  const btn=document.getElementById('calsubbtn'), pop=document.getElementById('calsubpop');
+  const copyBtn=document.getElementById('calsubcopy');
+  btn.onclick=e=>{ e.stopPropagation(); const willOpen=pop.hidden; pop.hidden=!willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen));
+    if(willOpen){ const f=pop.querySelector('a'); if(f) f.focus(); } };
+  pop.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>setTimeout(closeCalSub, 0)));
+  copyBtn.onclick=async e=>{
+    e.stopPropagation();
+    const url=copyBtn.dataset.url||'';
+    let ok=false;
+    try{ await navigator.clipboard.writeText(url); ok=true; }
+    catch(err){
+      // Clipboard API can be refused inside the iframe; fall back.
+      const t=document.createElement('textarea'); t.value=url; t.style.position='fixed'; t.style.opacity='0';
+      document.body.appendChild(t); t.select();
+      try{ ok=document.execCommand('copy'); }catch(_){}
+      t.remove();
+    }
+    copyBtn.textContent = ok ? 'Copied' : 'Couldn\u2019t copy';
+    setTimeout(()=>{ copyBtn.textContent='Copy link'; }, 1600);
+  };
+  document.addEventListener('click', e=>{ if(!pop.hidden && !e.target.closest('#calsubwrap')) closeCalSub(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ closeCalSub(); btn.focus(); } });
 })();
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.

@@ -3,7 +3,6 @@ import { Loader2, TreePine } from "components/icons";
 import Layout from "components/Layout";
 import { auth } from "app/auth/auth";
 import { apiFetch } from "utils/apiFetch";
-import { CalendarSubscribe } from "components/CalendarSubscribe";
 import { currentMe } from "utils/me";
 
 /**
@@ -117,7 +116,7 @@ export default function InstallSchedule() {
 
   return (
     <Layout>
-      <div className={tv ? "fixed inset-0 z-[60] flex flex-col bg-[#f7f6f2]" : "relative flex h-full min-h-0 flex-col"}>
+      <div className={tv ? "fixed inset-0 z-[60] flex flex-col bg-[#f7f6f2]" : "flex h-full min-h-0 flex-col"}>
         {error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-stone-500">
             <TreePine className="h-8 w-8 text-stone-400" />
@@ -138,7 +137,6 @@ export default function InstallSchedule() {
             onLoad={sendToken}
           />
         )}
-        {html !== null && !tv && <CalendarSubscribe />}
       </div>
     </Layout>
   );
