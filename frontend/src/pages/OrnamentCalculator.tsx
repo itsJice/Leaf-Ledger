@@ -704,7 +704,8 @@ export default function OrnamentCalculator() {
         </div>
       </header>
 
-      <div className="px-4 sm:px-10 py-8">
+      {/* Capped so an ultrawide screen doesn't stretch the ornament table edge to edge. */}
+      <div className="max-w-[1600px] px-4 sm:px-10 py-8">
         {step === "calculator" ? (
           <CalculatorStep
             heightFt={heightFt}
@@ -966,11 +967,13 @@ function CalculatorStep(p: CalcProps) {
   const showTree = p.dimsValid && !p.tooSmall;
   const inEnhancerLines = p.enhancerLines.filter((l) => l.inEnhancers > 0);
   const inEnhancerTotal = inEnhancerLines.reduce((sum, l) => sum + l.inEnhancers, 0);
+  // Side by side from xl: at lg the content area beside the sidebar is only
+  // ~780px, and a fixed 380px column pushed the page sideways.
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       {/* Left: inputs + table */}
       <div className="flex flex-col gap-6">
-        <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
             <TreePine size={15} className="text-emerald-700" />
             Tree Dimensions
@@ -1000,7 +1003,7 @@ function CalculatorStep(p: CalcProps) {
             </label>
             {/* Width profile — sets the width from the height and keeps it following (Leaf & Ledger only) */}
             {p.recipeMode === "leafledger" && (
-              <div className="flex flex-col gap-1">
+              <div className="flex w-full flex-col gap-1 sm:w-auto">
                 <span className="text-xs font-medium text-stone-500">Profile</span>
                 <div className="flex overflow-hidden rounded-lg border border-stone-300 text-xs font-medium">
                   {(Object.keys(WIDTH_PROFILES) as WidthProfile[]).map((profile) => (
@@ -1008,7 +1011,7 @@ function CalculatorStep(p: CalcProps) {
                       key={profile}
                       onClick={() => p.setWidthProfile(profile)}
                       disabled={!p.dimsValid}
-                      className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      className={`flex-1 px-2 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-3 sm:py-1.5 ${
                         p.widthProfile === profile
                           ? "bg-emerald-700 text-white"
                           : "bg-white text-stone-600 hover:bg-stone-100"
@@ -1018,7 +1021,7 @@ function CalculatorStep(p: CalcProps) {
                     </button>
                   ))}
                   <span
-                    className={`px-3 py-1.5 ${
+                    className={`flex-1 px-2 py-2 text-center sm:flex-none sm:px-3 sm:py-1.5 ${
                       p.widthProfile === null && p.dimsValid ? "bg-emerald-700 text-white" : "bg-white text-stone-400"
                     }`}
                   >
@@ -1118,17 +1121,19 @@ function CalculatorStep(p: CalcProps) {
         </section>
 
         <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+          <div className="flex items-center justify-between border-b border-stone-200 px-4 py-4 sm:px-6">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-600">Ornaments</h2>
             <span className="text-xs text-stone-500">{p.totalOrnaments.toLocaleString()} total</span>
           </div>
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
-                <th className="px-6 py-2 font-medium">Size (in)</th>
-                {showColorSplit && <th className="px-6 py-2 font-medium">Colors</th>}
-                <th className="px-6 py-2 font-medium">Quantity</th>
-                <th className="px-6 py-2 font-medium">To Order</th>
+                {/* On a phone Colors and To Order fold under the size, so the
+                    quantity box stays in view without a sideways scroll. */}
+                <th className="px-4 py-2 font-medium sm:px-6">Size (in)</th>
+                {showColorSplit && <th className="hidden px-6 py-2 font-medium sm:table-cell">Colors</th>}
+                <th className="px-4 py-2 font-medium sm:px-6">Quantity</th>
+                <th className="hidden px-6 py-2 font-medium sm:table-cell">To Order</th>
               </tr>
             </thead>
             <tbody>
@@ -1143,26 +1148,37 @@ function CalculatorStep(p: CalcProps) {
                     key={o.size}
                     className={`border-b border-stone-100 last:border-0 ${active ? "bg-emerald-50/40" : ""}`}
                   >
-                    <td className="px-6 py-2.5">
+                    <td className="px-4 py-2.5 sm:px-6">
                       <span className={`font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>
                         {o.display}&quot;
                       </span>
+                      {active && (
+                        <span className="mt-0.5 block text-xs text-stone-500 sm:hidden">
+                          {showColorSplit && <span className="block text-stone-600">{colorSplitLabel(numeric, p.colorCount)}</span>}
+                          {packSummary(o, numeric)}
+                          {split && split.inEnhancers > 0 && (
+                            <span className="block text-stone-400">
+                              {split.loose} loose / {split.inEnhancers} in enhancers
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </td>
                     {showColorSplit && (
-                      <td className="px-6 py-2 text-xs text-stone-600">
+                      <td className="hidden px-6 py-2 text-xs text-stone-600 sm:table-cell">
                         {active ? colorSplitLabel(numeric, p.colorCount) : "—"}
                       </td>
                     )}
-                    <td className="px-6 py-2">
+                    <td className="px-4 py-2 align-top sm:px-6 sm:align-middle">
                       <input
                         type="number"
                         min={0}
                         value={v}
                         onChange={(e) => p.setQty(o.size, e.target.value)}
-                        className="w-24 rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                        className="w-20 rounded-md sm:w-24 border border-stone-300 px-2 py-1.5 text-sm text-stone-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                       />
                     </td>
-                    <td className="px-6 py-2 text-xs text-stone-500">
+                    <td className="hidden px-6 py-2 text-xs text-stone-500 sm:table-cell">
                       {active ? packSummary(o, numeric) : "—"}
                       {split && split.inEnhancers > 0 && (
                         <span className="text-stone-400">
@@ -1175,7 +1191,7 @@ function CalculatorStep(p: CalcProps) {
               })}
             </tbody>
           </table></div>
-          <div className="flex justify-end border-t border-stone-200 px-6 py-4">
+          <div className="flex justify-end border-t border-stone-200 px-4 py-4 sm:px-6">
             <button
               onClick={p.goToColors}
               disabled={p.totalOrnaments === 0}
@@ -1189,7 +1205,7 @@ function CalculatorStep(p: CalcProps) {
 
         {/* Enhancers — the parallel bill of materials (Leaf & Ledger rules only) */}
         {p.recipeMode === "leafledger" && (
-          <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+          <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
                 <Flower2 size={15} className="text-emerald-700" />
@@ -1253,7 +1269,7 @@ function CalculatorStep(p: CalcProps) {
 
       {/* Right: tree visualization + coverage */}
       <aside className="flex flex-col gap-6">
-        <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="mb-4 text-center text-sm font-semibold uppercase tracking-wide text-stone-600">
             Ornament Density
           </h2>
@@ -1316,7 +1332,7 @@ function CalculatorStep(p: CalcProps) {
           </dl>
         </section>
 
-        <section className="rounded-xl border border-stone-200 bg-stone-50 p-5">
+        <section className="rounded-xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
           <p className="text-xs leading-relaxed text-stone-500">
             <strong className="text-stone-600">Disclaimer:</strong> the tree image
             illustrates approximate coverage based on the number and size of ornaments
@@ -1374,7 +1390,7 @@ function ColorsStep(p: ColorsProps) {
   return (
     <div className="flex flex-col gap-6">
     {/* Purchase list header — the configuration Charles reads first, and one click to fill it */}
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-6 py-4 shadow-sm">
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-4 py-4 shadow-sm sm:px-6">
       <div>
         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
           <ListChecks size={14} className="text-emerald-700" />
@@ -1394,7 +1410,8 @@ function ColorsStep(p: ColorsProps) {
         Build purchase list
       </button>
     </section>
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_420px]">
+    {/* Side by side from xl, for the same reason as the calculator step. */}
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       {/* Left: color blocks */}
       <div className="flex flex-col gap-6">
         <button
@@ -1413,7 +1430,7 @@ function ColorsStep(p: ColorsProps) {
         {p.colorBlocks.map((block, idx) => {
           const color = COLORS.find((c) => c.code === block.colorCode);
           return (
-            <section key={block.id} className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+            <section key={block.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span
@@ -1515,7 +1532,9 @@ function ColorsStep(p: ColorsProps) {
               Pick a color and at least one finish to build your order.
             </div>
           ) : (
-            <div className="max-h-[560px] divide-y divide-stone-100 overflow-y-auto">
+            // Only the xl side column caps its height; stacked below that, a
+            // nested scroll box just traps the thumb, so the page scrolls instead.
+            <div className="divide-y divide-stone-100 xl:max-h-[560px] xl:overflow-y-auto">
               {p.recipeLines.map((ln) => {
                 const key = lineId(ln.size, ln.color, ln.finish);
                 const pick = p.picked[key];
@@ -1547,8 +1566,8 @@ function ColorsStep(p: ColorsProps) {
                         <div className="flex flex-col items-end gap-1">
                           <span className="whitespace-nowrap text-sm font-bold text-emerald-800">{pick.packs_needed ?? "—"} pk</span>
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => p.openPickerFor(key)} className="text-[10px] font-medium text-emerald-700 hover:underline">change</button>
-                            <button onClick={() => p.clearPick(key)} className="text-stone-300 hover:text-rose-500" title="Clear"><X size={13} /></button>
+                            <button onClick={() => p.openPickerFor(key)} className="px-1 py-1.5 text-xs font-medium text-emerald-700 hover:underline sm:p-0 sm:text-[10px]">change</button>
+                            <button onClick={() => p.clearPick(key)} className="p-1.5 text-stone-300 hover:text-rose-500 sm:p-0" title="Clear"><X size={13} /></button>
                           </div>
                         </div>
                       </div>
@@ -1612,7 +1631,7 @@ function ColorsStep(p: ColorsProps) {
 
         {/* Price-aware size swaps (designer rule 8) — only when the picks' prices make one worth it */}
         {p.swapSuggestions.length > 0 && (
-          <section className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5">
+          <section className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
               <ArrowUpRight size={15} className="text-emerald-700" />
               Size swaps worth making
@@ -1642,7 +1661,7 @@ function ColorsStep(p: ColorsProps) {
           </section>
         )}
 
-        <section className="rounded-xl border border-stone-200 bg-stone-50 p-5">
+        <section className="rounded-xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
           <p className="text-xs leading-relaxed text-stone-500">
             Click a size to <strong className="text-stone-600">pick a real product</strong> from the catalog
             below, or <strong className="text-stone-600">Build purchase list</strong> to fill every size with its
@@ -1696,7 +1715,7 @@ function CatalogMatches(p: CatalogMatchesProps) {
 
   return (
     <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-6">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
             <PackageSearch size={16} className="text-emerald-700" />
@@ -1719,15 +1738,15 @@ function CatalogMatches(p: CatalogMatchesProps) {
       </div>
 
       {p.error ? (
-        <div className="px-6 py-8 text-center text-sm text-rose-600">
+        <div className="px-4 py-8 text-center sm:px-6 text-sm text-rose-600">
           Couldn&apos;t load catalog matches ({p.error}).
         </div>
       ) : p.loading && p.matchLines.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-stone-400">
+        <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm sm:px-6 text-stone-400">
           <Loader2 size={16} className="animate-spin" /> Searching the catalog…
         </div>
       ) : p.matchLines.length === 0 ? (
-        <div className="px-6 py-10 text-center text-sm text-stone-400">
+        <div className="px-4 py-10 text-center sm:px-6 text-sm text-stone-400">
           Pick a color and finish to see matching products.
         </div>
       ) : (
@@ -1740,7 +1759,7 @@ function CatalogMatches(p: CatalogMatchesProps) {
               <div
                 key={key}
                 id={`match-line-${key}`}
-                className={`scroll-mt-4 px-6 py-4 ${active ? "bg-emerald-50/40 ring-1 ring-inset ring-emerald-400" : ""}`}
+                className={`scroll-mt-4 px-4 py-4 sm:px-6 ${active ? "bg-emerald-50/40 ring-1 ring-inset ring-emerald-400" : ""}`}
               >
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
                   <span className="font-semibold text-stone-800">{line.size}&quot;</span>

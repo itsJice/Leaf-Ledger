@@ -126,7 +126,7 @@ function diff(original: Record<string, unknown>, draft: Draft): Record<string, u
 }
 
 const inputClass = "w-full rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300";
-const smallInput = "w-16 rounded-lg border border-stone-200 px-2 py-1 text-xs text-right focus:outline-none focus:ring-2 focus:ring-emerald-300";
+const smallInput = "min-w-0 flex-1 sm:w-16 sm:flex-none rounded-lg border border-stone-200 px-2 py-1 text-xs text-right focus:outline-none focus:ring-2 focus:ring-emerald-300";
 
 function Money({ v }: { v: number | null | undefined }) {
   return <>{v === null || v === undefined ? "–" : formatCurrency(v)}</>;
@@ -162,7 +162,7 @@ function Summary({ d, pricing, season }: { d: Record<string, unknown>; pricing: 
           ].filter(Boolean).join(" · ") || "No crew, hours or boxes on the card yet"}
         </p>
       </div>
-      <div className="min-w-[220px] rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+      <div className="min-w-0 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 sm:min-w-[220px]">
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Ideal {season}</span>
           <span className="font-semibold text-stone-800"><Money v={ideal?.total} /></span>
@@ -249,14 +249,14 @@ export function ChristmasCard({ clientId, season, detail, previousDetail, pricin
   return (
     <div className="mb-4 rounded-xl border border-stone-200 bg-white p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
           Christmas card · {season}
           {seeded && !editing && <span className="font-normal normal-case tracking-normal text-amber-700">· copied from last season, not saved yet</span>}
         </p>
         <button
           type="button"
           data-edit onClick={() => setEditing((v) => !v)}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-stone-500 hover:bg-stone-100 hover:text-emerald-700"
+          className="-my-1 flex shrink-0 items-center gap-1 rounded-md px-2 py-2 text-xs text-stone-500 hover:bg-stone-100 hover:text-emerald-700 sm:my-0 sm:py-1"
         >
           {editing ? <><X size={12} /> Close</> : <><Pencil size={12} /> Edit card</>}
         </button>
@@ -271,27 +271,29 @@ export function ChristmasCard({ clientId, season, detail, previousDetail, pricin
             {draft.inventory.length === 0 && <p className="mb-1.5 text-xs italic text-stone-400">Nothing yet — add a line per item type and size.</p>}
             <div className="space-y-1.5">
               {draft.inventory.map((l, i) => (
-                <div key={i} className="grid grid-cols-[92px_60px_1fr_1fr_28px] items-center gap-1.5">
+                // Phone: type, qty and remove on one row, size and note full-width
+                // beneath -- five columns across leaves the text fields ~50px wide.
+                <div key={i} className="grid grid-cols-[1fr_64px_36px] items-center gap-1.5 rounded-lg border border-stone-100 p-1.5 sm:grid-cols-[92px_60px_1fr_1fr_28px] sm:rounded-none sm:border-0 sm:p-0">
                   <select className={inputClass} value={l.type} onChange={(e) => setLine(i, { type: e.target.value as InventoryType })}>
                     {INVENTORY_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
                   </select>
                   <input inputMode="numeric" className={`${inputClass} text-right`} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} placeholder="qty" title="How many" />
-                  <input className={inputClass} value={l.size} onChange={(e) => setLine(i, { size: e.target.value })} placeholder="size (12 ft, 36 in, 9 ft…)" />
-                  <input className={inputClass} value={l.note} onChange={(e) => setLine(i, { note: e.target.value })} placeholder="note (flocked, pre-lit, front door…)" />
-                  <button type="button" onClick={() => removeLine(i)} className="rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-red-600" title="Remove line"><Trash2 size={13} /></button>
+                  <input className={`${inputClass} order-4 col-span-3 sm:order-none sm:col-span-1`} value={l.size} onChange={(e) => setLine(i, { size: e.target.value })} placeholder="size (12 ft, 36 in, 9 ft…)" />
+                  <input className={`${inputClass} order-5 col-span-3 sm:order-none sm:col-span-1`} value={l.note} onChange={(e) => setLine(i, { note: e.target.value })} placeholder="note (flocked, pre-lit, front door…)" />
+                  <button type="button" onClick={() => removeLine(i)} className="flex h-9 items-center justify-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-red-600 sm:h-auto sm:p-1" title="Remove line" aria-label="Remove line"><Trash2 size={13} /></button>
                 </div>
               ))}
             </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {INVENTORY_TYPES.map((t) => (
-                <button key={t} type="button" onClick={() => addLine(t)} className="flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] text-stone-600 hover:bg-stone-50">
+                <button key={t} type="button" onClick={() => addLine(t)} className="flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] text-stone-600 hover:bg-stone-50 sm:px-2 sm:py-0.5">
                   <Plus size={10} /> {TYPE_LABEL[t]}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-2.5 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             <label className="block">
               <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-stone-400">Boxes</span>
               <input inputMode="numeric" className={inputClass} value={draft.boxes} onChange={(e) => setDraft((d) => ({ ...d, boxes: e.target.value }))} />
@@ -331,12 +333,12 @@ export function ChristmasCard({ clientId, season, detail, previousDetail, pricin
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancel</button>
+            <button type="button" onClick={() => setEditing(false)} className="px-3 py-2.5 text-xs text-stone-500 hover:text-stone-700 sm:py-1.5">Cancel</button>
             <button
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-60 sm:px-3 sm:py-1.5"
               style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               <Check size={12} strokeWidth={3} />

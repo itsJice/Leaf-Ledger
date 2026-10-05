@@ -650,13 +650,13 @@ export default function CatalogSearch() {
                   <button
                     onClick={() => setCardSize((s) => (Math.max(1, s - 1) as CardSize))}
                     disabled={cardSize === 1}
-                    className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                    className="rounded-md border border-stone-300 p-1.5 text-stone-500 hover:text-stone-800 disabled:opacity-40 sm:p-1"
                     title="Smaller cards (more per row)"
                   ><Minus size={14} /></button>
                   <button
                     onClick={() => setCardSize((s) => (Math.min(4, s + 1) as CardSize))}
                     disabled={cardSize === 4}
-                    className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                    className="rounded-md border border-stone-300 p-1.5 text-stone-500 hover:text-stone-800 disabled:opacity-40 sm:p-1"
                     title="Bigger cards (fewer per row)"
                   ><Plus size={14} /></button>
                 </div>
@@ -664,12 +664,12 @@ export default function CatalogSearch() {
               <div className="flex items-center rounded-lg border border-stone-300">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`rounded-l-md p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                  className={`rounded-l-md p-2 sm:p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
                   title="Card view"
                 ><LayoutGrid size={15} /></button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`rounded-r-md p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                  className={`rounded-r-md p-2 sm:p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
                   title="List view"
                 ><List size={15} /></button>
               </div>
@@ -865,13 +865,16 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, 
     return (
       <div
         onClick={() => onOpen(p.id)}
-        className="group relative flex cursor-pointer items-center gap-4 rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md"
+        className="group relative flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md sm:gap-4"
       >
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-50">
           <CardImage imgs={imgs} alt={p.name} cls="max-h-full max-w-full object-contain" />
         </div>
+        {/* On a phone the name gets two lines and the price sits under it, so
+            the row isn't a column of "10" Berry Re…" stubs. */}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-stone-800" title={p.name}>{p.name}</p>
+          <p className="line-clamp-2 text-sm font-medium text-stone-800 sm:line-clamp-none sm:truncate" title={p.name}>{p.name}</p>
+          {price && <p className="text-sm font-semibold text-emerald-800 sm:hidden">{price}</p>}
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-500">
             <span className="truncate">{p.supplier_name || "—"}</span>
             {p.supplier_sku && <span className="font-mono text-stone-400">{p.supplier_sku}</span>}
@@ -879,16 +882,18 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, 
             {tags.map((t, i) => <span key={i} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">{t}</span>)}
           </div>
         </div>
-        <span className="shrink-0 text-sm font-semibold text-emerald-800">{price}</span>
-        <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} ready={pinsReady} onPinsChanged={onPinsChanged}
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 ${isPinned ? "bg-emerald-700 ring-emerald-700" : "bg-white ring-stone-200 hover:ring-emerald-400"}`} />
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleFav(p.id); }}
-          title={isFav ? "Remove favorite" : "Add to favorites"}
-          className="shrink-0"
-        >
-          <Heart size={16} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
-        </button>
+        <span className="hidden shrink-0 text-sm font-semibold text-emerald-800 sm:inline">{price}</span>
+        <div className="flex shrink-0 flex-col items-center gap-1 sm:flex-row sm:gap-4">
+          <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} ready={pinsReady} onPinsChanged={onPinsChanged}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 sm:h-7 sm:w-7 ${isPinned ? "bg-emerald-700 ring-emerald-700" : "bg-white ring-stone-200 hover:ring-emerald-400"}`} />
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFav(p.id); }}
+            title={isFav ? "Remove favorite" : "Add to favorites"}
+            className="flex h-8 w-8 shrink-0 items-center justify-center sm:h-auto sm:w-auto"
+          >
+            <Heart size={16} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
+          </button>
+        </div>
       </div>
     );
   }
@@ -902,12 +907,12 @@ function ProductCard({ p, onOpen, isFav, onToggleFav, isPinned, jobId, groupId, 
       <button
         onClick={(e) => { e.stopPropagation(); onToggleFav(p.id); }}
         title={isFav ? "Remove favorite" : "Add to favorites"}
-        className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/85 shadow-sm ring-1 ring-stone-200 backdrop-blur-sm hover:bg-white"
+        className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 sm:h-7 sm:w-7 shadow-sm ring-1 ring-stone-200 backdrop-blur-sm hover:bg-white"
       >
         <Heart size={14} fill={isFav ? "rgb(var(--ll-fav))" : "none"} style={{ color: isFav ? "rgb(var(--ll-fav))" : "rgb(var(--nc-400))" }} />
       </button>
       <PinToggle productId={p.id} jobId={jobId} groupId={groupId} groups={groups} isPinned={isPinned} ready={pinsReady} onPinsChanged={onPinsChanged}
-        className={`absolute right-2 top-10 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-sm ring-1 backdrop-blur-sm ${isPinned ? "bg-emerald-700 ring-emerald-700" : "bg-white/85 ring-stone-200 hover:bg-white"}`} />
+        className={`absolute right-2 top-11 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-sm sm:top-10 sm:h-7 sm:w-7 ring-1 backdrop-blur-sm ${isPinned ? "bg-emerald-700 ring-emerald-700" : "bg-white/85 ring-stone-200 hover:bg-white"}`} />
       {isPinned && <span className="pointer-events-none absolute inset-0 z-[5] rounded-xl ring-2 ring-emerald-500/70" />}
       <div className={`flex ${IMG_HEIGHT[size]} items-center justify-center overflow-hidden bg-stone-50`}>
         <CardImage imgs={imgs} alt={p.name} cls="h-full w-full object-contain" />

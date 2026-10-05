@@ -58,12 +58,12 @@ export default function CatalogPickPane({ title, initialQuery, onPick, onClose, 
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
-        <div>
+      <div className="flex items-center justify-between gap-2 border-b border-stone-200 px-4 py-3">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">Catalog search</p>
           {title && <p className="text-sm font-medium text-stone-800">{title}</p>}
         </div>
-        <button onClick={onClose} className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700" aria-label="Close">
+        <button onClick={onClose} className="-mr-1 rounded p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700 sm:mr-0 sm:p-1" aria-label="Close">
           <X size={16} />
         </button>
       </div>
@@ -101,7 +101,7 @@ export default function CatalogPickPane({ title, initialQuery, onPick, onClose, 
                 </div>
                 <button
                   onClick={() => onPick(p)}
-                  className="shrink-0 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-800"
+                  className="shrink-0 rounded-md bg-emerald-700 px-2.5 py-2.5 text-xs font-medium text-white hover:bg-emerald-800 sm:py-1.5"
                 >
                   {pickLabel || "Use this"}
                 </button>

@@ -147,16 +147,16 @@ function SupplierModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ll-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 ll-modal">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-3 sm:mx-4 ll-modal">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-stone-100">
           <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {form.id ? "Edit Supplier" : "Add Supplier"}
           </h2>
-          <button onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
+          <button onClick={onClose} className="-mr-2 rounded-lg p-2 sm:-mr-1 sm:p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         {/* terms, contacts and shipping make this form far taller than the
             viewport on a laptop -- scroll the body, keep header/footer fixed */}
-        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="px-4 sm:px-6 py-5 space-y-4 max-h-[calc(100dvh-9rem)] sm:max-h-[70vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Supplier name *</label>
             <input className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Allstate Floral" />
@@ -194,7 +194,7 @@ function SupplierModal({
 
             {credsLocked ? (
               /* ── Locked / read-only view ── */
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs text-stone-500 mb-1">{usernameLabel}</label>
                   <div className="w-full border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white text-stone-700 truncate">
@@ -226,7 +226,7 @@ function SupplierModal({
               </div>
             ) : (
               /* ── Editable view ── */
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs text-stone-600 mb-1">{usernameLabel}</label>
                   <input
@@ -327,7 +327,7 @@ function SupplierModal({
                     />
                   </div>
                   <button type="button" onClick={() => setContacts(contacts.filter((_, j) => j !== i))}
-                    className="shrink-0 mt-1.5 text-stone-300 hover:text-red-500" title="Remove contact">
+                    className="shrink-0 -mr-1.5 mt-0 p-1.5 text-stone-300 hover:text-red-500" title="Remove contact">
                     <X size={14} />
                   </button>
                 </div>
@@ -335,7 +335,7 @@ function SupplierModal({
               <button
                 type="button"
                 onClick={() => setContacts([...contacts, { label: "", name: "", phone: "", email: "" }])}
-                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900"
+                className="inline-flex items-center gap-1 py-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 sm:py-0"
               >
                 <Plus size={12} /> Add contact
               </button>
@@ -396,7 +396,7 @@ function SupplierModal({
             <textarea rows={2} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none" value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} placeholder="Any notes about this supplier..." />
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-100">
+        <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-stone-100">
           <button onClick={onClose} className="text-sm text-stone-500 hover:text-stone-700 px-4 py-2">Cancel</button>
           <button data-edit onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
             {saving ? "Saving..." : form.id ? "Update Supplier" : "Add Supplier"}
@@ -549,10 +549,10 @@ function SupplierCard({
 
           {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button onClick={onEdit} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors" title="Edit supplier">
+            <button onClick={onEdit} className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors" title="Edit supplier">
               <Pencil size={14} />
             </button>
-            <button data-edit onClick={onDelete} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors" title="Delete supplier">
+            <button data-edit onClick={onDelete} className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors" title="Delete supplier">
               <Trash2 size={14} />
             </button>
           </div>
@@ -590,7 +590,7 @@ function SupplierCard({
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <span className="font-mono text-sm text-stone-800 break-all">{username || "—"}</span>
                   <button onClick={() => copy(username, "user")} disabled={!username} title="Copy username"
-                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300 disabled:opacity-40">
+                    className="shrink-0 inline-flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300 disabled:opacity-40">
                     {copied === "user" ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                   </button>
                 </div>
@@ -604,11 +604,11 @@ function SupplierCard({
                   </span>
                   <div className="flex shrink-0 items-center gap-1">
                     <button onClick={toggleReveal} title={revealed ? "Hide password" : "Show password"}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300">
+                      className="inline-flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300">
                       {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
                     </button>
                     <button onClick={copyPassword} title="Copy password"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300">
+                      className="inline-flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md border border-stone-200 bg-white text-stone-500 hover:text-emerald-700 hover:border-emerald-300">
                       {copied === "pass" ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                     </button>
                   </div>
@@ -689,7 +689,7 @@ function SupplierCard({
           )}
 
           <div className="flex justify-end">
-            <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-emerald-700"><Pencil size={11} /> Edit supplier &amp; credentials</button>
+            <button onClick={onEdit} className="inline-flex items-center gap-1.5 py-2 sm:py-0 text-xs font-medium text-stone-500 hover:text-emerald-700"><Pencil size={11} /> Edit supplier &amp; credentials</button>
           </div>
         </div>
       )}
@@ -853,7 +853,7 @@ export default function Suppliers() {
         </button>
       </header>
 
-      <div className="px-4 sm:px-10 py-6 max-w-4xl">
+      <div className="px-4 sm:px-10 pt-4 pb-24 sm:py-6 max-w-4xl">
         {loadError && (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
             <AlertTriangle size={16} className="shrink-0 text-amber-600" />

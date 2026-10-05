@@ -140,7 +140,7 @@ export default function Orders() {
         </aside>
 
         {/* Order detail */}
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+        <main className="min-w-0 max-w-[1400px] flex-1 px-4 py-6 sm:px-8">
           {activeId && (
             <button
               type="button"
@@ -196,20 +196,24 @@ export default function Orders() {
               <div className="flex flex-col gap-6">
                 {order.vendors.map((v) => (
                   <div key={v.supplier_id ?? v.supplier_name} className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-                    <div className="flex items-center justify-between gap-3 border-b border-stone-100 bg-stone-50 px-4 py-2.5">
-                      <div className="flex items-center gap-3">
+                    {/* Phone: name and subtotal on top, the small links wrap beneath
+                        rather than squeezing "Log in" into two lines. */}
+                    <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-stone-50 px-4 py-2.5 sm:items-center">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="font-semibold text-stone-800">{v.supplier_name}</span>
-                        <span className="text-xs text-stone-400">{v.subtotal_qty} item{v.subtotal_qty === 1 ? "" : "s"}</span>
+                        <span className="whitespace-nowrap text-xs text-stone-400">{v.subtotal_qty} item{v.subtotal_qty === 1 ? "" : "s"}</span>
                         {v.supplier_login_url && (
-                          <a href={v.supplier_login_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"><LogIn size={11} /> Log in</a>
+                          <a href={v.supplier_login_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 whitespace-nowrap py-1 text-xs font-medium text-emerald-700 hover:underline sm:py-0"><LogIn size={11} /> Log in</a>
                         )}
-                        <button type="button" onClick={() => runExport("pdf", v.supplier_id, v.supplier_name)} className="text-xs text-stone-400 hover:text-emerald-700" title="Export this vendor's PO as PDF">PO ↓</button>
+                        <button type="button" onClick={() => runExport("pdf", v.supplier_id, v.supplier_name)} className="whitespace-nowrap py-1 text-xs text-stone-400 hover:text-emerald-700 sm:py-0" title="Export this vendor's PO as PDF">PO ↓</button>
                       </div>
-                      <span className="text-sm font-semibold text-emerald-800">{money(v.subtotal)}</span>
+                      <span className="shrink-0 text-sm font-semibold text-emerald-800">{money(v.subtotal)}</span>
                     </div>
+                    {/* Label/value cards until 2xl: beside the sidebar and the orders
+                        rail the seven columns need ~800px, which 1280-wide screens lack. */}
                     <div className="overflow-x-auto">
-                    <table className="block w-full text-sm sm:table sm:min-w-[640px]">
-                      <thead className="hidden sm:table-header-group">
+                    <table className="block w-full text-sm 2xl:table 2xl:min-w-[640px]">
+                      <thead className="hidden 2xl:table-header-group">
                         <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
                           <th className="px-4 py-2 font-medium">Product</th>
                           <th className="px-2 py-2 font-medium">SKU</th>
@@ -220,12 +224,12 @@ export default function Orders() {
                           <th className="px-2 py-2"></th>
                         </tr>
                       </thead>
-                      <tbody className="block sm:table-row-group">
+                      <tbody className="block 2xl:table-row-group">
                         {v.items.map((it) => {
                           const img = proxied(it.image_url);
                           return (
-                            <tr key={it.item_id} className="block border-t border-stone-100 px-3 py-3 sm:table-row sm:p-0 sm:align-middle">
-                              <td className="block pb-2 sm:table-cell sm:px-4 sm:py-2">
+                            <tr key={it.item_id} className="block border-t border-stone-100 px-3 py-3 2xl:table-row 2xl:p-0 2xl:align-middle">
+                              <td className="block pb-2 2xl:table-cell 2xl:px-4 2xl:py-2">
                                 <div className="flex items-center gap-3">
                                   {/* Big enough to actually identify the product —
                                       this is a design business, the picture is the point. */}
@@ -233,28 +237,28 @@ export default function Orders() {
                                     {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={26} className="text-stone-300" />}
                                   </button>
                                   <div className="min-w-0 flex-1">
-                                    <button onClick={() => openProduct(it.product_id)} className="block max-w-full truncate text-left font-medium text-stone-800 hover:text-emerald-700 sm:max-w-[22rem]" title={it.name}>{it.name}</button>
+                                    <button onClick={() => openProduct(it.product_id)} className="line-clamp-2 block max-w-full text-left font-medium text-stone-800 hover:text-emerald-700 2xl:max-w-[22rem] 2xl:truncate" title={it.name}>{it.name}</button>
                                     {it.product_url && (
                                       <a href={it.product_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-stone-400 hover:text-emerald-700"><ExternalLink size={10} /> View on site</a>
                                     )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="flex items-center justify-between gap-3 py-1 font-mono text-[11px] text-stone-500 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">SKU</span><span>{it.sku || "—"}</span></td>
-                              <td className="flex items-center justify-between gap-3 py-1 text-stone-500 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Size</span><span>{it.size || "—"}</span></td>
-                              <td className="flex items-center justify-between gap-3 py-1 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Qty</span>
-                                <div className="flex w-fit items-center rounded-md border border-stone-300 sm:mx-auto">
-                                  <button onClick={() => changeQty(it.item_id, Math.max(1, it.quantity - 1))} className="px-1.5 py-1 text-stone-500 hover:text-stone-800" aria-label="Decrease"><Minus size={12} /></button>
+                              <td className="flex items-center justify-between gap-3 py-1 font-mono text-[11px] text-stone-500 2xl:table-cell 2xl:px-2 2xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 2xl:hidden">SKU</span><span>{it.sku || "—"}</span></td>
+                              <td className="flex items-center justify-between gap-3 py-1 text-stone-500 2xl:table-cell 2xl:px-2 2xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 2xl:hidden">Size</span><span>{it.size || "—"}</span></td>
+                              <td className="flex items-center justify-between gap-3 py-1 2xl:table-cell 2xl:px-2 2xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 2xl:hidden">Qty</span>
+                                <div className="flex w-fit items-center rounded-md border border-stone-300 2xl:mx-auto">
+                                  <button onClick={() => changeQty(it.item_id, Math.max(1, it.quantity - 1))} className="px-3 py-2 text-stone-500 hover:text-stone-800 2xl:px-1.5 2xl:py-1" aria-label="Decrease"><Minus size={12} /></button>
                                   <input type="number" min={1} value={it.quantity}
                                     onChange={(e) => changeQty(it.item_id, Math.max(1, Number(e.target.value) || 1))}
                                     className="w-11 border-x border-stone-200 py-1 text-center text-sm outline-none" />
-                                  <button onClick={() => changeQty(it.item_id, it.quantity + 1)} className="px-1.5 py-1 text-stone-500 hover:text-stone-800" aria-label="Increase"><Plus size={12} /></button>
+                                  <button onClick={() => changeQty(it.item_id, it.quantity + 1)} className="px-3 py-2 text-stone-500 hover:text-stone-800 2xl:px-1.5 2xl:py-1" aria-label="Increase"><Plus size={12} /></button>
                                 </div>
                               </td>
-                              <td className="flex items-center justify-between gap-3 py-1 text-right text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Unit</span><span>{money(it.unit_price)}</span></td>
-                              <td className="flex items-center justify-between gap-3 py-1 text-right font-medium text-stone-800 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Total</span><span>{money(it.line_total)}</span></td>
-                              <td className="block pt-2 text-right sm:table-cell sm:px-2 sm:py-2">
-                                <button onClick={() => dropItem(it.item_id)} className="text-stone-300 hover:text-rose-600" aria-label="Remove"><Trash2 size={15} /></button>
+                              <td className="flex items-center justify-between gap-3 py-1 text-right text-stone-600 2xl:table-cell 2xl:px-2 2xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 2xl:hidden">Unit</span><span>{money(it.unit_price)}</span></td>
+                              <td className="flex items-center justify-between gap-3 py-1 text-right font-medium text-stone-800 2xl:table-cell 2xl:px-2 2xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 2xl:hidden">Total</span><span>{money(it.line_total)}</span></td>
+                              <td className="block pt-2 text-right 2xl:table-cell 2xl:px-2 2xl:py-2">
+                                <button onClick={() => dropItem(it.item_id)} className="-m-2 p-2 text-stone-300 hover:text-rose-600" aria-label="Remove"><Trash2 size={15} /></button>
                               </td>
                             </tr>
                           );

@@ -222,7 +222,8 @@ export function BuilderProductPicker({
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+              aria-label="Clear search"
+              className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-stone-400 hover:text-stone-700"
             >
               <X size={15} />
             </button>
@@ -332,14 +333,14 @@ export function BuilderProductPicker({
                   onClick={() => setCardSize((size) => (Math.max(1, size - 1) as BuilderCardSize))}
                   disabled={cardSize === 1}
                   title="Smaller cards (more per row)"
-                  className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                  className="rounded-md border border-stone-300 p-2 text-stone-500 hover:text-stone-800 disabled:opacity-40 sm:p-1"
                 ><Minus size={13} /></button>
                 <button
                   type="button"
                   onClick={() => setCardSize((size) => (Math.min(4, size + 1) as BuilderCardSize))}
                   disabled={cardSize === 4}
                   title="Bigger cards (fewer per row)"
-                  className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                  className="rounded-md border border-stone-300 p-2 text-stone-500 hover:text-stone-800 disabled:opacity-40 sm:p-1"
                 ><Plus size={13} /></button>
               </div>
             )}
@@ -348,13 +349,13 @@ export function BuilderProductPicker({
                 type="button"
                 onClick={() => setViewMode("grid")}
                 title="Card view"
-                className={`rounded-l-md p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                className={`rounded-l-md p-2 sm:p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
               ><LayoutGrid size={14} /></button>
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
                 title="List view"
-                className={`rounded-r-md p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                className={`rounded-r-md p-2 sm:p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
               ><List size={14} /></button>
             </div>
             {onToggleExpanded && (
@@ -362,7 +363,7 @@ export function BuilderProductPicker({
                 type="button"
                 onClick={onToggleExpanded}
                 title={expanded ? "Shrink the catalog" : "Expand the catalog full width"}
-                className="rounded-lg border border-stone-300 p-1.5 text-stone-500 hover:text-stone-800"
+                className="rounded-lg border border-stone-300 p-2 text-stone-500 hover:text-stone-800 sm:p-1.5"
               >
                 {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               </button>
@@ -442,7 +443,7 @@ export function BuilderProductPicker({
                     <button
                       type="button"
                       onClick={toggleAdd}
-                      className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                      className={`shrink-0 rounded-lg px-3 py-2.5 text-xs font-semibold sm:py-1.5 ${
                         added ? "bg-emerald-900 text-white" : "border border-stone-200 bg-white text-stone-800 hover:bg-stone-50"
                       }`}
                     >
@@ -476,7 +477,7 @@ export function BuilderProductPicker({
                   <button
                     type="button"
                     onClick={toggleAdd}
-                    className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold ${
+                    className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold sm:py-1.5 ${
                       added ? "bg-emerald-900 text-white" : "border border-stone-200 bg-white text-stone-800 hover:bg-stone-50"
                     }`}
                   >

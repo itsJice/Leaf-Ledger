@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Layout from "components/Layout";
-import { ChevronLeft, ChevronRight, Copy, Download, ExternalLink, Loader2, Search } from "components/icons";
+import { ChevronLeft, ChevronRight, Copy, Download, ExternalLink, Loader2, Search, SlidersHorizontal } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
 import {
   DONE, EMPTY_FILTER, STATUSES, answerText, countBy, exportUrl, filterResponses, fmtDate, fmtTimestamp,
@@ -19,6 +19,10 @@ import {
  * exactly as Cynthia marked them by hand. Buyer notes save on blur.
  * Summary: Google Forms' Responses -> Summary. Individual: one at a time.
  * Export: the Sheet's exact headers and column order (built server-side).
+ *
+ * Phone: the 1800px table becomes a list of cards (tap one for Individual),
+ * with a sort picker standing in for the column headers, and the filters
+ * fold behind a Filters button so the responses aren't pushed off screen.
  */
 
 type Tab = "table" | "summary" | "individual";
@@ -51,7 +55,7 @@ function StatusSelect({ r, onChange }: { r: FormResponse; onChange: (s: Status) 
       value={r.status}
       onChange={(e) => onChange(e.target.value as Status)}
       onClick={(e) => e.stopPropagation()}
-      className={`rounded-full border px-2 py-0.5 text-xs font-semibold outline-none ${STATUS_STYLE[r.status]}`}
+      className={`shrink-0 rounded-full border px-2 py-1.5 text-xs font-semibold outline-none sm:py-0.5 ${STATUS_STYLE[r.status]}`}
     >
       {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
     </select>
@@ -69,7 +73,7 @@ function NotesInput({ r, onSave }: { r: FormResponse; onSave: (v: string) => voi
       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
       onClick={(e) => e.stopPropagation()}
       placeholder="Add a note"
-      className="w-40 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-xs outline-none hover:border-stone-200 focus:border-emerald-400 focus:bg-white"
+      className="w-40 rounded-md border border-stone-200 bg-transparent px-1.5 py-2 text-base outline-none sm:border-transparent sm:py-0.5 sm:text-xs hover:border-stone-200 focus:border-emerald-400 focus:bg-white"
     />
   );
 }
@@ -102,6 +106,7 @@ export default function FormResponses() {
   const [filter, setFilter] = useState<ResponseFilter>(EMPTY_FILTER);
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 }>({ key: "submitted_at", dir: 1 });
   const [idx, setIdx] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -191,11 +196,24 @@ export default function FormResponses() {
 
   const cur = filtered[Math.min(idx, Math.max(filtered.length - 1, 0))];
   const statusCounts = STATUSES.map((s) => ({ value: s, count: responses.filter((r) => r.status === s).length }));
-  const selectCls = "rounded-md border border-stone-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-emerald-500";
+  // Phone: full-width, 40px-tall, 16px text (no iOS focus zoom); sm+ unchanged.
+  const selectCls = "w-full min-w-0 rounded-md border border-stone-300 bg-white px-2 py-2 text-base outline-none focus:border-emerald-500 sm:w-auto sm:py-1.5 sm:text-xs";
+  const btnCls = "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold sm:min-h-0";
+  const filterCount = (Object.keys(EMPTY_FILTER) as (keyof ResponseFilter)[]).filter((k) => k !== "text" && filter[k] !== EMPTY_FILTER[k]).length;
+  const SORTS: { label: string; key: string; dir: 1 | -1 }[] = [
+    { label: "Oldest first", key: "submitted_at", dir: 1 },
+    { label: "Newest first", key: "submitted_at", dir: -1 },
+    { label: "Install date", key: "install_date", dir: 1 },
+    { label: "Client", key: "client_name", dir: 1 },
+    { label: "Requestor", key: "requestor", dir: 1 },
+    { label: "Status", key: "status", dir: 1 },
+  ];
+  const sortIdx = SORTS.findIndex((x) => x.key === sort.key && x.dir === sort.dir);
 
   return (
     <Layout>
-      <header className="sticky top-0 z-20 border-b border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+      {/* Only sticky from sm up: on a phone this header is a third of the screen. */}
+      <header className="z-20 border-b sm:sticky sm:top-0 border-stone-200 px-4 py-4 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-emerald-700">Product Requests</p>
@@ -206,39 +224,50 @@ export default function FormResponses() {
               {responses.length} response{responses.length === 1 ? "" : "s"} · {responses.filter((r) => r.status === "New").length} new
             </p>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-stone-700">
+          <label className="flex min-h-[40px] cursor-pointer items-center gap-2 text-xs font-medium text-stone-700 sm:min-h-0">
             <span>Accepting responses</span>
             <button type="button" role="switch" aria-checked={Boolean(form?.is_accepting)} onClick={() => void toggleAccepting()}
               className={`relative h-5 w-9 rounded-full transition-colors ${form?.is_accepting ? "bg-emerald-600" : "bg-stone-300"}`}>
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form?.is_accepting ? "left-4" : "left-0.5"}`} />
             </button>
           </label>
-          <Link to={`/forms/${slug}`} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-emerald-400">
+          {/* basis-full on phone: the actions get their own row under the title. */}
+          <div className="flex basis-full flex-wrap items-center gap-2 sm:contents">
+          <Link to={`/forms/${slug}`} className={`${btnCls} border border-stone-300 bg-white text-stone-700 hover:border-emerald-400`}>
             <ExternalLink size={13} /> Open form
           </Link>
-          <button type="button" onClick={() => void copyLink()} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-emerald-400">
+          <button type="button" onClick={() => void copyLink()} className={`${btnCls} border border-stone-300 bg-white text-stone-700 hover:border-emerald-400`}>
             <Copy size={13} /> Copy link
           </button>
-          <button type="button" onClick={() => void download()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
+          <button type="button" onClick={() => void download()} className={`${btnCls} text-white`} style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
             <Download size={13} /> Export CSV
           </button>
+          </div>
         </div>
         <div className="mt-3 flex gap-1 border-b border-transparent">
           {(["table", "summary", "individual"] as Tab[]).map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)}
-              className={`rounded-t-md px-3 py-1.5 text-xs font-semibold capitalize ${tab === t ? "border-b-2 border-emerald-700 text-emerald-800" : "text-stone-500 hover:text-stone-800"}`}>
+              className={`rounded-t-md px-3 py-2.5 text-xs font-semibold capitalize sm:py-1.5 ${tab === t ? "border-b-2 border-emerald-700 text-emerald-800" : "text-stone-500 hover:text-stone-800"}`}>
               {t}
             </button>
           ))}
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 py-2.5 sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
-        <label className="relative flex min-w-[200px] flex-1 items-center sm:max-w-xs">
-          <Search size={13} className="pointer-events-none absolute left-2.5 text-stone-400" />
-          <input value={filter.text} onChange={(e) => setFilter({ ...filter, text: e.target.value })} placeholder="Search responses"
-            className="w-full rounded-full border border-stone-300 bg-white py-1.5 pl-7 pr-3 text-xs outline-none focus:border-emerald-500" />
-        </label>
+      <div className="grid grid-cols-2 items-center gap-2 border-b border-stone-100 px-4 py-2.5 sm:flex sm:flex-wrap sm:px-8" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+        <div className="col-span-2 flex gap-2 sm:contents">
+          <label className="relative flex min-w-0 flex-1 items-center sm:min-w-[200px] sm:max-w-xs">
+            <Search size={13} className="pointer-events-none absolute left-2.5 text-stone-400" />
+            <input value={filter.text} onChange={(e) => setFilter({ ...filter, text: e.target.value })} placeholder="Search responses"
+              className="w-full rounded-full border border-stone-300 bg-white py-2 pl-7 pr-3 text-base outline-none focus:border-emerald-500 sm:py-1.5 sm:text-xs" />
+          </label>
+          <button type="button" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}
+            className={`inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold sm:hidden ${filtersOpen || filterCount ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-stone-300 bg-white text-stone-700"}`}>
+            <SlidersHorizontal size={13} /> Filters{filterCount ? ` (${filterCount})` : ""}
+          </button>
+        </div>
+        {/* Phone: the filters below fold behind the Filters button. */}
+        <div className={`${filtersOpen ? "grid" : "hidden"} col-span-2 grid-cols-2 items-center gap-2 sm:contents`}>
         {([["client", "client_name", "Client"], ["project", "project_name", "Project"], ["requestor", "requestor", "Requestor"]] as const).map(([fk, key, label]) => (
           <select key={fk} value={filter[fk]} onChange={(e) => setFilter({ ...filter, [fk]: e.target.value })} className={selectCls}>
             <option value="">{label}: all</option>
@@ -249,24 +278,59 @@ export default function FormResponses() {
           <option value="">Status: all</option>
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <span className="flex items-center gap-1 text-xs text-stone-500">
+        <span className="col-span-2 flex min-w-0 items-center gap-1 text-xs text-stone-500">
           Install
-          <input type="date" value={filter.from} onChange={(e) => setFilter({ ...filter, from: e.target.value })} className={selectCls} />
+          <input type="date" aria-label="Install from" value={filter.from} onChange={(e) => setFilter({ ...filter, from: e.target.value })} className={`${selectCls} flex-1 sm:flex-none`} />
           –
-          <input type="date" value={filter.to} onChange={(e) => setFilter({ ...filter, to: e.target.value })} className={selectCls} />
+          <input type="date" aria-label="Install to" value={filter.to} onChange={(e) => setFilter({ ...filter, to: e.target.value })} className={`${selectCls} flex-1 sm:flex-none`} />
         </span>
+        </div>
         {JSON.stringify(filter) !== JSON.stringify(EMPTY_FILTER) && (
-          <button type="button" onClick={() => setFilter(EMPTY_FILTER)} className="text-xs font-medium text-stone-400 hover:text-stone-700">
+          <button type="button" onClick={() => setFilter(EMPTY_FILTER)} className="col-span-2 min-h-[32px] text-left text-xs font-medium text-stone-400 hover:text-stone-700 sm:min-h-0">
             Reset · {filtered.length} of {responses.length}
           </button>
         )}
       </div>
 
-      <main className="px-4 py-4 sm:px-8">
+      <main className="px-4 pb-24 pt-4 sm:px-8 sm:pb-4">
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 size={22} className="animate-spin text-emerald-700" /></div>
         ) : tab === "table" ? (
-          <div className="overflow-auto rounded-lg border border-stone-200 bg-white" style={{ maxHeight: "calc(100vh - 220px)" }}>
+          <>
+          {/* Phone: a card per response; tap for the full Individual view. */}
+          <div className="md:hidden">
+            <label className="mb-3 flex items-center gap-2 text-xs text-stone-500">
+              Sort
+              <select value={sortIdx} onChange={(e) => { const x = SORTS[Number(e.target.value)]; if (x) setSort({ key: x.key, dir: x.dir }); }} className={`${selectCls} flex-1`}>
+                {sortIdx < 0 && <option value={-1}>Custom</option>}
+                {SORTS.map((x, i) => <option key={x.label} value={i}>{x.label}</option>)}
+              </select>
+            </label>
+            <div className="space-y-2.5">
+              {sorted.map((r) => {
+                const done = DONE.has(r.status);
+                const title = [answerText(r.answers.client_name), answerText(r.answers.project_name)].filter(Boolean).join(" · ") || "Untitled";
+                const sub = [answerText(r.answers.requestor), r.answers.install_date ? `install ${fmtDate(r.answers.install_date)}` : "", answerText(r.answers.quantity_needed)].filter(Boolean).join(" · ");
+                return (
+                  <div key={r.id} role="button" tabIndex={0}
+                    onClick={() => { setIdx(filtered.indexOf(r)); setTab("individual"); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { setIdx(filtered.indexOf(r)); setTab("individual"); } }}
+                    className={`cursor-pointer rounded-lg border border-stone-200 bg-white p-3 ${done ? "text-stone-400" : "text-stone-800"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={`min-w-0 break-words text-sm font-semibold ${done ? "line-through" : ""}`}>{title}</p>
+                      <StatusSelect r={r} onChange={(s) => void patch(r, { status: s })} />
+                    </div>
+                    {r.answers.location_item && <p className={`mt-1 line-clamp-2 text-xs ${done ? "line-through" : "text-stone-600"}`}>{answerText(r.answers.location_item)}</p>}
+                    {r.answers.product_description && <p className={`mt-0.5 line-clamp-2 text-xs ${done ? "line-through" : "text-stone-600"}`}>{answerText(r.answers.product_description)}</p>}
+                    <p className="mt-1.5 text-[11px] text-stone-400">{fmtTimestamp(r.submitted_at)}{sub ? ` · ${sub}` : ""}</p>
+                    {r.buyer_notes && <p className="mt-1 text-[11px] italic text-stone-500">Note: {r.buyer_notes}</p>}
+                  </div>
+                );
+              })}
+              {!sorted.length && <p className="py-10 text-center text-sm text-stone-400">No responses match.</p>}
+            </div>
+          </div>
+          <div className="hidden overflow-auto rounded-lg border border-stone-200 bg-white md:block" style={{ maxHeight: "calc(100vh - 220px)" }}>
             <table className="min-w-[1800px] border-collapse text-xs">
               <thead>
                 <tr>
@@ -299,15 +363,16 @@ export default function FormResponses() {
               </tbody>
             </table>
           </div>
+          </>
         ) : tab === "summary" ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-lg border border-stone-200 bg-white p-5">
+          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+            <section className="rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
               <p className="text-3xl font-semibold text-stone-800">{filtered.length}</p>
               <p className="text-xs text-stone-500">response{filtered.length === 1 ? "" : "s"}{filtered.length !== responses.length ? ` (filtered from ${responses.length})` : ""}</p>
               <div className="mt-4"><Bars rows={statusCounts.filter((s) => s.count)} total={responses.length} /></div>
             </section>
             {["requestor", "match_existing", "samples_pictures", "preferred_vendor", "client_name", "project_name"].map((key) => q[key] && (
-              <section key={key} className="rounded-lg border border-stone-200 bg-white p-5">
+              <section key={key} className="rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
                 <h3 className="mb-3 text-sm font-semibold text-stone-800" title={q[key].label}>{shortLabel(q[key])}</h3>
                 <Bars rows={countBy(filtered, q[key]).slice(0, 12)} total={filtered.length} />
               </section>
@@ -317,12 +382,12 @@ export default function FormResponses() {
           <div className="mx-auto max-w-2xl">
             <div className="mb-3 flex items-center justify-between">
               <button type="button" disabled={idx <= 0} onClick={() => setIdx((i) => Math.max(0, i - 1))}
-                className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs disabled:opacity-40"><ChevronLeft size={13} /> Previous</button>
+                className="inline-flex min-h-[40px] items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs disabled:opacity-40 sm:min-h-0"><ChevronLeft size={13} /> Previous</button>
               <span className="text-xs text-stone-600">{Math.min(idx, filtered.length - 1) + 1} of {filtered.length}</span>
               <button type="button" disabled={idx >= filtered.length - 1} onClick={() => setIdx((i) => Math.min(filtered.length - 1, i + 1))}
-                className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs disabled:opacity-40">Next <ChevronRight size={13} /></button>
+                className="inline-flex min-h-[40px] items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs disabled:opacity-40 sm:min-h-0">Next <ChevronRight size={13} /></button>
             </div>
-            <section className="rounded-lg border border-stone-200 bg-white p-5">
+            <section className="rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
               <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-stone-100 pb-3">
                 <span className="text-xs text-stone-500">{fmtTimestamp(cur.submitted_at)}</span>
                 <StatusSelect r={cur} onChange={(s) => void patch(cur, { status: s })} />
@@ -333,7 +398,7 @@ export default function FormResponses() {
                 {(form?.questions || []).map((c) => (
                   <div key={c.key}>
                     <dt className="whitespace-pre-line text-xs text-stone-500">{c.label}</dt>
-                    <dd className="mt-1 whitespace-pre-line text-sm text-stone-800">
+                    <dd className="mt-1 whitespace-pre-line break-words text-sm text-stone-800">
                       {Array.isArray(cur.answers[c.key])
                         ? (cur.answers[c.key] as string[]).map((v) => <span key={v} className="block">{v}</span>)
                         : <Cell value={cur.answers[c.key]} q={{ ...c, type: c.type === "radio" ? "short_text" : c.type }} />}

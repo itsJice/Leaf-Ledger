@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical, NotebookPen, ChevronDown } from "components/icons";
+import { ClipboardList, Plus, Trash2, Search, Star, ExternalLink, Package, FolderPlus, Layers, GripVertical, NotebookPen, ChevronDown, ChevronLeft } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { ProductDetailModal } from "./library/ProductDetailModal";
@@ -68,8 +68,6 @@ export default function Jobs() {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<any | null>(null);
   const activeId = jobId ? Number(jobId) : null;
-  // Below `md` the job rail sits above the board and folds away once one is open.
-  const [railOpen, setRailOpen] = useState(false);
 
   const refreshList = useCallback(async () => {
     try { setJobs(await listBoards()); } catch { setJobs([]); }
@@ -181,7 +179,9 @@ export default function Jobs() {
       </header>
 
       <div className="flex flex-col md:flex-row">
-        <aside className={`${railOpen || !activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-72 md:border-b-0 md:border-r`}>
+        {/* Below `md` this is list -> detail: /jobs shows the rail as the list
+            (single tap opens), /jobs/:id shows only the board with a back link. */}
+        <aside className={`${!activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-72 md:border-b-0 md:border-r`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Jobs ({jobs.length})</p>
           {jobs.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">No jobs yet. Start one here, or from the “Pinning to” picker in Catalog Search.</p>
@@ -190,9 +190,9 @@ export default function Jobs() {
               {jobs.map((j) => {
                 const active = j.id === activeId;
                 return (
-                  <button key={j.id} onClick={() => { selectJob(j.id); setRailOpen(false); }}
-                    className={`flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
-                    <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
+                  <button key={j.id} onClick={() => selectJob(j.id)}
+                    className={`flex flex-col rounded-lg px-3 py-2.5 text-left md:py-2 ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
+                    <span className={`line-clamp-2 text-sm font-medium md:truncate ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
                     <span className="mt-0.5 truncate text-xs text-stone-400">{j.client_name || ""}{j.client_name && j.collection ? " · " : ""}{j.collection || ""}</span>
                     <span className="mt-0.5 text-[11px] text-stone-400">
                       {j.item_count} pinned{j.group_count ? ` · ${j.group_count} group${j.group_count === 1 ? "" : "s"}` : ""}{j.chosen_count ? ` · ${j.chosen_count} picked` : ""}
@@ -204,18 +204,18 @@ export default function Jobs() {
           )}
         </aside>
 
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+        <main className="min-w-0 max-w-[1600px] flex-1 px-4 py-6 sm:px-8">
           {activeId && (
             <button
               type="button"
-              onClick={() => setRailOpen((v) => !v)}
-              aria-expanded={railOpen}
-              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+              onClick={() => navigate("/jobs")}
+              className="-ml-1 mb-3 inline-flex items-center gap-1 rounded-lg px-1 py-2 text-sm font-medium text-emerald-700 md:hidden"
             >
-              <ClipboardList size={13} /> {railOpen ? "Hide" : "Show"} jobs ({jobs.length})
+              <ChevronLeft size={16} /> All jobs ({jobs.length})
             </button>
           )}
-          {!activeId ? <JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /> : loading && !board ? (
+          {/* On a phone the rail above already is the list; the double-click grid is for md+. */}
+          {!activeId ? <div className="hidden md:block"><JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /></div> : loading && !board ? (
             <p className="py-20 text-center text-sm text-stone-400">Loading…</p>
           ) : !board ? <JobGrid jobs={jobs} onOpen={selectJob} onNew={newJob} /> : (
             <BoardView board={board} run={run} onDelete={removeJob} onPinMore={pinMore} onOpen={openDetail}
@@ -241,7 +241,7 @@ function LoadRequestPicker({ requests, onPick }: { requests: OpenRequest[]; onPi
         <NotebookPen size={13} /> Load a request ({requests.length}) <ChevronDown size={12} />
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-80 rounded-xl border border-stone-200 bg-white p-2 shadow-lg" onMouseLeave={() => setOpen(false)}>
+        <div className="absolute left-0 z-30 mt-1 w-[calc(100vw-2rem)] max-w-80 rounded-xl sm:left-auto sm:right-0 sm:w-80 border border-stone-200 bg-white p-2 shadow-lg" onMouseLeave={() => setOpen(false)}>
           {requests.map((r) => {
             const label = [r.client_name, r.project_name].filter(Boolean).join(" · ") || "Untitled request";
             return (
@@ -274,7 +274,20 @@ function RequestReferencePanel({ request }: { request: ProductRequest }) {
         <ChevronDown size={14} className={`text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="overflow-x-auto border-t border-stone-200 px-4 py-3">
+        <>
+        {/* One card per requested item until xl: beside the job rail the five
+            columns squeeze to a word per line even on a tablet. */}
+        <ul className="divide-y divide-stone-200/70 border-t border-stone-200 px-4 xl:hidden">
+          {items.map((it) => (
+            <li key={it.id} className="py-2.5 text-sm">
+              <p className="font-medium text-stone-800">{it.item}{it.qty ? <span className="font-normal text-stone-500"> · {it.qty}</span> : null}</p>
+              {it.used_on && <p className="text-xs text-stone-500">Used on {it.used_on}</p>}
+              {it.description && <p className="mt-0.5 text-stone-600">{it.description}</p>}
+              {it.quality && <p className="mt-0.5 text-xs text-stone-500"><span className="font-medium text-stone-400">Most important:</span> {it.quality}</p>}
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto border-t border-stone-200 px-4 py-3 xl:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
@@ -298,6 +311,7 @@ function RequestReferencePanel({ request }: { request: ProductRequest }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );
@@ -395,9 +409,12 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 basis-full sm:basis-auto">
-          <input value={name} onChange={(e) => setName(e.target.value)}
+          {/* A textarea that sizes to its text so a long job name wraps on a
+              phone instead of being cut off; Enter still just commits. */}
+          <textarea value={name} rows={1} onChange={(e) => setName(e.target.value.replace(/\n/g, " "))}
             onBlur={() => name.trim() && name !== board.name && onRename(name.trim())}
-            className="w-full max-w-xl bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500"
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
+            className="block w-full max-w-xl resize-none overflow-hidden bg-transparent text-lg font-semibold text-stone-800 outline-none max-sm:[field-sizing:content] focus:border-b sm:whitespace-pre focus:border-emerald-500"
             style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
           <p className="text-xs text-stone-500">
             {board.client_name || "No client"}{board.collection ? ` · ${board.collection}` : ""} · {board.items.length} pinned
@@ -406,7 +423,7 @@ function BoardView({ board, run, onDelete, onPinMore, onOpen, onRename }: {
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button onClick={() => onPinMore(null)} className={btnPrimary}><Search size={14} /> Pin and search more from the catalog</button>
           <button onClick={newGroup} className={btnGhost}><FolderPlus size={13} /> New group</button>
-          <a data-edit href={`/sourcing/${board.id}`} className="text-[11px] text-stone-400 hover:text-emerald-700" title="The purchaser's full worksheet for this job">Worksheet</a>
+          <a data-edit href={`/sourcing/${board.id}`} className="px-1 py-2 text-[11px] text-stone-400 hover:text-emerald-700" title="The purchaser's full worksheet for this job">Worksheet</a>
           <button data-edit onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
         </div>
       </div>
@@ -490,14 +507,16 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
         <span className="text-xs text-stone-400">{order.length} option{order.length === 1 ? "" : "s"}{chosen ? ` · picked: ${chosen.name}` : ""}{order.length > 1 ? " · drag a column to reorder" : ""}</span>
         <button onClick={onPinMore} className={btnGhost}><Plus size={12} /> Add options</button>
         {group && (
-          <button onClick={() => { if (window.confirm(`Remove the group "${group.name}"? Its pins stay on the job.`)) run(() => deleteGroup(group.id)); }} className="ml-auto text-stone-300 hover:text-rose-600" aria-label="Remove group"><Trash2 size={14} /></button>
+          <button onClick={() => { if (window.confirm(`Remove the group "${group.name}"? Its pins stay on the job.`)) run(() => deleteGroup(group.id)); }} className="-m-2 ml-auto p-2 text-stone-300 hover:text-rose-600" aria-label="Remove group"><Trash2 size={14} /></button>
         )}
       </div>
 
       {order.length === 0 ? (
         <p className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-400">Nothing here yet. Pin options from the catalog into this group.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
+        // Phone: one option fills the width beside the pinned label column, and
+        // a swipe snaps to the next one.
+        <div className="snap-x snap-mandatory scroll-pl-[88px] overflow-x-auto rounded-xl border border-stone-200 bg-white sm:snap-none">
           <table className="border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
@@ -510,7 +529,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     onDragOver={(e) => { e.preventDefault(); if (dragId != null && overId !== it.item_id) setOverId(it.item_id); }}
                     onDragLeave={() => setOverId((cur) => (cur === it.item_id ? null : cur))}
                     onDrop={(e) => { e.preventDefault(); dropOn(it.item_id); }}
-                    className={`w-[calc(100vw-122px)] min-w-[calc(100vw-122px)] px-3 py-3 text-left align-top transition-opacity sm:w-[230px] sm:min-w-[230px] ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
+                    className={`w-[calc(100vw-122px)] min-w-[calc(100vw-122px)] snap-start px-3 py-3 text-left align-top transition-opacity sm:w-[230px] sm:min-w-[230px] ${it.chosen ? "bg-emerald-50/70" : ""} ${order.length > 1 ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === it.item_id ? "opacity-40" : ""} ${overId === it.item_id && dragId !== it.item_id ? "ring-2 ring-inset ring-emerald-400" : ""}`}
                   >
                     {order.length > 1 && (
                       <div className="mb-1 flex items-center justify-center text-stone-300" title="Drag to reorder"><GripVertical size={13} /></div>
@@ -555,7 +574,7 @@ function GroupSection({ group, items, groups, run, onPinMore, onOpen }: {
                     <option value="">No group</option>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
-                  <button data-edit onClick={() => run(() => removePin(it.item_id))} className="text-stone-300 hover:text-rose-600" aria-label="Unpin"><Trash2 size={13} /></button>
+                  <button data-edit onClick={() => run(() => removePin(it.item_id))} className="-m-1.5 p-1.5 text-stone-300 hover:text-rose-600" aria-label="Unpin"><Trash2 size={13} /></button>
                 </div>
               )} />
             </tbody>

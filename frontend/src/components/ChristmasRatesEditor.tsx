@@ -119,7 +119,7 @@ export default function ChristmasRatesEditor() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="rounded-xl border border-stone-200 bg-white p-6">
+      <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
@@ -148,7 +148,7 @@ export default function ChristmasRatesEditor() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 <span>{season} has no rate card of its own{data.own.length ? " for every rate" : ""} — the values marked <em>inherited</em> come from the latest earlier season.</span>
                 {isAdmin && (
-                  <button type="button" disabled={saving} onClick={() => void put({}, true)} className="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-60">
+                  <button type="button" disabled={saving} onClick={() => void put({}, true)} className="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-2 font-semibold text-amber-800 sm:py-1 hover:bg-amber-100 disabled:opacity-60">
                     <Copy size={12} /> Make these {season}'s own
                   </button>
                 )}
@@ -206,7 +206,7 @@ export default function ChristmasRatesEditor() {
       </div>
 
       {data && (
-        <div className="rounded-xl border border-stone-200 bg-white p-6">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-stone-800">How pickup &amp; delivery is priced</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-stone-500">
             A client only pays from the moment the crew arrives to the moment they leave. Each season has two van trips
@@ -215,7 +215,7 @@ export default function ChristmasRatesEditor() {
             unpaid time at the van crew rate. Loading scales with the box count and only applies when we store the boxes;
             driving uses the client's real minutes each way, mapped by the scheduler.
           </p>
-          <pre className="mt-3 rounded-lg bg-stone-50 px-3 py-2 text-[11px] text-stone-700">{`loading  = 2 × boxes × ${rates.handling_min_per_box ?? "?"} min          (only if stored with us)
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-50 px-3 py-2 text-[11px] text-stone-700">{`loading  = 2 × boxes × ${rates.handling_min_per_box ?? "?"} min          (only if stored with us)
 driving  = 2 × (out + back) minutes
 fee      = (loading + driving) ÷ 60 × ${rates.van_crew_rate != null ? formatCurrency(rates.van_crew_rate) : "?"} / hour`}</pre>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-stone-600">

@@ -95,17 +95,17 @@ function ScreenshotViewer({ id, onClose }: { id: number; onClose: () => void }) 
   }, [id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 ll-overlay" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 ll-overlay" onClick={onClose}>
       <div className="relative max-h-full max-w-4xl overflow-auto rounded-xl bg-white p-2 shadow-2xl ll-modal" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute right-3 top-3 rounded-full bg-white/90 p-1.5 text-stone-500 shadow hover:text-stone-800" aria-label="Close">
+        <button onClick={onClose} className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-stone-500 shadow hover:text-stone-800" aria-label="Close">
           <X size={16} />
         </button>
         {failed ? (
           <p className="p-8 text-sm text-stone-400">Couldn't load this screenshot.</p>
         ) : src ? (
-          <img src={src} alt="Attached screenshot" className="max-h-[80vh] rounded-lg" />
+          <img src={src} alt="Attached screenshot" className="max-h-[80vh] max-w-full rounded-lg" />
         ) : (
-          <div className="flex h-64 w-96 items-center justify-center text-sm text-stone-400">Loading…</div>
+          <div className="flex h-64 w-[min(24rem,80vw)] items-center justify-center text-sm text-stone-400">Loading…</div>
         )}
       </div>
     </div>
@@ -160,7 +160,7 @@ function ClaudeReview({ row, onReply }: {
           href={row.claude_link}
           target="_blank"
           rel="noreferrer"
-          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium underline underline-offset-2 hover:no-underline"
+          className="mt-1.5 inline-flex items-center gap-1 py-1 text-xs font-medium underline underline-offset-2 hover:no-underline sm:py-0"
         >
           Open the change <ExternalLink size={11} />
         </a>
@@ -177,14 +177,14 @@ function ClaudeReview({ row, onReply }: {
             <button
               onClick={() => send(true)}
               disabled={sending}
-              className="rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+              className="rounded-md bg-emerald-700 px-2.5 py-2 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50 sm:py-1"
             >
               Approve plan
             </button>
           )}
           <button
             onClick={() => setReplying(true)}
-            className="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:border-stone-400"
+            className="rounded-md border border-stone-300 bg-white px-2.5 py-2 text-xs font-medium text-stone-700 hover:border-stone-400 sm:py-1"
           >
             Reply to Claude
           </button>
@@ -199,13 +199,13 @@ function ClaudeReview({ row, onReply }: {
             onChange={(e) => setText(e.target.value)}
             rows={3}
             placeholder={row.claude_status === "unclear" ? "Add the detail Claude asked for…" : "Answer Claude, or tell it how to proceed…"}
-            className="w-full resize-y rounded-md border border-stone-300 bg-white px-2.5 py-2 text-[13px] text-stone-800 focus:border-emerald-500 focus:outline-none"
+            className="w-full resize-y rounded-md border border-stone-300 bg-white px-2.5 py-2 text-base text-stone-800 focus:border-emerald-500 sm:text-[13px] focus:outline-none"
           />
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <button
               onClick={() => send(false)}
               disabled={sending || !text.trim()}
-              className="rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+              className="rounded-md bg-emerald-700 px-2.5 py-2 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50 sm:py-1"
             >
               Send
             </button>
@@ -213,14 +213,14 @@ function ClaudeReview({ row, onReply }: {
               <button
                 onClick={() => send(true)}
                 disabled={sending}
-                className="rounded-md border border-emerald-600 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                className="rounded-md border border-emerald-600 bg-white px-2.5 py-2 text-xs sm:py-1 font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
               >
                 Send and approve
               </button>
             )}
             <button
               onClick={() => { setReplying(false); setText(""); }}
-              className="px-1.5 py-1 text-xs text-stone-500 hover:text-stone-700"
+              className="px-1.5 py-2 text-xs text-stone-500 hover:text-stone-700 sm:py-1"
             >
               Cancel
             </button>
@@ -240,10 +240,11 @@ function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
 }) {
   const done = row.status === "done";
   return (
-    <div className="flex items-start gap-3 border-b border-stone-100 px-5 py-3.5 last:border-b-0">
+    <div className="flex items-start gap-3 border-b border-stone-100 px-4 py-3.5 last:border-b-0 sm:px-5">
       {owner && <button
         onClick={() => onToggle(row)}
-        className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border transition-colors ${
+        // before: pads the 20px box out to a ~40px touch target without moving it.
+        className={`relative mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border transition-colors before:absolute before:-inset-2.5 before:content-[''] ${
           done ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-300 hover:border-emerald-500"
         }`}
         aria-label={done ? "Mark as not done" : "Mark as done"}
@@ -268,14 +269,14 @@ function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
           {row.submitted_name && <span className="font-medium text-stone-500">{row.submitted_name}</span>}
           <span>· {relativeTime(row.created_at)}</span>
           {row.page_path && (
-            <span className="truncate rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-500" title={row.page_path}>
+            <span className="max-w-full truncate rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-500" title={row.page_path}>
               {row.page_path}
             </span>
           )}
           {row.has_screenshot && (
             <button
               onClick={() => onViewScreenshot(row.id)}
-              className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-500 hover:border-emerald-300 hover:text-emerald-700"
+              className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-2 py-1.5 text-[11px] font-medium text-stone-500 sm:py-0.5 hover:border-emerald-300 hover:text-emerald-700"
             >
               <ImageIcon size={11} /> Screenshot
             </button>
@@ -386,7 +387,7 @@ export default function Comments() {
         </p>
       </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-6">
+      <div className="mx-auto max-w-3xl px-4 pb-24 pt-4 sm:px-6 sm:py-6">
         {loading || ownerFlag === null ? (
           <p className="py-12 text-center text-sm text-stone-400">Loading…</p>
         ) : rows.length === 0 ? (
@@ -407,7 +408,7 @@ export default function Comments() {
                   <button
                     key={f.key}
                     onClick={() => setFilter(f.key)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors sm:py-1 ${
                       active
                         ? "border-emerald-600 bg-emerald-50 text-emerald-800"
                         : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:text-stone-700"
@@ -436,7 +437,7 @@ export default function Comments() {
               <div className="mt-5">
                 <button
                   onClick={() => setShowDone((v) => !v)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-stone-400 hover:text-stone-600"
+                  className="flex items-center gap-1.5 py-2 text-xs font-medium text-stone-400 hover:text-stone-600 sm:py-0"
                 >
                   {showDone ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   Completed ({done.length})

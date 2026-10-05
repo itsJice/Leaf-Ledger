@@ -120,11 +120,11 @@ function NetBar({ value, target }: { value: number | null; target: number | null
   );
 }
 
-function Tile({ label, value, detail, hero }: { label: string; value: string; detail?: React.ReactNode; hero?: boolean }) {
+function Tile({ label, value, detail, hero, className = "" }: { label: string; value: string; detail?: React.ReactNode; hero?: boolean; className?: string }) {
   return (
-    <div className="min-w-0 px-5 py-4">
+    <div className={`min-w-0 px-4 py-3 sm:px-5 sm:py-4 ${className}`}>
       <p className="text-xs text-stone-500">{label}</p>
-      <p className={`font-semibold tabular-nums text-stone-900 ${hero ? "text-4xl tracking-tight" : "text-xl"}`}>{value}</p>
+      <p className={`font-semibold tabular-nums text-stone-900 ${hero ? "text-4xl tracking-tight" : "text-lg sm:text-xl"}`}>{value}</p>
       {detail && <div className="mt-0.5 text-xs text-stone-500">{detail}</div>}
     </div>
   );
@@ -194,7 +194,7 @@ export default function CrewDayProfit() {
                 : "Every install and takedown crew-day: what its jobs bring in against crew pay, van, trailer, gas and overhead. Only admins see this page."}
             </p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-stone-600">
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-xs text-stone-600 sm:w-auto">
             {data && (
               <span>
                 Overhead <b className="text-stone-800">{data.overhead_pct ?? "—"}%</b> · Target profit <b className="text-stone-800">{target ?? "—"}%</b>
@@ -246,8 +246,10 @@ export default function CrewDayProfit() {
               );
             })()}
 
-            <div className="grid overflow-hidden rounded-xl border border-stone-200 bg-white sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] lg:divide-x lg:divide-stone-100">
-              <Tile hero label={`Net profit, ${s.days} crew-days`} value={pct(s.net_pct)}
+            {/* Two across below lg with the net-profit hero on its own row, so a
+                phone shows the four figures in two short rows, not five tall ones. */}
+            <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-stone-200 bg-white lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] lg:divide-x lg:divide-stone-100">
+              <Tile hero className="col-span-2 lg:col-span-1" label={`Net profit, ${s.days} crew-days`} value={pct(s.net_pct)}
                 detail={<>{money0(s.net)} after every day's costs and {data.overhead_pct}% overhead</>} />
               <Tile label="Revenue" value={money0(s.revenue)}
                 detail={actual ? "(invoice − storage) ÷ 2 for the install, the same for the takedown" : "install price on install days, takedown price on takedown days"} />
@@ -284,23 +286,37 @@ export default function CrewDayProfit() {
             <div className="flex flex-wrap items-center gap-2">
               {KINDS.map((k) => (
                 <button key={k.id} type="button" onClick={() => setKind(k.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${kind === k.id ? "border-emerald-800 bg-emerald-800 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold sm:py-1 ${kind === k.id ? "border-emerald-800 bg-emerald-800 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
                   {k.label}
                 </button>
               ))}
               <span className="mx-1 h-4 w-px bg-stone-200" />
               {FILTERS.filter((f) => f.id === "all" || s.counts[f.id as Status]).map((f) => (
                 <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${filter === f.id ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold sm:py-1 ${filter === f.id ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
                   {f.label}{f.id !== "all" && <span className="ml-1 opacity-70">{s.counts[f.id as Status]}</span>}
                 </button>
               ))}
-              <span className="ml-auto text-xs text-stone-500">
+              <span className="w-full text-xs text-stone-500 sm:ml-auto sm:w-auto">
                 Bar: net % on a −50% to +75% scale; the dark tick is the {target}% target.
               </span>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
+            {/* Phones and tablets: one card per crew-day (tap to open its
+                breakdown; an open card spans both columns). The 920px table
+                below takes over from xl, the first width it fits beside the
+                sidebar without a sideways scroll. */}
+            <div className="grid gap-2 md:grid-cols-2 xl:hidden">
+              {days.map((d) => (
+                <DayCard key={d.id} d={d} actual={actual} target={target} overheadPct={data.overhead_pct}
+                  isOpen={open.has(d.id)} onToggle={() => toggle(d.id)} />
+              ))}
+              {days.length === 0 && (
+                <p className="rounded-xl border border-stone-200 bg-white px-4 py-10 text-center text-sm text-stone-500 md:col-span-2">No crew-days match that filter.</p>
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-xl border border-stone-200 bg-white xl:block">
               <table className="w-full min-w-[920px] text-sm">
                 <thead>
                   <tr className="border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
@@ -320,8 +336,10 @@ export default function CrewDayProfit() {
                     return (
                       <React.Fragment key={d.id}>
                         <tr onClick={() => toggle(d.id)} className={`cursor-pointer border-b border-stone-100 hover:bg-stone-50 ${isOpen ? "bg-stone-50" : ""}`}>
-                          <td className="whitespace-nowrap px-4 py-2.5 align-top">
-                            <div className="flex items-center gap-1.5 font-medium text-stone-900">
+                          {/* The date line never wraps; the crew/takedown line under it may,
+                              so at 1280 the Crew column isn't squeezed to a word a line. */}
+                          <td className="min-w-[10rem] px-4 py-2.5 align-top">
+                            <div className="flex items-center gap-1.5 whitespace-nowrap font-medium text-stone-900">
                               {d.kind === "takedown" && !actual ? "January" : fmtDate(d.date)}
                               <span className={`rounded px-1 py-px text-[9px] font-bold uppercase tracking-wide ${d.kind === "takedown" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700"}`}>
                                 {d.kind === "takedown" ? "Takedown" : "Install"}
@@ -397,7 +415,72 @@ export default function CrewDayProfit() {
 
 const actualStop = (x: Stop) => x.invoice !== undefined;
 
+/** The phone layout of one table row: same figures, stacked. */
+function DayCard({ d, actual, target, overheadPct, isOpen, onToggle }: {
+  d: Day; actual: boolean; target: number | null; overheadPct: number | null; isOpen: boolean; onToggle: () => void;
+}) {
+  const figures: Array<[string, React.ReactNode, string?]> = [
+    ["Paid", hrs(d.paid_hours)],
+    ["Day cost", <>{money0(d.cost.total)}{d.placeholder && <span className="ml-0.5 text-[10px] text-red-700">*</span>}</>],
+    ["Revenue", money0(d.revenue)],
+    ["Net", money0(d.net), d.net != null && d.net < 0 ? "text-red-700" : "text-stone-900"],
+  ];
+  return (
+    <div className={`overflow-hidden rounded-xl border border-stone-200 bg-white ${isOpen ? "md:col-span-2" : ""}`}>
+      <button type="button" onClick={onToggle} aria-expanded={isOpen}
+        className={`block w-full px-4 py-3 text-left ${isOpen ? "bg-stone-50" : ""}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 font-medium text-stone-900">
+              {d.kind === "takedown" && !actual ? "January" : fmtDate(d.date)}
+              <span className={`rounded px-1 py-px text-[9px] font-bold uppercase tracking-wide ${d.kind === "takedown" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700"}`}>
+                {d.kind === "takedown" ? "Takedown" : "Install"}
+              </span>
+            </div>
+            <div className="text-xs text-stone-500">
+              {d.crew}{d.night ? " · night" : ""} · {d.crew_people.length} people
+              {d.kind === "takedown" && !actual && d.takedown_of ? ` · installed ${fmtDate(d.takedown_of)}` : ""}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-semibold tabular-nums text-stone-900">{pct(d.net_pct)}</div>
+            <span className={`inline-block rounded-full border px-1.5 py-px text-[10px] font-semibold ${STATUS[d.status].chip}`}>{STATUS[d.status].label}</span>
+          </div>
+        </div>
+        <div className="mt-2 text-sm text-stone-800">{d.stops.map((x) => x.name).join(", ")}</div>
+        <div className="text-xs text-stone-500">
+          {d.stops.length} job{d.stops.length === 1 ? "" : "s"} · {d.miles} mi{d.times ? ` · ${TIMES[d.times]}` : ""}
+        </div>
+        <div className="mt-2"><NetBar value={d.net_pct} target={target} /></div>
+        <dl className="mt-2 grid grid-cols-4 gap-2 border-t border-stone-100 pt-2 text-xs">
+          {figures.map(([l, v, tone]) => (
+            <div key={l} className="min-w-0">
+              <dt className="text-[10px] uppercase tracking-wide text-stone-400">{l}</dt>
+              <dd className={`tabular-nums ${tone ? `font-semibold ${tone}` : "text-stone-700"}`}>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </button>
+      {isOpen && (
+        <div className="border-t border-stone-200 bg-stone-50/70 p-3">
+          <DayDetailBody d={d} overheadPct={overheadPct} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DayDetail({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
+  return (
+    <tr className="border-b border-stone-200 bg-stone-50/70">
+      <td colSpan={8} className="px-4 pb-4 pt-1">
+        <DayDetailBody d={d} overheadPct={overheadPct} />
+      </td>
+    </tr>
+  );
+}
+
+function DayDetailBody({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
   const c = d.cost;
   const lines: Array<[string, number]> = [
     [`Crew pay · ${d.crew_people.length} people × ${hrs(d.paid_hours)}`, c.labor],
@@ -409,94 +492,90 @@ function DayDetail({ d, overheadPct }: { d: Day; overheadPct: number | null }) {
     ...(c.parking ? [["Parking", c.parking] as [string, number]] : []),
   ];
   return (
-    <tr className="border-b border-stone-200 bg-stone-50/70">
-      <td colSpan={8} className="px-4 pb-4 pt-1">
-        <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-          <div className="space-y-3">
-            <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-xs">
-              {lines.map(([l, v]) => (
-                <div key={l} className="flex justify-between px-3 py-1.5"><span className="text-stone-600">{l}</span><span className="tabular-nums text-stone-800">{formatCurrency(v)}</span></div>
-              ))}
-              <div className="flex justify-between bg-stone-50 px-3 py-1.5 font-semibold"><span>Day cost</span><span className="tabular-nums">{formatCurrency(c.total)}</span></div>
-              {d.overhead != null && (
-                <div className="flex justify-between px-3 py-1.5"><span className="text-stone-600">Overhead · {overheadPct}% of {money0(d.revenue)}</span><span className="tabular-nums text-stone-800">{formatCurrency(d.overhead)}</span></div>
-              )}
-              {c.missing.length > 0 && <div className="px-3 py-1.5 text-red-700">* placeholder: still needs {c.missing.join(", ")}</div>}
-            </div>
-            <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-600">
-              <p className="mb-1 font-semibold text-stone-700">Crew{d.crew_source ? ` · ${d.crew_source}` : ""}</p>
-              {d.clock_out_min != null && d.anchored && (
-                <p className="mb-1 text-stone-500">On the clock 8:00 am → {clock(d.clock_out_min)} back at the warehouse.</p>
-              )}
-              {d.crew_basis && !d.crew_source && (
-                <p className="mb-1 text-stone-500">
-                  {d.crew_basis === "2025 crew"
-                    ? "Estimated seats: last year's real crew on these jobs (the largest), one lead and the rest general."
-                    : "Estimated seats: these jobs have no 2025 crew on record, so the crew comes from their role needs."}
-                </p>
-              )}
-              <ul className="space-y-0.5">
-                {d.crew_people.map((p, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span className={p.name ? "text-stone-800" : "italic text-stone-500"}>
-                      {p.name || `${p.label} (estimated)`}{p.half ? " · half day" : ""}{p.temp ? " · Xclusive temp" : ""}
-                    </span>
-                    <span className="tabular-nums">{p.name ? `${p.label} · ` : ""}{p.rate == null ? "no rate" : `${formatCurrency(p.rate)}/h`}</span>
-                  </li>
-                ))}
-                {d.crew_people.length === 0 && <li>No one staffed and no role needs on these jobs.</li>}
-              </ul>
-              <p className="mt-2 text-stone-500">
-                {d.anchored ? `${d.pretrip_min} min before the trip (${d.boxes} boxes to load), ` : ""}
-                {d.lunch_min ? `${d.lunch_min} min lunch, ` : ""}all paid.
-              </p>
-            </div>
-            {d.notes.map((n) => <p key={n} className="text-xs text-stone-500">{n}</p>)}
-          </div>
-          <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
-                  <th className="px-3 py-1.5 font-semibold">Job</th>
-                  {d.stops.some((x) => x.start != null) && <th className="px-2 py-1.5 font-semibold">Clock</th>}
-                  <th className="px-2 py-1.5 text-right font-semibold">On site</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">{d.kind === "takedown" ? "Takedown price" : "Install price"}</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">Share of day cost</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">Net</th>
-                  <th className="px-3 py-1.5 text-right font-semibold">Net %</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {d.stops.map((x, i) => (
-                  <tr key={`${x.row}-${i}`}>
-                    <td className="px-3 py-1.5">
-                      <div className="text-stone-800">{x.name}</div>
-                      <div className="text-[10px] text-stone-500">
-                        {x.source === "unpriced" ? (actualStop(x) ? "no invoice on file" : "no price yet") : x.source === "no_charge" ? "no charge"
-                          : x.source === "schedule" ? "price from the schedule"
-                          : x.source === "invoice" ? `invoice ${money0(x.invoice)} − ${money0(x.storage)} storage, half` : "price from Clients"}
-                        {x.share < 0.999 ? ` · ${Math.round(x.share * 100)}% of the job today` : ""}
-                        {x.basis ? ` · ${x.basis}` : ""}
-                      </div>
-                    </td>
-                    {d.stops.some((y) => y.start != null) && (
-                      <td className="whitespace-nowrap px-2 py-1.5 tabular-nums">
-                        {x.start != null ? `${clock(x.start)}–${clock(x.end)}` : "—"}
-                        <span className="block text-[10px] text-stone-400">{x.real_times ? "real" : "estimated"}</span>
-                      </td>
-                    )}
-                    <td className="px-2 py-1.5 text-right tabular-nums">{hrs(x.onsite_h)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{x.revenue == null ? "—" : money0(x.revenue)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{money0(x.cost)}</td>
-                    <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${x.net != null && x.net < 0 ? "text-red-700" : "text-stone-900"}`}>{money0(x.net)}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{pct(x.net_pct)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+    <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+      <div className="space-y-3">
+        <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-xs">
+          {lines.map(([l, v]) => (
+            <div key={l} className="flex justify-between px-3 py-1.5"><span className="text-stone-600">{l}</span><span className="tabular-nums text-stone-800">{formatCurrency(v)}</span></div>
+          ))}
+          <div className="flex justify-between bg-stone-50 px-3 py-1.5 font-semibold"><span>Day cost</span><span className="tabular-nums">{formatCurrency(c.total)}</span></div>
+          {d.overhead != null && (
+            <div className="flex justify-between px-3 py-1.5"><span className="text-stone-600">Overhead · {overheadPct}% of {money0(d.revenue)}</span><span className="tabular-nums text-stone-800">{formatCurrency(d.overhead)}</span></div>
+          )}
+          {c.missing.length > 0 && <div className="px-3 py-1.5 text-red-700">* placeholder: still needs {c.missing.join(", ")}</div>}
         </div>
-      </td>
-    </tr>
+        <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-600">
+          <p className="mb-1 font-semibold text-stone-700">Crew{d.crew_source ? ` · ${d.crew_source}` : ""}</p>
+          {d.clock_out_min != null && d.anchored && (
+            <p className="mb-1 text-stone-500">On the clock 8:00 am → {clock(d.clock_out_min)} back at the warehouse.</p>
+          )}
+          {d.crew_basis && !d.crew_source && (
+            <p className="mb-1 text-stone-500">
+              {d.crew_basis === "2025 crew"
+                ? "Estimated seats: last year's real crew on these jobs (the largest), one lead and the rest general."
+                : "Estimated seats: these jobs have no 2025 crew on record, so the crew comes from their role needs."}
+            </p>
+          )}
+          <ul className="space-y-0.5">
+            {d.crew_people.map((p, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span className={p.name ? "text-stone-800" : "italic text-stone-500"}>
+                  {p.name || `${p.label} (estimated)`}{p.half ? " · half day" : ""}{p.temp ? " · Xclusive temp" : ""}
+                </span>
+                <span className="tabular-nums">{p.name ? `${p.label} · ` : ""}{p.rate == null ? "no rate" : `${formatCurrency(p.rate)}/h`}</span>
+              </li>
+            ))}
+            {d.crew_people.length === 0 && <li>No one staffed and no role needs on these jobs.</li>}
+          </ul>
+          <p className="mt-2 text-stone-500">
+            {d.anchored ? `${d.pretrip_min} min before the trip (${d.boxes} boxes to load), ` : ""}
+            {d.lunch_min ? `${d.lunch_min} min lunch, ` : ""}all paid.
+          </p>
+        </div>
+        {d.notes.map((n) => <p key={n} className="text-xs text-stone-500">{n}</p>)}
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="whitespace-nowrap border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
+              <th className="min-w-[10rem] px-3 py-1.5 font-semibold">Job</th>
+              {d.stops.some((x) => x.start != null) && <th className="px-2 py-1.5 font-semibold">Clock</th>}
+              <th className="px-2 py-1.5 text-right font-semibold">On site</th>
+              <th className="px-2 py-1.5 text-right font-semibold">{d.kind === "takedown" ? "Takedown price" : "Install price"}</th>
+              <th className="px-2 py-1.5 text-right font-semibold">Share of day cost</th>
+              <th className="px-2 py-1.5 text-right font-semibold">Net</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Net %</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {d.stops.map((x, i) => (
+              <tr key={`${x.row}-${i}`}>
+                <td className="px-3 py-1.5">
+                  <div className="text-stone-800">{x.name}</div>
+                  <div className="text-[10px] text-stone-500">
+                    {x.source === "unpriced" ? (actualStop(x) ? "no invoice on file" : "no price yet") : x.source === "no_charge" ? "no charge"
+                      : x.source === "schedule" ? "price from the schedule"
+                      : x.source === "invoice" ? `invoice ${money0(x.invoice)} − ${money0(x.storage)} storage, half` : "price from Clients"}
+                    {x.share < 0.999 ? ` · ${Math.round(x.share * 100)}% of the job today` : ""}
+                    {x.basis ? ` · ${x.basis}` : ""}
+                  </div>
+                </td>
+                {d.stops.some((y) => y.start != null) && (
+                  <td className="whitespace-nowrap px-2 py-1.5 tabular-nums">
+                    {x.start != null ? `${clock(x.start)}–${clock(x.end)}` : "—"}
+                    <span className="block text-[10px] text-stone-400">{x.real_times ? "real" : "estimated"}</span>
+                  </td>
+                )}
+                <td className="px-2 py-1.5 text-right tabular-nums">{hrs(x.onsite_h)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{x.revenue == null ? "—" : money0(x.revenue)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{money0(x.cost)}</td>
+                <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${x.net != null && x.net < 0 ? "text-red-700" : "text-stone-900"}`}>{money0(x.net)}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{pct(x.net_pct)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

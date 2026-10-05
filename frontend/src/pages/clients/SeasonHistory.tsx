@@ -132,7 +132,7 @@ function Seg<T extends string>({ value, options, onChange }: {
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`px-2.5 py-1.5 font-medium ${value === o.value ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-50"}`}
+          className={`px-2.5 py-2 font-medium sm:py-1.5 ${value === o.value ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-50"}`}
         >
           {o.label}
         </button>
@@ -177,9 +177,11 @@ function diffDraft(original: Record<string, unknown>, draft: Draft): Record<stri
   return fields;
 }
 
-function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
+function Field({ label, children, wide, date }: { label: string; children: React.ReactNode; wide?: boolean; date?: boolean }) {
+  // A date input needs ~150px for mm/dd/yyyy plus its picker icon at the
+  // phone's 16px; half a phone-width card is less, so dates go full-width there.
   return (
-    <label className={`block ${wide ? "sm:col-span-2" : ""}`}>
+    <label className={`block min-w-0 ${wide ? "col-span-2" : date ? "col-span-2 sm:col-span-1" : ""}`}>
       <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-stone-400">{label}</span>
       {children}
     </label>
@@ -250,7 +252,7 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
   ].filter(([, v]) => v !== null && v !== undefined && v !== "") as [string, unknown][];
 
   return (
-    <div className="rounded-xl border border-emerald-200 bg-white p-4">
+    <div className="rounded-xl border border-emerald-200 bg-white p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <span className="text-xs font-semibold text-stone-700">{season} season · {seasonSpanLabel(season)}</span>
         <Seg<Status>
@@ -267,9 +269,9 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
           />
         </span>
       </div>
-      <div className="grid gap-2.5 sm:grid-cols-4">
-        <Field label="Install date"><input type="date" className={inputClass} value={draft.install_date.slice(0, 10)} onChange={(e) => set("install_date", e.target.value)} /></Field>
-        <Field label="Takedown date"><input type="date" className={inputClass} value={draft.takedown_date.slice(0, 10)} onChange={(e) => set("takedown_date", e.target.value)} /></Field>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <Field label="Install date" date><input type="date" className={inputClass} value={draft.install_date.slice(0, 10)} onChange={(e) => set("install_date", e.target.value)} /></Field>
+        <Field label="Takedown date" date><input type="date" className={inputClass} value={draft.takedown_date.slice(0, 10)} onChange={(e) => set("takedown_date", e.target.value)} /></Field>
         <Field label="Boxes"><input inputMode="numeric" className={inputClass} value={draft.boxes} onChange={(e) => set("boxes", e.target.value)} /></Field>
         <Field label="Crew size"><input inputMode="numeric" className={inputClass} value={draft.crew_size} onChange={(e) => set("crew_size", e.target.value)} /></Field>
         <Field label="Crew" wide><input className={inputClass} value={draft.crew} onChange={(e) => set("crew", e.target.value)} placeholder="Crew B (6)" /></Field>
@@ -292,12 +294,12 @@ function SeasonEditor({ clientId, season, detail, onSaved, onClose }: {
         </p>
       )}
       <div className="mt-3 flex items-center justify-end gap-2">
-        <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancel</button>
+        <button type="button" onClick={onClose} className="px-3 py-2.5 text-xs text-stone-500 hover:text-stone-700 sm:py-1.5">Cancel</button>
         <button
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-60 sm:px-3 sm:py-1.5"
           style={{ backgroundColor: "rgb(var(--ll-brand))" }}
         >
           <Check size={12} strokeWidth={3} />
@@ -367,12 +369,78 @@ export function SeasonHistory({ clientId, activity, onSaved }: {
         pricing={currentRow?.entry?.pricing ?? null}
         onSaved={onSaved}
       />
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
+      <p className="mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
         <TreePine size={12} />
         Christmas history
-        <span className="ml-1 font-normal normal-case tracking-normal text-stone-400">· a green dot marks a value set here, a blue dot one imported from the workbook; the spreadsheet sync keeps both</span>
+        <span className="basis-full font-normal normal-case tracking-normal text-stone-400 sm:ml-1 sm:basis-auto">· a green dot marks a value set here, a blue dot one imported from the workbook; the spreadsheet sync keeps both</span>
       </p>
-      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
+      {/* Phone and tablet: one card per season (two across from md), so the
+          install date and status read without sideways scrolling. The table
+          is ~1150px wide, so it waits for xl. */}
+      <div className="grid gap-2 md:grid-cols-2 xl:hidden">
+        {rows.map(({ season, entry, detail: d }) => {
+          const isCurrent = season === current;
+          const empty = !entry;
+          const status = statusOf(d);
+          const p = entry?.pricing;
+          const ideal = p?.ideal?.total ?? null;
+          const missing = missingLabel(p?.ideal?.missing);
+          const charged = p?.charged ?? null;
+          const fees = [d.install_fee, d.takedown_fee, d.storage_fee].map((v) => (num(v) === null ? "–" : formatCurrency(num(v)))).join(" / ");
+          const facts: [string, React.ReactNode][] = empty ? [] : [
+            ["Install", <>{d.install_date ? mdy(d.install_date) : status === "not_installing" && d.was_scheduled ? <s>{mdy(d.was_scheduled)}</s> : "–"}<EditedDot d={d} k="install_date" /></>],
+            ["Takedown", <>{d.takedown_date ? mdy(d.takedown_date) : "–"}<EditedDot d={d} k="takedown_date" /></>],
+            ["Storing", <>{d.storing === true ? "Yes" : d.storing === false ? "No" : "–"}<EditedDot d={d} k="storing" /></>],
+            ["Boxes", <>{str(d.boxes) || "–"}<EditedDot d={d} k="boxes" /></>],
+            ["Crew", <>{str(d.crew) || "–"}<EditedDot d={d} k="crew" /></>],
+            ["Hours", <>{num(d.real_hours) !== null ? `${d.real_hours}h` : num(d.est_hours) !== null ? <span className="text-stone-400">est {String(d.est_hours)}h</span> : "–"}<EditedDot d={d} k="real_hours" /></>],
+            ["Fees I / T / S", fees],
+            ["Ideal", ideal !== null ? formatCurrency(ideal) : <span className="text-stone-400">{missing ? "needs card" : "–"}</span>],
+            ["Charged", <>{charged !== null ? formatCurrency(charged) : "–"}{p?.charged_source === "invoice" && <span className="ml-1 text-[10px] text-stone-400">inv</span>}</>],
+            ["Discount", p?.discount_pct !== null && p?.discount_pct !== undefined ? (
+              <span className={p.discount_pct > 0.05 ? "text-amber-700" : p.discount_pct < -0.05 ? "text-emerald-700" : "text-stone-600"}>{discountLabel(p.discount_pct)}</span>
+            ) : "–"],
+          ];
+          return (
+            <div key={season} className={`rounded-xl border border-stone-200 bg-white text-xs ${editing === season ? "md:col-span-2" : ""}`}>
+              <div className="flex items-center gap-2 px-3 py-2">
+                <span className="rounded-full px-2 py-0.5 font-semibold" style={{ backgroundColor: "rgb(var(--ll-brand-soft))", color: "rgb(var(--ll-brand))" }}>{season}</span>
+                {isCurrent && <span className="text-[10px] text-stone-400">this season</span>}
+                {empty ? <span className="italic text-stone-400">Nothing recorded yet</span> : (
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASS[status]}`}>
+                    {STATUS_LABEL[status]}<EditedDot d={d} k={status === "hold" ? "hold" : "not_installing"} />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  data-edit onClick={() => setEditing(editing === season ? null : season)}
+                  className="-mr-1 ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-emerald-700"
+                  title={empty ? `Record the ${season} season` : `Edit the ${season} season`}
+                  aria-label={empty ? `Record the ${season} season` : `Edit the ${season} season`}
+                >
+                  {editing === season ? <X size={15} /> : empty ? <Plus size={15} /> : <Pencil size={15} />}
+                </button>
+              </div>
+              {facts.length > 0 && (
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-stone-100 px-3 py-2.5 text-stone-700">
+                  {facts.map(([label, value]) => (
+                    <div key={label} className="min-w-0">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">{label}</dt>
+                      <dd className="break-words">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {editing === season && (
+                <div className="border-t border-stone-100 bg-stone-50/60 p-2">
+                  <SeasonEditor clientId={clientId} season={season} detail={d} onSaved={onSaved} onClose={() => setEditing(null)} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-stone-200 bg-white xl:block">
         <table className="w-full min-w-[820px] text-xs">
           <thead>
             <tr className="border-b border-stone-100 text-left text-[10px] uppercase tracking-wide text-stone-400">

@@ -280,9 +280,9 @@ export default function FormPage() {
   );
 
   return (
-    <div className="min-h-screen px-3 pb-24 pt-4 sm:px-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
+    <div className="min-h-screen px-3 pb-24 pt-2 sm:px-4 sm:pt-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
       <div ref={topRef} className="mx-auto max-w-[640px] space-y-3">
-        <Link to={appHome()} className="inline-flex items-center gap-1 px-1 text-xs font-medium text-emerald-800 hover:underline">
+        <Link to={appHome()} className="inline-flex items-center gap-1 px-1 py-2 text-xs font-medium text-emerald-800 hover:underline sm:py-0">
           <ArrowLeft size={12} /> Leaf &amp; Ledger
         </Link>
 
@@ -388,7 +388,7 @@ export default function FormPage() {
               <button
                 type="button"
                 onClick={() => { setAnswers({}); setErrors({}); setSectionIdx(0); clearDraft(slug); }}
-                className="ml-auto text-sm font-medium text-emerald-800 hover:underline"
+                className="ml-auto py-2 text-sm font-medium text-emerald-800 hover:underline"
               >
                 Clear form
               </button>

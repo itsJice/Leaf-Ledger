@@ -131,7 +131,7 @@ function NumInput({ value, onChange, placeholder, step = "any", prefix, suffix }
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
-      className="flex items-center gap-2 text-xs text-stone-700">
+      className="flex min-h-[36px] items-center gap-2 text-xs text-stone-700 sm:min-h-0">
       <span className={`relative inline-block h-4 w-7 rounded-full transition-colors ${on ? "bg-emerald-600" : "bg-stone-300"}`}>
         <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${on ? "left-3.5" : "left-0.5"}`} />
       </span>
@@ -295,7 +295,7 @@ export default function QuoteCalculator() {
               What a job costs us to install and take down, and what to charge for each profit level. Only admins see this page.
             </p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-stone-600">
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-xs text-stone-600 sm:w-auto">
             {out && (
               <span>
                 Overhead <b className="text-stone-800">{out.overhead_pct ?? "—"}%</b> · Target profit <b className="text-stone-800">{target ?? "—"}%</b>
@@ -536,7 +536,8 @@ function Levels({ out, hasPrice }: { out: Out; hasPrice: boolean }) {
         <table className={`w-full text-sm ${hasPrice ? "min-w-[760px]" : "min-w-[320px]"}`}>
           <thead>
             <tr className="border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
-              <th className="px-4 py-2 font-semibold">Profit</th>
+              {/* First column stays put while a phone scrolls the figures sideways. */}
+              <th className="sticky left-0 z-[1] bg-white px-4 py-2 font-semibold">Profit</th>
               <th className="px-2 py-2 text-right font-semibold">Price needed</th>
               {hasPrice && (
                 <>
@@ -552,7 +553,7 @@ function Levels({ out, hasPrice }: { out: Out; hasPrice: boolean }) {
           <tbody className="divide-y divide-stone-100">
             {out.levels.map((l) => (
               <tr key={l.profit_pct} className={l.target ? "bg-emerald-50/70 font-semibold" : ""}>
-                <td className="whitespace-nowrap px-4 py-2 tabular-nums text-stone-900">
+                <td className={`sticky left-0 z-[1] whitespace-nowrap px-4 py-2 tabular-nums text-stone-900 ${l.target ? "bg-emerald-50" : "bg-white"}`}>
                   {l.profit_pct}%
                   {l.break_even && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">break-even</span>}
                   {l.target && <span className="ml-2 rounded-full border border-emerald-200 bg-white px-1.5 py-px text-[10px] font-semibold text-emerald-800">target</span>}

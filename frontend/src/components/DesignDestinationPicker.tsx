@@ -128,7 +128,7 @@ function DestinationSlot({
               type="button"
               onClick={onReset}
               aria-label={`Clear ${label.toLowerCase()}`}
-              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-stone-300 transition hover:bg-stone-100 hover:text-stone-600"
+              className="-mr-1.5 flex h-8 w-8 flex-shrink-0 items-center sm:mr-0 sm:h-5 sm:w-5 justify-center rounded-full text-stone-300 transition hover:bg-stone-100 hover:text-stone-600"
             >
               <X size={12} />
             </button>
@@ -160,7 +160,7 @@ function DestinationSlot({
             onClick={commit}
             disabled={!draft.trim()}
             aria-label={`Save new ${label.toLowerCase()}`}
-            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white transition hover:bg-emerald-800 disabled:opacity-40"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-700 sm:h-6 sm:w-6 text-white transition hover:bg-emerald-800 disabled:opacity-40"
           >
             <Check size={13} />
           </button>
@@ -171,7 +171,7 @@ function DestinationSlot({
               setDraft("");
             }}
             aria-label={`Cancel new ${label.toLowerCase()}`}
-            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-stone-400 sm:h-6 sm:w-6 transition hover:bg-stone-100 hover:text-stone-700"
           >
             <X size={13} />
           </button>
