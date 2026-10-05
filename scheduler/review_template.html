@@ -784,6 +784,16 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .txted:empty:before{content:attr(data-ph);color:var(--faint)}
 .txtpick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
 .txtpick button{padding:5px 11px;font-size:11.5px;border-radius:999px}
+#txtdlg .txtgrp .n{font-weight:800;color:var(--faint);margin-left:2px}
+#txtdlg .txtgrp.on{background:var(--brand);border-color:var(--brand);color:#fff}
+#txtdlg .txtgrp.on .n{color:#d6e6d7}
+#txtdlg .txtgrp:disabled{opacity:.45;cursor:default}
+.txtsec{margin-top:10px}
+.txtsec>summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:10.5px;
+  letter-spacing:.05em;text-transform:uppercase;font-weight:800;color:var(--mut);
+  padding:6px 8px;border-bottom:1px solid var(--line);list-style:none}
+.txtsec>summary::-webkit-details-marker{display:none}
+.txtsec .stfsecn{text-transform:none;letter-spacing:0}
 .txtrow{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;font-size:13px;cursor:pointer}
 .txtrow:hover{background:var(--brand-soft)}
 .txtrow.off{opacity:.5;cursor:default}
@@ -8180,13 +8190,16 @@ function txtFill(tpl, p){
 }
 function txtPeople(){
   // No dates marked first: they are who the text is chasing. Then by name.
-  return roster.filter(p=>p.active!==false).sort((a,b)=>
+  // Inactive people are included -- they can be picked on purpose.
+  return roster.slice().sort((a,b)=>
     ((a.dates||[]).length>0)-((b.dates||[]).length>0) || a.name.localeCompare(b.name));
 }
 function txtStatus(p){
-  const n=(p.dates||[]).length, all=workDates().length;
+  // A count, like the Roster's Free column: the season now runs through the
+  // takedown days, so "of all" made everyone read as only partly available.
+  const n=(p.dates||[]).length;
   if(!n) return `<span class="txtchip none">No dates marked yet</span>`;
-  return `<span class="txtchip ${n>=all?'all':'some'}">${n}/${all} days marked</span>`;
+  return `<span class="txtchip all">${n} day${n===1?'':'s'} marked</span>`;
 }
 
 // The editor holds text, line breaks and field bubbles; the draft is saved as
@@ -8311,38 +8324,86 @@ function txtWireWrite(body){
   });
 }
 
+// People come first, then the message (user, 2026-10-05: "choose the people
+// first and then write the message ... different groups that I can just
+// simply select"). The list is grouped the way the Roster is -- each group's
+// heading selects or clears it -- and the shortcut buttons above it add or
+// remove whole groups, so they combine (Needs availability + Leads, ...).
+const txtActive=p=>p.active!==false;
+const TXT_GROUPS=[
+  {key:'all', label:'Everyone',            test:txtActive},
+  {key:'r0',  label:RANK_LBL[0],           test:p=>txtActive(p)&&rosterRank(p)===0},
+  {key:'r2',  label:RANK_LBL[2],           test:p=>txtActive(p)&&rosterRank(p)===2},
+  ...TITLES.map(t=>({key:'t:'+t, label:t==='Lead'?'Leads':t+'s', test:p=>txtActive(p)&&p.title===t})),
+  {key:'en',  label:'English speakers',    test:p=>txtActive(p)&&p.lang==='English'},
+  {key:'es',  label:'Spanish + bilingual', test:p=>txtActive(p)&&p.lang!=='English'},
+];
+/** The textable people a group (or a list) covers, and whether all are picked. */
+function txtGroupState(members, picked){
+  const ids=members.filter(p=>smsNumber(p.phone)).map(p=>p.id);
+  return {ids, on: ids.length>0 && ids.every(id=>picked.has(id)),
+          some: ids.some(id=>picked.has(id))};
+}
+function txtToggle(ids, on){
+  const s=new Set(txt.picked);
+  ids.forEach(id=>on ? s.add(id) : s.delete(id));
+  txt.picked=[...s]; txtSave();
+}
+function txtRowHTML(p, picked){
+  const ok=!!smsNumber(p.phone);
+  return `<label class="txtrow${ok?'':' off'}">
+    <input type="checkbox" data-pid="${esc(p.id)}"${ok&&picked.has(p.id)?' checked':''}${ok?'':' disabled'}>
+    <span class="nm">${esc(p.name)}</span>
+    <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+    <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+    ${txtStatus(p)}
+    <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
+}
 function txtPickHTML(){
-  const ppl=txtPeople(), picked=new Set(txt.picked);
-  return `<p class="txthint">Who should get it? People without a phone number that can take a text are greyed out.</p>
-    <div class="txtpick">
-      <button type="button" data-pick="all">Everyone</button>
-      <button type="button" data-pick="nodates">No dates marked</button>
-      <button type="button" data-pick="en">English speakers</button>
-      <button type="button" data-pick="es">Spanish + bilingual</button>
-      <button type="button" data-pick="none">Clear</button>
-    </div>
-    ${ppl.map(p=>{
-      const ok=!!smsNumber(p.phone);
-      return `<label class="txtrow${ok?'':' off'}">
-        <input type="checkbox" data-pid="${esc(p.id)}"${ok&&picked.has(p.id)?' checked':''}${ok?'':' disabled'}>
-        <span class="nm">${esc(p.name)}</span>
-        <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
-        ${txtStatus(p)}
-        <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
-    }).join('')}`;
+  const picked=new Set(txt.picked);
+  const byName=(a,b)=>a.name.localeCompare(b.name);
+  const chips=TXT_GROUPS.map(g=>{
+    const st=txtGroupState(roster.filter(g.test), picked);
+    return `<button type="button" class="txtgrp${st.on?' on':''}" data-grp="${esc(g.key)}"${st.ids.length?'':' disabled'}>`
+      + `${esc(g.label)} <span class="n">${st.ids.length}</span></button>`;
+  }).join('');
+  const section=(label, people, key, open)=>{
+    if(!people.length) return '';
+    const st=txtGroupState(people, picked);
+    return `<details class="txtsec"${open?' open':''}><summary>
+        <input type="checkbox" data-sec="${key}"${st.on?' checked':''}${st.ids.length?'':' disabled'}
+          ${!st.on&&st.some?'data-mixed':''} title="Select everyone in this group">
+        ${esc(label)}<span class="stfsecn"> · ${people.length}</span></summary>
+      ${people.map(p=>txtRowHTML(p, picked)).join('')}</details>`;
+  };
+  const active=roster.filter(txtActive), off=roster.filter(p=>!txtActive(p)).sort(byName);
+  return `<p class="txthint">Who should get it? Tap a group to add it (tap again to take it off) —
+      groups combine — or tick people one by one. People without a phone number that can take
+      a text are greyed out.</p>
+    <div class="txtpick">${chips}<button type="button" data-grp="none">Clear</button></div>
+    ${RANK_LBL.map((lbl,r)=>section(lbl, active.filter(p=>rosterRank(p)===r).sort(byName), 'r'+r, true)).join('')}
+    ${section('Not working this season', off, 'off', off.some(p=>picked.has(p.id)))}`;
 }
 function txtWirePick(body){
   body.querySelectorAll('input[data-pid]').forEach(cb=>cb.onchange=()=>{
-    const s=new Set(txt.picked);
-    cb.checked ? s.add(cb.dataset.pid) : s.delete(cb.dataset.pid);
-    txt.picked=[...s]; txtSave(); txtDrawFoot();
+    txtToggle([cb.dataset.pid], cb.checked); txtDraw();
   });
-  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
-    const k=b.dataset.pick;
-    const want=p=>k==='all' || (k==='nodates'&&!(p.dates||[]).length)
-      || (k==='en'&&p.lang==='English') || (k==='es'&&p.lang!=='English');
-    txt.picked = k==='none' ? [] : txtPeople().filter(p=>smsNumber(p.phone)&&want(p)).map(p=>p.id);
-    txtSave(); txtDraw();
+  body.querySelectorAll('input[data-sec]').forEach(cb=>{
+    if(cb.hasAttribute('data-mixed')) cb.indeterminate=true;
+    // The checkbox sits in the <summary>: don't let a tick fold the group.
+    cb.onclick=e=>e.stopPropagation();
+    cb.onchange=()=>{
+      const k=cb.dataset.sec;
+      const members=k==='off' ? roster.filter(p=>!txtActive(p))
+        : roster.filter(p=>txtActive(p)&&rosterRank(p)===+k.slice(1));
+      txtToggle(txtGroupState(members, new Set()).ids, cb.checked); txtDraw();
+    };
+  });
+  body.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.grp==='none'){ txt.picked=[]; txtSave(); txtDraw(); return; }
+    const g=TXT_GROUPS.find(x=>x.key===b.dataset.grp);
+    const st=txtGroupState(roster.filter(g.test), new Set(txt.picked));
+    txtToggle(st.ids, !st.on); txtDraw();
   });
 }
 
@@ -8417,31 +8478,35 @@ function txtDrawFoot(){
   back.style.visibility = txt.step>1 ? 'visible' : 'hidden';
   next.style.display = txt.step<3 ? '' : 'none';
   if(txt.step===1){
-    next.textContent='Next: choose people';
-    next.disabled=!(txt.en.trim()||txt.es.trim());
-    note.textContent=next.disabled?'Write at least one message to continue.':'';
+    next.textContent='Next: write the message';
+    next.disabled=!n;
+    note.textContent=n ? `${n} selected` : 'Pick at least one person to continue.';
   } else if(txt.step===2){
     next.textContent=`Next: send to ${n}`;
-    next.disabled=!n;
-    note.textContent=`${n} selected`;
+    next.disabled=!(txt.en.trim()||txt.es.trim());
+    note.textContent=next.disabled?'Write at least one message to continue.':`${n} selected`;
   } else note.textContent='';
 }
 function txtDraw(){
   const body=document.getElementById('txtbody');
-  document.getElementById('txtsteps').innerHTML=['Write','Choose people','Send'].map((s,i)=>
+  document.getElementById('txtsteps').innerHTML=['Choose people','Write','Send'].map((s,i)=>
     `<span class="txtstep${i+1===txt.step?' on':i+1<txt.step?' done':''}">${i+1} · ${s}</span>`).join('');
-  if(txt.step===1){ body.innerHTML=txtWriteHTML(); txtWireWrite(body); }
-  else if(txt.step===2){ body.innerHTML=txtPickHTML(); txtWirePick(body); }
+  // Ticking someone redraws the list, so keep the scroll where it was; moving
+  // between steps resets it (openTextDlg's go()).
+  const y=body.scrollTop;
+  if(txt.step===1){ body.innerHTML=txtPickHTML(); txtWirePick(body); }
+  else if(txt.step===2){ body.innerHTML=txtWriteHTML(); txtWireWrite(body); }
   else { body.innerHTML=txtSendHTML(); txtWireSend(body); }
-  body.scrollTop=0;
+  body.scrollTop=y;
   txtDrawFoot();
 }
 function openTextDlg(){
-  // First time: everyone active who can take a text.
-  if(!txt.picked) txt.picked=txtPeople().filter(p=>smsNumber(p.phone)).map(p=>p.id);
+  // Starts with nobody picked, so a group button gives exactly that group.
+  if(!txt.picked) txt.picked=[];
   txt.step=1; txtRange=null;
-  document.getElementById('txtback').onclick=()=>{ txt.step--; txtDraw(); };
-  document.getElementById('txtnext').onclick=()=>{ txt.step++; txtDraw(); };
+  const go=d=>{ txt.step+=d; document.getElementById('txtbody').scrollTop=0; txtDraw(); };
+  document.getElementById('txtback').onclick=()=>go(-1);
+  document.getElementById('txtnext').onclick=()=>go(1);
   txtDraw();
   document.getElementById('txtdlg').showModal();
 }
