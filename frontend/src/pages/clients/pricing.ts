@@ -67,3 +67,41 @@ export function discountLabel(pct: number | null | undefined): string {
   const n = Math.abs(pct) % 1 === 0 ? String(Math.abs(pct)) : Math.abs(pct).toFixed(1);
   return pct > 0 ? `${n}% off` : `${n}% above`;
 }
+
+/** A free job ("Donation — free install"): it stays free next season unless
+ *  its basis changes, so no next-season price is pushed. */
+export function isDonation(basis: string | null | undefined): boolean {
+  return /^\s*donation\b/i.test(basis || "");
+}
+
+/** How many dollars the charged price sits below the ideal (negative: above). */
+export function discountAmount(p: PricingView | null | undefined): number | null {
+  if (!p || p.charged == null || p.ideal?.total == null) return null;
+  return Math.round((p.ideal.total - p.charged) * 100) / 100;
+}
+
+export type NextSeasonPrice = { amount: number | null; note: string };
+
+/**
+ * Next season's starting price (user, 2026-10-05): we charge from the ideal,
+ * not from this season's discounted price. Shown only, never stored. A
+ * donation stays free; a card the ideal cannot be computed for says what it
+ * still needs.
+ */
+export function nextSeasonPrice(p: PricingView | null | undefined): NextSeasonPrice {
+  if (isDonation(p?.basis)) return { amount: null, note: "Stays a free donation install unless that changes" };
+  const total = p?.ideal?.total;
+  if (total == null) {
+    const m = missingLabel(p?.ideal?.missing);
+    return { amount: null, note: m ? `Needs ${m} on the card first` : "Not enough on the card to price" };
+  }
+  return { amount: total, note: "Charged from the ideal, not from this season's discounted price" };
+}
+
+/** "38 boxes × $75" for the storage part of a price, or "" when it can't say. */
+export function storageLabel(boxes: unknown, storageFee: unknown): string {
+  const b = Number(boxes), fee = Number(storageFee);
+  if (!Number.isFinite(b) || b <= 0 || !Number.isFinite(fee) || fee <= 0) return "";
+  const per = Math.round((fee / b) * 100) / 100;
+  return `${b} boxes × $${per % 1 === 0 ? per : per.toFixed(2)}`;
+}
