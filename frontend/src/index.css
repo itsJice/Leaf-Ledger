@@ -1047,6 +1047,18 @@ html.dark {
 }
 
 
+/* iPhone Safari zooms the whole page into any text field whose type is under
+   16px and leaves it zoomed after the keyboard closes. 16px on phones keeps
+   the page at its own scale. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+
 /* ═══════════════════════════════════════════════════════════════════════════
    LOGO
    ═══════════════════════════════════════════════════════════════════════════

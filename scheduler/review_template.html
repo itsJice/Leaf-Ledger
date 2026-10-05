@@ -1512,6 +1512,13 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .pbtoday{flex:none;height:42px;padding:0 12px;border:0;border-radius:12px;background:var(--brand-soft);
     color:var(--brand-hover);font-size:14px;font-weight:800;cursor:pointer}
   body.apple .pbtoday:disabled{opacity:.45}
+  @media (max-width:380px){
+    body.apple:not(.nodates) #phonebar{gap:4px;padding:8px}
+    body.apple .pbbtn{width:38px}
+    body.apple .pbtoday{padding:0 9px}
+    body.apple .pbdate{padding:0 6px;font-size:14px}
+    body.apple .pbdate .ic{display:none}
+  }
   /* Dates: a full-screen sheet from the day bar, laid out like the desktop list */
   body.apple #datecol{display:none}
   body.apple.datesheet #datecol{display:flex;position:fixed;inset:0;z-index:3000;flex-direction:column;flex-wrap:nowrap;
@@ -1584,6 +1591,8 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .agt{width:62px}
   body.apple .agn{flex:1;min-width:0}
   body.apple .agm{flex:1 1 100%;margin-left:89px;white-space:normal}
+  /* iPhone Safari zooms into any text field under 16px and stays zoomed */
+  body.apple input:not([type=checkbox]):not([type=radio]):not([type=range]),body.apple select,body.apple textarea{font-size:16px}
   /* Version history: a sheet under the toolbar */
   body.apple #histpop{position:fixed;left:8px;right:8px;top:54px;width:auto;max-width:none;max-height:75vh;overflow:auto}
 }
@@ -4688,7 +4697,9 @@ var stripList=[];
 function phoneDayLabel(){
   if(selDate==='NOINSTALL') return `Not installing ${'__SEASON__'}`;
   if(selDate==='HOLD') return 'On hold';
-  if(isOverview(selDate)) return overviewTitle(selDate)||'Overview';
+  // The day bar is narrow: "December 2026 Installations" -> "December Installs".
+  if(isOverview(selDate)) return (overviewTitle(selDate)||'Overview')
+    .replace(' + Takedowns','').replace('Installations','Installs').replace(/ \d{4}\b/,'');
   return dateOf(selDate).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 }
 function phoneTodayTarget(){
