@@ -500,7 +500,7 @@ body.viewonly #peekmove,body.viewonly #peekout,body.viewonly #headtitle,body.vie
 /* It's a shared screen on the shop floor: installers' ratings and private
    notes stay off it. */
 body.viewonly .ratcell,body.viewonly .stftable th[title^="Alberto"],
-body.viewonly .stfrating,body.viewonly .stfnotes{display:none!important}
+body.viewonly .stfrating,body.viewonly .stfnotes,body.viewonly .stftexts{display:none!important}
 /* The iPad is mirrored to a 4:3 TV: one slim bar of controls, then calendar. */
 body.viewonly header{padding:6px 12px}
 body.viewonly #calwrap{padding:6px 10px 8px}
@@ -609,6 +609,17 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   font-size:11.5px;color:var(--ink);margin-bottom:8px;white-space:pre-wrap}
 .stfnotes b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
   color:var(--mut);margin-bottom:2px;font-weight:800}
+.stftexts{border:1px solid var(--line);border-radius:7px;padding:8px 10px;margin-bottom:8px;font-size:11.5px}
+.stftexts>b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--mut);margin-bottom:3px;font-weight:800}
+.stftexts .none{color:var(--faint)}
+.stftexts .last{font-weight:700;color:var(--ink);margin-bottom:4px}
+.stftexts details{border-top:1px solid var(--line);padding:4px 0}
+.stftexts summary{cursor:pointer;display:flex;align-items:center;gap:6px;min-width:0}
+.stftexts summary .when{white-space:nowrap;color:var(--mut)}
+.stftexts summary .pv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);min-width:0}
+.stftexts .body{white-space:pre-wrap;background:var(--page);border-radius:6px;padding:7px 9px;margin-top:4px}
+.txtlast{font-size:10.5px;color:var(--mut);white-space:nowrap}
 .stfdstat{display:flex;gap:16px;padding:10px 0;border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);margin-bottom:12px}
 .stfdstat div{font-size:11px;color:var(--mut);font-weight:600}
@@ -2142,6 +2153,26 @@ const RATING_MAX=10;
 // display converts to that scale right here, in one place.
 function ratingScale(v){ return v/2; }
 function ratingText(v){ return v ? `${ratingScale(v)}/5` : 'not rated'; }
+/** Mass texts sent to this person from Send mass text, newest first, the last
+ *  TEXT_LOG_MAX of them (user, 2026-10-05: "track in each persons roster card
+ *  last time i texted them. keep track of the last 5 texts"). Each is what
+ *  went out: when, which language, and the text with their name filled in. */
+const TEXT_LOG_MAX=5;
+function normTexts(list){
+  return (Array.isArray(list)?list:[])
+    .filter(t=>t && typeof t.at==='string' && typeof t.body==='string')
+    .map(t=>({at:t.at, lang:t.lang==='es'?'es':'en', body:t.body.slice(0,2000)}))
+    .sort((a,b)=>b.at.localeCompare(a.at)).slice(0,TEXT_LOG_MAX);
+}
+function fmtTextWhen(iso){
+  const d=new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('en-US',
+    {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+}
+function fmtTextDay(iso){
+  const d=new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
 function normRatings(obj){
   const out={};
   Object.entries(obj&&typeof obj==='object'?obj:{}).forEach(([k,v])=>{
@@ -2234,6 +2265,7 @@ function normRoster(list){
       phone: fmtPhone(p.phone),
       notes: String(p.notes||'').trim(),
       ratings: normRatings(p.ratings),
+      texts: normTexts(p.texts),
       // No stored availability (an older record) means no restriction --
       // treat them as available rather than silently unstaffable.
       times: Array.isArray(p.times) ? p.times.filter(t=>t==='day'||t==='night')
@@ -7807,6 +7839,18 @@ function rosterHTML(){
   h+=`</div><div>${personDetailHTML()}</div></div>`;
   return h;
 }
+/** The roster card's record of mass texts: when they were last texted, and
+ *  the last few texts themselves, each opening to the full message. */
+function textLogHTML(p){
+  const t=p.texts||[];
+  if(!t.length) return `<div class="stftexts"><b>Texts</b><span class="none">No mass texts sent yet</span></div>`;
+  return `<div class="stftexts"><b title="The last ${TEXT_LOG_MAX} are kept">Texts</b>
+    <div class="last">Last texted ${esc(fmtTextWhen(t[0].at))}</div>
+    ${t.map(x=>`<details><summary><span class="when">${esc(fmtTextWhen(x.at))}</span>
+        <span class="pill ${x.lang==='es'?'es':'en'}">${x.lang==='es'?'ES':'EN'}</span>
+        <span class="pv">${esc(x.body.replace(/\s+/g,' ').slice(0,70))}</span></summary>
+      <div class="body">${esc(x.body)}</div></details>`).join('')}</div>`;
+}
 function personDetailHTML(){
   const p=personById(selPerson);
   if(!p) return `<div class="stfnone">Pick someone to see their days, jobs and crews.</div>`;
@@ -7826,6 +7870,7 @@ function personDetailHTML(){
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div>
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
+    ${textLogHTML(p)}
     <div class="stfrating"><b>Alberto rating</b>
       <div class="ratrow ratoverall"><span class="ratlbl">Overall</span>
         ${starsHTML(overallRating(p))}<span class="ratn">${ratingText(overallRating(p))}</span></div>
@@ -8194,6 +8239,10 @@ function txtPeople(){
   return roster.slice().sort((a,b)=>
     ((a.dates||[]).length>0)-((b.dates||[]).length>0) || a.name.localeCompare(b.name));
 }
+function txtLastHTML(p){
+  const t=(p.texts||[])[0];
+  return t ? `<span class="txtlast" title="${esc(fmtTextWhen(t.at))}">texted ${esc(fmtTextDay(t.at))}</span>` : '';
+}
 function txtStatus(p){
   // A count, like the Roster's Free column: the season now runs through the
   // takedown days, so "of all" made everyone read as only partly available.
@@ -8356,7 +8405,7 @@ function txtRowHTML(p, picked){
     <span class="nm">${esc(p.name)}</span>
     <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
     <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
-    ${txtStatus(p)}
+    ${txtStatus(p)}${txtLastHTML(p)}
     <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
 }
 function txtPickHTML(){
@@ -8425,7 +8474,7 @@ function txtSendHTML(){
         <div class="top"><label><input type="checkbox" data-sent${txt.sent[p.id]?' checked':''}>${esc(p.name)}</label>
           <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
           <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
-          ${txtStatus(p)}</div>
+          ${txtLastHTML(p)}${txtStatus(p)}</div>
         ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
         <details><summary>Their days · ${(p.times||[]).length===2?'day + night'
             :(p.times||[]).length?esc(p.times[0])+' only':'no shift times set'}</summary>
@@ -8436,10 +8485,32 @@ function txtSendHTML(){
                 class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
           }).join('')}</div></details>
         <div class="acts"><span class="ph">${esc(fmtPhone(p.phone))}</span>
-          ${sends.map(s=>`<a class="txtsend${s.l.key===mine||sends.length===1?' primary':''}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')}
-          ${sends.map(s=>`<button type="button" class="txtcopy" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}
+          ${sends.map(s=>`<a class="txtsend${s.l.key===mine||sends.length===1?' primary':''}" data-lang="${s.l.key}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')}
+          ${sends.map(s=>`<button type="button" class="txtcopy" data-lang="${s.l.key}" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}
         </div></div>`;
     }).join('')}`;
+}
+// Every text that goes out is written to the person's roster record (texts,
+// newest first, TEXT_LOG_MAX kept) and so to the shared state, where the
+// roster card shows it. txtLogged remembers the entry this page added for
+// each person, keyed by its timestamp: sending again replaces it rather than
+// stacking duplicates, and unticking someone ("the text never went") takes it
+// back out.
+const txtLogged={};
+function txtLog(p, lang, body){
+  if(READONLY) return;
+  const prev=txtLogged[p.id];
+  const entry={at:new Date().toISOString(), lang, body:String(body).slice(0,2000)};
+  p.texts=[entry, ...(p.texts||[]).filter(t=>t.at!==prev)].slice(0,TEXT_LOG_MAX);
+  txtLogged[p.id]=entry.at;
+  persist();
+}
+function txtUnlog(p){
+  const at=txtLogged[p.id];
+  if(!at || READONLY) return;
+  p.texts=(p.texts||[]).filter(t=>t.at!==at);
+  delete txtLogged[p.id];
+  persist();
 }
 function txtWireSend(body){
   const mark=(card, on)=>{
@@ -8453,13 +8524,27 @@ function txtWireSend(body){
       `${body.querySelectorAll('.txtcard.sent').length} of ${ppl}`;
   };
   body.querySelectorAll('.txtcard').forEach(card=>{
-    card.querySelector('[data-sent]').onchange=e=>mark(card, e.target.checked);
+    const p=personById(card.dataset.pid);
+    const bodyFor=lang=>txtFill(txt[lang], p);
+    card.querySelector('[data-sent]').onchange=e=>{
+      // Ticked by hand (pasted from elsewhere): log their usual language.
+      if(e.target.checked){
+        if(!txtLogged[p.id]){
+          const l=txt[txtLangFor(p)].trim() ? txtLangFor(p) : (txt.en.trim()?'en':'es');
+          txtLog(p, l, bodyFor(l));
+        }
+      } else txtUnlog(p);
+      mark(card, e.target.checked);
+    };
     // Opening Messages counts as done; untick it if the text never went.
-    card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',
-      ()=>setTimeout(()=>mark(card, true), 400)));
+    card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',()=>{
+      txtLog(p, a.dataset.lang, bodyFor(a.dataset.lang));
+      setTimeout(()=>mark(card, true), 400);
+    }));
     card.querySelectorAll('[data-copy]').forEach(b=>{
       const lbl=b.textContent;
       b.onclick=async()=>{
+        txtLog(p, b.dataset.lang, b.dataset.copy);
         try{ await navigator.clipboard.writeText(b.dataset.copy); b.textContent='Copied'; }
         catch(e){ b.textContent='Copy failed'; }
         setTimeout(()=>b.textContent=lbl, 1500);
