@@ -173,3 +173,9 @@ def test_only_the_calendar_router_skips_sign_in():
     assert main.PUBLIC_ROUTERS == {"install_calendar"}
     assert main.is_auth_disabled("install_calendar")
     assert not main.is_auth_disabled("install_schedule") or main.AUTH_DISABLED
+
+
+def test_subscribed_calendar_names_itself():
+    ics = cal.build_ics(board())
+    assert "X-WR-CALNAME:TBDG Xmas Schedule\r\n" in ics
+    assert "\r\nNAME:TBDG Xmas Schedule\r\n" in ics

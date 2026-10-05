@@ -168,6 +168,9 @@
   "/api/install-quote/jobs": [
     "GET"
   ],
+  "/api/install-schedule/calendar-link": [
+    "GET"
+  ],
   "/api/install-schedule/history": [
     "GET"
   ],
