@@ -64,6 +64,9 @@ def test_person_rate_class_title_and_override():
     assert over["rate"] == 19.5 and over["source"] == "override"
     # a class that no longer exists falls back to the title
     assert ic.person_rate(lead, {"pay_class": "gone"}, card)["source"] == "title"
+    # the roster's Designer title is paid as the Designer class
+    assert ic.person_rate({"id": "p3", "title": "Designer"}, None, card) == {
+        "pay_class": "designer", "label": "Designer", "rate": 16.5, "source": "title"}
 
 
 def test_person_rate_missing_when_class_has_no_rate():

@@ -506,7 +506,7 @@ body.viewonly #peekmove,body.viewonly #peekout,body.viewonly #headtitle,body.vie
 /* It's a shared screen on the shop floor: installers' ratings and private
    notes stay off it. */
 body.viewonly .ratcell,body.viewonly .stftable th[title^="Alberto"],
-body.viewonly .stfrating,body.viewonly .stfnotes{display:none!important}
+body.viewonly .stfrating,body.viewonly .stfnotes,body.viewonly .stftexts{display:none!important}
 /* The iPad is mirrored to a 4:3 TV: one slim bar of controls, then calendar. */
 body.viewonly header{padding:6px 12px}
 body.viewonly #calwrap{padding:6px 10px 8px}
@@ -593,6 +593,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   letter-spacing:.03em;white-space:nowrap}
 .pill.lead{background:#1f3d2b;color:#fff}
 .pill.assist{background:var(--brand-soft);color:var(--brand-deep)}
+.pill.designer{background:#f5effb;color:#6b21a8}
 .pill.gen{background:#f1efec;color:var(--mut)}
 .pill.en{background:#eef2ff;color:#3730a3}
 .pill.es{background:#fff1e7;color:#9a3412}
@@ -614,6 +615,17 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   font-size:11.5px;color:var(--ink);margin-bottom:8px;white-space:pre-wrap}
 .stfnotes b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
   color:var(--mut);margin-bottom:2px;font-weight:800}
+.stftexts{border:1px solid var(--line);border-radius:7px;padding:8px 10px;margin-bottom:8px;font-size:11.5px}
+.stftexts>b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--mut);margin-bottom:3px;font-weight:800}
+.stftexts .none{color:var(--faint)}
+.stftexts .last{font-weight:700;color:var(--ink);margin-bottom:4px}
+.stftexts details{border-top:1px solid var(--line);padding:4px 0}
+.stftexts summary{cursor:pointer;display:flex;align-items:center;gap:6px;min-width:0}
+.stftexts summary .when{white-space:nowrap;color:var(--mut)}
+.stftexts summary .pv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);min-width:0}
+.stftexts .body{white-space:pre-wrap;background:var(--page);border-radius:6px;padding:7px 9px;margin-top:4px}
+.txtlast{font-size:10.5px;color:var(--mut);white-space:nowrap}
 .stfdstat{display:flex;gap:16px;padding:10px 0;border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);margin-bottom:12px}
 .stfdstat div{font-size:11px;color:var(--mut);font-weight:600}
@@ -745,8 +757,92 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .stfchip.bad{background:var(--danger-soft);color:var(--danger)}
 .stfchip.none{background:#f1efec;color:var(--mut);border-color:var(--line)}
 .stfchip:hover{filter:brightness(.96)}
+/* Send mass text (Roster) */
+.stftxt{margin-left:auto;padding:7px 14px;border-radius:9px;border:1.5px solid var(--brand);
+  background:var(--brand);color:#fff;font-family:'Montserrat',sans-serif;font-weight:600;
+  font-size:12.5px;cursor:pointer}
+.stftxt:hover{background:var(--brand-hover)}
+.stftxt~.stfadd{margin-left:0}
+.stfvcf{padding:7px 14px;border-radius:9px;border:1.5px solid var(--brand);background:#fff;
+  color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer}
+.stfvcf:hover{background:var(--brand-soft)}
+#txtdlg{max-width:780px;width:calc(100vw - 32px);padding:0}
+#txtdlg[open]{display:flex;flex-direction:column;max-height:88vh}
+.txthd{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.txthd b{font-size:17px}
+.txtsteps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.txtstep{font-size:11.5px;font-weight:700;color:var(--faint);padding:3px 10px;border-radius:999px;
+  border:1.5px solid var(--line)}
+.txtstep.on{color:#fff;background:var(--brand);border-color:var(--brand)}
+.txtstep.done{color:var(--brand);border-color:var(--brand)}
+.txtbody{padding:14px 18px;overflow-y:auto;flex:1 1 auto}
+.txtfoot{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line)}
+.txtfoot .sp{flex:1;font-size:12px;color:var(--mut)}
+#txtdlg .txtfoot button:disabled{opacity:.45;cursor:default}
+.txthint{font-size:12px;color:var(--mut);margin:0 0 10px;line-height:1.45}
+.txtfields{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px;
+  padding:9px 10px;background:var(--page);border-radius:9px}
+.txtfields .lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
+  font-weight:700;margin-right:2px}
+.txttok{display:inline-block;padding:1px 9px;margin:0 1px;border-radius:999px;background:var(--brand-soft);
+  color:var(--brand-deep);border:1.5px solid #b9d3bb;font-size:12px;font-weight:700;line-height:1.5;
+  white-space:nowrap;user-select:none;vertical-align:baseline}
+.txtfields .txttok{cursor:grab;padding:3px 11px}
+.txtfields .txttok:active{cursor:grabbing}
+.txtfields .txttok:before{content:"\2807";margin-right:5px;opacity:.5;font-weight:400}
+.txtedlbl{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 4px}
+.txtedlbl b{font-size:14px}
+.txtedlbl span{font-size:11px;color:var(--faint)}
+.txted{min-height:150px;max-height:34vh;overflow-y:auto;padding:10px 12px;border:1.5px solid var(--line);
+  border-radius:9px;background:#fff;font-size:13.5px;line-height:1.55;white-space:pre-wrap;
+  word-wrap:break-word;outline:none;font-family:-apple-system,system-ui,'Montserrat',sans-serif}
+.txted:focus{border-color:var(--brand)}
+.txted.dropping{border-color:var(--brand);background:var(--brand-soft)}
+.txted:empty:before{content:attr(data-ph);color:var(--faint)}
+.txtpick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.txtpick button{padding:5px 11px;font-size:11.5px;border-radius:999px}
+#txtdlg .txtgrp .n{font-weight:800;color:var(--faint);margin-left:2px}
+#txtdlg .txtgrp.on{background:var(--brand);border-color:var(--brand);color:#fff}
+#txtdlg .txtgrp.on .n{color:#d6e6d7}
+#txtdlg .txtgrp:disabled{opacity:.45;cursor:default}
+.txtsec{margin-top:10px}
+.txtsec>summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:10.5px;
+  letter-spacing:.05em;text-transform:uppercase;font-weight:800;color:var(--mut);
+  padding:6px 8px;border-bottom:1px solid var(--line);list-style:none}
+.txtsec>summary::-webkit-details-marker{display:none}
+.txtsec .stfsecn{text-transform:none;letter-spacing:0}
+.txtrow{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;font-size:13px;cursor:pointer}
+.txtrow:hover{background:var(--brand-soft)}
+.txtrow.off{opacity:.5;cursor:default}
+.txtrow.off:hover{background:none}
+.txtrow .nm{font-weight:600;flex:1 1 auto;min-width:0}
+.txtrow .ph{color:var(--mut);font-size:11.5px;white-space:nowrap}
+.txtchip{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.txtchip.none{background:var(--danger-soft);color:var(--danger)}
+.txtchip.some{background:var(--warn-soft);color:var(--warn-ink)}
+.txtchip.all{background:var(--brand-soft);color:var(--brand)}
+.txtcard{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;background:#fff}
+.txtcard.sent{opacity:.5}
+.txtcard .top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.txtcard .top label{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;cursor:pointer}
+.txtcard .top .txtchip{margin-left:auto}
+.txtcard .notes{font-size:12px;color:var(--mut);margin-top:6px}
+.txtcard details{margin-top:6px}
+.txtcard summary{font-size:11.5px;color:var(--mut);cursor:pointer}
+.txtcard .bubrow{margin:6px 0 0}
+.txtcard .acts{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px;padding-top:9px;
+  border-top:1px solid var(--line)}
+.txtcard .acts .ph{flex:1;color:var(--mut);font-size:12.5px;white-space:nowrap}
+@media(max-width:520px){.txtcard .acts .ph{flex-basis:100%}}
+.txtsend{padding:7px 13px;border-radius:7px;font-size:12.5px;font-weight:700;text-decoration:none;
+  color:#0a7cff;box-shadow:inset 0 0 0 1.5px #0a7cff;white-space:nowrap}
+.txtsend.primary{background:#0a7cff;color:#fff;box-shadow:none}
+.txtcopy{background:none!important;border:0!important;padding:3px 4px!important;color:var(--mut)!important;
+  font-size:11.5px!important;text-decoration:underline}
+.txtprog{font-size:12.5px;color:var(--mut);margin-bottom:10px}
+.txtprog b{color:var(--ink)}
 /* assign dialog */
-#perdlg{max-width:520px}
+#perdlg{max-width:600px}
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .availhd{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:14px 0 2px;
   padding-top:12px;border-top:1px solid var(--line)}
@@ -763,6 +859,20 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .bub.preset:hover{background:var(--brand-soft)}
 .bub.preset:disabled{color:var(--faint);cursor:default;background:#fff}
 .bub.preset:disabled:hover{background:#fff}
+.wkrows{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
+.wkrow{display:grid;grid-template-columns:92px repeat(7,minmax(0,1fr));align-items:center;gap:4px}
+/* Labels match the shaded week bars in the dates list */
+.wklbl{align-self:stretch;display:flex;align-items:center;padding:0 8px;border-radius:8px;background:#e2dccf;
+  font-size:11.5px;font-weight:800;color:var(--brand-deep);white-space:nowrap}
+.wksec.wksec1{margin-top:0;border-top:0;padding-top:0}
+.wksec{margin:8px 0 2px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);
+  border-top:1px solid var(--line);padding-top:8px}
+.wkslot{min-width:0;display:flex}
+.wkslot .bub{flex:1;min-width:0;margin:0;padding:3px 0;text-align:center;font-size:11px;line-height:1.15;white-space:nowrap}
+.wkslot .bub .bd{font-size:8.5px}
+#perdays{display:block}
+.presetbrk{flex-basis:100%;height:0}
+.presetmonths{display:contents}
 .bub .bd{display:block;font-size:9px;font-weight:800;opacity:.7;letter-spacing:.04em}
 .bub.ro{cursor:default;padding:3px 8px}
 .bub.ro:hover{border-color:var(--line)}
@@ -1023,6 +1133,28 @@ body.tv #datecol,body.tv header{display:none!important}
 body.apple #tvbtn,body.apple #billexportbtn,body.apple #tbprint{width:34px;height:34px;padding:0;border:0;
   border-radius:10px;background:transparent;align-self:center}
 body.apple #tvbtn:hover,body.apple #billexportbtn:hover,body.apple #tbprint:hover{background:rgba(31,61,43,.07)}
+/* Calendar view: the search bar gives up room and the subscribe button slides
+   in left of Print (user, 2026-10-05). max-width rather than flex-basis so the
+   same transition works under every breakpoint's flex rules below. */
+body.apple #searchwrap{max-width:640px;transition:max-width .32s cubic-bezier(.2,.8,.2,1)}
+body.apple.calview #searchwrap{max-width:170px}
+body.apple #calsubwrap{position:relative;display:flex;align-items:center}
+body.apple #calsubwrap[hidden]{display:none!important}
+body.apple #calsubbtn{width:34px;height:34px;padding:0;border:0;border-radius:10px;background:transparent;
+  align-self:center;overflow:hidden;opacity:1;
+  transition:width .32s cubic-bezier(.2,.8,.2,1),opacity .2s ease .08s,visibility 0s}
+body.apple #calsubbtn:hover,body.apple #calsubbtn[aria-expanded="true"]{background:rgba(31,61,43,.07)}
+body.apple:not(.calview) #calsubbtn{width:0;opacity:0;visibility:hidden;
+  transition:width .32s cubic-bezier(.2,.8,.2,1),opacity .12s ease,visibility 0s .32s}
+body.apple #calsubpop{position:absolute;right:0;top:40px;z-index:2000;width:250px;padding:6px;border-radius:12px;
+  background:#fff;box-shadow:0 10px 30px rgba(28,46,30,.18),0 0 0 .5px rgba(28,46,30,.16);display:flex;flex-direction:column}
+body.apple #calsubpop[hidden]{display:none!important}
+body.apple #calsubpop p{margin:2px 0 4px;padding:4px 12px;font-size:12px;line-height:1.4;color:var(--mut)}
+body.apple #calsubpop a,body.apple #calsubpop button{all:unset;box-sizing:border-box;display:block;padding:9px 12px;border-radius:8px;
+  font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif}
+body.apple #calsubpop a:hover,body.apple #calsubpop button:hover,
+body.apple #calsubpop a:focus-visible,body.apple #calsubpop button:focus-visible{background:var(--brand-soft)}
+@media (prefers-reduced-motion:reduce){body.apple #searchwrap,body.apple #calsubbtn{transition:none}}
 
 /* ---- date column ---- */
 body.apple #datecol{display:flex;flex-direction:column;gap:12px;min-height:0;background:var(--side);
@@ -1042,6 +1174,9 @@ body.apple .dsec{position:sticky;top:0;z-index:2;display:flex;align-items:center
   font-size:14px;font-weight:800;color:var(--brand-deep);letter-spacing:-.005em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 body.apple .dsec:first-child{margin-top:0}
+body.apple .dphase{display:flex;align-items:center;gap:8px;margin:16px 0 4px;color:var(--brand-deep);
+  font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+body.apple .dphase::before,body.apple .dphase::after{content:'';flex:1;height:3px;border-radius:2px;background:var(--brand-deep)}
 body.apple .dsectxt{flex:none;white-space:nowrap}
 body.apple .dsecspan{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.apple .dcity{flex:none;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;line-height:16px}
@@ -1356,6 +1491,9 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .sbsub{display:none}
   body.apple #datestrip{flex:1 1 100%;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;margin:0;padding:0 0 4px}
   body.apple .dsec{display:none}
+  body.apple .dphase{flex:none;align-self:stretch;margin:0 4px;gap:0;width:3px;border-radius:2px;
+    background:var(--brand-deep);font-size:0}
+  body.apple .dphase::before,body.apple .dphase::after{display:none}
   body.apple #datefoot{flex-direction:row;border:0;margin:0;padding:0;gap:6px}
   body.apple .dchip{width:auto;flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;min-height:32px;padding:0 12px}
   body.apple .dchipwrap{width:auto;flex:none}
@@ -1416,6 +1554,18 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <!-- Populated (and un-hidden) only if the backend can list published
        seasons. No endpoint, no seasons, one season: no control. -->
   <select id="seasonpick" class="seasonpick" hidden aria-label="Season"></select>
+    <!-- Office calendar subscription. Un-hidden only when the backend hands
+         this login the link (staff and up -- it carries the feed's secret);
+         shown only on the Calendar view (body.calview). -->
+    <div id="calsubwrap" hidden>
+      <button id="calsubbtn" class="tbicon" type="button" title="Add the install schedule to your calendar" aria-label="Add to your calendar" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="17" x="3" y="4" rx="2.5"/><path d="M3 9h18M8 2v4M16 2v4M12 12.5v5M9.5 15h5"/></svg></button>
+      <div id="calsubpop" role="menu" hidden>
+        <p>Add the install schedule to your calendar. Office only &mdash; it shows client addresses and phone numbers.</p>
+        <a id="calsubgoogle" role="menuitem" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
+        <a id="calsubapple" role="menuitem" target="_blank" rel="noopener noreferrer">Add to Apple Calendar</a>
+        <button id="calsubcopy" type="button" role="menuitem">Copy link</button>
+      </div>
+    </div>
     <button id="tbprint" class="tbicon" type="button" title="Print the crew sheets for what's on screen" aria-label="Print crew sheets"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg></button>
     <button id="billexportbtn" class="tbicon" type="button" title="Export" aria-label="Export"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></button>
     <button id="tvbtn" class="tbicon" type="button" title="TV mode: full-screen wall calendar for the studio TV" aria-label="TV mode"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></button>
@@ -1453,7 +1603,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <div class="perrow">
     <div><span class="nclabel">Title</span>
       <select id="pertitle2">
-        <option>Lead</option><option>Lead Assist</option>
+        <option>Lead</option><option>Lead Assist</option><option>Designer</option>
         <option selected>General Installer</option>
       </select></div>
     <div><span class="nclabel">Language</span>
@@ -1487,6 +1637,12 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
     <button type="button" class="bub preset" data-preset="none">Clear selection</button>
     <button type="button" class="bub preset" data-preset="week">Weekdays</button>
     <button type="button" class="bub preset" data-preset="wknd">Weekends</button>
+    <span class="presetbrk" aria-hidden="true"></span>
+    <button type="button" class="bub preset" data-preset="dal" title="Every date a Dallas crew is booked">All Dallas</button>
+    <button type="button" class="bub preset" data-preset="hou" title="Every date a Houston crew is booked">All Houston</button>
+    <button type="button" class="bub preset" data-preset="inst" title="Every install date (through the Christmas cutoff)">All install</button>
+    <button type="button" class="bub preset" data-preset="td" title="Every takedown date (after the Christmas cutoff)">All takedown</button>
+    <span class="presetmonths" id="permonths"></span>
     <button type="button" class="bub preset" id="perundo" disabled>&#8630; Undo</button>
     <button type="button" class="bub preset" id="perredo" disabled>&#8631; Redo</button>
   </div>
@@ -1503,6 +1659,17 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div class="asglist" id="stflist"></div>
   <div class="btns"><button onclick="stfdlg.close()">Done</button></div>
+</dialog>
+<dialog id="txtdlg" aria-labelledby="txttitle">
+  <div class="txthd"><b id="txttitle">Send mass text</b>
+    <div class="txtsteps" id="txtsteps"></div></div>
+  <div class="txtbody" id="txtbody"></div>
+  <div class="txtfoot">
+    <button type="button" id="txtback">Back</button>
+    <span class="sp" id="txtfootnote"></span>
+    <button type="button" onclick="txtdlg.close()">Close</button>
+    <button type="button" class="go" id="txtnext">Next</button>
+  </div>
 </dialog>
 <dialog id="mvdlg">
   <b id="mvtitle">Move stop</b>
@@ -1691,7 +1858,8 @@ const SPEC = DATA.spec, K = SPEC.const;
 const WORK_WINDOW = {from:'', to:''};
 // Every day from Oct 21 through the install cutoff is a regular schedule
 // date (user, 2026-09-29: "add all the dates that are in between") -- no
-// more greyed gaps to add one at a time. Takedown days stay add-as-needed.
+// more greyed gaps to add one at a time. Takedown days (Dec 26 - Jan 31) are
+// regular calendar days too -- see inTakedownWindow().
 (function(){
   // The calendar's own optional flags are left alone -- flipping them made
   // normDates drop staff-added dates (and their training days) from the
@@ -1886,8 +2054,15 @@ let newDates = new Set();
 /** Calendar entries actually on the board: the working calendar, plus any
  *  optional date staff explicitly added. */
 function inWorkWindow(dt){ return !!WORK_WINDOW.from && dt>=WORK_WINDOW.from && dt<=WORK_WINDOW.to; }
+/** Every day after the install cutoff (Dec 26 - Jan 31) is the takedown
+ *  season's regular calendar (user, 2026-10-01). Built in here, not kept in
+ *  the shared newDates list: a tab opened before the dates were added saved
+ *  its older list over them and they vanished. The token, not
+ *  TAKEDOWN_CUTOFF, because bootstrap (normRoster -> workDates) runs before
+ *  that const is declared. */
+function inTakedownWindow(dt){ return dt>'__CUTOFF__'; }
 function activeCalendar(){
-  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date));
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inTakedownWindow(ci.date));
 }
 /** The Days list and Find a date also offer every day Oct 21 - cutoff (user,
  *  2026-09-29). Deliberately NOT activeCalendar(): the roster's availability
@@ -1895,7 +2070,7 @@ function activeCalendar(){
  *  working calendar exactly as it was (user, 2026-09-30: "make sure the
  *  calendar is not edited"). */
 function listCalendar(){
-  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inWorkWindow(ci.date));
+  return SPEC.calendar.filter(ci=>!ci.optional || newDates.has(ci.date) || inWorkWindow(ci.date) || inTakedownWindow(ci.date));
 }
 function normDates(list){
   const ok = new Set(SPEC.calendar.filter(ci=>ci.optional).map(ci=>ci.date));
@@ -2000,7 +2175,9 @@ function normManualOrder(obj){
 // a crew-day id -> the installer ids working it. Both start empty and are
 // filled in the tool, and both ride along in the same shared state as
 // placements/approvals, so they undo, sync and version identically.
-const TITLES = ['Lead','Lead Assist','General Installer'];
+// Designer (user, 2026-10-02): the design hands on a crew. Counts as Lead
+// Assist coverage -- dayNeed() already maps the stops' designer need there.
+const TITLES = ['Lead','Lead Assist','Designer','General Installer'];
 const LANGS  = ['English','Spanish','Both'];
 // Alberto rating (user, 2026-09-04): NOT year-over-year -- that got
 // scrapped the same day it shipped. "People are who they are": one
@@ -2027,6 +2204,26 @@ const RATING_MAX=10;
 // display converts to that scale right here, in one place.
 function ratingScale(v){ return v/2; }
 function ratingText(v){ return v ? `${ratingScale(v)}/5` : 'not rated'; }
+/** Mass texts sent to this person from Send mass text, newest first, the last
+ *  TEXT_LOG_MAX of them (user, 2026-10-05: "track in each persons roster card
+ *  last time i texted them. keep track of the last 5 texts"). Each is what
+ *  went out: when, which language, and the text with their name filled in. */
+const TEXT_LOG_MAX=5;
+function normTexts(list){
+  return (Array.isArray(list)?list:[])
+    .filter(t=>t && typeof t.at==='string' && typeof t.body==='string')
+    .map(t=>({at:t.at, lang:t.lang==='es'?'es':'en', body:t.body.slice(0,2000)}))
+    .sort((a,b)=>b.at.localeCompare(a.at)).slice(0,TEXT_LOG_MAX);
+}
+function fmtTextWhen(iso){
+  const d=new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('en-US',
+    {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+}
+function fmtTextDay(iso){
+  const d=new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
 function normRatings(obj){
   const out={};
   Object.entries(obj&&typeof obj==='object'?obj:{}).forEach(([k,v])=>{
@@ -2119,6 +2316,7 @@ function normRoster(list){
       phone: fmtPhone(p.phone),
       notes: String(p.notes||'').trim(),
       ratings: normRatings(p.ratings),
+      texts: normTexts(p.texts),
       // No stored availability (an older record) means no restriction --
       // treat them as available rather than silently unstaffable.
       times: Array.isArray(p.times) ? p.times.filter(t=>t==='day'||t==='night')
@@ -2331,6 +2529,7 @@ window.addEventListener('message', e=>{
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
     loadSeasons();
+    loadCalSub();
     pullShared();
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
@@ -3299,7 +3498,7 @@ function shiftCoverage(sh){
   // reuse dayCoverage's fill-down logic against the block's own need
   const who=ids.map(personById).filter(p=>p&&p.active);
   const lead=who.filter(p=>p.title==='Lead').length;
-  const assist=who.filter(p=>p.title==='Lead Assist').length;
+  const assist=who.filter(p=>p.title==='Lead Assist'||p.title==='Designer').length;
   const gen=who.filter(p=>p.title==='General Installer').length;
   const shortLead=Math.max(0,need.lead-lead);
   let spareLead=Math.max(0,lead-need.lead);
@@ -3345,7 +3544,7 @@ function dayCoverage(d){
   const need=dayNeed(d);
   const who=(staffing[d.id]||[]).map(personById).filter(p=>p&&p.active);
   let lead=who.filter(p=>p.title==='Lead').length;
-  let assist=who.filter(p=>p.title==='Lead Assist').length;
+  let assist=who.filter(p=>p.title==='Lead Assist'||p.title==='Designer').length;
   let gen=who.filter(p=>p.title==='General Installer').length;
   const shortLead=Math.max(0,need.lead-lead);
   let spareLead=Math.max(0,lead-need.lead);
@@ -3870,6 +4069,10 @@ const TAKEDOWN_CUTOFF='__CUTOFF__';
 const STRIP_SCOPE_KEY='tbdg-strip-scope';
 let stripScope=(()=>{ try{ const v=localStorage.getItem(STRIP_SCOPE_KEY); return ['install','takedown','all'].includes(v)?v:'install'; }catch(e){ return 'install'; } })();
 function inStripScope(dt){ return stripScope==='all' || (stripScope==='install' ? dt<=TAKEDOWN_CUTOFF : dt>TAKEDOWN_CUTOFF); }
+// Takedown-window days are regular calendar days (see inTakedownWindow), so
+// one that also sits in newDates still draws plain, without a remove button.
+// A training day keeps its remove button.
+function shownAsAdded(dt){ return newDates.has(dt) && (!inTakedownWindow(dt) || trainingDays.has(dt)); }
 function setStripScope(v){
   stripScope=v;
   try{ localStorage.setItem(STRIP_SCOPE_KEY,v); }catch(e){}
@@ -4136,7 +4339,44 @@ document.addEventListener('mousedown', e=>{
   searchHit = null;
   document.querySelectorAll('.stop.searchhit').forEach(x=>x.classList.remove('searchhit'));
 }, true);
+// On the Roster screen the toolbar search filters installers instead of
+// finding clients (user, 2026-10-02).
+var rosterQ='';
+function rosterSearchOn(){ return viewMode==='staff' && staffTab==='roster'; }
+function syncSearchMode(){
+  const on=rosterSearchOn();
+  const ph = on ? 'Search roster' : 'Find a client';
+  if(searchBox.placeholder!==ph){
+    searchBox.placeholder=ph; searchBox.setAttribute('aria-label', ph);
+    searchBox.title = on ? 'Filter installers by name, phone, email, notes, title or language' : 'Which day is a client on?';
+    // Switching screens starts each search fresh.
+    searchBox.value=''; rosterQ=''; searchResults.style.display='none';
+  }
+}
+function rosterMatchesQuery(p){
+  const q=rosterQ.trim().toLowerCase(); if(!q) return true;
+  // Every text field on the record -- name, phone, email, title, language,
+  // gender, notes and anything added later (user: 'friend of alberto' must
+  // find everyone with that in their notes). Availability dates and ratings
+  // are left out so a search for '11' doesn't match every November date.
+  const vals=[];
+  Object.entries(p).forEach(([k,v])=>{
+    if(['id','dates','ratings','times'].includes(k) || v==null) return;
+    if(typeof v==='string' || typeof v==='number') vals.push(String(v));
+  });
+  if(p.phone) vals.push(fmtPhone(p.phone));
+  const hay=vals.join(' \u2022 ').toLowerCase().replace(/\s+/g,' ');
+  const digits=q.replace(/\D/g,'');
+  return hay.includes(q.replace(/\s+/g,' '))
+    || q.split(/\s+/).every(w=>hay.includes(w))
+    || (digits.length>=3 && String(p.phone||'').replace(/\D/g,'').includes(digits));
+}
 function renderSearch(q){
+  if(rosterSearchOn()){
+    rosterQ=q; searchResults.style.display='none';
+    renderStaffing();
+    return;
+  }
   const results = searchClients(q);
   if(!q.trim()){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
   searchResults.innerHTML = results.length ? results.map(r=>{
@@ -4155,7 +4395,8 @@ function renderSearch(q){
 searchBox.addEventListener('input', ()=>renderSearch(searchBox.value));
 searchBox.addEventListener('focus', ()=>{ if(searchBox.value) renderSearch(searchBox.value); });
 searchBox.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ searchBox.value=''; searchResults.style.display='none'; searchBox.blur(); }
+  if(e.key==='Escape'){ searchBox.value=''; searchResults.style.display='none'; searchBox.blur();
+    if(rosterSearchOn() && rosterQ){ rosterQ=''; renderStaffing(); } }
 });
 document.addEventListener('click', e=>{
   if(!e.target.closest('#searchwrap')) searchResults.style.display='none';
@@ -4384,7 +4625,7 @@ function renderStrip(){
     const b=document.createElement('button');
     b.type='button';
     b.className='dchip'+(wknd?' wknd':'')+(empty?' empty':'')+(selDate===val?' sel':'')
-             +(tag?' tagged':'')+(newDates.has(val)?' added':'')+(o.cls?' '+o.cls:'');
+             +(tag?' tagged':'')+(shownAsAdded(val)?' added':'')+(o.cls?' '+o.cls:'');
     b.dataset.val=val;
     if(selDate===val) b.setAttribute('aria-current','true');
     const lab=document.createElement('span'); lab.className='dlab';
@@ -4417,7 +4658,7 @@ function renderStrip(){
       if(val==='HOLD'){ if(!hold.has(row)) toggleHold(row); return; }
       if(!isOverview(val)) openMoveDlg(row,val);};
     // A date THIS session added keeps its own remove button.
-    if(newDates.has(val)){
+    if(shownAsAdded(val)){
       const wrap=document.createElement('span');
       wrap.className='dchipwrap';
       wrap.appendChild(b);
@@ -4549,10 +4790,21 @@ function renderStrip(){
   if(working.has(selDate) && !list.includes(selDate)){ list.push(selDate); list.sort(); }
   const weeks=[];
   list.forEach(dt=>{
-    const wk=weekOf(dt), last=weeks[weeks.length-1];
+    // The week holding the cutoff splits at it, so the install/takedown line
+    // falls between Dec 25 and Dec 26 rather than inside one week's block.
+    const wk=weekOf(dt)+(dt>TAKEDOWN_CUTOFF?'|takedown':''), last=weeks[weeks.length-1];
     if(last && last.wk===wk) last.dates.push(dt); else weeks.push({wk, dates:[dt]});
   });
-  weeks.forEach(w=>{
+  weeks.forEach((w,i)=>{
+    // A hard line where install season ends and takedown begins (user,
+    // 2026-10-01). Only when both halves are listed.
+    if(i>0 && w.dates[0]>TAKEDOWN_CUTOFF && weeks[i-1].dates[0]<=TAKEDOWN_CUTOFF){
+      const ln=document.createElement('div'); ln.className='dphase';
+      ln.setAttribute('role','separator');
+      ln.innerHTML=`<span>Takedown</span>`;
+      ln.title=`Install season ends ${listDate(TAKEDOWN_CUTOFF)} · takedown starts ${listDate(w.dates[0])}`;
+      strip.appendChild(ln);
+    }
     const a=w.dates[0], z=w.dates[w.dates.length-1];
     const span=a===z ? listDate(a).split(', ')[1]
       : (a.slice(5,7)===z.slice(5,7) ? `${MON3[+a.slice(5,7)-1]} ${+a.slice(8,10)} – ${+z.slice(8,10)}`
@@ -5311,7 +5563,7 @@ function removeAddedDate(date){
 }
 function renderAddedDates(){
   const box=document.getElementById('ndadded');
-  const list=[...newDates].sort();
+  const list=[...newDates].filter(shownAsAdded).sort();
   if(!list.length){ box.innerHTML=''; return; }
   box.innerHTML='<b>Added</b><br>'+list.map(d=>
     `<span class="ndchip">${dowOf(d)} ${fmtMDYYYY(d)}${trainingDays.has(d)?' · training':''}`
@@ -7182,8 +7434,8 @@ let staffTab='shifts', selPerson=null;
 // Inactive people have their own collapsed section now, so the default view
 // is both -- 'Active' as a default would have hidden that section entirely.
 let stfFilter={title:'',lang:'',gender:'',active:'',sort:''};
-const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','General Installer':'gen'};
-const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','General Installer':'General'};
+const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','Designer':'designer','General Installer':'gen'};
+const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','Designer':'Designer','General Installer':'General'};
 const LANG_CLS={'English':'en','Spanish':'es','Both':'both'};
 const LANG_ABBR={'English':'EN','Spanish':'ES','Both':'EN/ES'};
 function esc(x){ return String(x==null?'':x)
@@ -7240,14 +7492,55 @@ function updatePerHistBtns(){
   if(u) u.disabled = !perUndo.length;
   if(r) r.disabled = !perRedo.length;
 }
+/** "Nov | Week 1": the month of the date, and which Sunday-start row of that
+ *  month's calendar it sits on -- same labels as the dates list. */
+function weekLabel(dt){
+  const f=dateOf(dt), lead=new Date(f.getFullYear(), f.getMonth(), 1).getDay();
+  return `${MON3[f.getMonth()]} | Week ${Math.floor((f.getDate()-1+lead)/7)+1}`;
+}
+/** Availability dates laid out one week per row (user, 2026-10-02): the week's
+ *  label, then that week's date bubbles. `bubble(dt)` returns one bubble. */
+function weekRowsHTML(dates, bubble){
+  // One line per Sunday-Saturday week, seven fixed day slots, so a week never
+  // wraps or doubles back (user, 2026-10-02); days not on the list are blank.
+  // A "Takedown" divider sits before the first week after the cutoff.
+  const rows=[];
+  [...dates].sort().forEach(dt=>{
+    const k=weekOf(dt), last=rows[rows.length-1];
+    if(last && last.k===k) last.dates.push(dt); else rows.push({k, dates:[dt]});
+  });
+  let td=false, inst=false;
+  return `<div class="wkrows">${rows.map(r=>{
+    let pre='';
+    if(!inst && r.dates[0]<=TAKEDOWN_CUTOFF){ inst=true; pre=`<div class="wksec wksec1">Installs</div>`; }
+    if(!td && r.dates[0]>TAKEDOWN_CUTOFF){ td=true; pre=`<div class="wksec">Takedown</div>`; }
+    const slots=Array(7).fill('<span class="wkslot"></span>');
+    r.dates.forEach(dt=>{ slots[dateOf(dt).getDay()]=`<span class="wkslot">${bubble(dt)}</span>`; });
+    return pre+`<div class="wkrow"><span class="wklbl">${esc(weekLabel(r.dates[0]))}</span>${slots.join('')}</div>`;
+  }).join('')}</div>`;
+}
+/** Dates a Dallas / Houston crew is booked on (a date with both counts for both). */
+function datesForCity(all, city){
+  return all.filter(dt=>{ const ds=days.filter(d=>d.date===dt); if(!ds.length) return false;
+    return city==='DAL' ? ds.some(d=>d.cat==='M Crowd') : ds.some(d=>d.cat!=='M Crowd'); });
+}
+var rosterClick={pid:null, t:0};
 function drawPerAvail(){
   const all=workDates();
-  document.getElementById('perdays').innerHTML = all.map(dt=>{
-    const d=dateOf(dt);
-    return `<button type="button" class="bub${perDates.has(dt)?' on':''}" data-date="${dt}">`
+  document.getElementById('perdays').innerHTML = weekRowsHTML(all, dt=>{
+    const d=dateOf(dt), wk=(d.getDay()===0||d.getDay()===6);
+    return `<button type="button" class="bub${perDates.has(dt)?' on':''}${wk?' weekend':''}" data-date="${dt}">`
          + `<span class="bd">${DOW3[d.getDay()].toUpperCase()}</span>`
          + `${d.getMonth()+1}/${d.getDate()}</button>`;
-  }).join('');
+  });
+  // One "All <month>" per month that actually has dates.
+  const pm=document.getElementById('permonths');
+  if(pm && !pm.dataset.built){
+    pm.dataset.built='1';
+    const months=[...new Set(all.map(dt=>dt.slice(0,7)))];
+    pm.innerHTML=months.map(ym=>`<button type="button" class="bub preset" data-preset="m${ym}">All ${MON3[+ym.slice(5,7)-1]}</button>`).join('');
+    pm.querySelectorAll('.bub.preset').forEach(wirePreset);
+  }
   document.getElementById('peravailn').textContent = `${perDates.size} of ${all.length}`;
   const warn=document.getElementById('peravailwarn');
   if(warn) warn.style.display = (perTimes.size && perDates.size) ? 'none' : 'block';
@@ -7264,17 +7557,25 @@ document.querySelectorAll('#pertimes .bub').forEach(b=>
   b.onclick=()=>{ perTimes.has(b.dataset.time)?perTimes.delete(b.dataset.time)
                                               :perTimes.add(b.dataset.time);
                   drawPerAvail(); });
-document.querySelectorAll('.bub.preset[data-preset]').forEach(b=>
+// Quick selections REPLACE the current pick (Undo brings the old one back).
+function wirePreset(b){
   b.onclick=()=>{
     pushPerHist();
     const all=workDates(), k=b.dataset.preset;
     perDates = new Set(
       k==='all'  ? all :
       k==='none' ? [] :
-      k==='week' ? all.filter(dt=>{const w=dateOf(dt).getDay(); return w>=1&&w<=5;})
-                 : all.filter(dt=>{const w=dateOf(dt).getDay(); return w===0||w===6;}));
+      k==='week' ? all.filter(dt=>{const w=dateOf(dt).getDay(); return w>=1&&w<=5;}) :
+      k==='wknd' ? all.filter(dt=>{const w=dateOf(dt).getDay(); return w===0||w===6;}) :
+      k==='dal'  ? datesForCity(all,'DAL') :
+      k==='hou'  ? datesForCity(all,'HOU') :
+      k==='inst' ? all.filter(dt=>dt<=TAKEDOWN_CUTOFF) :
+      k==='td'   ? all.filter(dt=>dt>TAKEDOWN_CUTOFF) :
+      k.startsWith('m') ? all.filter(dt=>dt.slice(0,7)===k.slice(1)) : []);
     drawPerAvail();
-  });
+  };
+}
+document.querySelectorAll('.bub.preset[data-preset]').forEach(wirePreset);
 document.getElementById('perundo').onclick=()=>{
   if(!perUndo.length) return;
   perRedo.push([...perDates]);
@@ -7558,7 +7859,7 @@ function rosterHTML(){
   const f=stfFilter;
   const matches=p=>
     (!f.title||p.title===f.title) && (!f.lang||p.lang===f.lang)
-    && (!f.gender||p.gender===f.gender);
+    && (!f.gender||p.gender===f.gender) && rosterMatchesQuery(p);
   // Ordered by how complete the record is, then by title, then by name. The
   // old order was title-then-name alone, which buried the people who still
   // need availability among the ones already working.
@@ -7593,7 +7894,9 @@ function rosterHTML(){
     h+=`<div class="stfnone">No installers yet. <b>+ Add installer</b> to start building the roster —
         then staff each crew-day from its card or from Coverage.</div>`;
   } else if(!list.length){
-    if(!off.length) h+=`<div class="stfnone">No installers match those filters.</div>`;
+    if(!off.length) h+= rosterQ.trim()
+      ? `<div class="stfnone">No installers match "${esc(rosterQ.trim())}".</div>`
+      : `<div class="stfnone">No installers match those filters.</div>`;
   } else if(sortByRating){
     const rated=list.filter(p=>overallRating(p)).length;
     h += rosterSection(`Alberto rating (overall)`
@@ -7612,6 +7915,18 @@ function rosterHTML(){
   h += rosterSection('Not working this season', off, false);
   h+=`</div><div>${personDetailHTML()}</div></div>`;
   return h;
+}
+/** The roster card's record of mass texts: when they were last texted, and
+ *  the last few texts themselves, each opening to the full message. */
+function textLogHTML(p){
+  const t=p.texts||[];
+  if(!t.length) return `<div class="stftexts"><b>Texts</b><span class="none">No mass texts sent yet</span></div>`;
+  return `<div class="stftexts"><b title="The last ${TEXT_LOG_MAX} are kept">Texts</b>
+    <div class="last">Last texted ${esc(fmtTextWhen(t[0].at))}</div>
+    ${t.map(x=>`<details><summary><span class="when">${esc(fmtTextWhen(x.at))}</span>
+        <span class="pill ${x.lang==='es'?'es':'en'}">${x.lang==='es'?'ES':'EN'}</span>
+        <span class="pv">${esc(x.body.replace(/\s+/g,' ').slice(0,70))}</span></summary>
+      <div class="body">${esc(x.body)}</div></details>`).join('')}</div>`;
 }
 function personDetailHTML(){
   const p=personById(selPerson);
@@ -7632,6 +7947,7 @@ function personDetailHTML(){
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div>
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
+    ${textLogHTML(p)}
     <div class="stfrating"><b>Alberto rating</b>
       <div class="ratrow ratoverall"><span class="ratlbl">Overall</span>
         ${starsHTML(overallRating(p))}<span class="ratn">${ratingText(overallRating(p))}</span></div>
@@ -7643,12 +7959,12 @@ function personDetailHTML(){
     <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
       · ${(p.times||[]).length===2?'day + night'
           :(p.times||[]).length?esc(p.times[0])+' only':'<b>no shift times set</b>'}</div>
-    <div class="bubrow">${workDates().map(dt=>{
+    ${weekRowsHTML(workDates(), dt=>{
         const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
         return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
               title="${fmtMDYYYY(dt)}${wk?' · weekend':''} — ${has?'available':'not marked available'}">
             <span class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
-      }).join('')}</div>
+      })}
     <div class="stfdstat">
       <div><b>${sh.length}</b>shift${sh.length===1?'':'s'}</div>
       <div><b>${dayCount}</b>days</div><div><b>${stops}</b>jobs</div>
@@ -7697,7 +8013,7 @@ function shiftCardHTML(sh){
     ? `<div class="shcrew">${cv.who.slice().sort((a,b)=>
          TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
         .map(pn=>`<span class="shcp ${TITLE_CLS[pn.title]}">${esc(pn.name)}`
-          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':''}</span>`)
+          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':pn.title==='Designer'?' · designer':''}</span>`)
         .join('')}</div>`
     : `<div class="shcempty">No one assigned yet.</div>`;
   return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
@@ -7839,6 +8155,7 @@ function wireShiftMaps(wrap){
   shiftMapsInReach(wrap);
 }
 function renderStaffing(){
+  syncSearchMode();
   const wrap=document.getElementById('staffwrap');
   // Keep the top-nav Staffing/Roster buttons in sync even when the tab
   // changes via the in-page sub-tabs rather than the top nav itself.
@@ -7850,15 +8167,32 @@ function renderStaffing(){
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
       <button class="stftab${staffTab==='shifts'?' sel':''}" data-tab="shifts">Shifts${
         short?` (${short})`:''}</button>
+      ${staffTab==='roster'?'<button class="stftxt" id="masstext">Send mass text</button>'
+        +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts">Download contacts</button>':''}
       <button class="stfadd" id="addperson">+ Add installer</button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   wrap.querySelectorAll('.stftab').forEach(b=>
     b.onclick=()=>{ staffTab=b.dataset.tab; renderStaffing(); });
   document.getElementById('addperson').onclick=()=>openPersonDlg(null);
+  const mt=document.getElementById('masstext');
+  if(mt) mt.onclick=openTextDlg;
+  const dl=document.getElementById('dlcontacts');
+  if(dl) dl.onclick=downloadContacts;
   wrap.querySelectorAll('select[data-f]').forEach(sl=>
     sl.onchange=()=>{ stfFilter[sl.dataset.f]=sl.value; renderStaffing(); });
-  wrap.querySelectorAll('tr[data-pid]').forEach(tr=>
-    tr.onclick=()=>{ selPerson=tr.dataset.pid; renderStaffing(); });
+  wrap.querySelectorAll('tr[data-pid]').forEach(tr=>{
+    tr.title='Click to see their days · double-click to edit';
+    tr.onclick=()=>{
+      const pid=tr.dataset.pid, now=Date.now();
+      if(rosterClick.pid===pid && now-rosterClick.t<450){
+        rosterClick={pid:null,t:0};
+        const pn=personById(pid); if(pn) openPersonDlg(pn);
+        return;
+      }
+      rosterClick={pid, t:now};
+      selPerson=pid; renderStaffing();
+    };
+  });
   wrap.querySelectorAll('[data-act]').forEach(b=>{
     const pn=personById(selPerson); if(!pn) return;
     b.onclick=()=>{ const a=b.dataset.act;
@@ -7891,8 +8225,457 @@ function renderStaffing(){
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
                      selDate=d.date; focusDayId=d.id; setView('days'); });
 }
+
+// ---- Download contacts (Roster) ----
+// Everyone on the roster as contact cards in one .vcf file (user, 2026-10-02:
+// "download all of the contact cards and import them into my contacts"). On a
+// Mac, opening the file imports them into Contacts. Company is TBDG and job
+// title is their roster title; what the roster knows beyond that, apart from
+// availability, goes in the card's note: language, gender, Alberto rating
+// and the roster notes.
+function vcfEsc(v){
+  return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1');
+}
+function vcardFor(p){
+  const ov=overallRating(p);
+  const note=[
+    `TBDG · ${p.title}`,
+    `Language: ${p.lang==='Both'?'English + Spanish':p.lang}`,
+    `Gender: ${p.gender}`,
+    p.active===false?'Not working this season':'',
+    `Alberto rating: ${ov?ratingScale(ov)+'/5':'not rated'}`,
+    ...RATING_DIMENSIONS.filter(d=>ratingOf(p,d.key))
+      .map(d=>`   ${d.label}: ${ratingText(ratingOf(p,d.key))}`),
+    p.notes?`Notes: ${p.notes}`:'',
+  ].filter(Boolean).join('\n');
+  const lines=['BEGIN:VCARD', 'VERSION:3.0',
+    `N:${vcfEsc(p.last)};${vcfEsc(p.first)};;;`,
+    `FN:${vcfEsc(p.name)}`,
+    'ORG:TBDG',
+    `TITLE:${vcfEsc(p.title)}`];
+  if(String(p.phone||'').trim()) lines.push(`TEL;type=CELL;type=VOICE;type=pref:${vcfEsc(fmtPhone(p.phone))}`);
+  if(String(p.email||'').trim()) lines.push(`EMAIL;type=INTERNET;type=pref:${vcfEsc(String(p.email).trim())}`);
+  lines.push(`NOTE:${vcfEsc(note)}`, 'END:VCARD');
+  return lines.join('\r\n');
+}
+function downloadContacts(){
+  const people=roster.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(!people.length) return;
+  const blob=new Blob([people.map(vcardFor).join('\r\n')+'\r\n'], {type:'text/vcard;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='TBDG Installers.vcf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+// ---- Send mass text (Roster) ----
+// One message, written once with name fields dragged in, sent to each
+// installer as their OWN text -- never a group chat (user, 2026-10-01). Each
+// "Send" is an sms: link, so the user's Messages app opens with that person's
+// text filled in and the user presses Return themselves: this page never sends
+// anything and needs no access to their phone or iMessage. Draft, picks and
+// checkmarks live in this browser only, not in the shared schedule state.
+const TXT_KEY='tbdg-masstext';
+const TXT_FIELDS=[
+  {key:'first', label:'First name', val:p=>p.first||String(p.name||'').split(' ')[0]},
+  {key:'name',  label:'Full name',  val:p=>p.name||''},
+  {key:'last',  label:'Last name',  val:p=>p.last||''},
+];
+const TXT_LANGS=[{key:'en', label:'English', ph:'Hello {First name}! Write the English text here…'},
+                 {key:'es', label:'Spanish', ph:'¡Hola {First name}! Escribe el texto en español aquí…'}];
+let txt=(()=>{
+  let s={};
+  try{ s=JSON.parse(localStorage.getItem(TXT_KEY)||'{}')||{}; }catch(e){}
+  return {en:s.en||'', es:s.es||'', picked:Array.isArray(s.picked)?s.picked:null,
+          sent:s.sent&&typeof s.sent==='object'?s.sent:{}, step:1};
+})();
+let txtRange=null;          // where a clicked field goes: the caret last seen in an editor
+function txtSave(){
+  try{ localStorage.setItem(TXT_KEY, JSON.stringify(
+    {en:txt.en, es:txt.es, picked:txt.picked, sent:txt.sent})); }catch(e){}
+}
+/** "+1XXXXXXXXXX" for a plain US number, null for anything a text can't go to. */
+function smsNumber(v){
+  let d=String(v==null?'':v).replace(/\D/g,'');
+  if(d.length===10) d='1'+d;
+  return d.length===11 && d[0]==='1' ? '+'+d : null;
+}
+/** Their usual language: English speakers get English, Spanish and bilingual
+ *  people get Spanish -- the same default the first send used. */
+function txtLangFor(p){ return p.lang==='English' ? 'en' : 'es'; }
+function txtFill(tpl, p){
+  return tpl.replace(/\{\{(\w+)\}\}/g, (m,k)=>{
+    const f=TXT_FIELDS.find(x=>x.key===k);
+    return f ? f.val(p) : '';
+  });
+}
+function txtPeople(){
+  // No dates marked first: they are who the text is chasing. Then by name.
+  // Inactive people are included -- they can be picked on purpose.
+  return roster.slice().sort((a,b)=>
+    ((a.dates||[]).length>0)-((b.dates||[]).length>0) || a.name.localeCompare(b.name));
+}
+function txtLastHTML(p){
+  const t=(p.texts||[])[0];
+  return t ? `<span class="txtlast" title="${esc(fmtTextWhen(t.at))}">texted ${esc(fmtTextDay(t.at))}</span>` : '';
+}
+function txtStatus(p){
+  // A count, like the Roster's Free column: the season now runs through the
+  // takedown days, so "of all" made everyone read as only partly available.
+  const n=(p.dates||[]).length;
+  if(!n) return `<span class="txtchip none">No dates marked yet</span>`;
+  return `<span class="txtchip all">${n} day${n===1?'':'s'} marked</span>`;
+}
+
+// The editor holds text, line breaks and field bubbles; the draft is saved as
+// plain text with {{key}} where each bubble sits.
+function txtTok(key){
+  const f=TXT_FIELDS.find(x=>x.key===key);
+  const s=document.createElement('span');
+  s.className='txttok'; s.contentEditable='false'; s.dataset.tok=key;
+  s.textContent=f?f.label:key;
+  return s;
+}
+function txtRender(ed, str){
+  ed.textContent='';
+  String(str||'').split(/(\{\{\w+\}\})/).forEach(part=>{
+    const m=part.match(/^\{\{(\w+)\}\}$/);
+    if(m){ ed.appendChild(txtTok(m[1])); return; }
+    part.split('\n').forEach((line,i)=>{
+      if(i) ed.appendChild(document.createElement('br'));
+      if(line) ed.appendChild(document.createTextNode(line));
+    });
+  });
+}
+function txtSerialize(ed){
+  let out='';
+  const walk=n=>n.childNodes.forEach(c=>{
+    if(c.nodeType===3){ out+=c.nodeValue; return; }
+    if(c.nodeType!==1) return;
+    if(c.dataset && c.dataset.tok){ out+=`{{${c.dataset.tok}}}`; return; }
+    if(c.tagName==='BR'){ out+='\n'; return; }
+    // Chrome wraps new lines in <div>s on some edits; each one starts a line.
+    if(/^(DIV|P)$/.test(c.tagName) && out && !out.endsWith('\n')) out+='\n';
+    walk(c);
+  });
+  walk(ed);
+  return out.replace(/ /g,' ').replace(/\s+$/,'');
+}
+function txtInsertTok(ed, key, range){
+  const tok=txtTok(key);
+  ed.focus();
+  if(range && ed.contains(range.startContainer)){
+    range.deleteContents(); range.insertNode(tok);
+  } else ed.appendChild(tok);
+  const r=document.createRange(); r.setStartAfter(tok); r.collapse(true);
+  const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  txtRange=r.cloneRange();
+  txtEdited(ed);
+}
+function txtRangeAt(x, y){
+  if(document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+  const p=document.caretPositionFromPoint && document.caretPositionFromPoint(x, y);
+  if(!p) return null;
+  const r=document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true);
+  return r;
+}
+document.addEventListener('selectionchange', ()=>{
+  const sel=getSelection();
+  if(!sel.rangeCount) return;
+  const r=sel.getRangeAt(0);
+  const host=r.startContainer.nodeType===1?r.startContainer:r.startContainer.parentElement;
+  if(host && host.closest && host.closest('.txted')) txtRange=r.cloneRange();
+});
+
+function txtEdited(ed){
+  txt[ed.dataset.lang]=txtSerialize(ed); txtSave(); txtDrawFoot();
+}
+
+function txtWriteHTML(){
+  return `<p class="txthint">Write the message once — or paste it in — in English, Spanish or both.
+      Drag a bubble into the text (or click it to drop it where your cursor is) and each person's
+      text gets their own name in that spot. On the send list you pick which version each person gets.</p>
+    <div class="txtfields"><span class="lbl">Drag in</span>${TXT_FIELDS.map(f=>
+      `<span class="txttok" draggable="true" data-field="${f.key}" title="Drag into the message, or click to add it at your cursor">${esc(f.label)}</span>`).join('')}</div>
+    ${TXT_LANGS.map(l=>`<div class="txtedlbl"><b>${l.label} message</b>
+        <span>${l.key==='es'?'optional if everyone gets English':'optional if everyone gets Spanish'}</span></div>
+      <div class="txted" contenteditable="true" data-lang="${l.key}" data-ph="${esc(l.ph)}"
+           role="textbox" aria-multiline="true" aria-label="${l.label} message"></div>`).join('')}`;
+}
+function txtWireWrite(body){
+  const eds=[...body.querySelectorAll('.txted')];
+  eds.forEach(ed=>{
+    txtRender(ed, txt[ed.dataset.lang]);
+    ed.oninput=()=>{
+      txtEdited(ed);
+      // A field the browser dropped as plain "{{first}}" text (the drag
+      // fallback) is redrawn as a bubble, caret at the end.
+      const raw=[...ed.childNodes].some(n=>n.nodeType===3 && /\{\{\w+\}\}/.test(n.nodeValue));
+      if(raw){
+        txtRender(ed, txt[ed.dataset.lang]);
+        const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+        const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+    };
+    // Enter is a line break, not a new <div>; pasted text comes in plain.
+    ed.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); document.execCommand('insertLineBreak'); } };
+    ed.onpaste=e=>{ e.preventDefault();
+      document.execCommand('insertText', false, (e.clipboardData||window.clipboardData).getData('text/plain')); };
+    ed.ondragover=e=>{
+      if(![...e.dataTransfer.types].includes('application/x-txtfield')) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='copy'; ed.classList.add('dropping'); };
+    ed.ondragleave=()=>ed.classList.remove('dropping');
+    ed.ondrop=e=>{
+      const plain=(e.dataTransfer.getData('text/plain')||'').match(/^\{\{(\w+)\}\}$/);
+      const key=e.dataTransfer.getData('application/x-txtfield') || (plain&&plain[1]);
+      ed.classList.remove('dropping');
+      if(!key) return;
+      e.preventDefault();
+      txtInsertTok(ed, key, txtRangeAt(e.clientX, e.clientY));
+    };
+  });
+  body.querySelectorAll('.txtfields [data-field]').forEach(ch=>{
+    ch.ondragstart=e=>{ e.dataTransfer.setData('application/x-txtfield', ch.dataset.field);
+                        // Plain-text copy for browsers that hide custom types mid-drag.
+                        e.dataTransfer.setData('text/plain', `{{${ch.dataset.field}}}`);
+                        e.dataTransfer.effectAllowed='copy'; };
+    ch.onmousedown=e=>e.preventDefault();      // keep the editor's caret where it was
+    ch.onclick=()=>{
+      const host=txtRange && (txtRange.startContainer.nodeType===1
+        ? txtRange.startContainer : txtRange.startContainer.parentElement);
+      const ed=(host && host.closest('.txted')) || eds[0];
+      txtInsertTok(ed, ch.dataset.field, txtRange);
+    };
+  });
+}
+
+// People come first, then the message (user, 2026-10-05: "choose the people
+// first and then write the message ... different groups that I can just
+// simply select"). The list is grouped the way the Roster is -- each group's
+// heading selects or clears it -- and the shortcut buttons above it add or
+// remove whole groups, so they combine (Needs availability + Leads, ...).
+const txtActive=p=>p.active!==false;
+const TXT_GROUPS=[
+  {key:'all', label:'Everyone',            test:txtActive},
+  {key:'r0',  label:RANK_LBL[0],           test:p=>txtActive(p)&&rosterRank(p)===0},
+  {key:'r2',  label:RANK_LBL[2],           test:p=>txtActive(p)&&rosterRank(p)===2},
+  ...TITLES.map(t=>({key:'t:'+t, label:t==='Lead'?'Leads':t+'s', test:p=>txtActive(p)&&p.title===t})),
+  {key:'en',  label:'English speakers',    test:p=>txtActive(p)&&p.lang==='English'},
+  {key:'es',  label:'Spanish + bilingual', test:p=>txtActive(p)&&p.lang!=='English'},
+];
+/** The textable people a group (or a list) covers, and whether all are picked. */
+function txtGroupState(members, picked){
+  const ids=members.filter(p=>smsNumber(p.phone)).map(p=>p.id);
+  return {ids, on: ids.length>0 && ids.every(id=>picked.has(id)),
+          some: ids.some(id=>picked.has(id))};
+}
+function txtToggle(ids, on){
+  const s=new Set(txt.picked);
+  ids.forEach(id=>on ? s.add(id) : s.delete(id));
+  txt.picked=[...s]; txtSave();
+}
+function txtRowHTML(p, picked){
+  const ok=!!smsNumber(p.phone);
+  return `<label class="txtrow${ok?'':' off'}">
+    <input type="checkbox" data-pid="${esc(p.id)}"${ok&&picked.has(p.id)?' checked':''}${ok?'':' disabled'}>
+    <span class="nm">${esc(p.name)}</span>
+    <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+    <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+    ${txtStatus(p)}${txtLastHTML(p)}
+    <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
+}
+function txtPickHTML(){
+  const picked=new Set(txt.picked);
+  const byName=(a,b)=>a.name.localeCompare(b.name);
+  const chips=TXT_GROUPS.map(g=>{
+    const st=txtGroupState(roster.filter(g.test), picked);
+    return `<button type="button" class="txtgrp${st.on?' on':''}" data-grp="${esc(g.key)}"${st.ids.length?'':' disabled'}>`
+      + `${esc(g.label)} <span class="n">${st.ids.length}</span></button>`;
+  }).join('');
+  const section=(label, people, key, open)=>{
+    if(!people.length) return '';
+    const st=txtGroupState(people, picked);
+    return `<details class="txtsec"${open?' open':''}><summary>
+        <input type="checkbox" data-sec="${key}"${st.on?' checked':''}${st.ids.length?'':' disabled'}
+          ${!st.on&&st.some?'data-mixed':''} title="Select everyone in this group">
+        ${esc(label)}<span class="stfsecn"> · ${people.length}</span></summary>
+      ${people.map(p=>txtRowHTML(p, picked)).join('')}</details>`;
+  };
+  const active=roster.filter(txtActive), off=roster.filter(p=>!txtActive(p)).sort(byName);
+  return `<p class="txthint">Who should get it? Tap a group to add it (tap again to take it off) —
+      groups combine — or tick people one by one. People without a phone number that can take
+      a text are greyed out.</p>
+    <div class="txtpick">${chips}<button type="button" data-grp="none">Clear</button></div>
+    ${RANK_LBL.map((lbl,r)=>section(lbl, active.filter(p=>rosterRank(p)===r).sort(byName), 'r'+r, true)).join('')}
+    ${section('Not working this season', off, 'off', off.some(p=>picked.has(p.id)))}`;
+}
+function txtWirePick(body){
+  body.querySelectorAll('input[data-pid]').forEach(cb=>cb.onchange=()=>{
+    txtToggle([cb.dataset.pid], cb.checked); txtDraw();
+  });
+  body.querySelectorAll('input[data-sec]').forEach(cb=>{
+    if(cb.hasAttribute('data-mixed')) cb.indeterminate=true;
+    // The checkbox sits in the <summary>: don't let a tick fold the group.
+    cb.onclick=e=>e.stopPropagation();
+    cb.onchange=()=>{
+      const k=cb.dataset.sec;
+      const members=k==='off' ? roster.filter(p=>!txtActive(p))
+        : roster.filter(p=>txtActive(p)&&rosterRank(p)===+k.slice(1));
+      txtToggle(txtGroupState(members, new Set()).ids, cb.checked); txtDraw();
+    };
+  });
+  body.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.grp==='none'){ txt.picked=[]; txtSave(); txtDraw(); return; }
+    const g=TXT_GROUPS.find(x=>x.key===b.dataset.grp);
+    const st=txtGroupState(roster.filter(g.test), new Set(txt.picked));
+    txtToggle(st.ids, !st.on); txtDraw();
+  });
+}
+
+function txtSendHTML(){
+  const picked=new Set(txt.picked);
+  const ppl=txtPeople().filter(p=>picked.has(p.id)&&smsNumber(p.phone));
+  const done=ppl.filter(p=>txt.sent[p.id]).length;
+  const langs=TXT_LANGS.filter(l=>txt[l.key].trim());
+  return `<div class="txtprog"><b>${done} of ${ppl.length}</b> opened in Messages.
+      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.
+      <a href="#" data-clearsent>Clear checkmarks</a></div>
+    ${ppl.map(p=>{
+      const num=smsNumber(p.phone), mine=txtLangFor(p);
+      const sends=langs.map(l=>{
+        const body=txtFill(txt[l.key], p);
+        return {l, body, href:`sms:${num}&body=${encodeURIComponent(body)}`};
+      });
+      return `<div class="txtcard${txt.sent[p.id]?' sent':''}" data-pid="${esc(p.id)}">
+        <div class="top"><label><input type="checkbox" data-sent${txt.sent[p.id]?' checked':''}>${esc(p.name)}</label>
+          <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+          <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+          ${txtLastHTML(p)}${txtStatus(p)}</div>
+        ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
+        <details><summary>Their days · ${(p.times||[]).length===2?'day + night'
+            :(p.times||[]).length?esc(p.times[0])+' only':'no shift times set'}</summary>
+          <div class="bubrow">${workDates().map(dt=>{
+            const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
+            return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
+                title="${fmtMDYYYY(dt)} — ${has?'available':'not marked available'}"><span
+                class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
+          }).join('')}</div></details>
+        <div class="acts"><span class="ph">${esc(fmtPhone(p.phone))}</span>
+          ${sends.map(s=>`<a class="txtsend${s.l.key===mine||sends.length===1?' primary':''}" data-lang="${s.l.key}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')}
+          ${sends.map(s=>`<button type="button" class="txtcopy" data-lang="${s.l.key}" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}
+        </div></div>`;
+    }).join('')}`;
+}
+// Every text that goes out is written to the person's roster record (texts,
+// newest first, TEXT_LOG_MAX kept) and so to the shared state, where the
+// roster card shows it. txtLogged remembers the entry this page added for
+// each person, keyed by its timestamp: sending again replaces it rather than
+// stacking duplicates, and unticking someone ("the text never went") takes it
+// back out.
+const txtLogged={};
+function txtLog(p, lang, body){
+  if(READONLY) return;
+  const prev=txtLogged[p.id];
+  const entry={at:new Date().toISOString(), lang, body:String(body).slice(0,2000)};
+  p.texts=[entry, ...(p.texts||[]).filter(t=>t.at!==prev)].slice(0,TEXT_LOG_MAX);
+  txtLogged[p.id]=entry.at;
+  persist();
+}
+function txtUnlog(p){
+  const at=txtLogged[p.id];
+  if(!at || READONLY) return;
+  p.texts=(p.texts||[]).filter(t=>t.at!==at);
+  delete txtLogged[p.id];
+  persist();
+}
+function txtWireSend(body){
+  const mark=(card, on)=>{
+    const id=card.dataset.pid;
+    if(on) txt.sent[id]=true; else delete txt.sent[id];
+    card.classList.toggle('sent', on);
+    card.querySelector('[data-sent]').checked=on;
+    txtSave();
+    const ppl=body.querySelectorAll('.txtcard').length;
+    body.querySelector('.txtprog b').textContent=
+      `${body.querySelectorAll('.txtcard.sent').length} of ${ppl}`;
+  };
+  body.querySelectorAll('.txtcard').forEach(card=>{
+    const p=personById(card.dataset.pid);
+    const bodyFor=lang=>txtFill(txt[lang], p);
+    card.querySelector('[data-sent]').onchange=e=>{
+      // Ticked by hand (pasted from elsewhere): log their usual language.
+      if(e.target.checked){
+        if(!txtLogged[p.id]){
+          const l=txt[txtLangFor(p)].trim() ? txtLangFor(p) : (txt.en.trim()?'en':'es');
+          txtLog(p, l, bodyFor(l));
+        }
+      } else txtUnlog(p);
+      mark(card, e.target.checked);
+    };
+    // Opening Messages counts as done; untick it if the text never went.
+    card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',()=>{
+      txtLog(p, a.dataset.lang, bodyFor(a.dataset.lang));
+      setTimeout(()=>mark(card, true), 400);
+    }));
+    card.querySelectorAll('[data-copy]').forEach(b=>{
+      const lbl=b.textContent;
+      b.onclick=async()=>{
+        txtLog(p, b.dataset.lang, b.dataset.copy);
+        try{ await navigator.clipboard.writeText(b.dataset.copy); b.textContent='Copied'; }
+        catch(e){ b.textContent='Copy failed'; }
+        setTimeout(()=>b.textContent=lbl, 1500);
+      };
+    });
+  });
+  const clr=body.querySelector('[data-clearsent]');
+  if(clr) clr.onclick=e=>{ e.preventDefault(); txt.sent={}; txtSave(); txtDraw(); };
+}
+
+function txtDrawFoot(){
+  const back=document.getElementById('txtback'), next=document.getElementById('txtnext');
+  const note=document.getElementById('txtfootnote');
+  const textable=new Set(txtPeople().filter(p=>smsNumber(p.phone)).map(p=>p.id));
+  const n=txt.picked.filter(id=>textable.has(id)).length;
+  back.style.visibility = txt.step>1 ? 'visible' : 'hidden';
+  next.style.display = txt.step<3 ? '' : 'none';
+  if(txt.step===1){
+    next.textContent='Next: write the message';
+    next.disabled=!n;
+    note.textContent=n ? `${n} selected` : 'Pick at least one person to continue.';
+  } else if(txt.step===2){
+    next.textContent=`Next: send to ${n}`;
+    next.disabled=!(txt.en.trim()||txt.es.trim());
+    note.textContent=next.disabled?'Write at least one message to continue.':`${n} selected`;
+  } else note.textContent='';
+}
+function txtDraw(){
+  const body=document.getElementById('txtbody');
+  document.getElementById('txtsteps').innerHTML=['Choose people','Write','Send'].map((s,i)=>
+    `<span class="txtstep${i+1===txt.step?' on':i+1<txt.step?' done':''}">${i+1} · ${s}</span>`).join('');
+  // Ticking someone redraws the list, so keep the scroll where it was; moving
+  // between steps resets it (openTextDlg's go()).
+  const y=body.scrollTop;
+  if(txt.step===1){ body.innerHTML=txtPickHTML(); txtWirePick(body); }
+  else if(txt.step===2){ body.innerHTML=txtWriteHTML(); txtWireWrite(body); }
+  else { body.innerHTML=txtSendHTML(); txtWireSend(body); }
+  body.scrollTop=y;
+  txtDrawFoot();
+}
+function openTextDlg(){
+  // Starts with nobody picked, so a group button gives exactly that group.
+  if(!txt.picked) txt.picked=[];
+  txt.step=1; txtRange=null;
+  const go=d=>{ txt.step+=d; document.getElementById('txtbody').scrollTop=0; txtDraw(); };
+  document.getElementById('txtback').onclick=()=>go(-1);
+  document.getElementById('txtnext').onclick=()=>go(1);
+  txtDraw();
+  document.getElementById('txtdlg').showModal();
+}
+
 function setView(v){
   viewMode=v;
+  if(typeof syncSearchMode==='function') syncSearchMode();
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
   document.getElementById('viewcal').classList.toggle('sel',v==='cal');
   document.getElementById('viewstaff').classList.toggle('sel',v==='staff'&&staffTab!=='roster');
@@ -7902,6 +8685,8 @@ function setView(v){
   document.getElementById('main').style.display   = (v==='cal'||v==='staff') ? 'none':'';
   document.getElementById('datestrip').style.display = v==='days' ? '':'none';
   document.body.classList.toggle('nodates', v!=='days');
+  document.body.classList.toggle('calview', v==='cal');
+  if(v!=='cal' && typeof closeCalSub==='function') closeCalSub();
   render();
 }
 
@@ -7948,7 +8733,7 @@ function manifestHTML(d){
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
           // Who is actually on this truck, printed where the crew will see it.
           const who=cv.who.map(pn=>esc(pn.name)
-              +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':'')).join(' · ');
+              +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':pn.title==='Designer'?' (designer)':'')).join(' · ');
           // Same wording as the on-screen chip -- coverageLabel is the one
           // place that decides "no lead" vs "short a lead".
           return `<p class="crew">${who||'<i>nobody assigned yet</i>'}`
@@ -8181,6 +8966,62 @@ document.getElementById('tbprint').onclick=()=>{
   pop.addEventListener('click', shut);
   document.addEventListener('click', e=>{ if(!pop.hidden && !e.target.closest('#newmenu')) shut(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ shut(); btn.focus(); } });
+})();
+// ---------- calendar subscription (Calendar view, office only) ----------
+// The office's calendar feed (backend app/apis/install_calendar). The link
+// carries the feed's secret, so /calendar-link answers staff and up only;
+// anyone else (leads, the warehouse display, production) gets a 403 and the
+// button stays hidden. Google's ?cid=webcal://... opens its own "Add
+// calendar?" prompt; webcal:// opens Apple Calendar's subscribe sheet.
+let calSubLoaded=false;
+async function loadCalSub(){
+  if(calSubLoaded || !AUTH) return;
+  try{
+    const r=await fetch('/api/install-schedule/calendar-link',{headers:{Authorization:AUTH}});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(typeof j.path!=='string') return;
+    // srcDoc: this document's own location.origin is "null"; the host's is real.
+    let origin=''; try{ origin=window.parent.location.origin; }catch(e){}
+    if(!origin) return;
+    const host=origin.replace(/^https?:\/\//,'');
+    const https=origin+j.path, webcal='webcal://'+host+j.path;
+    document.getElementById('calsubgoogle').href=
+      'https://calendar.google.com/calendar/r?cid='+encodeURIComponent(webcal);
+    document.getElementById('calsubapple').href=webcal;
+    document.getElementById('calsubcopy').dataset.url=https;
+    document.getElementById('calsubwrap').hidden=false;
+    calSubLoaded=true;
+  }catch(e){ /* no button */ }
+}
+function closeCalSub(){
+  const pop=document.getElementById('calsubpop');
+  if(pop && !pop.hidden){ pop.hidden=true; document.getElementById('calsubbtn').setAttribute('aria-expanded','false'); }
+}
+(function(){
+  const btn=document.getElementById('calsubbtn'), pop=document.getElementById('calsubpop');
+  const copyBtn=document.getElementById('calsubcopy');
+  btn.onclick=e=>{ e.stopPropagation(); const willOpen=pop.hidden; pop.hidden=!willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen));
+    if(willOpen){ const f=pop.querySelector('a'); if(f) f.focus(); } };
+  pop.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>setTimeout(closeCalSub, 0)));
+  copyBtn.onclick=async e=>{
+    e.stopPropagation();
+    const url=copyBtn.dataset.url||'';
+    let ok=false;
+    try{ await navigator.clipboard.writeText(url); ok=true; }
+    catch(err){
+      // Clipboard API can be refused inside the iframe; fall back.
+      const t=document.createElement('textarea'); t.value=url; t.style.position='fixed'; t.style.opacity='0';
+      document.body.appendChild(t); t.select();
+      try{ ok=document.execCommand('copy'); }catch(_){}
+      t.remove();
+    }
+    copyBtn.textContent = ok ? 'Copied' : 'Couldn\u2019t copy';
+    setTimeout(()=>{ copyBtn.textContent='Copy link'; }, 1600);
+  };
+  document.addEventListener('click', e=>{ if(!pop.hidden && !e.target.closest('#calsubwrap')) closeCalSub(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ closeCalSub(); btn.focus(); } });
 })();
 // Land on the first date that actually has work, not just the first date
 // on the calendar -- allDates() now includes empty/unused dates too.

@@ -283,7 +283,7 @@ def storing_rows(board: Board, records: Iterable[tuple]) -> set:
 def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[set] = None) -> str:
     """The whole season's board, every crew, as one VCALENDAR."""
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
-    name = f"L&L Installs {board.season}"
+    name = "TBDG Xmas Schedule"  # what the subscribed calendar is called
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Leaf & Ledger//Install Schedule//EN",
              "CALSCALE:GREGORIAN", "METHOD:PUBLISH", f"X-WR-CALNAME:{_esc(name)}",
              f"NAME:{_esc(name)}", f"X-WR-TIMEZONE:{TZID}",

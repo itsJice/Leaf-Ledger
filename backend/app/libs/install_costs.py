@@ -47,7 +47,8 @@ DEFAULT_CLASSES = (
 )
 
 #: Roster title -> the class an unassigned installer is paid as.
-TITLE_CLASS = {"Lead": "lead", "Lead Assist": "lead_assist", "General Installer": "general"}
+TITLE_CLASS = {"Lead": "lead", "Lead Assist": "lead_assist", "Designer": "designer",
+               "General Installer": "general"}
 
 #: Every non-pay key the card holds. ``required`` keys have no safe default.
 COST_KEYS: dict[str, dict[str, Any]] = {

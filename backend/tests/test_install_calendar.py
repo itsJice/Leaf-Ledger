@@ -269,3 +269,9 @@ def test_feed_url_is_staff_only():
         assert not roles.allowed(role, link_api.MIN_ROLE, "GET", False, path), role
     for role in ("staff", "admin", "super_admin"):
         assert roles.allowed(role, link_api.MIN_ROLE, "GET", False, path), role
+
+
+def test_subscribed_calendar_names_itself():
+    ics = cal.build_ics(board())
+    assert "X-WR-CALNAME:TBDG Xmas Schedule\r\n" in ics
+    assert "\r\nNAME:TBDG Xmas Schedule\r\n" in ics
