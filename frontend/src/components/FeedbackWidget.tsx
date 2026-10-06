@@ -210,25 +210,27 @@ export default function FeedbackWidget() {
     // happens to be, and the panel is small enough that "anywhere in here"
     // is the honest target. A non-image paste falls through untouched.
     <div data-feedback-widget onPaste={onPaste}
-         className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+         className="fixed bottom-3 right-3 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {open && (
-        <div className="flex w-[380px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
+        // Capped to the viewport height (the body scrolls) so on a phone the
+        // Send button never ends up below the screen once a screenshot is in.
+        <div className="flex max-h-[calc(100dvh-5.5rem)] w-[380px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100dvh-7.5rem)] sm:max-w-[calc(100vw-3rem)] border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
             <p className="text-sm font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
               Suggest a feature
             </p>
-            <button onClick={close} className="rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700" aria-label="Close">
+            <button onClick={close} className="-m-1 rounded-md p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700" aria-label="Close">
               <X size={16} />
             </button>
           </div>
 
-          <div className="flex flex-col gap-3 px-4 py-3">
+          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-4 py-3">
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE))}
               placeholder="What would help? What's missing or broken?"
               rows={4}
-              className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full shrink-0 resize-none rounded-lg border border-stone-200 px-3 py-2 text-base text-stone-800 sm:text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />
 
             {!hasShot && (
@@ -286,7 +288,7 @@ export default function FeedbackWidget() {
               <button
                 type="button"
                 onClick={() => { setHasShot(false); }}
-                className="flex w-fit items-center gap-1.5 text-[11px] font-medium text-stone-400 hover:text-red-600"
+                className="flex w-fit items-center gap-1.5 py-1.5 text-[11px] font-medium text-stone-400 hover:text-red-600 sm:py-0"
               >
                 <Eraser size={11} /> Remove screenshot
               </button>
@@ -297,14 +299,14 @@ export default function FeedbackWidget() {
             <button
               onClick={close}
               disabled={submitting}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-500 hover:bg-stone-100"
+              className="rounded-lg px-3 py-2.5 text-xs font-medium text-stone-500 hover:bg-stone-100 sm:py-1.5"
             >
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={submitting || !message.trim()}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2.5 text-xs font-semibold sm:py-1.5 text-white hover:bg-emerald-800 disabled:opacity-50"
             >
               {submitting && <Loader2 size={12} className="animate-spin" />}
               Send
@@ -315,7 +317,7 @@ export default function FeedbackWidget() {
 
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-105 hover:bg-emerald-800"
+        className="flex h-11 w-11 items-center justify-center rounded-full sm:h-12 sm:w-12 bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-105 hover:bg-emerald-800"
         aria-label="Suggest a feature"
         title="Suggest a feature"
       >

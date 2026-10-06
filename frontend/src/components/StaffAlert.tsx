@@ -114,7 +114,11 @@ export function StaffAlert({
     if (!r) return;
     const width = 288;
     const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
-    setPos({ top: r.bottom + 6, left });
+    // Near the bottom of a phone screen (or with the keyboard up) open above
+    // the icon instead of off the screen. 220px is the editor's height.
+    const below = r.bottom + 6;
+    const top = below + 220 > window.innerHeight && r.top - 226 > 8 ? r.top - 226 : below;
+    setPos({ top, left });
   };
 
   useLayoutEffect(() => {
@@ -199,7 +203,7 @@ export function StaffAlert({
       }}
       onClick={activate}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") activate(e); }}
-      className={`inline-flex shrink-0 cursor-pointer items-center rounded text-amber-500 hover:text-amber-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${className}`}
+      className={`relative inline-flex shrink-0 cursor-pointer items-center rounded text-amber-500 before:absolute before:-inset-2.5 before:content-[''] hover:text-amber-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${className}`}
     >
       <AlertTriangle size={size} strokeWidth={2.2} />
     </span>
@@ -235,7 +239,7 @@ export function StaffAlert({
       }}
       role="dialog"
       aria-label="Staff alert"
-      className="fixed z-[10050] w-72 rounded-xl border border-amber-200 bg-white p-3 text-left shadow-xl"
+      className="fixed z-[10050] w-72 max-w-[calc(100vw-16px)] rounded-xl border border-amber-200 bg-white p-3 text-left shadow-xl"
       style={{ top: pos.top, left: pos.left }}
     >
       {mode === "card" && alert && (
@@ -250,7 +254,7 @@ export function StaffAlert({
               type="button"
               data-edit
               onClick={openEditor}
-              className="mt-2 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+              className="-mx-1 mt-1 px-1 py-2 text-xs font-semibold text-emerald-700 hover:text-emerald-900 sm:mx-0 sm:mt-2 sm:px-0 sm:py-0"
             >
               Edit
             </button>
@@ -277,7 +281,7 @@ export function StaffAlert({
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="text-[10px] text-stone-400">{draft.trim().length}/{STAFF_ALERT_MAX}</span>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={() => setMode("closed")} className="px-2 py-1 text-xs text-stone-500 hover:text-stone-700">
+              <button type="button" onClick={() => setMode("closed")} className="px-2 py-2.5 text-xs text-stone-500 hover:text-stone-700 sm:py-1">
                 Cancel
               </button>
               {alert && (
@@ -286,7 +290,7 @@ export function StaffAlert({
                   data-edit
                   disabled={saving}
                   onClick={() => void save("")}
-                  className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="rounded-md px-2 py-2.5 text-xs font-medium text-red-600 sm:py-1 hover:bg-red-50 disabled:opacity-50"
                 >
                   Clear
                 </button>
@@ -295,7 +299,7 @@ export function StaffAlert({
                 type="submit"
                 data-edit
                 disabled={saving || (!draft.trim() && !alert)}
-                className="rounded-md bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                className="rounded-md bg-amber-600 px-3 py-2.5 text-xs font-semibold sm:px-2.5 sm:py-1 text-white hover:bg-amber-700 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

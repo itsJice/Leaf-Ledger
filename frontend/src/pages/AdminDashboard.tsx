@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import Layout from "components/Layout";
 import {
   Table,
   TableBody,
@@ -354,11 +355,11 @@ function CategoryIndexCard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <BookOpen className="w-4 h-4 text-brand" />
           <span className="text-sm font-semibold text-stone-700">Category Index Cache</span>
-          <span className="text-xs text-stone-400">
+          <span className="w-full text-xs text-stone-400 sm:w-auto">
             Scrapers use this to skip re-discovery on fast syncs
           </span>
         </div>
@@ -399,25 +400,27 @@ function CategoryIndexCard() {
                 key={sup.supplier_id}
                 className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden"
               >
-                {/* Header row */}
-                <div className="flex items-center gap-4 px-5 py-3.5">
+                {/* Header row -- stacks on phones: name on top, stats + rebuild below. */}
+                <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
                   <button
                     onClick={() => toggleExpand(sup.supplier_id)}
-                    className="flex items-center gap-2 flex-1 text-left group"
+                    className="flex min-w-0 items-center gap-2 flex-1 text-left group"
                   >
                     <span className="text-stone-400 group-hover:text-stone-600 transition-colors">
                       {isExpanded
                         ? <ChevronDown className="w-4 h-4" />
                         : <ChevronRight className="w-4 h-4" />}
                     </span>
-                    <span className="text-sm font-semibold text-stone-800">{sup.supplier_name}</span>
-                    <span className="text-xs text-stone-400 font-mono bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5">
-                      {sup.scraper_key}
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-stone-800">{sup.supplier_name}</span>
+                      <span className="text-xs text-stone-400 font-mono bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5">
+                        {sup.scraper_key}
+                      </span>
                     </span>
                   </button>
 
                   {/* Stats */}
-                  <div className="flex items-center gap-5 text-xs shrink-0">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs shrink-0">
                     {isEmpty ? (
                       <span className="text-amber-600 flex items-center gap-1">
                         <AlertCircle className="w-3.5 h-3.5" /> No index yet
@@ -452,7 +455,7 @@ function CategoryIndexCard() {
                       variant="outline"
                       disabled={isRebuilding}
                       onClick={() => handleRebuild(sup)}
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs ml-2"
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs sm:ml-2"
                     >
                       {isRebuilding ? (
                         <><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /> Clearing…</>
@@ -468,7 +471,7 @@ function CategoryIndexCard() {
                   <div className="border-t border-stone-100">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-stone-50 border-stone-100">
+                        <TableRow className="bg-stone-50 border-stone-100 whitespace-nowrap">
                           <TableHead className="text-xs font-semibold text-stone-500 pl-10">Category</TableHead>
                           <TableHead className="text-xs font-semibold text-stone-500 text-right">Cached Products</TableHead>
                           <TableHead className="text-xs font-semibold text-stone-500">Last Verified</TableHead>
@@ -480,7 +483,7 @@ function CategoryIndexCard() {
                           const catAge = fmtAge(cat.last_verified_at as unknown as string | null);
                           return (
                             <TableRow key={cat.id} className="border-stone-100 hover:bg-stone-50">
-                              <TableCell className="text-xs text-stone-700 pl-10 font-medium">
+                              <TableCell className="min-w-[12rem] text-xs text-stone-700 pl-10 font-medium">
                                 {cat.category_name}
                                 <span className="ml-2 text-stone-400 font-mono text-[10px]">
                                   {cat.category_slug_or_url}
@@ -523,7 +526,7 @@ function CategoryIndexCard() {
       )}
 
       {/* Legend */}
-      <div className="text-xs text-stone-400 flex items-center gap-4 pt-1">
+      <div className="text-xs text-stone-400 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1">
         <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-600" /> Fresh (&lt;7 days) — scraper will use cache</span>
         <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500" /> Stale (&gt;7 days) — scraper will re-discover</span>
         <span className="flex items-center gap-1"><RotateCcw className="w-3 h-3 text-red-500" /> Rebuild clears index for full re-discovery on next scrape</span>
@@ -603,8 +606,8 @@ function BackfillCard() {
   const isFailed = bf?.status === "failed";
 
   return (
-    <div className="mx-4 mb-5 sm:mx-8">
-      <div className="bg-white border border-stone-200 rounded-xl shadow-sm px-5 py-4 flex flex-col gap-3">
+    <div className="mx-4 mb-5 max-w-[1536px] sm:mx-8">
+      <div className="bg-white border border-stone-200 rounded-xl shadow-sm px-4 py-4 sm:px-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-amber-50">
@@ -714,6 +717,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
+      <Layout>
       <div className="space-y-4 p-4 sm:p-8" style={{ background: "rgb(var(--ll-page))", minHeight: "100vh" }}>
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
@@ -723,17 +727,20 @@ export default function AdminDashboard() {
         </div>
         <Skeleton className="h-96 rounded-xl" />
       </div>
+      </Layout>
     );
   }
 
   if (!data) {
     return (
-      <div className="p-8 text-stone-500">
+      <Layout>
+      <div className="p-4 sm:p-8 text-stone-500">
         Failed to load dashboard.{" "}
         <button onClick={() => load()} className="underline">
           Retry
         </button>
       </div>
+      </Layout>
     );
   }
 
@@ -742,10 +749,13 @@ export default function AdminDashboard() {
   const manualSuppliers = supplier_health.filter((s) => !s.scraper_key);
 
   return (
+    // Wrapped in Layout like every other page: without it this route had no
+    // nav at all, a dead end on a phone (no menu button to get back out).
+    <Layout>
     <TooltipProvider>
       <div className="min-h-screen" style={{ background: "rgb(var(--ll-page))" }}>
         {/* ── Header ── */}
-        <div className="px-4 sm:px-8 pt-8 pb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-[1600px] px-4 sm:px-8 pt-6 sm:pt-8 pb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-serif font-semibold text-brand">Sync Operations</h1>
             <p className="text-sm text-stone-500 mt-0.5">
@@ -765,7 +775,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── Summary stat cards ── */}
-        <div className="px-8 pb-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="max-w-[1600px] px-4 sm:px-8 pb-6 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
           <StatCard
             icon={<Package className="w-4 h-4" />}
             label="Total Products"
@@ -809,10 +819,13 @@ export default function AdminDashboard() {
         {/* ── Image Backfill panel ── */}
         <BackfillCard />
 
-        {/* ── Tabs ── */}
-        <div className="px-4 sm:px-8">
+        {/* ── Tabs ── (every block on the page stops at 1600px, so an
+            ultrawide screen doesn't stretch the tables edge to edge) */}
+        <div className="max-w-[1600px] px-4 sm:px-8">
           <Tabs defaultValue="suppliers">
-            <TabsList className="bg-white border border-stone-200 rounded-lg mb-4">
+            {/* Four tabs are ~540px wide; on a phone they wrap onto two rows
+                instead of pushing the whole page wider. */}
+            <TabsList className="bg-white border border-stone-200 rounded-lg mb-4 h-auto max-w-full flex-wrap justify-start sm:h-9 sm:flex-nowrap">
               <TabsTrigger value="suppliers">
                 Supplier Health ({supplier_health.length})
               </TabsTrigger>
@@ -835,8 +848,8 @@ export default function AdminDashboard() {
                   <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-stone-50 border-stone-200">
-                          <TableHead className="text-xs font-semibold text-stone-600 w-40">Supplier</TableHead>
+                        <TableRow className="bg-stone-50 border-stone-200 whitespace-nowrap">
+                          <TableHead className="text-xs font-semibold text-stone-600 w-40 min-w-[9rem]">Supplier</TableHead>
                           <TableHead className="text-xs font-semibold text-stone-600">Credentials</TableHead>
                           <TableHead className="text-xs font-semibold text-stone-600 text-right">Products</TableHead>
                           <TableHead className="text-xs font-semibold text-stone-600 text-right">No Image</TableHead>
@@ -867,8 +880,8 @@ export default function AdminDashboard() {
                 <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50 border-stone-200">
-                        <TableHead className="text-xs font-semibold text-stone-600 w-64">Supplier</TableHead>
+                      <TableRow className="bg-stone-50 border-stone-200 whitespace-nowrap">
+                        <TableHead className="text-xs font-semibold text-stone-600 w-64 min-w-[9rem]">Supplier</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600 text-right">Products</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600 text-right">No Image</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600 text-right">No Price</TableHead>
@@ -926,8 +939,8 @@ export default function AdminDashboard() {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50 border-stone-200">
-                        <TableHead className="text-xs font-semibold text-stone-600">Supplier</TableHead>
+                      <TableRow className="bg-stone-50 border-stone-200 whitespace-nowrap">
+                        <TableHead className="text-xs font-semibold text-stone-600 min-w-[9rem]">Supplier</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600">Type</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600">Started</TableHead>
@@ -1017,7 +1030,7 @@ export default function AdminDashboard() {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50 border-stone-200">
+                      <TableRow className="bg-stone-50 border-stone-200 whitespace-nowrap">
                         <TableHead className="text-xs font-semibold text-stone-600">Product</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600">Supplier</TableHead>
                         <TableHead className="text-xs font-semibold text-stone-600 text-right">Old</TableHead>
@@ -1030,7 +1043,7 @@ export default function AdminDashboard() {
                     <TableBody>
                       {recent_price_changes.map((pc: PriceChangeEntry) => (
                         <TableRow key={pc.id} className="hover:bg-stone-50 border-stone-100">
-                          <TableCell className="font-medium text-sm text-stone-800 max-w-[220px] truncate">
+                          <TableCell className="font-medium text-sm text-stone-800 min-w-[10rem] max-w-[220px] truncate">
                             {pc.product_name}
                           </TableCell>
                           <TableCell className="text-sm text-stone-600">{pc.supplier_name}</TableCell>
@@ -1079,5 +1092,6 @@ export default function AdminDashboard() {
         <div className="h-8" />
       </div>
     </TooltipProvider>
+    </Layout>
   );
 }

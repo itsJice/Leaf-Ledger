@@ -57,7 +57,7 @@ export function SupplierLinkBar({ supplierId, supplierName, productUrl }: { supp
 
   if (!productUrl && !loginUrl && !hasCreds) return null;
   return (
-    <div className="border-b border-stone-100 bg-emerald-50/40 px-5 py-3">
+    <div className="shrink-0 border-b border-stone-100 bg-emerald-50/40 px-4 py-3 sm:px-5">
       <div className="flex flex-wrap items-center gap-2">
         {productUrl && (
           <a href={productUrl} target="_blank" rel="noopener noreferrer"

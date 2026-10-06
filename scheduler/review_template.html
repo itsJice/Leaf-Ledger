@@ -1141,7 +1141,7 @@ body.apple .viewtog button{height:30px;padding:0 16px;border:0;border-radius:8px
   font-size:13px;font-weight:700;color:#46544a;cursor:pointer}
 body.apple .viewtog button.sel{background:#fff;color:var(--brand-deep);font-weight:800;
   box-shadow:0 1px 2px rgba(28,46,30,.16),0 0 0 .5px rgba(28,46,30,.08)}
-body.apple #searchwrap{position:relative;margin:0 4px 0 0;width:230px;flex:0 1 230px;min-width:120px}
+body.apple #searchwrap{position:relative;margin:0 4px 0 0;width:230px;flex:0 1 230px;min-width:96px}
 body.apple #searchbox{width:100%;height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;
   padding:0 12px 0 32px;font-size:13.5px;color:var(--ink);box-sizing:border-box;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%235b6558' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
@@ -1544,14 +1544,92 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .dchipwrap{width:auto;flex:none}
   body.apple #side{width:400px;min-width:0}
   body.apple .stop::after{display:none}
-  body.apple #tbsaved{display:none}
+  body.apple #tbsaved:not(.bad){display:none} /* a failed save always shows */
   body.apple #searchwrap{flex:1 1 160px}
 }
+#phonebar,#dsheethd{display:none}
+/* The toolbar sits over the middle column, whose width depends on the side
+   columns as much as the screen -- so it adapts to its own width: tighter
+   tabs first, then the tabs take a row of their own. */
+body.apple header{container-type:inline-size}
+@container (max-width:900px){
+  body.apple .viewtog button{padding:0 10px}
+  body.apple #tbsaved:not(.bad){display:none} /* a failed save always shows */
+}
+@media (max-width:1023px){ /* from 1024 the toolbar never wraps */
+@container (max-width:690px){
+  body.apple .viewtog{order:5;flex:1 1 100%}
+  body.apple .viewtog button{flex:1}
+}
+}
 @media (max-width:767px){
+  /* Day bar */
+  body.apple:not(.nodates) #phonebar{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--page);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+  body.apple .pbbtn{flex:none;width:42px;height:42px;border:1px solid #ddd7cb;border-radius:12px;background:#fff;
+    display:inline-flex;align-items:center;justify-content:center;color:var(--brand-deep);padding:0;cursor:pointer}
+  body.apple .pbbtn .ic,body.apple .pbdate .ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  body.apple .pbbtn:disabled{opacity:.35}
+  body.apple .pbbtn[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
+  body.apple .pbdate{flex:1;min-width:0;height:42px;border:1px solid #ddd7cb;border-radius:12px;background:#fff;
+    display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;font-size:15px;font-weight:800;color:var(--brand-deep);cursor:pointer}
+  body.apple .pbdate span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body.apple .pbtoday{flex:none;height:42px;padding:0 12px;border:0;border-radius:12px;background:var(--brand-soft);
+    color:var(--brand-hover);font-size:14px;font-weight:800;cursor:pointer}
+  body.apple .pbtoday:disabled{opacity:.45}
+  @media (max-width:380px){
+    body.apple:not(.nodates) #phonebar{gap:4px;padding:8px}
+    body.apple .pbbtn{width:38px}
+    body.apple .pbtoday{padding:0 9px}
+    body.apple .pbdate{padding:0 6px;font-size:14px}
+    body.apple .pbdate .ic{display:none}
+  }
+  /* Dates: a full-screen sheet from the day bar, laid out like the desktop list */
+  body.apple #datecol{display:none}
+  body.apple.datesheet #datecol{display:flex;position:fixed;inset:0;z-index:3000;flex-direction:column;flex-wrap:nowrap;
+    gap:10px;padding:12px 14px 16px;background:var(--side);overflow:hidden;border:0}
+  body.apple.datesheet #dsheethd{display:flex;align-items:center;justify-content:space-between}
+  body.apple.datesheet #dsheethd b{font-family:'Sora',system-ui,sans-serif;font-size:20px;font-weight:600;color:var(--brand-deep)}
+  body.apple.datesheet #dsheethd button{height:40px;padding:0 16px;border:0;border-radius:20px;background:var(--brand);
+    color:#fff;font-weight:800;font-size:14px;cursor:pointer}
+  body.apple.datesheet #datecolhd .scopepick{width:100%;height:40px}
+  body.apple.datesheet #summarybar{flex:none}
+  body.apple.datesheet .sbsub{display:block}
+  body.apple.datesheet #datestrip{flex:1 1 auto;min-height:0;flex-direction:column;flex-wrap:nowrap;overflow-y:auto;
+    overflow-x:hidden;gap:4px;margin:0;padding:0 0 8px}
+  body.apple.datesheet .dsec{display:flex}
+  body.apple.datesheet .dchip{width:100%;flex:none;border-radius:10px;min-height:44px;font-size:15px}
+  body.apple.datesheet .dchipwrap{width:100%}
+  body.apple.datesheet #datefoot{flex-direction:column;gap:4px;padding-top:8px;border-top:1px solid #e1dcd1}
+  /* The day's run gets the screen; the map only when asked for */
+  body.apple #main{flex-direction:column}
+  body.apple #map{display:none}
+  body.apple.showmap #map{display:block;flex:0 0 42vh;order:-1;min-height:0}
+  body.apple .dayhead .dhhint{display:none}
+  body.apple #tvbtn{display:none}
+  /* Search results: full width under the toolbar, big rows */
+  body.apple #searchresults{position:fixed;left:8px;right:8px;top:54px;width:auto;max-height:60vh;overflow:auto;z-index:2500}
+  body.apple #searchresults .srow{padding:12px 14px;min-height:48px}
+  /* Thumb-size targets (44px is Apple's minimum) */
+  body.apple .dayhead{position:static;margin-top:0}
+  body.apple .stop .stopbtns .mv{min-height:40px;padding:0 16px;font-size:13.5px}
+  body.apple .ordbtn{width:30px;height:24px;border-radius:6px}
+  body.apple .ordbtn .ic{width:13px;height:13px}
+  body.apple .chead .printbtn,body.apple .okbtn{min-height:38px;padding:0 14px}
+  body.apple #peekdlg.inline .btns button{min-height:44px}
+  body.apple #peekdlg .pkpos .mv{min-height:38px;padding:0 14px}
+  body.apple #pkcommenttext{min-height:42px}
+  body.apple #side > .printbtn{min-height:40px}
+  /* Stop details: full width */
+  body.apple #peekdlg.inline{padding:16px 18px 22px}
+  body.apple #peekdlg.inline::before{inset:4px 6px 8px 6px}
+  body.apple #peekdlg.inline::after{left:28px}
+  body.apple #peekdlg.inline .pkclose{top:12px;right:14px}
+  body.apple #sfdlg{width:calc(100vw - 16px);max-width:none;padding:14px}
   body.apple header{padding:8px 10px;gap:6px}
   body.apple .viewtog{order:5;flex:1 1 100%}
   body.apple .viewtog button{flex:1;padding:0 6px}
-  body.apple #side{width:100%;flex:0 0 55%;max-height:55%;padding:12px}
+  body.apple #side{width:100%;flex:1 1 auto;max-height:none;min-height:0;padding:12px}
   body.apple .dayhead,body.apple #side .ovdate{top:-12px;margin-left:-12px;margin-right:-12px;padding-left:14px;padding-right:14px}
   body.apple .dayhead{margin-top:-12px}
   body.apple #tbedit{flex:0 0 auto}
@@ -1561,10 +1639,37 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple #newbtn span,body.apple #newbtn .ic:last-child{display:none}
   body.apple .dayhead b{font-size:21px}
   body.apple .daystats b{font-size:14px}
+  /* Calendar: the header wraps instead of running off the edge */
+  body.apple .calbar{flex-wrap:wrap;gap:6px 8px}
+  body.apple .caltitle{font-size:20px;margin:0 auto 0 2px}
+  body.apple .calsel{flex:1 1 100%;height:40px}
+  /* Roster: the columns that matter on a phone; the rest are a tap away */
+  body.apple .stftable th:nth-child(4),body.apple .stftable td:nth-child(4),
+  body.apple .stftable th:nth-child(6),body.apple .stftable td:nth-child(6),
+  body.apple .stftable th:nth-child(7),body.apple .stftable td:nth-child(7){display:none}
+  body.apple .stftable td,body.apple .stftable th{padding:9px 6px}
+  body.apple .stffilters select{flex:1 1 40%;min-height:40px}
+  /* Schedule list: crew line drops under the client instead of clipping */
+  body.apple .agday{gap:8px}
+  body.apple .agdate{width:44px}
+  body.apple .agrow{flex-wrap:wrap;row-gap:0;padding:6px 4px;min-height:40px}
+  body.apple .agt{width:62px}
+  body.apple .agn{flex:1;min-width:0}
+  body.apple .agm{flex:1 1 100%;margin-left:89px;white-space:normal}
+  /* iPhone Safari zooms into any text field under 16px and stays zoomed */
+  body.apple input:not([type=checkbox]):not([type=radio]):not([type=range]),body.apple select,body.apple textarea{font-size:16px}
+  /* Staff alerts: a thumb-size tap area round the small icon, bigger popup buttons */
+  body.apple .salert{position:relative}
+  body.apple .salert::before{content:'';position:absolute;inset:-10px}
+  body.apple .saeditbtn,body.apple .sabtns button{min-height:40px;padding:0 14px}
+  body.apple .saedit textarea{font-size:16px}
+  /* Version history: a sheet under the toolbar */
+  body.apple #histpop{position:fixed;left:8px;right:8px;top:54px;width:auto;max-width:none;max-height:75vh;overflow:auto}
 }
 </style></head>
 <body class="apple"><div id="app">
 <aside id="datecol" aria-label="Dates">
+  <div id="dsheethd"><b>Dates</b><button type="button" id="dsheetclose">Done</button></div>
   <div id="datecolhd"></div>
   <div id="summarybar"></div>
   <nav id="datestrip" aria-label="Install dates"></nav>
@@ -1626,6 +1731,13 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   <div id="robanner" hidden></div>
 </header>
 <div id="viewarea">
+<div id="phonebar" role="group" aria-label="Choose a day">
+  <button type="button" id="pbprev" class="pbbtn" aria-label="Previous day"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+  <button type="button" id="pbdate" class="pbdate" aria-haspopup="dialog" aria-label="Pick a date"><span id="pblabel"></span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+  <button type="button" id="pbnext" class="pbbtn" aria-label="Next day"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+  <button type="button" id="pbtoday" class="pbtoday">Today</button>
+  <button type="button" id="pbmap" class="pbbtn" aria-pressed="false" aria-label="Show the map"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1 6.3 9.9 4.2a2 2 0 0 0-1.8 0L3.6 6.5A1 1 0 0 0 3 7.4v12.1a1 1 0 0 0 1.4.9l3.7-1.9a2 2 0 0 1 1.8 0l4.2 2.1a2 2 0 0 0 1.8 0l4.5-2.3a1 1 0 0 0 .6-.9V5.3a1 1 0 0 0-1.4-.9l-3.7 1.9a2 2 0 0 1-1.8 0Z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg></button>
+</div>
 <div id="calwrap" style="display:none"></div>
 <button id="tvhint" type="button" hidden>Tap for full screen</button>
 <button id="tvback" type="button" hidden>← Back</button>
@@ -4898,6 +5010,48 @@ let stripScrolledFor=null;
  * then Not installing and On hold. Same targets, clicks and drop behaviour
  * as the old chip strip -- on narrow screens CSS lays it out as one
  * swipeable row of chips again. */
+// ---------- phone day bar (user, 2026-10-05: leads read their run on a phone) ----------
+// ‹ day › + Today + Map; tapping the day opens the full dates list as a sheet.
+var stripList=[];
+function phoneDayLabel(){
+  if(selDate==='NOINSTALL') return `Not installing ${'__SEASON__'}`;
+  if(selDate==='HOLD') return 'On hold';
+  // The day bar is narrow: "December 2026 Installations" -> "December Installs".
+  if(isOverview(selDate)) return (overviewTitle(selDate)||'Overview')
+    .replace(' + Takedowns','').replace('Installations','Installs').replace(/ \d{4}\b/,'');
+  return dateOf(selDate).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function phoneTodayTarget(){
+  const T=todayISO();
+  return stripListsDate(T) ? T : ({install:'ALL-INSTALL', takedown:'ALL-TAKEDOWN', all:'ALL'}[stripScope]||'ALL');
+}
+function syncPhoneBar(){
+  const lb=document.getElementById('pblabel'); if(!lb) return;
+  lb.textContent=phoneDayLabel();
+  const i=stripList.indexOf(selDate);
+  document.getElementById('pbprev').disabled = i<=0;
+  document.getElementById('pbnext').disabled = i<0 ? !stripList.length : i>=stripList.length-1;
+  document.getElementById('pbtoday').disabled = selDate===phoneTodayTarget();
+}
+function phoneGo(dt){ selDate=dt; focusDayId=null; render(); const sd=document.getElementById('side'); if(sd) sd.scrollTop=0; }
+document.getElementById('pbprev').onclick=()=>{ const i=stripList.indexOf(selDate); if(i>0) phoneGo(stripList[i-1]); };
+document.getElementById('pbnext').onclick=()=>{ const i=stripList.indexOf(selDate);
+  if(i<0){ if(stripList.length) phoneGo(stripList.includes(todayISO())?todayISO():stripList[0]); }
+  else if(i<stripList.length-1) phoneGo(stripList[i+1]); };
+document.getElementById('pbtoday').onclick=()=>phoneGo(phoneTodayTarget());
+document.getElementById('pbdate').onclick=()=>{
+  document.body.classList.add('datesheet');
+  const on=document.querySelector('#datestrip .dchip.sel'); if(on) on.scrollIntoView({block:'center'});
+};
+document.getElementById('dsheetclose').onclick=()=>document.body.classList.remove('datesheet');
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.body.classList.remove('datesheet'); });
+document.getElementById('pbmap').onclick=()=>{
+  const on=!document.body.classList.contains('showmap');
+  document.body.classList.toggle('showmap', on);
+  const b=document.getElementById('pbmap'); b.setAttribute('aria-pressed', String(on));
+  b.setAttribute('aria-label', on?'Hide the map':'Show the map');
+  setTimeout(()=>{ try{ map.invalidateSize(); drawDate(selDate); }catch(e){} }, 60);
+};
 function renderStrip(){
   strip.innerHTML='';
   const hd=document.getElementById('datecolhd'), foot=document.getElementById('datefoot');
@@ -4930,7 +5084,7 @@ function renderStrip(){
     if(o.count!=null){
       const s=document.createElement('span'); s.className='dcount'; s.textContent=o.count; b.appendChild(s);
     }
-    b.onclick=()=>{selDate=val; focusDayId=null; render();};
+    b.onclick=()=>{selDate=val; focusDayId=null; document.body.classList.remove('datesheet'); render();};
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
     b.ondragleave=()=>b.classList.remove('dragover');
     b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
@@ -5071,6 +5225,7 @@ function renderStrip(){
     if(inStripScope(iso)) list.push(iso);
   }
   if(working.has(selDate) && !list.includes(selDate)){ list.push(selDate); list.sort(); }
+  stripList=list.slice();   // the phone day bar steps through these
   const weeks=[];
   list.forEach(dt=>{
     // The week holding the cutoff splits at it, so the install/takedown line
@@ -7037,7 +7192,8 @@ function agendaHTML(){
   });
   return h||`<p class="nothingyet">Nothing scheduled.</p>`;
 }
-let calView='month', calAnchor=(SEASON[0]||todayISO());
+// A month grid is unreadable at phone width; phones open on the Schedule list.
+let calView=(window.matchMedia&&matchMedia('(max-width:767px)').matches)?'agenda':'month', calAnchor=(SEASON[0]||todayISO());
 // Where "Back to month" goes: the month/wall view a date was opened from.
 let calReturn=null;
 function backToMonth(){
@@ -9187,6 +9343,7 @@ function render(){
     + `<div class="sbbar"><i style="width:${days.length?(apprN/days.length*100).toFixed(1):0}%"></i></div>`
     + `<div class="sbsub">${n} stops · ${days.length} crew-days · ${approved.size} approved</div>`;
   syncToolbar();
+  syncPhoneBar();
   renderLog();
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }

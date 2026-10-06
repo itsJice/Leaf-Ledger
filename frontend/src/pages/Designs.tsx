@@ -55,10 +55,12 @@ const PAGE_SIZE = 48;
 type ViewMode = "grid" | "list";
 type CardSize = 1 | 2 | 3 | 4; // 1 = smallest (most per row) … 4 = largest
 const GRID_COLS: Record<CardSize, string> = {
-  1: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8",
-  2: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6",
-  3: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+  // min-[2200px] only kicks in on ultrawide screens, where xl's column count
+  // stretched each card to ~450px.
+  1: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 min-[2200px]:grid-cols-12",
+  2: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 min-[2200px]:grid-cols-9",
+  3: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[2200px]:grid-cols-7",
+  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[2200px]:grid-cols-6",
 };
 const IMG_HEIGHT: Record<CardSize, string> = { 1: "h-24", 2: "h-32", 3: "h-40", 4: "h-56" };
 const VIEW_KEY = "leaf-ledger:designs-view:v1";
@@ -157,8 +159,8 @@ export default function Designs() {
         className="sticky top-0 z-20 border-b border-stone-200 px-4 sm:px-10 py-4"
         style={{ backgroundColor: "rgb(var(--ll-page))" }}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0 flex-auto">
             <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
               <Shapes size={18} className="text-emerald-700" />
               Designs
@@ -171,7 +173,7 @@ export default function Designs() {
           <div className="flex shrink-0 items-center rounded-lg border border-stone-300 bg-white p-0.5">
             <button
               onClick={() => navigate("/designs")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors sm:py-1.5 ${
                 isNew ? "text-stone-500 hover:text-stone-800" : "bg-emerald-700 text-white"
               }`}
             >
@@ -179,7 +181,7 @@ export default function Designs() {
             </button>
             <button
               onClick={() => navigate("/designs/new")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors sm:py-1.5 ${
                 isNew ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"
               }`}
             >
@@ -192,7 +194,7 @@ export default function Designs() {
       {isNew ? (
         <Arrangements embedded newDesign />
       ) : (
-        <main className="px-4 sm:px-10 py-6">
+        <main className="px-4 pb-24 pt-6 sm:px-10 sm:py-6">
           {/* Filter chips (left) + search / sort / view controls (right) */}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +219,7 @@ export default function Designs() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative w-72 max-w-full sm:max-w-[36vw]">
+              <div className="relative w-full sm:w-72 sm:max-w-[36vw]">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
                 <input
                   value={search}
@@ -228,7 +230,7 @@ export default function Designs() {
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2 p-1.5 text-stone-400 hover:text-stone-700"
                     aria-label="Clear search"
                   >
                     <X size={15} />
@@ -249,13 +251,13 @@ export default function Designs() {
                   <button
                     onClick={() => setCardSize((s) => (Math.max(1, s - 1) as CardSize))}
                     disabled={cardSize === 1}
-                    className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                    className="rounded-md border border-stone-300 p-2 text-stone-500 hover:text-stone-800 disabled:opacity-40 sm:p-1"
                     title="Smaller cards (more per row)"
                   ><Minus size={14} /></button>
                   <button
                     onClick={() => setCardSize((s) => (Math.min(4, s + 1) as CardSize))}
                     disabled={cardSize === 4}
-                    className="rounded-md border border-stone-300 p-1 text-stone-500 hover:text-stone-800 disabled:opacity-40"
+                    className="rounded-md border border-stone-300 p-2 text-stone-500 hover:text-stone-800 disabled:opacity-40 sm:p-1"
                     title="Bigger cards (fewer per row)"
                   ><Plus size={14} /></button>
                 </div>
@@ -263,12 +265,12 @@ export default function Designs() {
               <div className="flex items-center rounded-lg border border-stone-300 bg-white">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`rounded-l-md p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                  className={`rounded-l-md p-2 sm:p-1.5 ${viewMode === "grid" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
                   title="Card view"
                 ><LayoutGrid size={15} /></button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`rounded-r-md p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
+                  className={`rounded-r-md p-2 sm:p-1.5 ${viewMode === "list" ? "bg-emerald-700 text-white" : "text-stone-500 hover:text-stone-800"}`}
                   title="List view"
                 ><List size={15} /></button>
               </div>
@@ -336,6 +338,9 @@ function FilterChip({ label, options, selected, onToggle, onClear }: {
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Nudge the 256px popover left when the chip sits near the right edge of a
+  // phone screen, so the list never runs off-screen.
+  const [shiftX, setShiftX] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -358,9 +363,14 @@ function FilterChip({ label, options, selected, onToggle, onClear }: {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        onClick={() => {
+          if (disabled) return;
+          const left = ref.current?.getBoundingClientRect().left ?? 0;
+          setShiftX(Math.min(0, window.innerWidth - 16 - (left + 256)));
+          setOpen((o) => !o);
+        }}
         disabled={disabled}
-        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors sm:py-1.5 ${
           active
             ? "border-emerald-600 bg-emerald-700 text-white"
             : "border-stone-300 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-900"
@@ -375,7 +385,7 @@ function FilterChip({ label, options, selected, onToggle, onClear }: {
       </button>
 
       {open && (
-        <div className="ll-popover origin-top-left absolute left-0 top-full z-30 mt-1.5 max-h-80 w-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
+        <div style={{ left: shiftX }} className="ll-popover origin-top-left absolute left-0 top-full z-30 mt-1.5 max-h-80 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">{label}</span>
             {selected.length > 0 && (
@@ -391,7 +401,7 @@ function FilterChip({ label, options, selected, onToggle, onClear }: {
                 <button
                   key={o.value}
                   onClick={() => onToggle(o.value)}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-stone-100"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-sm hover:bg-stone-100 sm:py-1.5"
                 >
                   <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                     on ? "border-emerald-700 bg-emerald-700 text-white" : "border-stone-300"
@@ -444,7 +454,7 @@ function DesignCard({ d, view, size, onOpen }: {
     return (
       <div
         onClick={onOpen}
-        className="group flex cursor-pointer items-center gap-4 rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md"
+        className="group flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md sm:gap-4"
       >
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-50">
           <DesignImage d={d} className="h-full w-full object-cover" />

@@ -251,7 +251,7 @@ export default function InstallCostCardEditor() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="rounded-xl border border-stone-200 bg-white p-6">
+      <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
@@ -273,7 +273,7 @@ export default function InstallCostCardEditor() {
         {inherited > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             <span>{season} has no cost card of its own yet. The values marked <em>inherited</em> come from the latest earlier season.</span>
-            <button type="button" disabled={saving} onClick={() => void save(true)} className="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-60">
+            <button type="button" disabled={saving} onClick={() => void save(true)} className="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-2 font-semibold text-amber-800 sm:py-1 hover:bg-amber-100 disabled:opacity-60">
               <Copy size={12} /> Make these {season}'s own
             </button>
           </div>
@@ -310,7 +310,7 @@ export default function InstallCostCardEditor() {
                   <div className="flex items-center justify-between gap-2 text-stone-500">
                     <span>{people ? `${people.filter((p) => p.pay_class === c.slug).length} on the roster` : ""}</span>
                     <button type="button" title={`Remove ${c.label}`} onClick={() => setRemoved((r) => [...r, c.slug])}
-                      className="rounded-md p-1 text-stone-400 hover:bg-red-50 hover:text-red-600">
+                      className="rounded-md p-2 text-stone-400 sm:p-1 hover:bg-red-50 hover:text-red-600">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -386,7 +386,7 @@ export default function InstallCostCardEditor() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-stone-200 bg-white p-6">
+      <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-stone-800">What one crew-day costs</h2>
         <p className="mt-1 max-w-3xl text-xs leading-relaxed text-stone-500">
           A live example at the numbers above, before you save. The crew-day view on the schedule will use each day's real crew, hours and route miles.
@@ -423,7 +423,7 @@ export default function InstallCostCardEditor() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-stone-200 bg-white p-6">
+      <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-stone-800">Roster pay classes</h2>
         <p className="mt-1 max-w-3xl text-xs leading-relaxed text-stone-500">
           Everyone on the install roster and the class they're paid as. Pick a class here; it never shows on the schedule, the warehouse iPad or the crew leads' pages. Someone with no class picked is paid as their roster title.
@@ -472,8 +472,8 @@ function PersonRow({ p, classes, onSave }: {
   };
   return (
     <tr>
-      <td className="py-1.5 pr-3 font-medium text-stone-800">{p.name}</td>
-      <td className="py-1.5 pr-3 text-stone-500">{p.title}</td>
+      <td className="whitespace-nowrap py-1.5 pr-3 font-medium text-stone-800">{p.name}</td>
+      <td className="min-w-[7rem] py-1.5 pr-3 text-stone-500">{p.title}</td>
       <td className="py-1.5 pr-3">
         <select className="rounded-lg border border-stone-200 px-2 py-1 text-xs" value={cls}
           onChange={(e) => void onSave(p, e.target.value || null, p.rate_override)}>

@@ -167,7 +167,7 @@ export default function SidebarTabsEditor() {
   };
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-6">
+    <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-stone-800">Sidebar Tabs</h2>
@@ -263,7 +263,7 @@ export default function SidebarTabsEditor() {
                   type="button"
                   onClick={() => moveBy(path, -1)}
                   disabled={!canMoveUp}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-400 sm:h-7 sm:w-7 hover:bg-stone-100 hover:text-stone-700 disabled:opacity-30 disabled:hover:bg-transparent"
                   aria-label={`Move ${item.label} up`}
                 >
                   <ChevronUp size={14} />
@@ -272,7 +272,7 @@ export default function SidebarTabsEditor() {
                   type="button"
                   onClick={() => moveBy(path, 1)}
                   disabled={!canMoveDown}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-400 sm:h-7 sm:w-7 hover:bg-stone-100 hover:text-stone-700 disabled:opacity-30 disabled:hover:bg-transparent"
                   aria-label={`Move ${item.label} down`}
                 >
                   <ChevronDown size={14} />
@@ -281,7 +281,7 @@ export default function SidebarTabsEditor() {
                   type="button"
                   onClick={() => toggleHidden(path)}
                   disabled={pinned}
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg disabled:opacity-30 disabled:hover:bg-transparent ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg sm:h-7 sm:w-7 disabled:opacity-30 disabled:hover:bg-transparent ${
                     isHidden
                       ? "text-stone-400 hover:bg-stone-100 hover:text-stone-700"
                       : "text-emerald-700 hover:bg-emerald-50"

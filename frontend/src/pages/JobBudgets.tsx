@@ -124,11 +124,11 @@ function NetBar({ value, target }: { value: number | null; target: number | null
   );
 }
 
-function Tile({ label, value, detail, hero }: { label: string; value: string; detail?: React.ReactNode; hero?: boolean }) {
+function Tile({ label, value, detail, hero, className = "" }: { label: string; value: string; detail?: React.ReactNode; hero?: boolean; className?: string }) {
   return (
-    <div className="min-w-0 px-5 py-4">
+    <div className={`min-w-0 px-4 py-3 sm:px-5 sm:py-4 ${className}`}>
       <p className="text-xs text-stone-500">{label}</p>
-      <p className={`font-semibold tabular-nums text-stone-900 ${hero ? "text-4xl tracking-tight" : "text-xl"}`}>{value}</p>
+      <p className={`font-semibold tabular-nums text-stone-900 ${hero ? "text-4xl tracking-tight" : "text-lg sm:text-xl"}`}>{value}</p>
       {detail && <div className="mt-0.5 text-xs text-stone-500">{detail}</div>}
     </div>
   );
@@ -239,7 +239,7 @@ export default function JobBudgets() {
               How many crew-hours each install job can take, install and takedown, before it misses the target profit or starts losing money. Only admins see this page.
             </p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-stone-600">
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-xs text-stone-600 sm:w-auto">
             {data && (
               <span>
                 Overhead <b className="text-stone-800">{data.overhead_pct ?? "—"}%</b> · Target <b className="text-stone-800">{target ?? "—"}%</b>
@@ -272,8 +272,10 @@ export default function JobBudgets() {
               </div>
             )}
 
-            <div className="grid overflow-hidden rounded-xl border border-stone-200 bg-white sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] lg:divide-x lg:divide-stone-100">
-              <Tile hero label={`Net profit, ${s.priced_jobs} priced jobs`} value={pct(s.net_pct)}
+            {/* Two across below lg with the net-profit hero on its own row, so a
+                phone shows the four figures in two short rows, not five tall ones. */}
+            <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-stone-200 bg-white lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] lg:divide-x lg:divide-stone-100">
+              <Tile hero className="col-span-2 lg:col-span-1" label={`Net profit, ${s.priced_jobs} priced jobs`} value={pct(s.net_pct)}
                 detail={<>{money0(s.net)} after install, takedown and {data.overhead_pct}% overhead</>} />
               <Tile label="Season price" value={money0(s.revenue)} detail="install, takedown and storage" />
               <Tile label="Job costs" value={money0(s.cost)}
@@ -293,16 +295,29 @@ export default function JobBudgets() {
             <div className="flex flex-wrap items-center gap-2">
               {FILTERS.filter((f) => f.id === "all" || filterCount(f.id)).map((f) => (
                 <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${filter === f.id ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold sm:py-1 ${filter === f.id ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
                   {f.label}{f.id !== "all" && <span className="ml-1 opacity-70">{filterCount(f.id)}</span>}
                 </button>
               ))}
-              <span className="ml-auto text-xs text-stone-500">
+              <span className="w-full text-xs text-stone-500 sm:ml-auto sm:w-auto">
                 Crew-hours are hours the whole crew is on the clock, depot to depot. Bar: net % on a −50% to +75% scale; the dark tick is the {target}% target.
               </span>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
+            {/* Phones and tablets: one card per job (tap to open its breakdown;
+                an open card spans both columns). The 980px table below takes
+                over from xl, the first width it fits beside the sidebar
+                without a sideways scroll. */}
+            <div className="grid gap-2 md:grid-cols-2 xl:hidden">
+              {jobs.map((j) => (
+                <JobCard key={j.row} j={j} data={data} target={target} isOpen={open.has(j.row)} onToggle={() => toggle(j.row)} />
+              ))}
+              {jobs.length === 0 && (
+                <p className="rounded-xl border border-stone-200 bg-white px-4 py-10 text-center text-sm text-stone-500 md:col-span-2">No jobs match that filter.</p>
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-xl border border-stone-200 bg-white xl:block">
               <table className="w-full min-w-[980px] text-sm">
                 <thead>
                   <tr className="border-b border-stone-200 text-left text-[10px] uppercase tracking-wide text-stone-400">
@@ -387,82 +402,150 @@ function Line({ label, value, strong, muted }: { label: React.ReactNode; value: 
   );
 }
 
+/** The phone layout of one table row: same figures, stacked. */
+function JobCard({ j, data, target, isOpen, onToggle }: { j: Job; data: Out; target: number | null; isOpen: boolean; onToggle: () => void }) {
+  const p = j.price;
+  return (
+    <div className={`overflow-hidden rounded-xl border border-stone-200 bg-white ${isOpen ? "md:col-span-2" : ""}`}>
+      <button type="button" onClick={onToggle} aria-expanded={isOpen}
+        className={`block w-full px-4 py-3 text-left ${isOpen ? "bg-stone-50" : ""}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-medium text-stone-900">{j.name}</div>
+            <div className="text-xs text-stone-500">{daysSummary(j.days)}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-semibold tabular-nums text-stone-900">{pct(j.net_pct)}</div>
+            <span className={`inline-block rounded-full border px-1.5 py-px text-[10px] font-semibold ${STATUS[j.status].chip}`}>{STATUS[j.status].label}</span>
+          </div>
+        </div>
+        <div className="mt-2"><NetBar value={j.net_pct} target={target} /></div>
+        <dl className="mt-2 grid grid-cols-3 gap-2 border-t border-stone-100 pt-2 text-xs">
+          <div className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-wide text-stone-400">Price</dt>
+            <dd className="tabular-nums text-stone-700">{money0(p.total)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-wide text-stone-400">Job cost</dt>
+            <dd className="tabular-nums text-stone-700">{money0(j.job_cost)}{j.placeholder && <span className="ml-0.5 text-[10px] text-red-700">*</span>}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-wide text-stone-400">Net</dt>
+            <dd className={`font-semibold tabular-nums ${j.net != null && j.net < 0 ? "text-red-700" : "text-stone-900"}`}>{money0(j.net)}</dd>
+          </div>
+        </dl>
+        <div className="mt-1 text-[10px] tabular-nums text-stone-500">
+          {p.total != null && p.price_source !== "no_charge"
+            ? `${money0(p.install)} in · ${money0(p.takedown)} out · ${money0(p.storage)} storage`
+            : SOURCE[p.price_source]}
+        </div>
+        <dl className="mt-2 grid grid-cols-3 gap-2 border-t border-stone-100 pt-2 text-xs">
+          <div className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-wide text-stone-400">Hour budget</dt>
+            <dd><HourBudget j={j} /></dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-wide text-stone-400">Planned</dt>
+            <dd><Planned j={j} /></dd>
+          </div>
+          <div className="min-w-0 text-stone-600">
+            <dt className="text-[10px] uppercase tracking-wide text-stone-400">Last year</dt>
+            <dd className="tabular-nums">{j.last_year.hours != null ? hrs(j.last_year.hours) : <span className="text-stone-400">no hours</span>}</dd>
+            <dd className="text-stone-500">{j.last_year.crew_size ? `crew of ${j.last_year.crew_size}` : "no crew on record"}</dd>
+          </div>
+        </dl>
+      </button>
+      {isOpen && (
+        <div className="border-t border-stone-200 bg-stone-50/70 p-3">
+          <JobDetailBody j={j} data={data} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JobDetail({ j, data }: { j: Job; data: Out }) {
-  const i = j.install, t = j.takedown, b = j.budget;
-  const vs = j.last_year_vs_plan;
   return (
     <tr className="border-b border-stone-200 bg-stone-50/70">
       <td colSpan={8} className="px-4 pb-4 pt-1">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-xs">
-            <p className="px-3 py-1.5 font-semibold text-stone-700">Install · as scheduled</p>
-            <Line label="On site" value={hrs(i.onsite_h)} />
-            <Line label="Paid crew-hours, depot to depot" value={hrs(i.paid_h)} />
-            <Line label="Crew pay" value={formatCurrency(i.labor_cost)} />
-            <Line label="Vans, trailer, gas, extras" value={formatCurrency(i.other_cost)} />
-            <Line strong label="Install cost" value={formatCurrency(i.cost)} />
-            <p className="px-3 py-1.5 font-semibold text-stone-700">Takedown · estimate</p>
-            <Line label={`Paid crew-hours · ${Math.round(t.factor * 100)}% of install`} value={hrs(t.paid_h)} />
-            <Line label="Crew pay" value={formatCurrency(t.labor_cost)} />
-            <Line label="Vans, trailer, gas, extras · same trip" value={formatCurrency(t.other_cost)} />
-            <Line strong label="Takedown cost" value={formatCurrency(t.cost)} />
-          </div>
-
-          <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-xs">
-            <p className="px-3 py-1.5 font-semibold text-stone-700">The job</p>
-            <Line label="Price" value={money0(j.price.total)} />
-            <Line label="Install + takedown" value={formatCurrency(j.job_cost)} />
-            <Line label="Materials" value="not tracked yet" muted />
-            <Line label={`Overhead · ${data.overhead_pct ?? "—"}% of the price`} value={j.overhead == null ? "—" : formatCurrency(j.overhead)} />
-            <Line strong label={`Net · ${pct(j.net_pct)}`} value={j.net == null ? "—" : formatCurrency(j.net)} />
-            <p className="px-3 py-1.5 font-semibold text-stone-700">Hour budget</p>
-            <Line label="Crew pay per crew-hour" value={b.crew_rate == null ? "—" : `${formatCurrency(b.crew_rate)}/h`} />
-            <Line label="Vans and gas, both trips" value={formatCurrency(b.vehicle)} />
-            <Line label={`At the ${target(data)}% target`} value={hrs(b.budget_target_h)} />
-            <Line label="Break-even" value={hrs(b.budget_breakeven_h)} />
-            <Line strong label="Planned, install + takedown" value={hrs(b.planned_h)} />
-            {j.missing.length > 0 && <p className="px-3 py-1.5 text-red-700">* placeholder: still needs {j.missing.join(", ")}</p>}
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-stone-600">
-              <p className="mb-1 font-semibold text-stone-700">Crew</p>
-              <p>
-                {i.crew_size} {i.crew_size === 1 ? "person" : "people"}, sized from {BASIS[i.crew_basis] || i.crew_basis}.
-                Everyone on the day is paid for every stop, so the biggest job on a day sets the crew.
-              </p>
-            </div>
-            <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-stone-600">
-              <p className="mb-1 font-semibold text-stone-700">On the schedule</p>
-              <ul className="space-y-0.5">
-                {j.days.map((d) => (
-                  <li key={d.id} className="flex justify-between gap-2"><span>{fmtDate(d.date)}</span><span className="text-stone-500">{d.crew}</span></li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-stone-600">
-              <p className="mb-1 font-semibold text-stone-700">Last year</p>
-              {vs ? (
-                <p>
-                  {hrs(vs.real25_h)} on the job in 2025; {hrs(vs.plan_onsite_h)} on site this year
-                  ({vs.diff_h > 0 ? `${hrs(vs.diff_h)} more` : vs.diff_h < 0 ? `${hrs(-vs.diff_h)} less` : "the same"}).
-                </p>
-              ) : (
-                <p>No 2025 hours on record for this job.</p>
-              )}
-              {j.last_year.crew_size != null && <p>2025 crew: {j.last_year.crew_size} people.</p>}
-            </div>
-            <p className="text-stone-500">
-              Takedown is an estimate until it's scheduled: {Math.round(t.factor * 100)}% of the install crew-hours, same crew, and the same vans and gas as the install trip.
-              The takedown price always equals the install price.
-            </p>
-            <p className="text-stone-500">
-              {SOURCE[j.price.price_source]}{j.price.basis ? ` · ${j.price.basis}` : ""}
-            </p>
-          </div>
-        </div>
+        <JobDetailBody j={j} data={data} />
       </td>
     </tr>
+  );
+}
+
+function JobDetailBody({ j, data }: { j: Job; data: Out }) {
+  const i = j.install, t = j.takedown, b = j.budget;
+  const vs = j.last_year_vs_plan;
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-xs">
+        <p className="px-3 py-1.5 font-semibold text-stone-700">Install · as scheduled</p>
+        <Line label="On site" value={hrs(i.onsite_h)} />
+        <Line label="Paid crew-hours, depot to depot" value={hrs(i.paid_h)} />
+        <Line label="Crew pay" value={formatCurrency(i.labor_cost)} />
+        <Line label="Vans, trailer, gas, extras" value={formatCurrency(i.other_cost)} />
+        <Line strong label="Install cost" value={formatCurrency(i.cost)} />
+        <p className="px-3 py-1.5 font-semibold text-stone-700">Takedown · estimate</p>
+        <Line label={`Paid crew-hours · ${Math.round(t.factor * 100)}% of install`} value={hrs(t.paid_h)} />
+        <Line label="Crew pay" value={formatCurrency(t.labor_cost)} />
+        <Line label="Vans, trailer, gas, extras · same trip" value={formatCurrency(t.other_cost)} />
+        <Line strong label="Takedown cost" value={formatCurrency(t.cost)} />
+      </div>
+
+      <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-xs">
+        <p className="px-3 py-1.5 font-semibold text-stone-700">The job</p>
+        <Line label="Price" value={money0(j.price.total)} />
+        <Line label="Install + takedown" value={formatCurrency(j.job_cost)} />
+        <Line label="Materials" value="not tracked yet" muted />
+        <Line label={`Overhead · ${data.overhead_pct ?? "—"}% of the price`} value={j.overhead == null ? "—" : formatCurrency(j.overhead)} />
+        <Line strong label={`Net · ${pct(j.net_pct)}`} value={j.net == null ? "—" : formatCurrency(j.net)} />
+        <p className="px-3 py-1.5 font-semibold text-stone-700">Hour budget</p>
+        <Line label="Crew pay per crew-hour" value={b.crew_rate == null ? "—" : `${formatCurrency(b.crew_rate)}/h`} />
+        <Line label="Vans and gas, both trips" value={formatCurrency(b.vehicle)} />
+        <Line label={`At the ${target(data)}% target`} value={hrs(b.budget_target_h)} />
+        <Line label="Break-even" value={hrs(b.budget_breakeven_h)} />
+        <Line strong label="Planned, install + takedown" value={hrs(b.planned_h)} />
+        {j.missing.length > 0 && <p className="px-3 py-1.5 text-red-700">* placeholder: still needs {j.missing.join(", ")}</p>}
+      </div>
+
+      <div className="space-y-3 text-xs">
+        <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-stone-600">
+          <p className="mb-1 font-semibold text-stone-700">Crew</p>
+          <p>
+            {i.crew_size} {i.crew_size === 1 ? "person" : "people"}, sized from {BASIS[i.crew_basis] || i.crew_basis}.
+            Everyone on the day is paid for every stop, so the biggest job on a day sets the crew.
+          </p>
+        </div>
+        <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-stone-600">
+          <p className="mb-1 font-semibold text-stone-700">On the schedule</p>
+          <ul className="space-y-0.5">
+            {j.days.map((d) => (
+              <li key={d.id} className="flex justify-between gap-2"><span>{fmtDate(d.date)}</span><span className="text-stone-500">{d.crew}</span></li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-stone-600">
+          <p className="mb-1 font-semibold text-stone-700">Last year</p>
+          {vs ? (
+            <p>
+              {hrs(vs.real25_h)} on the job in 2025; {hrs(vs.plan_onsite_h)} on site this year
+              ({vs.diff_h > 0 ? `${hrs(vs.diff_h)} more` : vs.diff_h < 0 ? `${hrs(-vs.diff_h)} less` : "the same"}).
+            </p>
+          ) : (
+            <p>No 2025 hours on record for this job.</p>
+          )}
+          {j.last_year.crew_size != null && <p>2025 crew: {j.last_year.crew_size} people.</p>}
+        </div>
+        <p className="text-stone-500">
+          Takedown is an estimate until it's scheduled: {Math.round(t.factor * 100)}% of the install crew-hours, same crew, and the same vans and gas as the install trip.
+          The takedown price always equals the install price.
+        </p>
+        <p className="text-stone-500">
+          {SOURCE[j.price.price_source]}{j.price.basis ? ` · ${j.price.basis}` : ""}
+        </p>
+      </div>
+    </div>
   );
 }
 

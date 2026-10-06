@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ClipboardList, Plus, ChevronDown } from "components/icons";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -28,6 +28,10 @@ export default function WorkingJobBar({ value, onChange }: Props) {
   const [jobs, setJobs] = useState<BoardJob[]>([]);
   const [groups, setGroups] = useState<PinGroup[]>([]);
   const [open, setOpen] = useState(false);
+  // The 320px popover hangs off the button's right edge; on a phone where the
+  // button sits near the left, slide it right so it stays on screen.
+  const [shiftX, setShiftX] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const refreshJobs = useCallback(async () => {
     try { setJobs(await listBoards()); } catch { setJobs([]); }
@@ -63,26 +67,31 @@ export default function WorkingJobBar({ value, onChange }: Props) {
   };
 
   return (
-    <div data-edit className="relative">
+    <div data-edit ref={rootRef} className="relative max-w-full">
       <button
-        onClick={() => { setOpen((o) => !o); if (!open) refreshJobs(); }}
-        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${job ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-stone-300 bg-white text-stone-600"}`}
+        onClick={() => {
+          const right = rootRef.current?.getBoundingClientRect().right ?? 0;
+          setShiftX(Math.max(0, 16 - (right - Math.min(320, window.innerWidth - 32))));
+          setOpen((o) => !o);
+          if (!open) refreshJobs();
+        }}
+        className={`inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm sm:py-1.5 ${job ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-stone-300 bg-white text-stone-600"}`}
         title="Which job the + button pins to"
       >
-        <ClipboardList size={14} className={job ? "text-emerald-700" : "text-stone-400"} />
+        <ClipboardList size={14} className={`shrink-0 ${job ? "text-emerald-700" : "text-stone-400"}`} />
         {job ? (
-          <span className="max-w-[18rem] truncate">
+          <span className="min-w-0 max-w-[18rem] truncate">
             <span className="text-[11px] uppercase tracking-wide text-emerald-700/80">Pinning to </span>
             <b>{job.name}</b>{group ? <span className="text-emerald-800"> · {group.name}</span> : null}
           </span>
         ) : (
           <span>Pick a job to pin to</span>
         )}
-        <ChevronDown size={13} className="text-stone-400" />
+        <ChevronDown size={13} className="shrink-0 text-stone-400" />
       </button>
 
       {open && (
-        <div className="ll-popover origin-top-right absolute right-0 z-30 mt-1 w-80 rounded-xl border border-stone-200 bg-white p-3 shadow-lg" onMouseLeave={() => setOpen(false)}>
+        <div style={{ right: -shiftX }} className="ll-popover origin-top-right absolute right-0 z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-stone-200 bg-white p-3 shadow-lg" onMouseLeave={() => setOpen(false)}>
           <label className="flex flex-col gap-1 text-xs text-stone-500">
             Job
             <div className="flex gap-1.5">
@@ -90,7 +99,7 @@ export default function WorkingJobBar({ value, onChange }: Props) {
                 <option value="">— none —</option>
                 {jobs.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
               </select>
-              <button data-edit onClick={newJob} className="rounded-md border border-stone-300 px-2 text-stone-600 hover:border-emerald-400 hover:text-emerald-700" title="New job"><Plus size={14} /></button>
+              <button data-edit onClick={newJob} className="min-w-[36px] rounded-md border border-stone-300 px-2 text-stone-600 hover:border-emerald-400 hover:text-emerald-700" title="New job" aria-label="New job"><Plus size={14} /></button>
             </div>
           </label>
           <div className="mt-3 flex items-center justify-between text-[11px] text-stone-400">

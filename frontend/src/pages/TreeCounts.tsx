@@ -137,14 +137,16 @@ function CountForm({ onSaved }: { onSaved: (record: TreeCountRecord) => void }) 
   };
 
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
       <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
         <TreePine size={15} className="text-emerald-700" />
         Count this tree
       </h2>
       <form onSubmit={submit} className="space-y-5">
+        {/* On a phone: the kind toggle spans the row, then height and width
+            (and profile and style below) pair up half and half. */}
         <div className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-col gap-1">
+          <label className="flex w-full flex-col gap-1 sm:w-auto">
             <span className="text-xs font-medium text-stone-500">Install or teardown</span>
             <div className="flex overflow-hidden rounded-lg border border-stone-300">
               {(["install", "teardown"] as TreeCountKind[]).map((k) => (
@@ -152,7 +154,7 @@ function CountForm({ onSaved }: { onSaved: (record: TreeCountRecord) => void }) 
                   key={k}
                   type="button"
                   onClick={() => setKind(k)}
-                  className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                  className={`flex-1 px-4 py-2 text-sm font-medium capitalize transition-colors sm:flex-none ${
                     kind === k ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-100"
                   }`}
                 >
@@ -161,7 +163,7 @@ function CountForm({ onSaved }: { onSaved: (record: TreeCountRecord) => void }) 
               ))}
             </div>
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex w-[calc(50%-0.5rem)] flex-col gap-1 sm:w-auto">
             <span className="text-xs font-medium text-stone-500">Tree Height (ft)</span>
             <input
               type="number"
@@ -169,10 +171,10 @@ function CountForm({ onSaved }: { onSaved: (record: TreeCountRecord) => void }) 
               step={0.5}
               value={heightFt}
               onChange={(e) => changeHeight(e.target.value)}
-              className={`w-28 ${INPUT_CLASS}`}
+              className={`w-full sm:w-28 ${INPUT_CLASS}`}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex w-[calc(50%-0.5rem)] flex-col gap-1 sm:w-auto">
             <span className="text-xs font-medium text-stone-500">Tree Width (in)</span>
             <input
               type="number"
@@ -183,7 +185,7 @@ function CountForm({ onSaved }: { onSaved: (record: TreeCountRecord) => void }) 
                 setWidthTouched(true);
                 setWidthIn(e.target.value === "" ? "" : Number(e.target.value));
               }}
-              className={`w-28 ${INPUT_CLASS}`}
+              className={`w-full sm:w-28 ${INPUT_CLASS}`}
             />
           </label>
           <label className="flex min-w-[14rem] flex-1 flex-col gap-1">
@@ -199,24 +201,24 @@ function CountForm({ onSaved }: { onSaved: (record: TreeCountRecord) => void }) 
         </div>
 
         <div className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-col gap-1">
+          <label className="flex w-[calc(50%-0.5rem)] flex-col gap-1 sm:w-auto">
             <span className="text-xs font-medium text-stone-500">Profile (optional)</span>
             <input
               type="text"
               value={profile}
               onChange={(e) => setProfile(e.target.value)}
               placeholder="slim / full"
-              className={`w-40 ${INPUT_CLASS}`}
+              className={`w-full sm:w-40 ${INPUT_CLASS}`}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex w-[calc(50%-0.5rem)] flex-col gap-1 sm:w-auto">
             <span className="text-xs font-medium text-stone-500">Style (optional)</span>
             <input
               type="text"
               value={style}
               onChange={(e) => setStyle(e.target.value)}
               placeholder="e.g. red & gold"
-              className={`w-48 ${INPUT_CLASS}`}
+              className={`w-full sm:w-48 ${INPUT_CLASS}`}
             />
           </label>
         </div>
@@ -307,18 +309,61 @@ function RecordedList({
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-4 sm:px-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-600">Recorded trees</h2>
         <span className="text-xs text-stone-400">{records.length} on file</span>
       </div>
       {loading ? (
-        <p className="px-6 py-10 text-center text-sm text-stone-400">Loading…</p>
+        <p className="px-4 py-10 text-center text-sm text-stone-400 sm:px-6">Loading…</p>
       ) : records.length === 0 ? (
-        <p className="px-6 py-10 text-center text-sm text-stone-400">
+        <p className="px-4 py-10 text-center text-sm text-stone-400 sm:px-6">
           Nothing counted yet. Next time a tree goes up or comes down, take note above.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* Phones and tablets: one stacked card per record (below xl the
+            eight-column table squeezed the client and counts columns to a
+            word a line); the table takes over from xl up. */}
+        <ul className="divide-y divide-stone-100 xl:hidden">
+          {records.map((r) => (
+            <li key={r.id} className="flex items-start gap-3 px-4 py-3 text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <KindBadge kind={r.kind} />
+                  <span className="text-xs text-stone-500">{formatDate(r.recorded_at)}</span>
+                </div>
+                <p className="mt-1 text-stone-800">
+                  {r.height_ft} ft × {r.width_in} in
+                  <span className="text-stone-500">
+                    {" · "}<span className="font-semibold text-stone-800">{totalPieces(r.counts)}</span> pieces
+                    {r.enhancers ? ` + ${r.enhancers} enhancers` : ""}
+                  </span>
+                </p>
+                {(r.profile || r.style) && (
+                  <p className="text-xs text-stone-400">{[r.profile, r.style].filter(Boolean).join(" · ")}</p>
+                )}
+                {(r.label || r.created_name) && (
+                  <p className="text-xs text-stone-600">
+                    {r.label}
+                    {r.created_name && <span className="text-stone-400">{r.label ? " · " : ""}by {r.created_name}</span>}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-stone-500">{summariseCounts(r.counts) || "—"}</p>
+                {r.notes && <p className="text-xs italic text-stone-400">{r.notes}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(r)}
+                className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                aria-label="Delete this record"
+                title="Delete this record"
+              >
+                <Trash2 size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto xl:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
@@ -371,6 +416,7 @@ function RecordedList({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );
@@ -389,9 +435,9 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
   };
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+    <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-base font-semibold text-stone-800">{row.heightFt} ft</span>
           <span className="text-xs text-stone-500">approved at {row.approved.widthIn} in</span>
           {row.average ? (
@@ -420,7 +466,8 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
-              <th className="px-4 py-2 font-medium">Size</th>
+              {/* Row labels stay put while a phone scrolls the sizes sideways. */}
+              <th className="sticky left-0 z-[1] bg-white px-4 py-2 font-medium">Size</th>
               {row.sizes.map((s) => (
                 <th key={s} className="px-3 py-2 text-right font-medium">
                   {s}"
@@ -432,7 +479,7 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
           </thead>
           <tbody>
             <tr className="border-b border-stone-100">
-              <td className="px-4 py-2 font-medium text-stone-700">Approved</td>
+              <td className="sticky left-0 z-[1] bg-white px-4 py-2 font-medium text-stone-700">Approved</td>
               {row.sizes.map((s) => (
                 <td key={s} className="px-3 py-2 text-right text-stone-800">
                   {row.approved.quantities[s] ?? <span className="text-stone-300">—</span>}
@@ -444,10 +491,10 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
               <td className="px-3 py-2 text-right text-stone-600">{row.approved.widthIn} in</td>
             </tr>
             <tr className="border-b border-stone-100">
-              <td className="px-4 py-2 font-medium text-stone-700">
+              <td className="sticky left-0 z-[1] bg-white px-4 py-2 font-medium text-stone-700">
                 Recorded avg
                 {row.average && (
-                  <span className="ml-1 text-xs font-normal text-stone-400">
+                  <span className="block text-xs font-normal text-stone-400 sm:ml-1 sm:inline">
                     (n={row.average.n}, ±{HEIGHT_TOLERANCE_FT} ft)
                   </span>
                 )}
@@ -473,7 +520,7 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
               </td>
             </tr>
             <tr>
-              <td className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-stone-500">Difference</td>
+              <td className="sticky left-0 z-[1] bg-white px-4 py-2 text-xs font-medium uppercase tracking-wide text-stone-500">Difference</td>
               {row.sizes.map((s) => {
                 const cell = row.cells[s];
                 if (!cell) {
@@ -506,7 +553,7 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
       </div>
 
       {row.average && (
-        <pre className="mt-3 select-all overflow-x-auto rounded-lg bg-stone-800 px-4 py-2.5 font-mono text-xs text-stone-100">
+        <pre className="mt-3 select-all overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-stone-800 px-4 py-2.5 font-mono text-xs text-stone-100 sm:whitespace-pre sm:break-normal">
           {row.snippet}
         </pre>
       )}
@@ -517,7 +564,7 @@ function ComparisonCard({ row }: { row: TableComparisonRow }) {
 function TableVsReality({ records }: { records: TreeCountRecord[] }) {
   const rows = useMemo(() => compareToTable(records), [records]);
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
       <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-600">
         <Scale size={15} className="text-emerald-700" />
         Table vs reality
@@ -590,7 +637,7 @@ export default function TreeCounts() {
         </p>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-6">
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         <CountForm onSaved={(saved) => setRecords((prev) => [saved, ...prev])} />
         <RecordedList records={records} loading={loading} onDelete={remove} />
         <TableVsReality records={records} />
