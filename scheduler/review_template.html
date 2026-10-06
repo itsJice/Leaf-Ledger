@@ -1628,8 +1628,9 @@ body.apple header{container-type:inline-size}
   }
   /* Dates: a full-screen sheet from the day bar, laid out like the desktop list */
   body.apple #datecol{display:none}
+  /* stretch: the base phone rules centre #datecol's children for the old sideways row */
   body.apple.datesheet #datecol{display:flex;position:fixed;inset:0;z-index:3000;flex-direction:column;flex-wrap:nowrap;
-    gap:10px;padding:12px 14px 16px;background:var(--side);overflow:hidden;border:0}
+    align-items:stretch;gap:10px;padding:12px 14px 16px;background:var(--side);overflow:hidden;border:0}
   body.apple.datesheet #dsheethd{display:flex;align-items:center;justify-content:space-between}
   body.apple.datesheet #dsheethd b{font-family:'Sora',system-ui,sans-serif;font-size:20px;font-weight:600;color:var(--brand-deep)}
   body.apple.datesheet #dsheethd button{height:40px;padding:0 16px;border:0;border-radius:20px;background:var(--brand);
