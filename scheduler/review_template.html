@@ -1658,6 +1658,11 @@ body.apple header{container-type:inline-size}
   body.apple .agm{flex:1 1 100%;margin-left:89px;white-space:normal}
   /* iPhone Safari zooms into any text field under 16px and stays zoomed */
   body.apple input:not([type=checkbox]):not([type=radio]):not([type=range]),body.apple select,body.apple textarea{font-size:16px}
+  /* Staff alerts: a thumb-size tap area round the small icon, bigger popup buttons */
+  body.apple .salert{position:relative}
+  body.apple .salert::before{content:'';position:absolute;inset:-10px}
+  body.apple .saeditbtn,body.apple .sabtns button{min-height:40px;padding:0 14px}
+  body.apple .saedit textarea{font-size:16px}
   /* Version history: a sheet under the toolbar */
   body.apple #histpop{position:fixed;left:8px;right:8px;top:54px;width:auto;max-width:none;max-height:75vh;overflow:auto}
 }

@@ -304,7 +304,7 @@ function ResolutionEditor({ row, onSave, onCancel }: {
 
   return (
     <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-      <label htmlFor={`fixed-${row.id}`} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+      <label htmlFor={`fixed-${row.id}`} className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-emerald-800">
         <CheckCircle2 size={12} /> What we fixed
         <span className="font-normal text-emerald-700/70">— optional, everyone who can see this comment will see it</span>
       </label>
@@ -315,17 +315,17 @@ function ResolutionEditor({ row, onSave, onCancel }: {
         onChange={(e) => setText(e.target.value)}
         rows={3}
         placeholder="e.g. The Jobs page now remembers your last filter."
-        className="mt-1.5 w-full resize-y rounded-md border border-stone-300 bg-white px-2.5 py-2 text-[13px] text-stone-800 focus:border-emerald-500 focus:outline-none"
+        className="mt-1.5 w-full resize-y rounded-md border border-stone-300 bg-white px-2.5 py-2 text-base text-stone-800 sm:text-[13px] focus:border-emerald-500 focus:outline-none"
       />
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+          className="rounded-md bg-emerald-700 px-3 py-2.5 text-xs font-medium text-white sm:px-2.5 sm:py-1 hover:bg-emerald-800 disabled:opacity-50"
         >
           {done ? "Save note" : "Save & complete"}
         </button>
-        <button onClick={onCancel} className="px-1.5 py-1 text-xs text-stone-500 hover:text-stone-700">
+        <button onClick={onCancel} className="px-2 py-2.5 text-xs sm:px-1.5 sm:py-1 text-stone-500 hover:text-stone-700">
           Cancel
         </button>
       </div>
