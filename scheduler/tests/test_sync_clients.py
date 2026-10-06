@@ -68,7 +68,8 @@ def test_extract_current_season_files_prior_columns_on_prior_seasons(tmp_path, m
     assert rec["total"] is None and rec["ideal_total"] == 1500.0
     assert rec["specialty"] == "SN" and rec["confirmation_notes"] == "Confirmed"
     assert rec["role_need"]["general"] == 3 and rec["people_needed"] == 4
-    assert "production_notes" not in rec and "notes" not in rec  # last season's notes are not this season's
+    assert "production_notes" not in rec  # last season's production notes are not this season's
+    assert "notes" not in rec  # no install note on the sheet -> nothing to file
     # last season's columns go on last season's row
     assert rec["supplements"]["2025"] == {
         "real_hours": 2.5, "real_start": "09:45", "real_end": "12:15",
@@ -121,3 +122,35 @@ def test_extract_current_season_files_drive_minutes_by_matrix_index(tmp_path, mo
     a, b = S.extract_current_season("2026")
     assert (a["drive_min_out"], a["drive_min_back"]) == (25.0, 30.0)
     assert (b["drive_min_out"], b["drive_min_back"]) == (None, None)
+
+
+def test_install_date_note_becomes_this_seasons_install_notes(tmp_path, monkeypatch):
+    monkeypatch.setattr(S, "CACHE", _cache(tmp_path, [
+        {"row": 2, "name": "Test Client A", "install_2026_no_install": False,
+         "install_2026_note": "  1/3 same day as Test Client B "},
+        {"row": 3, "name": "Test Client B", "install_2026_no_install": False, "install_2026_note": ""},
+    ], days=[]))
+    a, b = S.extract_current_season("2026")
+    assert a["notes"] == "1/3 same day as Test Client B"
+    assert "notes" not in b
+
+
+def test_install_note_uses_the_frozen_key_in_a_later_season(tmp_path, monkeypatch):
+    # prep.py's install_2026_* keys mean "this season" whatever the year.
+    monkeypatch.setattr(S, "CACHE", _cache(tmp_path, [
+        {"row": 2, "name": "Test Client A", "install_2027_no_install": False,
+         "install_2026_note": "after 2pm"},
+    ], days=[]))
+    (rec,) = S.extract_current_season("2027")
+    assert rec["notes"] == "after 2pm"
+
+
+def test_app_edited_install_notes_survive_the_sync():
+    from app.libs import client_season
+
+    prior = client_season.apply_edits({"notes": "from sheet"}, {"notes": "Gate code 4411"},
+                                      when="2026-10-01T00:00:00+00:00")
+    out = client_season.merge_sheet_detail(prior, {"notes": "from sheet, newer"})
+    assert out["notes"] == "Gate code 4411"
+    # never edited in the app: the sheet's newer note replaces it
+    assert client_season.merge_sheet_detail({"notes": "old"}, {"notes": "new"})["notes"] == "new"
