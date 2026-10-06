@@ -6,7 +6,7 @@ import { ContentType } from "../../apiclient/http-client";
 import { formatCurrency } from "utils/format";
 import type { ActivityEntry } from "./SeasonHistory";
 import {
-  INVENTORY_TYPES, ROLE_LABELS, discountLabel, missingLabel,
+  INVENTORY_TYPES, ROLE_LABELS, discountAmount, discountLabel, isDonation, missingLabel, nextSeasonPrice, storageLabel,
   type InventoryLine, type InventoryType, type PricingView, type RoleNeed,
 } from "./pricing";
 
@@ -20,9 +20,13 @@ import {
  * The card is what the ideal price is computed FROM (backend
  * app.libs.pricing, off that season's rate card): install labour, the same
  * again for takedown, storage per box, and pickup & delivery from the box
- * count and the drive. Next to the card: that ideal, what was charged, and
- * the discount between them. Nothing here computes a price -- the numbers
- * come back on the season row from the API.
+ * count and the drive. Next to the card, top to bottom (user, 2026-10-05):
+ * this season's price as charged, with its basis and storage shown apart;
+ * the ideal with its breakdown; the discount between them in percent and
+ * dollars; and next season's starting price, which is the ideal -- we charge
+ * from the ideal next year, not from the discounted price. A donation stays
+ * free. Nothing here computes a price -- the numbers come back on the season
+ * row from the API -- and none of it is stored.
  *
  * Every key saved here lives on the season's client_activity.detail, stamped
  * as an app edit so the spreadsheet sync leaves it alone. A blank current
@@ -138,6 +142,11 @@ function Summary({ d, pricing, season }: { d: Record<string, unknown>; pricing: 
   const crew = ROLE_LABELS.filter(({ key }) => role[key]).map(({ key, label }) => `${role[key]} ${label.toLowerCase()}`).join(", ");
   const ideal = pricing?.ideal;
   const missing = missingLabel(ideal?.missing);
+  const donation = isDonation(pricing?.basis);
+  const off = discountAmount(pricing);
+  const next = nextSeasonPrice(pricing);
+  const nextSeason = /^\d{4}$/.test(season) ? String(Number(season) + 1) : "Next season";
+  const storage = storageLabel(d.boxes, d.storage_fee);
   return (
     <div className="grid gap-x-6 gap-y-2 text-xs text-stone-700 sm:grid-cols-[1fr_auto]">
       <div>
@@ -162,8 +171,22 @@ function Summary({ d, pricing, season }: { d: Record<string, unknown>; pricing: 
           ].filter(Boolean).join(" · ") || "No crew, hours or boxes on the card yet"}
         </p>
       </div>
-      <div className="min-w-0 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 sm:min-w-[220px]">
+      <div className="min-w-0 max-w-sm rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 sm:min-w-[240px]">
         <div className="flex items-baseline justify-between gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+            {season} price{pricing?.charged_source === "invoice" ? " · invoiced" : ""}
+          </span>
+          <span className="font-semibold text-stone-800"><Money v={pricing?.charged} /></span>
+        </div>
+        {(d.install_fee != null || d.takedown_fee != null || d.storage_fee != null) && (
+          <p className="mt-0.5 text-[10px] text-stone-500">
+            install <Money v={d.install_fee as number | null} /> · takedown <Money v={d.takedown_fee as number | null} /> · storage <Money v={d.storage_fee as number | null} />
+            {storage ? ` (${storage}, separate)` : ""}
+          </p>
+        )}
+        {pricing?.basis && <p className="mt-0.5 text-[10px] text-stone-400" title={pricing.basis}>{pricing.basis}</p>}
+
+        <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-stone-200 pt-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Ideal {season}</span>
           <span className="font-semibold text-stone-800"><Money v={ideal?.total} /></span>
         </div>
@@ -174,19 +197,24 @@ function Summary({ d, pricing, season }: { d: Record<string, unknown>; pricing: 
         ) : (
           <p className="mt-0.5 text-[10px] text-amber-700">{missing ? `Needs ${missing}` : "Not enough on the card to price"}</p>
         )}
+
         <div className="mt-1.5 flex items-baseline justify-between gap-3">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-            {pricing?.charged_source === "invoice" ? "Invoiced" : "Charged"}
-          </span>
-          <span className="font-semibold text-stone-800"><Money v={pricing?.charged} /></span>
-        </div>
-        <div className="mt-0.5 flex items-baseline justify-between gap-3">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Discount</span>
-          <span className={pricing?.discount_pct != null && pricing.discount_pct > 0.05 ? "font-medium text-amber-700" : pricing?.discount_pct != null && pricing.discount_pct < -0.05 ? "font-medium text-emerald-700" : "text-stone-600"}>
-            {discountLabel(pricing?.discount_pct) || "–"}
+          <span className={donation ? "text-stone-600" : pricing?.discount_pct != null && pricing.discount_pct > 0.05 ? "font-medium text-amber-700" : pricing?.discount_pct != null && pricing.discount_pct < -0.05 ? "font-medium text-emerald-700" : "text-stone-600"}>
+            {donation ? "free (donation)" : discountLabel(pricing?.discount_pct) || "–"}
           </span>
         </div>
-        {pricing?.basis && <p className="mt-1 text-[10px] text-stone-400" title={pricing.basis}>{pricing.basis}</p>}
+        {!donation && off != null && Math.abs(off) >= 0.01 && (
+          <p className="text-right text-[10px] text-stone-500">
+            {off > 0 ? <><Money v={off} /> below the ideal</> : <><Money v={-off} /> above the ideal</>}
+          </p>
+        )}
+
+        <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-stone-200 pt-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800">{nextSeason} starting price</span>
+          <span className="font-semibold text-emerald-900">{donation ? "Free" : <Money v={next.amount} />}</span>
+        </div>
+        <p className="mt-0.5 text-[10px] text-stone-500">{next.note}</p>
       </div>
     </div>
   );

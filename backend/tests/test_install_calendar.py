@@ -36,9 +36,10 @@ PAYLOAD = {
     },
     "clients": {
         "10": {"name": "Smith Home", "street": "1 Oak St", "city": "Dallas", "st": "TX", "zip": "75201",
-               "phone": "555-0100", "h26": 2.5, "advice": "Side gate, dog in yard"},
+               "phone": "555-0100", "h26": 2.5, "advice": "Side gate, dog in yard",
+               "boxes": 4, "people": 6},
         "11": {"name": "Jones, Office", "street": "2 Elm St", "city": "Dallas", "st": "TX", "zip": "75202",
-               "h26": 1.0},
+               "h26": 1.0, "boxes": "", "people": None},
         "12": {"name": "Other Crew Client", "street": "3 Pine", "city": "Plano", "st": "TX", "zip": "75023",
                "h26": 3.0},
         "13": {"name": "Mi Cocina", "street": "4 Main", "city": "Dallas", "st": "TX", "zip": "75201",
@@ -149,7 +150,11 @@ def test_feed_needs_the_token_and_404s_without_it(monkeypatch):
     async def fake_load(*_, **__):
         return b
 
+    async def smith_storing(_board):
+        return {10}
+
     monkeypatch.setattr(schedule_board, "load_board", fake_load)
+    monkeypatch.setattr(feed_api, "storing_rows", smith_storing)
     run = asyncio.run
 
     monkeypatch.delenv("INSTALL_CALENDAR_TOKEN", raising=False)
@@ -165,6 +170,7 @@ def test_feed_needs_the_token_and_404s_without_it(monkeypatch):
     resp = run(feed_api.calendar_feed(token="s3cret"))
     assert resp.media_type.startswith("text/calendar")
     assert b"Smith Home" in resp.body
+    assert "Storing with us this season" in resp.body.decode().replace("\r\n ", "")
 
 
 def test_only_the_calendar_router_skips_sign_in():
@@ -173,6 +179,65 @@ def test_only_the_calendar_router_skips_sign_in():
     assert main.PUBLIC_ROUTERS == {"install_calendar"}
     assert main.is_auth_disabled("install_calendar")
     assert not main.is_auth_disabled("install_schedule") or main.AUTH_DISABLED
+
+
+def test_stop_description_carries_boxes_people_hours_and_storing():
+    # Comment #20: the popover's numbers, in the calendar too.
+    b = board()
+    evs = cal.day_events(b, b.days[DAY1], storing={10})
+    smith, jones = evs[2]["description"], evs[4]["description"]
+    for line in ("4 boxes", "6 people needed", "Est. 2.50h on site", "Storing with us this season"):
+        assert line in smith
+    assert "Side gate, dog in yard" in smith and "1 Oak St" in smith   # existing lines kept
+    assert "Est. 1.00h on site" in jones
+    assert "boxes" not in jones and "people needed" not in jones and "Storing" not in jones
+
+
+def test_stop_facts_singulars_and_junk():
+    assert cal.stop_facts({"boxes": "1", "people": 1}, 30) == ["1 box", "1 person needed", "Est. 0.50h on site"]
+    assert cal.stop_facts({"boxes": "lots", "people": 0}, 0) == []
+
+
+def test_storing_rows_match_by_the_tools_name_rule():
+    b = board()
+    rows = cal.storing_rows(b, [("  jones office ", True), ("Smith Home", False), ("Mi Cocina", None),
+                                ("Nobody", True)])
+    assert rows == {11}
+
+
+class _FakeConn:
+    def __init__(self, rows=None, boom=None):
+        self.rows, self.boom, self.args = rows or [], boom, None
+
+    async def fetch(self, sql, *args):
+        if self.boom:
+            raise self.boom
+        self.args = args
+        return self.rows
+
+    async def close(self):
+        pass
+
+
+def test_storing_lookup_is_one_query_for_the_season(monkeypatch):
+    conn = _FakeConn([{"name": "Smith Home", "detail": '{"storing": true}'},
+                      {"name": "Jones, Office", "detail": {"storing": False}},
+                      {"name": "Mi Cocina", "detail": None}])
+
+    async def get_conn():
+        return conn
+
+    monkeypatch.setattr(feed_api.db, "get_conn", get_conn)
+    assert asyncio.run(feed_api.storing_rows(board())) == {10}
+    assert conn.args == ("2026",)
+
+
+def test_storing_lookup_failure_leaves_the_feed_alone(monkeypatch):
+    async def get_conn():
+        return _FakeConn(boom=RuntimeError('relation "client_activity" does not exist'))
+
+    monkeypatch.setattr(feed_api.db, "get_conn", get_conn)
+    assert asyncio.run(feed_api.storing_rows(board())) == set()
 
 
 def test_subscribed_calendar_names_itself():

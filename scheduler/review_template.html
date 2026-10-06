@@ -7664,7 +7664,7 @@ function openStopPeek(row,dayId){
   document.getElementById('peekbody').innerHTML=`
     <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row,{static:true})}</span></h3>
     ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
-       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
+       ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}${t.end>=1440?' (next day)':''}`:''} · ${esc(crewLabel(d))}</p>`
         : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
     <div id="pkalert">${peekAlertHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>

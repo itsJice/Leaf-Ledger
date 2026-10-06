@@ -184,9 +184,44 @@ def _crew_line(board: Board, day_id: str) -> str:
     return ", ".join(names) or "Nobody assigned yet"
 
 
-def day_events(board: Board, day: dict) -> list[dict]:
+def _count(v) -> Optional[float]:
+    """A baked boxes/people value as a number, or None when blank or junk."""
+    if v is None or isinstance(v, bool) or v == "":
+        return None
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
+def _num_text(n: float) -> str:
+    return str(int(n)) if n == int(n) else f"{n:g}"
+
+
+def stop_facts(c: dict, minutes: float, storing: bool = False) -> list[str]:
+    """The stop popover's numbers, as description lines: boxes, people
+    needed, hours on site, and storing-with-us (office request, comment #20)."""
+    out = []
+    boxes, people = _count(c.get("boxes")), _count(c.get("people"))
+    if boxes is not None:
+        out.append(f"{_num_text(boxes)} box{'' if boxes == 1 else 'es'}")
+    if people is not None:
+        out.append(f"{_num_text(people)} {'person' if people == 1 else 'people'} needed")
+    if minutes > 0:
+        out.append(f"Est. {minutes / 60:.2f}h on site")
+    if storing:
+        out.append("Storing with us this season")
+    return out
+
+
+def day_events(board: Board, day: dict, storing: Optional[set] = None) -> list[dict]:
     """The crew-day as ``{uid, start, end, summary, location, description}``
-    dicts (start/end in minutes after midnight of ``day['date']``)."""
+    dicts (start/end in minutes after midnight of ``day['date']``).
+
+    ``storing`` is the set of board rows whose client is storing their decor
+    with us this season (see ``storing_rows``); None/empty means none known."""
+    storing = storing or set()
     label = board.crew_label(day)
     label = f"{CREW_EMOJI[label]} {label}" if label in CREW_EMOJI else label
     tl = day_timeline(board, day)
@@ -216,6 +251,7 @@ def day_events(board: Board, day: dict) -> list[dict]:
         name = c.get("name") or f"Row {s['row']}"
         lines = [f"Stop {i + 1} of {len(tl['stops'])} · est. {_dur(s['end'] - s['start'])}"]
         lines += [x for x in (_address(c), c.get("phone"), _maps(c)) if x]
+        lines += stop_facts(c, s["end"] - s["start"], s["row"] in storing)
         lines += [x for x in (c.get("advice"), c.get("repairNotes")) if x]
         add(f"stop-{s['row']}", s["start"], s["end"], f"{name} ({_dur(s['end'] - s['start'])})",
             location=_address(c), description="\n".join(lines) + "\n\n" + base)
@@ -231,7 +267,20 @@ def day_events(board: Board, day: dict) -> list[dict]:
     return events
 
 
-def build_ics(board: Board, now: Optional[datetime] = None) -> str:
+def norm_name(s) -> str:
+    """The schedule tool's normName(): how a schedule row finds its client."""
+    out = str(s or "").strip().lower().replace(",", "").replace(".", "")
+    return " ".join(out.split())
+
+
+def storing_rows(board: Board, records: Iterable[tuple]) -> set:
+    """Board rows storing with us, from ``(client name, storing)`` pairs --
+    matched by name exactly as the tool's storingWithUs() does."""
+    yes = {norm_name(name) for name, flag in records if flag is True}
+    return {row for row, c in board.clients.items() if norm_name(c.get("name")) in yes}
+
+
+def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[set] = None) -> str:
     """The whole season's board, every crew, as one VCALENDAR."""
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
     name = "TBDG Xmas Schedule"  # what the subscribed calendar is called
@@ -243,7 +292,7 @@ def build_ics(board: Board, now: Optional[datetime] = None) -> str:
     lines += VTIMEZONE
 
     for day in sorted(board.days.values(), key=lambda d: (d["date"], board.crew_label(d))):
-        for ev in day_events(board, day):
+        for ev in day_events(board, day, storing):
             lines += ["BEGIN:VEVENT", f"UID:{ev['uid']}", f"DTSTAMP:{stamp}",
                       f"DTSTART;TZID={TZID}:{_local(day['date'], ev['start'])}",
                       f"DTEND;TZID={TZID}:{_local(day['date'], ev['end'])}",
