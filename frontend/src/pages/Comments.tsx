@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  MessageSquare, Check, Image as ImageIcon, X, ChevronDown, ChevronRight, Sparkles,
+  MessageSquare, Check, Image as ImageIcon, X, Sparkles,
   CheckCircle2, AlertTriangle, HelpCircle, ShieldCheck, Clock, ExternalLink, Pencil,
 } from "components/icons";
 import Layout from "components/Layout";
@@ -47,7 +47,7 @@ interface FeedbackRow {
   resolved_at?: string | null;
 }
 
-type Filter = "all" | "needs_you" | "to_test" | "waiting";
+type Filter = "all" | "needs_you" | "to_test" | "waiting" | "completed";
 
 const REVIEW_STYLES: Record<string, { label: string; icon: typeof Sparkles; tone: string }> = {
   fixed: { label: "Fixed — ready for you to test", icon: CheckCircle2, tone: "border-emerald-200 bg-emerald-50 text-emerald-800" },
@@ -361,7 +361,10 @@ function CommentRow({ row, owner, onToggle, onComplete, onViewScreenshot, onRepl
         {done && <Check size={13} strokeWidth={3} />}
       </button>}
       <div className="min-w-0 flex-1">
-        <p className={`text-sm leading-relaxed ${done && owner ? "text-stone-400 line-through" : "text-stone-800"}`}>
+        {/* Done comments are greyed, never struck through, so they stay
+            readable (user, 2026-10-05: "just leave it grayed out so I can
+            still see it"). */}
+        <p className={`text-sm leading-relaxed ${done ? "text-stone-500" : "text-stone-800"}`}>
           {row.message}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
@@ -409,7 +412,6 @@ function CommentRow({ row, owner, onToggle, onComplete, onViewScreenshot, onRepl
 export default function Comments() {
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showDone, setShowDone] = useState(false);
   const [viewingScreenshot, setViewingScreenshot] = useState<number | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   // null until the server answers, so the owner never sees a flash of the
@@ -496,14 +498,24 @@ export default function Comments() {
   };
 
   const allOpen = rows.filter((r) => r.status !== "done");
-  const open = allOpen.filter((r) => matchesFilter(r, filter));
   const done = rows.filter((r) => r.status === "done");
-  const filters: { key: Filter; label: string }[] = [
-    { key: "all", label: "All open" },
-    { key: "needs_you", label: "Needs you" },
-    { key: "to_test", label: "Ready to test" },
-    { key: "waiting", label: "With Claude" },
-  ];
+  // Completed is a tab like the others, last in the row (it used to be a
+  // collapsed list at the very bottom of the page). Teammates who don't own
+  // the list see just Open and Completed -- the rest are the owner's queues.
+  const filters: { key: Filter; label: string }[] = owner
+    ? [
+        { key: "all", label: "All open" },
+        { key: "needs_you", label: "Needs you" },
+        { key: "to_test", label: "Ready to test" },
+        { key: "waiting", label: "With Claude" },
+        { key: "completed", label: "Completed" },
+      ]
+    : [
+        { key: "all", label: "Open" },
+        { key: "completed", label: "Completed" },
+      ];
+  const countFor = (key: Filter) => (key === "completed" ? done.length : allOpen.filter((r) => matchesFilter(r, key)).length);
+  const shown = filter === "completed" ? done : allOpen.filter((r) => matchesFilter(r, filter));
 
   return (
     <Layout>
@@ -534,15 +546,15 @@ export default function Comments() {
           </div>
         ) : (
           <>
-            {owner && <div className="mb-3 flex flex-wrap gap-1.5">
+            <div className="mb-3 flex flex-wrap gap-1.5">
               {filters.map((f) => {
-                const count = allOpen.filter((r) => matchesFilter(r, f.key)).length;
+                const count = countFor(f.key);
                 const active = filter === f.key;
                 return (
                   <button
                     key={f.key}
                     onClick={() => setFilter(f.key)}
-                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors sm:py-1 ${
+                    className={`min-h-10 rounded-full border px-3 py-2 text-xs font-medium transition-colors sm:min-h-0 sm:py-1 ${
                       active
                         ? "border-emerald-600 bg-emerald-50 text-emerald-800"
                         : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:text-stone-700"
@@ -553,38 +565,20 @@ export default function Comments() {
                   </button>
                 );
               })}
-            </div>}
+            </div>
 
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-              {open.length === 0 ? (
+              {shown.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-stone-400">
-                  {filter === "all" ? "Nothing open — nice." : "Nothing here right now."}
+                  {filter === "all" ? "Nothing open — nice." : filter === "completed" ? "Nothing completed yet." : "Nothing here right now."}
                 </p>
               ) : (
-                open.map((row) => (
+                shown.map((row) => (
                   <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onComplete={complete} onViewScreenshot={setViewingScreenshot} onReply={reply} />
                 ))
               )}
             </div>
 
-            {done.length > 0 && (
-              <div className="mt-5">
-                <button
-                  onClick={() => setShowDone((v) => !v)}
-                  className="flex items-center gap-1.5 py-2 text-xs font-medium text-stone-400 hover:text-stone-600 sm:py-0"
-                >
-                  {showDone ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                  Completed ({done.length})
-                </button>
-                {showDone && (
-                  <div className="mt-2 overflow-hidden rounded-xl border border-stone-200 bg-white">
-                    {done.map((row) => (
-                      <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onComplete={complete} onViewScreenshot={setViewingScreenshot} onReply={reply} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>
