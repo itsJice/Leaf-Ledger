@@ -23,6 +23,11 @@ Claude's notes, the replies and the check-off belong to the owner (any
 super_admin -- in practice Justice). Everyone else still sees every submission, but only as
 "under review" or "complete": the list strips the review fields for them,
 and the routes that change a submission refuse them.
+
+Checking an item off can carry a "What we fixed" note (`resolution_note`,
+with who wrote it and when). Unlike Claude's review, that note is written
+for the person who sent the comment, so everyone who can see the item sees
+it.
 """
 from typing import Any, Optional
 
@@ -65,6 +70,13 @@ ALTER TABLE ll_app.feature_requests
     ADD COLUMN IF NOT EXISTS reply              text,
     ADD COLUMN IF NOT EXISTS reply_name         text,
     ADD COLUMN IF NOT EXISTS replied_at         timestamptz;
+
+-- "What we fixed": the owner's note when checking an item off, shown under
+-- the comment to everyone who can see it.
+ALTER TABLE ll_app.feature_requests
+    ADD COLUMN IF NOT EXISTS resolution_note  text,
+    ADD COLUMN IF NOT EXISTS resolved_by_name text,
+    ADD COLUMN IF NOT EXISTS resolved_at      timestamptz;
 """
 
 #: What Claude can say about a submission after looking at it.
@@ -96,7 +108,8 @@ OWNER_FIELDS = ("claude_status", "claude_note", "claude_link", "claude_reviewed_
 ROW_COLUMNS = (
     "id, message, (screenshot IS NOT NULL) AS has_screenshot, page_path, "
     "submitted_name, status, created_at, claude_status, claude_note, "
-    "claude_link, claude_reviewed_at, reply, reply_name, replied_at"
+    "claude_link, claude_reviewed_at, reply, reply_name, replied_at, "
+    "resolution_note, resolved_by_name, resolved_at"
 )
 
 async def ensure_schema(conn):
@@ -168,6 +181,11 @@ class FeedbackRow(BaseModel):
     reply: Optional[str] = None
     reply_name: Optional[str] = None
     replied_at: Optional[str] = None
+    #: "What we fixed" -- the owner's note on a completed item. Not an
+    #: OWNER_FIELD: it is meant for whoever sent the comment.
+    resolution_note: Optional[str] = None
+    resolved_by_name: Optional[str] = None
+    resolved_at: Optional[str] = None
     #: Where the comment stands, in words anyone can show: Submitted,
     #: Reviewed, In process or Completed (see stage_of).
     stage: str = "Submitted"
@@ -197,6 +215,8 @@ def to_row(r) -> FeedbackRow:
         claude_status=r.get("claude_status"), claude_note=r.get("claude_note"),
         claude_link=r.get("claude_link"), claude_reviewed_at=_iso(r.get("claude_reviewed_at")),
         reply=r.get("reply"), reply_name=r.get("reply_name"), replied_at=_iso(r.get("replied_at")),
+        resolution_note=r.get("resolution_note"), resolved_by_name=r.get("resolved_by_name"),
+        resolved_at=_iso(r.get("resolved_at")),
     )
 
 
@@ -260,25 +280,40 @@ ALLOWED_STATUSES = {"new", "done"}
 
 class StatusIn(BaseModel):
     status: str
+    #: "What we fixed". Left out (None) keeps whatever note is there; a
+    #: blank string clears it.
+    resolution_note: Optional[str] = None
 
 
 @router.put("/{feedback_id}", response_model=FeedbackRow, dependencies=owner_only)
-async def update_feedback_status(feedback_id: int, body: StatusIn) -> Any:
+async def update_feedback_status(feedback_id: int, body: StatusIn, user: AuthorizedUser) -> Any:
     """Check/uncheck a submission (owner only). It's a plain status flip
     rather than a per-user completion record -- checking something off
-    shows it as complete to everyone who can see the list."""
+    shows it as complete to everyone who can see the list.
+
+    Marking it done (again, to edit the note) records who resolved it;
+    the first check-off's date is kept. Unchecking keeps the note but
+    clears who/when, since it is no longer resolved."""
     if body.status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=400, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}")
+    note = body.resolution_note.strip() if body.resolution_note is not None else None
+    if note is not None and len(note) > MAX_MESSAGE_CHARS:
+        raise HTTPException(status_code=413, detail="Note is too long")
     try:
         conn = await get_conn()
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Feedback storage unavailable") from exc
     try:
         await ensure_schema(conn)
+        # Column references on the right-hand side read the row as it was
+        # before this update.
         row = await conn.fetchrow(
-            "UPDATE ll_app.feature_requests SET status = $2 WHERE id = $1 "
-            f"RETURNING {ROW_COLUMNS}",
-            feedback_id, body.status,
+            "UPDATE ll_app.feature_requests SET status = $2, "
+            "resolution_note = CASE WHEN $3::boolean THEN NULLIF($4::text, '') ELSE resolution_note END, "
+            "resolved_by_name = CASE WHEN $2 = 'done' THEN $5::text END, "
+            "resolved_at = CASE WHEN $2 = 'done' THEN COALESCE(resolved_at, now()) END "
+            f"WHERE id = $1 RETURNING {ROW_COLUMNS}",
+            feedback_id, body.status, note is not None, note or "", user.display_name,
         )
     finally:
         await conn.close()

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   MessageSquare, Check, Image as ImageIcon, X, ChevronDown, ChevronRight, Sparkles,
-  CheckCircle2, AlertTriangle, HelpCircle, ShieldCheck, Clock, ExternalLink,
+  CheckCircle2, AlertTriangle, HelpCircle, ShieldCheck, Clock, ExternalLink, Pencil,
 } from "components/icons";
 import Layout from "components/Layout";
 import { isReadOnly } from "utils/me";
@@ -19,6 +19,9 @@ import { toast } from "sonner";
 // The notes, replies, filters and check-off are the owner's (super_admin --
 // the server decides, GET /api/feedback/access); everyone else sees each item as "Under review" or "Complete", and the API
 // leaves the review fields out for them.
+//
+// Checking an item off opens a "What we fixed" box; that note shows under
+// the comment for everyone who can see it, owner or not.
 
 interface FeedbackRow {
   id: number;
@@ -38,6 +41,10 @@ interface FeedbackRow {
    *  In process or Completed (server: feedback.stage_of). */
   stage?: string;
   replied_at?: string | null;
+  /** "What we fixed" -- the owner's note on a completed item; everyone sees it. */
+  resolution_note?: string | null;
+  resolved_by_name?: string | null;
+  resolved_at?: string | null;
 }
 
 type Filter = "all" | "needs_you" | "to_test" | "waiting";
@@ -131,7 +138,9 @@ function ClaudeReview({ row, onReply }: {
 
   const style = REVIEW_STYLES[row.claude_status] ?? REVIEW_STYLES.needs_human;
   const Icon = style.icon;
-  const canAnswer = NEEDS_YOU.has(row.claude_status) && row.status !== "done";
+  // On a "fixed" item the owner can say it still isn't right after testing;
+  // that's a plain reply (nothing to approve) and puts it back in Claude's queue.
+  const canAnswer = (NEEDS_YOU.has(row.claude_status) || row.claude_status === "fixed") && row.status !== "done";
 
   const send = async (approve: boolean) => {
     setSending(true);
@@ -186,7 +195,7 @@ function ClaudeReview({ row, onReply }: {
             onClick={() => setReplying(true)}
             className="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:border-stone-400"
           >
-            Reply to Claude
+            {row.claude_status === "fixed" ? "Still not right? Reply" : "Reply to Claude"}
           </button>
         </div>
       )}
@@ -198,7 +207,11 @@ function ClaudeReview({ row, onReply }: {
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
-            placeholder={row.claude_status === "unclear" ? "Add the detail Claude asked for…" : "Answer Claude, or tell it how to proceed…"}
+            placeholder={
+              row.claude_status === "unclear" ? "Add the detail Claude asked for…"
+                : row.claude_status === "fixed" ? "Tested it? Tell Claude what still isn't right…"
+                  : "Answer Claude, or tell it how to proceed…"
+            }
             className="w-full resize-y rounded-md border border-stone-300 bg-white px-2.5 py-2 text-[13px] text-stone-800 focus:border-emerald-500 focus:outline-none"
           />
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -231,18 +244,113 @@ function ClaudeReview({ row, onReply }: {
   );
 }
 
-function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
+/** Shown under the comment once it's checked off -- to everyone. */
+function WhatWeFixed({ row, onEdit }: { row: FeedbackRow; onEdit?: () => void }) {
+  if (!row.resolution_note) {
+    return onEdit ? (
+      <button
+        onClick={onEdit}
+        className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900"
+      >
+        <Pencil size={11} /> Add what we fixed
+      </button>
+    ) : null;
+  }
+  return (
+    <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-emerald-800">
+        <CheckCircle2 size={12} />
+        <span>What we fixed</span>
+        {(row.resolved_by_name || row.resolved_at) && (
+          <span className="font-normal text-emerald-700/70">
+            {row.resolved_by_name && <>· {row.resolved_by_name}</>}
+            {row.resolved_at && <> · {new Date(row.resolved_at).toLocaleDateString()}</>}
+          </span>
+        )}
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900"
+          >
+            <Pencil size={11} /> Edit
+          </button>
+        )}
+      </div>
+      <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-stone-700">{row.resolution_note}</p>
+    </div>
+  );
+}
+
+/** The owner's "What we fixed" box: opens on check-off, or to edit the note. */
+function ResolutionEditor({ row, onSave, onCancel }: {
+  row: FeedbackRow;
+  onSave: (note: string) => Promise<boolean>;
+  onCancel: () => void;
+}) {
+  const done = row.status === "done";
+  // Start from the existing note; on a first check-off, from Claude's note
+  // about the fix if it made one -- either way it's editable.
+  const [text, setText] = useState(
+    row.resolution_note ?? (row.claude_status === "fixed" ? row.claude_note ?? "" : ""),
+  );
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const ok = await onSave(text);
+    setSaving(false);
+    if (ok) onCancel();
+  };
+
+  return (
+    <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+      <label htmlFor={`fixed-${row.id}`} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+        <CheckCircle2 size={12} /> What we fixed
+        <span className="font-normal text-emerald-700/70">— optional, everyone who can see this comment will see it</span>
+      </label>
+      <textarea
+        id={`fixed-${row.id}`}
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        placeholder="e.g. The Jobs page now remembers your last filter."
+        className="mt-1.5 w-full resize-y rounded-md border border-stone-300 bg-white px-2.5 py-2 text-[13px] text-stone-800 focus:border-emerald-500 focus:outline-none"
+      />
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <button
+          onClick={save}
+          disabled={saving}
+          className="rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+        >
+          {done ? "Save note" : "Save & complete"}
+        </button>
+        <button onClick={onCancel} className="px-1.5 py-1 text-xs text-stone-500 hover:text-stone-700">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CommentRow({ row, owner, onToggle, onComplete, onViewScreenshot, onReply }: {
   row: FeedbackRow;
   owner: boolean;
   onToggle: (row: FeedbackRow) => void;
+  onComplete: (row: FeedbackRow, note: string) => Promise<boolean>;
   onViewScreenshot: (id: number) => void;
   onReply: (row: FeedbackRow, reply: string, approve: boolean) => Promise<boolean>;
 }) {
   const done = row.status === "done";
+  // Checking an open item asks for the "What we fixed" note first; unchecking
+  // a done one is immediate (the note is kept).
+  const [editingNote, setEditingNote] = useState(false);
   return (
     <div className="flex items-start gap-3 border-b border-stone-100 px-5 py-3.5 last:border-b-0">
       {owner && <button
-        onClick={() => onToggle(row)}
+        onClick={() => {
+          if (done) { setEditingNote(false); onToggle(row); } else setEditingNote((v) => !v);
+        }}
         className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border transition-colors ${
           done ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-300 hover:border-emerald-500"
         }`}
@@ -281,6 +389,11 @@ function CommentRow({ row, owner, onToggle, onViewScreenshot, onReply }: {
             </button>
           )}
         </div>
+        {owner && editingNote ? (
+          <ResolutionEditor row={row} onSave={(note) => onComplete(row, note)} onCancel={() => setEditingNote(false)} />
+        ) : (
+          <WhatWeFixed row={row} onEdit={owner && done ? () => setEditingNote(true) : undefined} />
+        )}
         {owner && <ClaudeReview row={row} onReply={onReply} />}
         {!owner && row.reply && (
           <p className="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600">
@@ -335,9 +448,30 @@ export default function Comments() {
         body: JSON.stringify({ status: nextStatus }),
       });
       if (!res.ok) throw new Error(String(res.status));
+      const updated: FeedbackRow = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
     } catch {
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: row.status } : r)));
       toast.error("Couldn't update that — try again.");
+    }
+  };
+
+  const complete = async (row: FeedbackRow, note: string): Promise<boolean> => {
+    try {
+      const res = await apiFetch(`/api/feedback/${row.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done", resolution_note: note }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const updated: FeedbackRow = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
+      toast.success(row.status === "done" ? "Note saved." : "Marked complete.");
+      return true;
+    } catch {
+      toast.error("Couldn't save that — try again.");
+      return false;
     }
   };
 
@@ -427,7 +561,7 @@ export default function Comments() {
                 </p>
               ) : (
                 open.map((row) => (
-                  <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onViewScreenshot={setViewingScreenshot} onReply={reply} />
+                  <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onComplete={complete} onViewScreenshot={setViewingScreenshot} onReply={reply} />
                 ))
               )}
             </div>
@@ -444,7 +578,7 @@ export default function Comments() {
                 {showDone && (
                   <div className="mt-2 overflow-hidden rounded-xl border border-stone-200 bg-white">
                     {done.map((row) => (
-                      <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onViewScreenshot={setViewingScreenshot} onReply={reply} />
+                      <CommentRow key={row.id} row={row} owner={owner} onToggle={toggle} onComplete={complete} onViewScreenshot={setViewingScreenshot} onReply={reply} />
                     ))}
                   </div>
                 )}
