@@ -1020,6 +1020,57 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   background:#fff;color:var(--brand);font-weight:700;font-size:11px;cursor:pointer;
   font-family:'Montserrat',sans-serif}
 .pkeditbtn:hover{background:var(--brand-soft);border-color:var(--brand)}
+/* ---- staff alert (amber triangle by a client's name) ---- */
+.salert{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+  margin:0 2px;border-radius:50%;background:var(--warn-soft);color:#b45309;cursor:pointer;
+  vertical-align:-3px;flex:none;-webkit-user-drag:none;user-select:none}
+.salert .ic{width:12px;height:12px;stroke-width:2.4;vertical-align:0}
+.salert:hover,.salert:focus-visible{background:#fde3ad;outline:none;box-shadow:0 0 0 2px #f59e0b}
+.salert.static{cursor:default}
+body .wlist li .salert{width:1.05em;height:1.05em;vertical-align:-.12em}
+body .wlist li .salert .ic{width:.72em;height:.72em}
+body .calev .cevn .salert{width:14px;height:14px;vertical-align:-2px;margin:0 2px 0 0}
+.calev .cevn .salert .ic{width:9px;height:9px}
+#salertpop{position:fixed;z-index:9999;width:260px;max-width:calc(100vw - 16px);padding:10px 12px;
+  background:#fffdf8;border:1px solid #f5c26b;border-left:4px solid #d97706;border-radius:10px;
+  box-shadow:0 10px 28px rgba(28,25,23,.18);font-family:'Montserrat',sans-serif;color:var(--ink)}
+#salertpop.editing{width:300px}
+.sahead{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--warn-ink)}
+.sahead .ic{width:13px;height:13px;color:#b45309}
+.satext{margin:5px 0 0;font-size:12.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.saby{margin:5px 0 0;font-size:11px;color:var(--mut)}
+.saeditbtn{margin-top:8px;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  color:var(--brand);font-weight:700;font-size:11px;cursor:pointer;font-family:inherit}
+.saedit textarea{width:100%;min-height:64px;padding:7px 8px;border:1px solid var(--line);border-radius:7px;
+  font:12.5px/1.4 'Montserrat',sans-serif;color:var(--ink);resize:vertical;background:#fff}
+.saedit textarea:focus{outline:none;border-color:#d97706;box-shadow:0 0 0 2px rgba(217,119,6,.2)}
+.sahint{margin:4px 0 0;font-size:10.5px;color:var(--mut)}
+.sabtns{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.sabtns button{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;
+  font:700 11.5px 'Montserrat',sans-serif;cursor:pointer;color:var(--ink)}
+.sabtns .saclear{color:var(--danger)}
+.sabtns .sasave{background:var(--brand);border-color:var(--brand);color:#fff}
+.sabtns .sasave:hover{background:var(--brand-hover)}
+.sabtns button:disabled{opacity:.55;cursor:default}
+.pkalert{margin:8px 0 10px;padding:8px 10px;background:var(--warn-soft);border:1px solid #f5c26b;
+  border-left:4px solid #d97706;border-radius:8px}
+.pkalert .satext{margin-top:4px}
+.pkalert .saedit textarea{background:#fff}
+.pkalertadd{margin:0 0 8px;padding:0;border:0;background:none;color:var(--mut);font:600 11.5px 'Montserrat',sans-serif;
+  cursor:pointer}
+.pkalertadd:hover{color:var(--warn-ink);text-decoration:underline}
+#pkh3alert .salert{vertical-align:-2px}
+.pknotes .pknote{white-space:pre-wrap;word-break:break-word}
+.pknotelbl{display:block;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  margin-bottom:2px;opacity:.85}
+.pknotesrc{font-weight:600;text-transform:none;letter-spacing:0;opacity:.8}
+.pknotelink{margin-top:6px;padding:0;border:0;background:none;color:var(--brand);font:700 11px 'Montserrat',sans-serif;
+  cursor:pointer}
+.pknotelink:hover{text-decoration:underline}
+body.apple .salert{width:19px;height:19px}
+body.apple #salertpop,body.apple .pkalert{border-radius:12px}
+body.tv .salert{cursor:default}
 .pkce{margin:4px 0 2px}
 .pkce input[type=text]{margin:0 0 6px;padding:6px 8px;font-size:12px}
 .pkce-row{display:flex;gap:6px}
@@ -1940,7 +1991,9 @@ const IC={
  clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
  close:'<svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
  lock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
- unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'};
+ unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>',
+ // Staff alert (the amber triangle by a client's name) -- see staffAlertOf().
+ alert:'<svg class="ic" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
@@ -2618,6 +2671,7 @@ window.addEventListener('message', e=>{
   if(e.source !== window.parent) return;
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
     AUTH = e.data.token;
+    loadMeRole();
     loadSeasons();
     loadCalSub();
     pullShared();
@@ -2637,6 +2691,7 @@ window.addEventListener('message', e=>{
           if(old){ const tmp=document.createElement('div'); tmp.innerHTML=html; old.replaceWith(...tmp.childNodes); }
           else holder.insertAdjacentHTML('beforeend', html);
           wireProfileLink(peekRow);
+          refreshPeekLive(peekRow);
         }
       }
       // Same idea for the "not installing" panel: its "missing an
@@ -3051,6 +3106,79 @@ function loadClientDirectory(){
 }
 function appClientFor(row){
   return clientDirectory ? (clientDirectory.get(normName(C[row].name)) || null) : null;
+}
+// ---------- staff alert + live client notes (from the Clients tab) ----------
+// A staff alert is a short warning pinned to the CLIENT (like MindBody's):
+// an amber triangle by their name everywhere the name shows on a stop, hover
+// (or tap) to read it, click to edit for staff. It lives on the client record
+// (clients.staff_alert, PUT /api/clients/{id}/staff-alert), never in this
+// build, so a change reaches every open scheduler on its next directory load.
+// Missing fields (an older backend) simply mean no icon and no "+ Staff alert".
+let ME_ROLE=null;               // from /api/me once AUTH lands; '' if unknown
+let alertEditDenied=false;      // the server said 403 once -- stop offering edits
+const ALERT_EDIT_ROLES=new Set(['staff','admin','super_admin']);
+function loadMeRole(){
+  if(!AUTH || ME_ROLE!==null) return;
+  ME_ROLE='';
+  fetch('/api/me', {headers:{Authorization:AUTH}})
+    .then(r=>r.ok?r.json():null).then(m=>{ ME_ROLE=(m && m.role) || ''; })
+    .catch(()=>{});
+}
+/** Viewer/TV/archived/production/lead logins read alerts but never edit them
+ *  (the server refuses those saves regardless). */
+function canEditAlerts(){
+  return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && !alertEditDenied
+    && (!ME_ROLE || ALERT_EDIT_ROLES.has(ME_ROLE));
+}
+/** True once the backend serves staff alerts at all (part of the client record). */
+function alertsSupported(ac){ return !!ac && Object.prototype.hasOwnProperty.call(ac,'staff_alert'); }
+function staffAlertOf(row){
+  const ac=appClientFor(row);
+  const t=ac && typeof ac.staff_alert==='string' ? ac.staff_alert.trim() : '';
+  return t ? {text:t, by:ac.staff_alert_by||'', at:ac.staff_alert_at||''} : null;
+}
+function alertByline(a){
+  let when='';
+  if(a.at){ const dt=new Date(a.at); if(!isNaN(dt)) when=dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+  const parts=[a.by, when].filter(Boolean);
+  return parts.length ? '— '+parts.join(', ') : '';
+}
+/** The amber icon for a stop's client name, or '' when there's no alert. */
+function alertIconHTML(row, opts={}){
+  const a=staffAlertOf(row);
+  if(!a) return '';
+  // Static: a plain marker (the stop popup's header, where the alert's full
+  // text sits right underneath it).
+  if(opts.static) return `<span class="salert static" title="Staff alert" aria-hidden="true">${IC.alert}</span>`;
+  return `<span class="salert" data-alert-row="${row}" role="button" tabindex="0" draggable="false" `
+       + `aria-label="Staff alert: ${peekEsc(a.text).replace(/"/g,'&quot;')}">${IC.alert}</span>`;
+}
+/** This season's install note: the Clients tab's (activity detail.notes) when
+ *  it has one, else the spreadsheet's note baked into this build. */
+/** The italic one-liner under a stop card's details: this season's install note. */
+function adviceLineHTML(row){
+  const n=installNoteFor(row);
+  return n ? `<div class="sub advice">${peekEsc(n.text)}</div>` : '';
+}
+function installNoteFor(row){
+  const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
+  const en=ac && (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
+  const live=en && en.detail && typeof en.detail.notes==='string' ? en.detail.notes.trim() : '';
+  if(live) return {text:live, season:yr, live:true};
+  const c=C[row];
+  return c && c.advice ? {text:String(c.advice), season:yr, live:false} : null;
+}
+/** Production & repair notes: the latest season on the client record that has
+ *  any (detail.production_notes), else the spreadsheet's baked repair notes. */
+function productionNoteFor(row){
+  const ac=appClientFor(row);
+  const en=ac && (ac.activity||[])
+    .filter(a=>a.kind==='christmas_install' && a.detail && typeof a.detail.production_notes==='string'
+               && a.detail.production_notes.trim())
+    .sort((a,b)=>String(b.season||'').localeCompare(String(a.season||'')))[0];
+  if(en) return {text:en.detail.production_notes.trim(), season:String(en.season||''), live:true};
+  const c=C[row];
+  return c && c.repairNotes ? {text:String(c.repairNotes), season:'', live:false} : null;
 }
 // ---------- install-time preference (from the Clients tab) ----------
 // clients.time_preference: morning | afternoon | late | null. Read live off
@@ -4509,12 +4637,184 @@ document.addEventListener('click', e=>{
 document.addEventListener('mousedown', e=>{
   document.querySelectorAll('dialog[open]').forEach(dlg=>{
     if(dlg.classList.contains('inline') && e.target.closest && e.target.closest('#map')) return;
+    // The staff-alert card and its icons float above the list; using them
+    // is not a click "outside" the open stop.
+    if(e.target.closest && e.target.closest('#salertpop, .salert')) return;
     if(!dlg.contains(e.target)){
       if(dlg.id==='peekdlg'){ pkClosedRow=peekRow; pkClosedAt=Date.now(); }
       dlg.close();
     }
   });
 });
+
+// ---------- staff alert popover ----------
+// One floating card on <body>: hover/focus an alert icon to read it, click
+// it (staff) to edit. On touch the first tap shows it (with an Edit button).
+// Clicking the icon must never open the stop's popup or start a drag of the
+// stop card it sits on -- the capture-phase listeners below see the event
+// before the card's own handlers do.
+let salertPop=null, salertAnchor=null, salertRow=null, salertMode=null,
+    salertHideT=null, salertPressed=false, salertPtr='mouse', salertShownAt=0;
+function salertEl(){
+  if(!salertPop){
+    salertPop=document.createElement('div');
+    salertPop.id='salertpop'; salertPop.hidden=true;
+    salertPop.addEventListener('mouseenter', ()=>clearTimeout(salertHideT));
+    salertPop.addEventListener('mouseleave', ()=>{ if(salertMode==='view') hideAlertPopSoon(); });
+    document.body.appendChild(salertPop);
+  }
+  return salertPop;
+}
+function placeAlertPop(){
+  if(!salertPop || salertPop.hidden || !salertAnchor) return;
+  if(!salertAnchor.isConnected){ hideAlertPop(); return; }
+  const r=salertAnchor.getBoundingClientRect(), pw=salertPop.offsetWidth, ph=salertPop.offsetHeight;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  let left=Math.min(Math.max(8, r.left-10), vw-pw-8);
+  let top=r.bottom+6;
+  if(top+ph>vh-8 && r.top-ph-6>8) top=r.top-ph-6;
+  salertPop.style.left=Math.max(8,left)+'px'; salertPop.style.top=Math.max(8,top)+'px';
+}
+function alertEditorHTML(row, idp){
+  const a=staffAlertOf(row);
+  return `<div class="saedit">
+      <p class="pksec">Staff alert</p>
+      <textarea id="${idp}-text" rows="3" maxlength="500" placeholder="e.g. Gate code changed — call before arriving">${peekEsc(a?a.text:'')}</textarea>
+      <p class="sahint">Shows by the client's name for the whole team.</p>
+      <div class="sabtns">
+        <button type="button" class="sacancel" id="${idp}-cancel">Cancel</button>
+        ${a?`<button type="button" class="saclear" id="${idp}-clear">Clear</button>`:''}
+        <button type="button" class="sasave" id="${idp}-save">Save</button>
+      </div>
+    </div>`;
+}
+/** Wires an editor rendered by alertEditorHTML; onDone() after save/cancel. */
+function wireAlertEditor(row, idp, onDone){
+  const ta=document.getElementById(idp+'-text');
+  const save=document.getElementById(idp+'-save'), clr=document.getElementById(idp+'-clear');
+  const go=async(text)=>{
+    [save,clr].forEach(b=>{ if(b) b.disabled=true; });
+    const ok=await saveStaffAlert(row, text);
+    if(ok) onDone(true); else [save,clr].forEach(b=>{ if(b) b.disabled=false; });
+  };
+  document.getElementById(idp+'-cancel').onclick=()=>onDone(false);
+  save.onclick=()=>go(ta.value.trim());
+  if(clr) clr.onclick=()=>go('');
+  ta.onkeydown=e=>{
+    if(e.key==='Escape'){ e.stopPropagation(); onDone(false); }
+    if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) save.click();
+  };
+  setTimeout(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+}
+async function saveStaffAlert(row, text){
+  if(roBlocked()) return false;
+  const ac=appClientFor(row);
+  if(!AUTH || !ac || !canEditAlerts()) return false;
+  try{
+    const r=await fetch(`/api/clients/${ac.id}/staff-alert`, {
+      method:'PUT', headers:{'Content-Type':'application/json', Authorization:AUTH},
+      body:JSON.stringify({text}),
+    });
+    if(r.status===403){ alertEditDenied=true; alert("Your login can read staff alerts but can't change them."); return false; }
+    if(!r.ok) throw new Error(r.status);
+    const out=await r.json();
+    // Same object sits under every spelling in clientDirectory -- update in place.
+    ac.staff_alert=out.staff_alert ?? null;
+    ac.staff_alert_by=out.staff_alert_by ?? null;
+    ac.staff_alert_at=out.staff_alert_at ?? null;
+  }catch(err){
+    alert('Could not save that staff alert -- try again.');
+    return false;
+  }
+  hideAlertPop();
+  render();
+  if(peekdlg.open && peekRow===row) refreshPeekLive(row);
+  return true;
+}
+function showAlertPop(anchor, row, mode){
+  clearTimeout(salertHideT);
+  const a=staffAlertOf(row);
+  if(mode==='view' && !a) return;
+  const pop=salertEl();
+  if(pop.hidden || salertAnchor!==anchor || salertMode!==mode) salertShownAt=Date.now();
+  salertAnchor=anchor; salertRow=row; salertMode=mode;
+  pop.classList.toggle('editing', mode==='edit');
+  if(mode==='edit'){
+    pop.innerHTML=alertEditorHTML(row, 'sapop');
+  } else {
+    pop.innerHTML=`<div class="sahead">${IC.alert}<span>Staff alert</span></div>
+      <p class="satext">${peekEsc(a.text)}</p>
+      ${alertByline(a)?`<p class="saby">${peekEsc(alertByline(a))}</p>`:''}
+      ${canEditAlerts()?`<button type="button" class="saeditbtn">Edit</button>`:''}`;
+    const eb=pop.querySelector('.saeditbtn');
+    if(eb) eb.onclick=()=>showAlertPop(anchor, row, 'edit');
+  }
+  pop.hidden=false;
+  placeAlertPop();
+  if(mode==='edit') wireAlertEditor(row, 'sapop', ()=>hideAlertPop());
+}
+function hideAlertPop(){
+  clearTimeout(salertHideT);
+  if(salertPop){ salertPop.hidden=true; salertPop.innerHTML=''; }
+  salertAnchor=null; salertRow=null; salertMode=null;
+}
+function hideAlertPopSoon(){
+  clearTimeout(salertHideT);
+  salertHideT=setTimeout(()=>{ if(salertMode==='view') hideAlertPop(); }, 220);
+}
+document.addEventListener('pointerdown', e=>{
+  salertPtr=e.pointerType||'mouse';
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  salertPressed=!!ic;
+  if(!ic && salertPop && !salertPop.hidden && !salertPop.contains(e.target)) hideAlertPop();
+}, true);
+document.addEventListener('pointerup', ()=>{ setTimeout(()=>{ salertPressed=false; }, 0); }, true);
+// A press that starts on the icon never picks up the stop card it sits on.
+document.addEventListener('dragstart', e=>{
+  if(salertPressed){ e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
+document.addEventListener('click', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(!ic) return;
+  e.preventDefault(); e.stopPropagation();
+  const row=+ic.dataset.alertRow;
+  const open=salertPop && !salertPop.hidden && salertAnchor===ic;
+  if(salertPtr==='touch' || !canEditAlerts()){
+    // Touch / read-only: a tap toggles the card (which carries Edit for staff).
+    // (The hover that a mouse or a tap's emulated mouseover fired a moment ago
+    // already opened it -- that click shouldn't immediately close it again.)
+    if(open && salertMode==='view' && Date.now()-salertShownAt>450) hideAlertPop();
+    else if(!open || salertMode!=='view') showAlertPop(ic, row, 'view');
+    return;
+  }
+  if(open && salertMode==='edit') return;
+  showAlertPop(ic, row, 'edit');
+}, true);
+document.addEventListener('mouseover', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(!ic || salertMode==='edit') return;
+  if(salertAnchor!==ic || !salertPop || salertPop.hidden) showAlertPop(ic, +ic.dataset.alertRow, 'view');
+  else clearTimeout(salertHideT);
+});
+document.addEventListener('mouseout', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(ic && salertMode==='view' && !(e.relatedTarget && ic.contains(e.relatedTarget))) hideAlertPopSoon();
+});
+document.addEventListener('focusin', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(ic && salertMode!=='edit') showAlertPop(ic, +ic.dataset.alertRow, 'view');
+});
+document.addEventListener('keydown', e=>{
+  const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
+  if(ic && (e.key==='Enter' || e.key===' ')){
+    e.preventDefault(); e.stopPropagation();
+    if(canEditAlerts()) showAlertPop(ic, +ic.dataset.alertRow, 'edit');
+    return;
+  }
+  if(e.key==='Escape' && salertPop && !salertPop.hidden){ e.stopPropagation(); hideAlertPop(); }
+}, true);
+window.addEventListener('scroll', placeAlertPop, true);
+window.addEventListener('resize', placeAlertPop);
 
 // ---------- UI ----------
 const strip = document.getElementById('datestrip');
@@ -5068,7 +5368,7 @@ function buildDayCard(d){
         <span class="num" style="background:${col}">${i+1}</span>
         <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.down}</button>
       </div>
-      <div class="body"><div class="nm">${c.name}
+      <div class="body"><div class="nm">${c.name}${alertIconHTML(r)}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
@@ -5082,7 +5382,7 @@ function buildDayCard(d){
       <div class="sub loc">${c.zone||''}</div>
       <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
         `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</div>
-      ${c.advice?`<div class="sub advice">${c.advice}</div>`:''}</div>
+      ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
           ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
@@ -5229,7 +5529,7 @@ function renderNotInstalling(){
       const noMap = c.lat==null || c.lon==null;
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
       const was=lastScheduledFrom[row];
-      el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+      el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
           <span class="badge niout">${esc(entry.badge)}</span>${prefBadge(row)}
           ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
@@ -5238,7 +5538,7 @@ function renderNotInstalling(){
         <div class="sub">${esc(c.zone||'—')}</div>
         <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
         <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
-        ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+        ${adviceLineHTML(row)}</div>
         <div class="stopbtns">
           <button class="mv find">find date</button>
           <button class="mv">move ▾</button>
@@ -5292,13 +5592,13 @@ function renderHold(){
     const c=C[row], d=days.find(x=>x.stops.includes(row));
     const el=document.createElement('div');
     el.className='stop nistop onhold'; el.dataset.row=row;
-    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}
+    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
         <span class="badge hold">on hold</span>${prefBadge(row)}</div>
       ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewLabel(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
       <div class="sub">${esc(c.zone||'—')}</div>
       <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
-      ${c.advice?`<div class="sub advice">${esc(c.advice)}</div>`:''}</div>
+      ${adviceLineHTML(row)}</div>
       <div class="stopbtns">
         <button class="mv release">release hold</button>
         <button class="mv out">not installing</button>
@@ -6608,7 +6908,7 @@ function wallCellHTML(dt, today){
         items.push(`<li class="wgroup">${peekEsc(b)} <span>· ${count[b]} locations</span></li>`); }
       return;
     }
-    items.push(`<li data-row="${s.r}" data-dayid="${s.d.id}">${peekEsc(s.name)}</li>`);
+    items.push(`<li data-row="${s.r}" data-dayid="${s.d.id}">${alertIconHTML(s.r)}${peekEsc(s.name)}</li>`);
   });
   if(items.length) inner+=`<ul class="wlist">${items.join('')}</ul>`;
   const n=ds.reduce((a,d)=>a+d.stops.length,0);
@@ -6805,7 +7105,7 @@ function gridHTML(cols){
           + `border-left-color:${CREW_COLORS[b.d.crew]||'#555'}" `
           + `data-row="${b.row}" data-dayid="${b.d.id}" `
           + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
-          + `<span class="cevn">${C[b.row].name.split('|')[0].trim()}</span>`
+          + `<span class="cevn">${alertIconHTML(b.row)}${C[b.row].name.split('|')[0].trim()}</span>`
           + `<span class="cevt">${gridHourLabel(b.start)} · ${crewLabel(b.d)}</span></div>`;
       }
     });
@@ -6880,7 +7180,7 @@ function agendaHTML(){
          + `data-row="${t.row}" data-dayid="${d.id}">`
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
-         + `<span class="agn">${C[t.row].name}</span>`
+         + `<span class="agn">${C[t.row].name}${alertIconHTML(t.row)}</span>`
          + `<span class="agm">${crewLabel(d)}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
       });
     h+=`</div></div>`;
@@ -7065,17 +7365,66 @@ function profileSectionHTML(row){
     </div>`;
 }
 function fmtUSD(n){ return '$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function openClientsTab(row){
+  const ac=appClientFor(row);
+  const name=ac?ac.name:C[row].name;
+  // srcDoc keeps the parent's origin, so this opens the real app's
+  // Clients page (not a bare filesystem path) in a new tab -- the
+  // scheduler stays open exactly where it was.
+  window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
+}
 function wireProfileLink(row){
   const btn=document.getElementById('pkfullprofile');
-  if(!btn) return;
-  btn.onclick=()=>{
-    const ac=appClientFor(row);
-    const name=ac?ac.name:C[row].name;
-    // srcDoc keeps the parent's origin, so this opens the real app's
-    // Clients page (not a bare filesystem path) in a new tab -- the
-    // scheduler stays open exactly where it was.
-    window.open(window.top.location.origin+'/clients?client='+encodeURIComponent(name), '_blank');
-  };
+  if(btn) btn.onclick=()=>openClientsTab(row);
+  const nl=document.getElementById('pknotelink');
+  if(nl) nl.onclick=()=>openClientsTab(row);
+}
+/** The popup's install / production notes. Live from the client record
+ *  (Clients tab) when it has them; otherwise the spreadsheet notes baked into
+ *  this build, so nothing disappears before the notes move over. */
+function peekNotesHTML(row){
+  const inst=installNoteFor(row), prod=productionNoteFor(row);
+  if(!inst && !prod) return '';
+  const src=n=>n.live?'':' <span class="pknotesrc">· from the spreadsheet</span>';
+  const ac=appClientFor(row);
+  return `${inst?`<p class="pknote"><span class="pknotelbl">Install notes ${peekEsc(inst.season)}${src(inst)}</span>${peekEsc(inst.text)}</p>`:''}
+    ${prod?`<p class="pknote"><span class="pknotelbl">Production &amp; repair notes${prod.season?' '+peekEsc(prod.season):''}${src(prod)}</span>${peekEsc(prod.text)}</p>`:''}
+    ${AUTH && ac?`<button type="button" class="pknotelink" id="pknotelink">Edit on the Clients tab ↗</button>`:''}`;
+}
+let pkEditingAlert=false;
+/** The staff alert block at the top of the popup: the alert itself (with
+ *  Edit for staff), a quiet "+ Staff alert" for staff when there is none,
+ *  or the inline editor. */
+function peekAlertHTML(row){
+  const a=staffAlertOf(row), ac=appClientFor(row);
+  const edit=canEditAlerts() && alertsSupported(ac);
+  if(pkEditingAlert && edit) return `<div class="pkalert">${alertEditorHTML(row, 'pkal')}</div>`;
+  if(a) return `<div class="pkalert">
+      <div class="sahead">${IC.alert}<span>Staff alert</span></div>
+      <p class="satext">${peekEsc(a.text)}</p>
+      ${alertByline(a)?`<p class="saby">${peekEsc(alertByline(a))}</p>`:''}
+      ${edit?`<button type="button" class="saeditbtn" id="pkalertedit">Edit</button>`:''}
+    </div>`;
+  return edit ? `<button type="button" class="pkalertadd" id="pkalertedit">+ Staff alert</button>` : '';
+}
+function wirePeekAlert(row){
+  const holder=document.getElementById('pkalert');
+  if(!holder) return;
+  const eb=document.getElementById('pkalertedit');
+  if(eb) eb.onclick=()=>{ pkEditingAlert=true; holder.innerHTML=peekAlertHTML(row); wirePeekAlert(row); };
+  if(pkEditingAlert && document.getElementById('pkal-text')){
+    wireAlertEditor(row, 'pkal', ()=>{
+      pkEditingAlert=false;
+      if(peekRow===row) refreshPeekLive(row);
+    });
+  }
+}
+/** Re-draw the parts of an open popup that read the live client record. */
+function refreshPeekLive(row){
+  const h=document.getElementById('pkh3alert'); if(h) h.innerHTML=alertIconHTML(row,{static:true});
+  const al=document.getElementById('pkalert'); if(al){ al.innerHTML=peekAlertHTML(row); wirePeekAlert(row); }
+  const nt=document.getElementById('pknotes'); if(nt) nt.innerHTML=peekNotesHTML(row);
+  wireProfileLink(row);
 }
 /** Merges two comment sources into one timeline: server-backed ones from
  *  the app's client_activity (kind='comment' -- same feed the Clients tab
@@ -7304,22 +7653,22 @@ function openStopPeek(row,dayId){
   const d = dayId==null ? null : days.find(x=>x.id===dayId);
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row; pkDayId=dayId;
-  pkEditingContact=false;
+  pkEditingContact=false; pkEditingAlert=false;
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   document.getElementById('peekbody').innerHTML=`
-    <h3>${esc(c.name)}</h3>
+    <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row,{static:true})}</span></h3>
     ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)} ·
        ${t.start!=null?`${fmtClock(t.start)} – ${fmtClock(t.end)}`:''} · ${esc(crewLabel(d))}</p>`
         : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
+    <div id="pkalert">${peekAlertHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     <p class="pkrow">📦 ${c.boxes||'—'} boxes</p>
     <p class="pkrow">⏱ ${d ? (effH(d,row)/(d.stacked||1)).toFixed(2)
                               : (+(c.h26||0)).toFixed(2)}h${
       d && (d.half||[]).includes(row)?` (half of ${(c.h26||0)}h — shared with ${esc(d.joint||'another crew')})`:''}</p>
     ${c.people?`<p class="pkrow">${c.people} people</p>`:''}
-    ${c.advice?`<p class="pknote">${esc(c.advice)}</p>`:''}
-    ${c.repairNotes?`<p class="pknote">${esc(c.repairNotes)}</p>`:''}
+    <div class="pknotes" id="pknotes">${peekNotesHTML(row)}</div>
     ${d && confirmed.has(row)?`<p class="pkrow"><span class="badge confirm">${IC.lock} date confirmed with client</span></p>`:''}
     ${hold.has(row)?`<p class="pkrow"><span class="badge hold">on hold — about to cancel, not decided</span></p>`:''}
     ${d?`<div class="pkpos"><span class="pksec">Position on the day</span>
@@ -7338,6 +7687,7 @@ function openStopPeek(row,dayId){
     </div>`;
   wireContactBlock(row);
   wireProfileLink(row);
+  wirePeekAlert(row);
   document.querySelectorAll('#peekbody .pkpos button').forEach(b=>{
     b.onclick=()=>{ peekdlg.close(); setStopPin(row, b.dataset.pos||null); };
   });
@@ -7400,6 +7750,7 @@ function openStopPeek(row,dayId){
         old.replaceWith(...tmp.childNodes);
       } else holder.insertAdjacentHTML('beforeend', html);
       wireProfileLink(row);
+      refreshPeekLive(row);
     });
   }
   const openBtn=document.getElementById('peekopen');
@@ -8814,12 +9165,15 @@ function manifestHTML(d){
     const ap=addrParts(c);   // repairs the rows that jam the whole address into one cell
     const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
                .filter(Boolean).join(' · ');
-    const note=[c.advice,c.repairNotes].filter(Boolean).join(' — ');
+    // Live Clients-tab notes when the record has them, else the spreadsheet's.
+    const note=[installNoteFor(r), productionNoteFor(r)].filter(Boolean).map(n=>n.text).join(' — ');
+    const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
       <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
+      ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
       ${note?`<div class="nt">${esc(note)}</div>`:''}
     </td>
     <td class="c">${c.boxes||'—'}</td>
@@ -8913,6 +9267,8 @@ function printManifests(list, title, opts={}){
     .ad{color:#444;font-size:11px;margin-top:1px}
     .ct{color:#666;font-size:10.5px;margin-top:1px}
     .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
+    .al{margin-top:4px;padding:3px 6px;border:1.5px solid #b45309;border-radius:4px;background:#fef3e2;
+      color:#7c2d12;font-weight:800;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .hold{color:#92400e;font-weight:800;font-size:10px;border:1px solid #d97706;border-radius:4px;padding:0 4px;vertical-align:middle}
     .pref{color:#1e3a5f;font-size:10.5px;font-weight:600}
     .pos{color:#4c1d95;font-weight:800;font-size:10px;border:1px solid #4c1d95;border-radius:4px;padding:0 4px;vertical-align:middle}

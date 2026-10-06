@@ -16,6 +16,7 @@ import {
 } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
+import { StaffAlert } from "components/StaffAlert";
 import { apiFetch } from "utils/apiFetch";
 import {
   addressLine,
@@ -299,6 +300,9 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
 }) {
   const [busy, setBusy] = useState(false);
   const status = stopStatus(stop);
+  // The client record's install notes are live (and may have been edited in
+  // the app); the schedule's baked-in note is the fallback.
+  const installNotes = (stop.installNotes || stop.advice || "").trim();
   const open = (pid: string) => stop.timeEntries.find((e) => e.personId === pid && !e.endedAt);
   const onClock = day.crew.filter((p) => open(p.id));
   const offClock = day.crew.filter((p) => !open(p.id));
@@ -324,7 +328,10 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
       <div className="flex items-start gap-3">
         <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${badge}`}>{index}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-stone-900">{stop.name}</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-stone-900">
+            <span className="min-w-0">{stop.name}</span>
+            {stop.staffAlert && <StaffAlert alert={stop.staffAlert} editable={false} size={14} />}
+          </p>
           {stop.mapsUrl ? (
             <a href={stop.mapsUrl} target="_blank" rel="noreferrer" className="mt-0.5 flex items-start gap-1 text-sm text-emerald-800 underline decoration-emerald-300 underline-offset-2">
               <MapPin size={14} className="mt-0.5 shrink-0" /> {addressLine(stop)}
@@ -337,10 +344,10 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
               <Phone size={12} /> {stop.phone}
             </a>
           )}
-          {(stop.advice || stop.repairNotes) && (
+          {(installNotes || stop.repairNotes) && (
             <div className="mt-2 space-y-1 text-xs text-stone-600">
-              {stop.advice && <p>{stop.advice}</p>}
-              {stop.repairNotes && <p><span className="font-semibold">Production:</span> {stop.repairNotes}</p>}
+              {installNotes && <p className="whitespace-pre-wrap"><span className="font-semibold">Install notes:</span> {installNotes}</p>}
+              {stop.repairNotes && <p className="whitespace-pre-wrap"><span className="font-semibold">Production &amp; repair:</span> {stop.repairNotes}</p>}
             </div>
           )}
         </div>
