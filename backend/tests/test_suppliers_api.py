@@ -79,10 +79,23 @@ def test_create_infers_scraper_key_and_serialises_contacts(fake_db, storage):
                                     secondary_contacts=[suppliers.SupplierContact(label="AP", name="Jo")])
     out = run(suppliers.create_supplier(body))
     (sql, args), = fake_db.calls("INSERT INTO suppliers")
-    assert "RETURNING *, 0 as product_count, FALSE as has_credentials" in sql
+    assert "RETURNING *, 0 as product_count" in sql
     assert args == ("Vickerman Co", "vickerman", True, None, None, None, None, None, [], None, None, None,
-                    None, None, '[{"label": "AP", "name": "Jo", "phone": null, "email": null}]')
+                    None, None, '[{"label": "AP", "name": "Jo", "phone": null, "email": null}]',
+                    None, None, "missing")
     assert out["secondary_contacts"] == [{"label": "AP", "name": "Jo", "phone": None, "email": None}]
+    assert out["has_credentials"] is False
+
+
+def test_create_saves_login_typed_into_the_add_form(fake_db, storage):
+    # Comment #12: a login entered while adding a supplier was silently dropped.
+    fake_db.on_fetchrow("INSERT INTO suppliers", {**supplier_row(login_username="buyer", login_password="zip77",
+                                                                 credential_status="untested"), "product_count": 0})
+    body = suppliers.SupplierCreate(name="Vickerman Co", login_username="  buyer ", login_password="zip77")
+    out = run(suppliers.create_supplier(body))
+    (sql, args), = fake_db.calls("INSERT INTO suppliers")
+    assert args[-3:] == ("buyer", "zip77", "untested")
+    assert out["has_credentials"] is True
 
 
 def test_update_writes_only_sent_columns(fake_db, storage):
