@@ -35,29 +35,39 @@ def _authorized(token: str) -> bool:
     return bool(secret) and hmac.compare_digest(token.encode(), secret.encode())
 
 
-async def storing_rows(board: schedule_board.Board) -> set:
-    """Board rows whose client is storing with us this season -- one query
-    for the whole season. Any failure (no table, no database) just means
-    the line is left off; the feed itself must never break over it."""
+async def client_lookup(board: schedule_board.Board) -> tuple[set, dict]:
+    """``(storing, names)`` for the board, from one query over the app's
+    clients: the board rows whose client is storing with us this season, and
+    {row: current name} for clients renamed on the Clients tab since the
+    board was built. The board keeps the spelling it was built with, so both
+    match it through every spelling the app knows (name, sheet_name,
+    former_names) -- the same lookup the schedule page does. Any failure (no
+    table, no database) just means no storing lines and the board's own
+    names; the feed itself must never break over it."""
     try:
         conn = await db.get_conn()
         try:
             rows = await conn.fetch(
-                "SELECT cl.name, ca.detail FROM client_activity ca "
-                "  JOIN clients cl ON cl.id = ca.client_id "
-                " WHERE ca.kind = 'christmas_install' AND ca.season = $1",
+                "SELECT cl.name, cl.sheet_name, cl.former_names, ca.detail FROM clients cl "
+                "  LEFT JOIN client_activity ca ON ca.client_id = cl.id "
+                "   AND ca.kind = 'christmas_install' AND ca.season = $1",
                 str(board.season)[:4],
             )
         finally:
             await conn.close()
     except Exception as e:  # noqa: BLE001 -- optional enrichment
-        log.warning("install calendar: storing lookup skipped: %s", e)
-        return set()
+        log.warning("install calendar: client lookup skipped: %s", e)
+        return set(), {}
+    rows = [dict(r) for r in rows]
     pairs = []
     for r in rows:
-        detail = loads_json(r["detail"])
-        pairs.append((r["name"], detail.get("storing") if isinstance(detail, dict) else None))
-    return install_calendar.storing_rows(board, pairs)
+        detail = loads_json(r.get("detail"))
+        flag = detail.get("storing") if isinstance(detail, dict) else None
+        for n in [r.get("name"), r.get("sheet_name"), *(r.get("former_names") or [])]:
+            if n:
+                pairs.append((n, flag))
+    names = install_calendar.current_names(board, install_calendar.name_aliases(rows))
+    return install_calendar.storing_rows(board, pairs), names
 
 
 @router.get("/feed.ics", response_class=Response)
@@ -67,8 +77,9 @@ async def calendar_feed(token: str = "") -> Response:
     board = await schedule_board.load_board()
     if board is None:
         raise HTTPException(status_code=404, detail="No published install schedule")
+    storing, names = await client_lookup(board)
     return Response(
-        content=install_calendar.build_ics(board, storing=await storing_rows(board)),
+        content=install_calendar.build_ics(board, storing=storing, names=names),
         media_type="text/calendar; charset=utf-8",
         headers={"Cache-Control": "private, max-age=300",
                  "Content-Disposition": 'inline; filename="ll-installs.ics"'},

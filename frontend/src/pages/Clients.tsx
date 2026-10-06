@@ -34,6 +34,7 @@ import { ChristmasGridView } from "./ChristmasGrid";
 import { currentSeasonLabel } from "utils/season";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
 import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
+import { isReadOnly } from "utils/me";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
  *  The scheduler orders a crew's stops morning -> flexible -> afternoon -> late. */
@@ -864,11 +865,13 @@ export default function Clients() {
   // never leave a stale duplicate under the old name), THEN merge -- plain
   // name-keyed merging alone would add the renamed client as a second row
   // while the original name's now-stale row stayed put.
-  const upsertClientRow = (saved: ClientRecord) => {
+  // `nextProjects`: the project list to cache alongside (a rename passes the
+  // re-pointed list, so the cache never pairs the new name with old projects).
+  const upsertClientRow = (saved: ClientRecord, nextProjects: ProjectSummary[] = projects) => {
     setClientRows((current) => {
       const withoutOld = current.filter((row) => row.id == null || row.id !== saved.id);
       const next = mergeClients([saved], withoutOld);
-      writeClientsPageCache(next, projects);
+      writeClientsPageCache(next, nextProjects);
       return next;
     });
     setInitialDataSettled(true);
@@ -876,6 +879,17 @@ export default function Clients() {
   };
 
   const clients = useMemo(() => buildClientGroups(clientRows, projects), [clientRows, projects]);
+  // The Christmas grid's Client / Site cells open the same Edit client dialog.
+  // A view-only login (production) is told why instead of getting a dialog
+  // whose Save the server would refuse.
+  const editClientById = (clientId: number) => {
+    if (isReadOnly()) {
+      toast.info("This login can view clients but can't edit or rename them.");
+      return;
+    }
+    const target = clients.find((c) => c.id === clientId);
+    if (target) setEditingClient(target);
+  };
   const [typeFilter, setTypeFilter] = useState<ClientTypeTag[]>([]);
   const typeFacets = useMemo<TypeFacet[]>(() => [
     { value: "christmas", label: "Christmas", count: clients.filter((c) => clientHasTag(c, "christmas")).length },
@@ -1178,6 +1192,7 @@ export default function Clients() {
           clients={clientRows}
           loading={!initialDataSettled && clientRows.length === 0}
           onSaved={(clientId, entry) => upsertSeasonEntry(clientId, entry)}
+          onEditName={editClientById}
         />
       )}
 
@@ -1511,24 +1526,28 @@ export default function Clients() {
           onAlertSaved={patchStaffAlert}
           onClose={() => setEditingClient(null)}
           onSaved={(client) => {
-            upsertClientRow(client);
             // A rename was written through to the projects server-side; mirror
             // it in the list we already hold so nothing shows as unassigned
-            // until the next reload.
+            // until the next reload, and cache both together.
             if (client.renamed) {
               const from = client.renamed.from.trim().toLowerCase();
               const to = client.renamed.to;
-              setProjects((current) => {
-                const next = current.map((p) => (p.client_name || "").trim().toLowerCase() === from ? { ...p, client_name: to } : p);
-                writeClientsPageCache(clientRows, next);
-                return next;
-              });
+              const nextProjects = projects.map((p) => (p.client_name || "").trim().toLowerCase() === from ? { ...p, client_name: to } : p);
+              setProjects(nextProjects);
+              upsertClientRow(client, nextProjects);
               notifyProjectsChanged();
+            } else {
+              upsertClientRow(client);
             }
-            if (focusedClient === editingClient.name || expandedClient === editingClient.name) {
-              setSearchParams(focusedClient ? { client: client.name } : {});
-              setExpandedClient(client.name);
+            // Follow the client to its new name -- the ?client= focus and the
+            // open card are keyed by name -- without touching anything else
+            // in the URL (a rename from the Christmas grid stays on the grid).
+            if (focusedClient && focusedClient === editingClient.name) {
+              const next = new URLSearchParams(searchParams);
+              next.set("client", client.name);
+              setSearchParams(next);
             }
+            if (expandedClient === editingClient.name) setExpandedClient(client.name);
           }}
         />
       )}

@@ -163,6 +163,8 @@ const BASE: Col[] = [
   { key: "notes", label: "Install notes", width: 200, get: (r) => str(r.d.notes), edit: { kind: "text", field: "notes" } },
 ];
 const FROZEN = 2; // Client + Site stay put while the rest scrolls
+/** The two columns that show the client's name (split at its separator). */
+const NAME_KEYS = new Set(["group", "site"]);
 
 // On a phone Client + Site (330px) would pin almost the whole screen and leave
 // a sliver to scroll through, so there only the Client column stays put.
@@ -300,11 +302,14 @@ function CellEditor({ col, row, onDone }: { col: Col; row: Row; onDone: (saved?:
   );
 }
 
-export function ChristmasGridView({ clients, loading, onSaved }: {
+export function ChristmasGridView({ clients, loading, onSaved, onEditName }: {
   clients: ClientRecord[];
   loading: boolean;
   /** A season row saved from a cell; the page swaps it into its own list. */
   onSaved: (clientId: number, entry: ActivityEntry) => void;
+  /** Clicking a Client or Site cell: open the page's Edit client dialog, the
+   *  one place a name is changed (it renames the client everywhere). */
+  onEditName?: (clientId: number) => void;
 }) {
   const [season, setSeason] = useState(currentSeasonLabel());
   const [query, setQuery] = useState("");
@@ -456,12 +461,16 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
                   const isEditing = editing && editing.id === r.clientId && editing.key === c.key;
                   const v = c.get(r);
                   const stamped = c.edit && r.d.app_edits && typeof r.d.app_edits === "object" && (r.d.app_edits as Record<string, unknown>)[c.edit.field];
+                  const nameCell = Boolean(onEditName) && NAME_KEYS.has(c.key);
                   return (
                     <td
                       key={c.key}
-                      onClick={() => c.edit && !isEditing && setEditing({ id: r.clientId, key: c.key })}
-                      title={c.title ? c.title(r) : stamped ? "Set in Leaf & Ledger — the spreadsheet sync keeps it" : undefined}
-                      className={`whitespace-nowrap border-b border-r border-stone-100 px-2 py-1 ${i < frozen ? "sticky z-10 font-medium" : ""} ${ri % 2 ? "bg-stone-50" : "bg-white"} ${c.money || typeof v === "number" ? "text-right tabular-nums" : ""} ${c.edit ? "cursor-text hover:bg-emerald-50" : ""} ${i === 0 ? "text-stone-900" : ""}`}
+                      onClick={() => {
+                        if (nameCell) onEditName!(r.clientId);
+                        else if (c.edit && !isEditing) setEditing({ id: r.clientId, key: c.key });
+                      }}
+                      title={c.title ? c.title(r) : nameCell ? `${r.name}: click to edit or rename this client` : stamped ? "Set in Leaf & Ledger — the spreadsheet sync keeps it" : undefined}
+                      className={`whitespace-nowrap border-b border-r border-stone-100 px-2 py-1 ${i < frozen ? "sticky z-10 font-medium" : ""} ${ri % 2 ? "bg-stone-50" : "bg-white"} ${c.money || typeof v === "number" ? "text-right tabular-nums" : ""} ${c.edit ? "cursor-text hover:bg-emerald-50" : nameCell ? "cursor-pointer hover:bg-emerald-50 hover:text-emerald-800" : ""} ${i === 0 ? "text-stone-900" : ""}`}
                       style={{ width: c.width, minWidth: c.width, maxWidth: c.width, left: i < frozen ? frozenLeft[i] : undefined, overflow: "hidden", textOverflow: "ellipsis" }}
                     >
                       {isEditing ? (

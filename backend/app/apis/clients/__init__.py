@@ -70,17 +70,26 @@ async def ensure_schema(conn) -> None:
 #: on the Clients tab rewrites all of them in one transaction; each is matched
 #: case- and whitespace-insensitively on the OLD name, and where the table also
 #: carries the client's id, on that too. The key is the name reported back.
+#:
+#: Every statement takes the same three parameters -- $1 new name, $2 old
+#: name, $3 client id -- even where the table has no client_id column, because
+#: Postgres sizes a statement's parameters by its highest $N and asyncpg
+#: refuses a call whose argument count differs. Until 10/6/26 three of these
+#: used only $1/$2 while three arguments were passed, so EVERY rename failed
+#: with a 500 ("Couldn't save that change") and nothing was renamed. The
+#: `$3::int IS NOT NULL` guard is always true; it only declares $3.
+_BY_NAME = "LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"
 NAME_MIRRORS = (
     ("projects", "UPDATE arrangements SET client_name = $1, updated_at = NOW() "
-                 " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+                 f" WHERE {_BY_NAME} AND $3::int IS NOT NULL"),
     ("jobs", "UPDATE ll_app.jobs SET client_name = $1, updated_at = NOW() "
-             " WHERE client_id = $3 OR LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+             f" WHERE client_id = $3 OR {_BY_NAME}"),
     ("requests", "UPDATE ll_app.product_requests SET client_name = $1, updated_at = NOW() "
-                 " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+                 f" WHERE {_BY_NAME} AND $3::int IS NOT NULL"),
     ("shift_notes", "UPDATE ll_app.shift_notes SET client_name = $1 "
-                    " WHERE client_id = $3 OR LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+                    f" WHERE client_id = $3 OR {_BY_NAME}"),
     ("time_entries", "UPDATE ll_app.shift_time_entries SET client_name = $1 "
-                     " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($2))"),
+                     f" WHERE {_BY_NAME} AND $3::int IS NOT NULL"),
 )
 
 
@@ -446,8 +455,13 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                         zip = CASE WHEN $9::text IS NOT NULL THEN NULLIF(TRIM($9), '') ELSE zip END,
                         secondary_contacts = CASE WHEN $10::jsonb IS NOT NULL THEN $10::jsonb ELSE secondary_contacts END,
                         time_preference = CASE WHEN $11::text IS NOT NULL THEN NULLIF(TRIM($11), '') ELSE time_preference END,
+                        -- The old spelling goes on the end; the new one comes
+                        -- off, so renaming back doesn't list the current name
+                        -- as a former one.
                         former_names = CASE WHEN $12::boolean
-                                            THEN array_append(array_remove(former_names, $13::text), $13::text)
+                                            THEN array_remove(
+                                                   array_append(array_remove(former_names, $13::text), $13::text),
+                                                   TRIM($2))
                                             ELSE former_names END,
                         updated_at = NOW()
                     WHERE id = $1

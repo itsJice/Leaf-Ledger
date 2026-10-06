@@ -217,6 +217,72 @@ def test_rename_writes_through_everywhere(fake_db, fake_request):
         assert args_of(fake_db, pattern) == [("Ashley Birdwell", "Ashley Bird", 5)], pattern
 
 
+def test_every_name_mirror_takes_exactly_the_three_rename_arguments():
+    # asyncpg refuses a call whose argument count differs from the statement's
+    # highest $N. Three mirrors used only $1/$2 while _rename_everywhere passes
+    # three, so every rename on the live app 500'd (10/6/26). conftest's fake
+    # now enforces the count too; this pins it per statement.
+    import re
+
+    for key, sql in clients.NAME_MIRRORS:
+        assert max(int(n) for n in re.findall(r"\$(\d+)", sql)) == 3, key
+        assert "client_name = $1" in sql and "LOWER(TRIM($2))" in sql, key
+
+
+def test_rename_back_restores_every_mirror(fake_db, fake_request):
+    """Rename A -> B, then B -> A: each step matches the mirrors on the name
+    it is leaving and drops the name it is taking from former_names."""
+    state = {"name": "Ashley Bird", "former": []}
+    fake_db.on("SELECT name FROM clients WHERE id = $1", lambda sql, *a: state["name"], method="fetchval")
+
+    def update(sql, *args):
+        new, renaming, old = args[1].strip(), args[11], args[12]
+        assert "array_remove( array_append(array_remove(former_names, $13::text), $13::text), TRIM($2))" in " ".join(sql.split())
+        if renaming:
+            state["former"] = [n for n in state["former"] if n != old] + [old]
+            state["former"] = [n for n in state["former"] if n != new]
+            state["name"] = new
+        return client_row(id=5, name=state["name"], former_names=list(state["former"]),
+                          secondary_contacts=[], created_at=T0, updated_at=T1)
+    fake_db.on("UPDATE clients SET", update, method="fetchrow")
+
+    first = run(clients.update_client(5, ClientUpdate(name="Ashley Birdwell"), fake_request()))
+    back = run(clients.update_client(5, ClientUpdate(name="Ashley Bird"), fake_request()))
+
+    assert (first["name"], first["former_names"]) == ("Ashley Birdwell", ["Ashley Bird"])
+    assert (back["name"], back["former_names"]) == ("Ashley Bird", ["Ashley Birdwell"])
+    assert back["renamed"]["from"] == "Ashley Birdwell" and back["renamed"]["to"] == "Ashley Bird"
+    assert args_of(fake_db, "UPDATE arrangements") == [
+        ("Ashley Birdwell", "Ashley Bird", 5), ("Ashley Bird", "Ashley Birdwell", 5)]
+
+
+def test_same_name_save_is_not_a_rename(fake_db, fake_request):
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Ashley Bird")
+    fake_db.on_fetchrow("UPDATE clients SET", client_row(id=5, name="Ashley Bird", former_names=[],
+                                                         secondary_contacts=[], created_at=T0, updated_at=T1))
+    out = run(clients.update_client(5, ClientUpdate(name="  Ashley Bird "), fake_request()))
+    assert out["renamed"] is None
+    assert not fake_db.seen("UPDATE arrangements")
+
+
+@pytest.mark.parametrize("role, ok", [
+    ("crew", False), ("viewer", False), ("production", False), ("lead", False),
+    ("staff", True), ("admin", True), ("super_admin", True),
+])
+def test_rename_needs_staff(role, ok):
+    """The clients router has no MIN_ROLE, so main.py gives it "staff":
+    office staff, admins and the owner may rename; crew, leads, the shop TV
+    and production may not (the Clients tab says so instead of failing)."""
+    import importlib
+
+    from app.libs import roles
+
+    clients_module = importlib.import_module("app.apis.clients")
+    assert getattr(clients_module, "MIN_ROLE", "staff") == "staff"
+    assert not getattr(clients_module, "VIEWER_READ", False)
+    assert roles.allowed(role, "staff", "PUT", False, "/api/clients/update/{client_id}") is ok
+
+
 def test_rename_conflict_is_a_409(fake_db, fake_request):
     fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Ashley Bird")
 
