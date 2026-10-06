@@ -8,6 +8,10 @@ import {
   applySizeSwap,
   buildLeafLedgerRecipe,
   buildOrderLines,
+  packOrder,
+  packSizeFor,
+  orderUnit,
+  roundToWholePacks,
   buildRecipe,
   buildRecipeFor,
   clampColorCount,
@@ -274,6 +278,49 @@ describe("enhancers", () => {
     expect(view(enhancerAllocation(lines, 9))).toEqual([[4, 30, 16, 14], [4.75, 32, 16, 16], [6, 24, 24, 0], [8, 14, 14, 0], [10, 10, 10, 0]]);
     expect(view(enhancerAllocation(lines, 9, 0))).toEqual([[4, 30, 30, 0], [4.75, 32, 32, 0], [6, 24, 24, 0], [8, 14, 14, 0], [10, 10, 10, 0]]);
     expect(view(enhancerAllocation(lines, 9, 18, 3))).toEqual([[4, 30, 15, 15], [4.75, 32, 17, 15], [6, 24, 24, 0], [8, 14, 14, 0], [10, 10, 10, 0]]);
+  });
+});
+
+describe("whole packs", () => {
+  const sized = (entries: [number, number][]) => new Map(entries);
+  const changes = (r: ReturnType<typeof roundToWholePacks>) => r.changes.map((c) => [c.size, c.from, c.to]);
+
+  it("knows Vickerman's packs and the step each size orders in", () => {
+    expect([3, 4, 4.75, 6, 8, 10, 12].map(packSizeFor)).toEqual([12, 6, 4, 4, 1, 1, 1]);
+    expect([3, 4, 4.75, 6, 8].map((s) => orderUnit(s, 2))).toEqual([24, 12, 8, 8, 2]);
+    expect(packSizeFor(5.5)).toBe(1);
+  });
+
+  it("packOrder says what an order really brings in", () => {
+    // 25 x 3" over two colors: 13 + 12 pieces -> 2 + 1 packs of 12 -> 36, 11 spare.
+    expect(packOrder(3, 25, 2)).toEqual({ packSize: 12, perColor: [13, 12], packsPerColor: [2, 1], ordered: 36, spare: 11 });
+    // 8 x 4" in packs of 6: two packs, 4 spare.
+    expect(packOrder(4, 8)).toMatchObject({ packsPerColor: [2], ordered: 12, spare: 4 });
+    expect(packOrder(4, 12, 2).spare).toBe(0);
+    expect(packOrder(8, 17, 2)).toMatchObject({ perColor: [9, 8], ordered: 17, spare: 0 });
+    expect(packOrder(4, 30, 1, 10)).toMatchObject({ packSize: 10, ordered: 30, spare: 0 });
+  });
+
+  it("rounds the designers' 12 ft recipe onto whole packs for two colors", () => {
+    const r = roundToWholePacks(sized([[4.75, 40], [6, 30], [8, 17], [10, 15], [12, 10]]), 2, 8);
+    expect(changes(r)).toEqual([[6, 30, 32], [8, 17, 18], [10, 15, 14]]);
+    expect(r.coverageChange).toBeCloseTo(0.006, 3);
+    r.quantities.forEach((qty, size) => expect(packOrder(size, qty, 2).spare).toBe(0));
+  });
+
+  it("keeps every size in use and the largest at its minimum", () => {
+    // 3" can't drop to 0 even though 24 is a long way from 10.
+    expect(changes(roundToWholePacks(sized([[3, 10], [8, 8]]), 2, 8))).toEqual([[3, 10, 24]]);
+    // The top size never falls below the minimum.
+    expect(roundToWholePacks(sized([[6, 16], [10, 7]]), 2, 8).quantities.get(10)).toBe(8);
+  });
+
+  it("picks the closer whole-pack quantity, and leaves whole packs alone", () => {
+    expect(changes(roundToWholePacks(sized([[4, 8]])))).toEqual([[4, 8, 6]]);
+    const already = roundToWholePacks(sized([[4, 12], [6, 8]]), 2);
+    expect(already.changes).toEqual([]);
+    expect(already.coverageChange).toBe(0);
+    expect(roundToWholePacks(new Map()).changes).toEqual([]);
   });
 });
 

@@ -634,6 +634,148 @@ export function packSummary(option: OrnamentOption, quantity: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Whole packs — quantities purchasing can actually order.
+//
+// Ornaments come in packs (3" 12, 4" 6, 4.75" and 6" 4, 8" and up single —
+// Vickerman's packs, checked against vickerman.com) and each color is ordered
+// separately, so a size only orders cleanly in steps of one pack per color. With
+// two colors: 3" in 24s, 4" in 12s, 4.75" and 6" in 8s. A recipe that ignores
+// this turns 25 x 3" into 48 on the order (13 a color, two 12-packs each).
+// `roundToWholePacks` moves a recipe onto those steps, staying as close to it as
+// it can; `packOrder` says what ordering a quantity really brings in.
+// ---------------------------------------------------------------------------
+
+/** Pieces in one pack of a size (Vickerman's pack; 1 for a size not listed). */
+export function packSizeFor(size: number): number {
+  return ORNAMENT_OPTIONS.find((o) => o.size === size)?.qtyPerPack ?? 1;
+}
+
+/** The step a size orders in: one pack for every color. */
+export function orderUnit(size: number, colorCount = 1): number {
+  return packSizeFor(size) * Math.max(1, Math.floor(colorCount) || 1);
+}
+
+/** What ordering a quantity of one size, color by color, really brings in. */
+export interface PackOrder {
+  packSize: number;
+  /** Pieces of each color (the design's even split). */
+  perColor: number[];
+  /** Whole packs each color needs. */
+  packsPerColor: number[];
+  /** Pieces that arrive: every color's packs, full. */
+  ordered: number;
+  /** Pieces left over after the recipe is hung: ordered − quantity. */
+  spare: number;
+}
+
+/**
+ * Packs and pieces for `quantity` of a size split evenly across `colorCount`
+ * colors, each color rounded up to whole packs of `packSize` (Vickerman's pack for
+ * the size unless a product says otherwise). 25 x 3" over 2 colors -> 13 + 12
+ * pieces -> 2 + 1 packs of 12 -> 36 ordered, 11 spare.
+ */
+export function packOrder(size: number, quantity: number, colorCount = 1, packSize = packSizeFor(size)): PackOrder {
+  const pack = Math.max(1, Math.floor(packSize) || 1);
+  const perColor = splitAcrossColors(quantity, colorCount);
+  const packsPerColor = perColor.map((n) => Math.ceil(n / pack));
+  const ordered = packsPerColor.reduce((sum, k) => sum + k * pack, 0);
+  const pieces = perColor.reduce((sum, n) => sum + n, 0);
+  return { packSize: pack, perColor, packsPerColor, ordered, spare: ordered - pieces };
+}
+
+/** One size moved onto whole packs. */
+export interface PackRounding {
+  size: number;
+  from: number;
+  to: number;
+}
+
+export interface WholePackResult {
+  /** Size (in) -> pieces, every size on whole packs for every color. */
+  quantities: Map<number, number>;
+  /** The sizes that moved, smallest first. */
+  changes: PackRounding[];
+  /** Change in total ornament coverage as a fraction of the original (−0.004 = −0.4%). */
+  coverageChange: number;
+}
+
+/**
+ * Move quantities onto whole packs for every color, as close to the original as
+ * possible. Each size may go to the whole-pack quantity just below or just above
+ * its own — never to 0 for a size in use, and the largest size keeps at least
+ * `minTopCount`. Of every combination it keeps the one that changes the least
+ * ornament area (the net change in coverage plus the area moved between sizes);
+ * on a tie, the one with more ornaments. Sizes already on whole packs stay put.
+ * The designers' 12 ft recipe at two colors: 6" 30 -> 32, 8" 17 -> 18,
+ * 10" 15 -> 14, coverage +0.6%, nothing spare.
+ */
+export function roundToWholePacks(
+  quantities: Map<number, number>,
+  colorCount = 1,
+  minTopCount = 0
+): WholePackResult {
+  const sizes = Array.from(quantities.keys())
+    .filter((size) => (quantities.get(size) ?? 0) > 0)
+    .sort((a, b) => a - b);
+  const result = new Map(quantities);
+  if (!sizes.length) return { quantities: result, changes: [], coverageChange: 0 };
+
+  const area = (size: number) => ORNAMENT_OPTIONS.find((o) => o.size === size)?.planarArea ?? Math.PI * (size / 2) ** 2;
+  const original = sizes.map((size) => quantities.get(size)!);
+  const total = sizes.reduce((sum, size, i) => sum + area(size) * original[i], 0);
+  const top = sizes.length - 1;
+  const options = sizes.map((size, i) => {
+    const unit = orderUnit(size, colorCount);
+    let candidates = [Math.floor(original[i] / unit) * unit, Math.ceil(original[i] / unit) * unit].filter((n) => n > 0);
+    if (i === top && minTopCount > 0) {
+      const floor = Math.ceil(minTopCount / unit) * unit;
+      candidates = candidates.map((n) => Math.max(n, floor));
+    }
+    return Array.from(new Set(candidates));
+  });
+
+  // At most two choices a size, so trying every combination is cheap.
+  let best: number[] = original;
+  let bestCost = Infinity;
+  let bestPieces = -1;
+  const pick: number[] = new Array(sizes.length);
+  const walk = (i: number): void => {
+    if (i === sizes.length) {
+      let net = 0;
+      let moved = 0;
+      let pieces = 0;
+      sizes.forEach((size, k) => {
+        const delta = (pick[k] - original[k]) * area(size);
+        net += delta;
+        moved += Math.abs(delta);
+        pieces += pick[k];
+      });
+      const cost = (Math.abs(net) + moved) / total;
+      if (cost < bestCost - 1e-9 || (Math.abs(cost - bestCost) <= 1e-9 && pieces > bestPieces)) {
+        best = [...pick];
+        bestCost = cost;
+        bestPieces = pieces;
+      }
+      return;
+    }
+    for (const n of options[i]) {
+      pick[i] = n;
+      walk(i + 1);
+    }
+  };
+  walk(0);
+
+  const changes: PackRounding[] = [];
+  let net = 0;
+  sizes.forEach((size, i) => {
+    result.set(size, best[i]);
+    net += (best[i] - original[i]) * area(size);
+    if (best[i] !== original[i]) changes.push({ size, from: original[i], to: best[i] });
+  });
+  return { quantities: result, changes, coverageChange: net / total };
+}
+
+// ---------------------------------------------------------------------------
 // Purchase list — what Charles pulls (designer rules 8 and 9).
 //
 // "I need a tree of 9 feet ornaments and Charles can just pull it out": the
