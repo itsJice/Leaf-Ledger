@@ -35,6 +35,10 @@ export interface Stop {
   mapsUrl: string;
   advice: string;
   repairNotes: string;
+  /** This season's install notes from the client record ("" if none). */
+  installNotes?: string;
+  /** The client's staff alert, read-only here. */
+  staffAlert?: { text: string; by: string | null; at: string | null } | null;
   hours: number | null;
   timeEntries: TimeEntry[];
   notes: Note[];

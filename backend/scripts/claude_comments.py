@@ -10,7 +10,10 @@ live app reads -- so a review shows up in the Comments tab immediately.
 Usage (from backend/):
     .venv/bin/python scripts/claude_comments.py queue
         Open submissions Claude hasn't reviewed yet, plus ones a person has
-        since approved or replied to. JSON on stdout.
+        since approved or replied to (including "tested, still broken" replies
+        on items marked fixed). JSON on stdout; each row also carries the
+        owner's "What we fixed" note (resolution_note, resolved_by_name,
+        resolved_at) when there is one.
     .venv/bin/python scripts/claude_comments.py screenshot ID OUT.png
         Save a submission's attached screenshot to a file.
     .venv/bin/python scripts/claude_comments.py review ID --status STATUS --note TEXT [--link URL]

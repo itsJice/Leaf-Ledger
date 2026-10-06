@@ -159,8 +159,8 @@ const BASE: Col[] = [
   },
   { key: "invoice_total", label: "Invoiced", width: 96, money: true, get: (r) => num(r.d.invoice_total), edit: { kind: "money", field: "invoice_total" } },
   { key: "price_basis", label: "Pricing basis", width: 240, get: (r) => str(r.entry.pricing?.basis ?? r.d.price_basis), edit: { kind: "text", field: "price_basis" } },
-  { key: "production_notes", label: "Repairs / notes", width: 200, get: (r) => str(r.d.production_notes), edit: { kind: "text", field: "production_notes" } },
-  { key: "notes", label: "Notes", width: 200, get: (r) => str(r.d.notes), edit: { kind: "text", field: "notes" } },
+  { key: "production_notes", label: "Production & repair notes", width: 200, get: (r) => str(r.d.production_notes), edit: { kind: "text", field: "production_notes" } },
+  { key: "notes", label: "Install notes", width: 200, get: (r) => str(r.d.notes), edit: { kind: "text", field: "notes" } },
 ];
 const FROZEN = 2; // Client + Site stay put while the rest scrolls
 

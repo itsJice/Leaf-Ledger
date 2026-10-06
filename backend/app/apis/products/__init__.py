@@ -2260,6 +2260,21 @@ def _parse_size_in(name, diameter_in, width_in, height_in):
     return None
 
 
+def _parse_in_stock(availability):
+    """Pieces in stock when ``availability`` is a bare non-negative integer
+    (the Vickerman scraper writes ``str(QtyInStock)``); ``None`` for status
+    text ("in_stock", "available", ...), blanks, negatives, or NULL."""
+    if availability is None:
+        return None
+    text = str(availability).strip()
+    if not (text.isascii() and text.isdigit()):
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
 async def _load_ball_index(conn):
     now = _time.time()
     cached = _BALL_CACHE.get("rows")
@@ -2274,6 +2289,7 @@ async def _load_ball_index(conn):
         SELECT p.id, s.name AS supplier, p.name, p.supplier_sku, p.color, p.finish,
                p.current_price, p.diameter_in, p.width_in, p.height_in,
                p.image_urls, p.case_qty, p.uom, {PRODUCT_TYPE_SQL} AS product_type,
+               p.availability, p.availability_note,
                p.raw_data->'normalized' AS norm
         FROM products p JOIN suppliers s ON s.id = p.supplier_id
         WHERE p.is_active = TRUE
@@ -2322,6 +2338,9 @@ async def _load_ball_index(conn):
             "image": image,
             "case_qty": r["case_qty"],
             "canonical_key": norm.get("canonical_key"),
+            "availability": r["availability"],
+            "availability_note": r["availability_note"],
+            "in_stock": _parse_in_stock(r["availability"]),
             # search text now includes decoded color+finish, so SKU-only colors match
             "search": " ".join(filter(None, [
                 r["name"], r["color"], norm_color, norm_finish,
@@ -2425,6 +2444,9 @@ async def ornament_match(body: OrnamentMatchRequest):
                 "finish_match": finish_hit,
                 "canonical_key": item.get("canonical_key"),
                 "size_delta": round(dsize, 2),
+                "in_stock": item.get("in_stock"),
+                "availability": item.get("availability"),
+                "availability_note": item.get("availability_note"),
             })
         results.append({
             "size": want_size,

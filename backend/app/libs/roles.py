@@ -178,6 +178,8 @@ PRODUCTION_DENY = (
     # orders, the sourcing worksheet, open orders and vendor POs.
     "/api/jobs/po", "/api/jobs/sourcing", "/api/jobs/open-orders", "/api/jobs/vendors",
     "/api/jobs/order-items", "/api/jobs/needs",
+    # The office calendar feed's link carries its secret; office staff only.
+    "/api/install-schedule/calendar-link",
 )
 
 

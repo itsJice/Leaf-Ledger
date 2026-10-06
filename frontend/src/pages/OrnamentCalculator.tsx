@@ -23,6 +23,9 @@ import {
   ListChecks,
   MessageSquareText,
   ArrowUpRight,
+  AlertTriangle,
+  CheckCircle2,
+  Package,
   Printer,
 } from "components/icons";
 import Layout from "components/Layout";
@@ -40,6 +43,11 @@ import {
   totalColorPct,
   leafLedgerSource,
   leafLedgerMinTopCount,
+  roundToWholePacks,
+  packOrder,
+  packSizeFor,
+  type WholePackResult,
+  type OrnamentOption,
   widthForProfile,
   profileForWidth,
   enhancerLookup,
@@ -92,6 +100,9 @@ interface CatalogMatch {
   packs_needed: number | null;
   color_match: boolean;
   size_delta: number;
+  /** Pieces in stock when the supplier reports a number (Vickerman does), as of the last catalog update. */
+  in_stock?: number | null;
+  availability_note?: string | null;
 }
 interface MatchLine {
   size: number;
@@ -169,13 +180,17 @@ function equalShareBlocks(count: number): ColorBlock[] {
 /** One line on which enhancer-table row the count came from. */
 /** Where an enhancer count came from, in words; `count` is that source's result. */
 function describeEnhancerSource(src: EnhancerSource, count: number): string {
-  if (src.kind === "table") return `Card row ${src.row.label} → ${src.row.count}`;
-  if (src.kind === "nearestWidth") return `No width bucket fits — nearest row ${src.row.label} → ${src.row.count}`;
+  const label = (p: WidthProfile) => WIDTH_PROFILES[p].label.toLowerCase();
+  if (src.kind === "card") return `Card: ${src.heightFt} ft ${label(src.profile)} → ${count}`;
   if (src.kind === "interpolated")
-    return `Between card rows ${src.lower.label} (${src.lower.count}) and ${src.upper.label} (${src.upper.count}) → ${count}`;
-  if (src.kind === "widthScaled")
-    return `${describeEnhancerSource(src.base, src.standardCount)} for a standard ${src.standardWidthIn}" tree · scaled to this width by surface area → ${count}`;
-  return `Beyond the card — row ${src.row.label} (${src.row.count}) scaled by surface area → ${count}`;
+    return `Between card rows ${src.lowerFt} ft (${src.lowerCount}) and ${src.upperFt} ft (${src.upperCount}), ${label(src.profile)} → ${count}`;
+  if (src.kind === "extrapolated")
+    return `Beyond the card — ${label(src.profile)} trend continued from ${src.fromFt} ft (${src.fromCount}) → ${count}`;
+  if (src.kind === "customWidth")
+    return src.narrower === src.wider
+      ? `Custom width outside the card's profiles — ${label(src.narrower)} count → ${count}`
+      : `Custom width between ${label(src.narrower)} (${src.narrowerCount}) and ${label(src.wider)} (${src.widerCount}) → ${count}`;
+  return "Enter tree dimensions to look up the enhancer card";
 }
 
 /** One line on which enhancer-card row the count came from. */
@@ -191,6 +206,18 @@ function colorSplitLabel(quantity: number, colorCount: number): string {
     .map((n, i) => `Color ${i + 1}: ${n}`)
     .join(" · ");
 }
+
+/** "2 packs of 4 per color" when every color orders the same; otherwise the total packs. */
+function toOrderLabel(option: OrnamentOption, quantity: number, colorCount: number): string {
+  const order = packOrder(option.size, quantity, colorCount);
+  if (colorCount > 1 && order.packsPerColor.every((k) => k === order.packsPerColor[0])) {
+    return `${packSummary(option, order.packsPerColor[0] * order.packSize)} per color`;
+  }
+  return packSummary(option, order.ordered);
+}
+
+/** "+0.6%" for a coverage change given as a fraction. */
+const signedPct = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1)}%`;
 
 /**
  * Price of one piece from a catalog match. Catalog prices are per pack — a 4"
@@ -226,6 +253,9 @@ export default function OrnamentCalculator() {
   const [quantities, setQuantities] = useState<QtyMap>(emptyQuantities);
   const [coverageTarget, setCoverageTarget] = useState(40); // the slider's position
   const [recipeMode, setRecipeMode] = useState<RecipeMode>("leafledger");
+  // Leaf & Ledger recipes round to whole packs for every color; packNote is what the last rounding changed.
+  const [wholePacks, setWholePacks] = useState(true);
+  const [packNote, setPackNote] = useState<WholePackResult | null>(null);
   // Leaf & Ledger modifiers (ignored under the Vickerman rules).
   const [designStyle, setDesignStyle] = useState<DesignStyle>("traditional");
   const [colorCount, setColorCount] = useState(LL_DEFAULT_COLOR_COUNT);
@@ -312,6 +342,16 @@ export default function OrnamentCalculator() {
   // The purchase list's name — what Charles reads first. Profile and style are
   // Leaf & Ledger modifiers, so under the Vickerman rules the label has neither.
   const effectiveProfile = widthProfile ?? (dimsValid ? profileForWidth(h, w) : null);
+  // Packs: a Leaf & Ledger design orders each of its colors separately; Vickerman's tool has one.
+  const packColors = recipeMode === "leafledger" ? colorCount : 1;
+  const packMinTop = recipeMode === "leafledger" ? leafLedgerMinTopCount(packColors) : 0;
+  const packIssues = useMemo(
+    () =>
+      Array.from(qtyNumberMap, ([size, qty]) => ({ size, spare: packOrder(size, qty, packColors).spare })).filter(
+        (x) => x.spare > 0
+      ),
+    [qtyNumberMap, packColors]
+  );
   // Printing needs a real tree and at least one ornament to list.
   const canPrint = dimsValid && !tooSmall && totalOrnaments > 0;
   const configLabel = useMemo(
@@ -373,7 +413,7 @@ export default function OrnamentCalculator() {
   // `next` carries a setting that was just changed but hasn't landed in state yet.
   const applyRecipeAtCoverage = (
     pct: number,
-    next: { mode?: RecipeMode; widthIn?: number; style?: DesignStyle; colorCount?: number } = {}
+    next: { mode?: RecipeMode; widthIn?: number; style?: DesignStyle; colorCount?: number; wholePacks?: boolean } = {}
   ) => {
     const width = next.widthIn ?? w;
     if (!Number.isFinite(h) || !Number.isFinite(width) || treeSurfaceArea(h, width) <= 0) return;
@@ -383,9 +423,19 @@ export default function OrnamentCalculator() {
       style: next.style ?? designStyle,
       colorCount: next.colorCount ?? colorCount,
     });
+    let sized = new Map(recipe.lines.map((line) => [line.option.size, line.quantity] as [number, number]));
+    const mode = next.mode ?? recipeMode;
+    const colors = next.colorCount ?? colorCount;
+    if (mode === "leafledger" && (next.wholePacks ?? wholePacks)) {
+      const rounded = roundToWholePacks(sized, colors, leafLedgerMinTopCount(colors));
+      sized = rounded.quantities;
+      setPackNote(rounded);
+    } else {
+      setPackNote(null);
+    }
     const nextQuantities = emptyQuantities();
-    recipe.lines.forEach((line) => {
-      nextQuantities[line.option.size] = line.quantity;
+    sized.forEach((qty, size) => {
+      nextQuantities[size] = qty;
     });
     setQuantities(nextQuantities);
   };
@@ -401,6 +451,23 @@ export default function OrnamentCalculator() {
   const changeColorCount = (count: number) => {
     setColorCount(count);
     if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, { colorCount: count });
+  };
+  const changeWholePacks = (on: boolean) => {
+    setWholePacks(on);
+    if (totalOrnaments > 0) applyRecipeAtCoverage(coverageTarget, { wholePacks: on });
+  };
+  // Move the table as it stands, hand edits included, onto whole packs.
+  const setQuantitiesFromMap = (sized: Map<number, number>) => {
+    const next = emptyQuantities();
+    sized.forEach((qty, size) => {
+      next[size] = qty;
+    });
+    setQuantities(next);
+  };
+  const roundTableToPacks = () => {
+    const rounded = roundToWholePacks(qtyNumberMap, packColors, packMinTop);
+    setQuantitiesFromMap(rounded.quantities);
+    setPackNote(rounded);
   };
   // Width follows height at the chosen profile's ratio until the user sets it themselves.
   const changeHeight = (v: number | "") => {
@@ -438,14 +505,17 @@ export default function OrnamentCalculator() {
     setEnhancersInput("");
   };
   const clearAll = () => {
+    setPackNote(null);
     setQuantities(emptyQuantities());
     setCoverageTarget(0);
   };
-  const setQty = (size: number, raw: string) =>
+  const setQty = (size: number, raw: string) => {
+    setPackNote(null); // the note describes the last rounding, not hand edits
     setQuantities((prev) => ({
       ...prev,
       [size]: raw === "" ? "" : Math.max(0, Math.floor(Number(raw))),
     }));
+  };
 
   // --- Step 2 mutators ---
   const addColorBlock = () => setColorBlocks((b) => [...b, newColorBlock()]);
@@ -468,7 +538,7 @@ export default function OrnamentCalculator() {
       (enhancers > 0 ? `\nEnhancers\t${enhancers}` : "");
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Order copied to clipboard");
+      orderCheckToast("Order copied to clipboard");
     } catch {
       toast.error("Copy failed — use Export CSV instead.");
     }
@@ -492,7 +562,7 @@ export default function OrnamentCalculator() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success("CSV downloaded");
+    orderCheckToast("CSV downloaded");
   };
   const copyShareUrl = async () => {
     const params = new URLSearchParams();
@@ -561,6 +631,35 @@ export default function OrnamentCalculator() {
   );
   const pickedCount = matchRequestLines.filter((l) => picked[lineId(l.size, l.color, l.finish)]).length;
 
+  // Before anything goes to purchasing: every line in whole packs, enough stock, a product picked.
+  // A picked product's own pack size decides its packs; an unpicked line uses Vickerman's.
+  const orderCheck = useMemo(() => {
+    const short: string[] = [];
+    const spare: string[] = [];
+    let unpicked = 0;
+    matchRequestLines.forEach((l) => {
+      const label = `${l.size}" ${l.color ?? ""}${l.finish ? ` ${l.finish}` : ""}`.trim();
+      const pick = picked[lineId(l.size, l.color, l.finish)];
+      if (!pick) unpicked++;
+      const pack = pick ? Math.max(1, pick.case_qty || 1) : packSizeFor(l.size);
+      const arriving = Math.ceil(l.quantity / pack) * pack;
+      if (pick && pick.in_stock != null && pick.in_stock < arriving)
+        short.push(`${label}: order is ${arriving}, only ${pick.in_stock} in stock`);
+      if (arriving > l.quantity)
+        spare.push(`${label}: need ${l.quantity}, packs of ${pack} bring ${arriving} (${arriving - l.quantity} spare)`);
+    });
+    const lines = [
+      ...short,
+      ...spare,
+      ...(unpicked ? [`${unpicked} line${unpicked === 1 ? " has" : "s have"} no product picked`] : []),
+    ];
+    return { lines, ok: lines.length === 0 };
+  }, [matchRequestLines, picked]);
+  const orderCheckToast = (done: string) =>
+    orderCheck.ok
+      ? toast.success(done)
+      : toast.warning(`${done} — ${orderCheck.lines.length} thing${orderCheck.lines.length === 1 ? "" : "s"} to check before ordering`);
+
   // --- Purchase list (designer rules 8 and 9) ---
   // Per-piece price of each size from its picks, weighted by pieces (a size has one line per color).
   const pricePerPieceBySize = useMemo(() => {
@@ -618,7 +717,18 @@ export default function OrnamentCalculator() {
   // Make a swap: the calculator's quantities are the source of truth, and the
   // picks for both sizes go stale (their pack counts were for the old quantities).
   const applySwap = (swap: SizeSwapSuggestion) => {
-    setQuantities((prev) => applySizeSwap(prev, swap));
+    const swapped = applySizeSwap(quantities, swap);
+    if (recipeMode === "leafledger" && wholePacks) {
+      const sized = new Map<number, number>();
+      Object.entries(swapped).forEach(([size, qty]) => {
+        if (typeof qty === "number" && qty > 0) sized.set(Number(size), qty);
+      });
+      const rounded = roundToWholePacks(sized, packColors, packMinTop);
+      setQuantitiesFromMap(rounded.quantities);
+      setPackNote(rounded);
+    } else {
+      setQuantities(swapped);
+    }
     matchRequestLines.forEach((l) => {
       if (l.size === swap.fromSize || l.size === swap.toSize) clearPick(lineId(l.size, l.color, l.finish));
     });
@@ -633,21 +743,25 @@ export default function OrnamentCalculator() {
       const note = split && split.inEnhancers > 0 ? ` (${split.loose} loose / ${split.inEnhancers} in enhancers)` : "";
       return `${line.quantity} × ${line.option.display}"${note}`;
     });
-    const pickLines = pickedRows().map(
-      ({ l, p }) =>
-        `${p.supplier} ${p.sku ?? "(no SKU)"} — ${l.size}" ${l.color ?? ""}${l.finish ? ` ${l.finish}` : ""} · ${
-          p.packs_needed ?? "?"
-        } pk (${l.quantity} pcs)`
-    );
+    // Each product line says what actually arrives: whole packs at the product's own pack size.
+    const pickLines = pickedRows().map(({ l, p }) => {
+      const pack = Math.max(1, p.case_qty || 1);
+      const packs = Math.ceil(l.quantity / pack);
+      const spare = packs * pack - l.quantity;
+      return `${p.supplier} ${p.sku ?? "(no SKU)"} — ${l.size}" ${l.color ?? ""}${l.finish ? ` ${l.finish}` : ""} · ${packs} pk (${
+        packs * pack
+      } pcs${spare > 0 ? `, ${spare} spare` : ""})`;
+    });
     const text = [
       ...(configLabel ? [configLabel] : []),
+      ...(orderCheck.ok ? [] : ["Check before ordering:", ...orderCheck.lines.map((c) => `- ${c}`), ""]),
       ...sizeLines,
       ...(enhancers > 0 ? [`Enhancers: ${enhancers}`] : []),
       ...(pickLines.length ? ["", ...pickLines] : []),
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied for Charles");
+      orderCheckToast("Copied for Charles");
     } catch {
       toast.error("Copy failed.");
     }
@@ -719,6 +833,12 @@ export default function OrnamentCalculator() {
             setDesignStyle={changeStyle}
             colorCount={colorCount}
             setColorCount={changeColorCount}
+            wholePacks={wholePacks}
+            setWholePacks={changeWholePacks}
+            packColors={packColors}
+            packNote={packNote}
+            packIssues={packIssues}
+            roundToPacks={roundTableToPacks}
             quantities={quantities}
             setQty={setQty}
             applyRecipe={applyRecipe}
@@ -773,6 +893,7 @@ export default function OrnamentCalculator() {
             applySwap={applySwap}
             copyForCharles={copyForCharles}
             pickedEstimate={pickedEstimate}
+            orderCheck={orderCheck}
           />
         )}
       </div>
@@ -824,6 +945,10 @@ function PrintSheet(p: PrintSheetProps) {
     return typeof v === "number" && v > 0;
   });
   const showColors = p.colorCount > 1;
+  const colorIndexes = Array.from({ length: showColors ? p.colorCount : 0 }, (_, i) => i);
+  // The color columns are only a breakdown of the total, so they sit on two shades of
+  // gray with lighter numbers; the Total column stays white, dark and largest.
+  const colorBand = (i: number) => (i % 2 === 0 ? "bg-stone-200" : "bg-stone-100");
   // Per-color totals: the sum of each size's split, so they always add up to the total.
   const colorTotals = rows.reduce<number[]>((acc, o) => {
     splitAcrossColors(p.quantities[o.size] as number, p.colorCount).forEach((n, i) => (acc[i] = (acc[i] ?? 0) + n));
@@ -881,29 +1006,61 @@ function PrintSheet(p: PrintSheetProps) {
         <thead>
           <tr className="border-b-2 border-stone-800 text-left text-sm uppercase tracking-wide text-stone-600">
             <th className="py-2 font-semibold">Ornament size</th>
-            {showColors && <th className="py-2 font-semibold">Colors</th>}
-            <th className="py-2 text-right font-semibold">Quantity</th>
+            {colorIndexes.map((i) => (
+              <th key={i} className={`border-l border-stone-300 px-3 py-2 text-center font-semibold text-stone-500 ${colorBand(i)}`}>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-stone-500 text-xs text-white">
+                    {i + 1}
+                  </span>
+                  Color {i + 1}
+                </span>
+                {/* Write-in line for the actual color name. */}
+                <span className="mt-1.5 block h-5 border-b border-stone-400" />
+              </th>
+            ))}
+            <th className={`py-2 text-right font-bold text-stone-900 ${showColors ? "border-l-2 border-stone-800 pl-3" : ""}`}>
+              {showColors ? "Total" : "Quantity"}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((o) => (
-            <tr key={o.size} className="border-b border-stone-200">
-              <td className="py-2.5 text-lg">{o.display}&quot;</td>
-              {showColors && (
-                <td className="py-2.5 text-base text-stone-700">{colorSplitLabel(p.quantities[o.size] as number, p.colorCount)}</td>
-              )}
-              <td className="py-2.5 text-right text-xl font-semibold tabular-nums">{p.quantities[o.size]}</td>
-            </tr>
-          ))}
+          {rows.map((o) => {
+            const split = splitAcrossColors(p.quantities[o.size] as number, p.colorCount);
+            return (
+              <tr key={o.size} className="border-b border-stone-200">
+                <td className="py-2.5 text-lg">{o.display}&quot;</td>
+                {colorIndexes.map((i) => (
+                  <td
+                    key={i}
+                    className={`border-l border-stone-300 px-3 py-2.5 text-center text-lg font-medium text-stone-500 tabular-nums ${colorBand(i)}`}
+                  >
+                    {split[i]}
+                  </td>
+                ))}
+                <td
+                  className={`py-2.5 text-right text-2xl font-bold text-stone-900 tabular-nums ${showColors ? "border-l-2 border-stone-800 pl-3" : ""}`}
+                >
+                  {p.quantities[o.size]}
+                </td>
+              </tr>
+            );
+          })}
           {/* The total is a body row, not a <tfoot>: Chrome can push a footer row onto its own page. */}
           <tr className="border-t-2 border-stone-800">
             <td className="py-3 text-lg font-semibold">Total ornaments</td>
-            {showColors && (
-              <td className="py-3 text-base font-semibold text-stone-700">
-                {colorTotals.map((n, i) => `Color ${i + 1}: ${n}`).join(" · ")}
+            {colorIndexes.map((i) => (
+              <td
+                key={i}
+                className={`border-l border-stone-300 px-3 py-3 text-center text-lg font-semibold text-stone-600 tabular-nums ${colorBand(i)}`}
+              >
+                {colorTotals[i]}
               </td>
-            )}
-            <td className="py-3 text-right text-2xl font-bold tabular-nums">{p.totalOrnaments}</td>
+            ))}
+            <td
+              className={`py-3 text-right text-3xl font-bold text-stone-900 tabular-nums ${showColors ? "border-l-2 border-stone-800 pl-3" : ""}`}
+            >
+              {p.totalOrnaments}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -936,6 +1093,16 @@ interface CalcProps {
   setDesignStyle: (s: DesignStyle) => void;
   colorCount: number;
   setColorCount: (n: number) => void;
+  /** Round recipes to whole packs for every color (Leaf & Ledger). */
+  wholePacks: boolean;
+  setWholePacks: (on: boolean) => void;
+  /** Colors each size is ordered in — the design's count, or 1 under the Vickerman rules. */
+  packColors: number;
+  /** What the last rounding to whole packs changed (null after a hand edit). */
+  packNote: WholePackResult | null;
+  /** Sizes whose quantity would bring spare pieces, and how many. */
+  packIssues: { size: number; spare: number }[];
+  roundToPacks: () => void;
   quantities: QtyMap;
   setQty: (size: number, raw: string) => void;
   applyRecipe: () => void;
@@ -1107,6 +1274,19 @@ function CalculatorStep(p: CalcProps) {
                     ))}
                   </select>
                 </label>
+                <button
+                  onClick={() => p.setWholePacks(!p.wholePacks)}
+                  aria-pressed={p.wholePacks}
+                  title="Round every size to whole packs for each color, staying as close to the recipe as possible"
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    p.wholePacks
+                      ? "border-emerald-700 bg-emerald-700 text-white"
+                      : "border-stone-300 bg-white text-stone-600 hover:bg-stone-100"
+                  }`}
+                >
+                  <Package size={13} />
+                  Whole packs
+                </button>
               </>
             )}
             <span className="text-xs text-stone-500">
@@ -1138,6 +1318,7 @@ function CalculatorStep(p: CalcProps) {
                 const active = numeric > 0;
                 // Leaf & Ledger only — enhancerLines is empty under the Vickerman rules.
                 const split = p.enhancerLines.find((l) => l.option.size === o.size);
+                const spare = active ? packOrder(o.size, numeric, p.packColors).spare : 0;
                 return (
                   <tr
                     key={o.size}
@@ -1163,7 +1344,8 @@ function CalculatorStep(p: CalcProps) {
                       />
                     </td>
                     <td className="px-6 py-2 text-xs text-stone-500">
-                      {active ? packSummary(o, numeric) : "—"}
+                      {active ? toOrderLabel(o, numeric, p.packColors) : "—"}
+                      {spare > 0 && <span className="font-medium text-amber-700"> · {spare} spare</span>}
                       {split && split.inEnhancers > 0 && (
                         <span className="text-stone-400">
                           {" "}· {split.loose} loose / {split.inEnhancers} in enhancers
@@ -1175,6 +1357,41 @@ function CalculatorStep(p: CalcProps) {
               })}
             </tbody>
           </table></div>
+          {(p.packIssues.length > 0 || p.packNote) && (
+            <div
+              className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-6 py-3 text-xs ${
+                p.packIssues.length > 0 ? "border-amber-200 bg-amber-50/60" : "border-stone-200"
+              }`}
+            >
+              {p.packIssues.length > 0 ? (
+                <>
+                  <span className="flex items-center gap-1.5 font-medium text-amber-800">
+                    <AlertTriangle size={13} />
+                    {p.packIssues.length} size{p.packIssues.length === 1 ? " isn't" : "s aren't"} whole packs
+                    {p.packColors > 1 ? " for every color" : ""} — ordering brings{" "}
+                    {p.packIssues.reduce((sum, x) => sum + x.spare, 0)} spare pieces
+                  </span>
+                  <button
+                    onClick={p.roundToPacks}
+                    className="rounded-lg border border-amber-400 bg-white px-2.5 py-1 font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                  >
+                    Round to whole packs
+                  </button>
+                </>
+              ) : (
+                p.packNote && (
+                  <span className="flex items-center gap-1.5 text-stone-600">
+                    <Package size={13} className="text-emerald-700" />
+                    {p.packNote.changes.length === 0
+                      ? `Already whole packs${p.packColors > 1 ? ` for all ${p.packColors} colors` : ""}`
+                      : `Rounded to whole packs${p.packColors > 1 ? ` for ${p.packColors} colors` : ""}: ${p.packNote.changes
+                          .map((c) => `${c.size}" ${c.from} → ${c.to}`)
+                          .join(" · ")} · coverage ${signedPct(p.packNote.coverageChange)}`}
+                  </span>
+                )
+              )}
+            </div>
+          )}
           <div className="flex justify-end border-t border-stone-200 px-6 py-4">
             <button
               onClick={p.goToColors}
@@ -1368,6 +1585,8 @@ interface ColorsProps {
   copyForCharles: () => void;
   /** Packs × pack price over the picks, plus how many picks have no price. */
   pickedEstimate: { total: number; unpriced: number };
+  /** What to check before the order goes to purchasing (whole packs, stock, picks). */
+  orderCheck: { lines: string[]; ok: boolean };
 }
 
 function ColorsStep(p: ColorsProps) {
@@ -1521,6 +1740,10 @@ function ColorsStep(p: ColorsProps) {
                 const pick = p.picked[key];
                 const hex = COLORS.find((c) => c.name === ln.color)?.hex ?? "rgb(var(--ns-200))";
                 const active = p.activeLineKey === key;
+                const packSz = pick ? Math.max(1, pick.case_qty || 1) : 1;
+                const packs = Math.ceil(ln.quantity / packSz);
+                const arriving = packs * packSz;
+                const stockShort = !!pick && pick.in_stock != null && pick.in_stock < arriving;
                 return (
                   <div key={key} className={`px-4 py-3 ${active ? "bg-emerald-50/50" : ""}`}>
                     <div className="mb-2 flex items-center gap-2 text-sm">
@@ -1543,9 +1766,22 @@ function ColorsStep(p: ColorsProps) {
                           <p className="truncate text-[11px] text-stone-500">
                             {pick.supplier} · {pick.sku || "—"}{pick.price != null ? ` · $${pick.price.toFixed(2)}` : ""}
                           </p>
+                          {pick.in_stock != null && (
+                            <p
+                              className={`text-[11px] ${stockShort ? "font-semibold text-rose-600" : "text-stone-400"}`}
+                              title={pick.availability_note ?? undefined}
+                            >
+                              {pick.in_stock.toLocaleString()} in stock{stockShort ? ` — order is ${arriving}` : ""}
+                            </p>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                          <span className="whitespace-nowrap text-sm font-bold text-emerald-800">{pick.packs_needed ?? "—"} pk</span>
+                          <span className="whitespace-nowrap text-sm font-bold text-emerald-800">{packs} pk</span>
+                          <span
+                            className={`whitespace-nowrap text-[10px] ${arriving > ln.quantity ? "font-semibold text-amber-700" : "text-stone-400"}`}
+                          >
+                            {arriving} pcs{arriving > ln.quantity ? ` · ${arriving - ln.quantity} spare` : ""}
+                          </span>
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => p.openPickerFor(key)} className="text-[10px] font-medium text-emerald-700 hover:underline">change</button>
                             <button onClick={() => p.clearPick(key)} className="text-stone-300 hover:text-rose-500" title="Clear"><X size={13} /></button>
@@ -1578,6 +1814,30 @@ function ColorsStep(p: ColorsProps) {
                 </span>
               </span>
               <span className="font-semibold text-stone-800">{money(p.pickedEstimate.total)}</span>
+            </div>
+          )}
+
+          {p.recipeLines.length > 0 && (
+            <div
+              className={`border-t px-5 py-3 text-xs ${p.orderCheck.ok ? "border-stone-200" : "border-amber-200 bg-amber-50/60"}`}
+            >
+              {p.orderCheck.ok ? (
+                <p className="flex items-center gap-2 font-medium text-emerald-800">
+                  <CheckCircle2 size={14} /> Ready to order: whole packs, in stock, every line picked
+                </p>
+              ) : (
+                <>
+                  <p className="mb-1.5 flex items-center gap-2 font-semibold text-amber-800">
+                    <AlertTriangle size={14} /> Check before ordering
+                  </p>
+                  <ul className="list-disc space-y-0.5 pl-5 text-amber-900">
+                    {p.orderCheck.lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <p className="mt-1.5 text-[11px] text-stone-400">Stock comes from the last catalog update, not live.</p>
             </div>
           )}
 

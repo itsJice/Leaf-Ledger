@@ -39,11 +39,11 @@ import json
 import os
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.apis.user_context import get_request_user_id
-from app.libs import client_season
+from app.libs import client_season, roles
 from app.libs.db import ensure_schema_once, get_conn
 from app.libs.jsonutil import loads_json as _loads
 from app.libs.season import season_for
@@ -619,3 +619,20 @@ async def get_history_entry(entry_id: int, version: str) -> dict:
         "updatedBy": row["updated_by"],
         "createdAt": row["created_at"].isoformat() if row["created_at"] else None,
     }
+
+
+@router.get("/calendar-link", dependencies=[Depends(roles.require_role("staff"))])
+async def calendar_link() -> dict:
+    """The office's calendar subscription link (app/apis/install_calendar),
+    for the tool page's "Add to Google Calendar" button.
+
+    Staff and up only: this router is otherwise readable by the warehouse
+    display (VIEWER_READ) and production, and the link carries the feed's
+    secret -- whoever holds it sees every client's address and phone. The
+    path is in roles.PRODUCTION_DENY for the same reason. 404 while
+    INSTALL_CALENDAR_TOKEN is unset, so the button stays hidden.
+    """
+    token = os.getenv("INSTALL_CALENDAR_TOKEN", "")
+    if not token:
+        raise HTTPException(status_code=404, detail="Calendar feed is not set up")
+    return {"path": f"/api/install-calendar/feed.ics?token={token}"}

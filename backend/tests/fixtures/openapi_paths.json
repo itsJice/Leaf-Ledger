@@ -95,6 +95,9 @@
   "/api/clients/{client_id}/seasons/{season}": [
     "PUT"
   ],
+  "/api/clients/{client_id}/staff-alert": [
+    "PUT"
+  ],
   "/api/dashboard/recent-designs": [
     "GET"
   ],
@@ -166,6 +169,9 @@
     "POST"
   ],
   "/api/install-quote/jobs": [
+    "GET"
+  ],
+  "/api/install-schedule/calendar-link": [
     "GET"
   ],
   "/api/install-schedule/history": [
