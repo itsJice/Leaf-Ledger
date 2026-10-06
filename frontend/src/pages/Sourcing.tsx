@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ClipboardList, Plus, Trash2, Search, PackageCheck, FileSpreadsheet,
-  ExternalLink, Check, Package, AlertTriangle, Link2,
+  ExternalLink, Check, Package, AlertTriangle, Link2, ChevronLeft,
 } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
@@ -54,6 +54,15 @@ const btnGhost = "inline-flex items-center gap-1.5 rounded-lg border border-ston
 
 type Run = (fn: () => Promise<Job>, ok?: string) => Promise<Job | null>;
 
+// Size a one-row textarea to its text (a long name wraps on a phone instead
+// of hiding its second line). An inline ref runs on every render, so it
+// follows typing.
+const growToFit = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+};
+
 function stagePill(stage: Stage) {
   const tone: Record<Stage, string> = {
     new: "bg-stone-100 text-stone-600",
@@ -90,8 +99,6 @@ export default function Sourcing() {
   const [loading, setLoading] = useState(false);
 
   const activeId = jobId ? Number(jobId) : null;
-  // Below `md` the worksheet rail sits above the sheet and folds away once one is chosen.
-  const [railOpen, setRailOpen] = useState(false);
 
   const refreshList = useCallback(async () => {
     try { setJobs(await listJobs()); } catch { setJobs([]); }
@@ -152,7 +159,9 @@ export default function Sourcing() {
       </header>
 
       <div className="flex flex-col md:flex-row">
-        <aside className={`${railOpen || !activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-72 md:border-b-0 md:border-r`}>
+        {/* Below `md` this is list -> detail: /sourcing shows the rail as the list,
+            /sourcing/:id only the worksheet with a back link. */}
+        <aside className={`${!activeId ? "block" : "hidden"} w-full flex-shrink-0 border-b border-stone-200 px-3 py-4 md:block md:min-h-[calc(100vh-65px)] md:w-72 md:border-b-0 md:border-r`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Worksheets ({jobs.length})</p>
           {jobs.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">Nothing yet. Start one when a purple sheet lands on your desk.</p>
@@ -161,10 +170,10 @@ export default function Sourcing() {
               {jobs.map((j) => {
                 const active = j.id === activeId;
                 return (
-                  <button key={j.id} onClick={() => { navigate(`/sourcing/${j.id}`); setRailOpen(false); }}
-                    className={`flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
-                    <span className="flex items-center justify-between gap-2">
-                      <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
+                  <button key={j.id} onClick={() => navigate(`/sourcing/${j.id}`)}
+                    className={`flex flex-col rounded-lg px-3 py-2.5 text-left md:py-2 ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
+                    <span className="flex items-start justify-between gap-2 md:items-center">
+                      <span className={`line-clamp-2 text-sm font-medium md:truncate ${active ? "text-emerald-900" : "text-stone-700"}`}>{j.name}</span>
                       {stagePill(j.stage)}
                     </span>
                     <span className="mt-0.5 truncate text-xs text-stone-400">
@@ -182,18 +191,18 @@ export default function Sourcing() {
           )}
         </aside>
 
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
+        <main className="min-w-0 max-w-[1600px] flex-1 px-4 py-6 sm:px-8">
           {activeId && (
             <button
               type="button"
-              onClick={() => setRailOpen((v) => !v)}
-              aria-expanded={railOpen}
-              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 md:hidden"
+              onClick={() => navigate("/sourcing")}
+              className="-ml-1 mb-3 inline-flex items-center gap-1 rounded-lg px-1 py-2 text-sm font-medium text-emerald-700 md:hidden"
             >
-              <ClipboardList size={13} /> {railOpen ? "Hide" : "Show"} worksheets ({jobs.length})
+              <ChevronLeft size={16} /> All worksheets ({jobs.length})
             </button>
           )}
-          {!activeId ? <Empty /> : loading && !job ? (
+          {/* On a phone the rail above is the list; "pick one on the left" is md+. */}
+          {!activeId ? <div className="hidden md:block"><Empty /></div> : loading && !job ? (
             <p className="py-20 text-center text-sm text-stone-400">Loading…</p>
           ) : !job ? <Empty /> : (
             <>
@@ -240,10 +249,13 @@ function JobHeader({ job, onDelete, onChange }: { job: Job; onDelete: () => void
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <input value={name} onChange={(e) => setName(e.target.value)}
+        <div className="min-w-0 basis-full sm:basis-auto">
+          {/* Sizes to its text on a phone so a long name wraps instead of
+              being cut off; Enter still just commits. */}
+          <textarea ref={(el) => growToFit(el)} value={name} rows={1} onChange={(e) => setName(e.target.value.replace(/\n/g, " "))}
             onBlur={() => name.trim() && name !== job.name && onChange({ name: name.trim() })}
-            className="w-full max-w-xl bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500"
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
+            className="block w-full max-w-xl resize-none overflow-hidden bg-transparent text-lg font-semibold text-stone-800 outline-none focus:border-b focus:border-emerald-500 sm:whitespace-pre"
             style={{ fontFamily: "'Sora', system-ui, sans-serif" }} />
           <p className="text-xs text-stone-500">
             {job.client_name || "No client"}{job.collection ? ` · ${job.collection}` : ""}
@@ -257,7 +269,7 @@ function JobHeader({ job, onDelete, onChange }: { job: Job; onDelete: () => void
       </div>
       <ol className="mt-4 grid grid-cols-5 gap-1">
         {STAGES.map((s, i) => (
-          <li key={s} className={`border-t-2 px-1 pt-1.5 text-[11px] font-semibold ${i < idx ? "border-emerald-600 text-emerald-700" : i === idx ? "border-emerald-700 text-emerald-900" : "border-stone-200 text-stone-400"}`}>
+          <li key={s} className={`min-w-0 truncate border-t-2 px-1 pt-1.5 text-[10px] font-semibold sm:text-[11px] ${i < idx ? "border-emerald-600 text-emerald-700" : i === idx ? "border-emerald-700 text-emerald-900" : "border-stone-200 text-stone-400"}`}>
             {STAGE_LABEL[s]}
           </li>
         ))}
@@ -387,10 +399,10 @@ function Worksheet({ job, run, me }: { job: Job; run: Run; me?: string }) {
         {/* Entry: the purple sheet's lines */}
         <div className="mb-4 rounded-xl border border-stone-200 bg-white p-3">
           <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-[14rem] flex-1 flex-col gap-1 text-xs text-stone-500">Item (from the purple sheet)
+            <label className="flex min-w-[14rem] flex-1 basis-full flex-col gap-1 text-xs text-stone-500 sm:basis-0">Item (from the purple sheet)
               <input value={draft.label} placeholder="cream hydrangeas" onChange={(e) => setDraft({ ...draft, label: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addLine()} className={input} />
             </label>
-            <label className="flex w-48 flex-col gap-1 text-xs text-stone-500">Spec / color / size
+            <label className="flex min-w-0 flex-1 basis-[calc(100%-6.5rem)] flex-col gap-1 text-xs text-stone-500 sm:w-48 sm:flex-none sm:basis-auto">Spec / color / size
               <input value={draft.spec} placeholder="white, 26 in" onChange={(e) => setDraft({ ...draft, spec: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addLine()} className={input} />
             </label>
             <label className="flex w-24 flex-col gap-1 text-xs text-stone-500">Need
@@ -436,9 +448,9 @@ function Worksheet({ job, run, me }: { job: Job; run: Run; me?: string }) {
             <p className="mt-1 text-xs text-stone-500">Some vendors already have an open purchase order. Add to it, or start a new one.</p>
             <div className="mt-4 flex flex-col gap-3">
               {plan.map((r, i) => (
-                <label key={r.key} className="flex items-center justify-between gap-3 text-sm">
+                <label key={r.key} className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <span className="font-medium text-stone-700">{r.vendor}</span>
-                  <select value={r.choice} onChange={(e) => setPlan(plan.map((x, j) => (j === i ? { ...x, choice: Number(e.target.value) } : x)))} className={`${input} w-64`}>
+                  <select value={r.choice} onChange={(e) => setPlan(plan.map((x, j) => (j === i ? { ...x, choice: Number(e.target.value) } : x)))} className={`${input} w-full sm:w-64`}>
                     <option value={0}>New purchase order</option>
                     {r.options.map((o) => <option key={o.id} value={o.id}>Add to: {o.name} ({o.status.replace("_", " ")}, {o.line_count} line{o.line_count === 1 ? "" : "s"})</option>)}
                   </select>
@@ -482,8 +494,8 @@ function NeedCard({ need, run, me, jobId, onCatalog, onOpenOrders, onManual }: {
     <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 bg-stone-50 px-3 py-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <input value={v.label} onChange={(e) => setV({ ...v, label: e.target.value })} onBlur={() => commit("label")} className={`${input} w-56 font-semibold`} />
-          <input value={v.spec} placeholder="spec" onChange={(e) => setV({ ...v, spec: e.target.value })} onBlur={() => commit("spec")} className={`${input} w-40`} />
+          <input value={v.label} onChange={(e) => setV({ ...v, label: e.target.value })} onBlur={() => commit("label")} className={`${input} w-full font-semibold sm:w-56`} />
+          <input value={v.spec} placeholder="spec" onChange={(e) => setV({ ...v, spec: e.target.value })} onBlur={() => commit("spec")} className={`${input} min-w-0 flex-1 sm:w-40 sm:flex-none`} />
           <span className="text-xs text-stone-500">need</span>
           <input type="number" min={0} step="any" value={v.need_qty} onChange={(e) => setV({ ...v, need_qty: e.target.value })} onBlur={() => commit("need_qty")} className={`${input} w-20 text-right font-semibold`} />
           <span className="text-xs text-stone-500">
@@ -495,17 +507,17 @@ function NeedCard({ need, run, me, jobId, onCatalog, onOpenOrders, onManual }: {
             : need.gap_qty > 0 ? <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-700">Proposed, not sent</span>
             : <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Coming</span>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={onOpenOrders} className={btnGhost} title="Use something already on order"><Link2 size={12} /> Open orders</button>
           <button onClick={() => onCatalog()} className={btnGhost}><Search size={12} /> Catalog</button>
           <button onClick={onManual} className={btnGhost}><Plus size={12} /> By hand</button>
-          <button onClick={() => run(() => deleteNeed(need.id))} className="text-stone-300 hover:text-rose-600" aria-label="Remove line"><Trash2 size={14} /></button>
+          <button onClick={() => run(() => deleteNeed(need.id))} className="-m-1.5 p-1.5 text-stone-300 hover:text-rose-600" aria-label="Remove line"><Trash2 size={14} /></button>
         </div>
       </div>
       {need.lines.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="block w-full text-sm sm:table sm:min-w-[980px]">
-            <thead className="hidden sm:table-header-group">
+          <table className="block w-full text-sm xl:table xl:min-w-[980px]">
+            <thead className="hidden xl:table-header-group">
               <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
                 <th className="px-3 py-2 font-medium">Product</th>
                 <th className="px-2 py-2 font-medium">Vendor · SKU</th>
@@ -521,7 +533,7 @@ function NeedCard({ need, run, me, jobId, onCatalog, onOpenOrders, onManual }: {
                 <th />
               </tr>
             </thead>
-            <tbody className="block sm:table-row-group">
+            <tbody className="block xl:table-row-group">
               {need.lines.map((l) => <SourcingRow key={l.id} line={l} need={need} run={run} me={me} jobId={jobId} onSubstitute={() => onCatalog(l)} />)}
             </tbody>
           </table>
@@ -550,8 +562,8 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
   };
   const dim = line.status === "sold_out" || line.status === "on_hold";
   return (
-    <tr className={`block border-t border-stone-100 px-3 py-3 sm:table-row sm:p-0 sm:align-middle ${dim ? "opacity-60" : ""}`}>
-      <td className="block pb-2 sm:table-cell sm:px-3 sm:py-2">
+    <tr className={`block border-t border-stone-100 px-3 py-3 xl:table-row xl:p-0 xl:align-middle ${dim ? "opacity-60" : ""}`}>
+      <td className="block pb-2 xl:table-cell xl:px-3 xl:py-2">
         <div className="flex items-center gap-2">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-50">
             {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Package size={18} className="text-stone-300" />}
@@ -563,19 +575,19 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
           </div>
         </div>
       </td>
-      <td className="flex items-center justify-between gap-3 py-1 text-xs text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Vendor · SKU</span><span className="text-right sm:text-left">{line.vendor_name || "—"}<br /><span className="font-mono text-[11px] text-stone-400">{line.sku || ""}</span></span></td>
-      <td className="flex items-center justify-between gap-3 py-1 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Status</span>
+      <td className="flex items-center justify-between gap-3 py-1 text-xs text-stone-600 xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Vendor · SKU</span><span className="text-right xl:text-left">{line.vendor_name || "—"}<br /><span className="font-mono text-[11px] text-stone-400">{line.sku || ""}</span></span></td>
+      <td className="flex items-center justify-between gap-3 py-1 xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Status</span>
         {locked ? linePill(line.status) : (
           <select value={line.status} onChange={(e) => save({ status: e.target.value as SourcingStatus })} className={`${input} text-xs`}>
             {(["proposed", "ready", "follow_up", "sold_out", "on_hold"] as SourcingStatus[]).map((s) => <option key={s} value={s}>{SOURCING_LABEL[s]}</option>)}
           </select>
         )}
       </td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Covers</span>
+      <td className="flex items-center justify-between gap-3 py-1 text-right xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Covers</span>
         {line.status === "allocated" ? <span className="tabular-nums">{qty(line.allocated_qty)}</span>
           : <input type="number" min={0} step="any" value={v.covers} disabled={locked} onChange={(e) => setV({ ...v, covers: e.target.value })} onBlur={() => Number(v.covers) !== line.covers_qty && save({ covers_qty: Number(v.covers) })} className={`${input} w-16 text-right`} />}
       </td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Pack</span>
+      <td className="flex items-center justify-between gap-3 py-1 text-right xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Pack</span>
         {line.status === "allocated" ? "—" : (
           <div className="flex items-center justify-end gap-1">
             <input type="number" min={1} value={v.pack} disabled={locked} onChange={(e) => setV({ ...v, pack: e.target.value })} onBlur={() => Number(v.pack) !== line.pack_qty && save({ pack_qty: Math.max(1, Number(v.pack)) })} className={`${input} w-14 text-right`} />
@@ -583,8 +595,8 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
           </div>
         )}
       </td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right tabular-nums text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Packs</span><span>{line.status === "allocated" ? "—" : line.packs}</span></td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">O/O qty</span>
+      <td className="flex items-center justify-between gap-3 py-1 text-right tabular-nums text-stone-600 xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Packs</span><span>{line.status === "allocated" ? "—" : line.packs}</span></td>
+      <td className="flex items-center justify-between gap-3 py-1 text-right xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">O/O qty</span>
         {line.status === "allocated" ? "—" : (
           <div className="flex flex-col items-end">
             <input type="number" min={0} step="any" value={v.order} onChange={(e) => setV({ ...v, order: e.target.value })} onBlur={() => Number(v.order) !== line.order_qty && save({ order_qty: Number(v.order) })} className={`${input} w-16 text-right font-semibold`} />
@@ -592,11 +604,11 @@ function SourcingRow({ line, need, run, me, jobId, onSubstitute }: {
           </div>
         )}
       </td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Unit cost</span><input type="number" min={0} step="0.01" value={v.cost} disabled={locked} onChange={(e) => setV({ ...v, cost: e.target.value })} onBlur={() => (v.cost === "" ? null : Number(v.cost)) !== (line.unit_cost ?? null) && save({ unit_cost: v.cost === "" ? (null as any) : Number(v.cost) })} className={`${input} w-20 text-right`} /></td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right tabular-nums text-stone-600 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Adj. unit</span><span>{line.price_per === "pack" ? money(line.adj_unit_cost) : "—"}</span></td>
-      <td className="flex items-center justify-between gap-3 py-1 text-right font-medium tabular-nums text-stone-800 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Line</span><span>{line.status === "allocated" ? "—" : money(line.line_cost)}</span></td>
-      <td className="flex items-center justify-between gap-3 py-1 sm:table-cell sm:px-2 sm:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden">Notes</span><input value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} onBlur={() => v.notes !== (line.notes || "") && save({ notes: v.notes })} className={`${input} w-full min-w-0 sm:w-40`} /></td>
-      <td className="block pt-2 sm:table-cell sm:px-2 sm:py-2">
+      <td className="flex items-center justify-between gap-3 py-1 text-right xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Unit cost</span><input type="number" min={0} step="0.01" value={v.cost} disabled={locked} onChange={(e) => setV({ ...v, cost: e.target.value })} onBlur={() => (v.cost === "" ? null : Number(v.cost)) !== (line.unit_cost ?? null) && save({ unit_cost: v.cost === "" ? (null as any) : Number(v.cost) })} className={`${input} w-20 text-right`} /></td>
+      <td className="flex items-center justify-between gap-3 py-1 text-right tabular-nums text-stone-600 xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Adj. unit</span><span>{line.price_per === "pack" ? money(line.adj_unit_cost) : "—"}</span></td>
+      <td className="flex items-center justify-between gap-3 py-1 text-right font-medium tabular-nums text-stone-800 xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Line</span><span>{line.status === "allocated" ? "—" : money(line.line_cost)}</span></td>
+      <td className="flex items-center justify-between gap-3 py-1 xl:table-cell xl:px-2 xl:py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-stone-400 xl:hidden">Notes</span><input value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} onBlur={() => v.notes !== (line.notes || "") && save({ notes: v.notes })} className={`${input} w-full min-w-0 xl:w-40`} /></td>
+      <td className="block pt-2 xl:table-cell xl:px-2 xl:py-2">
         <div className="flex items-center justify-end gap-1.5">
           {!locked && <button onClick={onSubstitute} className="text-[11px] text-stone-500 hover:text-emerald-700" title="Sold out? Pick a substitute and keep the history">Substitute</button>}
           <button onClick={followUp} className="text-[11px] text-stone-500 hover:text-amber-700">Follow-up</button>
@@ -717,9 +729,13 @@ function TasksPanel({ job, run, me }: { job: Job; run: Run; me?: string }) {
           {open.map((t) => (
             <li key={t.id} className="flex items-center gap-3 text-sm">
               <input type="checkbox" checked={false} onChange={() => run(() => updateTask(t.id, { done: true }))} />
-              <span className="flex-1 text-stone-800">{t.title}</span>
-              <span className="text-[11px] text-stone-400">{t.assignee || ""}{t.due ? ` · due ${dateStr(t.due)}` : ""}</span>
-              <button onClick={() => run(() => deleteTask(t.id))} className="text-stone-300 hover:text-rose-600" aria-label="Remove"><Trash2 size={13} /></button>
+              {/* On a phone the assignee/due line goes under the title, or it squeezes the title to a word per line. */}
+              <span className="min-w-0 flex-1 text-stone-800">
+                {t.title}
+                <span className="block text-[11px] text-stone-400 sm:hidden">{t.assignee || ""}{t.due ? ` · due ${dateStr(t.due)}` : ""}</span>
+              </span>
+              <span className="hidden text-[11px] text-stone-400 sm:inline">{t.assignee || ""}{t.due ? ` · due ${dateStr(t.due)}` : ""}</span>
+              <button onClick={() => run(() => deleteTask(t.id))} className="-m-2 p-2 text-stone-300 hover:text-rose-600 sm:m-0 sm:p-0" aria-label="Remove"><Trash2 size={13} /></button>
             </li>
           ))}
           {done.map((t) => (
@@ -779,26 +795,30 @@ function POCard({ po, run, reload }: { po: Job["purchase_orders"][number]; run: 
         <span className="ml-auto text-xs text-stone-500">{qty(po.received_qty)}/{qty(po.total_qty)} checked in · {pct}%</span>
         <a href="/orders" onClick={() => { try { localStorage.setItem(ACTIVE_ORDER_KEY, String(po.id)); } catch {} }} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"><ExternalLink size={11} /> Open PO</a>
       </div>
-      <div className="grid grid-cols-3 gap-3 px-4 py-3">
+      <div className="grid grid-cols-2 gap-3 px-4 py-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs text-stone-500">Vendor order #<input value={meta.vendor_order_no} onChange={(e) => setMeta({ ...meta, vendor_order_no: e.target.value })} onBlur={() => meta.vendor_order_no !== (po.vendor_order_no || "") && savePO({ vendor_order_no: meta.vendor_order_no })} className={input} /></label>
-        <label className="flex flex-col gap-1 text-xs text-stone-500">Arrival<input type="date" value={meta.expected_arrival} onChange={(e) => setMeta({ ...meta, expected_arrival: e.target.value })} onBlur={() => meta.expected_arrival !== dateStr(po.expected_arrival) && savePO({ expected_arrival: meta.expected_arrival || null })} className={input} /></label>
+        <label className="order-last col-span-2 flex flex-col gap-1 text-xs text-stone-500 sm:order-none sm:col-span-1">Arrival<input type="date" value={meta.expected_arrival} onChange={(e) => setMeta({ ...meta, expected_arrival: e.target.value })} onBlur={() => meta.expected_arrival !== dateStr(po.expected_arrival) && savePO({ expected_arrival: meta.expected_arrival || null })} className={input} /></label>
         <label className="flex flex-col gap-1 text-xs text-stone-500">Freight<input type="number" step="0.01" value={meta.freight} onChange={(e) => setMeta({ ...meta, freight: e.target.value })} onBlur={() => savePO({ freight: meta.freight === "" ? null : Number(meta.freight) })} className={input} /></label>
       </div>
       {open && (
         <div className="border-t border-stone-100">
           {lines === null ? <p className="px-4 py-3 text-xs text-stone-400">Loading…</p> : (
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-[11px] uppercase tracking-wide text-stone-400"><th className="px-4 py-2 font-medium">Line</th><th className="px-2 py-2 font-medium">For</th><th className="px-2 py-2 text-right font-medium">Ordered</th><th className="px-2 py-2 text-right font-medium">Checked in</th><th className="px-2 py-2 text-right font-medium">Check in</th></tr></thead>
-              <tbody>
+            // Phone: each line is a small card (name, then label/value rows), the
+            // same block-on-phone / table-from-sm pattern as the worksheet lines.
+            <table className="block w-full text-sm sm:table">
+              <thead className="hidden sm:table-header-group"><tr className="text-left text-[11px] uppercase tracking-wide text-stone-400"><th className="px-4 py-2 font-medium">Line</th><th className="px-2 py-2 font-medium">For</th><th className="px-2 py-2 text-right font-medium">Ordered</th><th className="px-2 py-2 text-right font-medium">Checked in</th><th className="px-2 py-2 text-right font-medium">Check in</th></tr></thead>
+              <tbody className="block sm:table-row-group">
                 {lines.map((l) => {
                   const left = l.quantity - l.received_qty;
+                  const cell = "flex items-center justify-between gap-3 py-0.5 sm:table-cell sm:px-2 sm:py-2";
+                  const tag = "text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:hidden";
                   return (
-                    <tr key={l.id} className="border-t border-stone-100">
-                      <td className="px-4 py-2"><span className="font-medium text-stone-800">{l.name}</span>{l.sku && <span className="ml-2 font-mono text-[11px] text-stone-400">{l.sku}</span>}</td>
-                      <td className="px-2 py-2 text-xs text-stone-500">{l.need_label || "—"}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{qty(l.quantity)}</td>
-                      <td className={`px-2 py-2 text-right tabular-nums ${left <= 0 ? "text-emerald-700" : ""}`}>{qty(l.received_qty)}</td>
-                      <td className="px-2 py-2 text-right">
+                    <tr key={l.id} className="block border-t border-stone-100 px-4 py-3 sm:table-row sm:p-0">
+                      <td className="block pb-1 sm:table-cell sm:px-4 sm:py-2"><span className="font-medium text-stone-800">{l.name}</span>{l.sku && <span className="ml-2 font-mono text-[11px] text-stone-400">{l.sku}</span>}</td>
+                      <td className={`${cell} text-xs text-stone-500`}><span className={tag}>For</span>{l.need_label || "—"}</td>
+                      <td className={`${cell} text-right tabular-nums`}><span className={tag}>Ordered</span>{qty(l.quantity)}</td>
+                      <td className={`${cell} text-right tabular-nums ${left <= 0 ? "text-emerald-700" : ""}`}><span className={tag}>Checked in</span>{qty(l.received_qty)}</td>
+                      <td className={`${cell} text-right`}><span className={tag}>Check in</span>
                         {left > 0 ? (
                           <div className="flex items-center justify-end gap-1.5">
                             <input type="number" min={0} step="any" value={recv[l.id] ?? String(left)} onChange={(e) => setRecv({ ...recv, [l.id]: e.target.value })} className={`${input} w-16 text-right`} />

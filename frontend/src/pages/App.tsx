@@ -196,14 +196,15 @@ export default function App() {
         </button>
       </header>
 
-      <div className="max-w-6xl px-4 sm:px-10 py-8">
-        {/* Stats — each one is a doorway to the page behind it. */}
-        <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="max-w-6xl px-4 sm:px-10 py-6 sm:py-8">
+        {/* Stats — each one is a doorway to the page behind it. Two across on a
+            phone (icon above the number) so all four fit on the first screen. */}
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:mb-10 sm:gap-4 lg:grid-cols-4">
           {STATS.map(({ label, value, sub, icon: Icon, path }) => (
             <button
               key={label}
               onClick={() => navigate(path)}
-              className="flex items-center gap-4 rounded-xl border border-stone-200 bg-white px-5 py-4 text-left transition-colors hover:border-stone-300"
+              className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-left transition-colors hover:border-stone-300 sm:flex-row sm:items-center sm:gap-4 sm:px-5 sm:py-4"
             >
               <div
                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
@@ -211,10 +212,10 @@ export default function App() {
               >
                 <Icon size={16} className="text-emerald-700" strokeWidth={1.8} />
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-2xl font-bold text-stone-800">{value}</p>
+              <div className="min-w-0 max-w-full">
+                <p className="truncate text-lg font-bold text-stone-800 sm:text-2xl">{value}</p>
                 <p className="mt-0.5 truncate text-xs leading-tight text-stone-500">{label}</p>
-                {sub && <p className="mt-0.5 truncate text-[11px] text-stone-400">{sub}</p>}
+                {sub && <p className="mt-0.5 text-[11px] leading-snug text-stone-400 sm:truncate">{sub}</p>}
               </div>
             </button>
           ))}
@@ -278,7 +279,7 @@ function RecentDesigns({ designs, loading }: { designs: RecentDesign[]; loading:
         </h2>
         <button
           onClick={() => navigate("/designs")}
-          className="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+          className="-my-2 px-1 py-2 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
         >
           View all
         </button>

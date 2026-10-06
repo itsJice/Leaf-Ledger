@@ -97,6 +97,8 @@ class SupplierCreate(SupplierTermsFields):
     name: str
     scraper_key: Optional[str] = None
     login_url: Optional[str] = None
+    login_username: Optional[str] = None
+    login_password: Optional[str] = None
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
@@ -215,15 +217,23 @@ async def create_supplier(body: SupplierCreate):
     conn = await get_conn()
     try:
         scraper_key = _infer_scraper_key(body.name, body.scraper_key)
+        # A login typed into the Add Supplier form used to be dropped here --
+        # only Edit saved it (comment #12). Blank boxes are stored as NULL,
+        # and the status mirrors update_supplier: untested when both are set.
+        username = (body.login_username or "").strip() or None
+        password = body.login_password if (body.login_password or "").strip() else None
+        credential_status = "untested" if username and password else "missing"
         row = await conn.fetchrow("""
             INSERT INTO suppliers (name, scraper_key, scraper_enabled, login_url, contact_name, contact_email, contact_phone, notes, categories,
-                                   shipping_speed, shipping_notes, net_terms, credit_limit, payment_process, secondary_contacts)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
-            RETURNING *, 0 as product_count, FALSE as has_credentials
+                                   shipping_speed, shipping_notes, net_terms, credit_limit, payment_process, secondary_contacts,
+                                   login_username, login_password, credential_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18)
+            RETURNING *, 0 as product_count
         """, body.name, scraper_key, scraper_key is not None, body.login_url, body.contact_name, body.contact_email, body.contact_phone, body.notes, body.categories,
              body.shipping_speed, body.shipping_notes, body.net_terms, body.credit_limit, body.payment_process,
-             json.dumps([c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in body.secondary_contacts]))
-        return _supplier_row(row)
+             json.dumps([c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in body.secondary_contacts]),
+             username, password, credential_status)
+        return _supplier_row(row, has_credentials=bool(username and password))
     finally:
         await conn.close()
 

@@ -43,7 +43,7 @@ function ProductDetailSection({ title, rows }: { title: string; rows: Array<[str
 
 function ProductDetailRow({ label, value }: { label: string; value: unknown }) {
   return (
-    <div className="grid grid-cols-[132px_minmax(0,1fr)] gap-3 border-b border-stone-100 py-2 last:border-b-0">
+    <div className="grid grid-cols-[108px_minmax(0,1fr)] gap-3 sm:grid-cols-[132px_minmax(0,1fr)] border-b border-stone-100 py-2 last:border-b-0">
       <dt className="text-xs font-semibold text-stone-500">{label}</dt>
       <dd className="text-xs text-stone-800 break-words">{formatDetailValue(value)}</dd>
     </div>
@@ -177,14 +177,17 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
   // modal instead of navigating - the sidebar was never actually reachable.
   // Starting the backdrop at the sidebar's right edge (w-60 = 15rem) leaves
   // that strip fully interactive; everything to its right still dims and
-  // still closes on an outside click. The sidebar has no responsive variant
-  // (always `fixed left-0`, no mobile collapse), so this offset applies
-  // unconditionally rather than only above a breakpoint.
+  // still closes on an outside click. Below lg the sidebar is an off-canvas
+  // drawer behind the 56px top bar, so there the offset would only shove the
+  // modal 240px off a phone screen: it covers the full width instead, and on
+  // a phone the panel goes full-screen with its body scrolling inside.
   return (
-    <div className="fixed inset-y-0 left-60 right-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-stone-100 px-5 py-4">
-          <div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 sm:px-4 lg:left-60" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-xl">
+        {/* Phone: title and close on the first row, the job picker, heart and
+            pin wrap onto a second. sm+: one row, as before. */}
+        <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 border-b border-stone-100 px-4 py-3 sm:flex sm:gap-4 sm:px-5 sm:py-4">
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-stone-400">{product.supplier_name}</p>
             <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{displayName}</h2>
             <p className="text-xs text-stone-500">{product.supplier_sku || raw["Item No"]}</p>
@@ -194,7 +197,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
               </p>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="col-span-2 row-start-2 flex flex-wrap items-center gap-2 sm:ml-auto sm:shrink-0 sm:flex-nowrap">
             <WorkingJobBar value={working} onChange={setWorking} />
             <button onClick={toggleFav} title={isFav ? "Remove favorite" : "Add to favorites"}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white ring-1 ring-stone-200 hover:ring-rose-300">
@@ -204,14 +207,14 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
               onPinsChanged={(pins) => { setPinnedIds(new Set(pins.map((x) => x.product_id))); if (working.jobId) setCachedPins(working.jobId, pins); }}
               iconSize={16}
               className={`flex h-9 w-9 items-center justify-center rounded-full ring-1 ${pinned ? "bg-emerald-700 ring-emerald-700" : "bg-white ring-stone-200 hover:ring-emerald-400"}`} />
-            <button onClick={onClose} className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700">
-              <X size={18} />
-            </button>
           </div>
+          <button onClick={onClose} aria-label="Close" className="col-start-2 row-start-1 -mr-1 rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700 sm:-ml-2 sm:mr-0 sm:shrink-0">
+            <X size={18} />
+          </button>
         </div>
         <SupplierLinkBar supplierId={product.supplier_id} supplierName={product.supplier_name} productUrl={productUrl} />
-        <div className="grid gap-0 overflow-y-auto md:grid-cols-[340px_minmax(0,1fr)]" style={{ maxHeight: "calc(90vh - 82px)" }}>
-          <div className="border-b border-stone-100 bg-stone-50 p-5 md:border-b-0 md:border-r">
+        <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto md:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="border-b border-stone-100 bg-stone-50 p-4 sm:p-5 md:border-b-0 md:border-r">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
               Images{galleryImages.length > 0 ? ` (${galleryImages.length})` : ""}
             </p>
@@ -289,7 +292,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product; onC
               <p className="text-lg font-semibold text-stone-800">{sourceBasePrice(product)} <span className="text-xs font-medium text-stone-400">/ {sourceUom(product)}</span></p>
             </div>
           </div>
-          <div className="space-y-5 bg-stone-50/40 p-5">
+          <div className="space-y-5 bg-stone-50/40 p-4 sm:p-5">
             {detailPending && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
                 Pending detail backfill: source-page fields may be incomplete.

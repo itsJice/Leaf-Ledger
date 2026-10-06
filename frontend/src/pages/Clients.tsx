@@ -5,6 +5,7 @@ import {
   Briefcase,
   Check,
   ChevronDown,
+  ChevronLeft,
   Clock,
   FolderOpen,
   Mail,
@@ -30,7 +31,9 @@ import { CLIENTS_PAGE_CACHE_KEY } from "../constants";
 import { notifyProjectsChanged } from "utils/projectsChanged";
 import { SeasonHistory } from "./clients/SeasonHistory";
 import { ChristmasGridView } from "./ChristmasGrid";
+import { currentSeasonLabel } from "utils/season";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
+import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
  *  The scheduler orders a crew's stops morning -> flexible -> afternoon -> late. */
@@ -90,6 +93,10 @@ type ClientRecord = {
   secondary_contacts?: SecondaryContact[];
   created_at?: string | null;
   updated_at?: string | null;
+  /** The staff alert -- the amber icon next to the client's name. */
+  staff_alert?: string | null;
+  staff_alert_by?: string | null;
+  staff_alert_at?: string | null;
   project_count: number;
   bucket_count: number;
   selected_cost: number;
@@ -111,6 +118,7 @@ type ClientGroup = {
   timePreference?: TimePreference | null;
   formerNames: string[];
   secondaryContacts: SecondaryContact[];
+  staffAlert: StaffAlertValue | null;
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
   projects: ProjectSummary[];
@@ -202,6 +210,13 @@ function bucketQuantity(bucket: Bucket) {
   return Math.max(1, Number(bucket.requested_quantity || 1));
 }
 
+/** The HTTP status of a failed request (apiClient throws the Response), or
+ *  0 when it never answered -- a timeout or no connection. */
+function failedStatus(error: unknown): number {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : 0;
+}
+
 function withClientTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error("Request timed out")), ms);
@@ -269,6 +284,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       timePreference: client.time_preference ?? null,
       formerNames: client.former_names || [],
       secondaryContacts: client.secondary_contacts || [],
+      staffAlert: staffAlertOf(client),
       activity: client.activity || [],
       source: client.source,
       projects: stats?.projects || [],
@@ -285,6 +301,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       name: stats.name,
       formerNames: [],
       secondaryContacts: [],
+      staffAlert: null,
       activity: [],
       source: "from_projects" as const,
       projects: stats.projects,
@@ -298,12 +315,14 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
   return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function NewClientModal({ client, onClose, onSaved }: {
+function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
   client?: ClientGroup | null;
   onClose: () => void;
   onSaved: (client: ClientRecord) => void;
+  onAlertSaved?: (saved: StaffAlertSaved) => void;
 }) {
   const editing = Boolean(client?.id);
+  const [alert, setAlert] = useState<StaffAlertValue | null>(client?.staffAlert ?? null);
   const [form, setForm] = useState({
     name: client?.name || "", email: client?.email || "", phone: client?.phone || "",
     notes: client?.notes || "", street: client?.street || "", city: client?.city || "",
@@ -385,22 +404,24 @@ function NewClientModal({ client, onClose, onSaved }: {
         const res = await withClientTimeout(apiClient.request<ClientRecord>({
           path: `/routes/clients/update/${client!.id}`,
           method: "PUT",
+          // Send every field as-is: "" clears it server-side, so blanking the
+          // notes or an old phone number actually sticks. (undefined would
+          // leave it untouched -- the old value came back on the next load.)
           body: {
             name: payload.name,
-            email: payload.email || undefined,
-            phone: payload.phone || undefined,
-            notes: payload.notes || undefined,
-            street: payload.street || undefined,
-            city: payload.city || undefined,
-            state: payload.state || undefined,
-            zip: payload.zip || undefined,
-            // "" clears it server-side; undefined would leave it untouched
+            email: payload.email,
+            phone: payload.phone,
+            notes: payload.notes,
+            street: payload.street,
+            city: payload.city,
+            state: payload.state,
+            zip: payload.zip,
             time_preference: timePreference ?? "",
             secondary_contacts: secondaryContacts.filter((c) => c.label.trim() || c.phone?.trim() || c.email?.trim()),
           },
           type: ContentType.Json,
-        }), 4000);
-        if (!res.ok) throw new Error("Could not save client");
+        }), 15000);
+        if (!res.ok) throw res;
         const updated = await res.json();
         onSaved(updated);
         if (updated.renamed) {
@@ -440,9 +461,15 @@ function NewClientModal({ client, onClose, onSaved }: {
       notifyProjectsChanged();
       toast.success("Client created");
       onClose();
-    } catch {
+    } catch (error) {
       if (editing) {
-        toast.error("Couldn't save that change -- try again in a moment.");
+        const status = failedStatus(error);
+        toast.error(
+          status === 409 ? "Another client already has that name -- pick a different one."
+          : status === 403 ? "This login can view clients but can't edit them."
+          : status === 0 ? "The save is taking too long -- check your connection and try again."
+          : "Couldn't save that change -- try again in a moment."
+        );
         return;
       }
       const localClient = makeLocalClient(payload);
@@ -460,12 +487,35 @@ function NewClientModal({ client, onClose, onSaved }: {
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 ll-overlay">
       <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl ll-modal">
-        <div className="flex items-center justify-between border-b border-stone-100 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-stone-100 px-4 py-4 sm:px-6">
           <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{editing ? "Edit Client" : "New Client"}</h2>
           <button type="button" onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void saveClient(); }}>
-          <div className="space-y-4 px-6 py-5">
+          <div className="space-y-4 px-4 py-5 sm:px-6">
+            {editing && (
+              <div className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${alert ? "border-amber-200 bg-amber-50 text-amber-900" : "border-dashed border-stone-200 text-stone-500"}`}>
+                <StaffAlert
+                  clientId={client!.id}
+                  alert={alert}
+                  showAdd="always"
+                  addLabel="+ Add a staff alert"
+                  className="mt-px"
+                  onSaved={(saved) => {
+                    setAlert(staffAlertOf(saved));
+                    onAlertSaved?.(saved);
+                  }}
+                />
+                {alert ? (
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold">Staff alert: </span>
+                    <span className="whitespace-pre-wrap">{alert.text}</span>
+                  </span>
+                ) : (
+                  <span className="min-w-0 flex-1 text-stone-400">Shown as an amber icon next to the client's name everywhere — Clients, Install Schedule, Shifts and crew sheets.</span>
+                )}
+              </div>
+            )}
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-stone-600">Client name *</span>
               <input ref={nameRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Joe Smith" />
@@ -506,8 +556,8 @@ function NewClientModal({ client, onClose, onSaved }: {
                 </div>
               )}
             </label>
-            <div className="grid gap-3 grid-cols-[2fr_1fr_1fr]">
-              <label className="block">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-[2fr_1fr_1fr]">
+              <label className="col-span-2 block sm:col-span-1">
                 <span className="mb-1 block text-xs font-medium text-stone-600">City</span>
                 <input ref={cityRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Optional" />
               </label>
@@ -524,13 +574,14 @@ function NewClientModal({ client, onClose, onSaved }: {
               <span className="mb-1 block text-xs font-medium text-stone-600">
                 Install time preference <span className="font-normal text-stone-400">— the scheduler orders each crew's day by this</span>
               </span>
-              <div className="inline-flex overflow-hidden rounded-lg border border-stone-200 text-xs">
+              {/* Four across doesn't fit a phone-width modal: 2 x 2 there. */}
+              <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-stone-200 text-xs sm:inline-flex">
                 {([null, "morning", "afternoon", "late"] as (TimePreference | null)[]).map((value) => (
                   <button
                     key={value ?? "none"}
                     type="button"
                     onClick={() => setTimePreference(value)}
-                    className={`px-3 py-1.5 font-medium ${timePreference === value ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-50"}`}
+                    className={`px-3 py-2.5 font-medium sm:py-1.5 ${timePreference === value ? "bg-emerald-700 text-white" : "text-stone-600 hover:bg-stone-50"}`}
                   >
                     {value ? TIME_PREFERENCE_LABEL[value] : "No preference"}
                   </button>
@@ -543,9 +594,11 @@ function NewClientModal({ client, onClose, onSaved }: {
               </span>
               <div className="grid gap-2">
                 {secondaryContacts.map((contact, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                  // On a phone the label takes its own line so phone and
+                  // email each get half the width instead of a sliver.
+                  <div key={i} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
                     <input
-                      className="w-28 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      className="w-full rounded-lg sm:w-28 border border-stone-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300"
                       value={contact.label}
                       onChange={(e) => setSecondaryContacts((rows) => rows.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
                       placeholder="Label"
@@ -562,7 +615,7 @@ function NewClientModal({ client, onClose, onSaved }: {
                       onChange={(e) => setSecondaryContacts((rows) => rows.map((r, j) => j === i ? { ...r, email: e.target.value } : r))}
                       placeholder="Email"
                     />
-                    <button type="button" onClick={() => setSecondaryContacts((rows) => rows.filter((_, j) => j !== i))} className="shrink-0 text-stone-300 hover:text-red-500">
+                    <button type="button" onClick={() => setSecondaryContacts((rows) => rows.filter((_, j) => j !== i))} className="-m-1 shrink-0 p-2 text-stone-300 hover:text-red-500 sm:m-0 sm:p-0" aria-label="Remove contact">
                       <X size={14} />
                     </button>
                   </div>
@@ -577,11 +630,13 @@ function NewClientModal({ client, onClose, onSaved }: {
               </button>
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-stone-600">Notes</span>
-              <textarea ref={notesRef} rows={3} className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Designer, house, preferences, install notes..." />
+              <span className="mb-1 block text-xs font-medium text-stone-600">
+                General notes <span className="font-normal text-stone-400">— about the client, any year. Install notes and production & repair notes go on each season.</span>
+              </span>
+              <textarea ref={notesRef} rows={3} className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Designer, house, preferences..." />
             </label>
           </div>
-          <div className="flex items-center justify-end gap-3 border-t border-stone-100 px-6 py-4">
+          <div className="flex items-center justify-end gap-3 border-t border-stone-100 px-4 py-4 sm:px-6">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700">Cancel</button>
             <button
               type="button"
@@ -691,6 +746,19 @@ function clientHasTag(client: ClientGroup, tag: ClientTypeTag): boolean {
   // count as a "Christmas" client just because activity.length > 0.
   if (tag === "christmas") return client.activity.some((a) => a.kind !== "comment");
   return client.projectCount > 0;
+}
+
+/** "Install Nov 17" for this season's install, when one is on the card --
+ *  what someone looking a client up on a phone usually wants first. */
+function installLabel(client: ClientGroup): string | null {
+  const season = currentSeasonLabel();
+  const entry = client.activity.find((a) => a.kind === "christmas_install" && a.season === season);
+  const d = entry?.detail && typeof entry.detail === "object" ? (entry.detail as Record<string, unknown>) : null;
+  if (!d || d.not_installing) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d.install_date ?? ""));
+  if (!m) return null;
+  const when = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return `Install ${when.toLocaleDateString("en-US", { month: "short", day: "numeric" })}${d.hold ? " (on hold)" : ""}`;
 }
 
 function TypeFilterChip({ options, selected, onToggle, onClear }: {
@@ -827,7 +895,7 @@ export default function Clients() {
     if (words.length > 0 && !focusedClient) {
       list = list.filter((c) => {
         const hay = [
-          c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes,
+          c.name, c.phone, c.email, c.street, c.city, c.state, c.zip, c.notes, c.staffAlert?.text,
           ...c.formerNames,  // a client renamed on this tab is still found by the old spelling
           ...c.secondaryContacts.flatMap((s) => [s.label, s.phone, s.email]),
           ...c.activity.map((a) => `${a.season} ${a.summary}`),
@@ -991,6 +1059,17 @@ export default function Clients() {
       row.id === clientId ? { ...row, activity: updater(row.activity || []) } : row));
   };
 
+  // A staff alert saved from the list or the edit form: patch that client's row.
+  const patchStaffAlert = (saved: StaffAlertSaved) => {
+    setClientRows((rows) => {
+      const next = rows.map((row) => row.id === saved.id
+        ? { ...row, staff_alert: saved.staff_alert, staff_alert_by: saved.staff_alert_by, staff_alert_at: saved.staff_alert_at }
+        : row);
+      writeClientsPageCache(next, projects);
+      return next;
+    });
+  };
+
   // A season saved from the history table comes back as the whole row --
   // replace the one with that id, or add it when the season was just started.
   const upsertSeasonEntry = (clientId: number | null | undefined, entry: ActivityEntry) =>
@@ -1041,13 +1120,16 @@ export default function Clients() {
   return (
     <Layout>
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
-        <div>
-          <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
-            <button onClick={showAllClients} className="hover:underline">Clients</button>
+        <div className="min-w-0">
+          <div className="mb-1 flex min-w-0 items-center gap-1 text-xs font-semibold text-emerald-700">
+            <button onClick={showAllClients} className="-my-1 inline-flex items-center gap-0.5 py-1 hover:underline">
+              {focusedClient && <ChevronLeft size={13} className="-ml-0.5" />}
+              Clients
+            </button>
             {focusedClient && (
               <>
                 <span className="text-stone-300">/</span>
-                <span className="text-stone-500">{focusedClient}</span>
+                <span className="min-w-0 truncate text-stone-500">{focusedClient}</span>
               </>
             )}
           </div>
@@ -1176,21 +1258,30 @@ export default function Clients() {
             </button>
           </div>
         ) : (
-          <div className="grid gap-4">
+          // Capped (left-aligned, so it stays under the header) so an ultrawide
+          // screen doesn't stretch a client's card to 2,300px.
+          <div className="grid max-w-[1600px] gap-4">
             {visibleClients.map((client) => {
               const expanded = expandedClient === client.name;
               const loadingBuckets = detailsLoadingClient === client.name;
 
               return (
                 <section key={client.name} className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-                  <button onClick={() => toggleClient(client)} className="flex w-full items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-stone-50">
+                  <button onClick={() => toggleClient(client)} className="group flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-stone-50 sm:gap-4 sm:px-6 sm:py-5">
                     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                       <Users size={19} className="text-emerald-700" strokeWidth={1.6} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-semibold text-stone-800">{client.name}</p>
+                      <p className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-stone-800">
+                        {/* Two lines on a phone rather than "The Grand Oaks Homeow…" */}
+                        <span className="line-clamp-2 leading-snug sm:truncate">{client.name}</span>
+                        {client.id != null && (
+                          <StaffAlert clientId={client.id} alert={client.staffAlert} onSaved={(saved) => patchStaffAlert(saved)} />
+                        )}
+                      </p>
                       <p className="mt-0.5 text-xs text-stone-400">
                         {client.projectCount} project{client.projectCount === 1 ? "" : "s"} · {client.bucketCount} scope{client.bucketCount === 1 ? "" : "s"}
+                        {installLabel(client) && <span className="text-emerald-700"> · {installLabel(client)}</span>}
                       </p>
                     </div>
                     <div className="hidden text-right sm:block">
@@ -1205,32 +1296,33 @@ export default function Clients() {
                   </button>
 
                   {expanded && (
-                    <div className="border-t border-stone-100 bg-stone-50/60 px-6 py-5">
-                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <div className="border-t border-stone-100 bg-stone-50/60 px-3 py-4 sm:px-6 sm:py-5">
+                      {/* Phone: a 2 x 2 grid of full-size buttons; wider: one row. */}
+                      <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                         <button
                           onClick={() => navigate(`/clients?client=${encodeURIComponent(client.name)}`)}
-                          className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
+                          className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-center text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700 sm:justify-start sm:py-2"
                         >
                           <FolderOpen size={14} />
                           View client projects
                         </button>
                         <button
                           onClick={() => addProjectToClient(client.name)}
-                          className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
+                          className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-center text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700 sm:justify-start sm:py-2"
                         >
                           <Plus size={14} />
                           Add project for this client
                         </button>
                         <button
                           data-edit onClick={() => setEditingClient(client)}
-                          className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
+                          className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-center text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700 sm:justify-start sm:py-2"
                         >
                           <Pencil size={14} />
                           Edit client
                         </button>
                         <button
                           onClick={() => setDeleteClientTarget(client)}
-                          className="ml-auto flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-400 hover:border-stone-300 hover:text-stone-600"
+                          className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-xs font-semibold text-stone-400 hover:border-stone-300 hover:text-stone-600 sm:ml-auto sm:py-2"
                         >
                           <Trash2 size={14} />
                           Delete client
@@ -1246,24 +1338,31 @@ export default function Clients() {
                             </span>
                           )}
                           {client.phone && (
-                            <span className="flex items-center gap-1.5"><Phone size={12} className="text-stone-400" />{client.phone}</span>
+                            <a href={`tel:${client.phone.replace(/[^0-9+]/g, "")}`} className="flex items-center gap-1.5 py-1 hover:text-emerald-700 sm:py-0"><Phone size={12} className="text-stone-400" />{client.phone}</a>
                           )}
                           {client.email && (
-                            <span className="flex items-center gap-1.5"><Mail size={12} className="text-stone-400" />{client.email}</span>
+                            <a href={`mailto:${client.email}`} className="flex min-w-0 items-center gap-1.5 break-all py-1 hover:text-emerald-700 sm:py-0"><Mail size={12} className="shrink-0 text-stone-400" />{client.email}</a>
                           )}
                           {(client.street || client.city) && (
-                            <span className="flex items-center gap-1.5">
-                              <MapPin size={12} className="text-stone-400" />
+                            <span className="flex items-start gap-1.5">
+                              <MapPin size={12} className="mt-0.5 shrink-0 text-stone-400" />
                               {[client.street, [client.city, client.state].filter(Boolean).join(", "), client.zip].filter(Boolean).join(" · ")}
                             </span>
                           )}
                           {client.secondaryContacts.map((contact, i) => (
-                            <span key={i} className="flex items-center gap-1.5">
+                            <span key={i} className="flex flex-wrap items-center gap-1.5">
                               <Users size={12} className="text-stone-400" />
                               <span className="font-medium text-stone-500">{contact.label || "Contact"}</span>
                               {[contact.phone, contact.email].filter(Boolean).join(" · ")}
                             </span>
                           ))}
+                        </div>
+                      )}
+
+                      {client.notes && (
+                        <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">General notes</p>
+                          <p className="whitespace-pre-wrap text-sm text-stone-700">{client.notes}</p>
                         </div>
                       )}
 
@@ -1292,7 +1391,7 @@ export default function Clients() {
                               </span>
                               <button
                                 data-edit onClick={() => removeComment(client, entry)}
-                                className="shrink-0 text-stone-300 hover:text-red-500"
+                                className="-m-1.5 shrink-0 p-1.5 text-stone-300 hover:text-red-500"
                                 title="Delete comment"
                               >
                                 <X size={12} />
@@ -1313,7 +1412,7 @@ export default function Clients() {
                           <button
                             onClick={() => addComment(client)}
                             disabled={postingComment === client.name || !(commentDrafts[client.name] || "").trim()}
-                            className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            className="shrink-0 rounded-lg px-4 py-2 text-xs font-semibold text-white disabled:opacity-50 sm:px-3 sm:py-1.5"
                             style={{ backgroundColor: "rgb(var(--ll-brand))" }}
                           >
                             Add
@@ -1326,8 +1425,8 @@ export default function Clients() {
                           const detail = projectDetails[project.id];
 
                           return (
-                            <div key={project.id} className="rounded-xl border border-stone-200 bg-white p-4">
-                              <div className="flex items-start gap-3">
+                            <div key={project.id} className="rounded-xl border border-stone-200 bg-white p-3 sm:p-4">
+                              <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
                                 <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-500">
                                   <Briefcase size={16} />
                                 </div>
@@ -1352,21 +1451,24 @@ export default function Clients() {
                                     )}
                                   </div>
                                 </div>
+                                {/* Phone: the actions drop under the project so its name gets the width. */}
+                                <div className="flex basis-full items-center justify-end gap-1 border-t border-stone-100 pt-2 sm:basis-auto sm:border-0 sm:pt-0">
                                 <button
                                   onClick={() => navigate(`/clients/project?client=${encodeURIComponent(client.name)}&id=${project.id}`)}
-                                  className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                                  className="flex items-center gap-1 rounded-lg px-3 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 sm:py-2"
                                 >
                                   Open project
                                   <ArrowRight size={13} />
                                 </button>
                                 <button
                                   data-edit onClick={() => deleteProject(project)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                                  className="flex h-10 w-10 items-center justify-center rounded-lg text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500 sm:h-8 sm:w-8"
                                   title="Delete project"
                                   aria-label={`Delete ${project.name}`}
                                 >
                                   <Trash2 size={14} />
                                 </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -1406,6 +1508,7 @@ export default function Clients() {
       {editingClient && (
         <NewClientModal
           client={editingClient}
+          onAlertSaved={patchStaffAlert}
           onClose={() => setEditingClient(null)}
           onSaved={(client) => {
             upsertClientRow(client);

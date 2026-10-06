@@ -95,6 +95,9 @@
   "/api/clients/{client_id}/seasons/{season}": [
     "PUT"
   ],
+  "/api/clients/{client_id}/staff-alert": [
+    "PUT"
+  ],
   "/api/dashboard/recent-designs": [
     "GET"
   ],

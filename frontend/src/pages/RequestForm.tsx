@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { NotebookPen, Plus, Trash2, Check } from "components/icons";
+import { NotebookPen, Plus, Trash2, Check, ChevronLeft } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import {
@@ -22,9 +22,14 @@ import {
 // Once saved, a request sits open until Charles loads it into a job from
 // the Jobs page's "Load a request" picker (Jobs.tsx) — that's the link this
 // tab has to the Jobs board.
+//
+// Phone: the list and the editor can't sit side by side, so below md the
+// page shows one or the other — the list at /requests, the editor (with a
+// back link) at /requests/:id — and the items sheet becomes stacked cards.
 
-const input = "rounded-md border border-stone-300 bg-white px-2 py-1 text-sm outline-none focus:border-emerald-500";
-const btnPrimary = "inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
+// text-base below sm keeps iOS from zooming in on focus; taller fields are easier to tap.
+const input = "rounded-md border border-stone-300 bg-white px-2 py-2 text-base outline-none focus:border-emerald-500 sm:py-1 sm:text-sm";
+const btnPrimary = "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 sm:min-h-0 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
 const btnGhost = "inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700";
 
 const dateStr = (d?: string | null) => (d ? String(d).slice(0, 10) : "");
@@ -94,18 +99,19 @@ export default function RequestForm() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 px-8 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
-        <div>
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+        <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             <NotebookPen size={18} className="text-emerald-700" /> Request Form
           </h1>
-          <p className="mt-0.5 text-xs text-stone-500">One request per project — every item, in one sitting.</p>
+          <p className="mt-0.5 hidden text-xs text-stone-500 sm:block">One request per project — every item, in one sitting.</p>
         </div>
-        <button onClick={newRequest} className={btnPrimary}><Plus size={15} /> New request</button>
+        <button onClick={newRequest} className={`${btnPrimary} shrink-0`}><Plus size={15} /> <span className="hidden min-[360px]:inline">New request</span><span className="min-[360px]:hidden">New</span></button>
       </header>
 
       <div className="flex">
-        <aside className="w-72 flex-shrink-0 border-r border-stone-200 px-3 py-4" style={{ minHeight: "calc(100vh - 65px)" }}>
+        {/* Below md the list is the whole page until a request is picked. */}
+        <aside className={`${activeId ? "hidden md:block" : "block"} w-full flex-shrink-0 px-3 pb-24 pt-4 md:pb-4 md:w-60 lg:w-72 md:border-r md:border-stone-200 md:min-h-[calc(100vh-65px)]`}>
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-widest text-stone-500">Requests ({list.length})</p>
           {list.length === 0 ? (
             <p className="px-2 text-sm text-stone-400">Nothing yet. Start one for a client's project.</p>
@@ -116,9 +122,9 @@ export default function RequestForm() {
                 const label = [r.client_name, r.project_name].filter(Boolean).join(" · ") || "Untitled request";
                 return (
                   <button key={r.id} onClick={() => navigate(`/requests/${r.id}`)}
-                    className={`flex flex-col rounded-lg px-3 py-2 text-left ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
+                    className={`flex flex-col rounded-lg px-3 py-2.5 text-left md:py-2 ${active ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-stone-100"}`}>
                     <span className="flex items-center justify-between gap-2">
-                      <span className={`truncate text-sm font-medium ${active ? "text-emerald-900" : "text-stone-700"}`}>{label}</span>
+                      <span className={`break-words text-sm font-medium md:truncate ${active ? "text-emerald-900" : "text-stone-700"}`}>{label}</span>
                       {r.job_id && <span className="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">on Jobs</span>}
                     </span>
                     <span className="mt-0.5 text-[11px] text-stone-400">
@@ -131,7 +137,12 @@ export default function RequestForm() {
           )}
         </aside>
 
-        <main className="min-w-0 flex-1 px-8 py-6">
+        <main className={`${activeId ? "block" : "hidden md:block"} min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-8 sm:py-6`}>
+          {activeId && (
+            <button onClick={() => navigate("/requests")} className="-ml-1 mb-3 inline-flex min-h-[40px] items-center gap-1 rounded-lg px-1 text-sm font-medium text-emerald-700 hover:text-emerald-800 md:hidden">
+              <ChevronLeft size={16} /> All requests
+            </button>
+          )}
           {!activeId ? <Empty onNew={newRequest} /> : loading && !req ? (
             <p className="py-20 text-center text-sm text-stone-400">Loading…</p>
           ) : !req ? <Empty onNew={newRequest} /> : (
@@ -190,19 +201,19 @@ function RequestPanel({ req, meta, run, onDelete, onSave, saving }: {
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+        <div className="min-w-0">
+          <h2 className="break-words text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {[req.client_name, req.project_name].filter(Boolean).join(" · ") || "New request"}
           </h2>
           {req.job_name && <p className="text-xs text-emerald-700">Loaded onto the job: {req.job_name}</p>}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onSave} disabled={saving} className={btnPrimary}><Check size={14} /> Save</button>
-          <button onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
+          <button onClick={onDelete} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs sm:min-h-0 font-medium text-rose-600 hover:border-rose-300"><Trash2 size={13} /> Delete</button>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="mt-5 grid max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs text-stone-500">Client / Cliente
           <input value={v.client_name} onChange={(e) => setV({ ...v, client_name: e.target.value })} onBlur={() => commit("client_name")} className={input} placeholder="Smith, John" />
         </label>
@@ -221,7 +232,7 @@ function RequestPanel({ req, meta, run, onDelete, onSave, saving }: {
             const on = samplesOn.has(o.key);
             return (
               <button key={o.key} onClick={() => toggleSample(o.key)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${on ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-stone-300 text-stone-600 hover:border-emerald-300"}`}>
+                className={`rounded-full border px-3 py-2.5 text-left text-xs font-medium sm:py-1 ${on ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-stone-300 text-stone-600 hover:border-emerald-300"}`}>
                 {o.en} <span className="text-stone-400">/ {o.es}</span>
               </button>
             );
@@ -254,12 +265,21 @@ function ItemsSheet({ req, meta, run }: { req: ProductRequest; meta: RequestsMet
 
   return (
     <section className="mt-8">
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-500">Your request so far</h3>
         <span className="text-xs text-stone-400">{req.items.filter((i) => i.item).length} item{req.items.filter((i) => i.item).length === 1 ? "" : "s"} · type into the last row to add another</span>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-        <table className="w-full text-sm">
+      {/* Phone: one card per item instead of a nine-column sheet. */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {req.items.map((it) => (
+          <ItemCard key={it.id} item={it} run={run} matchLabels={matchLabels} usedOnOptions={usedOnOptions} />
+        ))}
+        <DraftCard requestId={req.id} run={run} matchLabels={matchLabels} usedOnOptions={usedOnOptions} />
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-stone-200 bg-white md:block">
+        {/* min-w: nine columns of inputs squeeze to ~40px each beside the list
+            otherwise — scroll the sheet sideways instead, like Excel would. */}
+        <table className="w-full min-w-[1040px] text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-stone-400">
               {COLS.map((c) => (
@@ -367,5 +387,68 @@ function DraftRow({ requestId, run, matchLabels, usedOnOptions }: {
       ))}
       <td />
     </tr>
+  );
+}
+
+// ── Phone cards (below md) ─────────────────────────────────────────────────
+// Same Cell editors as the sheet, just labelled and stacked.
+function CardFields({ values, onCommit, matchLabels, usedOnOptions }: {
+  values: Partial<RequestItem>; onCommit: (key: keyof RequestItem, v: string) => void;
+  matchLabels: Record<string, string>; usedOnOptions: string[];
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2.5 min-[480px]:grid-cols-2">
+      {COLS.map((c) => (
+        <label key={String(c.key)} className={`flex min-w-0 flex-col gap-1 text-xs text-stone-500 ${c.key === "item" || c.key === "description" || c.key === "quality" ? "min-[480px]:col-span-2" : ""}`}>
+          <span>{c.en} <span className="text-stone-400">/ {c.es}</span></span>
+          <Cell col={c} value={(values[c.key] as string) || ""} onCommit={(v) => onCommit(c.key, v)} matchLabels={matchLabels} usedOnOptions={usedOnOptions} />
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function ItemCard({ item, run, matchLabels, usedOnOptions }: {
+  item: RequestItem; run: Run; matchLabels: Record<string, string>; usedOnOptions: string[];
+}) {
+  const commit = (key: keyof RequestItem, val: string) => {
+    if ((item[key] || "") === val) return;
+    run(() => updateRequestItem(item.id, { [key]: val } as any));
+  };
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="truncate text-sm font-semibold text-stone-700">{item.item || "Untitled item"}</span>
+        <button onClick={() => run(() => deleteRequestItem(item.id))} className="-mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-stone-400 hover:text-rose-600" aria-label="Remove item"><Trash2 size={16} /></button>
+      </div>
+      <CardFields values={item} onCommit={commit} matchLabels={matchLabels} usedOnOptions={usedOnOptions} />
+    </div>
+  );
+}
+
+// Phone twin of DraftRow: filling in Item and leaving the field adds it.
+function DraftCard({ requestId, run, matchLabels, usedOnOptions }: {
+  requestId: number; run: Run; matchLabels: Record<string, string>; usedOnOptions: string[];
+}) {
+  const [draft, setDraft] = useState<Partial<RequestItem>>({});
+  const creating = useRef(false);
+  const promote = async (next: Partial<RequestItem>) => {
+    const item = (next.item || "").trim();
+    if (!item || creating.current) return;
+    creating.current = true;
+    await run(() => addRequestItem(requestId, { ...next, item }));
+    creating.current = false;
+    setDraft({});
+  };
+  return (
+    <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50/60 p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-stone-600"><Plus size={14} /> Add an item / Agregar artículo</p>
+      <CardFields values={draft} matchLabels={matchLabels} usedOnOptions={usedOnOptions}
+        onCommit={(key, v) => {
+          const next = { ...draft, [key]: v };
+          setDraft(next);
+          if (key === "item" && v.trim()) promote(next);
+        }} />
+    </div>
   );
 }

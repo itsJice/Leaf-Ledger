@@ -72,7 +72,7 @@ export default function Invoice() {
           <p className="text-xs text-stone-500 mt-0.5">Generate print-ready invoice from any arrangement</p>
         </div>
         <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
-          <div className="relative min-w-0 flex-1 sm:flex-none">
+          <div className="relative min-w-0 flex-1 sm:w-80 sm:flex-none lg:w-96">
             <select
               className="w-full max-w-full appearance-none border border-stone-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
               value={arrangementId || ""}
@@ -97,7 +97,7 @@ export default function Invoice() {
         </div>
       </header>
 
-      <div className="px-4 sm:px-10 py-8">
+      <div className="px-4 pb-24 pt-6 sm:px-10 sm:py-8">
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
@@ -112,14 +112,14 @@ export default function Invoice() {
           </div>
         ) : (
           <>
-            <div ref={printRef} className="bg-white rounded-2xl border border-stone-200 max-w-3xl mx-auto p-10 print:shadow-none print:border-0 print:rounded-none print:max-w-none">
+            <div ref={printRef} className="bg-white rounded-2xl border border-stone-200 max-w-3xl mx-auto p-5 sm:p-10 print:p-10 print:shadow-none print:border-0 print:rounded-none print:max-w-none">
             {/* Invoice header */}
-            <div className="flex items-start justify-between mb-8 pb-6 border-b border-stone-200">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8 pb-6 border-b border-stone-200 print:flex-row print:items-start print:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-stone-800 mb-1" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Invoice</h2>
                 <p className="text-sm text-stone-500">Design Operations</p>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right print:text-right">
                 <p className="text-sm font-semibold text-stone-700">{arrangement.name}</p>
                 {arrangement.client_name && <p className="text-sm text-stone-500">Client: {arrangement.client_name}</p>}
                 <p className="text-xs text-stone-400 mt-1">{new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
@@ -132,7 +132,27 @@ export default function Invoice() {
                 <h3 className="text-sm font-semibold text-stone-700 mb-3" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                   {container.label || "Container"}{container.container_name ? ` — ${container.container_name}` : ""}
                 </h3>
-                <div className="overflow-x-auto"><table className="w-full text-sm">
+                {/* Phone: one stacked row per item instead of a five-column table
+                    squeezing the product name to a word per line. Print and sm+
+                    keep the table. */}
+                <div className="divide-y divide-stone-100 border-y border-stone-200 sm:hidden print:hidden">
+                  {container.items.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium text-stone-800">{item.product_name}</p>
+                        <p className="mt-0.5 text-xs text-stone-500">
+                          {item.supplier_name || "—"} · {item.quantity} × {formatCurrency(item.current_price)}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-semibold text-stone-800">{formatCurrency(item.line_total)}</p>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between py-2 text-sm">
+                    <span className="text-xs text-stone-400">Container subtotal</span>
+                    <span className="font-semibold text-stone-700">{formatCurrency(container.subtotal)}</span>
+                  </div>
+                </div>
+                <div className="hidden overflow-x-auto sm:block print:block"><table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-stone-200">
                       <th className="text-left pb-2 text-xs font-semibold text-stone-500 uppercase tracking-wider">Product</th>

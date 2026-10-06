@@ -159,10 +159,25 @@ const BASE: Col[] = [
   },
   { key: "invoice_total", label: "Invoiced", width: 96, money: true, get: (r) => num(r.d.invoice_total), edit: { kind: "money", field: "invoice_total" } },
   { key: "price_basis", label: "Pricing basis", width: 240, get: (r) => str(r.entry.pricing?.basis ?? r.d.price_basis), edit: { kind: "text", field: "price_basis" } },
-  { key: "production_notes", label: "Repairs / notes", width: 200, get: (r) => str(r.d.production_notes), edit: { kind: "text", field: "production_notes" } },
-  { key: "notes", label: "Notes", width: 200, get: (r) => str(r.d.notes), edit: { kind: "text", field: "notes" } },
+  { key: "production_notes", label: "Production & repair notes", width: 200, get: (r) => str(r.d.production_notes), edit: { kind: "text", field: "production_notes" } },
+  { key: "notes", label: "Install notes", width: 200, get: (r) => str(r.d.notes), edit: { kind: "text", field: "notes" } },
 ];
 const FROZEN = 2; // Client + Site stay put while the rest scrolls
+
+// On a phone Client + Site (330px) would pin almost the whole screen and leave
+// a sliver to scroll through, so there only the Client column stays put.
+const NARROW_QUERY = "(max-width: 639px)";
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.(NARROW_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(NARROW_QUERY);
+    if (!mq) return;
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return Boolean(narrow);
+}
 
 /** How many seasons back the year-over-year columns reach (this one plus three). */
 const YEARS_BACK = 3;
@@ -297,6 +312,7 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
   const [hidden, setHidden] = useState<Set<string>>(readHidden);
   const [colsOpen, setColsOpen] = useState(false);
   const [editing, setEditing] = useState<{ id: number; key: string } | null>(null);
+  const frozen = useNarrow() ? 1 : FROZEN;
 
   useEffect(() => {
     try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden])); } catch { /* fine */ }
@@ -372,7 +388,7 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
   const toggleSort = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
   let left = 0;
-  const frozenLeft = active.slice(0, FROZEN).map((c) => { const l = left; left += c.width; return l; });
+  const frozenLeft = active.slice(0, frozen).map((c) => { const l = left; left += c.width; return l; });
 
   return (
     <>
@@ -380,13 +396,13 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
         <p className="text-xs text-stone-500">
           {loading ? "Loading…" : `${visible.length} of ${rows.length} Christmas clients for ${season} · ${priced} priced · click a cell to edit, Enter or click away to save`}
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <select value={season} onChange={(e) => setSeason(e.target.value)} className="rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-sm">
             {seasons.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <label className="relative flex items-center">
+          <label className="relative order-first flex min-w-0 basis-full items-center sm:order-none sm:basis-auto">
             <Search size={13} className="pointer-events-none absolute left-2.5 text-stone-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter…" className="w-44 rounded-lg border border-stone-200 bg-white py-2 pl-8 pr-2 text-sm" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter…" className="w-full rounded-lg sm:w-44 border border-stone-200 bg-white py-2 pl-8 pr-2 text-sm" />
           </label>
           <div className="relative">
             <button type="button" onClick={() => setColsOpen((v) => !v)} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600 hover:bg-stone-50">
@@ -413,7 +429,11 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
         </div>
       </div>
 
-      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 190px)" }} onClick={() => colsOpen && setColsOpen(false)}>
+      {/* Sized so the totals row and the sideways scrollbar sit on screen
+          without scrolling the page. Phone: the page header scrolls away, so
+          the grid can take nearly everything below the app bar. Tablet adds
+          the 56px app bar to the header + tabs + toolbar above it. */}
+      <div className="max-h-[calc(100dvh-72px)] overflow-auto sm:max-h-[calc(100dvh-290px)] lg:max-h-[calc(100dvh-230px)]" onClick={() => colsOpen && setColsOpen(false)}>
         <table className="border-separate border-spacing-0 text-xs text-stone-700" style={{ minWidth: active.reduce((s, c) => s + c.width, 0) }}>
           <thead className="sticky top-0 z-20">
             <tr>
@@ -421,8 +441,8 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
                 <th
                   key={c.key}
                   onClick={() => toggleSort(c.key)}
-                  className={`cursor-pointer select-none whitespace-nowrap border-b border-r border-stone-200 bg-stone-100 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-stone-200 ${i < FROZEN ? "sticky z-30" : ""} ${c.money ? "text-right" : ""}`}
-                  style={{ width: c.width, minWidth: c.width, left: i < FROZEN ? frozenLeft[i] : undefined }}
+                  className={`cursor-pointer select-none whitespace-nowrap border-b border-r border-stone-200 bg-stone-100 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-stone-200 ${i < frozen ? "sticky z-30" : ""} ${c.money ? "text-right" : ""}`}
+                  style={{ width: c.width, minWidth: c.width, left: i < frozen ? frozenLeft[i] : undefined }}
                 >
                   {c.label}{sort.key === c.key ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
                 </th>
@@ -441,8 +461,8 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
                       key={c.key}
                       onClick={() => c.edit && !isEditing && setEditing({ id: r.clientId, key: c.key })}
                       title={c.title ? c.title(r) : stamped ? "Set in Leaf & Ledger — the spreadsheet sync keeps it" : undefined}
-                      className={`whitespace-nowrap border-b border-r border-stone-100 px-2 py-1 ${i < FROZEN ? "sticky z-10 font-medium" : ""} ${ri % 2 ? "bg-stone-50" : "bg-white"} ${c.money || typeof v === "number" ? "text-right tabular-nums" : ""} ${c.edit ? "cursor-text hover:bg-emerald-50" : ""} ${i === 0 ? "text-stone-900" : ""}`}
-                      style={{ width: c.width, minWidth: c.width, maxWidth: c.width, left: i < FROZEN ? frozenLeft[i] : undefined, overflow: "hidden", textOverflow: "ellipsis" }}
+                      className={`whitespace-nowrap border-b border-r border-stone-100 px-2 py-1 ${i < frozen ? "sticky z-10 font-medium" : ""} ${ri % 2 ? "bg-stone-50" : "bg-white"} ${c.money || typeof v === "number" ? "text-right tabular-nums" : ""} ${c.edit ? "cursor-text hover:bg-emerald-50" : ""} ${i === 0 ? "text-stone-900" : ""}`}
+                      style={{ width: c.width, minWidth: c.width, maxWidth: c.width, left: i < frozen ? frozenLeft[i] : undefined, overflow: "hidden", textOverflow: "ellipsis" }}
                     >
                       {isEditing ? (
                         <CellEditor col={c} row={r} onDone={(saved) => { setEditing(null); if (saved) onSaved(r.clientId, saved); }} />
@@ -463,7 +483,7 @@ export function ChristmasGridView({ clients, loading, onSaved }: {
           <tfoot className="sticky bottom-0 z-20">
             <tr>
               {active.map((c, i) => (
-                <td key={c.key} className={`whitespace-nowrap border-t-2 border-r border-stone-200 bg-stone-100 px-2 py-1.5 font-semibold ${i < FROZEN ? "sticky z-30" : ""} ${c.money ? "text-right tabular-nums" : ""}`} style={{ left: i < FROZEN ? frozenLeft[i] : undefined }}>
+                <td key={c.key} className={`whitespace-nowrap border-t-2 border-r border-stone-200 bg-stone-100 px-2 py-1.5 font-semibold ${i < frozen ? "sticky z-30" : ""} ${c.money ? "text-right tabular-nums" : ""}`} style={{ left: i < frozen ? frozenLeft[i] : undefined }}>
                   {i === 0 ? `TOTAL — ${visible.length} clients (${priced} priced)` : c.money ? formatCurrency(totals[c.key]) : ""}
                 </td>
               ))}

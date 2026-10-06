@@ -100,7 +100,7 @@ export function AddToProjectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 ll-overlay">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 ll-overlay">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ll-modal">
         <div className="flex items-start justify-between border-b border-stone-100 px-5 py-4">
           <div>

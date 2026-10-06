@@ -16,6 +16,7 @@ import {
 } from "components/icons";
 import { toast } from "sonner";
 import Layout from "components/Layout";
+import { StaffAlert } from "components/StaffAlert";
 import { apiFetch } from "utils/apiFetch";
 import {
   addressLine,
@@ -104,7 +105,7 @@ export default function Shifts() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-2xl px-4 pb-16 pt-4">
+      <div className="mx-auto w-full max-w-2xl px-4 pb-24 pt-4">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-stone-900">{title}</h1>
@@ -117,7 +118,7 @@ export default function Shifts() {
                 setLeadFilter(e.target.value);
                 setOpenDay(null);
               }}
-              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base sm:w-auto sm:text-sm"
               aria-label="Show shifts for"
             >
               <option value="">All crews</option>
@@ -156,7 +157,7 @@ export default function Shifts() {
                 <button
                   type="button"
                   onClick={() => setShowPast((v) => !v)}
-                  className="flex items-center gap-1 text-sm font-semibold text-stone-600"
+                  className="flex items-center gap-1 py-2 text-sm font-semibold text-stone-600 sm:py-0"
                 >
                   {showPast ? <ChevronDown size={16} /> : <ChevronRight size={16} />} Past shifts ({groups.past.length})
                 </button>
@@ -299,6 +300,9 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
 }) {
   const [busy, setBusy] = useState(false);
   const status = stopStatus(stop);
+  // The client record's install notes are live (and may have been edited in
+  // the app); the schedule's baked-in note is the fallback.
+  const installNotes = (stop.installNotes || stop.advice || "").trim();
   const open = (pid: string) => stop.timeEntries.find((e) => e.personId === pid && !e.endedAt);
   const onClock = day.crew.filter((p) => open(p.id));
   const offClock = day.crew.filter((p) => !open(p.id));
@@ -324,7 +328,10 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
       <div className="flex items-start gap-3">
         <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${badge}`}>{index}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-stone-900">{stop.name}</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-stone-900">
+            <span className="min-w-0">{stop.name}</span>
+            {stop.staffAlert && <StaffAlert alert={stop.staffAlert} editable={false} size={14} />}
+          </p>
           {stop.mapsUrl ? (
             <a href={stop.mapsUrl} target="_blank" rel="noreferrer" className="mt-0.5 flex items-start gap-1 text-sm text-emerald-800 underline decoration-emerald-300 underline-offset-2">
               <MapPin size={14} className="mt-0.5 shrink-0" /> {addressLine(stop)}
@@ -333,14 +340,14 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
             <p className="mt-0.5 text-sm text-stone-500">{addressLine(stop) || "No address on file"}</p>
           )}
           {stop.phone && (
-            <a href={`tel:${stop.phone}`} className="mt-1 flex items-center gap-1 text-xs text-stone-600">
+            <a href={`tel:${stop.phone}`} className="mt-0.5 flex w-fit items-center gap-1 py-1.5 text-xs text-stone-600 sm:mt-1 sm:py-0">
               <Phone size={12} /> {stop.phone}
             </a>
           )}
-          {(stop.advice || stop.repairNotes) && (
+          {(installNotes || stop.repairNotes) && (
             <div className="mt-2 space-y-1 text-xs text-stone-600">
-              {stop.advice && <p>{stop.advice}</p>}
-              {stop.repairNotes && <p><span className="font-semibold">Production:</span> {stop.repairNotes}</p>}
+              {installNotes && <p className="whitespace-pre-wrap"><span className="font-semibold">Install notes:</span> {installNotes}</p>}
+              {stop.repairNotes && <p className="whitespace-pre-wrap"><span className="font-semibold">Production &amp; repair:</span> {stop.repairNotes}</p>}
             </div>
           )}
         </div>
@@ -355,12 +362,12 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
           {canRecord && day.crew.length > 0 && (
             <div className="flex gap-2">
               {offClock.length > 0 && (
-                <button type="button" disabled={busy} onClick={() => act("start", offClock.map((p) => p.id))} className="rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50">
+                <button type="button" disabled={busy} onClick={() => act("start", offClock.map((p) => p.id))} className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 sm:px-2.5 sm:py-1">
                   Start all
                 </button>
               )}
               {onClock.length > 0 && (
-                <button type="button" disabled={busy} onClick={() => act("stop", onClock.map((p) => p.id))} className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50">
+                <button type="button" disabled={busy} onClick={() => act("stop", onClock.map((p) => p.id))} className="rounded-md bg-stone-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 sm:px-2.5 sm:py-1">
                   Stop all
                 </button>
               )}
@@ -435,12 +442,12 @@ function EntryRow({ entry, date, editable, reload }: { entry: TimeEntry; date: s
   if (editing) {
     return (
       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="rounded border border-stone-300 px-1.5 py-1" aria-label="Start time" />
+        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="rounded border border-stone-300 px-1.5 py-1.5 text-base sm:py-1 sm:text-xs" aria-label="Start time" />
         <span>to</span>
-        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="rounded border border-stone-300 px-1.5 py-1" aria-label="Stop time" />
-        <button type="button" onClick={save} className="rounded bg-emerald-700 px-2 py-1 font-semibold text-white">Save</button>
-        <button type="button" onClick={() => setEditing(false)} className="px-1 text-stone-500">Cancel</button>
-        <button type="button" onClick={remove} aria-label="Delete entry" className="ml-auto text-red-600"><Trash2 size={14} /></button>
+        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="rounded border border-stone-300 px-1.5 py-1.5 text-base sm:py-1 sm:text-xs" aria-label="Stop time" />
+        <button type="button" onClick={save} className="rounded bg-emerald-700 px-3 py-2 font-semibold text-white sm:px-2 sm:py-1">Save</button>
+        <button type="button" onClick={() => setEditing(false)} className="px-1 py-2 text-stone-500 sm:py-0">Cancel</button>
+        <button type="button" onClick={remove} aria-label="Delete entry" className="-m-2 ml-auto p-2 text-red-600"><Trash2 size={14} /></button>
       </div>
     );
   }
@@ -449,7 +456,7 @@ function EntryRow({ entry, date, editable, reload }: { entry: TimeEntry; date: s
       type="button"
       disabled={!editable}
       onClick={() => setEditing(true)}
-      className="mt-0.5 block text-left text-[11px] text-stone-500 enabled:hover:text-stone-800"
+      className="mt-0.5 block py-1 text-left text-[11px] text-stone-500 enabled:hover:text-stone-800 sm:py-0"
     >
       {clock(entry.startedAt)} – {entry.endedAt ? clock(entry.endedAt) : "now"}
       {editable && <span className="ml-1 underline">edit</span>}
@@ -499,7 +506,7 @@ function Notes({ stop, day, reload }: { stop: Stop; day: Day; reload: () => Prom
                   <span className="font-semibold">{n.kind === "client_request" ? "Client request: " : "Note: "}</span>
                   {n.text}
                 </p>
-                <button data-edit type="button" onClick={() => remove(n.id)} aria-label="Delete note" className="shrink-0 text-stone-400 hover:text-red-600">
+                <button data-edit type="button" onClick={() => remove(n.id)} aria-label="Delete note" className="-m-2 shrink-0 p-2 text-stone-400 hover:text-red-600">
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -518,7 +525,7 @@ function Notes({ stop, day, reload }: { stop: Stop; day: Day; reload: () => Prom
                 key={k}
                 type="button"
                 onClick={() => setKind(k)}
-                className={`flex-1 rounded-md px-2 py-1.5 ${kind === k ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}
+                className={`flex-1 rounded-md px-2 py-2 sm:py-1.5 ${kind === k ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}
               >
                 {k === "note" ? "What happened" : "Client wants something new"}
               </button>
@@ -530,17 +537,17 @@ function Notes({ stop, day, reload }: { stop: Stop; day: Day; reload: () => Prom
             rows={3}
             maxLength={2000}
             placeholder={kind === "note" ? "e.g. Replaced 2 strands on the porch rail" : "e.g. Wants a wreath on the garage next year"}
-            className="w-full rounded-lg border border-stone-300 p-2 text-sm outline-none focus:border-emerald-600"
+            className="w-full rounded-lg border border-stone-300 p-2 text-base outline-none focus:border-emerald-600 sm:text-sm"
           />
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-stone-500">Cancel</button>
-            <button type="button" disabled={saving || !text.trim()} onClick={save} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+            <button type="button" onClick={() => setOpen(false)} className="px-3 py-2.5 text-xs text-stone-500 sm:py-1.5">Cancel</button>
+            <button type="button" disabled={saving || !text.trim()} onClick={save} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50 sm:px-3 sm:py-1.5">
               {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </div>
       ) : (
-        <button data-edit type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs font-semibold text-emerald-800">
+        <button data-edit type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 py-2 text-xs font-semibold text-emerald-800 sm:py-0">
           <MessageSquarePlus size={14} /> Add note or client request
         </button>
       )}

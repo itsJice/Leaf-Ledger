@@ -558,13 +558,15 @@ export default function Settings() {
     },
   ] : [];
 
+  const visibleTabs = TABS.filter(({ id }) => (id !== "users" || currentMe()?.isSuperAdmin) && (id !== "costs" || currentMe()?.isAdmin));
+
   return (
     <Layout>
       {/* `bg-background` (was a hardcoded #f7f4ef) so the sticky header follows the theme. */}
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-background px-4 sm:px-10 py-4">
         <div>
           <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Settings</h1>
-          <p className="mt-0.5 text-xs text-stone-500">Manage pricing, SKU standards, imports, and intelligence data</p>
+          <p className="mt-0.5 hidden text-xs text-stone-500 sm:block">Manage pricing, SKU standards, imports, and intelligence data</p>
         </div>
         <button onClick={() => void loadAll()} className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50">
           <RefreshCw size={13} />
@@ -572,9 +574,17 @@ export default function Settings() {
         </button>
       </header>
 
-      <div className="px-4 sm:px-10 py-8">
-        <div className="mb-6 flex flex-wrap gap-2">
-          {TABS.filter(({ id }) => (id !== "users" || currentMe()?.isSuperAdmin) && (id !== "costs" || currentMe()?.isAdmin)).map(({ id, label, icon: Icon }) => (
+      <div className="px-4 sm:px-10 pt-4 pb-24 sm:py-8">
+        {/* Phone: ten tab pills wrap to five rows, so a picker stands in for them. */}
+        <label className="mb-4 flex items-center gap-2 text-xs font-semibold text-stone-500 sm:hidden">
+          Section
+          <select value={activeTab} onChange={(e) => setActiveTab(e.target.value as SettingsTab)}
+            className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-base font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+            {visibleTabs.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
+          </select>
+        </label>
+        <div className="mb-6 hidden flex-wrap gap-2 sm:flex">
+          {visibleTabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -602,7 +612,7 @@ export default function Settings() {
           <div className="max-w-5xl">
             {activeTab === "markup" && (
               <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
                       <DollarSign size={15} className="text-emerald-700" />
@@ -632,8 +642,8 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
-                  <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
                         <SettingsIcon size={15} className="text-emerald-700" />
@@ -645,8 +655,8 @@ export default function Settings() {
                     </button>
                   </div>
                   {addingCategory && (
-                    <div className="mb-4 flex items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
-                      <select className="flex-1 rounded-lg border border-stone-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={newCat} onChange={(e) => setNewCat(e.target.value)}>
+                    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+                      <select className="min-w-[10rem] flex-1 rounded-lg border border-stone-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={newCat} onChange={(e) => setNewCat(e.target.value)}>
                         <option value="">Select category</option>
                         {CATEGORIES.filter((c) => !categoryMarkups.some((m) => m.category === c)).map((c) => <option key={c} value={c}>{categoryLabel(c)}</option>)}
                       </select>
@@ -660,11 +670,11 @@ export default function Settings() {
                     {categoryMarkups.length === 0 && !addingCategory ? (
                       <p className="py-6 text-center text-sm text-stone-400">No category overrides. Using global markup for all categories.</p>
                     ) : categoryMarkups.map((m) => (
-                      <div key={m.category} className="flex items-center gap-4 rounded-lg border border-stone-100 p-3 transition-colors hover:bg-stone-50">
-                        <span className="flex-1 text-sm font-medium text-stone-700">{categoryLabel(m.category)}</span>
+                      <div key={m.category} className="flex items-center gap-2 sm:gap-4 rounded-lg border border-stone-100 p-3 transition-colors hover:bg-stone-50">
+                        <span className="min-w-0 flex-1 break-words text-sm font-medium text-stone-700">{categoryLabel(m.category)}</span>
                         <input type="number" className="w-20 rounded-lg border border-stone-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" defaultValue={m.markup_percentage} onBlur={(e) => saveCategoryMarkup(m.category, parseFloat(e.target.value))} />
                         <span className="text-sm text-stone-400">%</span>
-                        <button onClick={() => deleteCategoryMarkup(m.category)} className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-300 transition-colors hover:bg-red-50 hover:text-red-400">
+                        <button onClick={() => deleteCategoryMarkup(m.category)} className="flex h-9 w-9 shrink-0 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-stone-300 transition-colors hover:bg-red-50 hover:text-red-400">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -676,7 +686,7 @@ export default function Settings() {
 
             {activeTab === "pricing" && (
               <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">Universal Pricing Rules</h2>
@@ -721,7 +731,7 @@ export default function Settings() {
                     Save pricing rules
                   </button>
                 </div>
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <h2 className="text-sm font-semibold text-stone-800">Imported Formula Sources</h2>
                   <p className="mt-1 text-xs leading-relaxed text-stone-500">These were read from old pricing files and are shown here as reference math.</p>
                   <div className="mt-4 space-y-3">
@@ -767,7 +777,7 @@ export default function Settings() {
 
             {activeTab === "sku" && (
               <div className="space-y-6">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">Finished SKU Code Standard</h2>
@@ -798,7 +808,7 @@ export default function Settings() {
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-xl border border-stone-200 bg-white p-6">
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                     <h2 className="text-sm font-semibold text-stone-800">How a New Code Gets Made</h2>
                     <div className="mt-4 space-y-3">
                       {[
@@ -818,7 +828,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-stone-200 bg-white p-6">
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                     <h2 className="text-sm font-semibold text-stone-800">How to Read an Old Recipe Code</h2>
                     <p className="mt-1 text-xs leading-relaxed text-stone-500">
                       Old recipe codes are still useful, but they are source history. They tell Leaf & Ledger the family language and where the recipe came from.
@@ -845,7 +855,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">Old Prefix Library</h2>
@@ -880,7 +890,7 @@ export default function Settings() {
 
             {activeTab === "ai" && (
               <div className="space-y-6">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">AI Reference Data</h2>
@@ -908,7 +918,7 @@ export default function Settings() {
                 </div>
 
                 {visualRefs.length === 0 ? (
-                  <div className="rounded-xl border border-stone-200 bg-white p-6">
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                     <p className="text-sm text-stone-400">Run import batches to index historical product images.</p>
                   </div>
                 ) : visualReferenceGroups.map((group) => (
@@ -937,7 +947,7 @@ export default function Settings() {
 
             {activeTab === "import" && (
               <div className="space-y-6">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">Recipe Intelligence Import</h2>
@@ -961,7 +971,7 @@ export default function Settings() {
                     ))}
                   </div>
                 </div>
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <h2 className="text-sm font-semibold text-stone-800">Needs Review / Deferred</h2>
                   <div className="mt-4 space-y-2">
                     {(importStatus?.failures || []).length === 0 ? (
@@ -979,7 +989,7 @@ export default function Settings() {
 
             {activeTab === "templates" && (
               <div className="space-y-6">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">Build Template Library</h2>
@@ -1104,7 +1114,7 @@ export default function Settings() {
 
             {activeTab === "appearance" && (
               <div className="space-y-6">
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-semibold text-stone-800">Theme</h2>
@@ -1148,7 +1158,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-stone-200 bg-white p-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                   <h2 className="text-sm font-semibold text-stone-800">Accent Colour</h2>
                   <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
                     Used for active tabs, buttons, and highlights across the app.
@@ -1190,7 +1200,7 @@ export default function Settings() {
             )}
 
             {activeTab !== "appearance" && (
-              <div className="mt-6 rounded-xl border border-stone-200 bg-white p-6">
+              <div className="mt-6 rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
                 <div className="mb-2 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#e8f0e8" }}>
                     <Users size={15} className="text-emerald-700" />

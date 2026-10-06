@@ -68,7 +68,7 @@ export default function UserRolesEditor() {
   };
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-5">
+    <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
       <div className="mb-2 flex items-center gap-2">
         <ShieldCheck size={16} className="text-emerald-700" />
         <h2 className="text-sm font-semibold text-stone-800">Users &amp; Roles</h2>
@@ -85,7 +85,7 @@ export default function UserRolesEditor() {
           {rows.map((u) => (
             <div key={u.email} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-stone-800">{u.email}</p>
+                <p className="break-all text-sm font-medium text-stone-800 sm:truncate">{u.email}</p>
                 <p className="text-[11px] text-stone-500">
                   {u.rosterName ? `${u.rosterName} · ${u.rosterTitle} on roster` : "Not on roster"}
                   {" · "}
@@ -99,7 +99,7 @@ export default function UserRolesEditor() {
                   value={u.explicit ?? ""}
                   disabled={saving === u.email}
                   onChange={(e) => void setRole(u.email, e.target.value || null)}
-                  className="max-w-full rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs"
+                  className="max-w-full rounded-lg border border-stone-300 bg-white px-2 py-2 text-xs sm:py-1.5"
                   aria-label={`Role for ${u.email}`}
                 >
                   <option value="">Automatic ({ROLE_LABEL[u.role]?.split(":")[0] ?? u.role})</option>

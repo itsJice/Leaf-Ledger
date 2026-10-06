@@ -312,7 +312,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
     () => window.localStorage.getItem(BUILDER_CATALOG_EXPANDED_KEY) === "1"
   );
   const [wideLayout, setWideLayout] = useState<boolean>(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches
   );
   const [resizingCatalog, setResizingCatalog] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -705,7 +705,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
 
   // ─── Phase D: catalog pane size ────────────────────────────────────────────
   useEffect(() => {
-    const query = window.matchMedia("(min-width: 1024px)");
+    const query = window.matchMedia("(min-width: 1280px)");
     const onChange = () => setWideLayout(query.matches);
     query.addEventListener("change", onChange);
     return () => query.removeEventListener("change", onChange);
@@ -1213,6 +1213,11 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
     setCreatingBuiltProduct(false);
     setActivePart(part || null);
     enterProductPicker();
+    // Below xl the catalog stacks under the parts list, so a tap on a part's
+    // product button would otherwise look like nothing happened.
+    if (!wideLayout) {
+      window.requestAnimationFrame(() => (catalogRef.current?.parentElement ?? catalogRef.current)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
   };
   const openBuiltProduct = (bucket: Container) => {
     syncBuilderSelectionFromBucket(bucket);
@@ -1950,7 +1955,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
     <Shell>
       {!selectedId && !standaloneNewDesign ? (
         <>
-          <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+          <header className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:sticky sm:top-0 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
             <div>
               <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
                 <button onClick={showAllProjects} className="hover:underline">All Projects</button>
@@ -1974,7 +1979,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               <Plus size={15} strokeWidth={2.2} /> New Project
             </button>
           </header>
-          <div className="px-4 sm:px-10 py-6">
+          <div className="px-4 pb-24 pt-6 sm:px-10 sm:py-6">
             {loading && filteredArrangements.length === 0 ? (
               <div className="flex items-center justify-center py-24">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
@@ -1989,22 +1994,26 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 <button onClick={() => setShowNewModal(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>Create First Project</button>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid max-w-[1600px] gap-3">
                 {filteredArrangements.map((a) => (
                   <div key={a.id} onClick={() => selectProject(a.id)} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 transition hover:shadow-sm sm:gap-4 sm:px-6 sm:py-4">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
                       <Package size={18} className="text-emerald-700" strokeWidth={1.5} />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-stone-800">{a.name}</p>
-                      <p className="mt-0.5 text-xs text-stone-400">{a.client_name || "No client"} · {a.container_count} scope{a.container_count !== 1 ? "s" : ""}</p>
-                    </div>
-                    <div className="text-right sm:mr-4">
-                      <p className="text-sm font-semibold text-stone-800">{formatCurrency(a.total_cost)}</p>
-                      <p className="text-xs text-stone-400">selected cost</p>
+                    {/* Phone: the cost sits under the name so the title gets the full width. */}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-stone-800">{a.name}</p>
+                        <p className="mt-0.5 text-xs text-stone-400">{a.client_name || "No client"} · {a.container_count} scope{a.container_count !== 1 ? "s" : ""}</p>
+                      </div>
+                      <div className="flex items-baseline gap-1.5 sm:mr-4 sm:block sm:text-right">
+                        <p className="text-sm font-semibold text-stone-800">{formatCurrency(a.total_cost)}</p>
+                        <p className="text-xs text-stone-400">selected cost</p>
+                      </div>
                     </div>
                     <p className="hidden text-xs text-stone-300 sm:block">{new Date(a.updated_at).toLocaleDateString()}</p>
-                    <button onClick={(e) => { e.stopPropagation(); deleteProject(a.id); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-300 opacity-0 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:opacity-100">
+                    {/* Hover-reveal only on devices that can hover; always visible on touch. */}
+                    <button onClick={(e) => { e.stopPropagation(); deleteProject(a.id); }} aria-label="Delete project" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 sm:h-8 sm:w-8 [@media(hover:hover)]:opacity-0">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -2035,41 +2044,45 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
             </header>
             )
           ) : (
-          <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 px-4 sm:px-10 py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
-            <button onClick={activeRoomId ? (activeBucket || creatingBuiltProduct ? backToBuiltProducts : closeRoom) : clearSelection} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200">
+          // Phone: back + title on the first row, price + View Invoice on a
+          // second full-width row; the breadcrumb truncates to one line instead
+          // of wrapping word-by-word. It only sticks from sm up — on a phone a
+          // two-row sticky header would eat a quarter of the screen.
+          <header className="z-10 flex flex-wrap items-center gap-x-3 gap-y-3 sm:sticky sm:top-0 border-b border-stone-200 px-4 py-3 sm:flex-nowrap sm:gap-4 sm:px-10 sm:py-4" style={{ backgroundColor: "rgb(var(--ll-page))" }}>
+            <button onClick={activeRoomId ? (activeBucket || creatingBuiltProduct ? backToBuiltProducts : closeRoom) : clearSelection} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200 sm:h-8 sm:w-8" aria-label="Back">
               <ArrowLeft size={16} />
             </button>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               {isClientPath && (
-                <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                  <button onClick={() => navigate("/clients")} className="hover:underline">Clients</button>
+                <div className="mb-1 flex min-w-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-emerald-700">
+                  <button onClick={() => navigate("/clients")} className="flex-shrink-0 hover:underline">Clients</button>
                   <span className="text-stone-300">/</span>
-                  <button onClick={clearSelection} className="hover:underline">{arrangement.client_name || clientFilter || "Client"}</button>
+                  <button onClick={clearSelection} className="min-w-0 truncate hover:underline">{arrangement.client_name || clientFilter || "Client"}</button>
                   <span className="text-stone-300">/</span>
-                  <span className="text-stone-500">{arrangement.name}</span>
+                  <span className="min-w-0 truncate text-stone-500">{arrangement.name}</span>
                   {activeRoom && (
                     <>
                       <span className="text-stone-300">/</span>
-                      <span className="text-stone-500">{activeRoom.name}</span>
+                      <span className="min-w-0 truncate text-stone-500">{activeRoom.name}</span>
                     </>
                   )}
                 </div>
               )}
               {!isClientPath && (
-                <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                  <button onClick={showAllProjects} className="hover:underline">All Projects</button>
+                <div className="mb-1 flex min-w-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-emerald-700">
+                  <button onClick={showAllProjects} className="flex-shrink-0 hover:underline">All Projects</button>
                   {clientFilter && (
                     <>
                       <span className="text-stone-300">/</span>
-                      <button onClick={showClientProjects} className="hover:underline">{clientFilter}</button>
+                      <button onClick={showClientProjects} className="min-w-0 truncate hover:underline">{clientFilter}</button>
                     </>
                   )}
                   <span className="text-stone-300">/</span>
-                  <span className="text-stone-500">{arrangement.name}</span>
+                  <span className="min-w-0 truncate text-stone-500">{arrangement.name}</span>
                   {activeRoom && (
                     <>
                       <span className="text-stone-300">/</span>
-                      <span className="text-stone-500">{activeRoom.name}</span>
+                      <span className="min-w-0 truncate text-stone-500">{activeRoom.name}</span>
                     </>
                   )}
                 </div>
@@ -2087,25 +2100,27 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   <button onClick={() => setEditingName(false)} className="p-1 text-stone-400 hover:text-stone-600"><X size={14} /></button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{arrangement.name}</h1>
-                  <button onClick={() => { setNameEdit(arrangement.name); setEditingName(true); }} className="text-stone-300 transition-colors hover:text-stone-500"><Pencil size={13} /></button>
+                <div className="flex items-start gap-2 sm:items-center">
+                  <h1 className="min-w-0 break-words text-lg font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{arrangement.name}</h1>
+                  <button onClick={() => { setNameEdit(arrangement.name); setEditingName(true); }} className="-m-1.5 flex-shrink-0 p-1.5 pt-2.5 text-stone-300 transition-colors hover:text-stone-500 sm:m-0 sm:p-0" aria-label="Rename project"><Pencil size={13} /></button>
                 </div>
               )}
               <p className="text-xs text-stone-400">{arrangement.client_name || "No client"} · saved ideas do not affect pricing until selected</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-bold text-stone-800">{formatCurrency(arrangement.total_with_markup)}</p>
-              <p className="text-xs text-stone-400">quote estimate · selected base {formatCurrency(arrangement.total_cost)}</p>
+            <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:flex-shrink-0">
+              <div className="min-w-0 sm:text-right">
+                <p className="text-sm font-bold text-stone-800">{formatCurrency(arrangement.total_with_markup)}</p>
+                <p className="text-xs text-stone-400">quote estimate · selected base {formatCurrency(arrangement.total_cost)}</p>
+              </div>
+              <button onClick={() => navigate(`/invoice?arrangement_id=${arrangement.id}`)} className="min-h-[40px] flex-shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90 sm:min-h-0" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
+                View Invoice
+              </button>
             </div>
-            <button onClick={() => navigate(`/invoice?arrangement_id=${arrangement.id}`)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
-              View Invoice
-            </button>
           </header>
           )}
 
           {!activeRoomId && !standaloneNewDesign ? (
-            <div className="px-4 sm:px-10 py-6">
+            <div className="px-4 pb-24 pt-6 sm:px-10 sm:py-6">
               <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div className="mb-4">
                   <h2 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Rooms & design packages</h2>
@@ -2137,7 +2152,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               </div>
 
               {projectRoomsLoading ? (
-                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3" aria-live="polite" aria-label="Loading design packages">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-live="polite" aria-label="Loading design packages">
                   {[0, 1, 2].map((index) => (
                     <div key={index} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                       <div className="mb-4 h-3 w-28 animate-pulse rounded bg-stone-100" />
@@ -2170,7 +2185,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   )}
                 </div>
               ) : (
-                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {projectRooms.map((room) => {
                     const scopes = (arrangement.containers || []).filter((bucket) => bucket.room_id === room.id);
                     const selectedTotal = scopes.reduce((sum, bucket) => sum + (bucket.subtotal || 0), 0);
@@ -2183,7 +2198,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             <h3 className="mt-1 text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{room.name}</h3>
                             {room.notes && <p className="mt-1 line-clamp-2 text-sm text-stone-500">{room.notes}</p>}
                           </div>
-                          <button onClick={() => removeRoom(room.id)} className="rounded-lg p-1 text-stone-300 opacity-0 transition-colors hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100">
+                          <button onClick={() => removeRoom(room.id)} className="-m-1 flex-shrink-0 rounded-lg p-2 text-stone-300 transition-colors hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100 sm:m-0 sm:p-1 [@media(hover:hover)]:opacity-0">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -2211,7 +2226,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               )}
             </div>
           ) : !activeBucket && !creatingBuiltProduct && !standaloneNewDesign ? (
-            <div className="px-4 sm:px-10 py-6">
+            <div className="px-4 pb-24 pt-6 sm:px-10 sm:py-6">
               <div className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 {editingRoom ? (
                   <div className="w-full space-y-4">
@@ -2298,7 +2313,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             <h3 className="mt-1 text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{scopeQuantity(bucket)}x {scopeTitle(bucket)}</h3>
                             {displayScopeNotes(bucket.scope_notes) && <p className="mt-1 line-clamp-2 text-sm text-stone-500">{displayScopeNotes(bucket.scope_notes)}</p>}
                           </div>
-                          <button onClick={() => removeBucket(bucket.id)} className="rounded-lg p-1 text-stone-300 opacity-0 transition-colors hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100">
+                          <button onClick={() => removeBucket(bucket.id)} className="-m-1 flex-shrink-0 rounded-lg p-2 text-stone-300 transition-colors hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100 sm:m-0 sm:p-1 [@media(hover:hover)]:opacity-0">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -2341,7 +2356,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
               )}
             </div>
           ) : (
-          <div ref={builderTopRef} className="px-6 py-5">
+          <div ref={builderTopRef} className="px-3 pb-24 pt-4 sm:px-6 sm:py-5">
             <div className="mb-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-5 py-3">
                 <div className="flex items-center gap-3">
@@ -2362,8 +2377,10 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">A</span>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
+                {/* The min width lets the step pills wrap under the status line
+                    instead of squeezing it to a word per line on tablets. */}
+                <div className="flex min-w-[min(100%,26rem)] flex-1 flex-col gap-2">
                 {standaloneNewDesign && (
                   <>
                     <DesignDestinationPicker
@@ -2381,13 +2398,13 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   </>
                 )}
                 {(!standaloneNewDesign || destinationSaved) && (
-                <div className="flex flex-wrap items-center gap-4 text-sm">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm sm:gap-4">
                   <span className="flex items-center gap-2 text-stone-500"><span className="h-2 w-2 rounded-full bg-emerald-700" /> Type: <strong className="text-stone-900">{activeBucket ? activeBucket.bucket_type || scopeTitle(activeBucket) : "No scope"}</strong></span>
-                  <span className="text-stone-300">|</span>
+                  <span className="hidden text-stone-300 sm:inline">|</span>
                   <span className="text-stone-500">Parts: <strong className="text-stone-900">{partsComplete}/{activeParts.length || 0} selected</strong></span>
-                  <span className="text-stone-300">|</span>
+                  <span className="hidden text-stone-300 sm:inline">|</span>
                   <span className="text-stone-500">Draft SKU: <strong className="text-stone-900">{activeDraftSku}</strong></span>
-                  <span className="text-stone-300">|</span>
+                  <span className="hidden text-stone-300 sm:inline">|</span>
                   <span className="text-stone-500">Order: <strong className="text-emerald-800">{orderItems.length ? "ready" : "draft"}</strong></span>
                 </div>
                 )}
@@ -2436,15 +2453,19 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
             <div
               ref={splitRef}
               style={builderGridStyle}
-              className={`grid overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_460px] ${
-                catalogExpanded && builderStep === "products" ? "h-[calc(100vh-190px)] min-h-[560px]" : "h-[720px]"
+              // Below xl the scope tree and the catalog stack and the page scrolls
+              // them; the fixed-height split with two inner scrollers is xl+ only
+              // (a 720px box holding both panes left each a sliver on a phone, and
+              // beside the sidebar at 1024px the scope tree got under 300px).
+              className={`grid grid-cols-1 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm xl:grid-cols-[minmax(0,1fr)_460px] ${
+                catalogExpanded && builderStep === "products" ? "xl:h-[calc(100vh-190px)] xl:min-h-[560px]" : "xl:h-[720px]"
               } ${resizingCatalog ? "select-none" : ""}`}
             >
               {showScopeCanvas && (
-              <section className="relative h-full overflow-x-hidden overflow-y-auto border-r border-stone-100 bg-[radial-gradient(circle_at_1px_1px,rgb(var(--ns-200))_1px,transparent_0)] [background-size:22px_22px] p-6 pb-28 md:p-8 md:pb-28 lg:px-10">
+              <section className="relative overflow-x-hidden border-b border-stone-100 bg-[radial-gradient(circle_at_1px_1px,rgb(var(--ns-200))_1px,transparent_0)] [background-size:22px_22px] px-3 pb-6 pt-6 sm:p-6 md:p-8 lg:px-10 xl:h-full xl:overflow-y-auto xl:border-b-0 xl:border-r xl:pb-28">
                 {builderStep === "type" ? (
-                  <div className="mx-auto flex h-full max-w-3xl items-center">
-                    <div className="flex max-h-full w-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white/95 p-6 shadow-sm">
+                  <div className="mx-auto flex max-w-3xl items-center lg:h-full">
+                    <div className="flex w-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white/95 p-3 shadow-sm sm:p-6 lg:max-h-full">
                       <div ref={previewPartsRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" aria-label={`${activePreviewType || "Selected"} required parts`}>
                         {activePreviewLoading ? (
                           <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 px-4 py-5 text-sm font-semibold text-emerald-900">
@@ -2572,15 +2593,15 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               );
                             }
                             return (
-                            <div key={`${component.label}-${index}`} className="relative rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-4 shadow-sm">
+                            <div key={`${component.label}-${index}`} className="relative rounded-2xl border border-dashed border-stone-300 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-4">
                               {index < activePreviewComponents.length - 1 && <span className="absolute left-7 top-[58px] h-6 border-l border-dashed border-stone-300" />}
                               <div className="flex items-center gap-3">
                                 <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">{index + 1}</span>
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-semibold text-stone-900">{component.label}</p>
+                                  <p className="break-words font-semibold text-stone-900">{component.label}</p>
                                   {guidance && <p className="mt-1 text-xs text-stone-400">{guidance}</p>}
                                 </div>
-                                <span className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400">
+                                <span className="min-w-[64px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-2 py-2 text-center sm:px-3 text-xs font-semibold text-stone-400 sm:min-w-[132px]">
                                   Product
                                 </span>
                               </div>
@@ -2602,16 +2623,16 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 ) : (
                   <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
                     {!isStructuredChristmasBucket(activeBucket) && (
-                      <div className="mb-1 flex items-center justify-between">
-                        <div>
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
                           <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Active scope</p>
                           <h2 className="text-xl font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{scopeQuantity(activeBucket)}x {scopeTitle(activeBucket)}</h2>
                         </div>
-                        <button onClick={() => removeBucket(activeBucket.id)} className="rounded-lg px-2 py-1 text-xs text-stone-400 hover:bg-red-50 hover:text-red-500">Delete scope</button>
+                        <button onClick={() => removeBucket(activeBucket.id)} className="flex-shrink-0 whitespace-nowrap rounded-lg px-2 py-2 text-xs text-stone-400 hover:bg-red-50 hover:text-red-500 sm:py-1">Delete scope</button>
                       </div>
                     )}
                     {isStructuredChristmasBucket(activeBucket) ? (
-                      <div className="w-full rounded-3xl border border-stone-200 bg-white/95 p-6 shadow-sm">
+                      <div className="w-full rounded-3xl border border-stone-200 bg-white/95 p-3 shadow-sm sm:p-6">
                         <div className="space-y-3">
                           {scopePlaceholders(activeBucket).map((label, index) => {
                             const partItems = itemsForPart(activeBucket, label, index);
@@ -2819,11 +2840,11 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             return (
                               <div
                                 key={`${label}-${index}`}
-                                className={`relative rounded-2xl border border-dashed bg-white px-4 py-4 shadow-sm transition ${
+                                className={`relative rounded-2xl border border-dashed bg-white px-4 py-4 shadow-sm transition ${isCustomSection ? "pt-12 sm:pt-4" : ""} ${
                                   selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-stone-300 hover:border-stone-400"
                                 }`}
                               >
-                                {hasNext && <span className="absolute left-7 top-[58px] h-6 border-l border-dashed border-stone-300" />}
+                                {hasNext && <span className="absolute left-7 top-[58px] hidden h-6 border-l border-dashed border-stone-300 sm:block" />}
                                 {isCustomSection && (
                                   <span className="absolute right-4 top-4 z-10 flex gap-1">
                                     <button
@@ -2849,12 +2870,12 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                     </button>
                                   </span>
                                 )}
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-900">
                                     {index + 1}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="font-semibold text-stone-900">{label}</p>
+                                    <p className="break-words font-semibold text-stone-900">{label}</p>
                                     <p className="mt-1 text-xs text-stone-400">{guidance}</p>
                                     {primary && (
                                       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -2883,7 +2904,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                   <button
                                     type="button"
                                     onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
-                                    className="min-w-[132px] rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-400 transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-white hover:text-emerald-900 hover:shadow-sm"
+                                    className="w-full rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2.5 text-center text-xs font-semibold text-stone-400 transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-white hover:text-emerald-900 hover:shadow-sm sm:w-auto sm:min-w-[132px] sm:py-2"
                                   >
                                     {primary ? "Add more" : "Product"}
                                   </button>
@@ -2911,14 +2932,14 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           return (
                             <div
                               key={`${label}-${index}`}
-                              className={`group relative rounded-3xl border bg-white/95 px-6 py-6 text-left shadow-sm transition ${selectedSubpart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-emerald-200"}`}
+                              className={`group relative rounded-3xl border bg-white/95 px-4 py-6 text-left shadow-sm transition sm:px-6 ${selectedSubpart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-emerald-200"}`}
                             >
                               <span className="absolute -top-3 left-5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
                                 {label}
                               </span>
-                              {index < scopePlaceholders(activeBucket).length - 1 && <span className="absolute left-[47px] top-[210px] h-10 border-l border-dashed border-stone-300" />}
+                              {index < scopePlaceholders(activeBucket).length - 1 && <span className="absolute left-[47px] top-[210px] hidden h-10 border-l border-dashed border-stone-300 sm:block" />}
                               <div className="flex items-start gap-4">
-                                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-900">{index + 1}</div>
+                                <div className="hidden h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-900 sm:flex">{index + 1}</div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
@@ -2939,11 +2960,11 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                       return (
                                         <div
                                           key={part.label}
-                                          className={`flex min-h-[58px] items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left transition hover:border-stone-900 hover:shadow-sm ${
+                                          className={`flex min-h-[58px] flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border px-3 py-3 text-left transition hover:border-stone-900 hover:shadow-sm sm:flex-nowrap sm:px-4 ${
                                             selected ? "border-stone-900 bg-white ring-2 ring-stone-100" : "border-emerald-100 bg-emerald-50/40"
                                           }`}
                                         >
-                                          <div className="min-w-0">
+                                          <div className="min-w-0 basis-full sm:basis-auto">
                                             <p className="font-semibold text-stone-900">{part.label}</p>
                                             <p className="mt-1 text-xs text-stone-500">{part.note} · {christmasEnhancerPartTargetText(activeBucket, part.label)}</p>
                                             {subItems[0] && (
@@ -2980,7 +3001,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                           key={`${label}-${index}`}
                           type="button"
                           onClick={() => openBucketCatalog(activeBucket.id, { label, index })}
-                          className={`group relative flex min-h-[128px] items-center gap-4 rounded-2xl border bg-white/95 px-6 py-5 text-left shadow-sm transition hover:border-stone-900 hover:shadow-md ${selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-stone-300"}`}
+                          // Phone: the "+" bubble drops out and the Add chip wraps to its
+                          // own full-width row so the product name keeps room to read.
+                          className={`group relative flex min-h-[128px] flex-wrap items-center gap-3 rounded-2xl border bg-white/95 px-4 py-5 text-left shadow-sm transition hover:border-stone-900 hover:shadow-md sm:flex-nowrap sm:gap-4 sm:px-6 ${isCustomSection ? "pt-12 sm:pt-5" : ""} ${selectedPart ? "border-stone-900 ring-2 ring-stone-100" : "border-dashed border-stone-300"}`}
                         >
                           <span className="absolute -top-3 left-5 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
                             {label}
@@ -3022,8 +3045,8 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                                 </button>
                               </span>
                             )}
-                          {index < scopePlaceholders(activeBucket).length - 1 && <span className="absolute left-[47px] top-[88px] h-10 border-l border-dashed border-stone-300" />}
-                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-stone-100 text-2xl text-stone-900 group-hover:bg-emerald-50 group-hover:text-emerald-800">+</div>
+                          {index < scopePlaceholders(activeBucket).length - 1 && <span className="absolute left-[47px] top-[88px] hidden h-10 border-l border-dashed border-stone-300 sm:block" />}
+                          <div className="hidden h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-stone-100 text-2xl text-stone-900 group-hover:bg-emerald-50 group-hover:text-emerald-800 sm:flex">+</div>
                           <div className="min-w-0 flex-1">
                             {primary ? (
                               <>
@@ -3069,14 +3092,14 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               </>
                             ) : (
                               <>
-                                <p className="font-semibold text-stone-900">{label}</p>
+                                <p className="break-words font-semibold text-stone-900">{label}</p>
                                 <p className="text-sm text-stone-400">
                                   {suggestion ? `Suggested qty ${suggestion.suggested_quantity}` : partGuidance || "Select product"}
                                 </p>
                               </>
                             )}
                           </div>
-                          <span className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm">{primary ? "Add more" : "Select product"}</span>
+                          <span className="order-last w-full rounded-lg border border-stone-200 bg-white px-4 py-2.5 text-center text-xs font-semibold text-stone-700 shadow-sm sm:order-none sm:w-auto sm:py-2">{primary ? "Add more" : "Select product"}</span>
                           {primary?.photo_url && (
                             <img src={primary.photo_url} alt={primary.product_name} className="h-16 w-16 flex-shrink-0 rounded-xl object-contain" />
                           )}
@@ -3125,7 +3148,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                   onPointerDown={(event) => { event.preventDefault(); setResizingCatalog(true); }}
                   onDoubleClick={() => setCatalogWidth(460)}
                   title="Drag to resize · double-click to reset"
-                  className={`group hidden h-full cursor-col-resize items-center justify-center lg:flex ${
+                  className={`group hidden h-full cursor-col-resize items-center justify-center xl:flex ${
                     resizingCatalog ? "bg-emerald-300" : "bg-stone-100 hover:bg-emerald-200"
                   }`}
                 >
@@ -3133,7 +3156,9 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 </div>
               )}
 
-              <aside className="flex h-full min-h-0 flex-col overflow-y-auto bg-white">
+              {/* Stacked (below xl), every step but Choose Parts leads with this
+                  pane — pick the type, review, order — and the scope tree follows. */}
+              <aside className={`flex min-h-0 flex-col bg-white xl:h-full xl:overflow-y-auto ${builderStep !== "products" ? "order-first border-b border-stone-100 xl:order-none xl:border-b-0" : ""}`}>
                 <div className="border-b border-stone-100 px-5 py-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
@@ -3151,7 +3176,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 </div>
 
                 {builderStep === "type" && (
-                  <div className="space-y-4 p-5">
+                  <div className="space-y-4 p-4 sm:p-5">
                     <div>
                         {renderTypeStepContinueButton("mb-4")}
                         <div className="mb-4 grid grid-cols-2 rounded-xl border border-stone-200 bg-stone-50 p-1">
@@ -3536,12 +3561,12 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 )}
 
                 {builderStep === "mockup" && activeBucket && (
-                  <div className="space-y-4 p-5">
+                  <div className="space-y-4 p-4 sm:p-5">
                     <div className="rounded-2xl border border-stone-200 bg-white p-4">
                       <p className="text-sm font-semibold text-stone-900">AI mockup</p>
                       <p className="mt-1 text-xs text-stone-500">Mockup generation comes later. This page reserves the workflow for standalone product renders and room placement.</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid gap-2 min-[400px]:grid-cols-3">
                       {["Standalone product", "Place in a space", "Both"].map((label, index) => (
                         <button
                           key={label}
@@ -3550,7 +3575,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                             index === 2 ? "border-emerald-300 bg-emerald-50/50 ring-1 ring-emerald-100" : "border-stone-200 bg-white hover:bg-stone-50"
                           }`}
                         >
-                          <p className="font-semibold text-stone-900">{label}</p>
+                          <p className="break-words font-semibold text-stone-900">{label}</p>
                           <p className="mt-2 text-stone-500">
                             {index === 0 ? "Clean product image." : index === 1 ? "Use a room photo later." : "Product and room view."}
                           </p>
@@ -3582,7 +3607,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 )}
 
                 {builderStep === "review" && activeBucket && (
-                  <div className="space-y-4 p-5">
+                  <div className="space-y-4 p-4 sm:p-5">
                     <div className="rounded-2xl border border-stone-200 bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -3792,7 +3817,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                 )}
 
                 {builderStep === "po" && activeBucket && (
-                  <div className="space-y-4 p-5">
+                  <div className="space-y-4 p-4 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold text-stone-900" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Purchase Order Review</h3>
@@ -3801,7 +3826,7 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                     </div>
                     <div className="overflow-hidden rounded-2xl border border-stone-200">
                       {orderItems.length > 0 && (
-                        <div className="grid grid-cols-[1.3fr_1fr_52px_82px_86px] gap-3 border-b border-stone-100 bg-stone-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                        <div className="hidden grid-cols-[1.3fr_1fr_52px_82px_86px] gap-3 border-b border-stone-100 bg-stone-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400 sm:grid">
                           <span>Part</span>
                           <span>Vendor</span>
                           <span className="text-right">Qty</span>
@@ -3812,8 +3837,10 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                       {orderItems.length === 0 ? (
                         <p className="p-4 text-sm text-stone-400">No products selected for this built product yet.</p>
                       ) : orderItems.map((item) => (
-                        <div key={item.id} className="grid grid-cols-[1.3fr_1fr_52px_82px_86px] gap-3 border-b border-stone-100 p-3 text-sm last:border-b-0">
-                          <div className="flex min-w-0 items-center gap-3">
+                        // Phone: part and vendor each get a full row, then qty / unit /
+                        // line total share the last one with inline labels.
+                        <div key={item.id} className="grid grid-cols-3 gap-x-3 gap-y-2 border-b border-stone-100 p-3 text-sm last:border-b-0 sm:grid-cols-[1.3fr_1fr_52px_82px_86px] sm:gap-3">
+                          <div className="col-span-3 flex min-w-0 items-center gap-3 sm:col-span-1">
                             {item.photo_url ? <img src={item.photo_url} alt={item.product_name} className="h-11 w-11 rounded-lg object-contain" /> : <div className="h-11 w-11 rounded-lg bg-stone-100" />}
                             <div className="min-w-0">
                               <p className="truncate font-medium text-stone-800">{item.part_label || "Product"}</p>
@@ -3821,12 +3848,12 @@ export default function Arrangements({ newDesign, mode, embedded }: { newDesign?
                               <p className="text-[11px] text-stone-400">{item.supplier_sku || ""}</p>
                             </div>
                           </div>
-                          <div className="min-w-0 self-center">
+                          <div className="col-span-3 min-w-0 self-center sm:col-span-1">
                             <p className="truncate text-stone-700">{item.supplier_name || "Supplier"}</p>
                             <p className="text-xs text-stone-400">Source price</p>
                           </div>
-                          <p className="self-center text-right text-stone-500">{Number(item.quantity) || 1}</p>
-                          <p className="self-center text-right text-stone-700">{formatCurrency(item.current_price)}</p>
+                          <p className="self-center text-stone-500 sm:text-right"><span className="text-xs text-stone-400 sm:hidden">Qty </span>{Number(item.quantity) || 1}</p>
+                          <p className="self-center text-center text-stone-700 sm:text-right">{formatCurrency(item.current_price)}<span className="text-xs text-stone-400 sm:hidden"> ea</span></p>
                           <p className="self-center text-right font-semibold text-stone-900">{formatCurrency((Number(item.current_price) || 0) * (Number(item.quantity) || 1))}</p>
                         </div>
                       ))}

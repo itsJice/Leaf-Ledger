@@ -96,9 +96,9 @@ export default function Mockups() {
         </div>
       </header>
 
-      <div className="px-4 sm:px-10 py-8 max-w-5xl">
+      <div className="px-4 pb-24 pt-6 sm:px-10 sm:py-8 max-w-5xl">
         {/* Generator panel */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-8">
+        <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 mb-8">
           <h2 className="text-base font-semibold text-stone-700 mb-4" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Generate a new mockup</h2>
           <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Arrangement select */}
@@ -121,7 +121,7 @@ export default function Mockups() {
             {/* Style select */}
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1.5">Style</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-3">
                 {STYLES.map((s) => (
                   <button
                     key={s.value}
@@ -139,11 +139,11 @@ export default function Mockups() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={generate}
               disabled={generating || !selectedArrangement}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity"
+              className="flex w-full items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity sm:w-auto"
               style={{ backgroundColor: "rgb(var(--ll-brand))" }}
             >
               {generating ? (
@@ -189,7 +189,7 @@ export default function Mockups() {
               <p className="text-xs text-stone-400">Generate your first mockup above</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-5 xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
               {mockups.map((m) => (
                 <div key={m.id} className="bg-white rounded-xl border border-stone-200 overflow-hidden group">
                   <div className="relative aspect-square bg-stone-100">
@@ -208,12 +208,13 @@ export default function Mockups() {
                     ) : null}
                     <button
                       onClick={() => deleteMockup(m.id)}
-                      className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-stone-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      aria-label="Delete mockup"
+                      className="absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-stone-400 hover:text-red-500 transition-colors group-hover:opacity-100 [@media(hover:hover)]:opacity-0"
                     >
                       <Trash2 size={13} />
                     </button>
                   </div>
-                  <div className="px-4 py-3">
+                  <div className="px-3 py-3 sm:px-4">
                     <p className="text-xs font-semibold text-stone-700 capitalize">{m.style.replace("-", " ")}</p>
                     <p className="text-xs text-stone-400 mt-0.5">{new Date(m.created_at).toLocaleDateString()}</p>
                   </div>
