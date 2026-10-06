@@ -146,9 +146,6 @@
   "/api/historical/complete": [
     "POST"
   ],
-  "/api/install-calendar-link/feed-url": [
-    "GET"
-  ],
   "/api/install-calendar/feed.ics": [
     "GET"
   ],

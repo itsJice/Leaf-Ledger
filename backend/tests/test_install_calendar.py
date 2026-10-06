@@ -240,37 +240,6 @@ def test_storing_lookup_failure_leaves_the_feed_alone(monkeypatch):
     assert asyncio.run(feed_api.storing_rows(board())) == set()
 
 
-def test_feed_url_is_built_for_staff_and_404s_when_unset(monkeypatch):
-    from starlette.requests import Request
-
-    from app.apis import install_calendar_link as link_api
-
-    req = Request({"type": "http", "method": "GET", "scheme": "http", "path": "/api/install-calendar-link/feed-url",
-                   "server": ("internal", 10000), "query_string": b"",
-                   "headers": [(b"host", b"internal:10000"), (b"x-forwarded-proto", b"https"),
-                               (b"x-forwarded-host", b"leaf-ledger.onrender.com")]})
-    monkeypatch.delenv("INSTALL_CALENDAR_TOKEN", raising=False)
-    with pytest.raises(HTTPException) as e:
-        asyncio.run(link_api.feed_url(req))
-    assert e.value.status_code == 404
-
-    monkeypatch.setenv("INSTALL_CALENDAR_TOKEN", "a b&c")
-    got = asyncio.run(link_api.feed_url(req))
-    assert got == {"url": "https://leaf-ledger.onrender.com/api/install-calendar/feed.ics?token=a%20b%26c"}
-
-
-def test_feed_url_is_staff_only():
-    from app.apis import install_calendar_link as link_api
-    from app.libs import roles
-
-    path = "/api/install-calendar-link/feed-url"
-    assert link_api.MIN_ROLE == "staff" and not getattr(link_api, "VIEWER_READ", False)
-    for role in ("crew", "lead", "viewer", "production"):
-        assert not roles.allowed(role, link_api.MIN_ROLE, "GET", False, path), role
-    for role in ("staff", "admin", "super_admin"):
-        assert roles.allowed(role, link_api.MIN_ROLE, "GET", False, path), role
-
-
 def test_subscribed_calendar_names_itself():
     ics = cal.build_ics(board())
     assert "X-WR-CALNAME:TBDG Xmas Schedule\r\n" in ics
