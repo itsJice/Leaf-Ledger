@@ -226,6 +226,12 @@ def require_role(minimum: str, viewer_read: bool = False):
         path = getattr(route, "path", None) or (url.path if url else "")
         if not allowed(role, minimum, request.method, viewer_read, path):
             raise HTTPException(status_code=403, detail="You don't have access to this")
+        # Kept for handlers that shape their answer by role (the install
+        # schedule's admin-only contractor fields), so they needn't look it up again.
+        try:
+            request.state.ll_role = role
+        except Exception:  # noqa: BLE001 - a stub request without .state
+            pass
         return role
 
     return _dep
