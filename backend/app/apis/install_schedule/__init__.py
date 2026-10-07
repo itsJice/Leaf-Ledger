@@ -43,6 +43,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.apis.user_context import get_request_user_id
+from app.auth.supabase_auth import get_current_user
 from app.libs import client_season, roles
 from app.libs.db import ensure_schema_once, get_conn
 from app.libs.jsonutil import loads_json as _loads
@@ -312,8 +313,88 @@ async def _inheritable_people(conn, version: str, season: str | None) -> dict | 
     return carried
 
 
+# ─── Contractor info (admin only) ────────────────────────────────────────────
+#
+# Each roster person can carry what's needed to set them up as a 1099
+# contractor: legal name, home address, whether they're tracked for a 1099
+# and whether direct deposit is on file (user, 2026-10-07). This router is
+# readable by staff, the warehouse display (viewer) and production, so those
+# fields are stripped from every roster this router returns to anyone below
+# admin -- the page hiding the section is a convenience, this is the guard.
+#
+# Saves are the other half. PUT /state replaces the whole document, and a
+# non-admin's page never had the fields, so its save would wipe them -- and a
+# non-admin could otherwise set them by hand. So a non-admin save takes each
+# person's contractor fields from the stored state (matched by person id)
+# and ignores whatever was sent. Someone a non-admin adds has none; someone
+# they delete is gone, as before. Admin saves keep the fields as sent.
+#
+# Mirrored by contractorFields() in scheduler/review_template.html. The other
+# roster readers (lead pages, /me, Settings > Users, install costs, the
+# calendar feed) all go through app.libs.schedule_board._norm_person, which
+# keeps only id/name/title/email/phone, so none of them can carry these.
+SENSITIVE_ROSTER_FIELDS = (
+    "legalName", "street", "city", "state", "zip", "tax1099", "directDeposit",
+)
+
+def sees_contractor_info(role: Any) -> bool:
+    """admin and super_admin. Anything else -- including a role we failed to
+    resolve, or a handler called without one -- does not."""
+    return isinstance(role, str) and roles.at_least(role, "admin")
+
+
+async def caller_role(request: Request) -> str:
+    """The signed-in caller's role. The router-level require_role check has
+    usually resolved it already for this request; otherwise resolve it here
+    (the lookup is cached). Local dev with auth off is super_admin, matching
+    require_role."""
+    if os.getenv("AUTH_DISABLED", "").lower() == "true" and os.getenv("ENV", "dev") == "dev":
+        return "super_admin"
+    cached = getattr(getattr(request, "state", None), "ll_role", None)
+    if isinstance(cached, str):
+        return cached
+    return await roles.resolve_role(get_current_user(request).email)
+
+
+def _strip_person(p: Any) -> Any:
+    if not isinstance(p, dict):
+        return p
+    return {k: v for k, v in p.items() if k not in SENSITIVE_ROSTER_FIELDS}
+
+
+def strip_roster(doc: Any) -> Any:
+    """A copy of a state (or inherit) document with every roster person's
+    contractor fields removed. Anything that isn't a dict passes through."""
+    if not isinstance(doc, dict) or not isinstance(doc.get("roster"), list):
+        return doc
+    return {**doc, "roster": [_strip_person(p) for p in doc["roster"]]}
+
+
+def keep_stored_contractor_info(state: dict, stored: Any) -> dict:
+    """A non-admin's save: every person's contractor fields come from the
+    stored state (by id), never from the request."""
+    roster = state.get("roster")
+    if not isinstance(roster, list):
+        return state
+    prior: dict[str, dict] = {}
+    if isinstance(stored, dict) and isinstance(stored.get("roster"), list):
+        for p in stored["roster"]:
+            if isinstance(p, dict) and p.get("id") not in (None, ""):
+                prior[str(p["id"])] = {
+                    k: p[k] for k in SENSITIVE_ROSTER_FIELDS if k in p
+                }
+    out = []
+    for p in roster:
+        if isinstance(p, dict):
+            p = {**_strip_person(p), **prior.get(str(p.get("id") or ""), {})}
+        out.append(p)
+    return {**state, "roster": out}
+
+
 @router.get("/state")
-async def get_state(version: str, season: str | None = None) -> dict:
+async def get_state(
+    version: str, season: str | None = None, role: str = Depends(caller_role)
+) -> dict:
     """Current shared state for a schedule build.
 
     Never 404s on a missing row: no state yet is the normal case on a fresh
@@ -342,11 +423,14 @@ async def get_state(version: str, season: str | None = None) -> dict:
         inherit = None if row else await _inheritable_people(conn, v, season)
     finally:
         await conn.close()
+    full = sees_contractor_info(role)
     if not row:
-        return {"version": v, "state": None, "inherit": inherit}
+        return {"version": v, "state": None,
+                "inherit": inherit if full else strip_roster(inherit)}
+    state = _loads(row["state"])
     return {
         "version": v,
-        "state": _loads(row["state"]),
+        "state": state if full else strip_roster(state),
         "updatedBy": row["updated_by"],
         "updatedAt": row["updated_at"].isoformat() if row["updated_at"] else None,
     }
@@ -437,7 +521,9 @@ async def _reconcile_flags(
 
 
 @router.put("/state")
-async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
+async def put_state(
+    request: Request, body: Any = Body(default=None), role: str = Depends(caller_role)
+) -> dict:
     """Replace the shared state for one schedule build.
 
     Whole-document write rather than a deep merge: the payload is a single
@@ -452,9 +538,11 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
     state = body.get("state")
     if not isinstance(state, dict):
         raise HTTPException(status_code=400, detail="state must be an object")
-    encoded = json.dumps(state)
-    if len(encoded) > MAX_DOC_BYTES:
+    # Checked on what was sent; the stored contractor fields merged back in
+    # below are a few hundred bytes at most.
+    if len(json.dumps(state)) > MAX_DOC_BYTES:
         raise HTTPException(status_code=413, detail="State document too large")
+    full = sees_contractor_info(role)
 
     # Stamp the row with the season the tool says it is, so a season's saves
     # can be found without knowing its build hash. Read tolerantly and never
@@ -482,11 +570,16 @@ async def put_state(request: Request, body: Any = Body(default=None)) -> dict:
                 payload_season,
                 user_id,
             )
-            await conn.fetchval(
+            stored = await conn.fetchval(
                 "SELECT state FROM ll_app.install_schedule_state "
                 "WHERE version = $1 FOR UPDATE",
                 v,
             )
+            # Under the row lock, so the stored values can't change between
+            # this read and the write.
+            if not full:
+                state = keep_stored_contractor_info(state, _loads(stored))
+            encoded = json.dumps(state)
             await conn.execute(
                 # COALESCE, not a plain assignment: an older cached page sends
                 # no season, and letting that blank out the label a newer save
@@ -589,7 +682,9 @@ async def list_history(version: str, limit: int = 50) -> dict:
 
 
 @router.get("/history/{entry_id}")
-async def get_history_entry(entry_id: int, version: str) -> dict:
+async def get_history_entry(
+    entry_id: int, version: str, role: str = Depends(caller_role)
+) -> dict:
     """One historical save's full state, for previewing or restoring it.
     Scoped to `version` too so an id from a different (e.g. regenerated)
     schedule build can't be replayed onto this one."""
@@ -612,10 +707,11 @@ async def get_history_entry(entry_id: int, version: str) -> dict:
         await conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="History entry not found")
+    state = _loads(row["state"])
     return {
         "id": row["id"],
         "version": v,
-        "state": _loads(row["state"]),
+        "state": state if sees_contractor_info(role) else strip_roster(state),
         "updatedBy": row["updated_by"],
         "createdAt": row["created_at"].isoformat() if row["created_at"] else None,
     }

@@ -838,6 +838,17 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 /* assign dialog */
 #perdlg{max-width:600px}
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.perrow3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+#percontract input[type=text]{font-size:16px;min-height:40px}
+.perchk{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14px;font-weight:600;
+  color:var(--ink);cursor:pointer}
+.perchk input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--brand)}
+.stfcontract{border:1px solid var(--line);border-radius:7px;padding:8px 10px;margin-bottom:8px;font-size:12px}
+.stfcontract>b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--mut);margin-bottom:3px;font-weight:800}
+.stfcontract .row{display:flex;gap:8px;padding:1px 0}
+.stfcontract .k{color:var(--mut);min-width:92px}
+.stfcontract .none{color:var(--faint)}
 .availhd{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:14px 0 2px;
   padding-top:12px;border-top:1px solid var(--line)}
 .availcount{float:right;color:var(--faint);font-weight:700;letter-spacing:0;
@@ -1825,6 +1836,23 @@ body.apple header{container-type:inline-size}
   <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com">
   <span class="nclabel">Notes</span>
   <input id="pernotes" type="text" autocomplete="off" placeholder="Anything worth remembering">
+  <div id="percontract" hidden>
+    <div class="availhd">Contractor info (admin only)</div>
+    <span class="nclabel">Legal name (tax and payroll)</span>
+    <input id="perlegal" type="text" autocomplete="off" placeholder="As on their W-9">
+    <span class="nclabel">Street</span>
+    <input id="perstreet" type="text" autocomplete="off" placeholder="Home address">
+    <div class="perrow3">
+      <div><span class="nclabel">City</span>
+        <input id="percity" type="text" autocomplete="off"></div>
+      <div><span class="nclabel">State</span>
+        <input id="perstate" type="text" autocomplete="off" placeholder="TX"></div>
+      <div><span class="nclabel">ZIP</span>
+        <input id="perzip" type="text" autocomplete="off" inputmode="numeric"></div>
+    </div>
+    <label class="perchk"><input id="pertax" type="checkbox"> 1099 tracking</label>
+    <label class="perchk"><input id="perdd" type="checkbox"> Direct deposit on file</label>
+  </div>
   <div class="availhd">Alberto rating</div>
   <span class="nclabel">1–5 stars, half-star steps — click the same star again to clear. Overall is the average of whatever's rated.</span>
   <div id="perratings"></div>
@@ -2487,6 +2515,16 @@ function crewLabelShort(d){ return crewLabel(d).replace('Crew ','C'); }
 // during bootstrap, and touching a `const` before its declaration throws --
 // inside a try/catch that would have swallowed it and silently lost the roster.
 function workDates(){ return activeCalendar().map(c=>c.date).sort(); }
+/** The admin-only contractor fields (1099 setup), mirrored on the server as
+ *  SENSITIVE_ROSTER_FIELDS in backend/app/apis/install_schedule. */
+const CONTRACTOR_TEXT=['legalName','street','city','state','zip'];
+function contractorFields(p){
+  const o={};
+  CONTRACTOR_TEXT.forEach(k=>{ const v=String(p[k]==null?'':p[k]).trim(); if(v) o[k]=v; });
+  if(p.tax1099===true) o.tax1099=true;
+  if(p.directDeposit===true) o.directDeposit=true;
+  return o;
+}
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
   // restored history entry. Anything unrecognised gets a sane default rather
@@ -2518,6 +2556,10 @@ function normRoster(list){
                                     : ['day','night'],
       dates: Array.isArray(p.dates) ? p.dates.filter(d=>all.includes(d)) : all.slice(),
       active: p.active!==false,
+      // Contractor info for 1099 setup -- admin only. The server strips these
+      // for anyone below admin, so a non-admin's page never has them; kept
+      // only when set, so the document doesn't fill up with empty keys.
+      ...contractorFields(p),
     };
   }).filter(p=>p.id && p.name);
   nextPersonId = out.reduce((m,p)=>Math.max(m, (+String(p.id).replace(/\D/g,'')||0)+1), 1);
@@ -3173,8 +3215,21 @@ function loadMeRole(){
   if(!AUTH || ME_ROLE!==null) return;
   ME_ROLE='';
   fetch('/api/me', {headers:{Authorization:AUTH}})
-    .then(r=>r.ok?r.json():null).then(m=>{ ME_ROLE=(m && m.role) || ''; })
+    .then(r=>r.ok?r.json():null).then(m=>{
+      ME_ROLE=(m && m.role) || '';
+      // The roster card was drawn before the role was known; add the
+      // contractor section now that it is.
+      if(canSeeContractor() && viewMode==='staff') renderStaffing();
+    })
     .catch(()=>{});
+}
+/** Contractor info (legal name, home address, 1099, direct deposit) is for
+ *  admins only, and never on the TV/viewer, archived or production views.
+ *  Unknown role = hidden. The server strips the fields for everyone below
+ *  admin regardless; this just keeps the empty section off their screen. */
+const CONTRACTOR_ROLES=new Set(['admin','super_admin']);
+function canSeeContractor(){
+  return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && CONTRACTOR_ROLES.has(ME_ROLE);
 }
 /** Viewer/TV/archived/production/lead logins read alerts but never edit them
  *  (the server refuses those saves regardless). */
@@ -8110,6 +8165,8 @@ document.getElementById('perredo').onclick=()=>{
   perDates = new Set(perRedo.pop());
   drawPerAvail();
 };
+const CONTRACTOR_INPUTS=[['perlegal','legalName'],['perstreet','street'],
+  ['percity','city'],['perstate','state'],['perzip','zip']];
 function openPersonDlg(person){
   if(roBlocked()) return;
   editingPerson = person || null;
@@ -8122,6 +8179,12 @@ function openPersonDlg(person){
   document.getElementById('peremail').value   = person ? person.email : '';
   document.getElementById('perphone').value   = person ? person.phone : '';
   document.getElementById('pernotes').value   = person ? person.notes : '';
+  const showCon = canSeeContractor();
+  document.getElementById('percontract').hidden = !showCon;
+  CONTRACTOR_INPUTS.forEach(([id,k])=>{
+    document.getElementById(id).value = (showCon && person && person[k]) || ''; });
+  document.getElementById('pertax').checked = !!(showCon && person && person.tax1099);
+  document.getElementById('perdd').checked  = !!(showCon && person && person.directDeposit);
   perRatings = person ? {...(person.ratings||{})} : {};
   drawPerRatings();
   // Nothing is selected by default (user, 2026-08-18): availability is
@@ -8149,6 +8212,13 @@ document.getElementById('pergo').onclick=()=>{
     notes:document.getElementById('pernotes').value.trim(),
     ratings:normRatings(perRatings),
     times:[...perTimes], dates:[...perDates]};
+  // Only an admin's dialog shows (and so saves) contractor info; anyone
+  // else's save leaves whatever is on the record untouched.
+  if(canSeeContractor() && !document.getElementById('percontract').hidden){
+    CONTRACTOR_INPUTS.forEach(([id,k])=>{ fields[k]=document.getElementById(id).value.trim(); });
+    fields.tax1099=document.getElementById('pertax').checked;
+    fields.directDeposit=document.getElementById('perdd').checked;
+  }
   pushUndo();
   if(editingPerson) Object.assign(editingPerson, fields);
   else {
@@ -8450,6 +8520,17 @@ function textLogHTML(p){
         <span class="pv">${esc(x.body.replace(/\s+/g,' ').slice(0,70))}</span></summary>
       <div class="body">${esc(x.body)}</div></details>`).join('')}</div>`;
 }
+/** The roster card's admin-only contractor block (1099 setup). */
+function contractorHTML(p){
+  const addr=[p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')]
+    .filter(Boolean).join(', ');
+  const row=(k,v)=>`<div class="row"><span class="k">${k}</span><span>${v}</span></div>`;
+  return `<div class="stfcontract"><b>Contractor info (admin only)</b>
+    ${row('Legal name', p.legalName?esc(p.legalName):'<span class="none">not on file</span>')}
+    ${row('Address', addr?esc(addr):'<span class="none">not on file</span>')}
+    ${row('1099 tracking', p.tax1099?'Yes':'No')}
+    ${row('Direct deposit', p.directDeposit?'On file':'Not on file')}</div>`;
+}
 function personDetailHTML(){
   const p=personById(selPerson);
   if(!p) return `<div class="stfnone">Pick someone to see their days, jobs and crews.</div>`;
@@ -8468,6 +8549,7 @@ function personDetailHTML(){
       <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div>
+    ${canSeeContractor()?contractorHTML(p):''}
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
     ${textLogHTML(p)}
     <div class="stfrating"><b>Alberto rating</b>
@@ -8777,6 +8859,9 @@ function vcardFor(p){
     `TITLE:${vcfEsc(p.title)}`];
   if(String(p.phone||'').trim()) lines.push(`TEL;type=CELL;type=VOICE;type=pref:${vcfEsc(fmtPhone(p.phone))}`);
   if(String(p.email||'').trim()) lines.push(`EMAIL;type=INTERNET;type=pref:${vcfEsc(String(p.email).trim())}`);
+  // Home address is contractor info: admins only.
+  if(canSeeContractor() && (p.street||p.city||p.state||p.zip))
+    lines.push(`ADR;type=HOME:;;${vcfEsc(p.street)};${vcfEsc(p.city)};${vcfEsc(p.state)};${vcfEsc(p.zip)};`);
   lines.push(`NOTE:${vcfEsc(note)}`, 'END:VCARD');
   return lines.join('\r\n');
 }
