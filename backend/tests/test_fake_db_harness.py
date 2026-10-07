@@ -21,7 +21,7 @@ def test_dispatch_by_substring_regex_and_method():
     rows = _run(conn.fetch("SELECT id\n   FROM   ll_app.widgets\n  ORDER BY id"))
     assert rows == [{"id": 1}, {"id": 2}]
     assert _run(conn.fetchval("SELECT COUNT(*)   FROM ll_app.widgets")) == 2
-    assert _run(conn.execute("UPDATE ll_app.widgets SET x = 1", 3)) == "UPDATE 3"
+    assert _run(conn.execute("UPDATE ll_app.widgets SET x = $1", 3)) == "UPDATE 3"
 
     # on_fetch is scoped to fetch(): the same SQL via fetchrow falls through.
     assert _run(conn.fetchrow("SELECT id FROM ll_app.widgets")) is None
@@ -98,3 +98,17 @@ def test_transaction_is_a_noop_context_and_close_marks_closed():
     assert not conn.is_closed()
     assert _run(_txn_and_close(conn)) is True
     assert db.seen("UPDATE t")
+
+
+def test_argument_count_must_match_placeholders_like_asyncpg():
+    import asyncpg
+    import pytest
+
+    conn = FakeConn(FakeDB())
+    assert _run(conn.execute("UPDATE t SET a = $1 WHERE b = $2", 1, 2)) == "UPDATE 1"
+    with pytest.raises(asyncpg.InterfaceError, match="expects 2 arguments for this query, 3 were passed"):
+        _run(conn.execute("UPDATE t SET a = $1 WHERE b = $2", 1, 2, 3))
+    with pytest.raises(asyncpg.InterfaceError, match="expects 1 argument for this query, 0 were passed"):
+        _run(conn.fetchrow("SELECT * FROM t WHERE id = $1"))
+    # A DO $$ ... $$ block is not a placeholder.
+    assert _run(conn.execute("DO $$ BEGIN NULL; END $$")) == "OK"

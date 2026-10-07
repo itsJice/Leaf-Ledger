@@ -80,6 +80,25 @@ def is_ddl(sql: str) -> bool:
     return _DDL.search(normalise_sql(sql)) is not None
 
 
+_PLACEHOLDER = re.compile(r"\$(\d+)")
+
+
+def check_placeholder_count(sql: str, args: tuple) -> None:
+    """Refuse a call the real server would: Postgres sizes a statement's
+    parameters by its highest ``$N``, and asyncpg raises when the number of
+    arguments passed differs. Without this the fake accepted any count, and a
+    rename that passed 3 arguments to a 2-parameter UPDATE 500'd on every
+    real save while its test passed (10/6/26)."""
+    expected = max((int(n) for n in _PLACEHOLDER.findall(sql)), default=0)
+    if expected != len(args):
+        import asyncpg
+
+        raise asyncpg.InterfaceError(
+            f"the server expects {expected} argument{'s' if expected != 1 else ''} "
+            f"for this query, {len(args)} {'was' if len(args) == 1 else 'were'} passed"
+        )
+
+
 def _default_execute_status(sql: str) -> str:
     word = (_FIRST_WORD.match(sql) or [None, ""])[1].upper()
     if word == "INSERT":
@@ -162,6 +181,7 @@ class FakeDB:
 
     async def dispatch(self, method: str, sql: str, args: tuple) -> Any:
         self.executed.append((sql, tuple(args)))
+        check_placeholder_count(sql, args)
         handler = self._find(method, sql)
         if handler is not None:
             result = handler(sql, *args)

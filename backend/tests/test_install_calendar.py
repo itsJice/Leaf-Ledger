@@ -151,10 +151,10 @@ def test_feed_needs_the_token_and_404s_without_it(monkeypatch):
         return b
 
     async def smith_storing(_board):
-        return {10}
+        return {10}, {}
 
     monkeypatch.setattr(schedule_board, "load_board", fake_load)
-    monkeypatch.setattr(feed_api, "storing_rows", smith_storing)
+    monkeypatch.setattr(feed_api, "client_lookup", smith_storing)
     run = asyncio.run
 
     monkeypatch.delenv("INSTALL_CALENDAR_TOKEN", raising=False)
@@ -228,7 +228,7 @@ def test_storing_lookup_is_one_query_for_the_season(monkeypatch):
         return conn
 
     monkeypatch.setattr(feed_api.db, "get_conn", get_conn)
-    assert asyncio.run(feed_api.storing_rows(board())) == {10}
+    assert asyncio.run(feed_api.client_lookup(board())) == ({10}, {})
     assert conn.args == ("2026",)
 
 
@@ -237,7 +237,36 @@ def test_storing_lookup_failure_leaves_the_feed_alone(monkeypatch):
         return _FakeConn(boom=RuntimeError('relation "client_activity" does not exist'))
 
     monkeypatch.setattr(feed_api.db, "get_conn", get_conn)
-    assert asyncio.run(feed_api.storing_rows(board())) == set()
+    assert asyncio.run(feed_api.client_lookup(board())) == (set(), {})
+
+
+def test_a_client_renamed_after_the_build_keeps_storing_and_shows_the_new_name(monkeypatch):
+    # The board was built with "Smith Home"; she was renamed on the Clients
+    # tab, so the app's name is new and the board's spelling is a former name.
+    conn = _FakeConn([{"name": "Smith Residence", "sheet_name": "Smith Home", "former_names": ["Smith Home"],
+                       "detail": {"storing": True}},
+                      {"name": "Jones, Office", "sheet_name": None, "former_names": [], "detail": None}])
+
+    async def get_conn():
+        return conn
+
+    monkeypatch.setattr(feed_api.db, "get_conn", get_conn)
+    b = board()
+    storing, names = asyncio.run(feed_api.client_lookup(b))
+    assert storing == {10} and names == {10: "Smith Residence"}
+
+    ics = cal.build_ics(b, storing=storing, names=names).replace("\r\n ", "")
+    assert "Drive to Smith Residence (20 min)" in ics and "Smith Residence (2 hr 30 min)" in ics
+    assert "Smith Home" not in ics
+    assert b.clients[10]["name"] == "Smith Home"   # the cached board is untouched
+
+
+def test_name_aliases_prefer_a_current_name_over_an_old_one():
+    aliases = cal.name_aliases([
+        {"name": "Ann B", "former_names": ["Ann A"]},
+        {"name": "Ann A", "former_names": []},          # someone now uses Ann A
+    ])
+    assert aliases == {"ann b": "Ann B", "ann a": "Ann A"}
 
 
 def test_subscribed_calendar_names_itself():

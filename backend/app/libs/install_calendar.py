@@ -215,13 +215,21 @@ def stop_facts(c: dict, minutes: float, storing: bool = False) -> list[str]:
     return out
 
 
-def day_events(board: Board, day: dict, storing: Optional[set] = None) -> list[dict]:
+def day_events(board: Board, day: dict, storing: Optional[set] = None,
+               names: Optional[dict] = None) -> list[dict]:
     """The crew-day as ``{uid, start, end, summary, location, description}``
     dicts (start/end in minutes after midnight of ``day['date']``).
 
     ``storing`` is the set of board rows whose client is storing their decor
-    with us this season (see ``storing_rows``); None/empty means none known."""
+    with us this season (see ``storing_rows``); None/empty means none known.
+    ``names`` maps a board row to the client's current name when it was
+    renamed on the Clients tab after the board was built (``current_names``)."""
     storing = storing or set()
+    names = names or {}
+
+    def name_of(row, fallback: str) -> str:
+        return names.get(row) or (board.clients.get(row) or {}).get("name") or fallback
+
     label = board.crew_label(day)
     label = f"{CREW_EMOJI[label]} {label}" if label in CREW_EMOJI else label
     tl = day_timeline(board, day)
@@ -243,12 +251,12 @@ def day_events(board: Board, day: dict, storing: Optional[set] = None) -> list[d
     if tl["anchored"]:
         add("arrive", tl["start"] - ARRIVE_LEAD_MIN, tl["start"], "Arrive at branch")
         add("drive-0", tl["start"], tl["stops"][0]["start"],
-            f"Drive to {first.get('name', 'first stop')} "
+            f"Drive to {name_of(tl['stops'][0]['row'], first.get('name', 'first stop'))} "
             f"({_dur(tl['stops'][0]['start'] - tl['start'])})")
 
     for i, s in enumerate(tl["stops"]):
         c = board.clients.get(s["row"]) or {}
-        name = c.get("name") or f"Row {s['row']}"
+        name = name_of(s["row"], f"Row {s['row']}")
         lines = [f"Stop {i + 1} of {len(tl['stops'])} · est. {_dur(s['end'] - s['start'])}"]
         lines += [x for x in (_address(c), c.get("phone"), _maps(c)) if x]
         lines += stop_facts(c, s["end"] - s["start"], s["row"] in storing)
@@ -257,7 +265,7 @@ def day_events(board: Board, day: dict, storing: Optional[set] = None) -> list[d
             location=_address(c), description="\n".join(lines) + "\n\n" + base)
         if i + 1 < len(tl["stops"]):
             nxt = tl["stops"][i + 1]
-            nname = (board.clients.get(nxt["row"]) or {}).get("name") or f"Row {nxt['row']}"
+            nname = name_of(nxt["row"], f"Row {nxt['row']}")
             add(f"drive-{s['row']}", s["end"], nxt["start"],
                 f"Drive to {nname} ({_dur(nxt['start'] - s['end'])})")
 
@@ -280,7 +288,36 @@ def storing_rows(board: Board, records: Iterable[tuple]) -> set:
     return {row for row, c in board.clients.items() if norm_name(c.get("name")) in yes}
 
 
-def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[set] = None) -> str:
+def name_aliases(clients: Iterable[dict]) -> dict:
+    """normalised spelling -> the client's current name, over every spelling
+    the app knows (``name``, ``sheet_name``, ``former_names``), like the
+    schedule page's loadClientDirectory(). A current name wins over anyone
+    else's old one."""
+    clients = list(clients)
+    out: dict = {}
+    for c in clients:
+        for n in [c.get("sheet_name"), *(c.get("former_names") or [])]:
+            if norm_name(n) and c.get("name"):
+                out.setdefault(norm_name(n), c["name"])
+    for c in clients:
+        if norm_name(c.get("name")):
+            out[norm_name(c["name"])] = c["name"]
+    return out
+
+
+def current_names(board: Board, aliases: dict) -> dict:
+    """Board rows whose client was renamed after the board was built:
+    {row: current name}. The board itself keeps the spelling it was built with."""
+    out = {}
+    for row, c in board.clients.items():
+        now = aliases.get(norm_name(c.get("name")))
+        if now and norm_name(now) != norm_name(c.get("name")):
+            out[row] = now
+    return out
+
+
+def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[set] = None,
+              names: Optional[dict] = None) -> str:
     """The whole season's board, every crew, as one VCALENDAR."""
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
     name = "TBDG Xmas Schedule"  # what the subscribed calendar is called
@@ -292,7 +329,7 @@ def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[se
     lines += VTIMEZONE
 
     for day in sorted(board.days.values(), key=lambda d: (d["date"], board.crew_label(d))):
-        for ev in day_events(board, day, storing):
+        for ev in day_events(board, day, storing, names):
             lines += ["BEGIN:VEVENT", f"UID:{ev['uid']}", f"DTSTAMP:{stamp}",
                       f"DTSTART;TZID={TZID}:{_local(day['date'], ev['start'])}",
                       f"DTEND;TZID={TZID}:{_local(day['date'], ev['end'])}",
