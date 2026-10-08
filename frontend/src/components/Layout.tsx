@@ -17,6 +17,7 @@ import { apiFetch } from "utils/apiFetch";
 import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
 import { appHome, currentMe, pageAllowed } from "utils/me";
+import { isInstallPath } from "utils/installViews";
 import {
   NAV_GROUPS,
   resolveSidebarRender,
@@ -219,7 +220,7 @@ function StaffLayout({ children }: Props) {
   // folds to an icon rail there and slides open OVER the page on hover (or
   // keyboard focus) -- the page underneath never jumps. Everywhere else, and
   // in the phone/tablet drawer, the menu is unchanged.
-  const railMode = location.pathname.includes("/install-schedule");
+  const railMode = isInstallPath(location.pathname);
   // Arriving from another page, the menu starts full width and then glides
   // closed to the rail (user, 2026-10-01) instead of snapping -- every page
   // mounts its own Layout, so "where we came from" lives at module scope.

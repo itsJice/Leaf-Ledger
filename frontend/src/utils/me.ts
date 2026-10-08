@@ -37,7 +37,8 @@ export interface Me {
 
 /** The only page a field-only login can open. */
 export const FIELD_HOME = "/shifts";
-/** The only page a view-only (warehouse display) login can open. */
+/** Where a view-only (warehouse display) login lands; it may open the
+ *  schedule's other views too (utils/installViews.ts). */
 export const DISPLAY_HOME = "/install-schedule";
 
 let cached: { token: string; promise: Promise<Me> } | null = null;
