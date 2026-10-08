@@ -3,6 +3,7 @@
 import { RouteObject } from "react-router-dom";
 
 import { lazyWithReload } from "./utils/lazyWithReload";
+import { INSTALL_PATHS } from "./utils/installViews";
 
 // Each page is its own chunk, loaded on first navigation to its route. The
 // Suspense boundary that covers these lives in router.tsx, wrapping the
@@ -72,7 +73,12 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/sourcing/:jobId", element: <Sourcing /> },
 	{ path: "/mockups", element: <Mockups /> },
 	{ path: "/orders", element: <Orders /> },
-	{ path: "/install-schedule", element: <InstallSchedule /> },
+	// Install Schedule, Calendar, Staffing and Roster: four nav entries, ONE
+	// page. A pathless parent keeps the same <InstallSchedule> (and its
+	// iframe) mounted across all four, so switching is instant and keeps
+	// scroll, open popups and any pending save; the page is told which view
+	// to show (utils/installViews.ts).
+	{ element: <InstallSchedule />, children: INSTALL_PATHS.map((path) => ({ path })) },
 	{ path: "/ornament-calculator", element: <OrnamentCalculator /> },
 	{ path: "/tree-counts", element: <TreeCounts /> },
 	{ path: "/search", element: <CatalogSearch /> },

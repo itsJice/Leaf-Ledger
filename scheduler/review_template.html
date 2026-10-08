@@ -1738,6 +1738,33 @@ body.apple header{container-type:inline-size}
   /* Version history: a sheet under the toolbar */
   body.apple #histpop{position:fixed;left:8px;right:8px;top:54px;width:auto;max-width:none;max-height:75vh;overflow:auto}
 }
+/* ---- inside the app (user, 2026-10-08) ----
+   The app's own menu has Install Schedule / Calendar / Staffing / Roster
+   entries now, so the page's tab row (and the Staffing view's Roster/Shifts
+   sub-tabs) give their space back -- phone and desktop alike. Opened on its
+   own, or in TV mode, the page keeps them. */
+body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!important}
+/* ---- phones: the header gives the day's run the room (user, 2026-10-08) ----
+   No stats box; an overview's title, counts and "print all" are one line. */
+.ovline,.ovanchor{display:none}
+.ovanchor{height:0;margin:0;padding:0}
+@media (max-width:767px){
+  body.apple .daystats{display:none}
+  body.apple .dayhead.ovhead{padding-top:4px;padding-bottom:6px;margin-bottom:6px}
+  body.apple .dayhead.ovhead > b,body.apple .dayhead.ovhead > .dhsub{display:none}
+  body.apple .dayhead.ovhead .ovline{display:flex;align-items:center;gap:8px;min-width:0}
+  body.apple .ovline .ovltxt{flex:1;min-width:0;font-size:14px;line-height:1.3;color:var(--mut);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body.apple .ovline .ovltxt b{display:inline;font-family:'Sora',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--brand-deep)}
+  body.apple .ovline .ovprint{flex:none;width:40px;height:40px;border:1px solid #ddd7cb;border-radius:12px;background:#fff;
+    display:inline-flex;align-items:center;justify-content:center;color:var(--brand-deep);padding:0;cursor:pointer}
+  body.apple .ovline .ovprint .ic{width:18px;height:18px}
+  body.apple #side > .printbtn.ovprintall{display:none}
+  body.apple #side .ovanchor{display:block}
+  /* Room under the last date so it can still scroll to the top of the list */
+  body.apple #side .ovspacer{display:block}
+}
+.ovspacer{display:none}
 </style></head>
 <body class="apple"><div id="app">
 <aside id="datecol" aria-label="Dates">
@@ -2825,6 +2852,42 @@ window.addEventListener('message', e=>{
 // nothing sensitive in a readiness ping, and window.parent is guaranteed
 // to be the one page that embedded us, so a wildcard target costs nothing.
 window.parent.postMessage({type:'tbdg-ready'}, '*');
+
+// ---------- inside the app: its nav picks the view (user, 2026-10-08) ----------
+// The app's menu has Install Schedule / Calendar / Staffing / Roster entries,
+// all four one route that keeps this page loaded. InstallSchedule.tsx sets
+// TBDG_HOSTED + TBDG_VIEW before we start, then posts {type:'tbdg-view'} when
+// another entry is picked; we say which view we're on whenever it changes by
+// itself (a day opened from the Calendar, TV mode ending...), so the app's
+// URL and highlighted entry follow. body.hosted hides our own tab row.
+const HOSTED = !!window.TBDG_HOSTED && window.parent!==window;
+if(HOSTED) document.body.classList.add('hosted');
+window.tbdgViews = true;          // the host checks for this before posting views
+let lastToldView = null;
+function curView(){ return viewMode==='staff' ? (staffTab==='roster'?'roster':'staff') : viewMode; }
+function reportView(){
+  if(!HOSTED) return;
+  const v=curView();
+  if(v===lastToldView) return;
+  lastToldView=v;
+  try{ window.parent.postMessage({type:'tbdg-view', view:v}, '*'); }catch(e){}
+}
+/** Show one of the four views the app's nav names. */
+function applyHostView(v){
+  if(!['days','cal','staff','roster'].includes(v) || v===curView()) return;
+  if(v==='staff' || v==='roster'){
+    staffTab = v==='roster' ? 'roster' : 'shifts';
+    if(viewMode==='staff'){ renderStaffing(); return; }
+    setView('staff'); return;
+  }
+  setView(v);
+}
+window.addEventListener('message', e=>{
+  if(e.source !== window.parent || !e.data || e.data.type!=='tbdg-view') return;
+  // TV mode drives its own screens (and the app is covered while it's on).
+  if(TVMODE || hostingSeason) return;
+  applyHostView(String(e.data.view||''));
+});
 
 // ---------- season picker + archive (read-only) mode ----------
 // The tool is published per season and every published season stays
@@ -5129,40 +5192,190 @@ let stripScrolledFor=null;
 // ---------- phone day bar (user, 2026-10-05: leads read their run on a phone) ----------
 // ‹ day › + Today + Map; tapping the day opens the full dates list as a sheet.
 var stripList=[];
+/** "All Installs", "December Installs": an overview's name, short enough for the day bar. */
+function shortOverviewTitle(sel){
+  return (overviewTitle(sel)||'Overview')
+    .replace(' + Takedowns','').replace('Installations','Installs').replace(/ \d{4}\b/,'');
+}
+// ---------- phones: one continuous list (user, 2026-10-08) ----------
+// Picking a date (Dates sheet, ‹ ›, Today, a day opened from the Calendar or
+// a search) no longer filters the view to that day: the phone keeps showing
+// the whole overview it's on (All, Dallas, a month...) as one list and
+// scrolls to the date's heading, so a swipe carries on into the days either
+// side. The day bar follows whichever date is at the top of the list.
+// Overviews still filter as before; a date with nothing booked in the list
+// (an open or empty day) still opens on its own so a crew can be added.
+// Tablets and desktops are unchanged.
+const PHONE_MQ=window.matchMedia('(max-width:767px)');
+let phoneDay=null;          // the date heading at the top of the list (null: above the first)
+let phonePending=null;      // scroll to this date once the list is drawn
+let phoneScope=null;        // the overview the list shows (remembered across a single-day detour)
+let phoneTop=false;         // an overview was picked again: back to its top
+let phoneLastScope=null;    // the list drawn last render, to tell "same list" from "new list"
+const isDay=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'');
+function phoneMode(){ return PHONE_MQ.matches && document.body.classList.contains('apple'); }
+/** True while the phone is showing an overview as a continuous list. */
+function phoneCont(){ return phoneMode() && viewMode==='days' && !!parseOverview(selDate); }
+function stripAll(){ return {install:'ALL-INSTALL', takedown:'ALL-TAKEDOWN', all:'ALL'}[stripScope]||'ALL'; }
+/** The overview whose list holds `dt`: the one we're on, else this half of the season's All. */
+function phoneScopeFor(dt){
+  const cands=[phoneScope, parseOverview(selDate)?selDate:null, stripAll()].filter(Boolean);
+  return cands.find(sc=>daysFor(sc).some(d=>d.date===dt)) || null;
+}
+function phoneDates(){ return [...new Set(daysFor(selDate).map(d=>d.date))].sort(); }
+function phoneAnchor(dt){ return side.querySelector(`.ovanchor[data-date="${dt}"]`); }
+/** The day the map and the bar describe: the date in view, else what's selected. */
+function phoneMapDate(){ return phoneCont() && phoneDay ? phoneDay : selDate; }
+/** Enough room under the last date that it, too, can scroll up to the top. */
+function fitPhoneSpacer(){
+  const sp=side.querySelector('.ovspacer'); if(!sp) return;
+  if(!phoneCont()){ sp.style.height=''; return; }
+  const as=side.querySelectorAll('.ovanchor'), last=as[as.length-1];
+  if(!last){ sp.style.height='0px'; return; }
+  const sTop=side.getBoundingClientRect().top;
+  const lastY=last.getBoundingClientRect().top - sTop + side.scrollTop;
+  const after=side.scrollHeight - lastY - sp.offsetHeight;
+  sp.style.height=Math.max(0, side.clientHeight - after)+'px';
+}
+/** Scroll the list so `dt`'s heading is at the top (null: the top of the list). */
+function phoneScrollTo(dt){
+  if(!dt){ side.scrollTop=0; phoneDay=null; }
+  else {
+    const a=phoneAnchor(dt); if(!a) return false;
+    fitPhoneSpacer();
+    side.scrollTop += a.getBoundingClientRect().top - side.getBoundingClientRect().top;
+    phoneDay=dt;
+  }
+  syncPhoneBar(); phoneMapSoon(0);
+  return true;
+}
+let phoneMapTimer=0;
+/** The map shows the day in view; redrawn as the list scrolls, only while it's open. */
+function phoneMapSoon(ms){
+  clearTimeout(phoneMapTimer);
+  phoneMapTimer=setTimeout(()=>{
+    if(!document.body.classList.contains('showmap') || viewMode!=='days') return;
+    try{ drawDate(phoneMapDate()); }catch(e){}
+  }, ms==null?150:ms);
+}
+/** Scroll-spy: which date heading is at the top of the list. */
+function phoneSpy(){
+  if(!phoneCont()) return;
+  const top=side.getBoundingClientRect().top;
+  let cur=null;
+  // At the very top the list's own header shows: the bar names the overview.
+  if(side.scrollTop>1) for(const a of side.querySelectorAll('.ovanchor')){
+    if(a.getBoundingClientRect().top - top <= 40) cur=a.dataset.date; else break;
+  }
+  if(cur!==phoneDay){ phoneDay=cur; syncPhoneBar(); phoneMapSoon(); }
+}
+// Straight from the scroll event (two dozen rect reads): a rAF can be
+// held back for a long time in a background tab or a hidden iframe.
+side.addEventListener('scroll', phoneSpy, {passive:true});
+/** Before drawing: on a phone a single date becomes "its overview, scrolled to it". */
+function phoneNormalize(){
+  if(!phoneMode() || viewMode!=='days') return;
+  if(parseOverview(selDate)){ phoneScope=selDate; return; }
+  if(!isDay(selDate)) return;
+  const sc=phoneScopeFor(selDate);
+  if(!sc) return;                   // nothing booked: the day opens on its own, as before
+  phonePending=selDate; selDate=sc; phoneScope=sc;
+}
+/** After drawing: keep the reader's place in the same list, or go where asked. */
+function phoneAfterRender(prevScope, prevTop){
+  if(!phoneCont()){ phoneLastScope=null; phoneDay=null; phonePending=null; phoneTop=false; return; }
+  fitPhoneSpacer();
+  const want=phonePending; phonePending=null;
+  if(want && phoneScrollTo(want)){ /* scrolled */ }
+  else if(phoneTop || prevScope!==selDate){ side.scrollTop=0; phoneDay=null; }
+  else { side.scrollTop=prevTop; phoneDay=null; phoneSpy(); }
+  phoneTop=false;
+  phoneLastScope=selDate;
+}
+PHONE_MQ.addEventListener && PHONE_MQ.addEventListener('change', ()=>{ if(viewMode==='days') render(); });
 function phoneDayLabel(){
   if(selDate==='NOINSTALL') return `Not installing ${'__SEASON__'}`;
   if(selDate==='HOLD') return 'On hold';
+  if(phoneCont() && phoneDay)
+    return dateOf(phoneDay).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   // The day bar is narrow: "December 2026 Installations" -> "December Installs".
-  if(isOverview(selDate)) return (overviewTitle(selDate)||'Overview')
-    .replace(' + Takedowns','').replace('Installations','Installs').replace(/ \d{4}\b/,'');
+  if(isOverview(selDate)) return shortOverviewTitle(selDate);
   return dateOf(selDate).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 }
 function phoneTodayTarget(){
   const T=todayISO();
-  return stripListsDate(T) ? T : ({install:'ALL-INSTALL', takedown:'ALL-TAKEDOWN', all:'ALL'}[stripScope]||'ALL');
+  return stripListsDate(T) ? T : stripAll();
+}
+/** Where Today goes in the continuous list: today's heading in the list on
+ *  screen if it's there, else this half of the season's All at today (or the
+ *  next date booked after it; its top before the season starts). */
+function phoneTodayGoal(){
+  const T=todayISO();
+  if(phoneCont() && stripListsDate(T) && phoneDates().includes(T)) return {scope:selDate, date:T};
+  const sc=stripAll();
+  if(!stripListsDate(T)) return {scope:sc, date:null};
+  const ds=[...new Set(daysFor(sc).map(d=>d.date))].sort();
+  return {scope:sc, date: ds.includes(T) ? T : (ds.find(d=>d>T)||null)};
 }
 function syncPhoneBar(){
   const lb=document.getElementById('pblabel'); if(!lb) return;
   lb.textContent=phoneDayLabel();
+  const prev=document.getElementById('pbprev'), next=document.getElementById('pbnext'), today=document.getElementById('pbtoday');
+  if(phoneCont()){
+    const ds=phoneDates(), i=phoneDay?ds.indexOf(phoneDay):-1;
+    prev.disabled = !phoneDay;                      // the first date's ‹ goes back to the top
+    next.disabled = i>=ds.length-1;
+    const g=phoneTodayGoal();
+    today.disabled = selDate===g.scope && phoneDay===g.date;
+    return;
+  }
   const i=stripList.indexOf(selDate);
-  document.getElementById('pbprev').disabled = i<=0;
-  document.getElementById('pbnext').disabled = i<0 ? !stripList.length : i>=stripList.length-1;
-  document.getElementById('pbtoday').disabled = selDate===phoneTodayTarget();
+  prev.disabled = i<=0;
+  next.disabled = i<0 ? !stripList.length : i>=stripList.length-1;
+  today.disabled = selDate===phoneTodayTarget();
 }
-function phoneGo(dt){ selDate=dt; focusDayId=null; render(); const sd=document.getElementById('side'); if(sd) sd.scrollTop=0; }
-document.getElementById('pbprev').onclick=()=>{ const i=stripList.indexOf(selDate); if(i>0) phoneGo(stripList[i-1]); };
-document.getElementById('pbnext').onclick=()=>{ const i=stripList.indexOf(selDate);
+function phoneGo(dt){
+  if(phoneMode() && viewMode==='days' && isDay(dt)){
+    const sc=phoneScopeFor(dt);
+    if(sc && sc===selDate && phoneScrollTo(dt)) return;   // same list: just scroll, nothing redrawn
+  }
+  selDate=dt; focusDayId=null;
+  if(parseOverview(dt)) phoneTop=true;
+  render();
+  if(!phoneCont()){ const sd=document.getElementById('side'); if(sd) sd.scrollTop=0; }
+}
+document.getElementById('pbprev').onclick=()=>{
+  if(phoneCont()){ const ds=phoneDates(), i=phoneDay?ds.indexOf(phoneDay):-1;
+    if(i>0) phoneScrollTo(ds[i-1]); else if(phoneDay) phoneScrollTo(null); return; }
+  const i=stripList.indexOf(selDate); if(i>0) phoneGo(stripList[i-1]); };
+document.getElementById('pbnext').onclick=()=>{
+  if(phoneCont()){ const ds=phoneDates(), i=phoneDay?ds.indexOf(phoneDay):-1;
+    if(i<ds.length-1) phoneScrollTo(ds[i+1]); return; }
+  const i=stripList.indexOf(selDate);
   if(i<0){ if(stripList.length) phoneGo(stripList.includes(todayISO())?todayISO():stripList[0]); }
   else if(i<stripList.length-1) phoneGo(stripList[i+1]); };
-document.getElementById('pbtoday').onclick=()=>phoneGo(phoneTodayTarget());
+document.getElementById('pbtoday').onclick=()=>{
+  if(phoneMode() && viewMode==='days'){
+    const g=phoneTodayGoal();
+    if(phoneCont() && selDate===g.scope){ phoneScrollTo(g.date); return; }
+    selDate=g.scope; focusDayId=null; phonePending=g.date; phoneTop=!g.date;
+    render();
+    return;
+  }
+  phoneGo(phoneTodayTarget());
+};
 document.getElementById('pbdate').onclick=()=>{
   document.body.classList.add('datesheet');
-  // Open at the day you're on; from an overview (All, a month…) open at today / the next install date.
-  const isDay=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'');
-  const on=document.querySelector('#datestrip .dchip.sel');
-  if(on && isDay(on.dataset.val)){ on.scrollIntoView({block:'center'}); return; }
+  // Open at the day you're on -- in the continuous list, the date at the top
+  // of it; from an overview's top, at today / the next install date.
+  const cur=phoneCont() ? phoneDay : selDate;
+  const chips=[...document.querySelectorAll('#datestrip .dchip')];
+  if(phoneCont()) chips.forEach(b=>{ if(isDay(b.dataset.val)){ const on=b.dataset.val===phoneDay;
+    b.classList.toggle('sel', on); if(on) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); } });
+  const on=isDay(cur) ? chips.find(b=>b.dataset.val===cur) : null;
+  if(on){ on.scrollIntoView({block:'center'}); return; }
   const T=todayISO();
-  const next=[...document.querySelectorAll('#datestrip .dchip')].find(b=>isDay(b.dataset.val) && b.dataset.val>=T);
+  const next=chips.find(b=>isDay(b.dataset.val) && b.dataset.val>=T);
   if(next) next.scrollIntoView({block:'start'});
   else document.getElementById('datecol').scrollTop=0;
 };
@@ -5173,7 +5386,7 @@ document.getElementById('pbmap').onclick=()=>{
   document.body.classList.toggle('showmap', on);
   const b=document.getElementById('pbmap'); b.setAttribute('aria-pressed', String(on));
   b.setAttribute('aria-label', on?'Hide the map':'Show the map');
-  setTimeout(()=>{ try{ map.invalidateSize(); drawDate(selDate); }catch(e){} }, 60);
+  setTimeout(()=>{ try{ map.invalidateSize(); drawDate(phoneMapDate()); }catch(e){} fitPhoneSpacer(); }, 60);
 };
 function renderStrip(){
   strip.innerHTML='';
@@ -5207,7 +5420,8 @@ function renderStrip(){
     if(o.count!=null){
       const s=document.createElement('span'); s.className='dcount'; s.textContent=o.count; b.appendChild(s);
     }
-    b.onclick=()=>{selDate=val; focusDayId=null; document.body.classList.remove('datesheet'); render();};
+    b.onclick=()=>{selDate=val; focusDayId=null; if(parseOverview(val)) phoneTop=true;
+      document.body.classList.remove('datesheet'); render();};
     b.ondragover=e=>{e.preventDefault();b.classList.add('dragover');};
     b.ondragleave=()=>b.classList.remove('dragover');
     b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
@@ -5775,7 +5989,8 @@ function renderCards(){
     const nS=pool.reduce((a,d)=>a+d.stops.length,0);
     const calcs=pool.map(d=>dayCalc(d));
     const apprN=pool.filter(d=>approved.has(d.id)).length;
-    const hd=pageHead(title, `${dates.length} date${dates.length===1?'':'s'} · ${pool.length} crew-day${pool.length===1?'':'s'} · ${nS} stop${nS===1?'':'s'}`,
+    const counts=`${dates.length} date${dates.length===1?'':'s'} · ${pool.length} crew-day${pool.length===1?'':'s'} · ${nS} stop${nS===1?'':'s'}`;
+    const hd=pageHead(title, counts,
       pool.length ? [['Stops', String(nS)], ['Install', `${calcs.reduce((a,c)=>a+c.inst,0).toFixed(1)} h`],
                      ['Drive', `${(calcs.reduce((a,c)=>a+c.drive,0)/60).toFixed(1)} h`],
                      ['Approved', `${apprN} of ${pool.length}`, apprN/pool.length]] : null);
@@ -5787,18 +6002,36 @@ function renderCards(){
     // the days crews and shifts in one file ... like you can for a regular
     // date"). Days with no stops (a staffed training day) have no sheet.
     const printable=overviewSheets(pool);
+    // Phones (user, 2026-10-08): the title, counts and "print all" are ONE
+    // line -- "All Installs · 25 dates · 62 crew-days · 129 stops" + a
+    // printer button. Wider screens keep the big title and the full button.
+    const line=document.createElement('div'); line.className='ovline';
+    line.innerHTML=`<span class="ovltxt"><b>${esc(shortOverviewTitle(selDate))}</b> · ${counts}</span>`;
+    hd.appendChild(line);
     if(printable.length){
       const nDates=new Set(printable.map(d=>d.date)).size;
+      const what=`Print all ${printable.length} crew sheet${printable.length===1?'':'s'} — ${nDates} date${nDates===1?'':'s'}`;
+      const go=()=>printManifests(printable, `Crew sheets — ${title}`, {cover:title});
       const all=document.createElement('button');
-      all.className='printbtn'; all.style.cssText='margin:0 0 10px;width:100%';
-      all.textContent=`Print all ${printable.length} crew sheet${printable.length===1?'':'s'} — ${nDates} date${nDates===1?'':'s'}`;
+      all.className='printbtn ovprintall'; all.style.cssText='margin:0 0 10px;width:100%';
+      all.textContent=what;
       all.title='One file: an index page, then every crew sheet in this view in date order';
-      all.onclick=()=>printManifests(printable, `Crew sheets — ${title}`, {cover:title});
+      all.onclick=go;
       side.appendChild(all);
+      const pi=document.createElement('button');
+      pi.type='button'; pi.className='ovprint';
+      pi.setAttribute('aria-label', what); pi.title=what;
+      pi.innerHTML='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg>';
+      pi.onclick=go;
+      line.appendChild(pi);
     }
     dates.forEach(dt=>{
       const ds=pool.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
-      const dh=document.createElement('div'); dh.className='ovdate';
+      // A plain (never sticky) marker the phone's continuous list scrolls to
+      // and reads "which date is at the top" from.
+      const an=document.createElement('div'); an.className='ovanchor'; an.dataset.date=dt;
+      side.appendChild(an);
+      const dh=document.createElement('div'); dh.className='ovdate'; dh.dataset.date=dt;
       dh.style.cssText='display:flex;align-items:center;gap:8px';
       dh.innerHTML=`<span>${esc(dateOf(dt).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))}</span>`;
       if(ds.some(d=>d.stops.length)){
@@ -5811,6 +6044,7 @@ function renderCards(){
       side.appendChild(dh);
       ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });
+    const sp=document.createElement('div'); sp.className='ovspacer'; side.appendChild(sp);
     return;
   }
   const onThisDate = days.filter(d=>d.date===selDate);
@@ -8781,6 +9015,7 @@ function wireShiftMaps(wrap){
 }
 function renderStaffing(){
   syncSearchMode();
+  reportView();   // its Roster / Shifts sub-tabs switch views too
   const wrap=document.getElementById('staffwrap');
   // Keep the top-nav Staffing/Roster buttons in sync even when the tab
   // changes via the in-page sub-tabs rather than the top nav itself.
@@ -9301,7 +9536,11 @@ function openTextDlg(){
   document.getElementById('txtdlg').showModal();
 }
 
+let daysScrollKeep=null;
 function setView(v){
+  // Calendar, Staffing and Roster hide the day list; coming back to it lands
+  // where you were (the nav switches views without reloading anything).
+  if(viewMode==='days' && v!=='days') daysScrollKeep=side.scrollTop;
   viewMode=v;
   if(typeof syncSearchMode==='function') syncSearchMode();
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
@@ -9316,6 +9555,8 @@ function setView(v){
   document.body.classList.toggle('calview', v==='cal');
   if(v!=='cal' && typeof closeCalSub==='function') closeCalSub();
   render();
+  if(v==='days' && daysScrollKeep!=null){ side.scrollTop=daysScrollKeep; daysScrollKeep=null; phoneSpy(); }
+  reportView();
 }
 
 // ---------- printable crew manifest ----------
@@ -9465,6 +9706,9 @@ function render(){
       else { if(pk.open) (pk.closeNow||pk.close).call(pk); document.body.appendChild(pk); }
     } }
   if(hostingSeason) return;      // our DOM belongs to a hosted season now
+  // Phones: a picked date becomes its overview's list, scrolled to it.
+  const phPrevScope=phoneLastScope, phPrevTop=side.scrollTop;
+  phoneNormalize();
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
   days.forEach(d=>{
@@ -9490,7 +9734,7 @@ function render(){
   if(viewMode!=='staff') teardownShiftMaps();
   if(viewMode==='cal'){ renderCalendar(); }
   else if(viewMode==='staff'){ renderStaffing(); }
-  else { renderStrip(); renderCards(); markSearchHit(); drawDate(selDate); }
+  else { renderStrip(); renderCards(); markSearchHit(); phoneAfterRender(phPrevScope, phPrevTop); drawDate(phoneMapDate()); }
   if(pkKeep){
     // Put the open drop-down back under its row; if that stop left this view, close it.
     const card=pkDayId!=null ? side.querySelector(`.card[data-dayid="${CSS.escape(pkDayId)}"]`) : null;
@@ -9683,7 +9927,12 @@ function stripListsDate(dt){
 // guarantee immediate rather than eventual.
 if(VIEWONLY) enterViewOnly();
 else if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
+// Inside the app: open on the view its route names (/install-calendar...).
+// Not for the warehouse display, which opens on the wall calendar.
+const DISPLAY_LOGIN = VIEWONLY && (window.TBDG_DISPLAY===undefined || !!window.TBDG_DISPLAY);
+if(HOSTED && !DISPLAY_LOGIN && window.TBDG_VIEW) applyHostView(String(window.TBDG_VIEW));
 render();
+reportView();
 if(!VIEWONLY && tvPref()==='1') enterTV();
 // The host may have mounted us before it could hear the answer; say it again.
 window.addEventListener('message', e=>{

@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2, TreePine } from "components/icons";
 import Layout from "components/Layout";
 import { auth } from "app/auth/auth";
 import { apiFetch } from "utils/apiFetch";
 import { currentMe } from "utils/me";
+import { type InstallView, legacyView, pathForView, viewForPath, withHostFlags } from "utils/installViews";
 
 /**
  * TBDG Install Schedule — the Christmas install scheduling tool.
@@ -31,25 +33,43 @@ import { currentMe } from "utils/me";
  * listener exists; sending in direct response to that is what actually
  * guarantees delivery. `onLoad` stays wired too, as a second attempt.
  */
-/**
- * The warehouse display login gets the tool in view-only mode from its very
- * first paint (a flag the tool reads at startup), rather than after the token
- * message arrives. The server refuses that login's saves either way.
- */
-function asViewOnly(html: string, display: boolean): string {
-  // TBDG_DISPLAY: the warehouse TV login also opens in TV mode on the wall
-  // calendar; a view-only office login (production) opens normally.
-  const flag = `<script>window.TBDG_VIEWONLY=true;window.TBDG_DISPLAY=${display};</script>`;
-  return html.includes("<head>") ? html.replace("<head>", `<head>${flag}`) : flag + html;
-}
+type ToolWindow = Window & { tbdgFlush?: () => void; tbdgViews?: boolean };
+
+/** Builds published before the app nav existed have no `tbdg-view` listener:
+ *  press their own tab button instead, so the nav still works until the new
+ *  template is published. */
+const LEGACY_TAB_BUTTON: Record<InstallView, string> = {
+  days: "viewdays",
+  cal: "viewcal",
+  staff: "viewstaff",
+  roster: "viewroster",
+};
 
 export default function InstallSchedule() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const routeView = viewForPath(location.pathname);
   const [html, setHtml] = useState<string | null>(null);
   // The tool's TV mode (a wall display): it tells us when it's on, and we
   // cover the whole window -- sidebar included -- with the tool.
   const [tv, setTv] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  // The view the page is showing, as far as we know: what it was opened on,
+  // then whatever it last reported or we last asked for. Route changes that
+  // already match it send nothing, so the page and the URL never ping-pong.
+  const pageView = useRef<InstallView>(routeView);
+  const pathRef = useRef(location.pathname);
+  pathRef.current = location.pathname;
+  const heardFromPage = useRef(false);
+  const pageReady = useRef(false);
+
+  // Old links: /install-schedule?view=calendar, ?tab=roster or #staffing.
+  useEffect(() => {
+    const v = legacyView(location.search, location.hash);
+    if (v && v !== "days") navigate(pathForView(v), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +82,11 @@ export default function InstallSchedule() {
         }
         const text = await res.text();
         const me = currentMe();
-        if (!cancelled) setHtml(me?.viewOnly || me?.readOnly ? asViewOnly(text, Boolean(me?.viewOnly)) : text);
+        const viewOnly = Boolean(me?.viewOnly || me?.readOnly);
+        // Opens on the view of the route we're on by the time it arrived.
+        const view = viewForPath(pathRef.current);
+        pageView.current = view;
+        if (!cancelled) setHtml(withHostFlags(text, view, viewOnly, Boolean(me?.viewOnly)));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
@@ -85,17 +109,42 @@ export default function InstallSchedule() {
     }
   };
 
-  // Leaving this tab unmounts the iframe, which kills the tool's 200ms
+  /** Show `view` in the already-loaded page: no reload, no remount. */
+  const showView = (view: InstallView) => {
+    const w = frameRef.current?.contentWindow as ToolWindow | null | undefined;
+    if (!w) return;
+    pageView.current = view;
+    try {
+      if (!w.tbdgViews) {
+        (w.document.getElementById(LEGACY_TAB_BUTTON[view]) as HTMLButtonElement | null)?.click();
+        return;
+      }
+    } catch {
+      /* not reachable: fall through to the message */
+    }
+    w.postMessage({ type: "tbdg-view", view }, window.location.origin);
+  };
+
+  // A nav click between the four schedule routes lands here, with the same
+  // iframe still mounted (user-routes.tsx: one parent route for all four).
+  useEffect(() => {
+    if (!html || !pageReady.current) return;
+    if (routeView !== pageView.current) showView(routeView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeView, html]);
+
+  // Leaving the schedule unmounts the iframe, which kills the tool's 200ms
   // debounced save with it. Ask the tool (same origin, so its window is
   // reachable) to flush synchronously first; older published builds without
-  // the hook simply have nothing to call.
+  // the hook simply have nothing to call. Switching between the four
+  // schedule routes does NOT unmount it, so nothing is flushed or lost there.
   // Re-run when `html` lands so the frame captured here is the one that
   // actually mounted (it does not exist before then).
   useEffect(() => {
     const frame = frameRef.current;
     return () => {
       try {
-        const w = frame?.contentWindow as (Window & { tbdgFlush?: () => void }) | null | undefined;
+        const w = frame?.contentWindow as ToolWindow | null | undefined;
         w?.tbdgFlush?.();
       } catch {
         /* cross-origin or already gone */
@@ -107,11 +156,29 @@ export default function InstallSchedule() {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
       if (e.source !== frameRef.current?.contentWindow) return;
-      if (e.data?.type === "tbdg-ready") sendToken();
-      if (e.data?.type === "tbdg-tv") setTv(Boolean(e.data.on));
+      const type = e.data?.type;
+      if (type === "tbdg-ready") {
+        sendToken();
+        // Navigated while it was still loading: catch it up.
+        pageReady.current = true;
+        const want = viewForPath(pathRef.current);
+        if (want !== pageView.current) showView(want);
+      }
+      if (type === "tbdg-tv") setTv(Boolean(e.data.on));
+      // The page changed view on its own (a day opened from the Calendar,
+      // TV mode ending, the warehouse display opening on the wall calendar):
+      // follow it in the URL so the nav highlights the right entry.
+      if (type === "tbdg-view" && typeof e.data.view === "string") {
+        const view = e.data.view as InstallView;
+        pageView.current = view;
+        const path = pathForView(view);
+        if (path !== pathRef.current) navigate(path, { replace: !heardFromPage.current });
+        heardFromPage.current = true;
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -134,7 +201,10 @@ export default function InstallSchedule() {
             className="h-full w-full flex-1 border-0"
             allow="fullscreen"
             allowFullScreen
-            onLoad={sendToken}
+            onLoad={() => {
+              pageReady.current = true;
+              sendToken();
+            }}
           />
         )}
       </div>

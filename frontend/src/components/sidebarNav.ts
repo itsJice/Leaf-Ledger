@@ -1,7 +1,9 @@
 import type { LucideIcon } from "components/icons";
 import {
   Activity,
+  Briefcase,
   Building2,
+  CalendarDays,
   Calculator,
   ClipboardCheck,
   ClipboardList,
@@ -18,6 +20,7 @@ import {
   ShoppingCart,
   Sparkles,
   TreePine,
+  Users,
 } from "components/icons";
 
 /**
@@ -46,10 +49,12 @@ export interface NavGroup {
 
 /**
  * The expandable Clients / Projects tree is rendered directly after the last
- * *visible* item belonging to this group. Kept here (rather than in Layout) so
+ * *visible* item belonging to this group. Installs (right after Workspace),
+ * so the four schedule entries sit where Install Schedule always was instead
+ * of below a long projects list. Kept here (rather than in Layout) so
  * the ordering helpers can report where the tree belongs.
  */
-export const CLIENTS_PROJECTS_ANCHOR_GROUP_ID = "workspace";
+export const CLIENTS_PROJECTS_ANCHOR_GROUP_ID = "installs";
 
 /**
  * DEFAULT ORDER - deliberately chosen by the owner. A user with no saved
@@ -75,11 +80,24 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/search", label: "Catalog Search", icon: Search },
       { path: "/suppliers", label: "Suppliers", icon: Building2 },
       { path: "/orders", label: "Purchase Orders", icon: ShoppingCart },
-      { path: "/install-schedule", label: "Install Schedule", icon: TreePine },
       { path: "/shifts", label: "Crew Shifts", icon: MapPinned },
       { path: "/favorites", label: "Favorites", icon: Heart },
       { path: "/invoice", label: "Invoices", icon: FileText },
       { path: "/comments", label: "Comments", icon: MessageSquare },
+    ],
+  },
+  // The Install Schedule's four screens (user, 2026-10-08) -- they were a tab
+  // row inside the page. One page behind all four routes, so switching is
+  // instant (utils/installViews.ts). Crew Shifts stays in Workspace: it's a
+  // separate page.
+  {
+    id: "installs",
+    label: "Installs",
+    items: [
+      { path: "/install-schedule", label: "Install Schedule", icon: TreePine },
+      { path: "/install-calendar", label: "Install Calendar", icon: CalendarDays },
+      { path: "/install-staffing", label: "Install Staffing", icon: Briefcase },
+      { path: "/install-roster", label: "Install Roster", icon: Users },
     ],
   },
   {

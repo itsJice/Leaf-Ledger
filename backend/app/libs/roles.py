@@ -190,6 +190,9 @@ PRODUCTION_PAGES = (
     "/forms/product-request", "/forms/product-request/responses", "/search",
     "/favorites", "/jobs", "/suppliers", "/ornament-calculator", "/clients",
     "/projects", "/arrangements", "/install-schedule", "/shifts", "/comments",
+    # The schedule's other views, each a nav entry since 2026-10-08 (they
+    # were tabs inside /install-schedule, which production could already open).
+    "/install-calendar", "/install-staffing", "/install-roster",
 )
 
 
