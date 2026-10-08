@@ -1,5 +1,5 @@
 """The stop popup's contact editor can rename a client by parts
-(Person: first + last; Business: company + site), saving through
+(first name, last name, business name, location), saving through
 PUT /api/clients/update/{id}. These pin the parts of review_template.html
 that matter: the JS composes names exactly like the backend
 (backend/app/libs/client_names.py), only office staff get the fields, and a
@@ -48,21 +48,24 @@ def run_js(src):
 
 
 CASES = [
-    ("person", "Nataliya", "Scheib", None, None),
-    ("person", "  Nataliya ", " Scheib  ", None, None),
-    ("person", "", "Hellums", None, None),
-    ("person", "Cher", "", None, None),
-    ("business", None, None, "The Club at Carlton Woods", "Nicklaus Clubhouse"),
-    ("business", None, None, "A Hug Away", "Daycare"),
-    ("business", None, None, "Capital Bank - Baytown", None),
-    ("business", None, None, "Capital  Bank", "  "),
+    ("Nataliya", "Scheib", None, None),
+    ("  Nataliya ", " Scheib  ", None, None),
+    ("", "Hellums", None, None),
+    ("Kerri", "Byler", None, "House"),
+    (None, None, "The Club at Carlton Woods", "Nicklaus Clubhouse"),
+    (None, None, "A Hug Away", "Daycare"),
+    (None, None, "Capital Bank - Baytown", None),
+    (None, None, "Capital  Bank", "  "),
+    ("Marissa", "Frazier", "A Hug Away", None),
+    ("Marissa", "Frazier", "A Hug Away", "Residence"),
+    (None, None, None, "Daycare"),
 ]
 
 
 @pytest.mark.skipif(NODE is None, reason="node not installed")
 def test_js_composes_names_like_the_backend():
     src = js_function("squashName") + "\n" + js_function("composeClientName") + "\n"
-    rows = [dict(zip(("client_type", "first_name", "last_name", "company", "site"), c)) for c in CASES]
+    rows = [dict(zip(("first_name", "last_name", "company", "site"), c)) for c in CASES]
     src += f"console.log(JSON.stringify({json.dumps(rows)}.map(composeClientName)));"
     assert json.loads(run_js(src)) == [compose_name(*c) for c in CASES]
 

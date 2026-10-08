@@ -1083,21 +1083,16 @@ body.apple .salert{width:19px;height:19px}
 body.apple #salertpop,body.apple .pkalert{border-radius:12px}
 body.tv .salert{cursor:default}
 .pkce{margin:4px 0 2px}
-/* Client name as parts (Person / Business), in the contact editor */
+/* Client name as parts (first / last / business / location), in the contact editor */
 .pkname{margin:0 0 8px;padding:0 0 8px;border-bottom:1px solid var(--line)}
-.pkname-type{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;
-  overflow:hidden;margin:0 0 6px}
-.pkname-type button{border:0;background:transparent;color:var(--mut);font:600 12px 'Montserrat',sans-serif;
-  min-height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
-.pkname-type button .ic{width:13px;height:13px;flex:none}
-.pkname-type button+button{border-left:1px solid var(--line)}
-.pkname-type button.on{background:var(--brand);color:#fff}
-.pkname-row{display:flex;gap:6px}
-.pkname-row input[type=text]{flex:1;min-width:0}
+.pkname-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 6px}
+.pkname-f{display:block;min-width:0}
+.pkname-f.wide{grid-column:1 / -1}
+.pkname-f span{display:block;font-size:10.5px;font-weight:600;color:var(--mut);margin:0 0 2px}
+.pkce .pkname-f input[type=text]{width:100%;box-sizing:border-box}
 .pkname-preview{margin:0;font-size:11.5px;color:var(--mut)}
 .pkname-preview b{color:var(--ink)}
 .pkname-preview .pkname-warn{display:block;color:#b45309;margin-top:2px}
-body.apple .pkname-type button{min-height:40px;font-size:14px}
 body.apple .pkce input[type=text]{min-height:40px}
 .pkce input[type=text]{margin:0 0 6px;padding:6px 8px;font-size:12px}
 .pkce-row{display:flex;gap:6px}
@@ -2087,7 +2082,6 @@ function roFlash(){
 }
 const IC={
  users:'<svg class="ic" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
- building:'<svg class="ic" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2M11 7h2M11 11h2M11 15h2M12 19v2"/></svg>',
  link:'<svg class="ic" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
  box:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
  truck:'<svg class="ic" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
@@ -7634,64 +7628,61 @@ document.addEventListener('click', async e=>{
 });
 let pkEditingContact=false;
 // ---------- the client's name, as parts ----------
-// The Clients tab types a name as a Person (first + last -> "Last, First")
-// or a Business (company + optional site -> "Company | Site"); the backend
-// composes the one canonical name from them (app/libs/client_names.py) and
-// a change goes through its rename-everywhere path. The contact editor here
-// offers the same fields to office staff (staff/admin/owner -- the server
-// refuses anyone else), so a typo can be fixed without leaving the board.
-let pkNameEdit=null;           // {client_type, first_name, last_name, company, site, touched, was}
+// Every client card offers the same four boxes -- first name, last name,
+// business name, location -- filled as they apply; the backend composes the
+// one canonical name from them (app/libs/client_names.py: "Last, First",
+// "Last, First - Location", "Business", "Business | Location",
+// "Business | Last, First") and a change goes through its rename-everywhere
+// path. The contact editor here offers the same boxes to office staff
+// (staff/admin/owner -- the server refuses anyone else), so a typo can be
+// fixed without leaving the board.
+let pkNameEdit=null;           // {first_name, last_name, company, site, touched, was}
+const NAME_PART_KEYS=['first_name','last_name','company','site'];
 function canRenameClients(){
   return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && ALERT_EDIT_ROLES.has(ME_ROLE);
 }
 /** True once the backend sends name parts (an older one doesn't). */
-function namePartsSupported(ac){ return !!ac && Object.prototype.hasOwnProperty.call(ac,'client_type'); }
+function namePartsSupported(ac){ return !!ac && Object.prototype.hasOwnProperty.call(ac,'name_parts_saved'); }
 function squashName(s){ return String(s||'').trim().replace(/\s+/g,' '); }
 function composeClientName(p){
-  if(p.client_type==='person'){
-    const last=squashName(p.last_name), first=squashName(p.first_name);
-    return last && first ? `${last}, ${first}` : (last || first);
+  const last=squashName(p.last_name), first=squashName(p.first_name);
+  const biz=squashName(p.company), where=squashName(p.site);
+  let person = last && first ? `${last}, ${first}` : (last || first);
+  if(person){
+    if(where) person=`${person} - ${where}`;
+    return biz ? `${biz} | ${person}` : person;
   }
-  const co=squashName(p.company), site=squashName(p.site);
-  return co && site ? `${co} | ${site}` : (co || site);
+  if(biz) return where ? `${biz} | ${where}` : biz;
+  return '';
 }
 function namePartsProblem(p){
-  if(p.client_type==='person'){
-    if(!squashName(p.first_name) && !squashName(p.last_name)) return 'Enter a first or last name.';
-    if(/[,|]/.test((p.first_name||'')+(p.last_name||''))) return "Names can't contain a comma or |.";
-    return '';
-  }
-  if(!squashName(p.company)) return 'Enter the company name.';
-  if(/\|/.test((p.company||'')+(p.site||''))) return "Company and site can't contain |.";
+  if(!squashName(p.first_name) && !squashName(p.last_name) && !squashName(p.company))
+    return 'Enter a first or last name, or a business name.';
+  if(/\|/.test(NAME_PART_KEYS.map(k=>p[k]||'').join(''))) return "Names can't contain |.";
+  if(/,/.test((p.first_name||'')+(p.last_name||''))) return "First and last names can't contain a comma.";
   return '';
 }
 function namePartsBody(p){
-  return p.client_type==='person'
-    ? {client_type:'person', first_name:squashName(p.first_name), last_name:squashName(p.last_name), company:'', site:''}
-    : {client_type:'business', first_name:'', last_name:'', company:squashName(p.company), site:squashName(p.site)};
+  const out={}; NAME_PART_KEYS.forEach(k=>{ out[k]=squashName(p[k]); }); return out;
 }
 function nameEditFor(ac){
   if(!namePartsSupported(ac)) return null;
-  const t = ac.client_type==='person' ? 'person' : 'business';
-  return {client_type:t, first_name:ac.first_name||'', last_name:ac.last_name||'',
-    company:ac.company||(ac.client_type?'':ac.name||''), site:ac.site||'', touched:false, was:ac.name||''};
+  const has=NAME_PART_KEYS.some(k=>ac[k]);
+  return {first_name:ac.first_name||'', last_name:ac.last_name||'',
+    company:ac.company||(has?'':ac.name||''), site:ac.site||'', touched:false, was:ac.name||''};
 }
 function attrEsc(s){ return peekEsc(s).replace(/"/g,'&quot;'); }
 function nameFieldsHTML(p){
   const a=attrEsc;
-  const fields = p.client_type==='person'
-    ? `<div class="pkname-row">
-         <input id="pkn-first" type="text" placeholder="First name" aria-label="First name" autocomplete="off" value="${a(p.first_name)}">
-         <input id="pkn-last" type="text" placeholder="Last name" aria-label="Last name" autocomplete="off" value="${a(p.last_name)}">
-       </div>`
-    : `<input id="pkn-company" type="text" placeholder="Company" aria-label="Company" autocomplete="off" value="${a(p.company)}">
-       <input id="pkn-site" type="text" placeholder="Location / site (optional)" aria-label="Location / site" autocomplete="off" value="${a(p.site)}">`;
+  const box=(id,key,label,ph,wide)=>`<label class="pkname-f${wide?' wide':''}"><span>${label}</span>`
+    +`<input id="${id}" type="text" placeholder="${ph}" autocomplete="off" value="${a(p[key])}"></label>`;
   return `
-    <div class="pkname-type" role="radiogroup" aria-label="Client type">
-      <button type="button" role="radio" data-type="person" aria-checked="${p.client_type==='person'}" class="${p.client_type==='person'?'on':''}">${IC.users}Person</button>
-      <button type="button" role="radio" data-type="business" aria-checked="${p.client_type==='business'}" class="${p.client_type==='business'?'on':''}">${IC.building}Business</button>
+    <div class="pkname-grid">
+      ${box('pkn-first','first_name','First name','e.g. Kerri')}
+      ${box('pkn-last','last_name','Last name','e.g. Byler')}
+      ${box('pkn-company','company','Business name','e.g. A Hug Away',true)}
+      ${box('pkn-site','site','Location','e.g. House, Daycare',true)}
     </div>
-    ${fields}
     <p class="pkname-preview" id="pkn-preview">${namePreviewHTML(p)}</p>`;
 }
 function namePreviewHTML(p){
@@ -7708,20 +7699,10 @@ function nameBlockHTML(row){
   if(!canRenameClients() || !pkNameEdit){
     return `<p class="pksec">Name</p><p class="pkrow">${peekEsc(ac.name)} <span class="pkhint">— only office staff can rename</span></p>`;
   }
-  return `<p class="pksec">Name</p><div class="pkname" id="pknamefields">${nameFieldsHTML(pkNameEdit)}</div>`;
+  return `<p class="pksec">Name <span class="pkhint">— fill whichever apply</span></p><div class="pkname" id="pknamefields">${nameFieldsHTML(pkNameEdit)}</div>`;
 }
 function wireNameFields(){
-  const box=document.getElementById('pknamefields');
-  if(!box || !pkNameEdit) return;
-  box.querySelectorAll('.pkname-type button').forEach(b=>{
-    b.onclick=()=>{
-      if(pkNameEdit.client_type===b.dataset.type) return;
-      pkNameEdit.client_type=b.dataset.type; pkNameEdit.touched=true;
-      box.innerHTML=nameFieldsHTML(pkNameEdit);
-      wireNameFields();
-      const first=box.querySelector('input'); if(first) first.focus();
-    };
-  });
+  if(!pkNameEdit) return;
   [['pkn-first','first_name'],['pkn-last','last_name'],['pkn-company','company'],['pkn-site','site']].forEach(([id,key])=>{
     const el=document.getElementById(id);
     if(el) el.oninput=()=>{

@@ -1,6 +1,6 @@
 /**
- * The client dialog types a name as parts -- Person (first + last) or
- * Business (company + optional site) -- and shows the one display name they
+ * The client dialog types a name as parts -- First name, Last name, Business
+ * name, Location, whichever apply -- and shows the one display name they
  * make. The composing rules must match backend/app/libs/client_names.py.
  */
 import { describe, expect, it } from "vitest";
@@ -12,53 +12,51 @@ import {
   type NameParts,
 } from "../clients/ClientNameFields";
 
-const person = (first: string, last: string): NameParts =>
-  ({ client_type: "person", first_name: first, last_name: last, company: "", site: "" });
-const business = (company: string, site = ""): NameParts =>
-  ({ client_type: "business", first_name: "", last_name: "", company, site });
+const parts = (p: Partial<NameParts>): NameParts =>
+  ({ first_name: "", last_name: "", company: "", site: "", ...p });
 
 describe("composeClientName", () => {
-  it("writes a person as Last, First", () => {
-    expect(composeClientName(person("Nataliya", "Scheib"))).toBe("Scheib, Nataliya");
-    expect(composeClientName(person("  Nataliya ", " Scheib  "))).toBe("Scheib, Nataliya");
-    expect(composeClientName(person("", "Hellums"))).toBe("Hellums");
-  });
-  it("writes a business as Company | Site, or just Company", () => {
-    expect(composeClientName(business("The Club at Carlton Woods", "Nicklaus Clubhouse")))
-      .toBe("The Club at Carlton Woods | Nicklaus Clubhouse");
-    expect(composeClientName(business("A Hug Away", "Daycare"))).toBe("A Hug Away | Daycare");
-    expect(composeClientName(business("Capital Bank - Baytown"))).toBe("Capital Bank - Baytown");
+  it.each([
+    [{ first_name: "Nataliya", last_name: "Scheib" }, "Scheib, Nataliya"],
+    [{ first_name: "  Nataliya ", last_name: " Scheib  " }, "Scheib, Nataliya"],
+    [{ last_name: "Hellums" }, "Hellums"],
+    [{ first_name: "Kerri", last_name: "Byler", site: "House" }, "Byler, Kerri - House"],
+    [{ company: "Hilton Garden Inn" }, "Hilton Garden Inn"],
+    [{ company: "The Club at Carlton Woods", site: "Nicklaus Clubhouse" }, "The Club at Carlton Woods | Nicklaus Clubhouse"],
+    [{ company: "A Hug Away", site: "Daycare" }, "A Hug Away | Daycare"],
+    [{ company: "Capital Bank - Baytown" }, "Capital Bank - Baytown"],
+    [{ company: "A Hug Away", first_name: "Marissa", last_name: "Frazier" }, "A Hug Away | Frazier, Marissa"],
+    [{ company: "A Hug Away", first_name: "Marissa", last_name: "Frazier", site: "Residence" }, "A Hug Away | Frazier, Marissa - Residence"],
+    [{ site: "Daycare" }, ""],
+  ] as [Partial<NameParts>, string][])("%o -> %s", (p, expected) => {
+    expect(composeClientName(parts(p))).toBe(expected);
   });
 });
 
 describe("initialNameParts", () => {
-  it("starts a new client as an empty person", () => {
-    expect(initialNameParts(null)).toEqual(person("", ""));
+  it("starts a new client empty", () => {
+    expect(initialNameParts(null)).toEqual(parts({}));
   });
   it("uses the parts the server sends", () => {
-    expect(initialNameParts({ name: "Scheib, Nataliya", client_type: "person", first_name: "Nataliya", last_name: "Scheib" }))
-      .toEqual(person("Nataliya", "Scheib"));
-    expect(initialNameParts({ name: "A Hug Away | Daycare", client_type: "business", company: "A Hug Away", site: "Daycare" }))
-      .toEqual(business("A Hug Away", "Daycare"));
+    expect(initialNameParts({ name: "Byler, Kerri - House", first_name: "Kerri", last_name: "Byler", site: "House" }))
+      .toEqual(parts({ first_name: "Kerri", last_name: "Byler", site: "House" }));
   });
-  it("falls back to the whole name as a company when there are no parts", () => {
-    expect(initialNameParts({ name: "Capital Bank - Baytown" })).toEqual(business("Capital Bank - Baytown"));
+  it("falls back to the whole name as the business name when there are no parts", () => {
+    expect(initialNameParts({ name: "Capital Bank - Baytown" })).toEqual(parts({ company: "Capital Bank - Baytown" }));
   });
 });
 
 describe("validation and request body", () => {
-  it("needs a name for a person and a company for a business", () => {
-    expect(namePartsProblem(person("", " "))).toMatch(/first or last/);
-    expect(namePartsProblem(person("A, B", "C"))).toMatch(/comma/);
-    expect(namePartsProblem(business("", "Daycare"))).toMatch(/company/);
-    expect(namePartsProblem(business("A | B"))).toMatch(/\|/);
-    expect(namePartsProblem(person("Nataliya", "Scheib"))).toBeNull();
+  it("needs a person's name or a business name", () => {
+    expect(namePartsProblem(parts({ site: "House" }))).toMatch(/business name/);
+    expect(namePartsProblem(parts({ first_name: "A, B" }))).toMatch(/comma/);
+    expect(namePartsProblem(parts({ company: "A | B" }))).toMatch(/\|/);
+    expect(namePartsProblem(parts({ first_name: "Nataliya", last_name: "Scheib" }))).toBeNull();
+    expect(namePartsProblem(parts({ company: "A Hug Away" }))).toBeNull();
   });
-  it("sends only the type's own fields", () => {
-    expect(namePartsBody({ ...person("Nataliya", "Scheib"), company: "stale" }))
-      .toEqual({ client_type: "person", first_name: "Nataliya", last_name: "Scheib", company: "", site: "" });
-    expect(namePartsBody({ ...business("A Hug Away", " Daycare "), first_name: "stale" }))
-      .toEqual({ client_type: "business", first_name: "", last_name: "", company: "A Hug Away", site: "Daycare" });
+  it("sends all four boxes, trimmed", () => {
+    expect(namePartsBody(parts({ first_name: " Kerri ", last_name: "Byler", site: " House " })))
+      .toEqual({ first_name: "Kerri", last_name: "Byler", company: "", site: "House" });
   });
 });
 
@@ -66,36 +64,22 @@ describe("ClientNameFields", () => {
   const render = (value: NameParts, currentName?: string) =>
     renderToStaticMarkup(<ClientNameFields value={value} onChange={() => undefined} currentName={currentName} />);
 
-  it("shows First and Last name boxes and the live preview for a person", () => {
-    const html = render(person("Nataliya", "Scheib"));
-    expect(html).toContain("First name");
-    expect(html).toContain("Last name");
-    expect(html).not.toContain("Company");
+  it("always offers First name, Last name, Business name and Location, with no type switch", () => {
+    const html = render(parts({ first_name: "Kerri", last_name: "Byler", site: "House" }));
+    for (const label of ["First name", "Last name", "Business name", "Location"]) expect(html).toContain(label);
+    expect(html).not.toContain('role="radio"');
     expect(html).toContain("Shows as: <span");
-    expect(html).toContain("Scheib, Nataliya");
-    expect(html).toMatch(/role="radio" aria-checked="true"[^>]*>.*Person/);
+    expect(html).toContain("Byler, Kerri - House");
   });
 
-  it("shows Company and an optional site for a business", () => {
-    const html = render(business("The Club at Carlton Woods", "Nicklaus Clubhouse"));
-    expect(html).toContain("Company");
-    expect(html).toContain("Location / site");
-    expect(html).not.toContain("First name");
-    expect(html).toContain("The Club at Carlton Woods | Nicklaus Clubhouse");
-  });
-
-  it("uses 16px text and 40px-tall controls (no iPhone zoom, easy taps)", () => {
-    const html = render(person("", ""));
-    const inputs = html.match(/<input[^>]*>/g) || [];
-    expect(inputs).toHaveLength(2);
+  it("uses 16px text and 40px-tall boxes (no iPhone zoom, easy taps)", () => {
+    const inputs = render(parts({})).match(/<input[^>]*>/g) || [];
+    expect(inputs).toHaveLength(4);
     inputs.forEach((i) => { expect(i).toContain("text-base"); expect(i).toContain("h-10"); });
-    const radios = html.match(/<button[^>]*role="radio"[^>]*>/g) || [];
-    expect(radios).toHaveLength(2);
-    radios.forEach((b) => expect(b).toContain("h-10"));
   });
 
   it("warns when a save will rename the client everywhere", () => {
-    expect(render(person("Natalia", "Scheib"), "Scheib, Nataliya")).toContain("Renames");
-    expect(render(person("Nataliya", "Scheib"), "Scheib, Nataliya")).not.toContain("Renames");
+    expect(render(parts({ first_name: "Natalia", last_name: "Scheib" }), "Scheib, Nataliya")).toContain("Renames");
+    expect(render(parts({ first_name: "Nataliya", last_name: "Scheib" }), "Scheib, Nataliya")).not.toContain("Renames");
   });
 });

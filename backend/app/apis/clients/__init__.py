@@ -30,7 +30,7 @@ CLIENT_COLUMNS = (
     "id, name, email, phone, notes, street, city, state, zip, time_preference, "
     "former_names, sheet_name, secondary_contacts, created_at, updated_at, "
     "staff_alert, staff_alert_by, staff_alert_at, "
-    "client_type, first_name, last_name, company, site"
+    "first_name, last_name, company, site"
 )
 
 #: The staff alert (migrations/020): one short warning about a client that
@@ -50,15 +50,13 @@ STAFF_ALERT_DDL = (
     "ADD COLUMN IF NOT EXISTS staff_alert_at timestamptz"
 )
 
-#: The name as parts (migrations/021): person (first + last) or business
-#: (company + optional site). All nullable -- a row without them derives
-#: them from `name` (app.libs.client_names.name_parts). `name` stays the
-#: canonical, matched-everywhere spelling, composed from the parts on save.
+#: The name as parts (migrations/021): first name, last name, business
+#: name, location -- whichever apply. All nullable -- a row without them
+#: derives them from `name` (app.libs.client_names.name_parts). `name` stays
+#: the canonical, matched-everywhere spelling, composed from the parts on save.
 NAME_PART_COLUMNS = client_names.NAME_PART_COLUMNS
 NAME_PARTS_DDL = (
     "ALTER TABLE clients "
-    "ADD COLUMN IF NOT EXISTS client_type text "
-    "CHECK (client_type IN ('person', 'business')), "
     "ADD COLUMN IF NOT EXISTS first_name text, "
     "ADD COLUMN IF NOT EXISTS last_name text, "
     "ADD COLUMN IF NOT EXISTS company text, "
@@ -181,10 +179,10 @@ class SecondaryContact(BaseModel):
 
 
 class NameParts(BaseModel):
-    """The name typed as parts. When ``client_type`` is set the server
-    composes ``name`` from these (person "Last, First"; business
-    "Company | Site") and any ``name`` sent alongside is ignored."""
-    client_type: Optional[str] = None
+    """The name typed as parts. When any of them is sent the server composes
+    ``name`` from them (app.libs.client_names.compose_name: "Last, First",
+    "Last, First - Location", "Business", "Business | Location",
+    "Business | Last, First") and any ``name`` sent alongside is ignored."""
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     company: Optional[str] = None
@@ -219,8 +217,8 @@ class ClientUpdate(NameParts):
     key), and the edit UI always has the full current list in hand
     already, so sending it back whole is simpler than diffing it.
 
-    The name can change two ways. With ``client_type`` (and its parts) the
-    parts are saved and ``name`` is composed from them. With only ``name``
+    The name can change two ways. With the parts (any of first_name,
+    last_name, company, site) they are saved and ``name`` is composed from them. With only ``name``
     (an older caller), the saved parts are cleared when the name changes,
     so they're derived again from the new spelling rather than going stale.
     Either way a changed name goes through the rename-everywhere path."""
@@ -311,7 +309,6 @@ class ClientOut(BaseModel):
     updated_at: Optional[datetime] = None
     #: The name as parts (migrations/021). Derived from `name` when the row
     #: has none saved; name_parts_saved says which.
-    client_type: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     company: Optional[str] = None
@@ -334,13 +331,12 @@ def clean_name(name: Optional[str]) -> str:
 
 
 def parts_from_body(body: NameParts) -> Optional[dict]:
-    """The cleaned parts when the request sent a client_type, else None.
+    """The cleaned parts when the request sent any of them, else None.
     400 on parts that can't make a name."""
-    if body.client_type is None:
+    if all(getattr(body, k) is None for k in client_names.PART_FIELDS):
         return None
     try:
-        return client_names.clean_parts(body.client_type, body.first_name, body.last_name,
-                                        body.company, body.site)
+        return client_names.clean_parts(body.first_name, body.last_name, body.company, body.site)
     except client_names.NamePartsError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -445,8 +441,8 @@ async def create_client(body: ClientCreate, request: Request):
         row = await conn.fetchrow(
             f"""
             INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference,
-                                 client_type, first_name, last_name, company, site)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16)
+                                 first_name, last_name, company, site)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15)
             ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
             RETURNING {CLIENT_COLUMNS}
             """,
@@ -537,12 +533,11 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                                                    TRIM($2))
                                             ELSE former_names END,
                         -- Name parts (migrations/021), by $14: 'set' writes
-                        -- $15..$19, 'clear' nulls them, 'keep' leaves them.
-                        client_type = CASE $14::text WHEN 'set' THEN $15::text WHEN 'clear' THEN NULL ELSE client_type END,
-                        first_name = CASE $14::text WHEN 'set' THEN $16::text WHEN 'clear' THEN NULL ELSE first_name END,
-                        last_name = CASE $14::text WHEN 'set' THEN $17::text WHEN 'clear' THEN NULL ELSE last_name END,
-                        company = CASE $14::text WHEN 'set' THEN $18::text WHEN 'clear' THEN NULL ELSE company END,
-                        site = CASE $14::text WHEN 'set' THEN $19::text WHEN 'clear' THEN NULL ELSE site END,
+                        -- $15..$18, 'clear' nulls them, 'keep' leaves them.
+                        first_name = CASE $14::text WHEN 'set' THEN $15::text WHEN 'clear' THEN NULL ELSE first_name END,
+                        last_name = CASE $14::text WHEN 'set' THEN $16::text WHEN 'clear' THEN NULL ELSE last_name END,
+                        company = CASE $14::text WHEN 'set' THEN $17::text WHEN 'clear' THEN NULL ELSE company END,
+                        site = CASE $14::text WHEN 'set' THEN $18::text WHEN 'clear' THEN NULL ELSE site END,
                         updated_at = NOW()
                     WHERE id = $1
                     RETURNING {CLIENT_COLUMNS}

@@ -115,7 +115,7 @@ type ClientRecord = NamePartsIn & {
 type ClientGroup = {
   id?: number | null;
   name: string;
-  /** Person (first/last) or business (company/site), from the server. */
+  /** First / last / business name / location, from the server. */
   nameParts?: NamePartsIn;
   email?: string | null;
   phone?: string | null;
@@ -284,7 +284,7 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       id: client.id,
       name,
       nameParts: {
-        client_type: client.client_type, first_name: client.first_name, last_name: client.last_name,
+        first_name: client.first_name, last_name: client.last_name,
         company: client.company, site: client.site,
       },
       email: client.email,
@@ -336,8 +336,8 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
 }) {
   const editing = Boolean(client?.id);
   const [alert, setAlert] = useState<StaffAlertValue | null>(client?.staffAlert ?? null);
-  // The name is typed as parts (Person: first + last; Business: company +
-  // site) and composed into the one display name. An edit only sends the
+  // The name is typed as parts (first, last, business name, location --
+  // whichever apply) and composed into the one display name. An edit only sends the
   // parts when they were touched, so saving a phone number never re-spells
   // an old name like "Bourgeois , Cheryl".
   const [nameParts, setNameParts] = useState<NameParts>(() =>

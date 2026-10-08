@@ -27,7 +27,7 @@ T1 = datetime(2026, 2, 3, 4, 5, 6)
 CLIENT_KEYS = ["id", "name", "email", "phone", "notes", "street", "city", "state", "zip",
                "time_preference", "former_names", "sheet_name", "secondary_contacts", "created_at", "updated_at",
                "staff_alert", "staff_alert_by", "staff_alert_at",
-               "client_type", "first_name", "last_name", "company", "site"]
+               "first_name", "last_name", "company", "site"]
 
 
 def derived(name):
@@ -138,7 +138,7 @@ def test_create_client(fake_db, fake_request):
     assert args_of(fake_db, "INSERT INTO clients") == [(
         "Smith", "s@x.com", None, None, None, None, None, None,
         '[{"label": "Wife", "phone": "555", "email": null}]', None, None,
-        None, None, None, None, None,  # no parts sent -> none saved (derived on read)
+        None, None, None, None,  # no parts sent -> none saved (derived on read)
     )]
     assert fake_db.seen("ON CONFLICT (LOWER(TRIM(name))) DO NOTHING")
 
@@ -155,7 +155,7 @@ def test_create_client_conflict_and_blank(fake_db, fake_request):
     assert (exc.value.status_code, exc.value.detail) == (409, "Client already exists")
     # secondary_contacts omitted -> literal "[]"
     assert args_of(fake_db, "INSERT INTO clients") == [
-        ("Smith", None, None, None, None, None, None, None, "[]", None, None, None, None, None, None, None)]
+        ("Smith", None, None, None, None, None, None, None, "[]", None, None, None, None, None, None)]
 
 
 # ─── update ──────────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ def test_update_client(fake_db, fake_request):
     # -> no rename flag, nothing mirrored.
     assert args_of(fake_db, "UPDATE clients SET") == [
         (5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith",
-         "keep", None, None, None, None, None)]
+         "keep", None, None, None, None)]
     assert not fake_db.seen("UPDATE arrangements")
     # Only this client's activity is read back, not every client's.
     assert args_of(fake_db, "FROM client_activity") == [(5,)]
@@ -524,10 +524,10 @@ def test_list_adds_the_staff_alert_columns_once(fake_db, fake_request):
     assert len(alters) == 1
     assert "staff_alert_at timestamptz" in alters[0][0]
     assert fake_db.seen("SET LOCAL lock_timeout")
-    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, client_type, first_name, last_name, company, site FROM clients")
+    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, first_name, last_name, company, site FROM clients")
     # the name-part columns (migrations/021) arrive in the same first-use pass
-    parts = fake_db.calls("ADD COLUMN IF NOT EXISTS client_type")
-    assert len(parts) == 1 and "CHECK (client_type IN ('person', 'business'))" in parts[0][0]
+    parts = fake_db.calls("ADD COLUMN IF NOT EXISTS first_name")
+    assert len(parts) == 1 and "ADD COLUMN IF NOT EXISTS site text" in parts[0][0]
 
 
 def test_existing_columns_skip_the_alter(fake_db, fake_request):

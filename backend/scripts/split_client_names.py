@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Propose (and, only when asked, save) each client's name as parts:
-person (first + last) or business (company + optional site).
+first name, last name, business name (company) and location (site).
 See migrations/021_client_name_parts.sql and app/libs/client_names.py.
 
 The app works without this: a client with no saved parts gets them derived
@@ -22,8 +22,8 @@ Usage (from backend/; reads DATABASE_URL, else backend/.env.supabase):
 
        .venv/bin/python scripts/split_client_names.py --report split.csv
 
-  2. Review the unsure rows. Fix any parts right in the CSV (client_type,
-     first_name, last_name, company, site); blank client_type to skip a row.
+  2. Review the unsure rows. Fix any parts right in the CSV (first_name,
+     last_name, company, site); blank all four to skip a row.
 
   3. Save, either
        --apply                 every confident row (unsure rows are skipped)
@@ -47,10 +47,10 @@ BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 
 from app.libs.client_names import (  # noqa: E402
-    CLIENT_TYPES, NAME_PART_COLUMNS, compose_name, split_name,
+    NAME_PART_COLUMNS, PART_FIELDS, compose_name, has_saved_parts, kind_of, split_name,
 )
 
-REPORT_COLUMNS = ["id", "name", "client_type", "first_name", "last_name", "company", "site",
+REPORT_COLUMNS = ["id", "name", "kind", "first_name", "last_name", "company", "site",
                   "reads_as", "unsure", "reasons", "saved_already"]
 
 
@@ -59,9 +59,9 @@ def propose(rows: list[dict]) -> list[dict]:
     out = []
     for r in rows:
         parts, reasons = split_name(r["name"])
-        saved = r.get("client_type") in CLIENT_TYPES
+        saved = has_saved_parts(r)
         out.append({
-            "id": r["id"], "name": r["name"],
+            "id": r["id"], "name": r["name"], "kind": kind_of(parts),
             **{k: parts.get(k) or "" for k in NAME_PART_COLUMNS},
             "reads_as": compose_name(**parts),
             "unsure": "yes" if reasons else "",
@@ -74,11 +74,13 @@ def propose(rows: list[dict]) -> list[dict]:
 def counts(report: list[dict]) -> dict:
     return {
         "clients": len(report),
-        "person": sum(1 for r in report if r["client_type"] == "person"),
-        "business": sum(1 for r in report if r["client_type"] == "business"),
+        "person": sum(1 for r in report if r["kind"] == "person"),
+        "business": sum(1 for r in report if r["kind"] == "business"),
+        "both": sum(1 for r in report if r["kind"] == "business + person"),
+        "with_location": sum(1 for r in report if r["site"]),
         "unsure": sum(1 for r in report if r["unsure"]),
-        "person_sure": sum(1 for r in report if r["client_type"] == "person" and not r["unsure"]),
-        "business_sure": sum(1 for r in report if r["client_type"] == "business" and not r["unsure"]),
+        "person_sure": sum(1 for r in report if r["kind"] == "person" and not r["unsure"]),
+        "business_sure": sum(1 for r in report if r["kind"] == "business" and not r["unsure"]),
         "saved_already": sum(1 for r in report if r["saved_already"]),
     }
 
@@ -94,11 +96,11 @@ def write_report(report: list[dict], path: str) -> None:
 
 def read_reviewed(path: str) -> list[dict]:
     with open(path, newline="", encoding="utf-8") as f:
-        return [r for r in csv.DictReader(f) if (r.get("client_type") or "").strip()]
+        return [r for r in csv.DictReader(f) if any((r.get(k) or "").strip() for k in PART_FIELDS)]
 
 
 def plan_writes(current: list[dict], chosen: list[dict]) -> tuple[list[tuple], list[str]]:
-    """(id, client_type, first, last, company, site) to write, and why others were skipped.
+    """(id, first, last, company, site) to write, and why others were skipped.
 
     ``current`` is the live rows; ``chosen`` the report rows to save."""
     by_id = {r["id"]: r for r in current}
@@ -109,24 +111,21 @@ def plan_writes(current: list[dict], chosen: list[dict]) -> tuple[list[tuple], l
         if live is None:
             skipped.append(f"{cid}: no such client any more")
             continue
-        if live.get("client_type") in CLIENT_TYPES:
+        if has_saved_parts(live):
             skipped.append(f"{cid} {live['name']!r}: already has saved parts")
             continue
         if live["name"] != c["name"]:
             skipped.append(f"{cid}: renamed since the report ({c['name']!r} -> {live['name']!r})")
             continue
-        t = (c.get("client_type") or "").strip().lower()
-        if t not in CLIENT_TYPES:
-            skipped.append(f"{cid} {live['name']!r}: client_type {t!r}")
+        parts = {k: (c.get(k) or "").strip() or None for k in PART_FIELDS}
+        if not (parts["first_name"] or parts["last_name"] or parts["company"]):
+            skipped.append(f"{cid} {live['name']!r}: no name in the parts")
             continue
-        keep = ("first_name", "last_name") if t == "person" else ("company", "site")
-        parts = {k: ((c.get(k) or "").strip() or None) if k in keep else None
-                 for k in ("first_name", "last_name", "company", "site")}
-        if compose_name(t, **parts) != live["name"]:
+        if compose_name(**parts) != live["name"]:
             skipped.append(f"{cid} {live['name']!r}: parts would read "
-                           f"{compose_name(t, **parts)!r} -- rename it in the app instead")
+                           f"{compose_name(**parts)!r} -- rename it in the app instead")
             continue
-        writes.append((cid, t, parts["first_name"], parts["last_name"], parts["company"], parts["site"]))
+        writes.append((cid, parts["first_name"], parts["last_name"], parts["company"], parts["site"]))
     return writes, skipped
 
 
@@ -169,7 +168,8 @@ async def main(argv: Optional[list[str]] = None) -> None:
         report = propose(current)
         write_report(report, args.report)
         c = counts(report)
-        print(f"{c['clients']} clients: {c['person']} person, {c['business']} business; "
+        print(f"{c['clients']} clients: {c['person']} person, {c['business']} business, "
+              f"{c['both']} business + person; {c['with_location']} with a location; "
               f"{c['unsure']} unsure (sure: {c['person_sure']} person, {c['business_sure']} business); "
               f"{c['saved_already']} already saved")
         print(f"report: {args.report}")
@@ -184,9 +184,9 @@ async def main(argv: Optional[list[str]] = None) -> None:
             print("skip", s)
         async with conn.transaction():
             await conn.executemany(
-                "UPDATE clients SET client_type = $2, first_name = $3, last_name = $4, "
-                "company = $5, site = $6 "
-                "WHERE id = $1 AND client_type IS NULL",
+                "UPDATE clients SET first_name = $2, last_name = $3, company = $4, site = $5 "
+                "WHERE id = $1 AND first_name IS NULL AND last_name IS NULL "
+                "AND company IS NULL AND site IS NULL",
                 writes,
             )
         print(f"saved parts for {len(writes)} clients; skipped {len(skipped)}")
