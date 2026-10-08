@@ -19,14 +19,20 @@ from fastapi import HTTPException
 
 from app.apis import clients
 from app.apis.clients import ClientCreate, ClientUpdate, CommentIn, SecondaryContact
-from app.libs import pricing
+from app.libs import client_names, pricing
 
 T0 = datetime(2026, 1, 2, 3, 4, 5)
 T1 = datetime(2026, 2, 3, 4, 5, 6)
 
 CLIENT_KEYS = ["id", "name", "email", "phone", "notes", "street", "city", "state", "zip",
                "time_preference", "former_names", "sheet_name", "secondary_contacts", "created_at", "updated_at",
-               "staff_alert", "staff_alert_by", "staff_alert_at"]
+               "staff_alert", "staff_alert_by", "staff_alert_at",
+               "first_name", "last_name", "company", "site"]
+
+
+def derived(name):
+    """The name parts a row with none saved is given (migrations/021)."""
+    return client_names.name_parts({"name": name})
 
 
 def run(coro):
@@ -82,9 +88,9 @@ def test_list_clients(fake_db, fake_request):
     out = run(clients.list_clients(fake_request()))
 
     assert out == [
-        {**adams, "secondary_contacts": [], "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
+        {**adams, **derived("adams"), "secondary_contacts": [], "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
          "last_project_at": None, "source": "saved", "activity": []},
-        {**smith, "secondary_contacts": [{"label": "Wife", "phone": "555", "email": None}],
+        {**smith, **derived("Smith"), "secondary_contacts": [{"label": "Wife", "phone": "555", "email": None}],
          "project_count": 2, "bucket_count": 5, "selected_cost": 120.5, "last_project_at": T1,
          "source": "saved",
          "activity": [
@@ -103,7 +109,7 @@ def test_list_clients(fake_db, fake_request):
          "time_preference": None, "former_names": [], "sheet_name": None, "secondary_contacts": [],
          "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None, "created_at": None,
          "updated_at": T0, "project_count": 1, "bucket_count": 0, "selected_cost": 0.0,
-         "last_project_at": T0, "source": "from_projects", "activity": []},
+         "last_project_at": T0, "source": "from_projects", "activity": [], **derived("Unassigned")},
     ]
     assert fake_db.seen("COALESCE(SUM(CASE WHEN ci.status = 'selected' THEN ci.quantity * p.current_price ELSE 0 END), 0)::float AS selected_cost")
     assert fake_db.seen("FROM client_activity WHERE ($1::int IS NULL OR client_id = $1) ORDER BY occurred_at DESC NULLS LAST, season DESC")
@@ -124,7 +130,7 @@ def test_create_client(fake_db, fake_request):
     out = run(clients.create_client(body, fake_request()))
 
     assert out == {
-        **returned,
+        **returned, **derived("Smith"),
         "secondary_contacts": [{"label": "Wife", "phone": "555", "email": None}],
         "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
         "last_project_at": None, "source": "saved", "activity": [],
@@ -132,6 +138,7 @@ def test_create_client(fake_db, fake_request):
     assert args_of(fake_db, "INSERT INTO clients") == [(
         "Smith", "s@x.com", None, None, None, None, None, None,
         '[{"label": "Wife", "phone": "555", "email": null}]', None, None,
+        None, None, None, None,  # no parts sent -> none saved (derived on read)
     )]
     assert fake_db.seen("ON CONFLICT (LOWER(TRIM(name))) DO NOTHING")
 
@@ -147,7 +154,8 @@ def test_create_client_conflict_and_blank(fake_db, fake_request):
         run(clients.create_client(ClientCreate(name="Smith"), fake_request()))
     assert (exc.value.status_code, exc.value.detail) == (409, "Client already exists")
     # secondary_contacts omitted -> literal "[]"
-    assert args_of(fake_db, "INSERT INTO clients") == [("Smith", None, None, None, None, None, None, None, "[]", None, None)]
+    assert args_of(fake_db, "INSERT INTO clients") == [
+        ("Smith", None, None, None, None, None, None, None, "[]", None, None, None, None, None, None)]
 
 
 # ─── update ──────────────────────────────────────────────────────────────────
@@ -168,7 +176,7 @@ def test_update_client(fake_db, fake_request):
     out = run(clients.update_client(5, body, fake_request()))
 
     assert out == {
-        **returned, "former_names": [],
+        **returned, **derived("Smith"), "former_names": [],
         "project_count": 0, "bucket_count": 0, "selected_cost": 0.0,
         "last_project_at": None, "source": "saved",
         "activity": [{"id": 60, "kind": "comment", "season": "s", "summary": "mine",
@@ -177,7 +185,9 @@ def test_update_client(fake_db, fake_request):
     }
     # raw (untrimmed) values are bound; SQL does the NULLIF/TRIM. Name unchanged
     # -> no rename flag, nothing mirrored.
-    assert args_of(fake_db, "UPDATE clients SET") == [(5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith")]
+    assert args_of(fake_db, "UPDATE clients SET") == [
+        (5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith",
+         "keep", None, None, None, None)]
     assert not fake_db.seen("UPDATE arrangements")
     # Only this client's activity is read back, not every client's.
     assert args_of(fake_db, "FROM client_activity") == [(5,)]
@@ -210,7 +220,7 @@ def test_rename_writes_through_everywhere(fake_db, fake_request):
     assert out["renamed"] == {"from": "Ashley Bird", "to": "Ashley Birdwell",
                               "projects": 3, "jobs": 2, "requests": 0, "shift_notes": 0, "time_entries": 1}
     # the rename flag and the old name ride along on the clients UPDATE
-    assert args_of(fake_db, "UPDATE clients SET")[0][-2:] == (True, "Ashley Bird")
+    assert args_of(fake_db, "UPDATE clients SET")[0][11:14] == (True, "Ashley Bird", "clear")
     # every mirror is matched on the OLD name and given the NEW one
     for pattern in ("UPDATE arrangements", "UPDATE ll_app.jobs", "UPDATE ll_app.product_requests",
                     "UPDATE ll_app.shift_notes", "UPDATE ll_app.shift_time_entries"):
@@ -514,11 +524,14 @@ def test_list_adds_the_staff_alert_columns_once(fake_db, fake_request):
     assert len(alters) == 1
     assert "staff_alert_at timestamptz" in alters[0][0]
     assert fake_db.seen("SET LOCAL lock_timeout")
-    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at FROM clients")
+    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, first_name, last_name, company, site FROM clients")
+    # the name-part columns (migrations/021) arrive in the same first-use pass
+    parts = fake_db.calls("ADD COLUMN IF NOT EXISTS first_name")
+    assert len(parts) == 1 and "ADD COLUMN IF NOT EXISTS site text" in parts[0][0]
 
 
 def test_existing_columns_skip_the_alter(fake_db, fake_request):
-    fake_db.on_fetchval("information_schema.columns", 3)
+    fake_db.on_fetchval("information_schema.columns", len(clients.ENSURED_COLUMNS))
     fake_db.on_fetch("FROM clients", [])
     run(clients.list_clients(fake_request()))
     assert not fake_db.seen("ALTER TABLE clients")
