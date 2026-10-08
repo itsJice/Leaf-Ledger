@@ -1302,6 +1302,9 @@ body.apple .dchiprm{top:50%;right:6px;transform:translateY(-50%)}
   body.apple .dchip.wknd:hover{background:#fdecc8}
   body.apple .dchip.wknd .dcount{color:#92400e}
   body.apple .dchip.empty{background:#f4f3f1;color:#a8a29e;border:1px dashed #d6d3d1}
+  /* a picked open date must read as picked: this rule comes after .sel and was greying its label */
+  body.apple .dchip.empty.sel,body.apple .dchip.wknd.sel{background:var(--brand);color:#fff;border:1px solid var(--brand)}
+  body.apple .dchip.empty.sel .dcount,body.apple .dchip.wknd.sel .dcount{color:#d7e6da}
   body.apple .dchip.empty:hover{background:#ecebe8;color:#78716c}
   body.apple .dchip.empty .dcount{color:#a8a29e}
   body.apple .dchip.tagged{border:2px solid #0f766e}
@@ -1659,6 +1662,16 @@ body.apple header{container-type:inline-size}
   body.apple.datesheet .dchip{width:100%;flex:none;border-radius:10px;min-height:44px;font-size:15px}
   body.apple.datesheet .dchipwrap{width:100%}
   body.apple.datesheet #datefoot{flex-direction:column;gap:4px;padding-top:8px;border-top:1px solid #e1dcd1}
+  /* One scroll for the whole sheet: on a real iPhone the pinned title/summary/footer left the
+     dates a sliver in the middle. Only the Dates/Done bar stays put; month and week headers stick under it. */
+  body.apple.datesheet #datecol{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-top:0}
+  body.apple.datesheet #dsheethd{position:sticky;top:0;z-index:5;flex:none;height:60px;box-sizing:border-box;
+    margin:0 -14px;padding:12px 14px 8px;background:var(--side)}
+  body.apple.datesheet #datestrip{flex:none;min-height:auto;overflow:visible}
+  body.apple.datesheet .dmon{top:60px}
+  body.apple.datesheet .dsec{top:calc(60px + var(--dmon-h))}
+  body.apple.datesheet #datestrip .dchip{scroll-margin-top:calc(60px + var(--dmon-h) + 40px)}
+  body.apple.datesheet #datefoot{flex:none;padding-bottom:8px}
   /* The day's run gets the screen; the map only when asked for */
   body.apple #main{flex-direction:column}
   body.apple #map{display:none}
@@ -5144,7 +5157,14 @@ document.getElementById('pbnext').onclick=()=>{ const i=stripList.indexOf(selDat
 document.getElementById('pbtoday').onclick=()=>phoneGo(phoneTodayTarget());
 document.getElementById('pbdate').onclick=()=>{
   document.body.classList.add('datesheet');
-  const on=document.querySelector('#datestrip .dchip.sel'); if(on) on.scrollIntoView({block:'center'});
+  // Open at the day you're on; from an overview (All, a month…) open at today / the next install date.
+  const isDay=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'');
+  const on=document.querySelector('#datestrip .dchip.sel');
+  if(on && isDay(on.dataset.val)){ on.scrollIntoView({block:'center'}); return; }
+  const T=todayISO();
+  const next=[...document.querySelectorAll('#datestrip .dchip')].find(b=>isDay(b.dataset.val) && b.dataset.val>=T);
+  if(next) next.scrollIntoView({block:'start'});
+  else document.getElementById('datecol').scrollTop=0;
 };
 document.getElementById('dsheetclose').onclick=()=>document.body.classList.remove('datesheet');
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.body.classList.remove('datesheet'); });
