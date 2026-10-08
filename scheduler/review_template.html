@@ -1083,6 +1083,22 @@ body.apple .salert{width:19px;height:19px}
 body.apple #salertpop,body.apple .pkalert{border-radius:12px}
 body.tv .salert{cursor:default}
 .pkce{margin:4px 0 2px}
+/* Client name as parts (Person / Business), in the contact editor */
+.pkname{margin:0 0 8px;padding:0 0 8px;border-bottom:1px solid var(--line)}
+.pkname-type{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;margin:0 0 6px}
+.pkname-type button{border:0;background:transparent;color:var(--mut);font:600 12px 'Montserrat',sans-serif;
+  min-height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.pkname-type button .ic{width:13px;height:13px;flex:none}
+.pkname-type button+button{border-left:1px solid var(--line)}
+.pkname-type button.on{background:var(--brand);color:#fff}
+.pkname-row{display:flex;gap:6px}
+.pkname-row input[type=text]{flex:1;min-width:0}
+.pkname-preview{margin:0;font-size:11.5px;color:var(--mut)}
+.pkname-preview b{color:var(--ink)}
+.pkname-preview .pkname-warn{display:block;color:#b45309;margin-top:2px}
+body.apple .pkname-type button{min-height:40px;font-size:14px}
+body.apple .pkce input[type=text]{min-height:40px}
 .pkce input[type=text]{margin:0 0 6px;padding:6px 8px;font-size:12px}
 .pkce-row{display:flex;gap:6px}
 .pkce-row input[type=text]:nth-child(1){flex:2}
@@ -2058,6 +2074,7 @@ function roFlash(){
 }
 const IC={
  users:'<svg class="ic" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+ building:'<svg class="ic" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2M11 7h2M11 11h2M11 15h2M12 19v2"/></svg>',
  link:'<svg class="ic" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
  box:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
  truck:'<svg class="ic" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
@@ -7596,6 +7613,125 @@ document.addEventListener('click', async e=>{
   if(list) list.innerHTML=commentListHTML(row);
 });
 let pkEditingContact=false;
+// ---------- the client's name, as parts ----------
+// The Clients tab types a name as a Person (first + last -> "Last, First")
+// or a Business (company + optional site -> "Company | Site"); the backend
+// composes the one canonical name from them (app/libs/client_names.py) and
+// a change goes through its rename-everywhere path. The contact editor here
+// offers the same fields to office staff (staff/admin/owner -- the server
+// refuses anyone else), so a typo can be fixed without leaving the board.
+let pkNameEdit=null;           // {client_type, first_name, last_name, company, site, touched, was}
+function canRenameClients(){
+  return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && ALERT_EDIT_ROLES.has(ME_ROLE);
+}
+/** True once the backend sends name parts (an older one doesn't). */
+function namePartsSupported(ac){ return !!ac && Object.prototype.hasOwnProperty.call(ac,'client_type'); }
+function squashName(s){ return String(s||'').trim().replace(/\s+/g,' '); }
+function composeClientName(p){
+  if(p.client_type==='person'){
+    const last=squashName(p.last_name), first=squashName(p.first_name);
+    return last && first ? `${last}, ${first}` : (last || first);
+  }
+  const co=squashName(p.company), site=squashName(p.site);
+  return co && site ? `${co} | ${site}` : (co || site);
+}
+function namePartsProblem(p){
+  if(p.client_type==='person'){
+    if(!squashName(p.first_name) && !squashName(p.last_name)) return 'Enter a first or last name.';
+    if(/[,|]/.test((p.first_name||'')+(p.last_name||''))) return "Names can't contain a comma or |.";
+    return '';
+  }
+  if(!squashName(p.company)) return 'Enter the company name.';
+  if(/\|/.test((p.company||'')+(p.site||''))) return "Company and site can't contain |.";
+  return '';
+}
+function namePartsBody(p){
+  return p.client_type==='person'
+    ? {client_type:'person', first_name:squashName(p.first_name), last_name:squashName(p.last_name), company:'', site:''}
+    : {client_type:'business', first_name:'', last_name:'', company:squashName(p.company), site:squashName(p.site)};
+}
+function nameEditFor(ac){
+  if(!namePartsSupported(ac)) return null;
+  const t = ac.client_type==='person' ? 'person' : 'business';
+  return {client_type:t, first_name:ac.first_name||'', last_name:ac.last_name||'',
+    company:ac.company||(ac.client_type?'':ac.name||''), site:ac.site||'', touched:false, was:ac.name||''};
+}
+function attrEsc(s){ return peekEsc(s).replace(/"/g,'&quot;'); }
+function nameFieldsHTML(p){
+  const a=attrEsc;
+  const fields = p.client_type==='person'
+    ? `<div class="pkname-row">
+         <input id="pkn-first" type="text" placeholder="First name" aria-label="First name" autocomplete="off" value="${a(p.first_name)}">
+         <input id="pkn-last" type="text" placeholder="Last name" aria-label="Last name" autocomplete="off" value="${a(p.last_name)}">
+       </div>`
+    : `<input id="pkn-company" type="text" placeholder="Company" aria-label="Company" autocomplete="off" value="${a(p.company)}">
+       <input id="pkn-site" type="text" placeholder="Location / site (optional)" aria-label="Location / site" autocomplete="off" value="${a(p.site)}">`;
+  return `
+    <div class="pkname-type" role="radiogroup" aria-label="Client type">
+      <button type="button" role="radio" data-type="person" aria-checked="${p.client_type==='person'}" class="${p.client_type==='person'?'on':''}">${IC.users}Person</button>
+      <button type="button" role="radio" data-type="business" aria-checked="${p.client_type==='business'}" class="${p.client_type==='business'?'on':''}">${IC.building}Business</button>
+    </div>
+    ${fields}
+    <p class="pkname-preview" id="pkn-preview">${namePreviewHTML(p)}</p>`;
+}
+function namePreviewHTML(p){
+  const shown=composeClientName(p);
+  const renaming = p.touched && shown && shown!==p.was;
+  return `Shows as: <b>${peekEsc(shown||'—')}</b>`
+    + (renaming?`<span class="pkname-warn">Renames “${peekEsc(p.was)}” everywhere: Clients, projects, jobs and this schedule.</span>`:'');
+}
+/** The name block at the top of the contact editor: editable for staff,
+ *  a plain line for everyone else (and nothing for an older backend). */
+function nameBlockHTML(row){
+  const ac=appClientFor(row);
+  if(!namePartsSupported(ac)) return '';
+  if(!canRenameClients() || !pkNameEdit){
+    return `<p class="pksec">Name</p><p class="pkrow">${peekEsc(ac.name)} <span class="pkhint">— only office staff can rename</span></p>`;
+  }
+  return `<p class="pksec">Name</p><div class="pkname" id="pknamefields">${nameFieldsHTML(pkNameEdit)}</div>`;
+}
+function wireNameFields(){
+  const box=document.getElementById('pknamefields');
+  if(!box || !pkNameEdit) return;
+  box.querySelectorAll('.pkname-type button').forEach(b=>{
+    b.onclick=()=>{
+      if(pkNameEdit.client_type===b.dataset.type) return;
+      pkNameEdit.client_type=b.dataset.type; pkNameEdit.touched=true;
+      box.innerHTML=nameFieldsHTML(pkNameEdit);
+      wireNameFields();
+      const first=box.querySelector('input'); if(first) first.focus();
+    };
+  });
+  [['pkn-first','first_name'],['pkn-last','last_name'],['pkn-company','company'],['pkn-site','site']].forEach(([id,key])=>{
+    const el=document.getElementById(id);
+    if(el) el.oninput=()=>{
+      pkNameEdit[key]=el.value; pkNameEdit.touched=true;
+      const pv=document.getElementById('pkn-preview'); if(pv) pv.innerHTML=namePreviewHTML(pkNameEdit);
+    };
+  });
+}
+/** Point every spelling the directory knows for this client at the saved
+ *  record, and learn the new spellings (name, sheet name, former names). */
+function replaceDirectoryEntry(oldAc, entry){
+  if(!clientDirectory) return;
+  if(oldAc) clientDirectory.forEach((v,k)=>{ if(v===oldAc) clientDirectory.set(k, entry); });
+  [entry.name, entry.sheet_name, ...(entry.former_names||[])].forEach(n=>{
+    const k=normName(n); if(k && !clientDirectory.has(k)) clientDirectory.set(k, entry);
+  });
+  clientDirectory.set(normName(entry.name), entry);
+}
+/** A rename saved from the popup: show it on every stop for this client now,
+ *  the way loadClientDirectory does on the next load (the baked name stays
+ *  as sheetName, and former_names keeps resolving it after a reload). */
+function applyClientRename(oldName, newName){
+  const k=normName(oldName);
+  Object.values(C).forEach(c=>{
+    if(c && normName(c.name)===k){ c.sheetName=c.sheetName||c.name; c.name=newName; }
+  });
+  const h=document.querySelector('#peekbody h3');
+  if(h && h.firstChild && h.firstChild.nodeType===3) h.firstChild.textContent=newName;
+  render();
+}
 /** What to show/prefill: the app's live, editable record when synced,
  *  else the baked spreadsheet snapshot as a starting point for a client
  *  that doesn't have an app record yet (editing will create one). */
@@ -7638,6 +7774,8 @@ function contactEditHTML(row){
   const s=x=>peekEsc(x||'');
   return `
     <div class="pkce">
+      ${nameBlockHTML(row)}
+      ${namePartsSupported(appClientFor(row))?'<p class="pksec">Contact</p>':''}
       <input id="pkf-street" type="text" placeholder="Street address" value="${s(f.street)}">
       <div class="pkce-row">
         <input id="pkf-city" type="text" placeholder="City" value="${s(f.city)}">
@@ -7673,12 +7811,14 @@ function wireContactBlock(row){
   if(editBtn) editBtn.onclick=()=>{
     pkEditingContact=true;
     contactFieldsForEdit=contactFieldsFor(row);
+    pkNameEdit=canRenameClients() ? nameEditFor(appClientFor(row)) : null;
     holder.innerHTML=contactEditHTML(row);
     wireContactBlock(row);
   };
+  wireNameFields();
   const cancelBtn=document.getElementById('pkcontactcancel');
   if(cancelBtn) cancelBtn.onclick=()=>{
-    pkEditingContact=false; contactFieldsForEdit=null;
+    pkEditingContact=false; contactFieldsForEdit=null; pkNameEdit=null;
     holder.innerHTML=contactBlockHTML(row);
     wireContactBlock(row);
   };
@@ -7700,6 +7840,14 @@ function wireContactBlock(row){
   }
   const saveBtn=document.getElementById('pkcontactsave');
   if(saveBtn) saveBtn.onclick=async()=>{
+    // Name parts ride along only when staff changed them; the server
+    // composes the name and renames the client everywhere.
+    const nameBody = pkNameEdit && pkNameEdit.touched && canRenameClients() && appClientFor(row)
+      ? namePartsBody(pkNameEdit) : null;
+    if(nameBody){
+      const problem=namePartsProblem(pkNameEdit);
+      if(problem){ alert(problem); return; }
+    }
     saveBtn.disabled=true; saveBtn.textContent='Saving…';
     const secondary=[...document.querySelectorAll('.pksecedit')].map(el=>({
       label:el.querySelector('.pksec-label').value.trim(),
@@ -7714,7 +7862,9 @@ function wireContactBlock(row){
       phone:document.getElementById('pkf-phone').value.trim(),
       email:document.getElementById('pkf-email').value.trim(),
       secondary_contacts:secondary,
+      ...(nameBody||{}),
     };
+    const oldName=C[row].name;
     try{
       const ac=appClientFor(row);
       let entry;
@@ -7736,10 +7886,11 @@ function wireContactBlock(row){
         if(!r.ok) throw new Error(r.status);
         entry=await r.json();
       }
-      clientDirectory.set(normName(entry.name), entry);
-      pkEditingContact=false; contactFieldsForEdit=null;
+      replaceDirectoryEntry(ac, entry);
+      pkEditingContact=false; contactFieldsForEdit=null; pkNameEdit=null;
       holder.innerHTML=contactBlockHTML(row);
       wireContactBlock(row);
+      if(entry.name && entry.name!==oldName) applyClientRename(oldName, entry.name);
       // The "Full client profile" section (notes/history/project line)
       // reads the same cached record -- refresh it too so a first-time
       // create doesn't leave it stuck on "Not yet synced."
@@ -7750,7 +7901,11 @@ function wireContactBlock(row){
         wireProfileLink(row);
       }
     }catch(err){
-      alert('Could not save that contact info -- try again.');
+      const code=String(err && err.message);
+      alert(code==='409' ? 'Another client already has that name -- pick a different one.'
+        : code==='403' ? "This login can't change client details."
+        : code==='400' ? 'That name is missing a part -- check the fields and try again.'
+        : 'Could not save that contact info -- try again.');
       saveBtn.disabled=false; saveBtn.textContent='Save';
     }
   };
@@ -7771,7 +7926,7 @@ function openStopPeek(row,dayId){
   const d = dayId==null ? null : days.find(x=>x.id===dayId);
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row; pkDayId=dayId;
-  pkEditingContact=false; pkEditingAlert=false;
+  pkEditingContact=false; pkEditingAlert=false; pkNameEdit=null;
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   document.getElementById('peekbody').innerHTML=`

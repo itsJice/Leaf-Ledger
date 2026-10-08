@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
-from app.libs import client_season, pricing
+from app.libs import client_names, client_season, pricing
 from app.libs.db import ensure_schema_once, get_conn, has_item_status_column
 from app.libs.roles import require_role
 
@@ -29,7 +29,8 @@ ADDRESS_FIELDS = ("street", "city", "state", "zip")
 CLIENT_COLUMNS = (
     "id, name, email, phone, notes, street, city, state, zip, time_preference, "
     "former_names, sheet_name, secondary_contacts, created_at, updated_at, "
-    "staff_alert, staff_alert_by, staff_alert_at"
+    "staff_alert, staff_alert_by, staff_alert_at, "
+    "client_type, first_name, last_name, company, site"
 )
 
 #: The staff alert (migrations/020): one short warning about a client that
@@ -49,6 +50,23 @@ STAFF_ALERT_DDL = (
     "ADD COLUMN IF NOT EXISTS staff_alert_at timestamptz"
 )
 
+#: The name as parts (migrations/021): person (first + last) or business
+#: (company + optional site). All nullable -- a row without them derives
+#: them from `name` (app.libs.client_names.name_parts). `name` stays the
+#: canonical, matched-everywhere spelling, composed from the parts on save.
+NAME_PART_COLUMNS = client_names.NAME_PART_COLUMNS
+NAME_PARTS_DDL = (
+    "ALTER TABLE clients "
+    "ADD COLUMN IF NOT EXISTS client_type text "
+    "CHECK (client_type IN ('person', 'business')), "
+    "ADD COLUMN IF NOT EXISTS first_name text, "
+    "ADD COLUMN IF NOT EXISTS last_name text, "
+    "ADD COLUMN IF NOT EXISTS company text, "
+    "ADD COLUMN IF NOT EXISTS site text"
+)
+#: Every column this module adds itself, checked in one query.
+ENSURED_COLUMNS = STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS
+
 
 async def ensure_schema(conn) -> None:
     async def _ddl():
@@ -56,15 +74,23 @@ async def ensure_schema(conn) -> None:
             "SELECT count(*) FROM information_schema.columns "
             " WHERE table_schema = current_schema() AND table_name = 'clients' "
             "   AND column_name = ANY($1::text[])",
-            list(STAFF_ALERT_COLUMNS),
+            list(ENSURED_COLUMNS),
         )
-        if (have or 0) >= len(STAFF_ALERT_COLUMNS):
+        if (have or 0) >= len(ENSURED_COLUMNS):
             return
         async with conn.transaction():
             await conn.execute("SET LOCAL lock_timeout = '5s'")
             await conn.execute(STAFF_ALERT_DDL)
+            await conn.execute(NAME_PARTS_DDL)
 
-    await ensure_schema_once("clients_staff_alert", _ddl)
+    await ensure_schema_once("clients_columns", _ddl)
+
+
+def with_name_parts(data: dict) -> dict:
+    """Fill the name parts on a client dict: saved ones as-is, otherwise
+    derived from the name so the edit form never starts blank."""
+    data.update(client_names.name_parts(data))
+    return data
 
 #: Everywhere else a client's name is stored as text (migrations/017). A rename
 #: on the Clients tab rewrites all of them in one transaction; each is matched
@@ -119,7 +145,7 @@ async def load_saved_clients(conn) -> List[dict]:
         data = dict(r)
         sc = data.get("secondary_contacts")
         data["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
-        out.append(data)
+        out.append(with_name_parts(data))
     return out
 
 
@@ -154,8 +180,20 @@ class SecondaryContact(BaseModel):
     email: Optional[str] = None
 
 
-class ClientCreate(BaseModel):
-    name: str
+class NameParts(BaseModel):
+    """The name typed as parts. When ``client_type`` is set the server
+    composes ``name`` from these (person "Last, First"; business
+    "Company | Site") and any ``name`` sent alongside is ignored."""
+    client_type: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company: Optional[str] = None
+    site: Optional[str] = None
+
+
+class ClientCreate(NameParts):
+    #: Optional when the parts are sent; required otherwise.
+    name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
@@ -168,7 +206,7 @@ class ClientCreate(BaseModel):
     secondary_contacts: Optional[List[SecondaryContact]] = None
 
 
-class ClientUpdate(BaseModel):
+class ClientUpdate(NameParts):
     """Same shape as ClientCreate -- every field optional-to-change, name
     included (fixing a typo in a saved client's name is a normal edit).
     Deliberately does NOT touch christmas_synced_snapshot/christmas_synced_at
@@ -179,7 +217,13 @@ class ClientUpdate(BaseModel):
     secondary_contacts is whole-array-replace, not a per-contact patch --
     there's no id to patch against (a label is free text, not a stable
     key), and the edit UI always has the full current list in hand
-    already, so sending it back whole is simpler than diffing it."""
+    already, so sending it back whole is simpler than diffing it.
+
+    The name can change two ways. With ``client_type`` (and its parts) the
+    parts are saved and ``name`` is composed from them. With only ``name``
+    (an older caller), the saved parts are cleared when the name changes,
+    so they're derived again from the new spelling rather than going stale.
+    Either way a changed name goes through the rename-everywhere path."""
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -265,6 +309,14 @@ class ClientOut(BaseModel):
     secondary_contacts: List[SecondaryContact] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    #: The name as parts (migrations/021). Derived from `name` when the row
+    #: has none saved; name_parts_saved says which.
+    client_type: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company: Optional[str] = None
+    site: Optional[str] = None
+    name_parts_saved: bool = False
     #: The staff alert, who set it and when (see PUT /{client_id}/staff-alert).
     staff_alert: Optional[str] = None
     staff_alert_by: Optional[str] = None
@@ -279,6 +331,18 @@ class ClientOut(BaseModel):
 
 def clean_name(name: Optional[str]) -> str:
     return (name or "").strip()
+
+
+def parts_from_body(body: NameParts) -> Optional[dict]:
+    """The cleaned parts when the request sent a client_type, else None.
+    400 on parts that can't make a name."""
+    if body.client_type is None:
+        return None
+    try:
+        return client_names.clean_parts(body.client_type, body.first_name, body.last_name,
+                                        body.company, body.site)
+    except client_names.NamePartsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 async def build_client_list(conn) -> List[dict]:
@@ -328,7 +392,7 @@ async def build_client_list(conn) -> List[dict]:
         })
 
     for stats in stats_by_name.values():
-        clients.append({
+        clients.append(with_name_parts({
             "id": None,
             "name": stats["name"],
             "email": None,
@@ -347,7 +411,7 @@ async def build_client_list(conn) -> List[dict]:
             "last_project_at": stats.get("last_project_at"),
             "source": "from_projects",
             "activity": [],  # no `clients` row -- nothing to have synced onto
-        })
+        }))
 
     return sorted(clients, key=lambda item: item["name"].lower())
 
@@ -365,7 +429,8 @@ async def list_clients(request: Request):
 async def create_client(body: ClientCreate, request: Request):
     from app.auth.supabase_auth import get_optional_user
 
-    name = clean_name(body.name)
+    parts = parts_from_body(body)
+    name = client_names.compose_name(**parts) if parts else clean_name(body.name)
     if not name:
         raise HTTPException(status_code=400, detail="Client name is required")
 
@@ -379,8 +444,9 @@ async def create_client(body: ClientCreate, request: Request):
         # of one silently overwriting the other.
         row = await conn.fetchrow(
             f"""
-            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
+            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference,
+                                 client_type, first_name, last_name, company, site)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16)
             ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
             RETURNING {CLIENT_COLUMNS}
             """,
@@ -395,11 +461,12 @@ async def create_client(body: ClientCreate, request: Request):
             json.dumps([c.dict() for c in body.secondary_contacts]) if body.secondary_contacts is not None else "[]",
             signed_in.email if signed_in else None,
             time_preference,
+            *((parts or {}).get(k) for k in NAME_PART_COLUMNS),
         )
         if row is None:
             raise HTTPException(status_code=409, detail="Client already exists")
 
-        result = dict(row)
+        result = with_name_parts(dict(row))
         sc = result.get("secondary_contacts")
         result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
         return {
@@ -423,7 +490,9 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
     everything else. There was no way to edit a saved client at all before
     this -- create and delete were the only two operations."""
     time_preference = clean_time_preference(body.time_preference)
-    new_name = clean_name(body.name)
+    parts = parts_from_body(body)
+    # Parts win over a plain name: the name is what they compose to.
+    new_name = client_names.compose_name(**parts) if parts else clean_name(body.name)
     conn = await get_conn()
     try:
         await ensure_schema(conn)
@@ -435,6 +504,10 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
         if old_name is None:
             raise HTTPException(status_code=404, detail="No client with that id")
         renaming = bool(new_name) and new_name != old_name
+        # "set": save the sent parts. "clear": a plain-name rename -- drop the
+        # saved parts so they're derived from the new name. "keep": no change.
+        parts_mode = "set" if parts else ("clear" if renaming else "keep")
+        part_values = [(parts or {}).get(k) for k in NAME_PART_COLUMNS]
         renamed = None
         try:
             sc_json = (
@@ -463,13 +536,20 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                                                    array_append(array_remove(former_names, $13::text), $13::text),
                                                    TRIM($2))
                                             ELSE former_names END,
+                        -- Name parts (migrations/021), by $14: 'set' writes
+                        -- $15..$19, 'clear' nulls them, 'keep' leaves them.
+                        client_type = CASE $14::text WHEN 'set' THEN $15::text WHEN 'clear' THEN NULL ELSE client_type END,
+                        first_name = CASE $14::text WHEN 'set' THEN $16::text WHEN 'clear' THEN NULL ELSE first_name END,
+                        last_name = CASE $14::text WHEN 'set' THEN $17::text WHEN 'clear' THEN NULL ELSE last_name END,
+                        company = CASE $14::text WHEN 'set' THEN $18::text WHEN 'clear' THEN NULL ELSE company END,
+                        site = CASE $14::text WHEN 'set' THEN $19::text WHEN 'clear' THEN NULL ELSE site END,
                         updated_at = NOW()
                     WHERE id = $1
                     RETURNING {CLIENT_COLUMNS}
                     """,
-                    client_id, body.name, body.email, body.phone, body.notes,
+                    client_id, new_name or None, body.email, body.phone, body.notes,
                     body.street, body.city, body.state, body.zip, sc_json, time_preference,
-                    renaming, old_name,
+                    renaming, old_name, parts_mode, *part_values,
                 )
                 if row is not None and renaming:
                     renamed = await _rename_everywhere(conn, client_id, old_name, row["name"])
@@ -485,7 +565,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
         rates_by_season: dict = {}
         for a in activity:
             with_pricing(a, rate_rows, rates_by_season)
-        result = dict(row)
+        result = with_name_parts(dict(row))
         sc = result.get("secondary_contacts")
         result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
         result["former_names"] = list(result.get("former_names") or [])

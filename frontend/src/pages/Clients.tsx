@@ -35,6 +35,10 @@ import { currentSeasonLabel } from "utils/season";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
 import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
 import { isReadOnly } from "utils/me";
+import {
+  ClientNameFields, composeClientName, initialNameParts, namePartsBody, namePartsProblem,
+  type NameParts, type NamePartsIn,
+} from "./clients/ClientNameFields";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
  *  The scheduler orders a crew's stops morning -> flexible -> afternoon -> late. */
@@ -77,9 +81,11 @@ type SecondaryContact = {
   email?: string | null;
 };
 
-type ClientRecord = {
+type ClientRecord = NamePartsIn & {
   id?: number | null;
   name: string;
+  /** True when the parts above were saved; false when derived from the name. */
+  name_parts_saved?: boolean;
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
@@ -109,6 +115,8 @@ type ClientRecord = {
 type ClientGroup = {
   id?: number | null;
   name: string;
+  /** Person (first/last) or business (company/site), from the server. */
+  nameParts?: NamePartsIn;
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
@@ -275,6 +283,10 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
     groups.set(name.toLowerCase(), {
       id: client.id,
       name,
+      nameParts: {
+        client_type: client.client_type, first_name: client.first_name, last_name: client.last_name,
+        company: client.company, site: client.site,
+      },
       email: client.email,
       phone: client.phone,
       notes: client.notes,
@@ -324,8 +336,16 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
 }) {
   const editing = Boolean(client?.id);
   const [alert, setAlert] = useState<StaffAlertValue | null>(client?.staffAlert ?? null);
+  // The name is typed as parts (Person: first + last; Business: company +
+  // site) and composed into the one display name. An edit only sends the
+  // parts when they were touched, so saving a phone number never re-spells
+  // an old name like "Bourgeois , Cheryl".
+  const [nameParts, setNameParts] = useState<NameParts>(() =>
+    initialNameParts(client ? { ...client.nameParts, name: client.name } : null));
+  const [nameTouched, setNameTouched] = useState(false);
+  const changeNameParts = (next: NameParts) => { setNameParts(next); setNameTouched(true); };
   const [form, setForm] = useState({
-    name: client?.name || "", email: client?.email || "", phone: client?.phone || "",
+    email: client?.email || "", phone: client?.phone || "",
     notes: client?.notes || "", street: client?.street || "", city: client?.city || "",
     state: client?.state || "", zip: client?.zip || "",
   });
@@ -370,7 +390,6 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
     else if (e.key === "Enter") { e.preventDefault(); pickSuggestion(suggestions[suggestionIdx < 0 ? 0 : suggestionIdx]); }
     else if (e.key === "Escape") setSuggestions([]);
   };
-  const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -384,8 +403,9 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
 
   const saveClient = async () => {
     if (savingRef.current) return;
+    const sendName = !editing || nameTouched;
     const payload = {
-      name: (nameRef.current?.value || form.name).trim(),
+      name: sendName ? composeClientName(nameParts) : client?.name || "",
       email: (emailRef.current?.value || form.email).trim(),
       phone: (phoneRef.current?.value || form.phone).trim(),
       notes: (notesRef.current?.value || form.notes).trim(),
@@ -394,8 +414,9 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
       state: (stateRef.current?.value || form.state).trim(),
       zip: (zipRef.current?.value || form.zip).trim(),
     };
-    if (!payload.name) {
-      toast.error("Client name required");
+    const problem = sendName ? namePartsProblem(nameParts) : null;
+    if (problem || !payload.name) {
+      toast.error(problem || "Client name required");
       return;
     }
     savingRef.current = true;
@@ -409,7 +430,9 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
           // notes or an old phone number actually sticks. (undefined would
           // leave it untouched -- the old value came back on the next load.)
           body: {
-            name: payload.name,
+            // Parts only when the name was edited; the server composes the
+            // name from them and renames everywhere if it changed.
+            ...(sendName ? { name: payload.name, ...namePartsBody(nameParts) } : {}),
             email: payload.email,
             phone: payload.phone,
             notes: payload.notes,
@@ -444,6 +467,7 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
         method: "POST",
         body: {
           name: payload.name,
+          ...namePartsBody(nameParts),
           email: payload.email || undefined,
           phone: payload.phone || undefined,
           notes: payload.notes || undefined,
@@ -471,6 +495,12 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
           : status === 0 ? "The save is taking too long -- check your connection and try again."
           : "Couldn't save that change -- try again in a moment."
         );
+        return;
+      }
+      // A duplicate is a real answer from the server, not an outage: don't
+      // fall back to saving a second copy on this device.
+      if (failedStatus(error) === 409) {
+        toast.error("Another client already has that name -- pick a different one.");
         return;
       }
       const localClient = makeLocalClient(payload);
@@ -517,10 +547,12 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
                 )}
               </div>
             )}
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-stone-600">Client name *</span>
-              <input ref={nameRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Joe Smith" />
-            </label>
+            <ClientNameFields
+              value={nameParts}
+              onChange={changeNameParts}
+              currentName={editing ? client?.name : null}
+              autoFocus={!editing}
+            />
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-stone-600">Email</span>
