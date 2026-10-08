@@ -88,10 +88,14 @@ def test_phone_header_is_one_line_without_stats():
     css = phone_css()
     assert "body.apple .daystats{display:none}" in css
     assert "body.apple #side > .printbtn.ovprintall{display:none}" in css
-    assert "body.apple .ovline .ovprint{flex:none;width:40px;height:40px" in css
+    # one printer on phones: the toolbar's (user, 10/8) -- the header line has none
+    assert ".ovprint{" not in css and ".ovprint ." not in css
+    assert "className='ovprint'" not in TEMPLATE
+    # the first date sits right under the one-line header
+    assert "body.apple #side .ovdate.ovfirst{margin-top:0}" in css
     # the stats box stays on tablets and desktops
     assert "body.apple .daystats{display:flex" in TEMPLATE
-    assert re.search(r"pi\.setAttribute\('aria-label', what\)", TEMPLATE)
+    assert "dh.className='ovdate'+(dt===dates[0]?' ovfirst':'')" in TEMPLATE
 
 
 def test_phone_continuous_list_hooks_into_render():
