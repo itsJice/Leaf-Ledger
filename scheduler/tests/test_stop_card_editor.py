@@ -88,7 +88,7 @@ def test_contact_links_and_pencil_gating():
 
 
 FOLD = ["pkFold", "peekEsc"]
-FOLD_STUBS = "const IC={chevD:'v'}; let pkOpen=new Set();"
+FOLD_STUBS = "const IC={chev:'v'}; let pkOpen=new Set();"
 
 
 @needs_node

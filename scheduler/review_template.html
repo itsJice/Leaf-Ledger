@@ -122,7 +122,7 @@ header h1 svg{color:var(--brand)}
 .okbtn:hover{background:#f0fdf4}
 .okbtn.on{background:var(--ok);color:#fff}
 .stop{display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f5f5f4;cursor:grab;background:var(--surface)}
-.stop:hover{background:#fafaf9}
+@media (hover:hover){ .stop:hover{background:#fafaf9} }
 .stop:active{cursor:grabbing}
 .numwrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
 .stop .num{width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
@@ -131,11 +131,11 @@ header h1 svg{color:var(--brand)}
   color:var(--mut);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 .ordbtn .ic{width:9px;height:9px;flex:none}
 .ordbtn.up .ic{transform:rotate(180deg)}
-.ordbtn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+@media (hover:hover){ .ordbtn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)} }
 .ordbtn:disabled{opacity:.3;cursor:default}
 .ordgrip{flex:none;align-self:stretch;width:18px;margin:-8px -5px -8px -8px;display:flex;align-items:center;
   justify-content:center;color:#a8a29e;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
-.ordgrip:hover{color:var(--brand)}
+@media (hover:hover){ .ordgrip:hover{color:var(--brand)} }
 .ordgrip .ic{width:14px;height:14px}
 .stop.lifting{position:relative;z-index:30;cursor:grabbing;background:var(--surface);
   box-shadow:0 10px 28px rgba(28,25,23,.18),0 0 0 1.5px var(--brand);border-radius:8px}
@@ -155,15 +155,13 @@ header h1 svg{color:var(--brand)}
 .clockwarn{display:flex;gap:7px;align-items:flex-start;margin:8px 14px 2px;padding:6px 9px;border-radius:7px;
   font-size:11.5px;line-height:1.35;color:var(--warn-ink);background:var(--warn-soft);border:1px solid #f3d9ad}
 .clockwarn .ic{width:13px;height:13px;flex:none;margin-top:1px}
-.cordernote.quiet{background:transparent;color:var(--mut)}
 .cordernote .ic{width:12px;height:12px;vertical-align:-2px}
-.badge.order{background:var(--warn-soft);color:var(--warn-ink)}
 .cordernote{padding:6px 14px;font-size:11px;color:var(--warn-ink);background:var(--warn-soft);
   display:flex;align-items:center;gap:8px}
 .cautoorder{margin-left:auto;border:1px solid var(--warn-ink);background:transparent;
   color:var(--warn-ink);border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;
   cursor:pointer;font-family:'Montserrat',sans-serif}
-.cautoorder:hover{background:#fff}
+@media (hover:hover){ .cautoorder:hover{background:#fff} }
 .pkposnote{font-style:italic}
 .stop .nm{font-weight:600;font-size:13px;color:var(--ink)}
 .stop .sub{font-size:11px;color:var(--mut);margin-top:1px}
@@ -204,7 +202,7 @@ header h1 svg{color:var(--brand)}
 .mv.confirm{color:#15803d;display:flex;align-items:center;gap:4px;justify-content:center}
 .mv.confirm.on{background:#15803d;color:#fff;border-color:#15803d}
 .mv.confirm .ic{width:11px;height:11px;flex:none}
-.mv:hover{background:var(--brand-soft)}
+@media (hover:hover){ .mv:hover{background:var(--brand-soft)} }
 .leg{font-size:10.5px;color:var(--faint);padding:1px 14px 1px 44px;background:var(--surface)}
 .cfoot{padding:10px 14px;font-size:12px;background:#fbfaf8;border-top:1px solid #f5f5f4}
 .cshift{border-top:1px solid #f5f5f4;border-radius:0 0 var(--radius) var(--radius);overflow:hidden}
@@ -604,9 +602,9 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   text-transform:uppercase;color:var(--mut);font-weight:600;padding:7px 2px;
   list-style:none;user-select:none}
 .stfsec>summary::-webkit-details-marker{display:none}
-.stfsec>summary:before{content:"\25B8";display:inline-block;margin-right:6px;
-  transition:transform .12s}
-.stfsec[open]>summary:before{transform:rotate(90deg)}
+.stfsec>summary .foldchev{margin-right:6px;vertical-align:-2px}
+.stfsec>summary .foldchev .ic{width:12px;height:12px}
+.stfsec:not([open])>summary .foldchev{transform:rotate(-90deg)}
 .stfsec>summary:hover{color:var(--ink)}
 .stfsecn{font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)}
 .stftable tbody tr.sel{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
@@ -1055,7 +1053,8 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   margin:0 2px;border-radius:50%;background:var(--warn-soft);color:#b45309;cursor:pointer;
   vertical-align:-3px;flex:none;-webkit-user-drag:none;user-select:none}
 .salert .ic{width:12px;height:12px;stroke-width:2.4;vertical-align:0}
-.salert:hover,.salert:focus-visible{background:#fde3ad;outline:none;box-shadow:0 0 0 2px #f59e0b}
+.salert:focus-visible{background:#fde3ad;outline:none;box-shadow:0 0 0 2px #f59e0b}
+@media (hover:hover){ .salert:hover{background:#fde3ad;outline:none;box-shadow:0 0 0 2px #f59e0b} }
 .salert.static{cursor:default}
 body .wlist li .salert{width:1.05em;height:1.05em;vertical-align:-.12em}
 body .wlist li .salert .ic{width:.72em;height:.72em}
@@ -1265,8 +1264,8 @@ body.apple .pkseg-b{min-height:36px}
 .pkfold-t{flex:none;font-weight:700;font-size:12.5px;color:var(--ink)}
 .pkfold-s{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut);font-size:12px}
 .pkfold-c{flex:none;display:flex}
-.pkfold-c .ic{width:14px;height:14px;color:var(--mut);transition:transform .22s cubic-bezier(0.23,1,0.32,1)}
-.pkfold[open]>summary .pkfold-c .ic{transform:rotate(180deg)}
+.pkfold-c .ic{width:14px;height:14px;color:var(--mut)}
+.pkfold:not([open])>summary .foldchev{transform:rotate(-90deg)}
 .pkfold[open]>summary .pkfold-s{visibility:hidden}
 .pkfold-b{padding:2px 0 12px}
 .pkfold-b .pkpos{margin:2px 0 0}
@@ -1275,7 +1274,10 @@ body.apple .pkseg-b{min-height:36px}
 .pkcount.warn{background:#fef3c7;color:#92400e}
 .pkcount[hidden]{display:none}
 body.apple .pkfold>summary{min-height:46px}
-@media (prefers-reduced-motion: reduce){ .pkfold-c .ic{transition:none} }
+/* Every fold (date list, card folds, staffing lists) uses the same chevron:
+   points right when closed, down when open (user, 2026-10-09). */
+.foldchev{display:inline-flex;flex:none;transition:transform .22s cubic-bezier(0.23,1,0.32,1)}
+@media (prefers-reduced-motion: reduce){ .foldchev{transition:none} }
 #peekbody .pkfolds{margin-top:8px}
 #peekbody .pkfold{border:0;margin:0 0 8px;padding:0 12px;background:var(--page,#f7f6f2);border-radius:12px}
 #peekbody .pkfold .pkcount{background:#fff}
@@ -1426,7 +1428,7 @@ body.apple .dmon{position:sticky;top:0;z-index:3;display:flex;align-items:baseli
   color:var(--brand-deep);letter-spacing:-.01em;white-space:nowrap;overflow:hidden}
 body.apple .dmon:first-child{margin-top:0}
 body.apple .dmon[role=button]{cursor:pointer;user-select:none}
-body.apple .dmonchev{margin-left:auto;align-self:center;display:flex;color:var(--mut);transition:transform .22s cubic-bezier(0.23,1,0.32,1)}
+body.apple .dmonchev{margin-left:auto;align-self:center;display:flex;color:var(--mut)}
 body.apple .dmonchev .ic{width:14px;height:14px}
 body.apple .dmon.shut .dmonchev{transform:rotate(-90deg)}
 body.apple .dgrp{display:contents}
@@ -1613,7 +1615,7 @@ body.apple .cstaff{padding:8px 14px 0}
 body.apple .stfchip{border-radius:999px;font-size:12px;font-weight:800}
 body.apple .sched{background:#fbfaf7;border-bottom:1px solid var(--line2);font-size:12.5px}
 body.apple .stop{gap:12px;padding:12px 16px 12px 14px;border-bottom:1px solid var(--line2);background:#fff;align-items:center}
-body.apple .stop:hover{background:#fbfaf7}
+@media (hover:hover){ body.apple .stop:hover{background:#fbfaf7} }
 body.apple .stop.searchhit{background:#d3ead8;box-shadow:inset 4px 0 0 var(--brand),inset 0 0 0 1.5px #7fbf8e}
 body.apple .stop.peeking{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
 body.apple .stop.confirmed{border-left:0}
@@ -1629,7 +1631,7 @@ body.apple .stop .stopbtns{flex:none;gap:4px}
 body.apple .stop .stopbtns .mv{justify-content:center;white-space:nowrap}
 body.apple .mv{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);font-size:12px;
   font-weight:800;padding:5px 10px}
-body.apple .mv:hover{background:#dbe8dc}
+@media (hover:hover){ body.apple .mv:hover{background:#dbe8dc} }
 body.apple .mv.confirm{color:#15803d;background:#e5f4ea}
 body.apple .mv.confirm.on{background:#15803d;color:#fff}
 body.apple .mv:disabled{opacity:.4;cursor:default}
@@ -1701,6 +1703,9 @@ body.apple #peekdlg.inline .btns button{border:0;border-radius:999px;background:
   font-weight:800;font-size:13px;padding:9px 10px}
 body.apple #peekdlg.inline .btns button:hover{background:#dbe8dc}
 body.apple #peekdlg.inline #peekconfirm{grid-column:1 / -1;background:var(--brand);color:#fff}
+/* Print sheet is a printer icon like every other print button (user, 2026-10-09) */
+#peekprint.picon{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;color:var(--brand)}
+#peekprint.picon .ic{width:18px;height:18px;flex:none}
 body.apple #peekdlg.inline #peekconfirm.on{background:#15803d}
 body.apple .stop::after{transition:transform .26s cubic-bezier(0.23,1,0.32,1)}
 body.apple .stop.peeking::after{transform:rotate(135deg);margin-top:-4px}
@@ -1888,6 +1893,8 @@ body.apple header{container-type:inline-size}
   body.apple .ordgrip .ic{width:18px;height:18px}
   body.apple .chead .printbtn,body.apple .okbtn{min-height:38px;padding:0 14px}
   body.apple .chead .printbtn.picon{min-width:38px;padding:0 10px}
+  body.apple .cordernote{padding:6px 14px;font-size:12.5px;font-weight:700}
+  body.apple .cautoorder{min-height:40px;padding:0 14px;border-radius:999px;font-size:13px}
   body.apple #peekdlg.inline .btns button{min-height:44px}
   body.apple #peekdlg .pkpos .mv{min-height:38px;padding:0 14px}
   body.apple #pkcommenttext{min-height:42px}
@@ -2228,7 +2235,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <button class="mv" id="peekhold" title="About to cancel but not decided — keeps their date, flags every card and sheet">put on hold</button>
   <button class="mv" id="peekout" title="Take them out of this season — off every crew sheet and day count">not installing __SEASON__</button>
   <button class="okbtn" id="peekappr">Approve day</button>
-  <button id="peekprint">Print sheet</button>
+  <button id="peekprint" class="picon" title="Print sheet" aria-label="Print sheet"></button>
   <button id="peekmove">Reschedule</button>
   <button class="go" id="peekopen">Open day</button></div>
 </dialog>
@@ -2335,7 +2342,6 @@ const IC={
  aclock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></svg>',
  ausers:'<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3Z"/><path d="M16 4a3 3 0 0 1 0 6M18 14c3 0 4 2 4 5v2h-3"/></svg>',
  aphone:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 3h3l2 5-3 3c1 3 3 5 6 6l3-3 5 2v3a2 2 0 0 1-2 2C10 21 3 14 3 5a2 2 0 0 1 2-2Z"/></svg>',
- chevD:'<svg class="ic" viewBox="0 0 24 24"><g transform="rotate(90 12 12)"><path d="m9 5 7 7-7 7"/></g></svg>',
  amail:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="4"/><path d="m4 7 8 6 8-6"/></svg>',
  alert:'<svg class="ic" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
@@ -5322,7 +5328,7 @@ document.addEventListener('mousedown', e=>{
 // stop card it sits on -- the capture-phase listeners below see the event
 // before the card's own handlers do.
 let salertPop=null, salertAnchor=null, salertRow=null, salertMode=null,
-    salertHideT=null, salertPressed=false, salertPtr='mouse', salertShownAt=0;
+    salertHideT=null, salertPressed=false, salertPtr='mouse', salertPtrAt=0, salertShownAt=0;
 function salertEl(){
   if(!salertPop){
     salertPop=document.createElement('div');
@@ -5431,7 +5437,7 @@ function hideAlertPopSoon(){
   salertHideT=setTimeout(()=>{ if(salertMode==='view') hideAlertPop(); }, 220);
 }
 document.addEventListener('pointerdown', e=>{
-  salertPtr=e.pointerType||'mouse';
+  salertPtr=e.pointerType||'mouse'; salertPtrAt=Date.now();
   const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
   salertPressed=!!ic;
   if(!ic && salertPop && !salertPop.hidden && !salertPop.contains(e.target)) hideAlertPop();
@@ -5458,13 +5464,21 @@ document.addEventListener('click', e=>{
   if(open && salertMode==='edit') return;
   showAlertPop(ic, row, 'edit');
 }, true);
+// iOS turns every tap into mouseover + click, and if the mouseover shows
+// something new it treats the tap as a hover and drops the click: the first
+// tap on a stop only "highlights" it and a second one opens it. So hover
+// opens the alert card for a real mouse only; a tap goes through the click
+// handler above (user, 2026-10-09).
+function tapEmulatedHover(){ return salertPtr!=='mouse' && Date.now()-salertPtrAt<1000; }
 document.addEventListener('mouseover', e=>{
+  if(tapEmulatedHover()) return;
   const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
   if(!ic || salertMode==='edit') return;
   if(salertAnchor!==ic || !salertPop || salertPop.hidden) showAlertPop(ic, +ic.dataset.alertRow, 'view');
   else clearTimeout(salertHideT);
 });
 document.addEventListener('mouseout', e=>{
+  if(tapEmulatedHover()) return;
   const ic=e.target.closest && e.target.closest('.salert[data-alert-row]');
   if(ic && salertMode==='view' && !(e.relatedTarget && ic.contains(e.relatedTarget))) hideAlertPopSoon();
 });
@@ -6096,7 +6110,7 @@ function renderStrip(){
     const key=h.textContent, g=document.createElement('div'); g.className='dgrp';
     while(h.nextSibling && !h.nextSibling.classList.contains('dmon')) g.appendChild(h.nextSibling);
     h.after(g);
-    const chev=document.createElement('span'); chev.className='dmonchev'; chev.setAttribute('aria-hidden','true'); chev.innerHTML=IC.chev; h.appendChild(chev);
+    const chev=document.createElement('span'); chev.className='dmonchev foldchev'; chev.setAttribute('aria-hidden','true'); chev.innerHTML=IC.chev; h.appendChild(chev);
     h.setAttribute('role','button'); h.tabIndex=0;
     const set=closed=>{ g.classList.toggle('shut',closed); h.classList.toggle('shut',closed);
       h.setAttribute('aria-expanded',String(!closed)); };
@@ -6137,6 +6151,16 @@ function fmtClock(mins){
   const ap=h>=12?'PM':'AM', h12=h%12===0?12:h%12;
   return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
 }
+/** The hand-order bar on a day card. Only a day whose stops were put in
+ *  order by hand (manualOrder) gets it: one line saying so, with the
+ *  "Shortest route" button that hands the order back to drive time. A day
+ *  the planner ordered has nothing to undo, so no bar and no button
+ *  (user, 2026-10-09). */
+function orderBarHTML(d){
+  if(!manualOrder[d.id]) return '';
+  return `<div class="cordernote"><span class="cordertxt">Stop order set by hand</span>`
+    + `<button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>`;
+}
 function buildDayCard(d){
   const col=CREW_COLORS[d.crew]||'#555';
   const calc=dayCalc(d);
@@ -6156,10 +6180,7 @@ function buildDayCard(d){
   </div>
   ${(()=>{ const cf=lockConflicts(d.stops, r=>pinOf(r, d), orderName);
      return cf.length ? `<div class="clockwarn" role="note">${IC.alert}<span><b>Locks can't all be met.</b> ${cf.map(peekEsc).join(' ')}</span></div>` : ''; })()}
-  ${manualOrder[d.id] ? `<div class="cordernote">Stop order set by hand
-      <button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>`
-    : (d.stops.length>2 && !READONLY ? `<div class="cordernote quiet">
-      <button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>` : '')}
+  ${orderBarHTML(d)}
   ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
           + `title="Click to staff this shift`
@@ -6236,8 +6257,7 @@ function buildDayCard(d){
         ${prefBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
-        ${approx?'<span class="badge approx">approx pin</span>':''}
-        ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
+        ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
       <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
         c.boxes?`${c.boxes} boxes`:'boxes?'].filter(Boolean).join(' · ')}</div>
@@ -8185,7 +8205,7 @@ let pkOpen=new Set();            // folds opened on the card that's showing
 function pkFold(key, title, summary, body, badge=''){
   return `<details class="pkfold" data-k="${key}"${pkOpen.has(key)?' open':''}>`
     +`<summary><span class="pkfold-t">${title}</span>${badge}<span class="pkfold-s">${summary||''}</span>`
-    +`<span class="pkfold-c" aria-hidden="true">${IC.chevD}</span></summary><div class="pkfold-b">${body}</div></details>`;
+    +`<span class="pkfold-c foldchev" aria-hidden="true">${IC.chev}</span></summary><div class="pkfold-b">${body}</div></details>`;
 }
 document.addEventListener('toggle', e=>{
   const d=e.target; if(!d.classList || !d.classList.contains('pkfold')) return;
@@ -9002,6 +9022,7 @@ function openStopPeek(row,dayId){
   }
   const openBtn=document.getElementById('peekopen');
   const prBtn=document.getElementById('peekprint');
+  if(!prBtn.firstChild) prBtn.innerHTML=IC.print;
   const mv=document.getElementById('peekmove');
   const cfBtn=document.getElementById('peekconfirm');
   const apBtn=document.getElementById('peekappr');
@@ -9569,7 +9590,7 @@ const RANK_LBL = ['Ready to schedule', 'Ready to schedule \u2014 no phone number
 function rosterSection(label, people, open){
   if(!people.length) return '';
   return `<details class="stfsec"${open?' open':''}>`
-    + `<summary>${esc(label)}<span class="stfsecn"> \u00b7 ${people.length}</span></summary>`
+    + `<summary><span class="foldchev" aria-hidden="true">${IC.chev}</span>${esc(label)}<span class="stfsecn"> \u00b7 ${people.length}</span></summary>`
     + `<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>`
     + `<th>M/F</th><th>Free</th><th>Shifts</th>`
     + `<th title="Alberto rating (overall)">Alberto</th></tr></thead><tbody>`
