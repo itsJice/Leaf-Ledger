@@ -8,8 +8,13 @@
  *   Last, First                        Scheib, Nataliya
  *   Last, First - Location             Byler, Kerri - House
  *   Business                           Hilton Garden Inn
- *   Business | Location                The Club at Carlton Woods | Nicklaus Clubhouse
- *   Business | Last, First [- Loc.]    A Hug Away | Frazier, Marissa
+ *   Business | Location                Club at Carlton Woods | Trails
+ *   Business + a person                Serenity Retreat (Tiffany Pardue is the contact)
+ *
+ * Businesses go by their business name (user, 2026-10-09): with a business
+ * set, the first and last name are the contact person, saved on the card but
+ * not in the name. Older names like "A Hug Away | Frazier, Marissa" still
+ * load into the right boxes; saving them by parts renames them.
  */
 import React from "react";
 
@@ -36,13 +41,29 @@ export function composeClientName(p: NameParts): string {
   const first = squash(p.first_name);
   const business = squash(p.company);
   const where = squash(p.site);
-  let person = last && first ? `${last}, ${first}` : last || first;
-  if (person) {
-    if (where) person = `${person} - ${where}`;
-    return business ? `${business} | ${person}` : person;
-  }
+  // A business goes by its business name; the person is its contact.
   if (business) return where ? `${business} | ${where}` : business;
+  const person = last && first ? `${last}, ${first}` : last || first;
+  if (person) return where ? `${person} - ${where}` : person;
   return "";
+}
+
+/** "Tiffany Pardue" when a business has a contact person (who is saved on
+ *  the card but not in the name), else "". */
+export function contactPersonName(p: NameParts): string {
+  if (!squash(p.company)) return "";
+  return [squash(p.first_name), squash(p.last_name)].filter(Boolean).join(" ");
+}
+
+/** The toast for a 409: the composed name is already another client's.
+ *  Two cards for one business (two contacts, no location) now collide, so
+ *  say how to tell them apart. */
+export function duplicateNameMessage(p: NameParts | null): string {
+  const shown = p ? composeClientName(p) : "";
+  if (p && squash(p.company) && shown) {
+    return `Another client is already called “${shown}”. A business goes by its business name: add a Location to tell its cards apart.`;
+  }
+  return "Another client already has that name -- pick a different one.";
 }
 
 /** Form state from a client record: its parts (the server derives them when
@@ -101,6 +122,7 @@ export function ClientNameFields({ value, onChange, currentName, autoFocus }: {
 }) {
   const set = (key: keyof NameParts) => (v: string) => onChange({ ...value, [key]: v });
   const shown = composeClientName(value);
+  const contact = contactPersonName(value);
   const renaming = Boolean(currentName) && shown !== "" && shown !== currentName;
   return (
     <div className="space-y-3" data-testid="client-name-fields">
@@ -114,6 +136,12 @@ export function ClientNameFields({ value, onChange, currentName, autoFocus }: {
       <Field label="Location" value={value.site} onChange={set("site")} placeholder="e.g. House, Daycare, Nicklaus Clubhouse" />
       <p className="text-xs text-stone-500" aria-live="polite">
         Shows as: <span className="font-semibold text-stone-800">{shown || "—"}</span>
+        {contact && (
+          <span className="mt-0.5 block" data-testid="client-name-contact">
+            Contact person: <span className="font-medium text-stone-700">{contact}</span>
+            <span className="text-stone-400"> (on the card, not in the name)</span>
+          </span>
+        )}
         {renaming && (
           <span className="mt-0.5 block text-amber-700">
             Renames “{currentName}” everywhere: projects, jobs, the Install Schedule and the sheet sync.

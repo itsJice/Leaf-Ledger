@@ -36,8 +36,8 @@ import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from
 import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
 import { isReadOnly } from "utils/me";
 import {
-  ClientNameFields, composeClientName, initialNameParts, namePartsBody, namePartsProblem,
-  type NameParts, type NamePartsIn,
+  ClientNameFields, composeClientName, duplicateNameMessage, initialNameParts, namePartsBody,
+  namePartsProblem, type NameParts, type NamePartsIn,
 } from "./clients/ClientNameFields";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
@@ -490,7 +490,7 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
       if (editing) {
         const status = failedStatus(error);
         toast.error(
-          status === 409 ? "Another client already has that name -- pick a different one."
+          status === 409 ? duplicateNameMessage(sendName ? nameParts : null)
           : status === 403 ? "This login can view clients but can't edit them."
           : status === 0 ? "The save is taking too long -- check your connection and try again."
           : "Couldn't save that change -- try again in a moment."
@@ -500,7 +500,7 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
       // A duplicate is a real answer from the server, not an outage: don't
       // fall back to saving a second copy on this device.
       if (failedStatus(error) === 409) {
-        toast.error("Another client already has that name -- pick a different one.");
+        toast.error(duplicateNameMessage(nameParts));
         return;
       }
       const localClient = makeLocalClient(payload);

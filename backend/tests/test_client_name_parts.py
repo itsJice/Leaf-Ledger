@@ -54,10 +54,14 @@ COMPOSE = [
     (P(company="Hilton Garden Inn"), "Hilton Garden Inn"),
     (P(company="The Club at Carlton Woods", site="Nicklaus Clubhouse"),
      "The Club at Carlton Woods | Nicklaus Clubhouse"),
+    (P(company="Club at Carlton Woods", site="Trails"), "Club at Carlton Woods | Trails"),
     (P(company="A Hug Away", site="Daycare"), "A Hug Away | Daycare"),
     (P(company="Capital Bank - Baytown"), "Capital Bank - Baytown"),
-    (P("Marissa", "Frazier", company="A Hug Away"), "A Hug Away | Frazier, Marissa"),
-    (P("Marissa", "Frazier", company="A Hug Away", site="Residence"), "A Hug Away | Frazier, Marissa - Residence"),
+    # businesses go by their business name: the person is the contact
+    (P("Marissa", "Frazier", company="A Hug Away"), "A Hug Away"),
+    (P("Tiffany", "Pardue", company="Serenity Retreat"), "Serenity Retreat"),
+    (P("Marissa", "Frazier", company="A Hug Away", site="Residence"), "A Hug Away | Residence"),
+    (P(last="Frazier", company=" A  Hug Away ", site=" Office "), "A Hug Away | Office"),
     (P(site="Daycare"), ""),  # a location alone isn't a name
 ]
 
@@ -72,10 +76,24 @@ def test_every_composed_name_parses_back_to_its_parts(parts, expected):
     """The parser is the inverse: what the form saves is what a re-derive reads."""
     back, _ = split_name(expected)
     assert compose_name(**back) == expected
-    if "," in expected or "|" in expected:
+    contact_only = parts.get("company") and (parts.get("first_name") or parts.get("last_name"))
+    if ("," in expected or "|" in expected) and not contact_only:  # a contact isn't in the name
         assert {k: v for k, v in back.items() if v} == {k: v.strip() for k, v in parts.items() if v and v.strip()}
     # A lone word ("Hellums") reads the same as a person or a business; the
     # parser calls it a business and flags it -- saved parts keep the choice.
+
+
+def test_the_rule_before_20261009_is_kept_only_for_comparisons():
+    old = client_names.compose_name_before_20261009
+    assert old("Marissa", "Frazier", "A Hug Away") == "A Hug Away | Frazier, Marissa"
+    assert old(company="The Club at Carlton Woods", site="Nicklaus Clubhouse") == \
+        "The Club at Carlton Woods | Nicklaus Clubhouse"
+    assert old("Kerri", "Byler", site="House") == compose_name("Kerri", "Byler", site="House")
+
+
+def test_clean_parts_keeps_the_contact_person_with_a_business():
+    assert clean_parts("Tiffany", "Pardue", "Serenity Retreat", "") == \
+        P("Tiffany", "Pardue", company="Serenity Retreat")
 
 
 def test_clean_parts_validates():
@@ -94,9 +112,16 @@ def test_clean_parts_validates():
     ("Scheib, Nataliya", P("Nataliya", "Scheib"), False),
     ("Byler, Kerri - House", P("Kerri", "Byler", site="House"), False),
     ("Byler, Kerri - Office", P("Kerri", "Byler", site="Office"), False),
+    # "Business | Location" reads back exactly
     ("The Club at Carlton Woods | Nicklaus Clubhouse",
      P(company="The Club at Carlton Woods", site="Nicklaus Clubhouse"), False),
     ("A Hug Away | Daycare", P(company="A Hug Away", site="Daycare"), False),
+    # the old "Business | Last, First" style still parses; it now reads
+    # differently, so it is flagged (a rename is a separate, approved step)
+    ("A Hug Away | Frazier, Marissa", P("Marissa", "Frazier", company="A Hug Away"), True),
+    ("Serenity Retreat | Pardue, Tiffany", P("Tiffany", "Pardue", company="Serenity Retreat"), True),
+    ("A Hug Away | Frazier, Marissa - Residence",
+     P("Marissa", "Frazier", company="A Hug Away", site="Residence"), True),
     ("Hilton Garden Inn", P(company="Hilton Garden Inn"), False),
     # existing styles are never re-punctuated: a business dash stays put
     ("Capital Bank - Baytown", P(company="Capital Bank - Baytown"), True),
@@ -124,6 +149,18 @@ def test_split_name(name, fields, unsure):
     assert bool(reasons) is unsure, reasons
     if not reasons:
         assert compose_name(**parts) == name  # a sure split reads back exactly
+
+
+@pytest.mark.parametrize("old, new", [
+    ("A Hug Away | Frazier, Marissa", "A Hug Away"),
+    ("Serenity Retreat | Pardue, Tiffany", "Serenity Retreat"),
+    ("A Hug Away | Frazier, Marissa - Residence", "A Hug Away | Residence"),
+])
+def test_old_business_names_parse_and_say_what_they_would_read(old, new):
+    parts, reasons = split_name(old)
+    assert client_names.compose_name_before_20261009(**parts) == old
+    assert compose_name(**parts) == new
+    assert f'would read "{new}"' in reasons
 
 
 def test_name_parts_prefers_saved_parts_and_derives_otherwise():
@@ -259,6 +296,58 @@ def test_business_with_a_location(fake_db, fake_request):
     assert out["renamed"] is not None
 
 
+def test_business_with_a_contact_person_goes_by_the_business_name(fake_db, fake_request):
+    """User, 2026-10-09: businesses go by their business name. The person is
+    saved on the card as the contact, but isn't part of the name."""
+    _rename_db(fake_db, "Serenity Retreat, Tiffany Pardue")
+    out = run(clients.update_client(196, ClientUpdate(
+        first_name="Tiffany", last_name="Pardue", company="Serenity Retreat", site=""), fake_request()))
+    assert out["name"] == "Serenity Retreat"
+    assert (out["first_name"], out["last_name"], out["company"], out["site"]) == (
+        "Tiffany", "Pardue", "Serenity Retreat", None)
+    assert out["renamed"]["to"] == "Serenity Retreat"
+
+
+def test_create_business_with_a_person_saves_the_person_as_parts(fake_db, fake_request):
+    fake_db.on("INSERT INTO clients", lambda sql, *a: row(
+        id=9, name=a[0], first_name=a[11], last_name=a[12], company=a[13], site=a[14]),
+        method="fetchrow")
+    out = run(clients.create_client(ClientCreate(
+        first_name="Marissa", last_name="Frazier", company="A Hug Away", site="Daycare"), fake_request()))
+    (args,) = [a for _, a in fake_db.calls("INSERT INTO clients")]
+    assert args[0] == "A Hug Away | Daycare"
+    assert args[11:] == ("Marissa", "Frazier", "A Hug Away", "Daycare")
+    assert (out["first_name"], out["last_name"]) == ("Marissa", "Frazier")
+
+
+def test_two_cards_for_one_business_collide_with_a_clear_409(fake_db, fake_request):
+    """Two contacts at one business, no location: both compose to the
+    business name. The unique index refuses the second; the message says
+    to add a Location."""
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "A Hug Away Takisha")
+
+    async def dup(sql, *args):
+        raise asyncpg.UniqueViolationError("duplicate key")
+    fake_db.on("UPDATE clients SET", dup, method="fetchrow")
+    with pytest.raises(HTTPException) as exc:
+        run(clients.update_client(196, ClientUpdate(
+            first_name="Takisha", last_name="", company="A Hug Away", site=""), fake_request()))
+    assert exc.value.status_code == 409
+    assert exc.value.detail.startswith('Another client already has that name: "A Hug Away".')
+    assert "add a Location" in exc.value.detail
+    assert not fake_db.seen("UPDATE arrangements")
+
+
+def test_creating_a_second_card_for_a_business_is_a_clear_409(fake_db, fake_request):
+    fake_db.on("INSERT INTO clients", lambda sql, *a: None, method="fetchrow")
+    with pytest.raises(HTTPException) as exc:
+        run(clients.create_client(ClientCreate(
+            first_name="Takisha", company="A Hug Away"), fake_request()))
+    assert exc.value.status_code == 409
+    assert exc.value.detail.startswith('Client already exists: "A Hug Away".')
+    assert "add a Location" in exc.value.detail
+
+
 def test_same_parts_same_name_saves_parts_without_a_rename(fake_db, fake_request):
     _rename_db(fake_db, "Scheib, Nataliya")
     out = run(clients.update_client(196, ClientUpdate(first_name="Nataliya", last_name="Scheib"), fake_request()))
@@ -293,7 +382,7 @@ def test_parts_that_collide_with_another_client_are_a_409(fake_db, fake_request)
         raise asyncpg.UniqueViolationError("duplicate key")
     fake_db.on("UPDATE clients SET", dup, method="fetchrow")
     with pytest.raises(HTTPException) as exc:
-        run(clients.update_client(196, ClientUpdate(company="Schieb"), fake_request()))
+        run(clients.update_client(196, ClientUpdate(first_name="Nataliya", last_name="Schieb"), fake_request()))
     assert (exc.value.status_code, exc.value.detail) == (409, "Another client already has that name")
     assert not fake_db.seen("UPDATE arrangements")
 
@@ -316,3 +405,37 @@ def test_renaming_by_parts_needs_staff(role, ok):
     assert getattr(clients, "MIN_ROLE", "staff") == "staff"
     assert roles.allowed(role, "staff", "PUT", False, "/api/clients/update/{client_id}") is ok
     assert roles.allowed(role, "staff", "POST", False, "/api/clients/create") is ok
+
+
+# ─── the read-only impact report ────────────────────────────────────────────
+
+impact_script = importlib.import_module("business_name_rule_impact")
+
+
+def test_impact_report_lists_renames_and_collisions():
+    live = [
+        {"id": 1, "name": "Scheib, Nataliya", **NONE4},
+        {"id": 2, "name": "A Hug Away | Daycare", **P(company="A Hug Away", site="Daycare")},
+        {"id": 3, "name": "A Hug Away | Frazier, Marissa", **NONE4},           # derived parts
+        {"id": 4, "name": "A Hug Away Takisha", **P("Takisha", None, "A Hug Away")},  # saved, hand-typed name
+        {"id": 5, "name": "Serenity Retreat | Pardue, Tiffany", **NONE4},
+        {"id": 6, "name": "Serenity Retreat", **P(company="Serenity Retreat")},
+        {"id": 7, "name": "Hilton Garden Inn", **NONE4},
+        {"id": 8, "name": "Maple Street Bakery | Avery, Jordan - Downtown",
+         **P("Jordan", "Avery", "Maple Street Bakery", "Downtown")},
+    ]
+    report = {r["id"]: r for r in impact_script.impact(live)}
+    assert set(report) == {3, 4, 5, 8}  # "Business | Location" (#2) is unchanged
+    assert report[8]["new_name"] == "Maple Street Bakery | Downtown" and report[8]["kind"] == "business + person"
+    assert report[3]["new_name"] == "A Hug Away" and report[3]["contact_person"] == "Marissa Frazier"
+    assert report[3]["parts_saved"].startswith("no")
+    assert "#4" in report[3]["collision"] and "#3" in report[4]["collision"]
+    assert '#6 "Serenity Retreat" (current name)' in report[5]["collision"]
+    assert report[8]["collision"] == ""
+    assert report[4]["note"].startswith("name doesn't match its parts today")
+
+
+def test_impact_report_is_read_only():
+    src = Path(impact_script.__file__).read_text()
+    assert "default_transaction_read_only" in src
+    assert not re.search(r"\b(UPDATE|INSERT|DELETE)\b", src.split("async def main")[1])

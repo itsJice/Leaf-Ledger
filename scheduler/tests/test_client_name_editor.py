@@ -58,6 +58,10 @@ CASES = [
     (None, None, "Capital  Bank", "  "),
     ("Marissa", "Frazier", "A Hug Away", None),
     ("Marissa", "Frazier", "A Hug Away", "Residence"),
+    ("Tiffany", "Pardue", "Serenity Retreat", None),
+    (None, None, "Club at Carlton Woods", "Trails"),
+    ("Jordan", "Avery", "Maple Street Bakery", "Downtown"),
+    (None, "Frazier", " A  Hug Away ", " Office "),
     (None, None, None, "Daycare"),
 ]
 
@@ -81,6 +85,28 @@ def test_whole_page_script_parses():
             subprocess.run([NODE, "--check", f.name], capture_output=True, text=True, check=True)
         finally:
             os.unlink(f.name)
+
+
+@pytest.mark.skipif(NODE is None, reason="node not installed")
+def test_a_business_goes_by_its_business_name_with_the_person_as_contact():
+    src = "\n".join(js_function(f) for f in (
+        "squashName", "composeClientName", "contactPersonName", "duplicateNameMessage"))
+    src += """
+const p={first_name:'Tiffany', last_name:'Pardue', company:'Serenity Retreat', site:''};
+console.log(JSON.stringify([composeClientName(p), contactPersonName(p),
+  contactPersonName({first_name:'Kerri', last_name:'Byler', company:'', site:''}),
+  duplicateNameMessage({first_name:'Takisha', last_name:'', company:'A Hug Away', site:''}),
+  duplicateNameMessage(null)]));
+"""
+    shown, contact, none, dup, plain = json.loads(run_js(src))
+    assert (shown, contact, none) == ("Serenity Retreat", "Tiffany Pardue", "")
+    assert "“A Hug Away”" in dup and "add a Location" in dup
+    assert "already has that name" in plain
+
+
+def test_preview_names_the_contact_and_409_uses_the_clear_message():
+    assert "Contact person: ${peekEsc(contact)}" in js_function("namePreviewHTML")
+    assert "duplicateNameMessage(nameBody)" in TEMPLATE
 
 
 def test_only_office_staff_get_the_name_fields():

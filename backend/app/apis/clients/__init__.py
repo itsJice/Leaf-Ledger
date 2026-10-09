@@ -181,8 +181,9 @@ class SecondaryContact(BaseModel):
 class NameParts(BaseModel):
     """The name typed as parts. When any of them is sent the server composes
     ``name`` from them (app.libs.client_names.compose_name: "Last, First",
-    "Last, First - Location", "Business", "Business | Location",
-    "Business | Last, First") and any ``name`` sent alongside is ignored."""
+    "Last, First - Location", "Business", "Business | Location"; with a
+    business set, the person is the contact and isn't in the name) and any
+    ``name`` sent alongside is ignored."""
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     company: Optional[str] = None
@@ -460,7 +461,8 @@ async def create_client(body: ClientCreate, request: Request):
             *((parts or {}).get(k) for k in NAME_PART_COLUMNS),
         )
         if row is None:
-            raise HTTPException(status_code=409, detail="Client already exists")
+            raise HTTPException(status_code=409, detail=client_names.duplicate_name_message(
+                parts, name, "Client already exists"))
 
         result = with_name_parts(dict(row))
         sc = result.get("secondary_contacts")
@@ -549,7 +551,8 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                 if row is not None and renaming:
                     renamed = await _rename_everywhere(conn, client_id, old_name, row["name"])
         except asyncpg.UniqueViolationError:
-            raise HTTPException(status_code=409, detail="Another client already has that name")
+            raise HTTPException(status_code=409, detail=client_names.duplicate_name_message(
+                parts, new_name, "Another client already has that name"))
         if row is None:
             raise HTTPException(status_code=404, detail="No client with that id")
 
