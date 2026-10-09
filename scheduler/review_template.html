@@ -553,6 +553,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
   font-family:'Montserrat',sans-serif}
 .stfadd:hover{background:var(--brand-soft)}
 .stffilters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.stfsm{display:none}
 .stffilters select{padding:6px 9px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
   font-size:12px;font-weight:600;font-family:'Montserrat',sans-serif;color:var(--ink)}
 .stfsplit{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
@@ -1730,7 +1731,16 @@ body.apple header{container-type:inline-size}
   body.apple .stftable th:nth-child(6),body.apple .stftable td:nth-child(6),
   body.apple .stftable th:nth-child(7),body.apple .stftable td:nth-child(7){display:none}
   body.apple .stftable td,body.apple .stftable th{padding:9px 6px}
-  body.apple .stffilters select{flex:1 1 40%;min-height:40px}
+  /* Roster header: the three buttons on one line (user, 10/8) */
+  body.apple .stfbar{flex-wrap:nowrap;gap:6px}
+  body.apple .stfbar .stftxt,body.apple .stfbar .stfvcf,body.apple .stfbar .stfadd{flex:1 1 0;min-width:0;margin-left:0;
+    min-height:40px;padding:0 6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.apple .stflg{display:none} body.apple .stfsm{display:inline}
+  /* Roster filters: one swipeable row of pills; a pill turns green while it filters (user, 10/8) */
+  body.apple .stffilters{flex-wrap:nowrap;overflow-x:auto;gap:6px;scrollbar-width:none;margin:0 -12px 10px;padding:0 12px 2px}
+  body.apple .stffilters::-webkit-scrollbar{display:none}
+  body.apple .stffilters select{flex:none;width:auto;field-sizing:content;max-width:170px;min-height:40px;height:40px;border-radius:20px;padding:0 26px 0 12px;font-size:16px;text-overflow:ellipsis}
+  body.apple .stffilters select.on{background-color:var(--brand-soft);border-color:var(--brand);color:var(--brand-deep)}
   /* Schedule list: crew line drops under the client instead of clipping */
   body.apple .agday{gap:8px}
   body.apple .agdate{width:44px}
@@ -8855,7 +8865,7 @@ function rosterHTML(){
   // they are not staffing decisions this one.
   const off=(f.active===''||f.active==='0')
     ? roster.filter(p=>matches(p)&&p.active===false).sort(byRank) : [];
-  const sel=(id,val,opts,lbl)=>`<select data-f="${id}">`
+  const sel=(id,val,opts,lbl)=>`<select data-f="${id}"${val?' class="on"':''}>`
     + `<option value="">${lbl}</option>`
     + opts.map(o=>`<option value="${esc(o[0])}"${val===o[0]?' selected':''}>${esc(o[1])}</option>`).join('')
     + `</select>`;
@@ -8866,6 +8876,7 @@ function rosterHTML(){
     ${sel('active',f.active,[['1','Active'],['0','Inactive']],'Active + inactive')}
     ${sel('sort',f.sort,[['rating','Alberto rating (overall)']],'Sort: readiness')}
   </div>`;
+
   h+=`<div class="stfsplit"><div>`;
   if(!roster.length){
     h+=`<div class="stfnone">No installers yet. <b>+ Add installer</b> to start building the roster —
@@ -9157,9 +9168,9 @@ function renderStaffing(){
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
       <button class="stftab${staffTab==='shifts'?' sel':''}" data-tab="shifts">Shifts${
         short?` (${short})`:''}</button>
-      ${staffTab==='roster'?'<button class="stftxt" id="masstext">Send mass text</button>'
-        +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts">Download contacts</button>':''}
-      <button class="stfadd" id="addperson">+ Add installer</button>
+      ${staffTab==='roster'?'<button class="stftxt" id="masstext"><span class="stflg">Send mass text</span><span class="stfsm">Mass text</span></button>'
+        +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts"><span class="stflg">Download contacts</span><span class="stfsm">Contacts</span></button>':''}
+      <button class="stfadd" id="addperson"><span class="stflg">+ Add installer</span><span class="stfsm">+ Add installer</span></button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   wrap.querySelectorAll('.stftab').forEach(b=>
     b.onclick=()=>{ staffTab=b.dataset.tab; renderStaffing(); });
