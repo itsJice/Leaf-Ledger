@@ -22,14 +22,15 @@ describe("composeClientName", () => {
     [{ last_name: "Hellums" }, "Hellums"],
     [{ first_name: "Kerri", last_name: "Byler", site: "House" }, "Byler, Kerri - House"],
     [{ company: "Hilton Garden Inn" }, "Hilton Garden Inn"],
-    [{ company: "The Club at Carlton Woods", site: "Nicklaus Clubhouse" }, "The Club at Carlton Woods - Nicklaus Clubhouse"],
-    [{ company: "A Hug Away", site: "Daycare" }, "A Hug Away - Daycare"],
+    [{ company: "The Club at Carlton Woods", site: "Nicklaus Clubhouse" }, "The Club at Carlton Woods | Nicklaus Clubhouse"],
+    [{ company: "Club at Carlton Woods", site: "Trails" }, "Club at Carlton Woods | Trails"],
+    [{ company: "A Hug Away", site: "Daycare" }, "A Hug Away | Daycare"],
     [{ company: "Capital Bank - Baytown" }, "Capital Bank - Baytown"],
     // businesses go by their business name; the person is the contact
     [{ company: "A Hug Away", first_name: "Marissa", last_name: "Frazier" }, "A Hug Away"],
     [{ company: "Serenity Retreat", first_name: "Tiffany", last_name: "Pardue" }, "Serenity Retreat"],
-    [{ company: "A Hug Away", first_name: "Marissa", last_name: "Frazier", site: "Residence" }, "A Hug Away - Residence"],
-    [{ company: " A  Hug Away ", last_name: "Frazier", site: " Office " }, "A Hug Away - Office"],
+    [{ company: "A Hug Away", first_name: "Marissa", last_name: "Frazier", site: "Residence" }, "A Hug Away | Residence"],
+    [{ company: " A  Hug Away ", last_name: "Frazier", site: " Office " }, "A Hug Away | Office"],
     [{ site: "Daycare" }, ""],
   ] as [Partial<NameParts>, string][])("%o -> %s", (p, expected) => {
     expect(composeClientName(parts(p))).toBe(expected);
@@ -115,9 +116,9 @@ describe("ClientNameFields", () => {
     expect(html).not.toContain("Pardue, Tiffany");
   });
 
-  it("adds the location with a dash", () => {
+  it("adds a business's location after a bar", () => {
     const html = render(parts({ company: "The Club at Carlton Woods", site: "Nicklaus Clubhouse" }));
-    expect(html).toContain("The Club at Carlton Woods - Nicklaus Clubhouse");
+    expect(html).toContain("The Club at Carlton Woods | Nicklaus Clubhouse");
     expect(html).not.toContain("Contact person");
   });
 

@@ -181,7 +181,7 @@ class SecondaryContact(BaseModel):
 class NameParts(BaseModel):
     """The name typed as parts. When any of them is sent the server composes
     ``name`` from them (app.libs.client_names.compose_name: "Last, First",
-    "Last, First - Location", "Business", "Business - Location"; with a
+    "Last, First - Location", "Business", "Business | Location"; with a
     business set, the person is the contact and isn't in the name) and any
     ``name`` sent alongside is ignored."""
     first_name: Optional[str] = None

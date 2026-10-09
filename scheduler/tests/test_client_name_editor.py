@@ -59,6 +59,8 @@ CASES = [
     ("Marissa", "Frazier", "A Hug Away", None),
     ("Marissa", "Frazier", "A Hug Away", "Residence"),
     ("Tiffany", "Pardue", "Serenity Retreat", None),
+    (None, None, "Club at Carlton Woods", "Trails"),
+    ("Jordan", "Avery", "Maple Street Bakery", "Downtown"),
     (None, "Frazier", " A  Hug Away ", " Office "),
     (None, None, None, "Daycare"),
 ]

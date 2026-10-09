@@ -8,7 +8,7 @@
  *   Last, First                        Scheib, Nataliya
  *   Last, First - Location             Byler, Kerri - House
  *   Business                           Hilton Garden Inn
- *   Business - Location                The Club at Carlton Woods - Nicklaus Clubhouse
+ *   Business | Location                Club at Carlton Woods | Trails
  *   Business + a person                Serenity Retreat (Tiffany Pardue is the contact)
  *
  * Businesses go by their business name (user, 2026-10-09): with a business
@@ -41,11 +41,11 @@ export function composeClientName(p: NameParts): string {
   const first = squash(p.first_name);
   const business = squash(p.company);
   const where = squash(p.site);
-  const person = last && first ? `${last}, ${first}` : last || first;
   // A business goes by its business name; the person is its contact.
-  const base = business || person;
-  if (!base) return "";
-  return where ? `${base} - ${where}` : base;
+  if (business) return where ? `${business} | ${where}` : business;
+  const person = last && first ? `${last}, ${first}` : last || first;
+  if (person) return where ? `${person} - ${where}` : person;
+  return "";
 }
 
 /** "Tiffany Pardue" when a business has a contact person (who is saved on

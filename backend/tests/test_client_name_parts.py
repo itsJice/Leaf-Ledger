@@ -53,14 +53,15 @@ COMPOSE = [
     (P("Kerri", "Byler", site="Store Buck Ferguson"), "Byler, Kerri - Store Buck Ferguson"),
     (P(company="Hilton Garden Inn"), "Hilton Garden Inn"),
     (P(company="The Club at Carlton Woods", site="Nicklaus Clubhouse"),
-     "The Club at Carlton Woods - Nicklaus Clubhouse"),
-    (P(company="A Hug Away", site="Daycare"), "A Hug Away - Daycare"),
+     "The Club at Carlton Woods | Nicklaus Clubhouse"),
+    (P(company="Club at Carlton Woods", site="Trails"), "Club at Carlton Woods | Trails"),
+    (P(company="A Hug Away", site="Daycare"), "A Hug Away | Daycare"),
     (P(company="Capital Bank - Baytown"), "Capital Bank - Baytown"),
     # businesses go by their business name: the person is the contact
     (P("Marissa", "Frazier", company="A Hug Away"), "A Hug Away"),
     (P("Tiffany", "Pardue", company="Serenity Retreat"), "Serenity Retreat"),
-    (P("Marissa", "Frazier", company="A Hug Away", site="Residence"), "A Hug Away - Residence"),
-    (P(last="Frazier", company=" A  Hug Away ", site=" Office "), "A Hug Away - Office"),
+    (P("Marissa", "Frazier", company="A Hug Away", site="Residence"), "A Hug Away | Residence"),
+    (P(last="Frazier", company=" A  Hug Away ", site=" Office "), "A Hug Away | Office"),
     (P(site="Daycare"), ""),  # a location alone isn't a name
 ]
 
@@ -75,7 +76,8 @@ def test_every_composed_name_parses_back_to_its_parts(parts, expected):
     """The parser is the inverse: what the form saves is what a re-derive reads."""
     back, _ = split_name(expected)
     assert compose_name(**back) == expected
-    if "," in expected or "|" in expected:
+    contact_only = parts.get("company") and (parts.get("first_name") or parts.get("last_name"))
+    if ("," in expected or "|" in expected) and not contact_only:  # a contact isn't in the name
         assert {k: v for k, v in back.items() if v} == {k: v.strip() for k, v in parts.items() if v and v.strip()}
     # A lone word ("Hellums") reads the same as a person or a business; the
     # parser calls it a business and flags it -- saved parts keep the choice.
@@ -110,18 +112,16 @@ def test_clean_parts_validates():
     ("Scheib, Nataliya", P("Nataliya", "Scheib"), False),
     ("Byler, Kerri - House", P("Kerri", "Byler", site="House"), False),
     ("Byler, Kerri - Office", P("Kerri", "Byler", site="Office"), False),
-    # the old "Business | ..." style still parses; it now reads differently,
-    # so it is flagged (a rename is a separate, approved step)
+    # "Business | Location" reads back exactly
     ("The Club at Carlton Woods | Nicklaus Clubhouse",
-     P(company="The Club at Carlton Woods", site="Nicklaus Clubhouse"), True),
-    ("A Hug Away | Daycare", P(company="A Hug Away", site="Daycare"), True),
+     P(company="The Club at Carlton Woods", site="Nicklaus Clubhouse"), False),
+    ("A Hug Away | Daycare", P(company="A Hug Away", site="Daycare"), False),
+    # the old "Business | Last, First" style still parses; it now reads
+    # differently, so it is flagged (a rename is a separate, approved step)
     ("A Hug Away | Frazier, Marissa", P("Marissa", "Frazier", company="A Hug Away"), True),
     ("Serenity Retreat | Pardue, Tiffany", P("Tiffany", "Pardue", company="Serenity Retreat"), True),
     ("A Hug Away | Frazier, Marissa - Residence",
      P("Marissa", "Frazier", company="A Hug Away", site="Residence"), True),
-    # the new style reads back the same (the whole name as the business)
-    ("The Club at Carlton Woods - Nicklaus Clubhouse",
-     P(company="The Club at Carlton Woods - Nicklaus Clubhouse"), True),
     ("Hilton Garden Inn", P(company="Hilton Garden Inn"), False),
     # existing styles are never re-punctuated: a business dash stays put
     ("Capital Bank - Baytown", P(company="Capital Bank - Baytown"), True),
@@ -154,8 +154,7 @@ def test_split_name(name, fields, unsure):
 @pytest.mark.parametrize("old, new", [
     ("A Hug Away | Frazier, Marissa", "A Hug Away"),
     ("Serenity Retreat | Pardue, Tiffany", "Serenity Retreat"),
-    ("A Hug Away | Frazier, Marissa - Residence", "A Hug Away - Residence"),
-    ("The Club at Carlton Woods | Nicklaus Clubhouse", "The Club at Carlton Woods - Nicklaus Clubhouse"),
+    ("A Hug Away | Frazier, Marissa - Residence", "A Hug Away | Residence"),
 ])
 def test_old_business_names_parse_and_say_what_they_would_read(old, new):
     parts, reasons = split_name(old)
@@ -184,14 +183,13 @@ def test_backfill_report_counts_and_plan():
     ]
     report = split_script.propose(live)
     c = split_script.counts(report)
-    # "A Hug Away | Daycare" is the old business style: it now reads
-    # "A Hug Away - Daycare", so it is unsure and left for a rename.
     assert (c["clients"], c["person"], c["business"], c["unsure"], c["saved_already"], c["with_location"]) == \
-        (5, 3, 2, 2, 1, 2)
+        (5, 3, 2, 1, 1, 2)
 
     sure = [r for r in report if not r["unsure"]]
     writes, skipped = split_script.plan_writes(live, sure)
     assert writes == [(1, "Nataliya", "Scheib", None, None),
+                      (2, None, None, "A Hug Away", "Daycare"),
                       (5, "Kerri", "Byler", None, "House")]
     assert any("already has saved parts" in s for s in skipped)
 
@@ -292,7 +290,7 @@ def test_business_with_a_location(fake_db, fake_request):
     out = run(clients.update_client(196, ClientUpdate(
         first_name="", last_name="", company="The Club at Carlton Woods", site="Nicklaus Clubhouse"),
         fake_request()))
-    assert out["name"] == "The Club at Carlton Woods - Nicklaus Clubhouse"
+    assert out["name"] == "The Club at Carlton Woods | Nicklaus Clubhouse"
     assert (out["company"], out["site"], out["first_name"]) == (
         "The Club at Carlton Woods", "Nicklaus Clubhouse", None)
     assert out["renamed"] is not None
@@ -317,7 +315,7 @@ def test_create_business_with_a_person_saves_the_person_as_parts(fake_db, fake_r
     out = run(clients.create_client(ClientCreate(
         first_name="Marissa", last_name="Frazier", company="A Hug Away", site="Daycare"), fake_request()))
     (args,) = [a for _, a in fake_db.calls("INSERT INTO clients")]
-    assert args[0] == "A Hug Away - Daycare"
+    assert args[0] == "A Hug Away | Daycare"
     assert args[11:] == ("Marissa", "Frazier", "A Hug Away", "Daycare")
     assert (out["first_name"], out["last_name"]) == ("Marissa", "Frazier")
 
@@ -423,15 +421,17 @@ def test_impact_report_lists_renames_and_collisions():
         {"id": 5, "name": "Serenity Retreat | Pardue, Tiffany", **NONE4},
         {"id": 6, "name": "Serenity Retreat", **P(company="Serenity Retreat")},
         {"id": 7, "name": "Hilton Garden Inn", **NONE4},
+        {"id": 8, "name": "Maple Street Bakery | Avery, Jordan - Downtown",
+         **P("Jordan", "Avery", "Maple Street Bakery", "Downtown")},
     ]
     report = {r["id"]: r for r in impact_script.impact(live)}
-    assert set(report) == {2, 3, 4, 5}
-    assert report[2]["new_name"] == "A Hug Away - Daycare" and report[2]["kind"] == "business + location"
+    assert set(report) == {3, 4, 5, 8}  # "Business | Location" (#2) is unchanged
+    assert report[8]["new_name"] == "Maple Street Bakery | Downtown" and report[8]["kind"] == "business + person"
     assert report[3]["new_name"] == "A Hug Away" and report[3]["contact_person"] == "Marissa Frazier"
     assert report[3]["parts_saved"].startswith("no")
     assert "#4" in report[3]["collision"] and "#3" in report[4]["collision"]
     assert '#6 "Serenity Retreat" (current name)' in report[5]["collision"]
-    assert report[2]["collision"] == ""
+    assert report[8]["collision"] == ""
     assert report[4]["note"].startswith("name doesn't match its parts today")
 
 

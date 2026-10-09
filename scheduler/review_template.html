@@ -8443,10 +8443,10 @@ let pkEditingContact=false;
 // Every client card offers the same four boxes -- first name, last name,
 // business name, location -- filled as they apply; the backend composes the
 // one canonical name from them (app/libs/client_names.py: "Last, First",
-// "Last, First - Location", "Business", "Business - Location"; a business
+// "Last, First - Location", "Business", "Business | Location"; a business
 // goes by its business name, so with one set the first/last name is the
 // contact person, kept on the card but not in the name -- user, 2026-10-09.
-// Older "Business | ..." names still load into the right boxes) and a
+// Older "Business | Last, First" names still load into the right boxes) and a
 // change goes through its rename-everywhere
 // path. The contact editor here offers the same boxes to office staff
 // (staff/admin/owner -- the server refuses anyone else), so a typo can be
@@ -8462,10 +8462,11 @@ function squashName(s){ return String(s||'').trim().replace(/\s+/g,' '); }
 function composeClientName(p){
   const last=squashName(p.last_name), first=squashName(p.first_name);
   const biz=squashName(p.company), where=squashName(p.site);
+  // A business goes by its business name; the person is its contact.
+  if(biz) return where ? `${biz} | ${where}` : biz;
   const person = last && first ? `${last}, ${first}` : (last || first);
-  const base = biz || person;  // a business goes by its business name
-  if(!base) return '';
-  return where ? `${base} - ${where}` : base;
+  if(person) return where ? `${person} - ${where}` : person;
+  return '';
 }
 /** "Tiffany Pardue" when a business has a contact person, else ''. */
 function contactPersonName(p){

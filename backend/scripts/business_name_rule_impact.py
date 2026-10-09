@@ -3,14 +3,15 @@
 READ-ONLY report: which clients' display names change under the business
 name rule (user, 2026-10-09: "businesses go by their business name").
 
-Since that rule, ``compose_name`` makes "Business" (+ " - Location") whenever
+Since that rule, ``compose_name`` makes "Business" (+ " | Location") whenever
 a company is set; the person is kept on the card as the contact. Names
-saved under the old rule ("Business | Last, First", "Business | Location")
-don't change by themselves -- nothing here writes -- but they now read
-differently from their parts, and the next time someone saves the name boxes
-the app renames them everywhere. This lists them first, with collisions:
-two cards that would end up with the same name (the unique index refuses
-the second one, so those need a Location before any rename).
+saved under the old rule ("Business | Last, First") don't change by
+themselves -- nothing here writes -- but they now read differently from their
+parts, and the next time someone saves the name boxes the app renames them
+everywhere. This lists them first, with collisions: two cards that would end
+up with the same name (the unique index refuses the second one, so those
+need a Location before any rename). "Business | Location" names are
+unchanged.
 
 Parts are the saved ones, or derived from the name (``name_parts``) for a
 client that has none saved -- the same parts the edit form shows.
