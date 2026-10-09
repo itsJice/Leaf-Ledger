@@ -255,6 +255,44 @@ def test_shortest_route_keeps_locks_and_beats_any_valid_order():
 
 def test_day_card_has_no_reorder_hint_text():
     # No hint text on the schedule (user, 2026-10-08): the grip and its
-    # tooltip say it; the quiet row keeps only the Shortest route button.
+    # tooltip say it.
     assert "locks stay put" not in TEMPLATE
-    assert 'class="cordernote quiet">\n      <button type="button" class="cautoorder"' in TEMPLATE
+    assert "cordernote quiet" not in TEMPLATE
+
+
+def order_bar(manual, day_id="d1"):
+    src = "\n".join([
+        f"const manualOrder={json.dumps(manual)};",
+        js_function("orderBarHTML"),
+        f"console.log(JSON.stringify(orderBarHTML({{id:{json.dumps(day_id)}, stops:[1,2,3,4]}})));",
+    ])
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+        f.write(src)
+    try:
+        out = subprocess.run([NODE, f.name], capture_output=True, text=True, check=True)
+        return json.loads(out.stdout)
+    finally:
+        os.unlink(f.name)
+
+
+def test_shortest_route_only_on_a_hand_ordered_day():
+    # (user, 2026-10-09) A planner-ordered day, even with 3+ stops, shows no
+    # bar and no "Shortest route" button.
+    assert order_bar({}) == ""
+    assert order_bar({"d2": [3, 1, 2]}) == ""
+    # A hand-ordered day: one bar with the text and the button together.
+    html = order_bar({"d1": [3, 1, 2, 4]})
+    assert html.count('class="cordernote"') == 1
+    assert "Stop order set by hand" in html
+    assert html.count('class="cautoorder"') == 1 and ">Shortest route</button>" in html
+    # The day card builds its bar only from this helper.
+    assert "${orderBarHTML(d)}" in js_function("buildDayCard")
+    assert js_function("buildDayCard").count("cautoorder\"") == 0
+
+
+def test_no_per_stop_manual_order_tag():
+    # (user, 2026-10-09) After a hand reorder only the single bar says so;
+    # the stops themselves carry no "manual order" tag.
+    assert "manual order</span>" not in TEMPLATE
+    assert "badge order" not in TEMPLATE
+    assert "manual order" not in js_function("buildDayCard")
