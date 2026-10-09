@@ -87,17 +87,35 @@ def test_contact_links_and_pencil_gating():
     assert 'id="pkcontactedit"' not in viewer
 
 
+FOLD = ["pkFold", "peekEsc"]
+FOLD_STUBS = "const IC={chevD:'v'}; let pkOpen=new Set();"
+
+
 @needs_node
-def test_history_shows_two_seasons_and_folds_the_rest():
-    out = run(["pkSection", "peekEsc", "profileSectionHTML"], """
+def test_history_is_a_closed_fold_with_a_one_line_summary():
+    out = run(["pkSection", "profileSectionHTML"] + FOLD, FOLD_STUBS + """
       const AUTH='x', clientDirectory=new Map(), SEASON=['2026-10-01'], notInstalling=new Set(), days=[{stops:[1]}];
       const appClientFor=()=>({activity:['2022','2023','2024','2025','2026'].map(s=>({kind:'christmas_install',season:s,summary:'Installed '+s}))});
       console.log(JSON.stringify(profileSectionHTML(1)));
     """)
-    assert out.count('class="pkhrow"') == 2
-    assert out.count('class="pkhrow pkh-more"') == 3
-    assert "Show all 5 seasons" in out
-    assert out.index("2026") < out.index("2025")
+    assert '<details class="pkfold" data-k="hist">' in out  # closed: no open attribute
+    assert out.count('class="pkhrow"') == 5
+    # Summary = the last season that already happened, not this one's plan.
+    summary = out[out.index("<summary>"):out.index("</summary>")]
+    assert "2025 · Installed 2025" in summary and '<span class="pkcount">5</span>' in summary
+
+
+@needs_node
+def test_notes_fold_counts_and_leads_with_production_notes():
+    out = run(["peekNotesHTML"] + FOLD, FOLD_STUBS + """
+      const installNoteFor=()=>({text:'Dock entrance', season:'2026', live:true});
+      const productionNoteFor=()=>({text:'Rebuild garland', season:'2025', live:true});
+      const appClientFor=()=>({notes:'Gate code'});
+      console.log(JSON.stringify(peekNotesHTML(1)));
+    """)
+    summary = out[out.index("<summary>"):out.index("</summary>")]
+    assert 'class="pkcount warn">3<' in summary and "Rebuild garland" in summary
+    assert " open" not in out.split(">")[0]
 
 
 @needs_node
@@ -111,7 +129,9 @@ def test_unknown_boxes_are_a_muted_chip_not_a_dash():
     """)
     unknown, known = out
     assert "boxes?" in unknown and "pkchip muted" in unknown and "—" not in unknown
-    assert "Late installs" in unknown and "Storing with us" in unknown
+    # Only the quick-reference facts sit up top; preference and storage live
+    # in the closed Client profile fold.
+    assert "Late installs" not in unknown and "Storing" not in unknown
     assert "5 boxes" in known and "people" not in known
 
 
@@ -157,3 +177,15 @@ def test_card_has_no_emoji_clutter_left():
     for junk in ("📦", "⏱", "📞", "✉", "📍", "Edit contact info", "Edit on the Clients tab"):
         assert junk not in body, junk
     assert "Edit contact info" not in TEMPLATE and "Edit on the Clients tab" not in TEMPLATE
+
+
+def test_quick_reference_first_everything_else_folded():
+    body = TEMPLATE[TEMPLATE.index("function openStopPeek(row,dayId){"):]
+    body = body[:body.index("wireContactBlock(row);")]
+    order = [body.index(s) for s in ('class="pktop"', 'id="pkcontact"', 'id="pkfactsbox"', 'class="pkfolds"')]
+    assert order == sorted(order)
+    folds = body[body.index('class="pkfolds"'):]
+    for piece in ("peekNotesHTML(row)", "peekPositionHTML(row)", "profileSectionHTML(row)",
+                  "profileLinkHTML(row)", "pkFold('comm'"):
+        assert piece in folds, piece
+    assert "pkOpen=new Set();" in body  # every card opens short
