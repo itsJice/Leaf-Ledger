@@ -468,3 +468,42 @@ def test_name_index_prefers_sheet_spelling():
             {"name": "Shared", "sheet_name": None, "former_names": []}]
     assert lead.index_client_extras(rows)["shared"]["name"] == "A"
     assert lead.norm_name("  Beaver,  Austin. ") == "beaver austin"
+
+
+# ─── home page Today strip ───────────────────────────────────────────────────
+
+
+def test_today_summary_office_sees_every_crew_as_counts_only(fake_db, board, on_shift_day):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    out = run(lead.today_summary(user("office@example.com")))
+    assert out["today"] == "2026-11-14"
+    assert out["day"] == {
+        "date": "2026-11-14", "isToday": True, "jobs": 3, "people": 3,
+        "crews": [{"label": "Crew 1", "jobs": 2, "people": 2}, {"label": "Crew 2", "jobs": 1, "people": 1}],
+    }
+    # No client names, addresses or people in it.
+    assert "Smith" not in str(out) and "Oak" not in str(out) and "Ana" not in str(out)
+
+
+def test_today_summary_lead_sees_only_their_own_day(fake_db, board, on_shift_day):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    out = run(lead.today_summary(user("ana@example.com")))
+    assert out["day"]["crews"] == [{"label": "Crew 1", "jobs": 2, "people": 2}]
+    assert out["day"]["jobs"] == 2
+
+
+def test_today_summary_next_day_then_none(fake_db, board, monkeypatch):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    monkeypatch.setattr(lead, "today", lambda: "2026-10-08")
+    out = run(lead.today_summary(user("office@example.com")))
+    assert out["day"]["date"] == "2026-11-14" and out["day"]["isToday"] is False
+    monkeypatch.setattr(lead, "today", lambda: "2026-12-01")
+    assert run(lead.today_summary(user("office@example.com")))["day"] is None
+
+
+def test_today_summary_production_reads_it_like_shifts(fake_db, board, on_shift_day):
+    fake_db.on_fetchval("FROM ll_app.user_roles", "production")
+    out = run(lead.today_summary(user("production@example.com")))
+    assert out["day"]["jobs"] == 3
+    assert roles.production_may("GET", "/api/lead/today-summary")
+    assert not roles.production_may("POST", "/api/lead/today-summary")

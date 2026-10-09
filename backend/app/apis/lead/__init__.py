@@ -275,6 +275,25 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
     }
 
 
+def _sees_all(viewer: Viewer) -> bool:
+    """The office sees every crew-day; so does the production login, but
+    read-only (its writes are refused by app.libs.roles)."""
+    return viewer.supervisor or viewer.role == "production"
+
+
+def _visible_days(viewer: Viewer, board: schedule_board.Board,
+                  person_id: Optional[str] = None) -> list[dict]:
+    """The crew-days this viewer may see: every day for the office (or one
+    lead's with ``person_id``), only their own for a lead."""
+    if _sees_all(viewer):
+        if person_id:
+            return board.days_led_by(person_id)
+        return sorted(board.days.values(), key=lambda d: (d["date"], board.crew_label(d)))
+    if viewer.person:
+        return board.days_led_by(viewer.person["id"])
+    return []
+
+
 @router.get("/shifts")
 async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> dict:
     """Crew-days for the signed-in lead, with stops, time and notes.
@@ -284,19 +303,8 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
     """
     board = await _board()
     viewer = await _viewer(user, board)
-    # The production login sees every crew-day, like the office, but read-only:
-    # its writes are refused by app.libs.roles, and readOnly tells the page.
-    sees_all = viewer.supervisor or viewer.role == "production"
-
-    if sees_all:
-        if person_id:
-            days = board.days_led_by(person_id)
-        else:
-            days = sorted(board.days.values(), key=lambda d: (d["date"], board.crew_label(d)))
-    elif viewer.person:
-        days = board.days_led_by(viewer.person["id"])
-    else:
-        days = []
+    sees_all = _sees_all(viewer)
+    days = _visible_days(viewer, board, person_id)
 
     ids = [d["id"] for d in days]
     entries, notes, extras = [], [], {}
@@ -344,6 +352,38 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
         "days": [_day_out(board, d, by_day_e.get(d["id"], []), by_day_n.get(d["id"], []), extras)
                  for d in days],
     }
+
+
+def today_summary_of(board: schedule_board.Board, days: list[dict], on: str) -> Optional[dict]:
+    """Today's install day, else the next one, as counts only: no names,
+    addresses or phone numbers. None when no day is left."""
+    ahead = [d for d in days if d["date"] >= on]
+    if not ahead:
+        return None
+    date_ = min(d["date"] for d in ahead)
+    crews, everyone = [], set()
+    for d in sorted((d for d in ahead if d["date"] == date_), key=board.crew_label):
+        ids = set(board.staffing.get(d["id"], []))
+        everyone |= ids
+        crews.append({"label": board.crew_label(d), "jobs": len(d["stops"]), "people": len(ids)})
+    return {
+        "date": date_,
+        "isToday": date_ == on,
+        "crews": crews,
+        "jobs": sum(c["jobs"] for c in crews),
+        "people": len(everyone),
+    }
+
+
+@router.get("/today-summary")
+async def today_summary(user: AuthorizedUser) -> dict:
+    """The home page's Today strip: today's (or the next) install day, from
+    the same crew-days /lead/shifts would show this viewer. Counts only."""
+    board = await _board()
+    viewer = await _viewer(user, board)
+    on = today()
+    return {"season": board.season, "today": on,
+            "day": today_summary_of(board, _visible_days(viewer, board), on)}
 
 
 # ─── time ────────────────────────────────────────────────────────────────────
