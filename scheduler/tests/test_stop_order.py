@@ -251,3 +251,10 @@ def test_shortest_route_keeps_locks_and_beats_any_valid_order():
     assert ok(order)
     assert drive(order) == min(drive(list(p)) for p in itertools.permutations(rows) if ok(list(p)))
     assert out["path"] == [0, *order, 0]
+
+
+def test_day_card_has_no_reorder_hint_text():
+    # No hint text on the schedule (user, 2026-10-08): the grip and its
+    # tooltip say it; the quiet row keeps only the Shortest route button.
+    assert "locks stay put" not in TEMPLATE
+    assert 'class="cordernote quiet">\n      <button type="button" class="cautoorder"' in TEMPLATE

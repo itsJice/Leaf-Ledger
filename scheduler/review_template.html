@@ -6158,7 +6158,7 @@ function buildDayCard(d){
      return cf.length ? `<div class="clockwarn" role="note">${IC.alert}<span><b>Locks can't all be met.</b> ${cf.map(peekEsc).join(' ')}</span></div>` : ''; })()}
   ${manualOrder[d.id] ? `<div class="cordernote">Stop order set by hand
       <button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>`
-    : (d.stops.length>2 && !READONLY ? `<div class="cordernote quiet">Drag ${IC.grip} to reorder · locks stay put
+    : (d.stops.length>2 && !READONLY ? `<div class="cordernote quiet">
       <button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>` : '')}
   ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
