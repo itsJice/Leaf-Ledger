@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import HomeIcons from "./home/HomeIcons";
 import {
   Leaf,
   Search,
@@ -81,7 +82,16 @@ function appBuildTypeIcon(buildType?: string | null) {
 
 const nf = (n: number | undefined | null) => (n == null ? "—" : n.toLocaleString());
 
+/** DEMO (branch home-icons): "/?demo=a" or "/?demo=b" shows a candidate icon
+ *  home screen; plain "/" keeps the current dashboard. */
 export default function App() {
+  const [params] = useSearchParams();
+  const demo = params.get("demo");
+  if (demo === "a" || demo === "b") return <HomeIcons variant={demo} />;
+  return <Dashboard />;
+}
+
+function Dashboard() {
   const navigate = useNavigate();
   const cached = useMemo(() => readDashboardCache(), []);
   const [summary, setSummary] = useState<DashboardSummary | null>(cached?.summary ?? null);
