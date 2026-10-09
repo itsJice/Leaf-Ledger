@@ -1252,6 +1252,13 @@ body.apple .dmon{position:sticky;top:0;z-index:3;display:flex;align-items:baseli
   font-family:'Sora',system-ui,sans-serif;font-size:16px;font-weight:600;
   color:var(--brand-deep);letter-spacing:-.01em;white-space:nowrap;overflow:hidden}
 body.apple .dmon:first-child{margin-top:0}
+body.apple .dmon[role=button]{cursor:pointer;user-select:none}
+body.apple .dmonchev{margin-left:auto;align-self:center;font-size:16px;color:var(--mut);transition:transform .15s}
+body.apple .dmon.shut .dmonchev{transform:rotate(-90deg)}
+body.apple .dgrp{display:contents}
+body.apple .dgrp.shut{display:none}
+body.apple .dmon + .dgrp > .dchip:first-child,body.apple .dmon + .dgrp > .dchipwrap:first-child,
+body.apple .dmon + .dgrp > .dsec:first-child{margin-top:6px}
 body.apple .dmontxt{flex:none}
 body.apple .dmonsub{font-family:'Nunito Sans',system-ui,sans-serif;font-size:12px;font-weight:700;color:var(--mut);letter-spacing:0}
 body.apple .dmon + .dchip,body.apple .dmon + .dchipwrap{margin-top:6px}
@@ -1608,6 +1615,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple .sbsub{display:none}
   body.apple #datestrip{flex:1 1 100%;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;margin:0;padding:0 0 4px}
   body.apple .dsec,body.apple .dmon{display:none}
+  body.apple:not(.datesheet) .dgrp.shut{display:contents}
   body.apple .dphase{flex:none;align-self:stretch;margin:0 4px;gap:0;width:3px;border-radius:2px;
     background:var(--brand-deep);font-size:0}
   body.apple .dphase::before,body.apple .dphase::after{display:none}
@@ -4489,8 +4497,8 @@ const TAKEDOWN_CUTOFF='__CUTOFF__';
 // a wall to scroll past every time (user, 2026-09-24). A per-device
 // preference, not shared state: it changes what THIS screen lists, never the
 // schedule itself.
-const STRIP_SCOPE_KEY='tbdg-strip-scope';
-let stripScope=(()=>{ try{ const v=localStorage.getItem(STRIP_SCOPE_KEY); return ['install','takedown','all'].includes(v)?v:'install'; }catch(e){ return 'install'; } })();
+// Every load opens on "All dates" (user, 2026-10-08); a pick only lasts the visit.
+let stripScope='all';
 function inStripScope(dt){ return stripScope==='all' || (stripScope==='install' ? dt<=TAKEDOWN_CUTOFF : dt>TAKEDOWN_CUTOFF); }
 // Takedown-window days are regular calendar days (see inTakedownWindow), so
 // one that also sits in newDates still draws plain, without a remove button.
@@ -4498,7 +4506,6 @@ function inStripScope(dt){ return stripScope==='all' || (stripScope==='install' 
 function shownAsAdded(dt){ return newDates.has(dt) && (!inTakedownWindow(dt) || trainingDays.has(dt)); }
 function setStripScope(v){
   stripScope=v;
-  try{ localStorage.setItem(STRIP_SCOPE_KEY,v); }catch(e){}
   // Land on the matching overview so the board below agrees with the strip.
   selDate = v==='install' ? 'ALL-INSTALL' : v==='takedown' ? 'ALL-TAKEDOWN' : 'ALL';
   focusDayId=null;
@@ -5409,6 +5416,7 @@ document.getElementById('pbmap').onclick=()=>{
   b.setAttribute('aria-label', on?'Hide the map':'Show the map');
   setTimeout(()=>{ try{ map.invalidateSize(); drawDate(phoneMapDate()); }catch(e){} fitPhoneSpacer(); }, 60);
 };
+const STRIP_SHUT_KEY='tbdg-strip-shut';
 function renderStrip(){
   strip.innerHTML='';
   const hd=document.getElementById('datecolhd'), foot=document.getElementById('datefoot');
@@ -5623,6 +5631,25 @@ function renderStrip(){
     const wk=Math.floor((f.getDate()-1+lead)/7)+1;
     sec(`Week ${wk}`, city);
     w.dates.forEach(dt=> working.has(dt) ? dateChip(dt) : offChip(dt));
+  });
+
+  // Overview and each month fold up under their heading (user, 2026-10-08).
+  // Remembered per browser; a convenience only, so storage failing is fine.
+  let shut=[]; try{ shut=JSON.parse(localStorage.getItem(STRIP_SHUT_KEY)||'[]'); }catch(e){}
+  [...strip.querySelectorAll(':scope > .dmon')].forEach(h=>{
+    const key=h.textContent, g=document.createElement('div'); g.className='dgrp';
+    while(h.nextSibling && !h.nextSibling.classList.contains('dmon')) g.appendChild(h.nextSibling);
+    h.after(g);
+    const chev=document.createElement('span'); chev.className='dmonchev'; chev.textContent='▾'; h.appendChild(chev);
+    h.setAttribute('role','button'); h.tabIndex=0;
+    const set=closed=>{ g.classList.toggle('shut',closed); h.classList.toggle('shut',closed);
+      h.setAttribute('aria-expanded',String(!closed)); };
+    set(shut.includes(key));
+    const flip=()=>{ const closed=!g.classList.contains('shut'); set(closed);
+      shut=shut.filter(k=>k!==key); if(closed) shut.push(key);
+      try{ localStorage.setItem(STRIP_SHUT_KEY, JSON.stringify(shut)); }catch(e){} };
+    h.onclick=flip;
+    h.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flip(); } };
   });
 
   // Pinned at the bottom: everyone not getting an install, and the maybes.
@@ -6008,15 +6035,8 @@ function renderCards(){
     const title=overviewTitle(selDate)||'Overview';
     const dates=[...new Set(pool.map(d=>d.date))].sort();
     const nS=pool.reduce((a,d)=>a+d.stops.length,0);
-    const calcs=pool.map(d=>dayCalc(d));
-    const apprN=pool.filter(d=>approved.has(d.id)).length;
     const counts=`${dates.length} date${dates.length===1?'':'s'} · ${pool.length} crew-day${pool.length===1?'':'s'} · ${nS} stop${nS===1?'':'s'}`;
-    const hd=pageHead(title, counts,
-      pool.length ? [['Stops', String(nS)], ['Install', `${calcs.reduce((a,c)=>a+c.inst,0).toFixed(1)} h`],
-                     ['Drive', `${(calcs.reduce((a,c)=>a+c.drive,0)/60).toFixed(1)} h`],
-                     ['Approved', `${apprN} of ${pool.length}`, apprN/pool.length]] : null);
-    hd.insertAdjacentHTML('beforeend', `<span class="dhhint">Every crew-day in this group, by date. `
-      + `Drag a stop onto a date in the list to move it.</span>`);
+    const hd=pageHead(title, counts);
     hd.classList.add('ovhead');   // the per-date headings below are the ones that pin
     // One file for the whole view -- every crew sheet in it, date by date,
     // crew by crew, behind a one-page index (user, 2026-09-29: "print all
@@ -6076,22 +6096,8 @@ function renderCards(){
     + `<span class="dhsub">${[city, onThisDate.length
         ? `${onThisDate.length} crew${onThisDate.length===1?'':'s'} · ${nStops} stop${nStops===1?'':'s'}`
         : 'No crews yet'].filter(Boolean).join(' · ')}`
-    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}</span>`
-    + `<span class="dhhint">Each card is one crew's run, stops in driving order. `
-    + `Drag a stop to another crew, or onto a date in the list, to move it.</span>`;
+    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}</span>`;
   side.appendChild(hd);
-  if(onThisDate.length){
-    const calcs=onThisDate.map(d=>dayCalc(d));
-    const inst=calcs.reduce((a,c)=>a+c.inst,0), drive=calcs.reduce((a,c)=>a+c.drive,0)/60;
-    const appr=onThisDate.filter(d=>approved.has(d.id)).length;
-    const st=document.createElement('div'); st.className='daystats';
-    st.innerHTML=`<div><span>Stops</span><b>${nStops}</b></div>`
-      + `<div><span>Install</span><b>${inst.toFixed(1)} h</b></div>`
-      + `<div><span>Drive</span><b>${drive.toFixed(1)} h</b></div>`
-      + `<div><span>Approved</span><b>${appr} of ${onThisDate.length}</b>`
-      + `<i><u style="width:${(appr/onThisDate.length*100).toFixed(0)}%"></u></i></div>`;
-    side.appendChild(st);
-  }
   // Standing commitment for this date (HYROX etc.) -- advisory banner, shown
   // whether or not anything is booked, so an empty tagged day still explains
   // itself rather than just looking free.
