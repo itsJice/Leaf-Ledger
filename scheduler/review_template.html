@@ -133,6 +133,30 @@ header h1 svg{color:var(--brand)}
 .ordbtn.up .ic{transform:rotate(180deg)}
 .ordbtn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
 .ordbtn:disabled{opacity:.3;cursor:default}
+.ordgrip{flex:none;align-self:stretch;width:18px;margin:-8px -5px -8px -8px;display:flex;align-items:center;
+  justify-content:center;color:#a8a29e;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+.ordgrip:hover{color:var(--brand)}
+.ordgrip .ic{width:14px;height:14px}
+.stop.lifting{position:relative;z-index:30;cursor:grabbing;background:var(--surface);
+  box-shadow:0 10px 28px rgba(28,25,23,.18),0 0 0 1.5px var(--brand);border-radius:8px}
+.stop.lifting.bad{box-shadow:0 10px 28px rgba(185,28,28,.2),0 0 0 1.5px #b91c1c}
+.stop.snapback{transition:transform .22s cubic-bezier(.23,1,.32,1)}
+.card.reordering .stop:not(.lifting){transition:none}
+.orddrop{position:fixed;height:4px;border-radius:2px;background:var(--brand);z-index:25;pointer-events:none}
+.orddrop.bad{background:#b91c1c}
+.ordwhy{position:absolute;right:10px;top:-11px;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;
+  font-weight:700;background:#b91c1c;color:#fff;border-radius:6px;padding:3px 8px;white-space:nowrap;
+  box-shadow:0 4px 12px rgba(0,0,0,.15);pointer-events:none}
+.ordwhy .ic{width:11px;height:11px}
+.cordermsg{display:flex;align-items:center;gap:6px;padding:6px 14px 6px 44px;font-size:11.5px;font-weight:700;
+  color:#991b1b;background:#fef2f2;opacity:0;transform:translateY(-3px);transition:opacity .18s,transform .18s}
+.cordermsg.show{opacity:1;transform:none}
+.cordermsg .ic{width:12px;height:12px;flex:none}
+.clockwarn{display:flex;gap:7px;align-items:flex-start;margin:8px 14px 2px;padding:6px 9px;border-radius:7px;
+  font-size:11.5px;line-height:1.35;color:var(--warn-ink);background:var(--warn-soft);border:1px solid #f3d9ad}
+.clockwarn .ic{width:13px;height:13px;flex:none;margin-top:1px}
+.cordernote.quiet{background:transparent;color:var(--mut)}
+.cordernote .ic{width:12px;height:12px;vertical-align:-2px}
 .badge.order{background:var(--warn-soft);color:var(--warn-ink)}
 .cordernote{padding:6px 14px;font-size:11px;color:var(--warn-ink);background:var(--warn-soft);
   display:flex;align-items:center;gap:8px}
@@ -140,6 +164,7 @@ header h1 svg{color:var(--brand)}
   color:var(--warn-ink);border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;
   cursor:pointer;font-family:'Montserrat',sans-serif}
 .cautoorder:hover{background:#fff}
+.pkposnote{display:block;flex-basis:100%;font-size:11px;color:var(--mut);margin-top:4px;font-style:italic}
 .stop .nm{font-weight:600;font-size:13px;color:var(--ink)}
 .stop .sub{font-size:11px;color:var(--mut);margin-top:1px}
 .stop .body{flex:1;min-width:0}
@@ -1698,6 +1723,8 @@ body.apple header{container-type:inline-size}
   body.apple .stop .stopbtns .mv{min-height:40px;padding:0 16px;font-size:13.5px}
   body.apple .ordbtn{width:30px;height:24px;border-radius:6px}
   body.apple .ordbtn .ic{width:13px;height:13px}
+  body.apple .ordgrip{width:34px;margin:-12px -10px -12px -14px}
+  body.apple .ordgrip .ic{width:18px;height:18px}
   body.apple .chead .printbtn,body.apple .okbtn{min-height:38px;padding:0 14px}
   body.apple #peekdlg.inline .btns button{min-height:44px}
   body.apple #peekdlg .pkpos .mv{min-height:38px;padding:0 14px}
@@ -2126,6 +2153,7 @@ const IC={
  moon:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
  phone:'<svg class="ic" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+ grip:'<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></svg>',
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
  mail:'<svg class="ic" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
@@ -3719,22 +3747,92 @@ document.addEventListener('keydown', e=>{
 
 // ---------- routing (embedded OSRM matrix) ----------
 function leg(a,b){ return D[a][b]||0; }
+// ---------- stop order: position locks ----------
+// A stop's effective lock on a given day. The client's own lock (set from
+// their card) wins; otherwise a planner "goes first" stop (SPEC.forceFirst,
+// or the day's d.startRow) is treated as a First lock, so neither the arrows
+// nor a drag can silently push it down.
+const PIN_SHORT={first:'First', middle:'Middle', last:'Last'};
+function isPlannerFirst(row, d){
+  return !!((SPEC.forceFirst && SPEC.forceFirst[row]) || (d && d.startRow!=null && d.startRow===row));
+}
+function pinOf(row, d){
+  if(stopPin[row]) return stopPin[row];
+  return isPlannerFirst(row, d) ? 'first' : null;
+}
+function pinSourceOf(row, d){
+  if(stopPin[row]) return 'client';
+  return isPlannerFirst(row, d) ? 'planner' : null;
+}
+/** PURE. The locks an order breaks. pin(row) -> 'first'|'middle'|'last'|null.
+ *  Firsts must fill the top of the day (several firsts may sit in any order
+ *  among themselves), lasts the bottom, and a middle stop may not open or
+ *  close the day. Returns [{row, pin}] for every stop out of place. */
+function orderViolations(order, pin){
+  const n=order.length;
+  const F=order.filter(r=>pin(r)==='first').length;
+  const L=order.filter(r=>pin(r)==='last').length;
+  const out=[];
+  order.forEach((r,i)=>{
+    const p=pin(r);
+    if(p==='first' && i>=F) out.push({row:r, pin:p});
+    else if(p==='last' && i<n-L) out.push({row:r, pin:p});
+    else if(p==='middle' && (i===0 || i===n-1)) out.push({row:r, pin:p});
+  });
+  return out;
+}
+/** PURE. Why a day's locks can't all be met, whatever the order, as short
+ *  sentences for the card's warning chip. Empty when they can. */
+function lockConflicts(rows, pin, name){
+  const n=rows.length, out=[];
+  const firsts=rows.filter(r=>pin(r)==='first');
+  const lasts=rows.filter(r=>pin(r)==='last');
+  const mids=rows.filter(r=>pin(r)==='middle');
+  const list=a=>a.length===1 ? name(a[0]) : a.length===2 ? `${name(a[0])} and ${name(a[1])}`
+    : a.slice(0,-1).map(name).join(', ')+' and '+name(a[a.length-1]);
+  const all=a=>a.length===2?'both':'all';
+  if(firsts.length>1) out.push(`${list(firsts)} are ${all(firsts)} locked First. Only one can start the day.`);
+  if(lasts.length>1) out.push(`${list(lasts)} are ${all(lasts)} locked Last. Only one can end the day.`);
+  if(mids.length){
+    const room=Math.min(n-lasts.length, n-1) - Math.max(firsts.length, 1);
+    if(mids.length>Math.max(room,0)){
+      out.push(n<=2
+        ? `${list(mids)} ${mids.length>1?'are':'is'} locked Middle, but the day has only ${n} stop${n===1?'':'s'}.`
+        : `Not enough middle slots for ${list(mids)}.`);
+    }
+  }
+  return out;
+}
+/** PURE. May a day go from `before` to `after`? Allowed when it breaks no
+ *  lock that `before` kept (so on a day whose locks already clash, staff can
+ *  still shuffle the rest). Returns {ok:true} or {ok:false, row, pin, reason}. */
+function checkOrderMove(before, after, pin, name, source){
+  const was=new Set(orderViolations(before, pin).map(v=>v.row));
+  const bad=orderViolations(after, pin).find(v=>!was.has(v.row));
+  if(!bad) return {ok:true};
+  const nm=name(bad.row);
+  const reason = bad.pin==='middle' ? `${nm} is locked Middle, so it can't start or end the day`
+    : (source && source(bad.row)==='planner') ? `${nm} goes first (planner)`
+    : `${nm} is locked ${PIN_SHORT[bad.pin]}`;
+  return {ok:false, row:bad.row, pin:bad.pin, reason};
+}
 /** Honour position locks without re-routing: stops locked "first" lead (in
  *  the order given), "last" trail, and a "middle" stop is kept off both ends
  *  whenever another stop can take that spot. Stable -- an order with no
  *  locks comes back untouched -- so every ordering path can run it last. */
-function applyPins(order){
-  if(!order.some(r=>stopPin[r])) return order;
-  const firsts=order.filter(r=>stopPin[r]==='first');
-  const lasts=order.filter(r=>stopPin[r]==='last');
+function applyPins(order, d){
+  const pin=r=>pinOf(r, d);
+  if(!order.some(r=>pin(r))) return order;
+  const firsts=order.filter(r=>pin(r)==='first');
+  const lasts=order.filter(r=>pin(r)==='last');
   let mid=order.filter(r=>!firsts.includes(r) && !lasts.includes(r));
-  if(!firsts.length && mid.length>1 && stopPin[mid[0]]==='middle'){
-    const k=mid.findIndex(r=>stopPin[r]!=='middle');
+  if(!firsts.length && mid.length>1 && pin(mid[0])==='middle'){
+    const k=mid.findIndex(r=>pin(r)!=='middle');
     if(k>0){ const [x]=mid.splice(k,1); mid.unshift(x); }
   }
-  if(!lasts.length && mid.length>1 && stopPin[mid[mid.length-1]]==='middle'){
+  if(!lasts.length && mid.length>1 && pin(mid[mid.length-1])==='middle'){
     const rev=[...mid].reverse();
-    const k=rev.findIndex(r=>stopPin[r]!=='middle');
+    const k=rev.findIndex(r=>pin(r)!=='middle');
     if(k>0){ const x=rev[k]; mid=mid.filter(r=>r!==x); mid.push(x); }
   }
   return [...firsts, ...mid, ...lasts];
@@ -3754,7 +3852,7 @@ function routeDay(d){
     // Position locks still apply -- they are the one thing a person has
     // said outright about the order, and they beat both the pipeline's plan
     // and a manual sequence a later drop appended to.
-    const order=applyPins([...d.stops]);
+    const order=applyPins([...d.stops], d);
     let drive=0;
     const seq=(d.anchored?[0]:[]).concat(order.map(r=>N[r])).concat(d.anchored?[0]:[]);
     for(let i=0;i<seq.length-1;i++) drive+=leg(seq[i],seq[i+1]);
@@ -3779,11 +3877,18 @@ function routeDay(d){
   // what is left is grouped by preference and routed in between. A "middle"
   // lock is settled by applyPins afterwards -- it keeps that stop off both
   // ends of the finished order.
+  // Up to 8 stops: search every order and keep the shortest one that holds
+  // every lock (fewest broken, on a day whose locks clash) and runs the
+  // time-preference groups in order. Exact, so "Shortest route" can never
+  // come out longer than an order staff already had that kept the locks.
+  const exact=bestLockedOrder(d);
+  if(exact) return exact;
   const idx2row={}; d.stops.forEach(r=>idx2row[N[r]]=r);
-  const startIdx = (d.startRow!=null && d.stops.includes(d.startRow))
-                 ? N[d.startRow] : null;
-  const firstsIdx=idx.filter(i=>stopPin[idx2row[i]]==='first');
-  const lastsIdx=idx.filter(i=>stopPin[idx2row[i]]==='last');
+  // The planner's "goes first" stop (d.startRow / SPEC.forceFirst) is a
+  // First lock now (see pinOf), so it is routed with the other firsts.
+  const startIdx = null;
+  const firstsIdx=idx.filter(i=>pinOf(idx2row[i], d)==='first');
+  const lastsIdx=idx.filter(i=>pinOf(idx2row[i], d)==='last');
   const rest=idx.filter(i=>!firstsIdx.includes(i) && !lastsIdx.includes(i));
   const groups=[[],[],[],[]];
   rest.forEach(i=>groups[prefRank(idx2row[i])].push(i));
@@ -3799,10 +3904,39 @@ function routeDay(d){
   });
   if(lastsIdx.length) seq = solveOrder(seq, lastsIdx, depotTail);
   let inner = d.anchored? seq.slice(1,-1): seq;
-  inner = applyPins(inner.map(i=>idx2row[i])).map(r=>N[r]);
+  inner = applyPins(inner.map(i=>idx2row[i]), d).map(r=>N[r]);
   const bestSeq = d.anchored ? [0, ...inner, 0] : inner;
   let drive=0; for(let i=0;i<bestSeq.length-1;i++) drive+=leg(bestSeq[i],bestSeq[i+1]);
   return {order: inner.map(i=>idx2row[i]), drive: drive/60, path:bestSeq};
+}
+/** Exhaustive locked routing for an edited day of 8 stops or fewer. Ranks
+ *  orders by (locks broken, preference groups out of order, drive). Returns
+ *  routeDay's {order, drive, path} or null when the day is too big. */
+function bestLockedOrder(d){
+  const rows=d.stops.filter(r=>N[r]!==undefined);
+  if(!rows.length || rows.length>8) return null;
+  const pin=r=>pinOf(r, d);
+  const rank=rows.map(r=>(pin(r)==='first'||pin(r)==='last') ? -1 : prefRank(r));
+  const n=rows.length, used=new Array(n).fill(false), perm=[];
+  let best=null;
+  (function rec(){
+    if(perm.length===n){
+      const order=perm.map(k=>rows[k]);
+      const bad=orderViolations(order, pin).length;
+      let inv=0, hi=-1;
+      perm.forEach(k=>{ if(rank[k]<0) return; if(rank[k]<hi) inv++; else hi=rank[k]; });
+      const seq=(d.anchored?[0]:[]).concat(order.map(r=>N[r]), d.anchored?[0]:[]);
+      let t=0; for(let i=0;i<seq.length-1;i++) t+=leg(seq[i],seq[i+1]);
+      if(!best || bad<best.bad || (bad===best.bad && (inv<best.inv || (inv===best.inv && t<best.t))))
+        best={bad, inv, t, order, seq};
+      return;
+    }
+    for(let k=0;k<n;k++){
+      if(used[k]) continue;
+      used[k]=true; perm.push(k); rec(); perm.pop(); used[k]=false;
+    }
+  })();
+  return {order:best.order, drive:best.t/60, path:best.seq};
 }
 /** Shortest visiting order of `free` after the fixed prefix `head` (possibly
  *  empty), ending at `tail` (the depot, or nothing). Returns the whole
@@ -4039,31 +4173,144 @@ function dayById(id, create){
   days.push(d);
   return d;
 }
-/** Swap a stop with its neighbour and pin the result. dir=-1 up, +1 down.
- *  Pinning captures the WHOLE day's current order, not just this one
- *  stop -- routeDay trusts an all-or-nothing sequence (see the
- *  manualOrder branch there), so a partial pin isn't a thing it
- *  understands; recording the full order after every swap is what makes
- *  repeated clicks compose the way you'd expect. */
+/** Short name for order messages: the business half of "Biz | Site". */
+function orderName(row){ return String((C[row]&&C[row].name)||'').split(' | ')[0]; }
+/** Would `next` keep this day's locks? {ok} or {ok:false, reason}. */
+function checkDayOrder(d, next){
+  return checkOrderMove(d.stops, next, r=>pinOf(r, d), orderName, r=>pinSourceOf(r, d));
+}
+/** Commit a hand-made order for a day (arrows or drag). Pinning captures
+ *  the WHOLE day's order, not just one stop -- routeDay trusts an
+ *  all-or-nothing sequence (see the manualOrder branch there). Returns
+ *  false, and shows the reason on the card, when the order breaks a lock. */
+function setDayOrder(d, next, movedRow){
+  if(roBlocked()) return false;
+  if(next.every((r,i)=>r===d.stops[i])) return true;
+  const chk=checkDayOrder(d, next);
+  if(!chk.ok){ showOrderMsg(d.id, chk.reason, movedRow); return false; }
+  pushUndo();
+  d.stops = [...next];
+  manualOrder[d.id] = [...next];
+  persist(); render();
+  return true;
+}
+/** A short inline note right under the stop that couldn't move ("Hanover
+ *  is locked Last"), gone after a few seconds. Not an alert(): the move
+ *  just snaps back and says why. */
+let orderMsgTimer=null;
+function showOrderMsg(dayId, text, row){
+  const card=document.querySelector(`.card[data-dayid="${CSS.escape(dayId)}"]`);
+  if(!card) return;
+  card.querySelectorAll('.cordermsg').forEach(x=>x.remove());
+  const el=document.createElement('div'); el.className='cordermsg'; el.setAttribute('role','status');
+  const at=row!=null && card.querySelector(`:scope > .stop[data-row="${row}"]`);
+  (at || card.querySelector('.chead')).after(el);
+  el.innerHTML=`${IC.lock}<span></span>`;
+  el.querySelector('span').textContent=text;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(orderMsgTimer);
+  orderMsgTimer=setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 250); }, 3600);
+}
+/** Swap a stop with its neighbour. dir=-1 up, +1 down. Any swap is fine as
+ *  long as the day still keeps every lock (two Firsts can trade places, a
+ *  Middle can move among the middle slots). */
 function reorderStop(d, row, dir){
   if(roBlocked()) return;
   const i = d.stops.indexOf(row);
   const j = i + dir;
   if(i<0 || j<0 || j>=d.stops.length) return;
-  const locked = stopPin[row] ? row : (stopPin[d.stops[j]] ? d.stops[j] : null);
-  if(locked){
-    alert(`${C[locked].name} ${PIN_LABEL[stopPin[locked]]} -- their position is locked.\n\n`
-      +`Open their card and set the position to "any" first if it really needs to move.`);
-    return;
-  }
-  pushUndo();
   const next = [...d.stops];
   [next[i], next[j]] = [next[j], next[i]];
-  d.stops = next;
-  manualOrder[d.id] = [...next];
+  setDayOrder(d, next, row);
+}
+/** "Shortest route": keep every lock where it must be and order the rest
+ *  for the shortest drive (routeDay's edited-day path). */
+function autoOrderDay(dayId){
+  if(roBlocked()) return;
+  const d=days.find(x=>x.id===dayId); if(!d) return;
+  pushUndo();
+  delete manualOrder[dayId];
+  d.edited=true;
   persist(); render();
 }
 /** Drop the pin and let routeDay optimize this day's order again. */
+/** The lock badge on a stop row: the client's own lock, or the planner's
+ *  "goes first" (an automatic First lock), in the same style. */
+function pinBadgeHTML(row, d){
+  const src=pinSourceOf(row, d);
+  if(src==='client') return `<span class="badge pinpos" title="Locked from the client's card. Applies to this client on any day.">${IC.lock} Locked ${PIN_SHORT[stopPin[row]].toLowerCase()}</span>`;
+  if(src==='planner') return `<span class="badge pinpos" title="The planner set this stop to go first. Treated as a First lock.">${IC.lock} Goes first (planner)</span>`;
+  return '';
+}
+/** Drag a stop up or down inside its own day by the grip. Pointer events,
+ *  so it works with a finger as well as a mouse (HTML drag-and-drop, which
+ *  still moves stops BETWEEN days, doesn't start from a touch). While
+ *  dragging, a bar shows where it will land, red with the reason if that
+ *  spot breaks a lock; letting go there snaps the stop back. */
+function wireOrderDrag(grip, el, card, d, row){
+  grip.addEventListener('click', e=>e.stopPropagation());
+  // iOS Safari: touch-action alone doesn't always stop the page from
+  // scrolling under a finger drag, so hold the touch on the grip.
+  const holdTouch=e=>{ if(!READONLY && e.cancelable) e.preventDefault(); };
+  grip.addEventListener('touchstart', holdTouch, {passive:false});
+  grip.addEventListener('touchmove', holdTouch, {passive:false});
+  grip.addEventListener('pointerdown', e=>{
+    if(READONLY || (e.pointerType==='mouse' && e.button!==0)) return;
+    e.preventDefault(); e.stopPropagation();
+    const stops=[...card.querySelectorAll(':scope > .stop')];
+    const from=stops.indexOf(el);
+    if(from<0) return;
+    const rects=stops.map(x=>x.getBoundingClientRect());
+    const others=rects.filter((_,k)=>k!==from);
+    const crect=card.getBoundingClientRect();
+    const startY=e.clientY;
+    let moved=false, next=d.stops, chk={ok:true}, target=from;
+    const wasDraggable=el.draggable; el.draggable=false;
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    const bar=document.createElement('div'); bar.className='orddrop';
+    bar.style.left=crect.left+8+'px'; bar.style.width=(crect.width-16)+'px';
+    const move=ev=>{
+      const dy=ev.clientY-startY;
+      if(!moved && Math.abs(dy)<4) return;
+      if(!moved){ moved=true; el.classList.add('lifting'); card.classList.add('reordering'); document.body.appendChild(bar); }
+      el.style.transform=`translateY(${dy}px)`;
+      const cy=rects[from].top+rects[from].height/2+dy;
+      target=others.filter(rc=>cy>rc.top+rc.height/2).length;
+      next=d.stops.filter(x=>x!==row); next.splice(target,0,row);
+      chk=checkDayOrder(d, next);
+      const y = target<others.length ? others[target].top : others[others.length-1].bottom;
+      bar.style.top=(y-1.5)+'px';
+      bar.style.visibility = target===from ? 'hidden' : 'visible';
+      const bad=!chk.ok && target!==from;
+      bar.classList.toggle('bad', bad); el.classList.toggle('bad', bad);
+      let why=el.querySelector('.ordwhy');
+      if(bad && !why){ why=document.createElement('span'); why.className='ordwhy'; el.appendChild(why); }
+      if(why){ if(bad){ why.innerHTML=`${IC.lock} ${peekEsc(chk.reason)}`; } else why.remove(); }
+    };
+    const end=ev=>{
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', end);
+      grip.removeEventListener('pointercancel', end);
+      bar.remove(); card.classList.remove('reordering');
+      el.querySelectorAll('.ordwhy').forEach(x=>x.remove());
+      el.draggable=wasDraggable;
+      if(!moved) return;
+      const cancel=ev.type==='pointercancel';
+      if(!cancel && target!==from && chk.ok){
+        el.classList.remove('lifting','bad'); el.style.transform='';
+        setDayOrder(d, next);
+        return;
+      }
+      // Snap back to where it was.
+      el.classList.add('snapback'); el.style.transform='';
+      setTimeout(()=>{ el.classList.remove('lifting','bad','snapback'); }, 240);
+      if(!cancel && target!==from && !chk.ok) showOrderMsg(d.id, chk.reason, row);
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', end);
+    grip.addEventListener('pointercancel', end);
+  });
+}
 function clearManualOrder(dayId){
   if(roBlocked()) return;
   pushUndo();
@@ -5671,8 +5918,12 @@ function buildDayCard(d){
     <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
-  ${manualOrder[d.id] ? `<div class="cordernote">Stop order set manually
-      <button type="button" class="cautoorder">reset to shortest route</button></div>` : ''}
+  ${(()=>{ const cf=lockConflicts(d.stops, r=>pinOf(r, d), orderName);
+     return cf.length ? `<div class="clockwarn" role="note">${IC.alert}<span><b>Locks can't all be met.</b> ${cf.map(peekEsc).join(' ')}</span></div>` : ''; })()}
+  ${manualOrder[d.id] ? `<div class="cordernote">Stop order set by hand
+      <button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>`
+    : (d.stops.length>2 && !READONLY ? `<div class="cordernote quiet">Drag ${IC.grip} to reorder · locks stay put
+      <button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>` : '')}
   ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
           + `title="Click to staff this shift`
@@ -5705,7 +5956,7 @@ function buildDayCard(d){
     pushUndo();
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
   const autoBtn=card.querySelector('.cautoorder');
-  if(autoBtn) autoBtn.onclick=()=>clearManualOrder(d.id);
+  if(autoBtn) autoBtn.onclick=()=>autoOrderDay(d.id);
   if(d.anchored){
     const finishMin=DEPART_MIN+calc.total;
     card.insertAdjacentHTML('beforeend',`<div class="sched">
@@ -5736,17 +5987,16 @@ function buildDayCard(d){
     const approx=!['street','manual','census'].includes(c.geo);
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
-    el.innerHTML=`<div class="numwrap">
-        <button type="button" class="ordbtn up" ${i===0||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move up one stop'}">${IC.down}</button>
+    el.innerHTML=`${d.stops.length>1?`<span class="ordgrip" role="button" tabindex="-1" aria-label="Drag to reorder ${peekEsc(c.name)}" title="Drag up or down to reorder">${IC.grip}</span>`:''}<div class="numwrap">
+        <button type="button" class="ordbtn up" ${i===0?'disabled':''} title="Move up one stop">${IC.down}</button>
         <span class="num" style="background:${col}">${i+1}</span>
-        <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.down}</button>
+        <button type="button" class="ordbtn down" ${i===d.stops.length-1?'disabled':''} title="Move down one stop">${IC.down}</button>
       </div>
       <div class="body"><div class="nm">${c.name}${alertIconHTML(r)}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
-        ${stopPin[r]?`<span class="badge pinpos" title="Position locked — set from the client's card">${IC.lock} ${PIN_LABEL[stopPin[r]]}</span>`
-          :(SPEC.forceFirst[r]?'<span class="badge">goes first</span>':'')}
+        ${pinBadgeHTML(r, d)}
         ${prefBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
@@ -5777,6 +6027,8 @@ function buildDayCard(d){
     };
     el.querySelector('.ordbtn.up').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, -1); };
     el.querySelector('.ordbtn.down').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, 1); };
+    const grip=el.querySelector('.ordgrip');
+    if(grip) wireOrderDrag(grip, el, card, d, r);
     el.querySelector('.mv.confirm').onclick=(e)=>{
       e.stopPropagation();
       if(roBlocked()) return;
@@ -8187,7 +8439,9 @@ function openStopPeek(row,dayId){
       ${[['first','First'],['middle','Middle'],['last','Last'],['','Any']].map(([v,l])=>
         `<button type="button" class="mv${(stopPin[row]||'')===v?' on':''}" data-pos="${v}" `
         +`title="${v?'Lock this stop as the day\'s '+l.toLowerCase()+' stop':'No lock — drive time decides'}">${l}</button>`).join('')}
-      ${stopPin[row]?`<span class="pkhstale">locked — re-routing and drops won't move it</span>`:''}</div>`:''}
+      ${stopPin[row]?`<span class="pkhstale">locked — re-routing and drops won't move it</span>`
+        :(isPlannerFirst(row, d)?`<span class="pkhstale">${IC.lock} Goes first (planner). Pick another position to override it.</span>`:'')}
+      <span class="pkposnote" title="Open question: should a lock follow the client or stay with this one day?">Applies to this client on any day</span></div>`:''}
     ${profileSectionHTML(row)}
     <div class="pkcomments">
       <p class="pksec">Comments</p>
@@ -9860,13 +10114,13 @@ function render(){
       // that arrived from a move) goes on the end rather than vanishing.
       const known = mo.filter(r=>d.stops.includes(r));
       const extra = d.stops.filter(r=>!known.includes(r));
-      d.stops = applyPins([...known, ...extra]);
+      d.stops = applyPins([...known, ...extra], d);
     } else if(d.edited) d.stops = dayCalc(d).order;
     else {
       // A pipeline day is trusted as planned -- unless a position lock says
       // otherwise. Moving a stop makes it an edited day (re-routed live, and
       // drawn from a fresh path rather than the stale precomputed one).
-      const pinned = applyPins([...d.stops]);
+      const pinned = applyPins([...d.stops], d);
       if(pinned.some((r,i)=>r!==d.stops[i])){ d.stops = pinned; d.edited = true; d.stops = dayCalc(d).order; }
     }
   });
