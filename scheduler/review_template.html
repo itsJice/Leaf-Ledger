@@ -1253,7 +1253,8 @@ body.apple .dmon{position:sticky;top:0;z-index:3;display:flex;align-items:baseli
   color:var(--brand-deep);letter-spacing:-.01em;white-space:nowrap;overflow:hidden}
 body.apple .dmon:first-child{margin-top:0}
 body.apple .dmon[role=button]{cursor:pointer;user-select:none}
-body.apple .dmonchev{margin-left:auto;align-self:center;font-size:16px;color:var(--mut);transition:transform .15s}
+body.apple .dmonchev{margin-left:auto;align-self:center;display:flex;color:var(--mut);transition:transform .22s cubic-bezier(0.23,1,0.32,1)}
+body.apple .dmonchev .ic{width:14px;height:14px}
 body.apple .dmon.shut .dmonchev{transform:rotate(-90deg)}
 body.apple .dgrp{display:contents}
 body.apple .dgrp.shut{display:none}
@@ -5647,7 +5648,7 @@ function renderStrip(){
     const key=h.textContent, g=document.createElement('div'); g.className='dgrp';
     while(h.nextSibling && !h.nextSibling.classList.contains('dmon')) g.appendChild(h.nextSibling);
     h.after(g);
-    const chev=document.createElement('span'); chev.className='dmonchev'; chev.textContent='▾'; h.appendChild(chev);
+    const chev=document.createElement('span'); chev.className='dmonchev'; chev.setAttribute('aria-hidden','true'); chev.innerHTML=IC.chev; h.appendChild(chev);
     h.setAttribute('role','button'); h.tabIndex=0;
     const set=closed=>{ g.classList.toggle('shut',closed); h.classList.toggle('shut',closed);
       h.setAttribute('aria-expanded',String(!closed)); };
