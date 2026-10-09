@@ -97,7 +97,8 @@ def test_parts_are_sent_only_when_touched_and_through_the_clients_api():
     save = TEMPLATE[TEMPLATE.index("if(saveBtn) saveBtn.onclick=async()=>{"):]
     save = save[:save.index("\n  };\n}")]
     assert "pkNameEdit.touched && canRenameClients()" in save
-    assert "...(nameBody||{})" in save
+    assert "clientCardBody(contactFieldsForEdit, nameBody)" in save
+    assert "...(nameBody||{})" in js_function("clientCardBody")
     assert "/api/clients/update/${ac.id}" in save
     assert "'409'" in save  # a duplicate name says so
 
