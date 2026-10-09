@@ -1413,7 +1413,7 @@ body.apple .sbbar i{display:block;height:100%;border-radius:6px;background:var(-
 body.apple .sbsub{font-size:12px;color:var(--mut);margin-top:5px;font-variant-numeric:tabular-nums}
 body.apple #datestrip{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-height:0;overflow-y:auto;
   margin:0 -6px;padding:0 6px 8px;flex-wrap:nowrap}
-body.apple .dsec{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:10px 0 3px;
+body.apple .dsec{position:sticky;top:0;z-index:2;display:flex;flex:none;align-items:center;gap:8px;margin:10px 0 3px;
   padding:7px 8px 7px 10px;border-radius:9px;background:#e2dccf;box-shadow:0 1px 0 rgba(31,61,43,.06);
   font-size:14px;font-weight:800;color:var(--brand-deep);letter-spacing:-.005em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
@@ -1591,6 +1591,10 @@ body.apple .daystats i{display:block;height:3px;border-radius:3px;background:#e4
 body.apple .daystats i u{display:block;height:100%;background:var(--brand);border-radius:4px}
 body.apple #side > .printbtn{width:auto!important;margin:-6px 0 14px!important;border:0;background:transparent;
   color:var(--brand);font-weight:800;font-size:13px;padding:4px 4px;cursor:pointer}
+/* Overview header: the print link sits right under the summary line and the
+   first date follows close behind (user, 2026-10-09: "fix this spacing"). */
+body.apple #side > .dayhead.ovhead + .printbtn{margin:-10px 0 2px!important}
+body.apple #side .ovdate.ovfirst{margin-top:0}
 body.apple .card{border:0;border-radius:12px;margin-bottom:20px;overflow:hidden;
   box-shadow:0 0 0 1px rgba(31,61,43,.07),0 1px 3px rgba(31,61,43,.05)}
 body.apple .card.approved{border:0;box-shadow:0 0 0 1.5px #86c79a,0 1px 3px rgba(31,61,43,.05)}
