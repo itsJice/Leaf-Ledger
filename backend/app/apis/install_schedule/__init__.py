@@ -520,6 +520,144 @@ async def _reconcile_flags(
     return {"marked": marked, "cleared": cleared}
 
 
+# The board owns install dates (user, 2026-10-06: "whatever date is on the
+# install schedule calendar is the one we go with"). Hold and not-installing
+# already reached the client card on every save; a stop moved to another date
+# did not, so the Clients tab kept the old date (Comments #14-17). The page
+# now sends `dateMoves`: only the clients whose board date changed since its
+# last successful save (a drag, the move dialog, a whole-day move, the slot
+# finder, an undo, a history restore -- anything that changes the board goes
+# through the same save). This writes those dates onto this season's card.
+#
+# Deliberately one-way and narrow: it never reads a card date back onto the
+# board, it only touches clients the page says moved, and it never creates a
+# season row that is not there. Clients whose card already disagreed before
+# this shipped are left for a person to review (scripts/report_board_vs_card
+# _dates.py lists them) rather than bulk-rewritten by whoever saves first.
+#
+# The card stores no crew or time for the current season (`crew` on a season
+# row is LAST year's crew as typed on the sheet, and crew numbers on the board
+# are positional per date, so they would go stale on the next move), so only
+# the date is written.
+DATE_MOVE_KINDS = {"install": "install_date", "takedown": "takedown_date"}
+#: How many board moves a card remembers in detail.date_history.
+DATE_HISTORY_KEEP = 20
+
+
+def _fold_name(s: Any) -> str:
+    """normName() in the page: case, commas, periods and spacing don't count."""
+    out = str(s or "").strip().lower().replace(",", "").replace(".", "")
+    return " ".join(out.split())
+
+
+def _clean_date_moves(raw: Any, season: str) -> list[dict]:
+    """The page's dateMoves, validated: a known kind, a real ISO date inside
+    this season (1 Oct - 31 Jan), and a name or a client id to match on."""
+    from app.libs.season import season_span
+
+    if not isinstance(raw, list):
+        return []
+    try:
+        lo, hi = season_span(int(season))
+    except (TypeError, ValueError):
+        return []
+    out = []
+    for m in raw[:2000]:
+        if not isinstance(m, dict) or m.get("kind") not in DATE_MOVE_KINDS:
+            continue
+        try:
+            date = client_season.coerce_field("install_date", m.get("date"))
+        except client_season.FieldError:
+            continue
+        if not date or not (lo.isoformat() <= date <= hi.isoformat()):
+            continue
+        cid = m.get("id")
+        cid = cid if isinstance(cid, int) and not isinstance(cid, bool) else None
+        name = _fold_name(m.get("name"))
+        if not name and cid is None:
+            continue
+        frm = m.get("from") if isinstance(m.get("from"), str) else None
+        out.append({"id": cid, "name": name, "kind": m["kind"], "date": date, "from": frm})
+    return out
+
+
+async def _sync_board_dates(conn, season: str, moves: list[dict], by: str | None = None) -> dict:
+    """Write each moved client's board date onto this season's card.
+
+    Matches on the client id when the page knows it, else on any spelling the
+    app has for the client (name, the sheet's spelling, former names), folded
+    the way the page folds them. A card that already shows the date is left
+    alone, so a re-sent move (a retried save) writes nothing. The edit goes
+    through client_season.apply_edits, so it is stamped as an app edit and the
+    spreadsheet sync never puts the old date back; the previous date is kept
+    in detail.date_history.
+    """
+    if not moves:
+        return {"updated": 0, "unmatched": 0}
+    rows = await conn.fetch(
+        "SELECT ca.id, ca.client_id, ca.detail, cl.name, cl.sheet_name, cl.former_names "
+        "  FROM client_activity ca JOIN clients cl ON cl.id = ca.client_id "
+        " WHERE ca.season = $1 AND ca.kind = 'christmas_install'",
+        season,
+    )
+    by_id: dict[int, Any] = {}
+    by_name: dict[str, list] = {}
+    for r in rows:
+        by_id[r["client_id"]] = r
+        spellings = {r["name"], r.get("sheet_name"), *(r.get("former_names") or [])}
+        for s in spellings:
+            k = _fold_name(s)
+            if k:
+                by_name.setdefault(k, []).append(r)
+    updated = unmatched = 0
+    details: dict[int, dict] = {}
+    for m in moves:
+        r = by_id.get(m["id"]) if m["id"] is not None else None
+        if r is None:
+            hits = {x["id"]: x for x in by_name.get(m["name"], [])}
+            # Two different clients answering to one spelling: guessing would
+            # put a date on the wrong card, so leave both alone.
+            r = next(iter(hits.values())) if len(hits) == 1 else None
+        if r is None:
+            unmatched += 1
+            continue
+        detail = details.get(r["id"])
+        if detail is None:
+            detail = _loads(r["detail"]) or {}
+            if not isinstance(detail, dict):
+                detail = {}
+        key = DATE_MOVE_KINDS[m["kind"]]
+        if detail.get("not_installing") or detail.get(key) == m["date"]:
+            continue
+        old = detail.get(key)
+        detail = client_season.apply_edits(detail, {key: m["date"]})
+        hist = detail.get("date_history")
+        hist = hist if isinstance(hist, list) else []
+        hist.append({"field": key, "from": old, "to": m["date"],
+                     "at": client_season.now_iso(), "by": by, "source": "install schedule"})
+        detail["date_history"] = hist[-DATE_HISTORY_KEEP:]
+        details[r["id"]] = detail
+    for row_id, detail in details.items():
+        await conn.execute(
+            "UPDATE client_activity SET summary = $2, detail = $3::jsonb, "
+            "       occurred_at = COALESCE($4::date, occurred_at), updated_at = now() "
+            " WHERE id = $1",
+            row_id, client_season.summarize(detail), json.dumps(detail, default=str),
+            _iso_to_date(detail.get("install_date")),
+        )
+        updated += 1
+    return {"updated": updated, "unmatched": unmatched}
+
+
+def _iso_to_date(s: Any):
+    import datetime as _dt
+
+    try:
+        return _dt.date.fromisoformat(str(s)[:10]) if s else None
+    except ValueError:
+        return None
+
+
 @router.put("/state")
 async def put_state(
     request: Request, body: Any = Body(default=None), role: str = Depends(caller_role)
@@ -641,6 +779,21 @@ async def put_state(
                         # not fail because the write-through did; the next save
                         # reconciles again from scratch.
                         print(f"not-installing write-through skipped: {exc}")
+            # Board dates onto the cards (see _sync_board_dates). Only for
+            # the live season: an archived season is a record, and its page
+            # never saves anyway -- this is the server-side half of that.
+            # Viewer / production / lead logins never reach this handler
+            # (the router's role check refuses their PUT).
+            if "dateMoves" in state and payload_season and payload_season == str(season_for()):
+                moves = _clean_date_moves(state.get("dateMoves"), payload_season)
+                if moves:
+                    try:
+                        # A savepoint: a failed card write must not abort the
+                        # schedule save around it.
+                        async with conn.transaction():
+                            await _sync_board_dates(conn, payload_season, moves, user_id)
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"board-date write-through skipped: {exc}")
     finally:
         await conn.close()
     return {"version": v, "ok": True, "updatedBy": user_id}

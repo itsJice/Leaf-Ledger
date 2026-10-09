@@ -2982,6 +2982,71 @@ try{
   }
 }catch(e){}
 applyRosterSeedFallback();
+// ---------- board dates -> client cards ----------
+// The board owns install dates (user, 2026-10-06), so a stop moved here has to
+// move the date on the client's season card too -- hold and not-installing
+// already did, dates didn't (Comments #14-17). Every save sends `dateMoves`:
+// the clients whose board date changed since the last save that landed. The
+// backend (install_schedule._sync_board_dates) writes those onto the cards.
+// It never works the other way: a card date is never pulled onto the board.
+/** PURE. Each client's earliest board date per kind, keyed by a stable client
+ *  key: {key:{name, id, install?, takedown?}}. A stop after the takedown
+ *  cutoff is a takedown; an event teardown (visit type Takedown) before it is
+ *  neither, so it never overwrites the install date. Training days carry no
+ *  clients. info(row) -> {key, name, id, visitType} | null. */
+function boardDatesByClient(dayList, cutoff, info){
+  const out={};
+  (dayList||[]).forEach(d=>{
+    if(!d || d.training || !d.date) return;
+    (d.stops||[]).forEach(r=>{
+      const ci=info(r); if(!ci || !ci.key) return;
+      const kind = d.date>cutoff ? 'takedown'
+                 : (/takedown/i.test(ci.visitType||'') ? null : 'install');
+      if(!kind) return;
+      const o = out[ci.key] || (out[ci.key]={name:ci.name, id:ci.id==null?null:ci.id});
+      if(!o[kind] || d.date<o[kind]) o[kind]=d.date;
+    });
+  });
+  return out;
+}
+/** PURE. What moved between two boardDatesByClient() maps:
+ *  [{name, id, kind, date, from}]. A client no longer on the board (taken out,
+ *  or not placed yet) sends nothing -- not-installing has its own path. */
+function boardDateMoves(cur, base){
+  const out=[];
+  Object.keys(cur||{}).sort().forEach(k=>{
+    const c=cur[k], b=(base||{})[k]||{};
+    ['install','takedown'].forEach(kind=>{
+      if(c[kind] && c[kind]!==b[kind])
+        out.push({name:c.name, id:c.id, kind, date:c[kind], from:b[kind]||null});
+    });
+  });
+  return out;
+}
+/** PURE. A saved placement ({row:[dayId]}) as a day list for the above.
+ *  Day ids are "YYYY-MM-DD|crew|n", so the date is read off the id. */
+function placementDayList(place){
+  const ds=[];
+  Object.entries(place||{}).forEach(([r,ids])=>(Array.isArray(ids)?ids:[ids]).forEach(id=>{
+    const date=String(id||'').split('|')[0];
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date)) ds.push({date, stops:[+r]});
+  }));
+  return ds;
+}
+// The board dates the cards were last sent (null until the shared state
+// loads). Keyed on the sheet's spelling, which a rename on the Clients tab
+// doesn't change mid-session; the app's name and id ride along for the match.
+let syncedBoardDates=null, pendingBoardDates=null;
+function boardDateInfo(r){
+  const c=C[r]; if(!c) return null;
+  const ac=appClientFor(r);
+  return {key:normName(c.sheetName||c.name), name:(ac && ac.name)||c.name,
+          id:(ac && ac.id!=null) ? ac.id : null, visitType:c.visitType};
+}
+function currentBoardDates(){ return boardDatesByClient(days, TAKEDOWN_CUTOFF, boardDateInfo); }
+function placementBoardDates(place){
+  return boardDatesByClient(placementDayList(place), TAKEDOWN_CUTOFF, boardDateInfo);
+}
 function snapshot(){
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
     {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
@@ -3651,6 +3716,9 @@ async function pullShared(){
       const serverSaved = j.updatedAt ? new Date(j.updatedAt).getTime() : 0;
       if(localSaved > serverSaved){
         syncState = 'shared';
+        // The cards match what the server last saved, so moves made only on
+        // this device since then go out with this push.
+        syncedBoardDates = placementBoardDates(j.state.placement);
         pushSharedNow();
         return;
       }
@@ -3669,12 +3737,18 @@ async function pullShared(){
       manualOrder = normManualOrder(j.state.manualOrder);
       comments = normComments(j.state.comments);
       roster = normRoster(j.state.roster); staffing = normStaffing(j.state.staffing);
+      syncedBoardDates = currentBoardDates();
       syncState = 'shared';
       stateWarning = missing
         ? missing+' shared stop(s) pointed at days that no longer exist.'
         : null;
       render();
-    } else { syncState = 'shared'; }
+    } else {
+      syncState = 'shared';
+      // Nobody has saved this build: the cards were synced from the build
+      // itself, so anything moved on this device since goes out next save.
+      syncedBoardDates = placementBoardDates(baselinePlacement());
+    }
     // Nothing saved for THIS build yet. The server offers the roster and
     // staffing from the most recent earlier one, which is what should fill
     // the gap: a rebuild changes the schedule and therefore the version, but
@@ -3723,7 +3797,14 @@ function sharedSnapshot(){
       stops:ts.map(t=>({row:t.row, start:r1(t.start), end:r1(t.end)})),
       back:d.anchored!==false ? r1(leg(N[last],0)/60) : null};
   });
-  return {...snapshot(), timeline};
+  // Clients whose board date changed since the last save that landed. Until
+  // the shared state has loaded there is nothing to compare against, so
+  // nothing is sent (and this board becomes the starting point).
+  const cur=currentBoardDates();
+  const dateMoves = syncedBoardDates ? boardDateMoves(cur, syncedBoardDates) : [];
+  if(!syncedBoardDates) syncedBoardDates=cur;
+  pendingBoardDates=cur;
+  return {...snapshot(), timeline, dateMoves};
 }
 function pushShared(){
   if(!AUTH || READONLY) return;
@@ -3746,11 +3827,14 @@ async function pushSharedNow(){
   if(!AUTH || READONLY) return false;
   clearTimeout(pushTimer); pushTimer = null;
   try{
+    const st=sharedSnapshot(), sent=pendingBoardDates;
     const r = await fetch('/api/install-schedule/state', {
       method:'PUT',
       headers:{'Content-Type':'application/json', Authorization:AUTH},
-      body: JSON.stringify({version:SPEC.version, state:sharedSnapshot()}),
+      body: JSON.stringify({version:SPEC.version, state:st}),
     });
+    // The cards now have these dates; a failed save re-sends them next time.
+    if(r.ok && sent) syncedBoardDates=sent;
     lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
     return r.ok;
   }catch(e){ lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false; }
@@ -7364,9 +7448,20 @@ const BILL_COLUMNS = [
   {key:'disc',    label:'Discount %',                  width:12, get:x=>x.p.disc ?? ''},
   {key:'prev',    label:'__SEASON_PREV__ total invoice (actual)', width:14, money:true, get:x=>x.c.invoice25 ?? ''},
   {key:'basis',   label:'Pricing basis',               width:34, get:x=>x.p.basis},
-  {key:'notes',   label:'Repairs & install notes',     width:34, get:x=>x.c.repairNotes || ''},
+  {key:'notes',   label:'Repairs & install notes',     width:34, get:x=>exportNotesFor(x.r)},
   {key:'billnotes', label:'Billing notes',             width:34, get:x=>''},
 ];
+/** The export's "Repairs & install notes": the client record's production &
+ *  repair notes and this season's install notes -- the same live notes the
+ *  stop card and the print sheet show (Comments #14-17). The spreadsheet's
+ *  old repair note only when the client record has neither. */
+function exportNotesFor(row){
+  const prod=productionNoteFor(row), inst=installNoteFor(row);
+  const live=[prod, inst].filter(n=>n && n.live && n.text).map(n=>n.text);
+  if(live.length) return live.join(' | ');
+  const c=C[row];
+  return (c && c.repairNotes) ? String(c.repairNotes) : '';
+}
 const BILL_COLS_KEY = 'tbdg__SEASON__billcols';
 function normBillCols(list){
   const known = new Set(BILL_COLUMNS.map(c=>c.key));
@@ -7397,7 +7492,7 @@ function buildBillingRows(scope, cols){
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
     .forEach(([r,date])=>{
       const c = C[r], a = addrParts(c), p = priceFor(r);
-      const x = {c, a, p, date};
+      const x = {c, a, p, date, r};
       rows.push(active.map(col=>col.get(x)));
     });
   // Footer: column totals, blank-separated so a spreadsheet's own SUM over
