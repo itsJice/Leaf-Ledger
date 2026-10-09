@@ -189,3 +189,9 @@ def test_quick_reference_first_everything_else_folded():
                   "profileLinkHTML(row)", "pkFold('comm'"):
         assert piece in folds, piece
     assert "pkOpen=new Set();" in body  # every card opens short
+
+
+def test_one_look_only():
+    # Look B was picked (2026-10-08): no style switch, no look-A rules left.
+    for gone in ("PK_STYLE", "TBDG_CARD_STYLE", "tbdg-card-style", "pkv-a", "pkv-b"):
+        assert gone not in TEMPLATE, gone

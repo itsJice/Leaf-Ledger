@@ -406,7 +406,7 @@ body.readonly .cshiftrm,body.readonly .cshiftadd,body.readonly .shcbtn,
 body.readonly .dchiprm,body.readonly .janpick,body.readonly .stfadd,
 body.readonly #newclientbtn,body.readonly #newdatebtn,
 body.readonly .cautoorder,body.readonly .undobar button,
-body.readonly [data-act],body.readonly .pkeditbtn,body.readonly .pkcommentrm,
+body.readonly [data-act],body.readonly .pkcommentrm,
 body.readonly .pkpencil,body.readonly .pkchip-btn,body.readonly .pkseg-b,
 body.readonly #pkcommentadd,body.readonly #pkcommenttext,
 body.readonly #peekmove,body.readonly #peekout,body.readonly #sfout,body.readonly #sfpick,body.readonly #stflist input[data-pid]{
@@ -495,7 +495,7 @@ body.viewonly #newclientbtn,body.viewonly #newdatebtn,body.viewonly #billexportb
 body.viewonly #seasonpick,body.viewonly #robanner,body.viewonly .undobar,
 body.viewonly .okbtn,body.viewonly .mv,body.viewonly .ordbtn,body.viewonly .cshiftrm,
 body.viewonly .cshiftadd,body.viewonly .shcbtn,body.viewonly .dchiprm,body.viewonly .stfadd,
-body.viewonly .cautoorder,body.viewonly [data-act],body.viewonly .pkeditbtn,
+body.viewonly .cautoorder,body.viewonly [data-act],
 body.viewonly .pkpencil,body.viewonly .pkchip-btn,body.viewonly .pkpos,
 body.viewonly .pkcommentrm,body.viewonly #pkcommentadd,body.viewonly #pkcommenttext,
 body.viewonly #peekmove,body.viewonly #peekout,body.viewonly #headtitle,body.viewonly #summarybar{display:none!important}
@@ -1008,10 +1008,6 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .pkhrow:first-child{border-top:none}
 .pkhyear{flex:none;width:34px;font-weight:800;color:var(--brand)}
 .pkhtext{color:var(--ink);flex:1;min-width:0}
-.pkfull{margin-top:12px;width:100%;padding:7px;border-radius:7px;border:1.5px solid var(--brand);
-  background:#fff;color:var(--brand);font-weight:700;font-size:12px;cursor:pointer;
-  font-family:'Montserrat',sans-serif}
-.pkfull:hover{background:var(--brand-soft)}
 .pkcomments{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
 .pknone{color:var(--mut);font-size:11.5px;font-style:italic;margin:0 0 8px}
 .pkcomment{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-top:1px solid #f0ede8;font-size:12px}
@@ -1029,11 +1025,6 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .pkaddc button{flex:none;padding:6px 12px;border:none;border-radius:6px;background:var(--brand);
   color:#fff;font-weight:700;font-size:12px;cursor:pointer;font-family:'Montserrat',sans-serif}
 .pkaddc button:hover{background:var(--brand-hover)}
-.pksecrow{padding-left:2px}
-.pkeditbtn{margin-top:6px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;
-  background:#fff;color:var(--brand);font-weight:700;font-size:11px;cursor:pointer;
-  font-family:'Montserrat',sans-serif}
-.pkeditbtn:hover{background:var(--brand-soft);border-color:var(--brand)}
 /* ---- staff alert (amber triangle by a client's name) ---- */
 .salert{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
   margin:0 2px;border-radius:50%;background:var(--warn-soft);color:#b45309;cursor:pointer;
@@ -1079,9 +1070,6 @@ body .calev .cevn .salert{width:14px;height:14px;vertical-align:-2px;margin:0 2p
 .pknotelbl{display:block;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
   margin-bottom:2px;opacity:.85}
 .pknotesrc{font-weight:600;text-transform:none;letter-spacing:0;opacity:.8}
-.pknotelink{margin-top:6px;padding:0;border:0;background:none;color:var(--brand);font:700 11px 'Montserrat',sans-serif;
-  cursor:pointer}
-.pknotelink:hover{text-decoration:underline}
 body.apple .salert{width:19px;height:19px}
 body.apple #salertpop,body.apple .pkalert{border-radius:12px}
 body.tv .salert{cursor:default}
@@ -1167,7 +1155,7 @@ body.apple #peekdlg #pkcontact .pkce-btns > button:first-child{display:block}
 /* ---- the expanded stop card (redesign, 2026-10-08) ----
    Shared by both looks: a compact top block, tappable contact lines, facts as
    chips, thin-bordered notes, a segmented position control, two years of
-   history and one profile row. .pkv-a = compact list, .pkv-b = sectioned. */
+   history and one profile row, each group a soft panel. */
 #peekbody .pktop{margin:0 0 4px;padding-right:40px}
 #peekbody .pkwhen{margin:0 0 7px;font-size:13px;font-weight:700;color:var(--ink)}
 .pkchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -1220,8 +1208,6 @@ body.apple .pkseg-b{min-height:36px}
 #peekbody .pkprofile:empty{display:none}
 #peekbody .pkhist{margin:0}
 #peekbody .pkhrow{font-size:12px}
-.pklink{margin:2px 0 0;padding:4px 0;border:0;background:none;color:var(--brand);font:700 11.5px 'Montserrat',sans-serif;cursor:pointer}
-body.apple .pklink{min-height:36px}
 #peekbody .pkcomments{margin:0}
 .pkprofrow{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;margin:10px 0 0;padding:11px 12px;
   border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;text-align:left;color:var(--ink);font-family:'Montserrat',sans-serif}
@@ -1232,26 +1218,17 @@ body.apple .pklink{min-height:36px}
 @media (hover:hover){ .pkprofrow:hover{border-color:var(--brand);background:var(--brand-soft)} }
 .pkce-season{margin:6px 0 8px}
 .pkce-prev{margin:-4px 0 10px}
-/* Look A -- compact list: no section labels on contact / job / notes; the
-   pencil is a round icon button at the contact block's top right. */
-#peekbody.pkv-a .pks-contact .pks-h,#peekbody.pkv-a .pks-job .pks-h,#peekbody.pkv-a .pks-notes .pks-h{margin:0}
-#peekbody.pkv-a .pks-contact .pks-t,#peekbody.pkv-a .pks-job .pks-t,#peekbody.pkv-a .pks-notes .pks-t{display:none}
-#peekbody.pkv-a .pks-contact .pks-h{position:absolute;top:8px;right:0}
-#peekbody.pkv-a .pks-contact .pkln:first-of-type,#peekbody.pkv-a .pks-contact .pknone{padding-right:46px}
-#peekbody.pkv-a .pkpencil{width:34px;padding:0}
-#peekbody.pkv-a .pkpencil span{display:none}
-body.apple #peekbody.pkv-a .pkpencil{width:40px;height:40px}
-/* Look B -- sectioned: each group is a soft panel with its label and actions. */
-#peekbody.pkv-b .pks{border:0;margin:10px 0 0;padding:10px 12px 10px;background:var(--page,#f7f6f2);border-radius:12px}
-#peekbody.pkv-b .pks-h{margin:0 0 4px;min-height:24px}
-#peekbody.pkv-b .pknote{background:none}
-#peekbody.pkv-b .pkseg{background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
-#peekbody.pkv-b .pkseg-b.on{background:var(--brand);color:#fff;box-shadow:none}
-#peekbody.pkv-b .pkchip{background:#fff}
-#peekbody.pkv-b .pktop .pkchip{background:var(--page,#f4f2ee)}
-#peekbody.pkv-b .pkchip.ok{background:#dcfce7}#peekbody.pkv-b .pkchip.hold{background:#fef3c7}#peekbody.pkv-b .pkchip.pref{background:#e0ecf8}
-#peekbody.pkv-b .pkchip.muted{background:transparent}
-#peekbody.pkv-b .pkce input,#peekbody.pkv-b .pkce textarea{background:#fff}
+/* Each group is a soft panel with its label and actions. */
+#peekbody .pks{border:0;margin:10px 0 0;padding:10px 12px 10px;background:var(--page,#f7f6f2);border-radius:12px}
+#peekbody .pks-h{margin:0 0 4px;min-height:24px}
+#peekbody .pknote{background:none}
+#peekbody .pkseg{background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+#peekbody .pkseg-b.on{background:var(--brand);color:#fff;box-shadow:none}
+#peekbody .pkchip{background:#fff}
+#peekbody .pktop .pkchip{background:var(--page,#f4f2ee)}
+#peekbody .pkchip.ok{background:#dcfce7}#peekbody .pkchip.hold{background:#fef3c7}#peekbody .pkchip.pref{background:#e0ecf8}
+#peekbody .pkchip.muted{background:transparent}
+#peekbody .pkce input,#peekbody .pkce textarea{background:#fff}
 /* Folds: the closed sections under the quick reference (notes, position,
    history, profile, comments), each a one-line summary until tapped. */
 .pkfolds{margin-top:2px}
@@ -1274,12 +1251,11 @@ body.apple #peekbody.pkv-a .pkpencil{width:40px;height:40px}
 .pkcount[hidden]{display:none}
 body.apple .pkfold>summary{min-height:46px}
 @media (prefers-reduced-motion: reduce){ .pkfold-c .ic{transition:none} }
-#peekbody.pkv-a .pkfolds{border-bottom:1px solid var(--line)}
-#peekbody.pkv-b .pkfolds{margin-top:8px}
-#peekbody.pkv-b .pkfold{border:0;margin:0 0 8px;padding:0 12px;background:var(--page,#f7f6f2);border-radius:12px}
-#peekbody.pkv-b .pkfold .pkcount{background:#fff}
-#peekbody.pkv-b .pkfold .pkcount.warn{background:#fef3c7}
-#peekbody.pkv-b .pks-job{padding-bottom:10px}
+#peekbody .pkfolds{margin-top:8px}
+#peekbody .pkfold{border:0;margin:0 0 8px;padding:0 12px;background:var(--page,#f7f6f2);border-radius:12px}
+#peekbody .pkfold .pkcount{background:#fff}
+#peekbody .pkfold .pkcount.warn{background:#fef3c7}
+#peekbody .pks-job{padding-bottom:10px}
 
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
@@ -7880,19 +7856,10 @@ function peekEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/
 // ---------- the expanded stop card, redesigned (user, 2026-10-08) ----------
 // One quiet top block (when, crew, status, a small alert chip), one tidy
 // contact block with tappable address / phone / email and a single pencil
-// that opens the client card editor, the job facts as one row of small
-// chips, notes as thin-bordered callouts, position as a segmented control,
-// the last two years of history, and one "Open client profile" row at the
-// bottom. Two looks for review, same markup: "a" (compact list) and "b"
-// (sectioned panels). TBDG_CARD_STYLE (set by the host) or localStorage
-// 'tbdg-card-style' picks one; "a" otherwise.
-const PK_STYLE=(()=>{
-  let v=window.TBDG_CARD_STYLE;
-  try{ v=v || localStorage.getItem('tbdg-card-style'); }catch(e){}
-  return v==='b' ? 'b' : 'a';
-})();
-/** A labelled group of the card. The title shows in look "b"; look "a"
- *  keeps only the actions (the pencil) and drops the label. */
+// that opens the client card editor, and the job facts as small chips --
+// then notes, position, history, profile and comments as closed folds.
+// Each group is a soft labelled panel (look B, picked by the user 2026-10-08).
+/** A labelled group of the card: a soft panel with its title and actions. */
 function pkSection(cls, title, body, actions=''){
   return `<section class="pks ${cls}"><div class="pks-h"><span class="pks-t">${title}</span>${actions}</div>${body}</section>`;
 }
@@ -8624,7 +8591,6 @@ function openStopPeek(row,dayId){
   const esc=peekEsc;
   const crewCol=d ? (CREW_COLORS[d.crew]||'var(--brand)') : '';
   const body=document.getElementById('peekbody');
-  body.className='pkv-'+PK_STYLE;
   body.innerHTML=`
     <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row,{static:true})}</span></h3>
     <div class="pktop">
