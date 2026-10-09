@@ -1,5 +1,5 @@
 /**
- * The home screen's app icons (DEMO, branch home-icons): what each icon is,
+ * The home screen's app icons: what each icon is,
  * where it goes and in what order. Pure data + helpers so tests can import it.
  *
  * Order follows how often each page is used during install season: the
@@ -108,45 +108,13 @@ export function openCommentCount(rows: unknown): number {
   return rows.filter((r) => r && typeof r === "object" && (r as { status?: string }).status !== "done").length;
 }
 
-// ---- Demo B: the "Today" strip, from /api/lead/shifts ----------------------
+// ---- The "Today" strip: GET /api/lead/today-summary ----------------------
 
-export interface ShiftDayLike {
-  id: string;
-  date: string; // YYYY-MM-DD
-  crewLabel?: string;
-  lead?: { id: string } | null;
-  crew?: Array<{ id: string }>;
-  stops?: unknown[];
-}
-
+/** Today's (or the next) install day, as counts only. */
 export interface TodaySummary {
-  date: string;
+  date: string; // YYYY-MM-DD
   isToday: boolean;
-  crews: Array<{ label: string; people: number; stops: number }>;
+  crews: Array<{ label: string; jobs: number; people: number }>;
+  jobs: number;
   people: number;
-  stops: number;
-}
-
-/** Today's install day, else the next one on the board (null if none left). */
-export function nextInstallDay(days: ShiftDayLike[] | null | undefined, today: string): TodaySummary | null {
-  const ahead = (days || []).filter((d) => d && typeof d.date === "string" && d.date >= today);
-  if (!ahead.length) return null;
-  const date = ahead.reduce((min, d) => (d.date < min ? d.date : min), ahead[0].date);
-  const onDay = ahead
-    .filter((d) => d.date === date)
-    .sort((a, b) => (a.crewLabel || "").localeCompare(b.crewLabel || ""));
-  const everyone = new Set<string>();
-  const crews = onDay.map((d) => {
-    const ids = new Set<string>((d.crew || []).map((p) => p.id));
-    if (d.lead?.id) ids.add(d.lead.id);
-    ids.forEach((id) => everyone.add(id));
-    return { label: d.crewLabel || "Crew", people: ids.size, stops: (d.stops || []).length };
-  });
-  return {
-    date,
-    isToday: date === today,
-    crews,
-    people: everyone.size,
-    stops: crews.reduce((n, c) => n + c.stops, 0),
-  };
 }

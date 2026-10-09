@@ -1,349 +1,171 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import HomeIcons from "./home/HomeIcons";
-import {
-  Leaf,
-  Search,
-  Shapes,
-  ShoppingCart,
-  Calculator,
-  Sparkles,
-  Plus,
-  BookOpen,
-  Building2,
-  ArrowRight,
-  Package,
-  TreePine,
-  CircleDashed,
-  Sprout,
-} from "components/icons";
+/**
+ * Home ("/"): a "Today" strip (today's or the next install day, from
+ * /api/lead/today-summary) over an app-icon grid of every page, install
+ * season first (utils/homeTiles.ts). Replaced the catalog-era dashboard
+ * (stats + action cards) on 2026-10-08.
+ */
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ChevronRight, TreePine } from "components/icons";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
-import { formatCurrency } from "utils/format";
-import { readJsonCache, writeTimestampedJsonCache } from "utils/jsonCache";
-import { DASHBOARD_CACHE_KEY } from "../constants";
+import { currentMe } from "utils/me";
+import {
+  GROUP_LABELS,
+  type HomeTile,
+  type TileGroup,
+  type TodaySummary,
+  openCommentCount,
+  visibleTiles,
+} from "utils/homeTiles";
 
-interface DashboardSummary {
-  catalog: { products: number; suppliers: number };
-  designs: { total: number; with_parts: number; projects: number };
-  orders: { count: number; open_value: number; vendors: number; items: number };
-  recipes: { total: number; components: number };
-  favorites: number;
-}
-
-interface RecentDesign {
-  id: number;
-  name: string;
-  build_type?: string | null;
-  project_name?: string | null;
-  client_name?: string | null;
-  group_name?: string | null;
-  item_count: number;
-  total_cost: number;
-}
-
-type DashboardCache = {
-  summary?: DashboardSummary;
-  recentDesigns?: RecentDesign[];
-  cachedAt?: number;
-};
-
-function readDashboardCache(): DashboardCache | null {
-  return readJsonCache<DashboardCache | null>(DASHBOARD_CACHE_KEY, null);
-}
-
-function writeDashboardCache(patch: DashboardCache) {
-  writeTimestampedJsonCache(DASHBOARD_CACHE_KEY, { ...(readDashboardCache() || {}), ...patch });
-}
+const SORA = { fontFamily: "'Sora', system-ui, sans-serif" };
 
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    // Must be apiFetch: every /api route authenticates off the Supabase token,
-    // which lives in the session rather than a cookie, so a plain fetch() 401s
-    // and the dashboard silently renders em-dashes.
     const res = await apiFetch(path);
     if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) return null;
     return (await res.json()) as T;
   } catch {
     return null;
   }
 }
 
-/** Icon per build type, matching the Designs grid so a build reads the same everywhere. */
-function appBuildTypeIcon(buildType?: string | null) {
-  const t = (buildType || "").toLowerCase();
-  if (t.includes("wreath")) return CircleDashed;
-  if (t.includes("tree")) return TreePine;
-  if (t.includes("plant") || t.includes("bush") || t.includes("planter")) return Sprout;
-  return Package;
+function greeting(d: Date) {
+  const h = d.getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-const nf = (n: number | undefined | null) => (n == null ? "—" : n.toLocaleString());
-
-/** DEMO (branch home-icons): "/?demo=a" or "/?demo=b" shows a candidate icon
- *  home screen; plain "/" keeps the current dashboard. */
-export default function App() {
-  const [params] = useSearchParams();
-  const demo = params.get("demo");
-  if (demo === "a" || demo === "b") return <HomeIcons variant={demo} />;
-  return <Dashboard />;
+function prettyDate(iso: string, opts: Intl.DateTimeFormatOptions) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", opts);
 }
 
-function Dashboard() {
-  const navigate = useNavigate();
-  const cached = useMemo(() => readDashboardCache(), []);
-  const [summary, setSummary] = useState<DashboardSummary | null>(cached?.summary ?? null);
-  const [recent, setRecent] = useState<RecentDesign[]>(cached?.recentDesigns ?? []);
-  const [refreshing, setRefreshing] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-    Promise.all([
-      getJson<DashboardSummary>("/api/dashboard/summary"),
-      getJson<RecentDesign[]>("/api/dashboard/recent-designs?limit=6"),
-    ])
-      .then(([s, r]) => {
-        if (!alive) return;
-        if (s) setSummary(s);
-        if (Array.isArray(r)) setRecent(r);
-        if (s || r) writeDashboardCache({ summary: s ?? undefined, recentDesigns: r ?? undefined });
-      })
-      .finally(() => alive && setRefreshing(false));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // What the app actually does now: a catalog you search, designs you build
-  // from it, and orders you send to vendors.
-  const STATS = [
-    {
-      label: "Products in catalog",
-      value: nf(summary?.catalog.products),
-      sub: summary ? `${nf(summary.catalog.suppliers)} suppliers` : "",
-      icon: Leaf,
-      path: "/search",
-    },
-    {
-      label: "Designs",
-      value: nf(summary?.designs.total),
-      sub: summary ? `${nf(summary.designs.projects)} projects` : "",
-      icon: Shapes,
-      path: "/designs",
-    },
-    {
-      label: "On order",
-      value: summary ? formatCurrency(summary.orders.open_value) : "—",
-      sub: summary ? `${nf(summary.orders.items)} items · ${nf(summary.orders.vendors)} vendors` : "",
-      icon: ShoppingCart,
-      path: "/orders",
-    },
-    {
-      label: "Recipes on file",
-      value: nf(summary?.recipes.total),
-      sub: summary ? `${nf(summary.recipes.components)} components` : "",
-      icon: BookOpen,
-      path: "/designs",
-    },
-  ];
-
-  const ACTIONS = [
-    {
-      title: "Start a design",
-      description: "Pick a type and species, then build it from the catalog.",
-      icon: Shapes,
-      cta: "New design",
-      path: "/designs/new",
-      primary: true,
-    },
-    {
-      title: "Search the catalog",
-      description: "Every supplier at once — filter by colour, size and price.",
-      icon: Search,
-      cta: "Search",
-      path: "/search",
-    },
-    {
-      title: "Purchase orders",
-      description: "Grouped by vendor, ready to export as PDF, Word or Excel.",
-      icon: ShoppingCart,
-      cta: "View orders",
-      path: "/orders",
-    },
-    {
-      title: "Ornament calculator",
-      description: "Size a tree's ornament package and match it to real products.",
-      icon: Calculator,
-      cta: "Open calculator",
-      path: "/ornament-calculator",
-    },
-  ];
-
+function Tile({ tile, badge }: { tile: HomeTile; badge?: number }) {
+  const Icon = tile.icon;
   return (
-    <Layout>
-      <header
-        className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-10 py-4"
-        style={{ backgroundColor: "rgb(var(--ll-page))" }}
+    <Link
+      to={tile.path}
+      className="group flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+    >
+      <span
+        className="relative flex aspect-square w-full max-w-[64px] items-center justify-center rounded-[22%] shadow-sm transition-transform duration-150 ease-out group-hover:-translate-y-0.5 group-active:scale-95 sm:max-w-[72px]"
+        style={{
+          backgroundColor: tile.tone,
+          backgroundImage: "linear-gradient(160deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 55%)",
+        }}
       >
-        <div>
-          <h1 className="text-xl font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-            Welcome back
-          </h1>
-          <p className="mt-0.5 text-xs text-stone-500">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-            {refreshing && <span className="ml-2 text-emerald-700">Refreshing…</span>}
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/designs/new")}
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: "rgb(var(--ll-brand))" }}
-        >
-          <Plus size={15} strokeWidth={2.2} />
-          New Design
-        </button>
-      </header>
-
-      <div className="max-w-6xl px-4 sm:px-10 py-6 sm:py-8">
-        {/* Stats — each one is a doorway to the page behind it. Two across on a
-            phone (icon above the number) so all four fit on the first screen. */}
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:mb-10 sm:gap-4 lg:grid-cols-4">
-          {STATS.map(({ label, value, sub, icon: Icon, path }) => (
-            <button
-              key={label}
-              onClick={() => navigate(path)}
-              className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-left transition-colors hover:border-stone-300 sm:flex-row sm:items-center sm:gap-4 sm:px-5 sm:py-4"
-            >
-              <div
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
-                style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}
-              >
-                <Icon size={16} className="text-emerald-700" strokeWidth={1.8} />
-              </div>
-              <div className="min-w-0 max-w-full">
-                <p className="truncate text-lg font-bold text-stone-800 sm:text-2xl">{value}</p>
-                <p className="mt-0.5 truncate text-xs leading-tight text-stone-500">{label}</p>
-                {sub && <p className="mt-0.5 text-[11px] leading-snug text-stone-400 sm:truncate">{sub}</p>}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-10">
-          <h2 className="mb-4 text-base font-semibold text-stone-700" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-            Quick actions
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {ACTIONS.map(({ title, description, icon: Icon, cta, path, primary }) => (
-              <div
-                key={title}
-                onClick={() => navigate(path)}
-                className={`group flex cursor-pointer flex-col gap-3 rounded-xl border bg-white p-5 transition-shadow hover:shadow-sm ${
-                  primary ? "border-emerald-300" : "border-stone-200 hover:border-stone-300"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}
-                  >
-                    <Icon size={16} strokeWidth={1.8} className="text-emerald-700" />
-                  </div>
-                  <ArrowRight size={15} className="mt-1 text-stone-300 transition-colors group-hover:text-stone-500" />
-                </div>
-                <div>
-                  <p className="mb-1 text-sm font-semibold text-stone-800">{title}</p>
-                  <p className="text-xs leading-relaxed text-stone-500">{description}</p>
-                </div>
-                <span
-                  className="mt-1 self-start rounded-md border px-3 py-1.5 text-xs font-semibold"
-                  style={{
-                    color: "rgb(var(--ll-ok-ink))",
-                    borderColor: "rgb(var(--ll-ok-line))",
-                    backgroundColor: "rgb(var(--ll-brand-soft))",
-                  }}
-                >
-                  {cta}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <RecentDesigns designs={recent} loading={refreshing && recent.length === 0} />
-      </div>
-    </Layout>
+        <Icon className="h-[46%] w-[46%] text-white" strokeWidth={1.8} />
+        {badge ? (
+          <span
+            className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold leading-none text-white ring-2"
+            style={{ ["--tw-ring-color" as string]: "rgb(var(--ll-page))" }}
+            aria-label={`${badge} open`}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="w-full truncate text-center text-[11px] font-semibold tracking-tight text-stone-700 min-[360px]:text-xs sm:text-[13px]">
+        {tile.label}
+      </span>
+    </Link>
   );
 }
 
-function RecentDesigns({ designs, loading }: { designs: RecentDesign[]; loading: boolean }) {
-  const navigate = useNavigate();
+function TodayStrip({ summary, loading }: { summary: TodaySummary | null; loading: boolean }) {
+  const when = summary
+    ? summary.isToday
+      ? "Today"
+      : prettyDate(summary.date, { weekday: "short", month: "short", day: "numeric" })
+    : "";
+  return (
+    <Link
+      to="/install-schedule"
+      className="mb-6 flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 transition-colors hover:border-stone-300 sm:mb-8 sm:px-5"
+    >
+      <span
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-xl"
+        style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}
+      >
+        <TreePine size={22} className="text-emerald-700" strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-stone-500">
+          {summary?.isToday ? "Installing today" : "Next install day"}
+        </p>
+        {loading && !summary ? (
+          <p className="text-sm text-stone-500">Loading the schedule…</p>
+        ) : summary ? (
+          <>
+            <p className="truncate text-base font-semibold text-stone-800" style={SORA}>
+              {summary.isToday ? "" : `${when} · `}
+              {summary.crews.length} {summary.crews.length === 1 ? "crew" : "crews"} · {summary.jobs}{" "}
+              {summary.jobs === 1 ? "job" : "jobs"}
+            </p>
+            <p className="truncate text-xs text-stone-500">
+              {summary.people} people ·{" "}
+              {summary.crews.map((c) => `${c.label}: ${c.jobs} ${c.jobs === 1 ? "job" : "jobs"}`).join(" · ")}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-stone-600">No install days left on the board</p>
+        )}
+      </div>
+      <ChevronRight size={18} className="flex-none text-stone-400" />
+    </Link>
+  );
+}
+
+export default function App() {
+  const tiles = useMemo(() => visibleTiles(currentMe()), []);
+  const [openComments, setOpenComments] = useState(0);
+  const [today, setToday] = useState<TodaySummary | null>(null);
+  const [loadingToday, setLoadingToday] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    if (tiles.some((t) => t.id === "comments")) {
+      getJson<unknown[]>("/api/feedback?limit=200").then((rows) => alive && setOpenComments(openCommentCount(rows)));
+    }
+    getJson<{ day?: TodaySummary | null }>("/api/lead/today-summary")
+      .then((r) => alive && setToday(r?.day ?? null))
+      .finally(() => alive && setLoadingToday(false));
+    return () => {
+      alive = false;
+    };
+  }, [tiles]);
+
+  const groups = (["season", "catalog", "more"] as TileGroup[])
+    .map((g) => ({ g, items: tiles.filter((t) => t.group === g) }))
+    .filter((x) => x.items.length);
+  const now = new Date();
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-stone-700" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-          Recent designs
-        </h2>
-        <button
-          onClick={() => navigate("/designs")}
-          className="-my-2 px-1 py-2 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
-        >
-          View all
-        </button>
-      </div>
-
-      {loading ? (
-        <p className="rounded-xl border border-stone-200 bg-white px-5 py-8 text-center text-sm text-stone-400">
-          Loading designs…
-        </p>
-      ) : designs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-300 bg-white/60 px-5 py-10 text-center">
-          <Sparkles className="mx-auto mb-2 text-emerald-700/50" size={26} strokeWidth={1.5} />
-          <p className="text-sm font-medium text-stone-600">No designs yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-xs text-stone-400">
-            Start one and it will show up here with its parts and running cost.
+    <Layout>
+      <div className="mx-auto w-full max-w-5xl px-4 pb-10 pt-6 sm:px-10 sm:pt-10">
+        <header className="mb-6 sm:mb-8">
+          <h1 className="text-2xl font-semibold text-stone-800 sm:text-3xl" style={SORA}>
+            {greeting(now)}
+          </h1>
+          <p className="mt-1 text-sm text-stone-500">
+            {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
-          <button
-            onClick={() => navigate("/designs/new")}
-            className="mt-4 rounded-lg px-4 py-2 text-xs font-semibold text-white"
-            style={{ backgroundColor: "rgb(var(--ll-brand))" }}
-          >
-            New design
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {designs.map((d) => {
-            const Icon = appBuildTypeIcon(d.build_type);
-            const where = [d.client_name, d.project_name, d.group_name].filter(Boolean).join(" · ");
-            return (
-              <button
-                key={d.id}
-                onClick={() => navigate("/designs")}
-                className="flex items-start gap-3 rounded-xl border border-stone-200 bg-white p-4 text-left transition-colors hover:border-stone-300"
-              >
-                <div
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}
-                >
-                  <Icon size={16} className="text-emerald-700" strokeWidth={1.8} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-stone-800">{d.name}</p>
-                  {where && <p className="mt-0.5 truncate text-[11px] text-stone-400">{where}</p>}
-                  <p className="mt-1 text-[11px] text-stone-500">
-                    {d.item_count} part{d.item_count === 1 ? "" : "s"}
-                    {d.total_cost > 0 ? ` · ${formatCurrency(d.total_cost)}` : ""}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+        </header>
+
+        <TodayStrip summary={today} loading={loadingToday} />
+
+        {groups.map(({ g, items }) => (
+          <section key={g} className="mb-6 sm:mb-8">
+            <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-stone-500">{GROUP_LABELS[g]}</h2>
+            <div className="grid grid-cols-4 gap-x-1 gap-y-3 min-[360px]:gap-x-2 sm:grid-cols-6 sm:gap-x-4 lg:grid-cols-8">
+              {items.map((t) => (
+                <Tile key={t.id} tile={t} badge={t.id === "comments" ? openComments : undefined} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </Layout>
   );
 }

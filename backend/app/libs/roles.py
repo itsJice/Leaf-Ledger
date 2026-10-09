@@ -156,7 +156,7 @@ PRODUCTION_READ = (
     "/api/forms/", "/api/products/", "/api/jobs/", "/api/requests/",
     "/api/suppliers/", "/api/clients", "/api/arrangements",
     "/api/designs/hierarchy", "/api/builder/build-types",
-    "/api/recipe-intelligence", "/api/install-schedule/", "/api/lead/shifts",
+    "/api/recipe-intelligence", "/api/install-schedule/", "/api/lead/shifts", "/api/lead/today-summary",
     "/api/feedback",
 )
 #: The only changes production may make.

@@ -307,6 +307,9 @@
     "DELETE",
     "PATCH"
   ],
+  "/api/lead/today-summary": [
+    "GET"
+  ],
   "/api/me": [
     "GET"
   ],
