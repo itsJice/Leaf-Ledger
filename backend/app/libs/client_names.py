@@ -10,20 +10,24 @@ whichever apply:
     company                 a business name
     site                    a location ("House", "Nicklaus Clubhouse")
 
-``compose_name`` turns them into the display name, in the styles the data
-already uses:
+``compose_name`` turns them into the display name:
 
     Last, First                         "Scheib, Nataliya"
     Last, First - Location              "Byler, Kerri - House"
     Business                            "Hilton Garden Inn"
-    Business | Location                 "The Club at Carlton Woods | Nicklaus Clubhouse"
-    Business | Last, First              "A Hug Away | Frazier, Marissa"
-    Business | Last, First - Location   (all four)
+    Business - Location                 "The Club at Carlton Woods - Nicklaus Clubhouse"
+    Business + a person                 "Serenity Retreat" (Tiffany Pardue is kept
+                                        as the contact person, not in the name)
 
-The rule that keeps this readable both ways: " | " only ever follows a
-business name, and a location after a person's name takes " - ". So
-"X | ..." always starts with a business, and "Last, First - ..." always ends
-with a location.
+Businesses go by their business name (user, 2026-10-09): whenever a company
+is set the name is the business, plus " - Location" when there is one. The
+first and last name stay saved on the card as the contact person.
+
+Older names use " | " after a business: "Business | Location" and
+"Business | Last, First" (the rule before 2026-10-09). ``split_name`` still
+reads them, so their parts come out right; they just compose to the new
+style now, which is a rename (``scripts/business_name_rule_impact.py`` lists
+them, read-only).
 
 ``split_name`` reads parts back out of an existing name (the inverse, plus
 reasons a human should check the guess). The columns are nullable: a client
@@ -42,10 +46,12 @@ PART_FIELDS = ("first_name", "last_name", "company", "site")
 #: Every column the parts live in, in the order the API returns them.
 NAME_PART_COLUMNS = PART_FIELDS
 
-#: After a business name (before its location, or before a person).
+#: The old separator after a business name ("Business | Location",
+#: "Business | Last, First"). Never composed any more; still parsed.
 BUSINESS_SEP = " | "
-#: After a person's name, before their location.
+#: Before a location: after a person's name or a business name.
 PERSON_SITE_SEP = " - "
+SITE_SEP = PERSON_SITE_SEP
 
 #: Words that make a "Last, First" shaped name look like a business (or a
 #: placeholder line from the sheet) rather than a person.
@@ -82,7 +88,21 @@ def person_name(first_name: Optional[str], last_name: Optional[str]) -> str:
 def compose_name(first_name: Optional[str] = None, last_name: Optional[str] = None,
                  company: Optional[str] = None, site: Optional[str] = None) -> str:
     """The canonical display name for a set of parts ("" when there is no
-    person or business name -- a location alone isn't a name)."""
+    person or business name -- a location alone isn't a name).
+
+    A business goes by its business name: with a company set, the person
+    (if any) is the contact and is left out of the name."""
+    business, where = _clean(company), _clean(site)
+    base = business or person_name(first_name, last_name)
+    if not base:
+        return ""
+    return f"{base}{SITE_SEP}{where}" if where else base
+
+
+def compose_name_before_20261009(first_name: Optional[str] = None, last_name: Optional[str] = None,
+                                 company: Optional[str] = None, site: Optional[str] = None) -> str:
+    """The rule before 2026-10-09 ("Business | Last, First", "Business |
+    Location"). Only for reports that compare old and new names."""
     person = person_name(first_name, last_name)
     business, where = _clean(company), _clean(site)
     if person:
@@ -92,6 +112,18 @@ def compose_name(first_name: Optional[str] = None, last_name: Optional[str] = No
     if business:
         return f"{business}{BUSINESS_SEP}{where}" if where else business
     return ""
+
+
+def duplicate_name_message(parts: Optional[dict], name: str, default: str) -> str:
+    """The 409 message when ``name`` is already another client's.
+
+    Businesses go by the business name alone, so two cards for one business
+    (two contact people, no location) now compose the same name. Say how to
+    tell them apart instead of just "taken"."""
+    if parts and parts.get("company"):
+        return (f'{default}: "{name}". A business goes by its business name, so add a '
+                f'Location to tell two of its cards apart (e.g. "{name}{SITE_SEP}Office").')
+    return default
 
 
 def kind_of(parts: dict) -> str:
@@ -142,11 +174,17 @@ def _split_person(text: str) -> Optional[tuple[str, str, Optional[str]]]:
 def split_name(name: Optional[str]) -> tuple[dict, list[str]]:
     """Propose parts for an existing name, plus why a human should check it.
 
-    * "Business | rest": rest is a person ("Last, First", maybe with
-      " - Location") when it has exactly one comma, else the location;
+    * "Business | rest" (the style before 2026-10-09): rest is a person
+      ("Last, First", maybe with " - Location") when it has exactly one
+      comma, else the location. These parse as before, but now compose to
+      just the business (+ " - Location"), so they carry a "would read"
+      reason: renaming them is a separate, approved step;
     * one comma: a person ("Last, First"), and " - Location" after the
       first name is their location ("Byler, Kerri - House");
-    * anything else: the whole name is the business name.
+    * anything else: the whole name is the business name. That includes
+      the new "Business - Location", which reads back the same either way
+      (a dash inside a business name, "Capital Bank - Baytown", can't be
+      told apart from a location, so it is flagged for a human).
 
     The second value lists reasons the guess is unsure ([] when it is
     confident). A proposal is never allowed to change how the name reads:
@@ -237,7 +275,12 @@ class NamePartsError(ValueError):
 
 def clean_parts(first_name: Optional[str], last_name: Optional[str],
                 company: Optional[str], site: Optional[str]) -> dict:
-    """Validate and normalise parts from a request."""
+    """Validate and normalise parts from a request.
+
+    The person's first and last name are kept even when a company is set
+    (they are the contact person); they just don't show in the name. The
+    same checks apply either way, so a later edit that clears the company
+    still makes a clean "Last, First"."""
     out = {"first_name": _clean(first_name) or None, "last_name": _clean(last_name) or None,
            "company": _clean(company) or None, "site": _clean(site) or None}
     if not (out["first_name"] or out["last_name"] or out["company"]):

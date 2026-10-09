@@ -1108,6 +1108,7 @@ body.tv .salert{cursor:default}
 .pkname-preview{margin:0;font-size:11.5px;color:var(--mut)}
 .pkname-preview b{color:var(--ink)}
 .pkname-preview .pkname-warn{display:block;color:#b45309;margin-top:2px}
+.pkname-preview .pkname-contact{display:block;margin-top:2px}
 .pkname-f{margin:0 0 6px}
 .pkhint{text-transform:none;font-weight:500;color:var(--mut);letter-spacing:0}
 /* The client card editor: the same fields, in the same order, as the app's
@@ -8442,8 +8443,11 @@ let pkEditingContact=false;
 // Every client card offers the same four boxes -- first name, last name,
 // business name, location -- filled as they apply; the backend composes the
 // one canonical name from them (app/libs/client_names.py: "Last, First",
-// "Last, First - Location", "Business", "Business | Location",
-// "Business | Last, First") and a change goes through its rename-everywhere
+// "Last, First - Location", "Business", "Business - Location"; a business
+// goes by its business name, so with one set the first/last name is the
+// contact person, kept on the card but not in the name -- user, 2026-10-09.
+// Older "Business | ..." names still load into the right boxes) and a
+// change goes through its rename-everywhere
 // path. The contact editor here offers the same boxes to office staff
 // (staff/admin/owner -- the server refuses anyone else), so a typo can be
 // fixed without leaving the board.
@@ -8458,13 +8462,23 @@ function squashName(s){ return String(s||'').trim().replace(/\s+/g,' '); }
 function composeClientName(p){
   const last=squashName(p.last_name), first=squashName(p.first_name);
   const biz=squashName(p.company), where=squashName(p.site);
-  let person = last && first ? `${last}, ${first}` : (last || first);
-  if(person){
-    if(where) person=`${person} - ${where}`;
-    return biz ? `${biz} | ${person}` : person;
-  }
-  if(biz) return where ? `${biz} | ${where}` : biz;
-  return '';
+  const person = last && first ? `${last}, ${first}` : (last || first);
+  const base = biz || person;  // a business goes by its business name
+  if(!base) return '';
+  return where ? `${base} - ${where}` : base;
+}
+/** "Tiffany Pardue" when a business has a contact person, else ''. */
+function contactPersonName(p){
+  if(!squashName(p.company)) return '';
+  return [squashName(p.first_name), squashName(p.last_name)].filter(Boolean).join(' ');
+}
+/** The alert for a 409. Two cards for one business (two contacts, no
+ *  location) compose the same name: say to add a Location. */
+function duplicateNameMessage(p){
+  const shown = p ? composeClientName(p) : '';
+  if(p && squashName(p.company) && shown)
+    return `Another client is already called “${shown}”. A business goes by its business name: add a Location to tell its cards apart.`;
+  return 'Another client already has that name -- pick a different one.';
 }
 function namePartsProblem(p){
   if(!squashName(p.first_name) && !squashName(p.last_name) && !squashName(p.company))
@@ -8499,7 +8513,9 @@ function nameFieldsHTML(p){
 function namePreviewHTML(p){
   const shown=composeClientName(p);
   const renaming = p.touched && shown && shown!==p.was;
+  const contact=contactPersonName(p);
   return `Shows as: <b>${peekEsc(shown||'—')}</b>`
+    + (contact?`<span class="pkname-contact">Contact person: ${peekEsc(contact)} (on the card, not in the name)</span>`:'')
     + (renaming?`<span class="pkname-warn">Renames “${peekEsc(p.was)}” everywhere: Clients, projects, jobs and this schedule.</span>`:'');
 }
 /** The name block at the top of the contact editor: editable for staff,
@@ -8897,7 +8913,7 @@ function wireContactBlock(row){
       } else {
         saveBtn.disabled=false; saveBtn.textContent='Save changes';
       }
-      alert(code==='409' ? 'Another client already has that name -- pick a different one.'
+      alert(code==='409' ? duplicateNameMessage(nameBody)
         : code==='403' ? "This login can view clients but can't edit them."
         : code==='400' ? 'That name is missing a part -- check the fields and try again.'
         : code==='season' ? "The client card saved, but this season's notes didn't -- try Save again."
