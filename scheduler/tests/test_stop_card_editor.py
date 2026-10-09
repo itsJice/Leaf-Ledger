@@ -195,3 +195,9 @@ def test_one_look_only():
     # Look B was picked (2026-10-08): no style switch, no look-A rules left.
     for gone in ("PK_STYLE", "TBDG_CARD_STYLE", "tbdg-card-style", "pkv-a", "pkv-b"):
         assert gone not in TEMPLATE, gone
+
+
+def test_stop_row_says_boxes_question_when_unknown():
+    # Same wording as the card's fact chip, not an em dash.
+    assert "`${c.boxes||'—'} boxes`" not in TEMPLATE
+    assert "c.boxes?`${c.boxes} boxes`:'boxes?'" in TEMPLATE
