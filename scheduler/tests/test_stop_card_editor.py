@@ -185,7 +185,7 @@ def test_quick_reference_first_everything_else_folded():
     order = [body.index(s) for s in ('class="pktop"', 'id="pkcontact"', 'id="pkfactsbox"', 'class="pkfolds"')]
     assert order == sorted(order)
     folds = body[body.index('class="pkfolds"'):]
-    for piece in ("peekNotesHTML(row)", "peekPositionHTML(row)", "profileSectionHTML(row)",
+    for piece in ("peekNotesHTML(row)", "peekPositionHTML(row, d)", "profileSectionHTML(row)",
                   "profileLinkHTML(row)", "pkFold('comm'"):
         assert piece in folds, piece
     assert "pkOpen=new Set();" in body  # every card opens short
