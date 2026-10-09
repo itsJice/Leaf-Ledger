@@ -1426,6 +1426,10 @@ body.apple .cpeople{font-size:12.5px;font-weight:700;color:var(--mut)}
 body.apple .chead .printbtn{border:0;background:transparent;color:var(--brand);font-size:12.5px;font-weight:800;
   padding:5px 6px;border-radius:8px;cursor:pointer}
 body.apple .chead .printbtn:hover{background:var(--brand-soft)}
+.printbtn.picon{display:inline-flex;align-items:center;justify-content:center;padding:4px 6px;color:var(--brand)}
+.printbtn.picon .ic{width:17px;height:17px;flex:none}
+.ovdate .printbtn.picon{border:0;background:transparent}
+.ovdate .printbtn.picon:hover{background:var(--brand-soft)}
 body.apple .okbtn{border:0;border-radius:999px;background:var(--brand-soft);color:var(--brand-hover);
   padding:6px 12px;font-size:12.5px;font-weight:800;display:inline-flex;align-items:center;gap:5px}
 body.apple .okbtn .ic{width:13px;height:13px}
@@ -1707,6 +1711,7 @@ body.apple header{container-type:inline-size}
   body.apple .ordbtn{width:30px;height:24px;border-radius:6px}
   body.apple .ordbtn .ic{width:13px;height:13px}
   body.apple .chead .printbtn,body.apple .okbtn{min-height:38px;padding:0 14px}
+  body.apple .chead .printbtn.picon{min-width:38px;padding:0 10px}
   body.apple #peekdlg.inline .btns button{min-height:44px}
   body.apple #peekdlg .pkpos .mv{min-height:38px;padding:0 14px}
   body.apple #pkcommenttext{min-height:42px}
@@ -2134,6 +2139,8 @@ const IC={
  moon:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
  phone:'<svg class="ic" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+ chev:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+ print:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg>',
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
  mail:'<svg class="ic" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
@@ -5695,7 +5702,7 @@ function buildDayCard(d){
       <span class="cname">${crewLabel(d)}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
-    <button class="printbtn" title="Print this crew's run sheet for the day">Print sheet</button>
+    <button class="printbtn picon" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
   ${manualOrder[d.id] ? `<div class="cordernote">Stop order set manually
@@ -5764,9 +5771,9 @@ function buildDayCard(d){
     const isHalf=(d.half||[]).includes(r);
     const locked=c.locked && c.locked===d.date;
     el.innerHTML=`<div class="numwrap">
-        <button type="button" class="ordbtn up" ${i===0||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move up one stop'}">${IC.down}</button>
+        <button type="button" class="ordbtn up" ${i===0||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move up one stop'}">${IC.chev}</button>
         <span class="num" style="background:${col}">${i+1}</span>
-        <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.down}</button>
+        <button type="button" class="ordbtn down" ${i===d.stops.length-1||stopPin[r]?'disabled':''} title="${stopPin[r]?'Position locked':'Move down one stop'}">${IC.chev}</button>
       </div>
       <div class="body"><div class="nm">${c.name}${alertIconHTML(r)}
         ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
@@ -6071,8 +6078,9 @@ function renderCards(){
       dh.innerHTML=`<span>${esc(dateOf(dt).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))}</span>`;
       if(ds.some(d=>d.stops.length)){
         const pb=document.createElement('button');
-        pb.className='printbtn'; pb.style.cssText='margin-left:auto;padding:2px 8px;font-size:11px';
-        pb.textContent='Print this date';
+        pb.className='printbtn picon'; pb.style.cssText='margin-left:auto';
+        pb.title='Print every crew sheet for this date'; pb.setAttribute('aria-label','Print this date');
+        pb.innerHTML=IC.print;
         pb.onclick=()=>printDate(dt);
         dh.appendChild(pb);
       }
@@ -8669,7 +8677,7 @@ function crewShiftSection(d){
   wrap.innerHTML=`<button type="button" class="cshifthd">
       <span class="cvchip ${cv.state}">${IC.users}${esc(coverageLabel(cv))}</span>
       <span class="cshifttitle">Crew shift${sh.dallas?' — whole week':''}</span>
-      <span class="cshiftarrow${isOpen?' open':''}">${IC.down}</span>
+      <span class="cshiftarrow${isOpen?' open':''}" aria-hidden="true">${IC.chev}</span>
     </button>
     <div class="cshiftbody" style="display:${isOpen?'flex':'none'}">
       ${cv.who.length ? cv.who.slice().sort((a,b)=>
