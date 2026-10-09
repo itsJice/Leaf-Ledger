@@ -7,8 +7,9 @@ pure, so they're pulled out of the template and run in node:
 - Firsts fill the top of the day (several may trade places), Lasts the
   bottom, and a Middle never opens or closes the day.
 - A move is allowed when it breaks no lock the old order kept.
-- A day whose locks can't all be met says why (two Firsts, two Lasts, a
-  Middle on a 1-2 stop day).
+- Several Firsts (or Lasts) form a first (last) block: allowed, no chip.
+- A day whose locks can't all be met says why (a Middle on a 1-2 stop day,
+  or too few middle slots).
 """
 import json
 import os
@@ -143,19 +144,36 @@ def test_a_day_already_breaking_a_lock_can_still_be_shuffled():
     assert r["ok"] is False and r["row"] == "L"
 
 
-def test_conflicts_two_lasts():
-    assert conflicts(["a", "b", "L1", "L2"], {"L1": "last", "L2": "last"}) == [
-        "L1 and L2 are both locked Last. Only one can end the day."]
+def test_several_lasts_are_a_last_block_not_a_conflict():
+    assert conflicts(["a", "b", "L1", "L2"], {"L1": "last", "L2": "last"}) == []
+    pins = {"L1": "last", "L2": "last"}
+    assert violations(["a", "b", "L2", "L1"], pins) == []
+    assert move(["a", "b", "L1", "L2"], ["a", "b", "L2", "L1"], pins) == {"ok": True}
 
 
-def test_conflicts_two_firsts():
-    assert conflicts(["F1", "F2", "a"], {"F1": "first", "F2": "first"}) == [
-        "F1 and F2 are both locked First. Only one can start the day."]
+def test_several_firsts_are_a_first_block_not_a_conflict():
+    assert conflicts(["F1", "F2", "a"], {"F1": "first", "F2": "first"}) == []
+    assert conflicts(["F1", "F2", "F3"], {"F1": "first", "F2": "first", "F3": "first"}) == []
 
 
-def test_conflicts_three_firsts_lists_all():
-    out = conflicts(["F1", "F2", "F3"], {"F1": "first", "F2": "first", "F3": "first"})
-    assert out == ["F1, F2 and F3 are all locked First. Only one can start the day."]
+def test_planner_first_plus_locked_first_is_allowed():
+    """A planner "goes first" stop and a Locked First share the first block:
+    no chip, and either may lead."""
+    extra = "\n".join([
+        js_function("isPlannerFirst"),
+        js_function("pinOf"),
+        "const SPEC={forceFirst:{p:true}}; let stopPin={f:'first'};",
+    ])
+    out = run("[lockConflicts(['p','f','a'], r=>pinOf(r,{}), name),"
+              " orderViolations(['f','p','a'], r=>pinOf(r,{})),"
+              " checkOrderMove(['p','f','a'], ['f','p','a'], r=>pinOf(r,{}), name)]", {}, extra)
+    assert out == [[], [], {"ok": True}]
+
+
+def test_a_stop_cannot_split_the_first_block():
+    pins = {"F1": "first", "F2": "first"}
+    r = move(["F1", "F2", "a", "b"], ["F1", "a", "F2", "b"], pins)
+    assert r["ok"] is False and r["reason"] == "F2 is locked First"
 
 
 def test_conflicts_middle_on_short_day():
@@ -170,6 +188,12 @@ def test_conflicts_middle_squeezed_out_by_first_and_last():
     assert conflicts(["F", "M", "L"], pins) == []
     pins = {"M1": "middle", "M2": "middle", "M3": "middle"}
     assert conflicts(["M1", "M2", "M3"], pins) == ["Not enough middle slots for M1, M2 and M3."]
+    # First + two Lasts + a Middle on a 3-stop day: no slot left for it.
+    pins = {"F": "first", "M": "middle", "L1": "last", "L2": "last"}
+    assert conflicts(["F", "M", "L1"], {"F": "first", "M": "middle", "L1": "last"}) == []
+    assert conflicts(["F", "M", "L1", "L2"], pins) == []
+    assert conflicts(["F1", "F2", "M", "L"], {"F1": "first", "F2": "first", "M": "middle", "L": "last"}) == []
+    assert conflicts(["F", "M", "L"], {"F": "first", "M": "middle", "L": "last"}) == []
 
 
 def test_no_conflicts_on_a_normal_day():
