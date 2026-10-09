@@ -6240,7 +6240,7 @@ function buildDayCard(d){
         ${manualOrder[d.id]?'<span class="badge order">manual order</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
       <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
-        `${c.boxes||'—'} boxes`].filter(Boolean).join(' · ')}</div>
+        c.boxes?`${c.boxes} boxes`:'boxes?'].filter(Boolean).join(' · ')}</div>
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
