@@ -2775,6 +2775,9 @@ function crewLabel(d){
   const i = onDate.indexOf(d.crew);
   return i < 0 ? d.crew : 'Crew ' + (i + 1);
 }
+/** Crew cards on a date list in the same order crewLabel() numbers them,
+ *  so the cards read Crew 1, 2, 3 top to bottom (user, 2026-10-09). */
+function byCrew(a,b){ return a.crew<b.crew ? -1 : a.crew>b.crew ? 1 : 0; }
 /** Short form for the dense month/calendar chips: "C1", "C2". */
 function crewLabelShort(d){ return crewLabel(d).replace('Crew ','C'); }
 // Every date in the season, not just the ones that currently have crew-days
@@ -4213,7 +4216,7 @@ function buildShifts(){
         + ` · ${sh.days.length} night${sh.days.length===1?'':'s'}`
       : fmtMDYYYY(sh.date);
   });
-  return out.sort((a,b)=>a.date.localeCompare(b.date)||a.crew.localeCompare(b.crew)
+  return out.sort((a,b)=>a.date.localeCompare(b.date)||byCrew(a,b)
                         ||(a.night?1:0)-(b.night?1:0));
 }
 function shiftFor(key){ return buildShifts().find(s=>s.key===key) || null; }
@@ -6542,7 +6545,7 @@ function renderCards(){
       side.appendChild(all);
     }
     dates.forEach(dt=>{
-      const ds=pool.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew));
+      const ds=pool.filter(d=>d.date===dt).sort(byCrew);
       // A plain (never sticky) marker the phone's continuous list scrolls to
       // and reads "which date is at the top" from.
       const an=document.createElement('div'); an.className='ovanchor'; an.dataset.date=dt;
@@ -6564,7 +6567,7 @@ function renderCards(){
     const sp=document.createElement('div'); sp.className='ovspacer'; side.appendChild(sp);
     return;
   }
-  const onThisDate = days.filter(d=>d.date===selDate);
+  const onThisDate = days.filter(d=>d.date===selDate).sort(byCrew);
   // Every date gets a heading. A single-crew day used to show nothing but its
   // card, so the date -- and what the list IS -- had to be inferred from the
   // selected chip up top (user, 2026-09-16: "we need to be able to see the
@@ -7724,8 +7727,7 @@ function stopTimes(d){
 // the screen -- and it means day and night are always one scroll apart, never
 // separated by 14 empty hours of grid. (user, 2026-08-18)
 const PERIOD=1440, REPEATS=3, PXM=0.85;
-function calDaysOn(iso){ return days.filter(x=>x.date===iso)
-  .sort((a,b)=>a.crew.localeCompare(b.crew)); }
+function calDaysOn(iso){ return days.filter(x=>x.date===iso).sort(byCrew); }
 
 /** Where the wall opens: today, or -- outside the season -- the first date
  *  with work, so a TV switched on in September isn't showing a blank month. */
@@ -10522,7 +10524,7 @@ function manifestHTML(d){
 /** Every crew-day in a pool that has a run sheet, date then crew order. */
 function overviewSheets(pool){
   return pool.filter(d=>d.stops.length)
-    .sort((a,b)=>a.date.localeCompare(b.date) || a.crew.localeCompare(b.crew));
+    .sort((a,b)=>a.date.localeCompare(b.date) || byCrew(a,b));
 }
 /** Index page for a multi-date print: every sheet in the file, one line each. */
 function coverHTML(list, heading){
@@ -10591,7 +10593,7 @@ function printManifests(list, title, opts={}){
   w.document.close();
 }
 function printDate(dt){
-  printManifests(days.filter(d=>d.date===dt).sort((a,b)=>a.crew.localeCompare(b.crew)),
+  printManifests(days.filter(d=>d.date===dt).sort(byCrew),
     `Crew sheets — ${fmtMDYYYY(dt)}`);
 }
 
