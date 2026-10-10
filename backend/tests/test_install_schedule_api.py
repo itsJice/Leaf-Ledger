@@ -113,17 +113,23 @@ def test_put_state_statement_sequence_and_history_trim(fake_db, fake_request):
     # by the DELETE ... NOT IN (... LIMIT $2) in SQL, not in Python.
     fake_db.on_fetch("FROM ll_app.install_schedule_history",
                      [{"id": i, "updated_by": "u", "created_at": T0} for i in range(201)])
+    fake_db.on_fetchval("RETURNING updated_at", T0)
     state = {"season": "2026", "placement": {"12": "d1"}}
-    out = run(sched.put_state(fake_request("user-7"), {"version": "build-1", "state": state}))
-    assert out == {"version": "build-1", "ok": True, "updatedBy": "user-7"}
+    out = run(sched.put_state(fake_request("user-7"),
+                              {"version": "build-1", "state": state, "baseUpdatedAt": None}))
+    assert out == {"version": "build-1", "ok": True, "updatedBy": "user-7",
+                   "updatedAt": T0.isoformat()}
     encoded = json.dumps(state)
     assert sched.MAX_HISTORY_PER_VERSION == 200
     assert fake_db.executed[1:] == [
         ("INSERT INTO ll_app.install_schedule_state (version, season, state, updated_by) "
          "VALUES ($1, $2, '{}'::jsonb, $3) ON CONFLICT (version) DO NOTHING", ("build-1", "2026", "user-7")),
-        ("SELECT state FROM ll_app.install_schedule_state WHERE version = $1 FOR UPDATE", ("build-1",)),
+        ("SELECT state, updated_by, updated_at FROM ll_app.install_schedule_state "
+         "WHERE version = $1 FOR UPDATE", ("build-1",)),
         ("UPDATE ll_app.install_schedule_state SET state = $2::jsonb, updated_by = $3,     "
-         "season = COALESCE($4, season), updated_at = now() WHERE version = $1",
+         "season = COALESCE($4, season),     "
+         "updated_at = GREATEST(clock_timestamp(), updated_at + interval '1 microsecond') "
+         "WHERE version = $1 RETURNING updated_at",
          ("build-1", encoded, "user-7", "2026")),
         ("INSERT INTO ll_app.install_schedule_history (version, season, state, updated_by) "
          "VALUES ($1, $2, $3::jsonb, $4)", ("build-1", "2026", encoded, "user-7")),

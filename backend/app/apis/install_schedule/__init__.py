@@ -37,10 +37,11 @@ same stale snapshot.
 """
 import json
 import os
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.apis.user_context import get_request_user_id
 from app.auth.supabase_auth import get_current_user
@@ -658,17 +659,114 @@ def _iso_to_date(s: Any):
         return None
 
 
+# ─── Stale-tab guard ─────────────────────────────────────────────────────────
+#
+# PUT /state replaces the whole document, so a tab that loaded an OLD state and
+# saves it later erases everything written in between. On 10/8/2026 a 1099
+# import (8:29 PM CT) added 23 roster people and their contractor details; a
+# tab opened before it saved at 9:03 PM while sending mass texts and silently
+# erased all of it. With board dates now written onto client cards, a stale
+# tab could also put old dates on cards.
+#
+# So every save says which version of the document it was built on
+# (`baseUpdatedAt`: the updatedAt the page last loaded or saved). If anyone has
+# written since -- another tab, or a server-side script, all of which bump
+# updated_at -- the save is refused with 409 and the CURRENT state, nothing is
+# written (no state, no history row, no card dates), and the page merges its
+# own unsaved changes onto that state and retries (mergeShared() in
+# scheduler/review_template.html).
+#
+# The comparison is equality, not "newer than": updated_at is only ever
+# compared with a value this server handed out, so any write at all in
+# between counts, whatever the clocks did. Writes here move updated_at
+# strictly forward (GREATEST(clock_timestamp(), updated_at + 1 microsecond))
+# so two saves can never share a stamp.
+#
+# Pages published before this shipped send no `baseUpdatedAt`. Refusing them
+# would stop every open tab saving until the page is republished, so they are
+# accepted (and logged) with two protections for exactly what the 10/8 save
+# destroyed: an old page's save can't remove roster people, and can't erase a
+# person's contractor fields by leaving them out. Set
+# INSTALL_SCHEDULE_REQUIRE_BASE=true once the new page is published to refuse
+# them instead (428: reload the page).
+REQUIRE_BASE_ENV = "INSTALL_SCHEDULE_REQUIRE_BASE"
+
+
+def _parse_ts(raw: Any) -> datetime:
+    """An updatedAt this API handed out (datetime.isoformat())."""
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("not a timestamp")
+    ts = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+    if ts.tzinfo is None:
+        raise ValueError("timestamp without a timezone")
+    return ts
+
+
+def _has_content(doc: Any) -> bool:
+    return isinstance(doc, dict) and bool(doc)
+
+
+def is_stale(base_at: datetime | None, stored_doc: Any, stored_at: datetime | None) -> bool:
+    """Would this save overwrite something its page never saw?
+
+    Nothing stored yet (no row, or the empty row PUT itself just inserted)
+    can't be overwritten. A page that saw no state (base None) is stale as soon
+    as someone has saved. Otherwise any write since the page's base counts."""
+    if not _has_content(stored_doc):
+        return False
+    if base_at is None or stored_at is None:
+        return True
+    return stored_at != base_at
+
+
+def keep_for_legacy_save(state: dict, stored: Any) -> tuple[dict, dict]:
+    """A save from a page that sends no base timestamp (published before the
+    guard). It can't be checked for staleness, so it is not allowed to do the
+    two things the 10/8 stale save did: drop roster people (anyone stored but
+    missing from the save is kept, at the end), or erase a person's
+    contractor fields by leaving all of them out (they are kept from the
+    stored person). Returns (state, what was kept) for the log."""
+    kept = {"people": [], "contractor": []}
+    roster = state.get("roster")
+    if not isinstance(roster, list) or not isinstance(stored, dict) \
+            or not isinstance(stored.get("roster"), list):
+        return state, kept
+    stored_people = {
+        str(p["id"]): p for p in stored["roster"]
+        if isinstance(p, dict) and p.get("id") not in (None, "")
+    }
+    sent_ids = set()
+    out = []
+    for p in roster:
+        if isinstance(p, dict):
+            pid = str(p.get("id") or "")
+            sent_ids.add(pid)
+            prior = stored_people.get(pid)
+            if prior and not any(k in p for k in SENSITIVE_ROSTER_FIELDS):
+                extra = {k: prior[k] for k in SENSITIVE_ROSTER_FIELDS if k in prior}
+                if extra:
+                    p = {**p, **extra}
+                    kept["contractor"].append(pid)
+        out.append(p)
+    for pid, p in stored_people.items():
+        if pid not in sent_ids:
+            out.append(p)
+            kept["people"].append(pid)
+    return {**state, "roster": out}, kept
+
+
 @router.put("/state")
 async def put_state(
     request: Request, body: Any = Body(default=None), role: str = Depends(caller_role)
 ) -> dict:
     """Replace the shared state for one schedule build.
 
-    Whole-document write rather than a deep merge: the payload is a single
-    placement snapshot ({row -> day}), and merging two snapshots key by key
-    would produce a schedule neither person actually approved. The row lock
-    serialises concurrent saves, and the response reports who last wrote so
-    the tool can tell the user their view was superseded.
+    Whole-document write rather than a deep merge on the server: the page
+    knows which entities it changed, the server doesn't. The row lock
+    serialises concurrent saves, and the stale-tab guard (above) refuses a
+    save built on an older document with 409 + the current state, which the
+    page merges its own changes onto and retries. A success returns the new
+    updatedAt, the page's base for its next save.
     """
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Body must be an object")
@@ -681,6 +779,20 @@ async def put_state(
     if len(json.dumps(state)) > MAX_DOC_BYTES:
         raise HTTPException(status_code=413, detail="State document too large")
     full = sees_contractor_info(role)
+
+    # The stale-tab guard's input. Absent = a page published before the guard.
+    has_base = "baseUpdatedAt" in body
+    base_at = None
+    if has_base and body.get("baseUpdatedAt") is not None:
+        try:
+            base_at = _parse_ts(body.get("baseUpdatedAt"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Bad baseUpdatedAt") from None
+    if not has_base and os.getenv(REQUIRE_BASE_ENV, "").lower() == "true":
+        raise HTTPException(
+            status_code=428,
+            detail="This Install Schedule page is out of date. Reload it to keep saving.",
+        )
 
     # Stamp the row with the season the tool says it is, so a season's saves
     # can be found without knowing its build hash. Read tolerantly and never
@@ -708,24 +820,56 @@ async def put_state(
                 payload_season,
                 user_id,
             )
-            stored = await conn.fetchval(
-                "SELECT state FROM ll_app.install_schedule_state "
+            cur = await conn.fetchrow(
+                "SELECT state, updated_by, updated_at FROM ll_app.install_schedule_state "
                 "WHERE version = $1 FOR UPDATE",
                 v,
             )
-            # Under the row lock, so the stored values can't change between
-            # this read and the write.
-            if not full:
-                state = keep_stored_contractor_info(state, _loads(stored))
+            stored = _loads(cur["state"]) if cur else None
+            stored_at = cur["updated_at"] if cur else None
+            # Under the row lock, so nothing can be written between this check
+            # and the write below.
+            if has_base and is_stale(base_at, stored, stored_at):
+                print(
+                    f"install-schedule: refused a stale save of {v} by {user_id} "
+                    f"(page base {base_at.isoformat() if base_at else None}, "
+                    f"stored {stored_at.isoformat() if stored_at else None} "
+                    f"by {cur['updated_by'] if cur else None})"
+                )
+                conflict = {
+                    "conflict": True,
+                    "detail": "Someone saved this schedule after this page loaded it.",
+                    "version": v,
+                    "state": stored if full else strip_roster(stored),
+                    "updatedBy": cur["updated_by"] if cur else None,
+                    "updatedAt": stored_at.isoformat() if stored_at else None,
+                }
+            else:
+                conflict = None
+                if not has_base:
+                    state, kept = keep_for_legacy_save(state, stored)
+                    print(
+                        f"install-schedule: save of {v} by {user_id} from a page without "
+                        f"baseUpdatedAt (stored {stored_at.isoformat() if stored_at else None}); "
+                        f"kept {len(kept['people'])} people it left out "
+                        f"{kept['people'][:30]} and contractor info for {len(kept['contractor'])}"
+                    )
+                if not full:
+                    state = keep_stored_contractor_info(state, stored)
+            if conflict is not None:
+                # Nothing written: no state, no history row, no card dates.
+                return JSONResponse(status_code=409, content=conflict)
             encoded = json.dumps(state)
-            await conn.execute(
+            new_at = await conn.fetchval(
                 # COALESCE, not a plain assignment: an older cached page sends
                 # no season, and letting that blank out the label a newer save
-                # already wrote would lose it for good.
+                # already wrote would lose it for good. updated_at only ever
+                # moves forward (see the stale-tab guard).
                 "UPDATE ll_app.install_schedule_state "
                 "SET state = $2::jsonb, updated_by = $3, "
-                "    season = COALESCE($4, season), updated_at = now() "
-                "WHERE version = $1",
+                "    season = COALESCE($4, season), "
+                "    updated_at = GREATEST(clock_timestamp(), updated_at + interval '1 microsecond') "
+                "WHERE version = $1 RETURNING updated_at",
                 v,
                 encoded,
                 user_id,
@@ -796,7 +940,12 @@ async def put_state(
                         print(f"board-date write-through skipped: {exc}")
     finally:
         await conn.close()
-    return {"version": v, "ok": True, "updatedBy": user_id}
+    return {
+        "version": v,
+        "ok": True,
+        "updatedBy": user_id,
+        "updatedAt": new_at.isoformat() if isinstance(new_at, datetime) else None,
+    }
 
 
 @router.get("/history")
