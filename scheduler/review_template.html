@@ -414,6 +414,22 @@ dialog option:disabled{color:#b6b3ae}
 .seasonpick:hover{border-color:var(--brand)}
 .seasonpick.archived{border-color:var(--warn-ink);color:var(--warn-ink);
   background:var(--warn-soft)}
+/* The out-of-date banner (stale-tab guard): this tab's changes were merged
+   onto a newer save, or need a reload. */
+#syncbanner{grid-column:1/-1;flex:1 1 100%;margin-top:10px;padding:10px 14px;
+  border-radius:8px;background:var(--warn-soft);color:var(--warn-ink);
+  border:1px solid rgba(0,0,0,.06);font-size:12.5px;line-height:1.5;
+  display:flex;gap:12px;align-items:flex-start}
+#syncbanner[hidden]{display:none}
+#syncbanner .sbmsg{flex:1 1 auto;min-width:0}
+#syncbanner b{font-weight:700}
+#syncbanner .sbsub{display:block;margin-top:2px}
+#syncbanner ul{margin:4px 0 0;padding-left:18px}
+#syncbanner .sbbtns{display:flex;gap:6px;flex:0 0 auto}
+#syncbanner button{border:1px solid var(--warn-ink);background:transparent;color:var(--warn-ink);
+  border-radius:6px;padding:6px 12px;min-height:32px;font-weight:700;font-size:12px;cursor:pointer}
+#syncbanner button.sbreload{background:var(--warn-ink);color:#fff}
+@media (max-width:600px){ #syncbanner{flex-direction:column} #syncbanner button{min-height:40px} }
 #robanner{grid-column:1/-1;flex:1 1 100%;margin-top:10px;padding:10px 14px;
   border-radius:8px;background:var(--warn-soft);color:var(--warn-ink);
   border:1px solid rgba(0,0,0,.06);font-size:12.5px;line-height:1.5}
@@ -515,7 +531,7 @@ body.readonly .stop,body.readonly .agrow,body.readonly .chead-crew{cursor:defaul
 /* View-only login (warehouse iPad / TV): nothing on screen that edits. The
    readonly rules above already disable the controls; this removes them. */
 body.viewonly #newclientbtn,body.viewonly #newdatebtn,body.viewonly #billexportbtn,
-body.viewonly #seasonpick,body.viewonly #robanner,body.viewonly .undobar,
+body.viewonly #seasonpick,body.viewonly #robanner,body.viewonly #syncbanner,body.viewonly .undobar,
 body.viewonly .okbtn,body.viewonly .mv,body.viewonly .ordbtn,body.viewonly .cshiftrm,
 body.viewonly .cshiftadd,body.viewonly .shcbtn,body.viewonly .dchiprm,body.viewonly .stfadd,
 body.viewonly .cautoorder,body.viewonly [data-act],
@@ -1359,7 +1375,7 @@ body.apple #newpop button{all:unset;box-sizing:border-box;display:block;padding:
   font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif}
 body.apple #newpop button:hover,body.apple #newpop button:focus-visible{background:var(--brand-soft)}
 body.apple #seasonpick{height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;padding:0 10px;font-weight:700}
-body.apple #statewarn,body.apple #robanner{flex:1 1 100%}
+body.apple #statewarn,body.apple #robanner,body.apple #syncbanner{flex:1 1 100%}
 body.apple #tbsaved.bad{color:#b91c1c}
 body.readonly #newmenu,body.readonly #tbundo,body.readonly #tbredo{opacity:.4;pointer-events:none}
 body.viewonly #newmenu,body.viewonly #tbedit,body.viewonly #tbprint{display:none!important}
@@ -1761,7 +1777,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple.nodates #datecol{display:none}
   body.apple #datecol{grid-area:dates}
   body.apple header{grid-area:head;flex-wrap:nowrap}
-  body.apple header:has(#statewarn[style*="block"]),body.apple header:has(#robanner:not([hidden])){flex-wrap:wrap}
+  body.apple header:has(#statewarn[style*="block"]),body.apple header:has(#robanner:not([hidden])),body.apple header:has(#syncbanner:not([hidden])){flex-wrap:wrap}
   body.apple #viewarea{grid-area:view;min-height:0;display:flex;flex-direction:column}
 }
 /* ---- below 1024px: tighter toolbar, buttons under each stop ---- */
@@ -2049,6 +2065,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     </div>
   </div>
   <div id="statewarn" style="display:none"></div>
+  <div id="syncbanner" role="status" aria-live="polite" hidden></div>
   <div id="robanner" hidden></div>
 </header>
 <div id="viewarea">
@@ -2982,6 +2999,17 @@ try{
   }
 }catch(e){}
 applyRosterSeedFallback();
+// The server document this tab last loaded or saved: {at: its updatedAt,
+// state: sharedDocOf(...)}. Every save sends `at` (the stale-tab guard, see
+// mergeShared). Starts as this device's own record of it, so changes saved
+// here but never sent (a refresh mid-save, offline edits) can be merged on
+// load instead of being thrown away or overwriting newer work.
+let sharedBase = null;
+try{
+  const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{};
+  if(s.version===SPEC.version && s._base && s._base.state && typeof s._base.state==='object')
+    sharedBase = s._base;
+}catch(e){}
 // ---------- board dates -> client cards ----------
 // The board owns install dates (user, 2026-10-06), so a stop moved here has to
 // move the date on the client's season card too -- hold and not-installing
@@ -3046,6 +3074,185 @@ function boardDateInfo(r){
 function currentBoardDates(){ return boardDatesByClient(days, TAKEDOWN_CUTOFF, boardDateInfo); }
 function placementBoardDates(place){
   return boardDatesByClient(placementDayList(place), TAKEDOWN_CUTOFF, boardDateInfo);
+}
+// ---------- stale-tab guard: merge this tab's changes onto a newer save ----------
+// PUT /state replaces the whole document. On 10/8/2026 a tab opened before a
+// server-side 1099 import saved its old roster an hour later (while sending
+// mass texts) and erased the import: 23 people and everyone's contractor
+// details. Now every save says which server document it was built on
+// (sharedBase.at); the server refuses one built on an older document (409)
+// and hands back the current one. This tab then works out what IT changed
+// (its state now vs sharedBase.state), re-applies only that onto the current
+// document, and saves again. Something both sides changed differently keeps
+// the newer saved value and is listed in a banner -- never a silent overwrite.
+// The documents compared are all in this page's own normalized form
+// (sharedDocOf(snapshot()) after applying them), so normalization never reads
+// as somebody's edit.
+const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','notInstalling','hold'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom'];
+const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing'];
+/** PURE. The part of a snapshot that is shared state (the rest -- names for
+ *  the card write-through, timeline, savedAt -- is derived on every save). */
+function sharedDocOf(st){
+  const o={};
+  SHARED_KEYS.forEach(k=>{ if(st && st[k]!==undefined) o[k]=st[k]; });
+  return JSON.parse(JSON.stringify(o));
+}
+/** PURE. JSON with sorted keys, so two equal values always compare equal. */
+function stableJSON(v){
+  if(v===undefined) return '~';
+  if(Array.isArray(v)) return '['+v.map(stableJSON).join(',')+']';
+  if(v && typeof v==='object')
+    return '{'+Object.keys(v).sort().filter(k=>v[k]!==undefined)
+      .map(k=>JSON.stringify(k)+':'+stableJSON(v[k])).join(',')+'}';
+  return JSON.stringify(v);
+}
+/** PURE. Three-way merge of shared state documents: `base` is the server
+ *  document this tab's changes were made on, `mine` is this tab now, `theirs`
+ *  is the server document now. Returns {state, conflicts, changed, hard}:
+ *  - state: theirs with every change this tab made re-applied,
+ *  - conflicts: things both sides changed differently (theirs was kept),
+ *  - changed: how many things this tab had changed at all,
+ *  - hard: a change that can't be merged at all (a new client both sides
+ *    added at the same row) -- the caller asks for a reload instead.
+ *  label(kind, key) names a row / day for the conflict list. */
+function mergeShared(base, mine, theirs, label){
+  base=base||{}; mine=mine||{}; theirs=theirs||{};
+  label=label||((kind,key)=>String(key));
+  const same=(a,b)=>stableJSON(a)===stableJSON(b);
+  const conflicts=[], hard=[]; let changed=0;
+  const out={...theirs};
+  // One value: mine if only I changed it, theirs if only they did (or nobody).
+  // (Compared through `norm`, but the value kept is the side's own.)
+  const pick=(b,m,t,what,norm)=>{
+    norm=norm||(x=>x);
+    const B=norm(b), M=norm(m), T=norm(t);
+    if(same(M,B)) return t;
+    changed++;
+    if(same(T,B) || same(T,M)) return m;
+    conflicts.push(typeof what==='function' ? what() : what); return t;
+  };
+  // A set: my adds and removes, applied to theirs.
+  const setMerge=(b,m,t)=>{
+    const B=new Set((b||[]).map(stableJSON)), M=new Set((m||[]).map(stableJSON));
+    const res=(t||[]).slice(), has=new Set(res.map(stableJSON));
+    (m||[]).forEach(x=>{ const k=stableJSON(x); if(!B.has(k)){ changed++; if(!has.has(k)){ res.push(x); has.add(k); } } });
+    const gone=new Set([...B].filter(k=>!M.has(k)));
+    changed+=gone.size;
+    return res.filter(x=>!gone.has(stableJSON(x)));
+  };
+  // A keyed object, one value per key.
+  const mapMerge=(b,m,t,what,norm)=>{
+    b=b||{}; m=m||{}; t=t||{};
+    const res={};
+    [...new Set([...Object.keys(t), ...Object.keys(b), ...Object.keys(m)])].forEach(k=>{
+      const v=pick(b[k], m[k], t[k], ()=>what(k), norm);
+      if(v!==undefined) res[k]=v;
+    });
+    return res;
+  };
+  const sortedIds=v=>Array.isArray(v) ? [...v].map(String).sort() : v;
+
+  // Only keys some side has, so merging never adds empty ones.
+  const any=k=>base[k]!==undefined || mine[k]!==undefined || theirs[k]!==undefined;
+  SHARED_SET_KEYS.forEach(k=>{ if(any(k)) out[k]=setMerge(base[k], mine[k], theirs[k]); });
+  const MAP_WHAT={placement:r=>`${label('row',r)}: day`,
+                  manualOrder:d=>`Stop order on ${label('day',d)}`,
+                  stopPin:r=>`${label('row',r)}: position lock`,
+                  lastScheduledFrom:r=>`${label('row',r)}: previous date`};
+  SHARED_MAP_KEYS.forEach(k=>{
+    if(any(k)) out[k]=mapMerge(base[k], mine[k], theirs[k], MAP_WHAT[k], k==='placement' ? sortedIds : null);
+  });
+  // The change log: theirs, then what I logged since my base.
+  const seenMove=new Set([...(base.moves||[]), ...(theirs.moves||[])].map(stableJSON));
+  const myMoves=(mine.moves||[]).filter(x=>!seenMove.has(stableJSON(x)));
+  changed+=myMoves.length;
+  if(any('moves')) out.moves=[...(theirs.moves||[]), ...myMoves];
+  // Comments: per client, my added / deleted notes applied to theirs.
+  const cm={}, cb=base.comments||{}, cmn=mine.comments||{}, ct=theirs.comments||{};
+  new Set([...Object.keys(cb), ...Object.keys(cmn), ...Object.keys(ct)]).forEach(r=>{
+    if(same(cb[r], cmn[r])){ if(ct[r]) cm[r]=ct[r]; return; }
+    const list=setMerge(cb[r], cmn[r], ct[r]).sort((a,b)=>(b.at||0)-(a.at||0));
+    if(list.length) cm[r]=list;
+  });
+  if(any('comments')) out.comments=cm;
+  // New clients added on the board: keyed by row. Two tabs that each added a
+  // different client at the same row can't both keep it.
+  const byRow=l=>Object.fromEntries((l||[]).map(c=>[String(c.row), c]));
+  const nb=byRow(base.newClients), nm=byRow(mine.newClients), nt=byRow(theirs.newClients);
+  const nc={...nt};
+  Object.keys(nm).forEach(r=>{
+    if(nb[r] && same(nb[r], nm[r])) return;
+    changed++;
+    if(!nt[r] || same(nt[r], nb[r]) || same(nt[r], nm[r])) nc[r]=nm[r];
+    else hard.push(`New client ${nm[r].name||''}`.trim());
+  });
+  Object.keys(nb).forEach(r=>{ if(!nm[r]){ changed++; if(same(nt[r], nb[r])) delete nc[r]; } });
+  if(any('newClients')) out.newClients=Object.values(nc);
+
+  // Roster: per person, per field. Field-level, so a text logged here and a
+  // legal name added by an import both survive.
+  const TXT_MAX=(typeof TEXT_LOG_MAX!=='undefined') ? TEXT_LOG_MAX : 5;
+  const pb=Object.fromEntries((base.roster||[]).map(p=>[p.id,p]));
+  const pm=Object.fromEntries((mine.roster||[]).map(p=>[p.id,p]));
+  const pt=Object.fromEntries((theirs.roster||[]).map(p=>[p.id,p]));
+  const pname=p=>(p && (p.name || [p.first,p.last].filter(Boolean).join(' '))) || 'Someone';
+  const idMap={};
+  const mergePerson=(b,m,t)=>{
+    const res={...t}, who=pname(t);
+    new Set([...Object.keys(b), ...Object.keys(m), ...Object.keys(t)]).forEach(f=>{
+      if(f==='id') return;
+      let v;
+      if(same(b[f], m[f])) v=t[f];
+      else if(f==='dates' || f==='times') v=setMerge(b[f], m[f], t[f]);
+      else if(f==='texts')
+        v=setMerge(b[f], m[f], t[f]).sort((x,y)=>String(y.at).localeCompare(String(x.at))).slice(0,TXT_MAX);
+      else if(f==='ratings') v=mapMerge(b[f], m[f], t[f], k=>`${who}: ${k} rating`);
+      else v=pick(b[f], m[f], t[f], `${who}: ${f}`);
+      if(v===undefined) delete res[f]; else res[f]=v;
+    });
+    return res;
+  };
+  const nextNum=()=>1+Math.max(0, ...[...Object.keys(pb), ...Object.keys(pm), ...Object.keys(pt)]
+    .map(id=>+String(id).replace(/\D/g,'')||0), ...Object.values(idMap).map(id=>+id.replace(/\D/g,'')||0));
+  const roster=[];
+  (theirs.roster||[]).forEach(t=>{
+    const b=pb[t.id], m=pm[t.id];
+    if(b && m) roster.push(mergePerson(b,m,t));
+    else if(b && !m){                       // I removed them
+      changed++;
+      if(!same(t,b)){ conflicts.push(`${pname(t)} (changed by someone else, so not removed)`); roster.push(t); }
+    }
+    else if(!b && m && !same(m,t)){         // we both added this id
+      if(pname(m)===pname(t)) roster.push(mergePerson({},m,t));
+      else roster.push(t);                  // a different person: mine gets a new id below
+    }
+    else roster.push(t);
+  });
+  (mine.roster||[]).forEach(m=>{
+    const b=pb[m.id], t=pt[m.id];
+    if(b && !t){                            // they removed someone
+      if(!same(m,b)){ changed++; conflicts.push(`${pname(m)} (removed by someone else)`); }
+      return;
+    }
+    if(b) return;
+    if(!t){ changed++; roster.push(m); return; }   // I added them
+    if(same(m,t) || pname(m)===pname(t)){ if(!same(m,t)) changed++; return; }
+    changed++;                              // id taken by someone else's new person
+    const id='p'+nextNum(); idMap[m.id]=id;
+    roster.push({...m, id});
+  });
+  if(any('roster')) out.roster=roster;
+  // Staffing: per crew-day, my adds and removes (with any re-numbered person).
+  const remap=st=>Object.fromEntries(Object.entries(st||{}).map(([d,l])=>[d,(l||[]).map(x=>idMap[x]||x)]));
+  const sb=base.staffing||{}, sm=remap(mine.staffing), stt=theirs.staffing||{};
+  const staffing={};
+  new Set([...Object.keys(sb), ...Object.keys(sm), ...Object.keys(stt)]).forEach(d=>{
+    const l=setMerge(sb[d], sm[d], stt[d]);
+    if(l.length) staffing[d]=l;
+  });
+  if(any('staffing')) out.staffing=staffing;
+  return {state:out, conflicts, changed, hard};
 }
 function snapshot(){
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
@@ -3691,7 +3898,8 @@ function storingWithUs(row){
   const v=en && en.detail && en.detail.storing;
   return v===true ? true : (v===false ? false : null);
 }
-async function pullShared(){
+async function pullShared(){ return syncQueued(pullSharedNow); }
+async function pullSharedNow(){
   if(!AUTH) return;
   try{
     const r = await fetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`
@@ -3700,54 +3908,44 @@ async function pullShared(){
     if(!r.ok) throw new Error(r.status);
     const j = await r.json();
     if(j.state && j.state.placement){
-      // Guard against a real data-loss race: if THIS device's last local
-      // save (already applied at bootstrap, from localStorage) happened
-      // AFTER the server's last recorded write, our own debounced push
-      // from before a page refresh may simply not have landed yet.
-      // Applying the server's older state here would silently throw away
-      // a real edit -- local wins instead, and gets pushed up to match.
-      // Only a local save made against THIS build can win. One made
-      // against an older build was refused at bootstrap (see the version
-      // check there), so the in-memory board is the bare baseline -- and
-      // pushing that up would overwrite the state publish_pages.py just
-      // carried across for everyone with an empty board.
-      const ls = JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{};
-      const localSaved = (ls.version === SPEC.version) ? (ls.savedAt || 0) : 0;
-      const serverSaved = j.updatedAt ? new Date(j.updatedAt).getTime() : 0;
-      if(localSaved > serverSaved){
-        syncState = 'shared';
-        // The cards match what the server last saved, so moves made only on
-        // this device since then go out with this push.
-        syncedBoardDates = placementBoardDates(j.state.placement);
-        pushSharedNow();
-        return;
-      }
-      restoreSyntheticClients(j.state.newClients);
-      newDates = normDates(j.state.newDates);
-      trainingDays = normTrainingDays(j.state.trainingDays);
-      notInstalling = normNotInstalling(j.state.notInstalling);
-      hold = normNotInstalling(j.state.hold);
-      stopPin = normStopPins(j.state.stopPin);
-      lastScheduledFrom = normLastScheduledFrom(j.state.lastScheduledFrom);
-      const missing = applyPlacement(j.state.placement);
-      materializeTrainingDays();
-      moves = j.state.moves || [];
-      approved = new Set((j.state.approved||[]).filter(id=>days.some(d=>d.id===id)));
-      confirmed = new Set((j.state.confirmed||[]).filter(row=>C[row]));
-      manualOrder = normManualOrder(j.state.manualOrder);
-      comments = normComments(j.state.comments);
-      roster = normRoster(j.state.roster); staffing = normStaffing(j.state.staffing);
-      syncedBoardDates = currentBoardDates();
-      syncState = 'shared';
-      stateWarning = missing
-        ? missing+' shared stop(s) pointed at days that no longer exist.'
+      // What this tab holds right now: the server document it last saw
+      // (sharedBase, restored from this device at bootstrap) plus any change
+      // made since that never reached the server -- a save cut off by a
+      // refresh, or edits made while offline. Those are re-applied onto the
+      // server's document rather than either side winning wholesale (the old
+      // rule here was "newest timestamp wins the whole document", which is
+      // how a stale copy could replace a newer save).
+      const base = (sharedBase && sharedBase.state) ? sharedBase : null;
+      const mine = sharedDocOf(snapshot());
+      if(syncBlockedBy(j)) return;
+      const res = rebaseOnto(j, base, mine);
+      stateWarning = res.missing
+        ? res.missing+' shared stop(s) pointed at days that no longer exist.'
         : null;
+      if(!base){
+        // No record of what this device's copy was based on (saved before
+        // this guard shipped). It can't be told apart from a stale copy, so
+        // the shared document wins -- but say so if this device had newer
+        // changes that are now not on screen.
+        const ls = JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{};
+        const localSaved = (ls.version === SPEC.version) ? (ls.savedAt || 0) : 0;
+        const serverSaved = j.updatedAt ? new Date(j.updatedAt).getTime() : 0;
+        if(localSaved > serverSaved && stableJSON(mine)!==stableJSON(sharedBase.state))
+          showSyncBanner({title:'Changes saved only on this device were not applied.',
+            sub:'They were made on an older copy of the schedule, so the shared schedule is shown instead. '
+               +'Check your last few changes and redo any that are missing.'});
+      }
       render();
+      saveLocal();
+      if(res.pending) await putShared();
     } else {
       syncState = 'shared';
       // Nobody has saved this build: the cards were synced from the build
       // itself, so anything moved on this device since goes out next save.
       syncedBoardDates = placementBoardDates(baselinePlacement());
+      // Nothing to be stale against yet; if someone saves first, this tab's
+      // first save is refused and merged like any other.
+      sharedBase = {at:null, state:{}};
     }
     // Nothing saved for THIS build yet. The server offers the roster and
     // staffing from the most recent earlier one, which is what should fill
@@ -3778,8 +3976,8 @@ async function pullShared(){
 }
 let pushTimer = null;
 // Short debounce -- just enough to coalesce a fast drag/edit burst into
-// one request, not so long that a quick refresh can race past it (see
-// pullShared's local-wins guard above for the remaining edge of that).
+// one request, not so long that a quick refresh can race past it (a save
+// that never landed is merged from this device's copy on the next load).
 /** What the shared PUT sends: the snapshot plus every crew-day's estimated
  *  stop times, from the same stopTimes() the calendar view draws. The office
  *  calendar feed (backend app/libs/install_calendar.py) reads these rather
@@ -3806,40 +4004,181 @@ function sharedSnapshot(){
   pendingBoardDates=cur;
   return {...snapshot(), timeline, dateMoves};
 }
-function pushShared(){
-  if(!AUTH || READONLY) return;
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(pushSharedNow, 200);
-}
 function persist(){
   // The hard stop for an archived season. Every mutating path is also gated
   // at its entry point (roBlocked), but this is the one that matters: even a
   // path nobody remembered to guard, or a stray call from the console, still
   // cannot write -- not to localStorage, not to the shared document.
   if(READONLY) return;
-  localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
+  saveLocal();
   pushShared();
 }
-/** Immediate, awaited PUT -- bypasses the 600ms debounce. Used only by
- * history restore, where the user is waiting on a deliberate action and
- * needs to know whether it actually landed before the dialog closes. */
+/** This device's copy: the snapshot plus the server document it was made on
+ *  (sharedBase), written together so a reload can tell this tab's own
+ *  unsaved changes from a stale copy and merge them (see pullSharedNow). */
+function saveLocal(){
+  if(READONLY) return;
+  const st=snapshot();
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({...st, _base:sharedBase})); }
+  catch(e){ try{ localStorage.setItem(LS_KEY, JSON.stringify(st)); }catch(_){} }
+}
+/** Load a shared document onto the board, the way a fresh load does. */
+function applySharedDoc(st){
+  restoreSyntheticClients(st.newClients);
+  return restoreBlob(JSON.stringify({...st, placement:st.placement||currentPlacement()}));
+}
+/** Names for the conflict list. */
+function conflictLabel(kind, key){
+  if(kind==='row') return (C[key] && C[key].name) || 'A stop';
+  if(kind==='day'){
+    const d=days.find(x=>x.id===key);
+    const date=String(key).split('|')[0];
+    return /^\d{4}-\d{2}-\d{2}$/.test(date) ? fmtMDYYYY(date)+(d?' '+crewLabel(d):'') : String(key);
+  }
+  return String(key);
+}
+/** Put the server document `j` ({state, updatedAt, updatedBy}) on the board
+ *  and re-apply this tab's own changes (`mine` vs the `base` they were made
+ *  on). It becomes the new base. Returns mergeShared's result plus
+ *  `pending` (this tab still has changes the server doesn't) and `missing`. */
+function rebaseOnto(j, base, mine){
+  let missing=applySharedDoc(j.state);
+  const theirs=sharedDocOf(snapshot());
+  let res={state:theirs, conflicts:[], changed:0, hard:[]};
+  if(base) res=mergeShared(base.state, mine, theirs, conflictLabel);
+  if(res.changed){
+    missing=applySharedDoc(res.state);
+    // Undo steps were taken on the old copy; stepping back into one would
+    // put the stale document back.
+    undoStack=[]; redoStack=[];
+  }
+  sharedBase={at:j.updatedAt||null, state:theirs};
+  // The cards have the dates of the document just loaded, so dateMoves on
+  // the next save are exactly this tab's own moves that survived the merge.
+  syncedBoardDates=placementBoardDates(theirs.placement);
+  syncState='shared';
+  const now=sharedDocOf(snapshot());
+  res.pending=stableJSON(now)!==stableJSON(theirs);
+  // Somebody else's changes were folded in (not just our own save coming back).
+  res.folded=stableJSON(now)!==stableJSON(mine);
+  res.missing=missing;
+  if(base && res.changed && (res.folded || res.conflicts.length)) showMergedBanner(j, res);
+  return res;
+}
+/** A new client both this tab and another added at the same row can't be
+ *  merged: stop saving and ask for a reload (this tab's copy stays on this
+ *  device). */
+let syncBlocked=false;
+function syncBlockedBy(j){
+  const rows=((j.state && j.state.newClients)||[])
+    .filter(def=>def && C[def.row] && C[def.row].synthetic && C[def.row].name!==def.name);
+  if(!rows.length) return false;
+  syncBlocked=true;
+  showSyncBanner({title:'This tab is out of date and needs a reload.',
+    sub:'Someone else added a new client at the same time as you, so your changes could not be combined with theirs. '
+       +'Reload, then add '+rows.map(d=>C[d.row].name).join(', ')+' again.',
+    reload:true, sticky:true});
+  return true;
+}
+// One save or load at a time: a load landing between a save's send and its
+// answer would leave this tab with the wrong base.
+let syncChain=Promise.resolve();
+function syncQueued(fn){
+  const p=syncChain.then(fn, fn);
+  syncChain=p.catch(()=>{});
+  return p;
+}
+function pushShared(){
+  if(!AUTH || READONLY) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushSharedNow, 200);
+}
+/** Save now (also what history restore awaits). One queued save covers every
+ *  change made before it runs. */
+let pushWaiting=null;
 async function pushSharedNow(){
   if(!AUTH || READONLY) return false;
   clearTimeout(pushTimer); pushTimer = null;
+  if(!pushWaiting) pushWaiting=syncQueued(()=>{ pushWaiting=null; return putShared(); });
+  return pushWaiting;
+}
+/** The PUT, guarded: it says which server document it was built on. If
+ *  someone saved since, the server answers 409 with the current document;
+ *  this tab re-applies its own changes onto it and tries again. */
+async function putShared(){
+  if(!AUTH || READONLY || syncBlocked) return false;
   try{
-    const st=sharedSnapshot(), sent=pendingBoardDates;
-    const r = await fetch('/api/install-schedule/state', {
-      method:'PUT',
-      headers:{'Content-Type':'application/json', Authorization:AUTH},
-      body: JSON.stringify({version:SPEC.version, state:st}),
-    });
-    // The cards now have these dates; a failed save re-sends them next time.
-    if(r.ok && sent) syncedBoardDates=sent;
-    lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
-    return r.ok;
+    for(let attempt=0; attempt<4; attempt++){
+      const st=sharedSnapshot(), sent=pendingBoardDates;
+      const r = await fetch('/api/install-schedule/state', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json', Authorization:AUTH},
+        body: JSON.stringify({version:SPEC.version, state:st,
+                              baseUpdatedAt: sharedBase ? sharedBase.at : null}),
+      });
+      if(r.status===409){
+        const j = await r.json();
+        if(!j || !j.state || syncBlockedBy(j)) break;
+        // No base at all (this tab never loaded the shared copy): treat
+        // everything here as a change, so anything that differs is listed.
+        const res = rebaseOnto(j, sharedBase || {at:null, state:{}}, sharedDocOf(snapshot()));
+        render(); saveLocal();
+        if(!res.pending){ lastPushOk = true; if(typeof syncToolbar==='function') syncToolbar(); return true; }
+        continue;
+      }
+      if(r.ok){
+        const j = await r.json().catch(()=>({}));
+        sharedBase = {at:(j && j.updatedAt) || null, state:sharedDocOf(st)};
+        // The cards now have these dates; a failed save re-sends them next time.
+        if(sent) syncedBoardDates=sent;
+        saveLocal();
+      }
+      lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
+      return r.ok;
+    }
+    if(!syncBlocked)
+      showSyncBanner({title:'This schedule keeps changing while this tab saves.',
+        sub:'Your changes are kept on this device. Reload to see the latest, then check them.', reload:true});
+    lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar();
+    return false;
   }catch(e){ lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false; }
 }
 var lastPushOk = null;   // null: nothing pushed yet this session
+// ---------- the out-of-date banner ----------
+function syncWho(j){
+  const by=String((j && j.updatedBy)||'');
+  // Logins are stored as user ids; only a readable name (a script's label)
+  // is worth showing.
+  const who = by && !/^[0-9a-f-]{20,}$/i.test(by) ? ' by '+by : '';
+  return (j && j.updatedAt ? ' (saved'+who+' at '+fmtWhen(j.updatedAt).split(' · ').pop()+')' : '');
+}
+function showMergedBanner(j, res){
+  if(res.conflicts.length){
+    showSyncBanner({title:'This tab was out of date.',
+      sub:'We loaded the latest'+syncWho(j)+' and re-applied your changes, except these, which someone else '
+         +'changed too. Their version was kept:',
+      list:res.conflicts, reload:true});
+  } else {
+    showSyncBanner({title:'This tab was out of date.',
+      sub:'We loaded the latest'+syncWho(j)+' and re-applied your changes. Nothing was lost.'});
+  }
+}
+function showSyncBanner(o){
+  const b=document.getElementById('syncbanner'); if(!b) return;
+  const esc=x=>String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const list=(o.list||[]);
+  b.innerHTML=`<div class="sbmsg"><b>${esc(o.title)}</b><span class="sbsub">${esc(o.sub||'')}</span>`
+    + (list.length ? `<ul>${list.slice(0,8).map(x=>`<li>${esc(x)}</li>`).join('')}`
+        + (list.length>8 ? `<li>and ${list.length-8} more</li>` : '') + '</ul>' : '')
+    + `</div><div class="sbbtns">`
+    + (o.reload ? '<button type="button" class="sbreload">Reload</button>' : '')
+    + (o.sticky ? '' : '<button type="button" class="sbok">OK</button>')
+    + '</div>';
+  b.hidden=false;
+  const ok=b.querySelector('.sbok'), rl=b.querySelector('.sbreload');
+  if(ok) ok.onclick=()=>{ b.hidden=true; };
+  if(rl) rl.onclick=()=>{ try{ (window.top||window).location.reload(); }catch(e){ location.reload(); } };
+}
 // Flush a pending debounced push when the page is going away. Without
 // this, an edit made in the last 200ms before the tab is closed, the phone
 // is locked, or the app navigates to another tab only lives in this
@@ -3848,14 +4187,26 @@ var lastPushOk = null;   // null: nothing pushed yet this session
 // request outlive the document. Also exposed as window.tbdgFlush so the
 // hosting page (InstallSchedule.tsx) can call it synchronously right
 // before it unmounts the iframe, where no unload event is guaranteed.
+// Guarded like every save; if it is refused and the page is still here, the
+// normal save merges and retries, and if the page is gone, this device's
+// copy (with its base) is merged on the next load.
 function tbdgFlush(){
-  if(!AUTH || READONLY || !pushTimer) return;
+  if(!AUTH || READONLY || !pushTimer || syncBlocked) return;
   clearTimeout(pushTimer); pushTimer = null;
   try{
+    const st=sharedSnapshot(), sent=pendingBoardDates;
     fetch('/api/install-schedule/state', {
       method:'PUT', keepalive:true,
       headers:{'Content-Type':'application/json', Authorization:AUTH},
-      body: JSON.stringify({version:SPEC.version, state:sharedSnapshot()}),
+      body: JSON.stringify({version:SPEC.version, state:st,
+                            baseUpdatedAt: sharedBase ? sharedBase.at : null}),
+    }).then(async r=>{
+      if(r.ok){
+        const j=await r.json().catch(()=>({}));
+        sharedBase={at:(j && j.updatedAt) || null, state:sharedDocOf(st)};
+        if(sent) syncedBoardDates=sent;
+        saveLocal();
+      } else if(r.status===409) pushSharedNow();
     }).catch(()=>{});
   }catch(e){}
 }
@@ -3946,7 +4297,7 @@ async function restoreHistoryEntry(entryId, btn){
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
-    localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
+    saveLocal();
     histdlg.close();
     render();
     if(!ok) alert('Restored locally, but saving it back to the shared schedule failed -- '
@@ -3980,7 +4331,7 @@ function restoreBlob(blob){
   hold = normNotInstalling(s.hold);
   stopPin = normStopPins(s.stopPin);
   lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
-  applyPlacement(s.placement);
+  const missing = applyPlacement(s.placement);
   materializeTrainingDays();
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
   confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
@@ -3988,6 +4339,7 @@ function restoreBlob(blob){
   comments = normComments(s.comments);
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
+  return missing;
 }
 /** Call immediately BEFORE mutating, so the stack holds the prior state. */
 function pushUndo(){

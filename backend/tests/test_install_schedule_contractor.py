@@ -142,9 +142,15 @@ def _saved(fake_db):
     return json.loads(args[1])
 
 
+STORED_AT = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+
+
 def _put(fake_db, fake_request, state, role):
-    fake_db.on_fetchval("FOR UPDATE", json.dumps(stored_state()))
-    run(sched.put_state(fake_request("user-7"), {"version": "build-1", "state": state}, role=role))
+    fake_db.on_fetchrow("FOR UPDATE", {"state": json.dumps(stored_state()), "updated_by": "u",
+                                       "updated_at": STORED_AT})
+    run(sched.put_state(fake_request("user-7"),
+                        {"version": "build-1", "state": state, "baseUpdatedAt": STORED_AT.isoformat()},
+                        role=role))
     return _saved(fake_db)
 
 

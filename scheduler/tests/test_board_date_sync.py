@@ -96,10 +96,16 @@ def test_every_save_carries_date_moves_and_baselines_are_set():
     assert "boardDateMoves(cur, syncedBoardDates)" in shared
     assert "dateMoves}" in shared
     push = js_function("pushSharedNow")
-    assert "if(r.ok && sent) syncedBoardDates=sent;" in push
     assert "if(!AUTH || READONLY) return false;" in push      # archived / viewer never send
-    pull = js_function("pullShared")
-    assert pull.count("syncedBoardDates =") == 3
+    put = js_function("putShared")
+    assert "if(sent) syncedBoardDates=sent;" in put and "if(r.ok){" in put
+    assert "if(!AUTH || READONLY || syncBlocked) return false;" in put
+    # Loading (or re-loading after a refused save) resets the cards' baseline
+    # to the document just loaded, so dateMoves are only this tab's own moves.
+    assert "syncedBoardDates=placementBoardDates(theirs.placement);" in js_function("rebaseOnto")
+    pull = js_function("pullSharedNow")
+    assert "rebaseOnto(j, base, mine)" in pull
+    assert "syncedBoardDates = placementBoardDates(baselinePlacement());" in pull
     # never the other way: nothing reads a card's date onto the board
     assert "install_date" not in js_function("applyPlacement")
     for fn in ("moveWholeDay", "undo", "redo"):
