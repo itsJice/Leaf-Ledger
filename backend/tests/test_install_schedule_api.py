@@ -239,3 +239,118 @@ def test_storage_outage_degrades(monkeypatch):
     monkeypatch.setattr(sched, "get_conn", broken)
     assert run(sched.list_history("build-1")) == {"version": "build-1", "entries": [], "storage": "unavailable"}
     assert run(sched.get_state("build-1")) == {"version": "build-1", "state": None, "storage": "unavailable"}
+
+
+# ─── board dates -> client cards (Comments #14-17) ──────────────────────────
+
+
+def _card_rows():
+    return [
+        {"id": 1, "client_id": 41, "name": "Amy Jinks", "sheet_name": "Jinks, Amy", "former_names": [],
+         "detail": '{"install_date": "2026-11-07", "total": 900, "notes": "Gate code"}'},
+        {"id": 2, "client_id": 42, "name": "Crane Worldwide", "sheet_name": None, "former_names": ["Crane WW"],
+         "detail": {"install_date": "2026-11-18"}},
+        {"id": 3, "client_id": 43, "name": "Pulled Out", "sheet_name": None, "former_names": [],
+         "detail": {"not_installing": True, "install_date": "2026-11-20"}},
+        # two clients answering to one spelling: never guessed between
+        {"id": 4, "client_id": 44, "name": "Smith", "sheet_name": None, "former_names": [], "detail": {}},
+        {"id": 5, "client_id": 45, "name": "Smith House", "sheet_name": "Smith", "former_names": [], "detail": {}},
+    ]
+
+
+def _date_updates(fake_db):
+    return [(a[0], a[1], json.loads(a[2]), a[3]) for _, a in fake_db.calls("UPDATE client_activity")]
+
+
+@pytest.fixture
+def season_2026(monkeypatch):
+    from app.libs import client_season
+    monkeypatch.setattr(client_season, "now_iso", lambda: "T")
+    monkeypatch.setattr(sched, "season_for", lambda: 2026)
+
+
+def test_put_state_writes_moved_board_dates_to_cards(fake_db, fake_request, season_2026):
+    from datetime import date
+    fake_db.on_fetch("SELECT ca.id, ca.client_id, ca.detail", _card_rows())
+    state = {"season": "2026", "dateMoves": [
+        # by id (the page knew the app client)
+        {"id": 41, "name": "Amy Jinks", "kind": "install", "date": "2026-11-13", "from": "2026-11-07"},
+        # by a former spelling, folded like the page folds names
+        {"id": None, "name": "crane  ww.", "kind": "install", "date": "2026-11-19", "from": "2026-11-18"},
+        {"id": None, "name": "Crane Worldwide", "kind": "takedown", "date": "2027-01-08", "from": None},
+        # skipped: not installing / ambiguous / unknown / no-op / junk
+        {"name": "Pulled Out", "kind": "install", "date": "2026-11-21"},
+        {"name": "Smith", "kind": "install", "date": "2026-11-21"},
+        {"name": "Nobody", "kind": "install", "date": "2026-11-21"},
+        {"name": "Amy Jinks", "kind": "install", "date": "2026-11-13"},
+        {"name": "Amy Jinks", "kind": "install", "date": "2027-03-01"},   # outside the season
+        {"name": "Amy Jinks", "kind": "cleanup", "date": "2026-11-14"},
+        {"name": "Amy Jinks", "kind": "install", "date": "11/14/2026"},
+    ]}
+    run(sched.put_state(fake_request("user-7"), {"version": "build-1", "state": state}))
+    assert _date_updates(fake_db) == [
+        (1, "Scheduled 11/13/2026 · $900",
+         {"install_date": "2026-11-13", "total": 900, "notes": "Gate code",
+          "app_edits": {"install_date": "T"},
+          "date_history": [{"field": "install_date", "from": "2026-11-07", "to": "2026-11-13",
+                            "at": "T", "by": "user-7", "source": "install schedule"}]},
+         date(2026, 11, 13)),
+        (2, "Scheduled 11/19/2026",
+         {"install_date": "2026-11-19", "takedown_date": "2027-01-08",
+          "app_edits": {"install_date": "T", "takedown_date": "T"},
+          "date_history": [
+              {"field": "install_date", "from": "2026-11-18", "to": "2026-11-19",
+               "at": "T", "by": "user-7", "source": "install schedule"},
+              {"field": "takedown_date", "from": None, "to": "2027-01-08",
+               "at": "T", "by": "user-7", "source": "install schedule"}]},
+         date(2026, 11, 19)),
+    ]
+    # the card query is this season's only; the save itself still happened
+    assert [a for _, a in fake_db.calls("SELECT ca.id, ca.client_id")] == [("2026",)]
+    assert fake_db.seen("INSERT INTO ll_app.install_schedule_history")
+
+
+def test_undo_resends_the_old_date(fake_db, fake_request, season_2026):
+    rows = _card_rows()
+    rows[0] = {**rows[0], "detail": {"install_date": "2026-11-13",
+                                     "app_edits": {"install_date": "T0"},
+                                     "date_history": [{"field": "install_date", "from": "2026-11-07",
+                                                       "to": "2026-11-13"}]}}
+    fake_db.on_fetch("SELECT ca.id, ca.client_id, ca.detail", rows)
+    state = {"season": "2026", "dateMoves": [
+        {"id": 41, "name": "Amy Jinks", "kind": "install", "date": "2026-11-07", "from": "2026-11-13"}]}
+    run(sched.put_state(fake_request("u"), {"version": "build-1", "state": state}))
+    [(row_id, summary, detail, _)] = _date_updates(fake_db)
+    assert (row_id, summary, detail["install_date"]) == (1, "Scheduled 11/07/2026", "2026-11-07")
+    assert [h["to"] for h in detail["date_history"]] == ["2026-11-13", "2026-11-07"]
+
+
+def test_date_moves_ignored_for_archived_seasons_and_old_pages(fake_db, fake_request, season_2026):
+    fake_db.on_fetch("SELECT ca.id, ca.client_id, ca.detail", _card_rows())
+    move = [{"id": 41, "name": "Amy Jinks", "kind": "install", "date": "2025-11-13"}]
+    run(sched.put_state(fake_request(), {"version": "build-0", "state": {"season": "2025", "dateMoves": move}}))
+    run(sched.put_state(fake_request(), {"version": "build-1", "state": {"season": "2026"}}))
+    run(sched.put_state(fake_request(), {"version": "build-1", "state": {"season": "2026", "dateMoves": []}}))
+    assert not fake_db.seen("client_activity")
+
+
+def test_card_write_failure_never_fails_the_save(fake_db, fake_request, season_2026):
+    def boom(*_):
+        raise RuntimeError("db hiccup")
+    fake_db.on("SELECT ca.id, ca.client_id, ca.detail", boom)
+    state = {"season": "2026", "dateMoves": [{"id": 41, "name": "A", "kind": "install", "date": "2026-11-13"}]}
+    out = run(sched.put_state(fake_request("u"), {"version": "build-1", "state": state}))
+    assert out["ok"] is True
+
+
+def test_viewer_and_production_cannot_put_state():
+    """The card write lives inside PUT /state, so the router's role check is
+    its gate: the viewer login reads only, production is GET-only here."""
+    from app.libs import roles
+    minimum = getattr(sched, "MIN_ROLE", "staff")
+    path = "/api/install-schedule/state"
+    for role in ("viewer", "production", "lead", "crew"):
+        assert not roles.allowed(role, minimum, "PUT", sched.VIEWER_READ, path), role
+        assert role in ("lead", "crew") or roles.allowed(role, minimum, "GET", sched.VIEWER_READ, path)
+    for role in ("staff", "admin", "super_admin"):
+        assert roles.allowed(role, minimum, "PUT", sched.VIEWER_READ, path), role
