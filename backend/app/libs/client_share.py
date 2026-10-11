@@ -17,6 +17,7 @@ those fields; the ICS and CSV writers only ever see its output.
 from __future__ import annotations
 
 import csv
+import math
 import hashlib
 import io
 from dataclasses import dataclass
@@ -31,8 +32,9 @@ DESCRIPTION = {
     "Install": f"After-hours install by {COMPANY}. Times are estimates.",
     "Takedown": f"After-hours takedown by {COMPANY}. Times are estimates.",
 }
-#: A stop with no hours on the board still gets a visible block.
-MIN_EVENT_MIN = 30
+#: Shared times are rounded to the nearest quarter hour (ties up), and a
+#: visit is never shorter than one quarter hour.
+ROUND_MIN = 15
 
 
 @dataclass(frozen=True)
@@ -94,6 +96,13 @@ def is_takedown(day_iso: str, visit_type: Optional[str]) -> bool:
     return d.month <= 2 or (d.month == 12 and d.day >= 26)
 
 
+def round_quarter(minutes: float) -> int:
+    """Nearest 15 minutes, ties up. ``minutes`` count from local (Central)
+    midnight of the board date, and 15 divides a day, so this is the same as
+    rounding the Central clock time; past 1440 it rolls into the next day."""
+    return int(math.floor(minutes / ROUND_MIN + 0.5)) * ROUND_MIN
+
+
 def _uid(location: str, kind: str, n: int) -> str:
     """Stable per location + visit kind + nth visit, so a moved date updates
     the same calendar event. Hashed: no board row or client id leaks."""
@@ -127,8 +136,9 @@ def visits(board: Board, rule: Rule, names: Optional[dict] = None) -> list[Visit
         location = display_name(rule, names.get(row) or c.get("name") or "")
         kind = "Takedown" if is_takedown(day_iso, c.get("visitType")) else "Install"
         n = seen[(location, kind)] = seen.get((location, kind), 0) + 1
+        start, end = round_quarter(start), round_quarter(end)
         out.append(Visit(location=location, address=cal._address(c), date=day_iso,
-                         start=start, end=max(end, start + MIN_EVENT_MIN), kind=kind,
+                         start=start, end=max(end, start + ROUND_MIN), kind=kind,
                          uid=_uid(location, kind, n)))
     return out
 

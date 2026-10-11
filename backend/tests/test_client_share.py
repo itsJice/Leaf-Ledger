@@ -104,15 +104,15 @@ def test_only_matching_locations_with_the_prefix_stripped():
 def test_night_times_use_the_schedule_tools_stop_math():
     v = {x.location: x for x in visits()}
     # 11 PM start, crews already in Dallas (not depot-anchored), half of 7 h each.
-    assert (v["Lake Highlands"].start, v["Lake Highlands"].end) == (1380, 1595)
-    assert (v["Lakewood"].start, v["Lakewood"].end) == (1380 + 210 + 10, 1380 + 210 + 10 + 120)
+    assert (v["Lake Highlands"].start, v["Lake Highlands"].end) == (1380, 1590)   # 2:35 -> 2:30 AM
+    assert (v["Lakewood"].start, v["Lakewood"].end) == (1605, 1725)   # 2:40-4:40 AM -> 2:45-4:45 AM
     assert (v["Corporate Office"].start, v["Corporate Office"].end) == (540, 660)   # the 9-5 office
 
 
 def test_joint_stop_is_one_event_spanning_both_crews():
     lh = [x for x in visits() if x.location == "Lake Highlands"]
     assert len(lh) == 1
-    assert (lh[0].start, lh[0].end) == (1380, 1595)   # Crew 1's 11:00 PM to Crew 2's 2:35 AM
+    assert (lh[0].start, lh[0].end) == (1380, 1590)   # Crew 1's 11:00 PM to Crew 2's 2:35 AM, rounded
 
 
 def test_explicit_client_ids_match_by_every_spelling():
@@ -152,7 +152,7 @@ def test_ics_events_titles_location_description_and_central_times():
     assert ("DESCRIPTION:After-hours install by The Branch Design Group (TBDG). "
             "Times are estimates.") in ics
     assert "DTSTART;TZID=America/Chicago:20261102T230000" in ics
-    assert "DTEND;TZID=America/Chicago:20261103T023500" in ics   # runs into the next morning
+    assert "DTEND;TZID=America/Chicago:20261103T023000" in ics   # runs into the next morning
     assert ics.count("BEGIN:VEVENT") == 4
 
 
@@ -201,8 +201,8 @@ def test_csv_columns_order_twelve_hour_times_and_takedown_tbd():
     assert rows[1] == ["Mon 11/2/2026", "Corporate Office", "2455 McIver Ln, Carrollton, TX 75006",
                        "9:00 AM", "11:00 AM", "Install"]
     assert rows[2] == ["Mon 11/2/2026", "Lake Highlands", "7215 Skillman St #328, Dallas, TX 75231",
-                       "11:00 PM", "2:35 AM", "Install"]
-    assert rows[3][1] == "Lakewood" and rows[3][3] == "2:40 AM"
+                       "11:00 PM", "2:30 AM", "Install"]
+    assert rows[3][1] == "Lakewood" and rows[3][3] == "2:45 AM"
     assert rows[4] == ["Mon 12/28/2026", "Uptown", "3232 McKinney Ave #175, Dallas, TX 75204",
                        "11:00 PM", "12:00 AM", "Takedown"]
     tbd = rows[5:]
@@ -385,3 +385,20 @@ def test_over_http_feed_needs_no_sign_in_and_admin_does(live):
     if not main.AUTH_DISABLED:
         assert c.get("/api/client-share-links").status_code in (401, 403)
         assert c.post("/api/client-share-links", json={"label": "x", "name_prefix": "M Crowd "}).status_code in (401, 403)
+
+
+def test_times_round_to_the_nearest_quarter_hour_ties_up():
+    assert [cs.round_quarter(m) for m in (0, 7, 7.5, 8, 22.4, 22.5, 1432.5, 1446)] == [0, 0, 15, 15, 15, 30, 1440, 1440]
+
+
+def test_rounded_visit_keeps_at_least_fifteen_minutes_and_rolls_past_midnight():
+    payload = {**PAYLOAD, "clients": {**PAYLOAD["clients"], "11": {**PAYLOAD["clients"]["11"], "h26": 0.05}}}
+    state = {**STATE, "timeline": {**STATE["timeline"],
+             MON: {"start": 1380, "stops": [{"row": 10, "start": 1380, "end": 1590},
+                                            {"row": 11, "start": 1433, "end": 1436}]}}}
+    v = {x.location: x for x in cs.visits(schedule_board.resolve("2026", payload, state), RULE)}
+    assert (v["Lakewood"].start, v["Lakewood"].end) == (1440, 1455)
+    ics = unfolded(cs.build_ics("M Crowd", [v["Lakewood"]]))
+    assert "DTSTART;TZID=America/Chicago:20261103T000000" in ics
+    assert "DTEND;TZID=America/Chicago:20261103T001500" in ics
+    assert cs.csv_rows([v["Lakewood"]])[0][3:5] == ("12:00 AM", "12:15 AM")
