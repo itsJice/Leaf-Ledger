@@ -32,8 +32,9 @@ AUTH_DISABLED = (
 
 #: Routers that authenticate themselves instead of with a Supabase session.
 #: Only for callers that cannot sign in -- a calendar app polling a feed. Each
-#: one must check its own secret; see app/apis/install_calendar.
-PUBLIC_ROUTERS = {"install_calendar"}
+#: one must check its own secret; see app/apis/install_calendar and
+#: app/apis/client_share (a client group's share link).
+PUBLIC_ROUTERS = {"install_calendar", "client_share"}
 
 
 def is_auth_disabled(name: str) -> bool:
