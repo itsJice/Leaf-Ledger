@@ -71,6 +71,13 @@
   "/api/builder/scope-filters": [
     "GET"
   ],
+  "/api/client-share-links": [
+    "GET",
+    "POST"
+  ],
+  "/api/client-share-links/{link_id}/revoke": [
+    "POST"
+  ],
   "/api/clients/comments/recent": [
     "GET"
   ],
@@ -463,6 +470,12 @@
   ],
   "/api/settings/markup/category/{category}": [
     "DELETE"
+  ],
+  "/api/share/{token}/calendar.ics": [
+    "GET"
+  ],
+  "/api/share/{token}/schedule.csv": [
+    "GET"
   ],
   "/api/sku-standards": [
     "GET",

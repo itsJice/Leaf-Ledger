@@ -176,7 +176,7 @@ def test_feed_needs_the_token_and_404s_without_it(monkeypatch):
 def test_only_the_calendar_router_skips_sign_in():
     import main
 
-    assert main.PUBLIC_ROUTERS == {"install_calendar"}
+    assert main.PUBLIC_ROUTERS == {"install_calendar", "client_share"}
     assert main.is_auth_disabled("install_calendar")
     assert not main.is_auth_disabled("install_schedule") or main.AUTH_DISABLED
 
