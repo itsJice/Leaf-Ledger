@@ -17,6 +17,7 @@ import {
   Search,
   Trash2,
   TreePine,
+  Upload,
   X,
   Users,
 } from "components/icons";
@@ -39,6 +40,7 @@ import {
   ClientNameFields, composeClientName, duplicateNameMessage, initialNameParts, namePartsBody,
   namePartsProblem, type NameParts, type NamePartsIn,
 } from "./clients/ClientNameFields";
+import { ClientImportDialog } from "./clients/ClientImportDialog";
 
 /** Per-client install-time preference (clients.time_preference, migration 015).
  *  The scheduler orders a crew's stops morning -> flexible -> afternoon -> late. */
@@ -889,6 +891,7 @@ export default function Clients() {
   const [postingComment, setPostingComment] = useState<string | null>(null);
   const [detailsLoadingClient, setDetailsLoadingClient] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientGroup | null>(null);
   const [projectClientName, setProjectClientName] = useState<string | null>(null);
   const [deleteClientTarget, setDeleteClientTarget] = useState<ClientGroup | null>(null);
@@ -1190,14 +1193,26 @@ export default function Clients() {
                 : "Checking clients..."}
           </p>
         </div>
-        <button
-          data-edit onClick={() => setShowNewClientModal(true)}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-          style={{ backgroundColor: "rgb(var(--ll-brand))" }}
-        >
-          <Plus size={15} strokeWidth={2.2} />
-          New Client
-        </button>
+        {/* Same gate as New Client: hidden for a view-only login, and the
+            server refuses anyone below office staff. */}
+        <div className="flex items-center gap-2" data-edit>
+          <button
+            data-edit onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            title="Add many clients at once from a CSV or Excel file"
+          >
+            <Upload size={15} strokeWidth={2.2} />
+            Import CSV
+          </button>
+          <button
+            data-edit onClick={() => setShowNewClientModal(true)}
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            style={{ backgroundColor: "rgb(var(--ll-brand))" }}
+          >
+            <Plus size={15} strokeWidth={2.2} />
+            New Client
+          </button>
+        </div>
       </header>
 
       {/* Two views of the one client list: every client (greenery and
@@ -1549,6 +1564,22 @@ export default function Clients() {
             upsertClientRow(client);
             setSearchParams({ client: client.name });
             setExpandedClient(client.name);
+          }}
+        />
+      )}
+      {showImport && (
+        <ClientImportDialog
+          onClose={() => setShowImport(false)}
+          onImported={(created: ClientRecord[]) => {
+            if (!created.length) return;
+            setClientRows((current) => {
+              const next = mergeClients(created, current);
+              writeClientsPageCache(next, projects);
+              return next;
+            });
+            setInitialDataSettled(true);
+            setSummaryCachedAt(Date.now());
+            notifyProjectsChanged();
           }}
         />
       )}
