@@ -231,7 +231,8 @@ def test_create_by_parts_composes_the_name_and_saves_the_parts(fake_db, fake_req
     out = run(clients.create_client(body, fake_request()))
     (args,) = [a for _, a in fake_db.calls("INSERT INTO clients")]
     assert args[0] == "Byler, Kerri - House"
-    assert args[11:] == ("Kerri", "Byler", None, "House")
+    assert args[11:15] == ("Kerri", "Byler", None, "House")
+    assert args[15:] == (None, None)  # area, zone: the form leaves them unset
     assert (out["name"], out["site"], out["name_parts_saved"]) == ("Byler, Kerri - House", "House", True)
 
 
@@ -316,7 +317,7 @@ def test_create_business_with_a_person_saves_the_person_as_parts(fake_db, fake_r
         first_name="Marissa", last_name="Frazier", company="A Hug Away", site="Daycare"), fake_request()))
     (args,) = [a for _, a in fake_db.calls("INSERT INTO clients")]
     assert args[0] == "A Hug Away | Daycare"
-    assert args[11:] == ("Marissa", "Frazier", "A Hug Away", "Daycare")
+    assert args[11:15] == ("Marissa", "Frazier", "A Hug Away", "Daycare")
     assert (out["first_name"], out["last_name"]) == ("Marissa", "Frazier")
 
 

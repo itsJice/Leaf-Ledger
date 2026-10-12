@@ -4,9 +4,19 @@ Pure functions only -- no database. ``app.apis.clients`` feeds in the file
 and the names already taken, and creates the rows this module marks
 "create" through the same INSERT as the New Client form.
 
-The template's headers are the New Client form's own labels, in form order
-(``TEMPLATE_HEADERS``). Common Odoo export headers are accepted too
-(``HEADER_ALIASES``), matched ignoring case, spaces and punctuation:
+The template's headers are the user's, exactly as given (2026-10-12) --
+the Christmas client sheet's own columns:
+
+    First | Last | ADDRESS | CITY | ST | ZIP | Area | Zone | PHONE | EMAIL
+
+Area and Zone are the install schedule's ("North" / "The Woodlands") and
+are saved on the client (clients.area / clients.zone, migrations/023).
+
+Headers match ignoring case, spaces and punctuation. Still read when
+present: the New Client form's long labels (First name, Last name, Street
+address, Business name, Location, Install time preference, Additional
+contact label/phone/email, General notes) and common Odoo export headers
+(``HEADER_ALIASES``):
 
     Odoo header                         goes into
     Name / Display Name / Contact Name  First + Last name for a person, or the
@@ -15,14 +25,14 @@ The template's headers are the New Client form's own labels, in form order
                                         Type") or reads like one
     Company Name / Related Company      Business name (the Name is then the
                                         business's contact person)
-    Street                              Street address
-    Street2                             added to the Street address
+    Street                              ADDRESS
+    Street2                             added to ADDRESS
     Zip / Zip Code / Postal Code        ZIP
-    State ("Texas (US)")                State, as TX
-    Mobile                              Phone, or an additional contact
-                                        "Mobile" when Phone is filled too
+    State ("Texas (US)")                ST, as TX
+    Mobile                              PHONE, or an additional contact
+                                        "Mobile" when PHONE is filled too
     Notes / Internal Notes / Comment    General notes
-    Email, Phone, City                  the same boxes
+    Email, Phone, City                  EMAIL, PHONE, CITY
 
 Odoo's plain "Company" column is NOT read: on an Odoo contact it is the
 Odoo company that owns the record (ours), not the client's business. Any
@@ -47,44 +57,47 @@ from app.libs import client_names
 
 # ─── the template ───────────────────────────────────────────────────────────
 
-#: (field key, header) in the New Client form's order and with its labels.
+#: (field key, header): the user's columns, exactly as given (2026-10-12),
+#: which are the Christmas client sheet's own headers.
 TEMPLATE_FIELDS: tuple[tuple[str, str], ...] = (
-    ("first_name", "First name"),
-    ("last_name", "Last name"),
+    ("first_name", "First"),
+    ("last_name", "Last"),
+    ("street", "ADDRESS"),
+    ("city", "CITY"),
+    ("state", "ST"),
+    ("zip", "ZIP"),
+    ("area", "Area"),
+    ("zone", "Zone"),
+    ("phone", "PHONE"),
+    ("email", "EMAIL"),
+)
+TEMPLATE_HEADERS: tuple[str, ...] = tuple(h for _, h in TEMPLATE_FIELDS)
+
+#: Columns still read when present, though not in the template: the New
+#: Client form's other boxes, under the form's labels.
+OPTIONAL_FIELDS: tuple[tuple[str, str], ...] = (
     ("company", "Business name"),
     ("site", "Location"),
-    ("email", "Email"),
-    ("phone", "Phone"),
-    ("street", "Street address"),
-    ("city", "City"),
-    ("state", "State"),
-    ("zip", "ZIP"),
     ("time_preference", "Install time preference"),
     ("contact_label", "Additional contact label"),
     ("contact_phone", "Additional contact phone"),
     ("contact_email", "Additional contact email"),
     ("notes", "General notes"),
 )
-TEMPLATE_HEADERS: tuple[str, ...] = tuple(h for _, h in TEMPLATE_FIELDS)
-FIELD_LABEL = dict(TEMPLATE_FIELDS)
+FIELD_LABEL = {**dict(TEMPLATE_FIELDS), **dict(OPTIONAL_FIELDS)}
 
-#: Fake rows for "Download example": a person, a business with a contact
-#: person, and a business with a location.
+#: Fake rows for "Download example": three people, with Area / Zone as the
+#: schedule zones their ZIP (scheduler/prep.py ZIP_ZONE).
 EXAMPLE_ROWS: tuple[dict, ...] = (
-    {"first_name": "Jamie", "last_name": "Rivera", "email": "jamie.rivera@example.com",
-     "phone": "(281) 555-0142", "street": "123 Maple Ln", "city": "The Woodlands",
-     "state": "TX", "zip": "77380", "time_preference": "Morning",
-     "contact_label": "Spouse", "contact_phone": "(281) 555-0143",
-     "notes": "Gate code at the side entrance. Dog in the backyard."},
-    {"first_name": "Dana", "last_name": "Lee", "company": "Pine Hollow Dental",
-     "email": "office@pinehollow.example.com", "phone": "(936) 555-0110",
-     "street": "400 Market St Suite 2", "city": "Conroe", "state": "TX", "zip": "77301",
-     "time_preference": "Late", "notes": "Install after 5 PM, office closes at 5."},
-    {"company": "Lakeside Country Club", "site": "North Clubhouse",
-     "email": "events@lakeside.example.com", "phone": "(832) 555-0199",
-     "street": "1 Lakeside Dr", "city": "Montgomery", "state": "TX", "zip": "77356",
-     "time_preference": "Afternoon",
-     "contact_label": "Events manager", "contact_email": "events.manager@lakeside.example.com"},
+    {"first_name": "Jamie", "last_name": "Rivera", "street": "123 Maple Ln", "city": "The Woodlands",
+     "state": "TX", "zip": "77380", "area": "North", "zone": "The Woodlands",
+     "phone": "(281) 555-0142", "email": "jamie.rivera@example.com"},
+    {"first_name": "Dana", "last_name": "Lee", "street": "1418 Columbia St", "city": "Houston",
+     "state": "TX", "zip": "77008", "area": "Central", "zone": "Heights/Near Northside",
+     "phone": "(713) 555-0110", "email": "dana.lee@example.com"},
+    {"first_name": "Marcus", "last_name": "Hale", "street": "2207 Prairie Rose Dr", "city": "Katy",
+     "state": "TX", "zip": "77450", "area": "West", "zone": "Katy/Fulshear",
+     "phone": "(832) 555-0199", "email": "marcus.hale@example.com"},
 )
 
 #: Extra keys only an alias can fill (no template column of their own).
@@ -92,16 +105,18 @@ _EXTRA_KEYS = ("name", "mobile", "street2", "is_company", "company_type")
 
 #: Accepted header spellings per key, beyond the template header itself.
 HEADER_ALIASES: dict[str, tuple[str, ...]] = {
-    "first_name": ("first", "firstname", "given name"),
-    "last_name": ("last", "lastname", "surname", "family name"),
+    "first_name": ("first name", "firstname", "given name"),
+    "last_name": ("last name", "lastname", "surname", "family name"),
     "company": ("business", "company name", "related company", "parent name",
                 "parent company", "organization", "organisation"),
     "site": ("site", "property", "location name"),
     "email": ("e-mail", "email address", "e-mail address"),
     "phone": ("phone number", "telephone", "tel", "work phone", "home phone"),
-    "street": ("street", "address", "address line 1", "street 1", "street1"),
+    "street": ("street address", "street", "address line 1", "street 1", "street1"),
     "city": ("town",),
-    "state": ("state/province", "province", "state name", "region"),
+    "state": ("state", "state/province", "province", "state name", "region"),
+    "area": ("schedule area",),
+    "zone": ("schedule zone",),
     "zip": ("zip", "zip code", "zipcode", "postal code", "postcode", "post code"),
     "time_preference": ("time preference", "install time", "preferred time"),
     "contact_label": ("additional contact", "additional contact name"),
@@ -118,16 +133,16 @@ HEADER_ALIASES: dict[str, tuple[str, ...]] = {
 
 #: For the dialog's "From Odoo?" list: what the common Odoo headers become.
 ODOO_ALIAS_DOC: tuple[tuple[str, str], ...] = (
-    ("Name", "First name + Last name (or Business name for a company)"),
+    ("Name", "First + Last (or Business name for a company)"),
     ("Company Name / Related Company", "Business name (the Name becomes its contact person)"),
     ("Is a Company / Company Type", "says whether Name is a business"),
-    ("Street", "Street address"),
-    ("Street2", "added to Street address"),
+    ("Street", "ADDRESS"),
+    ("Street2", "added to ADDRESS"),
     ("Zip", "ZIP"),
-    ("State (e.g. Texas (US))", "State, as TX"),
-    ("Mobile", "Phone, or an additional contact when Phone is filled"),
+    ("State (e.g. Texas (US))", "ST, as TX"),
+    ("Mobile", "PHONE, or an additional contact when PHONE is filled"),
     ("Notes / Internal Notes", "General notes"),
-    ("Email, Phone, City", "the same columns"),
+    ("Email, Phone, City", "EMAIL, PHONE, CITY"),
 )
 
 MAX_ROWS = 2000
@@ -154,7 +169,7 @@ def _norm_header(h: Optional[str]) -> str:
 
 def _build_alias_index() -> dict[str, str]:
     index: dict[str, str] = {}
-    for key, header in TEMPLATE_FIELDS:
+    for key, header in TEMPLATE_FIELDS + OPTIONAL_FIELDS:
         index[_norm_header(header)] = key
     for key, aliases in HEADER_ALIASES.items():
         for a in aliases:
@@ -421,6 +436,8 @@ def build_row(cells: dict) -> tuple[dict, list[str], list[str]]:
         "time_preference": pref,
         "secondary_contacts": contacts,
         "notes": c.get("notes") or None,
+        "area": c.get("area") or None,
+        "zone": c.get("zone") or None,
     }
     if parts and parts.get("company") and (parts.get("first_name") or parts.get("last_name")):
         person = " ".join(p for p in (parts["first_name"], parts["last_name"]) if p)
@@ -457,7 +474,7 @@ def validate(rows: list[list[str]], existing: dict[str, str]) -> dict:
     if not keys & {"first_name", "last_name", "company", "name"}:
         raise ImportFileError(
             "Couldn't find a name column. The first row needs headers like "
-            "First name, Last name and Business name (or Odoo's Name).")
+            "First and Last (or Business name, or Odoo's Name).")
     data_rows = [(i + 2, r) for i, r in enumerate(rows[1:]) if any(_clean(c) for c in r)]
     if len(data_rows) > MAX_ROWS:
         raise ImportFileError(f"That file has {len(data_rows)} rows; {MAX_ROWS} at most per import.")
@@ -473,15 +490,17 @@ def validate(rows: list[list[str]], existing: dict[str, str]) -> dict:
         if problems:
             result.update(status=STATUS_ERROR, message="; ".join(problems))
         elif key in existing:
+            # The import shows names as their parts, never composed
+            # (user, 2026-10-12), so the message doesn't quote the name.
             match = existing[key]
             if name_key(match) != key:
-                msg = f'Already a client (renamed to "{match}")'
+                msg = "Already a client (under a newer name)"
             elif (fields["parts"] or {}).get("company") and not fields["parts"].get("site"):
                 # Businesses go by the business name alone, so a second card
                 # for one business needs a Location to be told apart.
-                msg = f'Already a client: "{match}". If this is another site, add a Location.'
+                msg = "Already a client. If this is another site, add a Location."
             else:
-                msg = f'Already a client: "{match}"'
+                msg = "Already a client"
             result.update(status=STATUS_DUPLICATE, message=msg)
         elif key in seen:
             result.update(status=STATUS_DUPLICATE, message=f"Same name as row {seen[key]} in this file")
@@ -503,9 +522,9 @@ def validate(rows: list[list[str]], existing: dict[str, str]) -> dict:
 
 #: How the alias-only keys read in the "columns we read" list.
 _EXTRA_LABEL = {
-    "name": "First + Last name (or Business name)",
-    "mobile": "Phone / additional contact",
-    "street2": "Street address (line 2)",
+    "name": "First + Last (or Business name)",
+    "mobile": "PHONE / additional contact",
+    "street2": "ADDRESS (line 2)",
     "is_company": "Business or person",
     "company_type": "Business or person",
 }
@@ -524,6 +543,7 @@ def public_row(r: dict) -> dict:
         "email": f["email"], "phone": f["phone"],
         "street": f["street"], "city": f["city"], "state": f["state"], "zip": f["zip"],
         "time_preference": f["time_preference"],
+        "area": f["area"], "zone": f["zone"],
         "secondary_contacts": f["secondary_contacts"],
         "notes_text": f["notes"],
     }

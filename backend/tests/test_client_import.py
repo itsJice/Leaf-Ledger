@@ -36,6 +36,13 @@ def csv_text(*rows) -> str:
 
 
 HEADER = ",".join(ci.TEMPLATE_HEADERS)
+#: The New Client form's labels: no longer the template, still read.
+LONG_HEADERS = [
+    "First name", "Last name", "Business name", "Location", "Email", "Phone",
+    "Street address", "City", "State", "ZIP", "Install time preference",
+    "Additional contact label", "Additional contact phone", "Additional contact email",
+    "General notes",
+]
 
 
 def by_row(result):
@@ -45,37 +52,49 @@ def by_row(result):
 # ─── the template ───────────────────────────────────────────────────────────
 
 
-def test_template_headers_are_the_new_client_form_labels_in_order():
+def test_template_headers_are_exactly_the_users():
     assert ci.TEMPLATE_HEADERS == (
-        "First name", "Last name", "Business name", "Location", "Email", "Phone",
-        "Street address", "City", "State", "ZIP", "Install time preference",
-        "Additional contact label", "Additional contact phone", "Additional contact email",
-        "General notes",
-    )
+        "First", "Last", "ADDRESS", "CITY", "ST", "ZIP", "Area", "Zone", "PHONE", "EMAIL")
+    assert ci.template_csv() == "First,Last,ADDRESS,CITY,ST,ZIP,Area,Zone,PHONE,EMAIL\r\n"
 
 
-def test_example_csv_round_trips_as_three_new_clients():
+def test_example_csv_round_trips_as_three_new_people():
     rows = ci.read_rows("example.csv", ci.template_csv(with_examples=True).encode())
     assert rows[0] == list(ci.TEMPLATE_HEADERS)
     result = ci.validate(rows, {})
     assert result["counts"] == {"create": 3, "duplicate": 0, "error": 0, "total": 3}
-    assert [r["name"] for r in result["rows"]] == [
-        "Rivera, Jamie",                               # a person
-        "Pine Hollow Dental",                          # a business (Dana Lee is the contact)
-        "Lakeside Country Club | North Clubhouse",     # a business with a location
-    ]
+    assert [r["name"] for r in result["rows"]] == ["Rivera, Jamie", "Lee, Dana", "Hale, Marcus"]
+    assert [(r["fields"]["area"], r["fields"]["zone"]) for r in result["rows"]] == [
+        ("North", "The Woodlands"), ("Central", "Heights/Near Northside"), ("West", "Katy/Fulshear")]
+    assert all(r["fields"]["parts"]["company"] is None for r in result["rows"])
     assert result["ignored_columns"] == []
 
 
-def test_template_csv_is_headers_only():
-    assert ci.template_csv() == HEADER + "\r\n"
+def test_example_area_zone_match_the_schedules_zip_zones():
+    """The examples teach the real values: the scheduler's ZIP -> (Area, Zone)."""
+    import ast
+    import pathlib
+
+    src = (pathlib.Path(__file__).resolve().parents[2] / "scheduler" / "prep.py").read_text()
+    start = src.index("ZIP_ZONE = {")
+    zip_zone = ast.literal_eval(src[start + len("ZIP_ZONE = "): src.index("\n}\n", start) + 2])
+    for ex in ci.EXAMPLE_ROWS:
+        assert zip_zone[ex["zip"]] == (ex["area"], ex["zone"])
+
+
+def test_template_headers_match_any_case_and_old_labels_still_work():
+    mapping, ignored = ci.map_headers(["first", "LAST", "Address", "city", "st", "zip", "AREA", "zone", "Phone", "email"])
+    assert list(mapping.values()) == [k for k, _ in ci.TEMPLATE_FIELDS] and ignored == []
+    mapping, ignored = ci.map_headers(LONG_HEADERS)
+    assert ignored == [] and len(mapping) == len(LONG_HEADERS)
+    assert mapping[0] == "first_name" and mapping[2] == "company" and mapping[6] == "street"
 
 
 def test_template_endpoint(fake_db, fake_request):
     out = run(clients.import_template(fake_request()))
     assert out["headers"] == list(ci.TEMPLATE_HEADERS)
     assert len(out["example_rows"]) == 3 and all(len(r) == len(ci.TEMPLATE_HEADERS) for r in out["example_rows"])
-    assert ["Street2", "added to Street address"] in out["odoo_aliases"]
+    assert ["Street2", "added to ADDRESS"] in out["odoo_aliases"]
     assert fake_db.executed == []
 
 
@@ -83,7 +102,7 @@ def test_template_endpoint(fake_db, fake_request):
 
 
 def test_reads_bom_semicolons_tabs_and_windows_encoding():
-    assert ci.read_rows("a.csv", ("\ufeff" + HEADER + "\r\nA,B\r\n").encode())[0][0] == "First name"
+    assert ci.read_rows("a.csv", ("\ufeff" + HEADER + "\r\nA,B\r\n").encode())[0][0] == "First"
     assert ci.read_rows("a.csv", b"First name;Last name\r\nAna;Diaz\r\n")[1] == ["Ana", "Diaz"]
     assert ci.read_rows("a.txt", b"First name\tLast name\nAna\tDiaz\n")[1] == ["Ana", "Diaz"]
     assert ci.read_rows("a.csv", "First name\nJosé\n".encode("cp1252"))[1] == ["José"]
@@ -169,7 +188,7 @@ def test_odoo_person_row():
     assert r["notes_text"] == "Dog in yard"
     assert r["notes"] == ['Split "Jamie Rivera" into First "Jamie", Last "Rivera"']
     assert result["ignored_columns"] == ["Country"]
-    assert result["columns"]["Street2"] == "Street address (line 2)"
+    assert result["columns"]["Street2"] == "ADDRESS (line 2)"
 
 
 def test_odoo_company_rows_and_contacts():
@@ -222,7 +241,7 @@ def test_zip(raw, expected):
 
 
 def test_row_errors():
-    rows = [list(ci.TEMPLATE_HEADERS),
+    rows = [LONG_HEADERS,
             ["", "", "", "House", "", "", "", "", "", "", "", "", "", "", ""],           # no name
             ["Ana", "Diaz", "", "", "ana@", "", "", "", "", "", "", "", "", "", ""],      # bad email
             ["Ben", "Ito", "", "", "", "555-12", "", "", "", "", "", "", "", "", ""],    # short phone
@@ -266,9 +285,9 @@ def test_duplicates_against_saved_clients_and_former_names():
                           ["Dana", "Lee", "Pine Hollow Dental", ""],
                           ["", "", "Pine Hollow Dental", "Office"]], EXISTING)
     rows = by_row(result)
-    assert (rows[2]["status"], rows[2]["message"]) == ("duplicate", 'Already a client: "Rivera, Jamie"')
-    assert rows[3]["message"] == 'Already a client (renamed to "Byler, Kerri")'
-    assert rows[4]["message"] == 'Already a client: "Pine Hollow Dental". If this is another site, add a Location.'
+    assert (rows[2]["status"], rows[2]["message"]) == ("duplicate", "Already a client")
+    assert rows[3]["message"] == "Already a client (under a newer name)"
+    assert rows[4]["message"] == "Already a client. If this is another site, add a Location."
     assert "Dana Lee is saved as the contact person" in rows[4]["notes"]
     assert rows[5]["status"] == "create"
     assert result["counts"] == {"create": 1, "duplicate": 3, "error": 0, "total": 4}
@@ -291,12 +310,12 @@ def test_an_error_row_does_not_claim_a_name():
 
 FILE = csv_text(
     ["First name", "Last name", "Business name", "Location", "Email", "Phone", "Install time preference",
-     "Additional contact label", "Additional contact phone"],
-    ["Ana", "Diaz", "", "", "ana@example.com", "2815550100", "Late", "Wife", "2815550101"],
-    ["Jamie", "Rivera", "", "", "", "", "", "", ""],
-    ["", "", "Lakeside Country Club", "North Clubhouse", "", "", "", "", ""],
-    ["Bad", "Row", "", "", "nope", "", "", "", ""],
-    ["Ana", "Diaz", "", "", "", "", "", "", ""],
+     "Additional contact label", "Additional contact phone", "Area", "Zone"],
+    ["Ana", "Diaz", "", "", "ana@example.com", "2815550100", "Late", "Wife", "2815550101", "North", "The Woodlands"],
+    ["Jamie", "Rivera", "", "", "", "", "", "", "", "", ""],
+    ["", "", "Lakeside Country Club", "North Clubhouse", "", "", "", "", "", "", ""],
+    ["Bad", "Row", "", "", "nope", "", "", "", "", "", ""],
+    ["Ana", "Diaz", "", "", "", "", "", "", "", "", ""],
 )
 
 
@@ -352,9 +371,9 @@ def test_commit_creates_only_new_valid_rows_through_the_form_insert(fake_db, fak
     assert [args for _, args in inserts] == [
         ("Diaz, Ana", "ana@example.com", "2815550100", None, None, None, None, None,
          '[{"label": "Wife", "phone": "2815550101", "email": null}]', None, "late",
-         "Ana", "Diaz", None, None),
+         "Ana", "Diaz", None, None, "North", "The Woodlands"),
         ("Lakeside Country Club | North Clubhouse", None, None, None, None, None, None, None,
-         "[]", None, None, None, None, "Lakeside Country Club", "North Clubhouse"),
+         "[]", None, None, None, None, "Lakeside Country Club", "North Clubhouse", None, None),
     ]
     assert not fake_db.seen("UPDATE clients")
     assert out["dry_run"] is False
@@ -373,7 +392,7 @@ def test_commit_skips_a_name_taken_since_the_preview(fake_db, fake_request):
     fake_db.on("INSERT INTO clients", insert, method="fetchrow")
     out = run(clients.commit_client_import(upload(FILE), fake_request()))
     rows = {r["row"]: r for r in out["rows"]}
-    assert (rows[2]["status"], rows[2]["message"]) == ("duplicate", 'Already a client: "Diaz, Ana"')
+    assert (rows[2]["status"], rows[2]["message"]) == ("duplicate", "Already a client")
     assert out["counts"]["create"] == 1 and len(out["created"]) == 1
 
 

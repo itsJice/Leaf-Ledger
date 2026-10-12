@@ -19,7 +19,6 @@ import {
   AlertCircle, Check, ChevronDown, Download, FileSpreadsheet, FileUp, Loader2, X,
 } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
-import { composeClientName } from "./ClientNameFields";
 
 export type ImportStatus = "create" | "duplicate" | "error";
 
@@ -40,6 +39,8 @@ export type ImportRow = {
   state?: string | null;
   zip?: string | null;
   time_preference?: string | null;
+  area?: string | null;
+  zone?: string | null;
   secondary_contacts?: { label: string; phone?: string | null; email?: string | null }[];
   notes_text?: string | null;
   client_id?: number | null;
@@ -72,14 +73,6 @@ export function csvCell(value: string): string {
 export function templateCsv(t: ImportTemplate, withExamples: boolean): string {
   const lines = [t.headers, ...(withExamples ? t.example_rows : [])].map((r) => r.map(csvCell).join(","));
   return "\ufeff" + lines.join("\r\n") + "\r\n";
-}
-
-/** What an example row shows as, by the same rule as the New Client form. */
-export function exampleShowsAs(t: ImportTemplate, row: string[]): string {
-  const at = (h: string) => row[t.headers.indexOf(h)] || "";
-  return composeClientName({
-    first_name: at("First name"), last_name: at("Last name"), company: at("Business name"), site: at("Location"),
-  });
 }
 
 export function statusLabel(r: Pick<ImportRow, "status" | "message">, committed = false): string {
@@ -152,22 +145,35 @@ function rowAddress(r: ImportRow): string {
   return [r.street, cityLine].filter(Boolean).join(", ");
 }
 
-function rowContact(r: ImportRow): string {
-  if (!r.company) return "";
-  return [r.first_name, r.last_name].filter(Boolean).join(" ");
+/** "Area: North · Zone: The Woodlands", or "". */
+function rowAreaZone(r: ImportRow): string {
+  return [r.area && `Area: ${r.area}`, r.zone && `Zone: ${r.zone}`].filter(Boolean).join(" · ");
+}
+
+/** The name as the file's parts (First, Last, Business name, Location),
+ *  never the composed display name. */
+function NameCell({ r }: { r: ImportRow }) {
+  const person = [r.first_name, r.last_name].filter(Boolean).join(" ");
+  if (!person && !r.company && !r.site) return <span className="text-stone-400">No name</span>;
+  return (
+    <>
+      {person && <div className="break-words font-semibold text-stone-800">{person}</div>}
+      {r.company && <div className={`break-words ${person ? "text-xs text-stone-600" : "font-semibold text-stone-800"}`}>{r.company}</div>}
+      {r.site && <div className="break-words text-xs text-stone-500">Location: {r.site}</div>}
+    </>
+  );
 }
 
 /** The columns the template uses, as a small styled table with the example rows. */
-function ExampleTable({ template }: { template: ImportTemplate }) {
+export function ExampleTable({ template }: { template: ImportTemplate }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-stone-200" data-testid="import-example-table">
       <table className="min-w-max border-collapse text-left text-xs">
         <thead>
           <tr className="bg-stone-50">
-            <th className="sticky left-0 z-[1] border-b border-r border-stone-200 bg-emerald-50 px-2.5 py-2 font-semibold text-emerald-800">Shows as</th>
             {template.headers.map((h, i) => (
               <th key={h} className="whitespace-nowrap border-b border-stone-200 px-2.5 py-2 font-semibold text-stone-700">
-                {h}{i < 3 && <span className="text-emerald-700">*</span>}
+                {h}{i < 2 && <span className="text-emerald-700">*</span>}
               </th>
             ))}
           </tr>
@@ -175,7 +181,6 @@ function ExampleTable({ template }: { template: ImportTemplate }) {
         <tbody>
           {template.example_rows.map((row, i) => (
             <tr key={i} className="border-b border-stone-100 last:border-0">
-              <td className="sticky left-0 z-[1] min-w-[7rem] max-w-[9.5rem] border-r border-stone-200 bg-white px-2.5 py-1.5 font-semibold text-stone-800 sm:max-w-none sm:whitespace-nowrap">{exampleShowsAs(template, row)}</td>
               {row.map((cell, j) => (
                 <td key={j} className="max-w-[16rem] truncate whitespace-nowrap px-2.5 py-1.5 text-stone-600" title={cell}>{cell}</td>
               ))}
@@ -197,12 +202,12 @@ function PreviewRows({ rows, committed }: { rows: ImportRow[]; committed?: boole
         {rows.map((r) => (
           <li key={r.row} className="rounded-lg border border-stone-200 bg-white p-3 text-sm">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="min-w-0 break-words font-semibold text-stone-800">{r.name || <span className="text-stone-400">No name</span>}</span>
+              <div className="min-w-0"><NameCell r={r} /></div>
               <span className="shrink-0 text-xs text-stone-400">Row {r.row}</span>
             </div>
-            {rowContact(r) && <div className="text-xs text-stone-500">Contact: {rowContact(r)}</div>}
             {(r.phone || r.email) && <div className="mt-1 break-words text-xs text-stone-600">{[r.phone, r.email].filter(Boolean).join(" · ")}</div>}
             {rowAddress(r) && <div className="break-words text-xs text-stone-600">{rowAddress(r)}</div>}
+            {rowAreaZone(r) && <div className="break-words text-xs text-stone-500">{rowAreaZone(r)}</div>}
             <div className="mt-2"><StatusBadge row={r} committed={committed} /></div>
             {r.notes.length > 0 && <div className="mt-1 text-xs text-stone-400">{r.notes.join(". ")}</div>}
           </li>
@@ -214,7 +219,7 @@ function PreviewRows({ rows, committed }: { rows: ImportRow[]; committed?: boole
           <thead className="bg-stone-50 text-xs text-stone-500">
             <tr>
               <th className="w-12 px-3 py-2 font-semibold">Row</th>
-              <th className="w-[24%] px-3 py-2 font-semibold">Shows as</th>
+              <th className="w-[24%] px-3 py-2 font-semibold">Name</th>
               <th className="w-[25%] px-3 py-2 font-semibold">Phone / email</th>
               <th className="px-3 py-2 font-semibold">Address</th>
               <th className="w-[27%] px-3 py-2 font-semibold">Status</th>
@@ -225,8 +230,7 @@ function PreviewRows({ rows, committed }: { rows: ImportRow[]; committed?: boole
               <tr key={r.row} className="border-t border-stone-100 align-top">
                 <td className="px-3 py-2 text-xs text-stone-400">{r.row}</td>
                 <td className="px-3 py-2">
-                  <div className="break-words font-medium text-stone-800">{r.name || <span className="text-stone-400">No name</span>}</div>
-                  {rowContact(r) && <div className="text-xs text-stone-500">Contact: {rowContact(r)}</div>}
+                  <NameCell r={r} />
                   {r.time_preference && <div className="text-xs text-stone-500">{TIME_LABEL[r.time_preference] || r.time_preference}</div>}
                   {r.notes.length > 0 && <div className="mt-0.5 text-xs text-stone-400">{r.notes.join(". ")}</div>}
                 </td>
@@ -237,7 +241,10 @@ function PreviewRows({ rows, committed }: { rows: ImportRow[]; committed?: boole
                     <div key={i} className="text-stone-400">{c.label}: {[c.phone, c.email].filter(Boolean).join(", ")}</div>
                   ))}
                 </td>
-                <td className="break-words px-3 py-2 text-xs text-stone-600">{rowAddress(r)}</td>
+                <td className="break-words px-3 py-2 text-xs text-stone-600">
+                  {rowAddress(r)}
+                  {rowAreaZone(r) && <div className="text-stone-500">{rowAreaZone(r)}</div>}
+                </td>
                 <td className="px-3 py-2"><StatusBadge row={r} committed={committed} /></td>
               </tr>
             ))}
@@ -383,8 +390,8 @@ export function ClientImportDialog({ onClose, onImported }: {
                   </div>
                 )}
                 <p className="text-xs text-stone-500">
-                  <span className="text-emerald-700">*</span> Each row needs a First name, Last name or Business name. Everything else is optional.
-                  A business shows by its business name, plus " | Location" when there is one; a person with a business is saved as its contact.
+                  <span className="text-emerald-700">*</span> Each row needs a First or Last. Everything else is optional.
+                  Also read when present: Business name, Location, Install time preference, Additional contact label / phone / email, General notes.
                 </p>
                 {template && (
                   <details className="group rounded-lg border border-stone-200 text-xs">

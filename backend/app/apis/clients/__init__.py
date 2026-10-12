@@ -30,7 +30,7 @@ CLIENT_COLUMNS = (
     "id, name, email, phone, notes, street, city, state, zip, time_preference, "
     "former_names, sheet_name, secondary_contacts, created_at, updated_at, "
     "staff_alert, staff_alert_by, staff_alert_at, "
-    "first_name, last_name, company, site"
+    "first_name, last_name, company, site, area, zone"
 )
 
 #: The staff alert (migrations/020): one short warning about a client that
@@ -62,8 +62,19 @@ NAME_PARTS_DDL = (
     "ADD COLUMN IF NOT EXISTS company text, "
     "ADD COLUMN IF NOT EXISTS site text"
 )
+#: The install schedule's Area ("North") and Zone ("The Woodlands") as typed
+#: on the client sheet or an import (migrations/023). Nothing stored them
+#: before: the scheduler derives both from the ZIP (scheduler/prep.py
+#: ZIP_ZONE) and that stays the schedule's source; these keep what the
+#: spreadsheet said, on the client record.
+AREA_ZONE_COLUMNS = ("area", "zone")
+AREA_ZONE_DDL = (
+    "ALTER TABLE clients "
+    "ADD COLUMN IF NOT EXISTS area text, "
+    "ADD COLUMN IF NOT EXISTS zone text"
+)
 #: Every column this module adds itself, checked in one query.
-ENSURED_COLUMNS = STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS
+ENSURED_COLUMNS = STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS + AREA_ZONE_COLUMNS
 
 
 async def ensure_schema(conn) -> None:
@@ -80,6 +91,7 @@ async def ensure_schema(conn) -> None:
             await conn.execute("SET LOCAL lock_timeout = '5s'")
             await conn.execute(STAFF_ALERT_DDL)
             await conn.execute(NAME_PARTS_DDL)
+            await conn.execute(AREA_ZONE_DDL)
 
     await ensure_schema_once("clients_columns", _ddl)
 
@@ -315,6 +327,9 @@ class ClientOut(BaseModel):
     company: Optional[str] = None
     site: Optional[str] = None
     name_parts_saved: bool = False
+    #: The schedule's Area / Zone from the sheet or an import (migrations/023).
+    area: Optional[str] = None
+    zone: Optional[str] = None
     #: The staff alert, who set it and when (see PUT /{client_id}/staff-alert).
     staff_alert: Optional[str] = None
     staff_alert_by: Optional[str] = None
@@ -428,8 +443,8 @@ async def list_clients(request: Request):
 #: overwriting the other.
 INSERT_CLIENT_SQL = f"""
     INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference,
-                         first_name, last_name, company, site)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15)
+                         first_name, last_name, company, site, area, zone)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17)
     ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
     RETURNING {CLIENT_COLUMNS}
 """
@@ -438,7 +453,8 @@ INSERT_CLIENT_SQL = f"""
 async def insert_client(conn, *, name: str, parts: Optional[dict], email=None, phone=None, notes=None,
                         street=None, city=None, state=None, zip=None,
                         secondary_contacts: Optional[list] = None, created_by: Optional[str] = None,
-                        time_preference: Optional[str] = None):
+                        time_preference: Optional[str] = None,
+                        area: Optional[str] = None, zone: Optional[str] = None):
     """Insert one client; the new row, or None when the name is taken."""
     return await conn.fetchrow(
         INSERT_CLIENT_SQL,
@@ -454,6 +470,8 @@ async def insert_client(conn, *, name: str, parts: Optional[dict], email=None, p
         created_by,
         time_preference,
         *((parts or {}).get(k) for k in NAME_PART_COLUMNS),
+        clean_name(area) or None,
+        clean_name(zone) or None,
     )
 
 
@@ -600,9 +618,10 @@ async def commit_client_import(body: ClientImportIn, request: Request):
                     notes=f["notes"], street=f["street"], city=f["city"], state=f["state"],
                     zip=f["zip"], secondary_contacts=f["secondary_contacts"],
                     created_by=created_by, time_preference=f["time_preference"],
+                    area=f["area"], zone=f["zone"],
                 )
                 if row is None:  # someone saved that name a moment ago
-                    r.update(status=client_import.STATUS_DUPLICATE, message=f'Already a client: "{r["name"]}"')
+                    r.update(status=client_import.STATUS_DUPLICATE, message="Already a client")
                     continue
                 r["client_id"] = row["id"]
                 created.append(new_client_out(row))

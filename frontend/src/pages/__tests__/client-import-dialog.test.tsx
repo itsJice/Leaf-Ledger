@@ -1,7 +1,8 @@
 /**
  * The Clients import dialog (Comment #11): the template and example CSVs it
- * offers, the "Shows as" names for the example rows (same rule as the New
- * Client form), the row status wording, and the first step's markup.
+ * offers, the row status wording, and the first step's markup. The import
+ * never shows how names will be composed (user, 2026-10-12): the example
+ * table is just the template columns, starting with First name.
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -11,21 +12,17 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 
 import "../../test/setup";
 import {
-  ClientImportDialog, csvCell, exampleShowsAs, statusLabel, templateCsv, type ImportTemplate,
+  ClientImportDialog, csvCell, statusLabel, templateCsv, type ImportTemplate,
 } from "../clients/ClientImportDialog";
 
-const HEADERS = [
-  "First name", "Last name", "Business name", "Location", "Email", "Phone", "Street address", "City",
-  "State", "ZIP", "Install time preference", "Additional contact label", "Additional contact phone",
-  "Additional contact email", "General notes",
-];
+const HEADERS = ["First", "Last", "ADDRESS", "CITY", "ST", "ZIP", "Area", "Zone", "PHONE", "EMAIL"];
 const row = (p: Record<string, string>) => HEADERS.map((h) => p[h] || "");
 const TEMPLATE: ImportTemplate = {
   headers: HEADERS,
   example_rows: [
-    row({ "First name": "Jamie", "Last name": "Rivera", "General notes": 'Gate "B", side door' }),
-    row({ "First name": "Dana", "Last name": "Lee", "Business name": "Pine Hollow Dental" }),
-    row({ "Business name": "Lakeside Country Club", Location: "North Clubhouse" }),
+    row({ First: "Jamie", Last: "Rivera", ADDRESS: '12 "B" St, Unit 4', Area: "North", Zone: "The Woodlands" }),
+    row({ First: "Dana", Last: "Lee", Area: "Central", Zone: "Heights/Near Northside" }),
+    row({ First: "Marcus", Last: "Hale", Area: "West", Zone: "Katy/Fulshear" }),
   ],
   odoo_aliases: [["Street2", "added to Street address"]],
   max_rows: 2000,
@@ -46,16 +43,7 @@ describe("template CSVs", () => {
   it("the example adds the three example rows", () => {
     const lines = templateCsv(TEMPLATE, true).replace(/^\ufeff/, "").trimEnd().split("\r\n");
     expect(lines).toHaveLength(4);
-    expect(lines[1].startsWith("Jamie,Rivera,,,")).toBe(true);
-    expect(lines[1].endsWith(',"Gate ""B"", side door"')).toBe(true);
-  });
-});
-
-describe("example rows show as", () => {
-  it("a person, a business (contact not in the name) and a business with a location", () => {
-    expect(TEMPLATE.example_rows.map((r) => exampleShowsAs(TEMPLATE, r))).toEqual([
-      "Rivera, Jamie", "Pine Hollow Dental", "Lakeside Country Club | North Clubhouse",
-    ]);
+    expect(lines[1]).toBe('Jamie,Rivera,"12 ""B"" St, Unit 4",,,,North,The Woodlands,,');
   });
 });
 
