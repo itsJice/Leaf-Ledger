@@ -353,7 +353,7 @@ def test_add_client_comment(fake_db, fake_request):
 
     assert out == row
     ((client_id, season, summary, detail),) = args_of(fake_db, "INSERT INTO client_activity")
-    assert (client_id, summary, detail) == (5, "Needs ladder", '{"author": null}')
+    assert (client_id, summary, detail) == (5, "Needs ladder", '{"author": null, "author_name": null}')
     assert isinstance(datetime.fromisoformat(season), datetime)  # utcnow().isoformat()
     assert fake_db.seen("VALUES ($1, 'comment', $2, $3, $4, NULL)")
 
@@ -582,3 +582,22 @@ def test_staff_alert_needs_staff(role, ok):
 
     path = "/api/clients/{client_id}/staff-alert"
     assert roles.allowed(role, "staff", "PUT", False, path) is ok
+
+
+def test_comment_author_name_falls_back_to_email(monkeypatch):
+    """Under a client comment: roster name, else the email's first part (user, 2026-10-12)."""
+    import app.libs.schedule_board as sb
+    from app.apis.clients import comment_author_name
+
+    async def no_person(email):
+        return None
+
+    async def person(email):
+        return {"name": "Cynthia Wenz"}
+
+    monkeypatch.setattr(sb, "roster_person_for_email", no_person)
+    import asyncio
+    assert asyncio.run(comment_author_name("mary.ann@thebranchdesigngroup.com")) == "Mary Ann"
+    assert asyncio.run(comment_author_name(None)) is None
+    monkeypatch.setattr(sb, "roster_person_for_email", person)
+    assert asyncio.run(comment_author_name("cynthia@thebranchdesigngroup.com")) == "Cynthia Wenz"

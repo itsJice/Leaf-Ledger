@@ -147,6 +147,14 @@ type ClientsPageCache = {
   cachedAt: number;
 };
 
+/** Name to show under a client comment: saved author_name, else the email's first part. */
+function commentAuthor(detail: unknown): string {
+  const d = (detail && typeof detail === "object" ? detail : {}) as { author_name?: string | null; author?: string | null };
+  if (d.author_name) return d.author_name;
+  const local = (d.author || "").split("@")[0].replace(/[._]/g, " ").trim();
+  return local.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function readClientsPageCache(): ClientsPageCache | null {
   const parsed = readJsonCache<any>(CLIENTS_PAGE_CACHE_KEY, null);
   if (!parsed || !Array.isArray(parsed.clientRows) || !Array.isArray(parsed.projects)) return null;
@@ -1447,10 +1455,13 @@ export default function Clients() {
                           )}
                           {client.activity.filter((a) => a.kind === "comment").map((entry) => (
                             <div key={entry.id} className="flex items-start gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
-                              <span className="min-w-0 flex-1 text-stone-700">{entry.summary}</span>
-                              <span className="shrink-0 text-[10px] text-stone-400">
-                                {entry.created_at ? new Date(entry.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}
-                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-stone-700">{entry.summary}</p>
+                                {/* Who wrote it and when, under the comment (user, 2026-10-12). */}
+                                <p className="mt-1 text-[11px] text-stone-400">
+                                  {[commentAuthor(entry.detail), entry.created_at ? new Date(entry.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }) + " CT" : ""].filter(Boolean).join(" · ")}
+                                </p>
+                              </div>
                               <button
                                 data-edit onClick={() => removeComment(client, entry)}
                                 className="-m-1.5 shrink-0 p-1.5 text-stone-300 hover:text-red-500"

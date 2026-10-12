@@ -932,6 +932,23 @@ class CommentIn(BaseModel):
 # be *something*, since the column is NOT NULL, and giving it the comment's
 # own timestamp keeps every row's key unique on its own without leaning on
 # the migration 009 partial-index carve-out to do that work implicitly.
+async def comment_author_name(email: Optional[str]) -> Optional[str]:
+    """The name shown under a client comment (user, 2026-10-12): the roster
+    person with that email, else the email's first part ("cynthia@..." ->
+    "Cynthia"). Never fails the comment."""
+    if not email:
+        return None
+    try:
+        from app.libs.schedule_board import roster_person_for_email
+        person = await roster_person_for_email(email)
+        if person and str(person.get("name") or "").strip():
+            return str(person["name"]).strip()
+    except Exception:  # noqa: BLE001 - a missing board must not block comments
+        pass
+    local = email.split("@", 1)[0].replace(".", " ").replace("_", " ").strip()
+    return local.title() or email
+
+
 @router.post("/{client_id}/comments", response_model=ActivityOut)
 async def add_client_comment(client_id: int, body: CommentIn, request: Request):
     from app.auth.supabase_auth import get_optional_user
@@ -958,7 +975,8 @@ async def add_client_comment(client_id: int, body: CommentIn, request: Request):
             client_id,
             now.isoformat(),
             text,
-            json.dumps({"author": signed_in.email if signed_in else None}),
+            json.dumps({"author": signed_in.email if signed_in else None,
+                        "author_name": await comment_author_name(signed_in.email if signed_in else None)}),
         )
         return dict(row)
     finally:
