@@ -127,6 +127,10 @@ function ClaudeReview({ row, onReply }: {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
+  // A completed comment whose review status isn't one this page knows (e.g.
+  // "done" written by a check-off script) shows nothing, not the red
+  // "Too complex" fallback (user, 2026-10-12).
+  if (row.status === "done" && row.claude_status && !REVIEW_STYLES[row.claude_status]) return null;
   if (!row.claude_status) {
     if (row.status === "done") return null;
     return (
