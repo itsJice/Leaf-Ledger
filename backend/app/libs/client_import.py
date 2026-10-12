@@ -10,7 +10,7 @@ the Christmas client sheet's own columns:
     First | Last | ADDRESS | CITY | ST | ZIP | Area | Zone | PHONE | EMAIL
 
 Area and Zone are the install schedule's ("North" / "The Woodlands") and
-are saved on the client (clients.area / clients.zone, migrations/023).
+are saved on the client (clients.area / clients.zone, migrations/024).
 
 Headers match ignoring case, spaces and punctuation. Still read when
 present: the New Client form's long labels (First name, Last name, Street

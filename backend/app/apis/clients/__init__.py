@@ -63,7 +63,7 @@ NAME_PARTS_DDL = (
     "ADD COLUMN IF NOT EXISTS site text"
 )
 #: The install schedule's Area ("North") and Zone ("The Woodlands") as typed
-#: on the client sheet or an import (migrations/023). Nothing stored them
+#: on the client sheet or an import (migrations/024). Nothing stored them
 #: before: the scheduler derives both from the ZIP (scheduler/prep.py
 #: ZIP_ZONE) and that stays the schedule's source; these keep what the
 #: spreadsheet said, on the client record.
@@ -327,7 +327,7 @@ class ClientOut(BaseModel):
     company: Optional[str] = None
     site: Optional[str] = None
     name_parts_saved: bool = False
-    #: The schedule's Area / Zone from the sheet or an import (migrations/023).
+    #: The schedule's Area / Zone from the sheet or an import (migrations/024).
     area: Optional[str] = None
     zone: Optional[str] = None
     #: The staff alert, who set it and when (see PUT /{client_id}/staff-alert).

@@ -139,7 +139,7 @@ def test_create_client(fake_db, fake_request):
         "Smith", "s@x.com", None, None, None, None, None, None,
         '[{"label": "Wife", "phone": "555", "email": null}]', None, None,
         None, None, None, None,  # no parts sent -> none saved (derived on read)
-        None, None,  # area, zone (migrations/023): only an import sets them
+        None, None,  # area, zone (migrations/024): only an import sets them
     )]
     assert fake_db.seen("ON CONFLICT (LOWER(TRIM(name))) DO NOTHING")
 
@@ -529,7 +529,7 @@ def test_list_adds_the_staff_alert_columns_once(fake_db, fake_request):
     # the name-part columns (migrations/021) arrive in the same first-use pass
     parts = fake_db.calls("ADD COLUMN IF NOT EXISTS first_name")
     assert len(parts) == 1 and "ADD COLUMN IF NOT EXISTS site text" in parts[0][0]
-    # and Area / Zone (migrations/023)
+    # and Area / Zone (migrations/024)
     area_zone = fake_db.calls("ADD COLUMN IF NOT EXISTS area")
     assert len(area_zone) == 1 and "ADD COLUMN IF NOT EXISTS zone text" in area_zone[0][0]
 
