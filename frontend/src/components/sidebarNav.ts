@@ -7,6 +7,7 @@ import {
   Calculator,
   ClipboardCheck,
   ClipboardList,
+  Clock,
   MapPinned,
   ListChecks,
   NotebookPen,
@@ -98,6 +99,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/install-calendar", label: "Install Calendar", icon: CalendarDays },
       { path: "/install-staffing", label: "Install Staffing", icon: Briefcase },
       { path: "/install-roster", label: "Install Roster", icon: Users },
+      // What changed on the schedule, in words (Comment #19). Its own page.
+      { path: "/install-changes", label: "Install Changes", icon: Clock },
     ],
   },
   {

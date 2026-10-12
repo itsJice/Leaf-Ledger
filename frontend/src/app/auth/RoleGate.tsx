@@ -2,6 +2,7 @@ import type * as React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { DISPLAY_HOME, FIELD_HOME, pageAllowed, useMe } from "utils/me";
 import { isInstallPath } from "utils/installViews";
+import { CHANGES_PATH } from "utils/scheduleChanges";
 import { useUserGuardContext } from "./UserGuard";
 
 /**
@@ -42,7 +43,8 @@ export const RoleGate = ({ children }: { children: React.ReactNode }) => {
   }
   // The display login keeps the whole schedule: its four views are four
   // routes now (Days, Calendar, Staffing, Roster), as they were four tabs.
-  if (me.viewOnly && !isInstallPath(location.pathname)) {
+  // It may also read the Changes list (the server allows its GETs).
+  if (me.viewOnly && !isInstallPath(location.pathname) && location.pathname !== CHANGES_PATH) {
     return <Navigate to={DISPLAY_HOME} replace />;
   }
   // Installers and leads can fill out a form (the product request form is

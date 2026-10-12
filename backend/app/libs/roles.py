@@ -158,6 +158,9 @@ PRODUCTION_READ = (
     "/api/designs/hierarchy", "/api/builder/build-types",
     "/api/recipe-intelligence", "/api/install-schedule/", "/api/lead/shifts", "/api/lead/today-summary",
     "/api/feedback",
+    # The schedule's Changes list (app/apis/schedule_changes): read-only news
+    # about a schedule production can already view.
+    "/api/schedule-changes",
 )
 #: The only changes production may make.
 PRODUCTION_WRITES = frozenset({
@@ -169,6 +172,8 @@ PRODUCTION_WRITES = frozenset({
     "POST /api/clients/{client_id}/comments",    # comment on a client
     "PUT /api/preferences",                      # their own theme / sidebar
     "POST /api/jobs/{job_id}/touch",             # "last opened" stamp when viewing a job
+    "PUT /api/schedule-changes/follow",          # follow the schedule's Changes list
+    "POST /api/schedule-changes/seen",           # their own "last seen" mark on it
 })
 #: Refused even inside an allowed area: the rates and costs kept in Settings.
 PRODUCTION_DENY = (
@@ -193,6 +198,7 @@ PRODUCTION_PAGES = (
     # The schedule's other views, each a nav entry since 2026-10-08 (they
     # were tabs inside /install-schedule, which production could already open).
     "/install-calendar", "/install-staffing", "/install-roster",
+    "/install-changes",
 )
 
 

@@ -34,6 +34,7 @@ const OrnamentCalculator = lazyWithReload(() => import("./pages/OrnamentCalculat
 const TreeCounts = lazyWithReload(() => import("./pages/TreeCounts.tsx"));
 const CatalogSearch = lazyWithReload(() => import("./pages/CatalogSearch.tsx"));
 const InstallSchedule = lazyWithReload(() => import("./pages/InstallSchedule.tsx"));
+const InstallChanges = lazyWithReload(() => import("./pages/InstallChanges.tsx"));
 const Shifts = lazyWithReload(() => import("./pages/Shifts.tsx"));
 const Settings = lazyWithReload(() => import("./pages/Settings.tsx"));
 const Suppliers = lazyWithReload(() => import("./pages/Suppliers.tsx"));
@@ -79,6 +80,9 @@ export const userRoutes: RouteObject[] = [
 	// scroll, open popups and any pending save; the page is told which view
 	// to show (utils/installViews.ts).
 	{ element: <InstallSchedule />, children: INSTALL_PATHS.map((path) => ({ path })) },
+	// The schedule's Changes list (Comment #19): its own page, not a view of
+	// the schedule iframe, so it loads fast on a phone.
+	{ path: "/install-changes", element: <InstallChanges /> },
 	{ path: "/ornament-calculator", element: <OrnamentCalculator /> },
 	{ path: "/tree-counts", element: <TreeCounts /> },
 	{ path: "/search", element: <CatalogSearch /> },
