@@ -48,6 +48,9 @@ class Board:
     day_meta: dict[str, dict] = field(default_factory=dict)
     const: dict = field(default_factory=dict)
     timeline: dict[str, dict] = field(default_factory=dict)
+    # The build's own crew-days before anything staff did ({id: date, crew,
+    # stops}), for naming crews in an older saved state (app.libs.schedule_changes).
+    base_days: dict[str, dict] = field(default_factory=dict)
 
     def person(self, pid: str) -> Optional[dict]:
         return next((p for p in self.roster if p["id"] == pid), None)
@@ -169,6 +172,8 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         day_meta={k: v for k, v in meta.items() if isinstance(v, dict)},
         const=spec.get("const") or {},
         timeline=state.get("timeline") if isinstance(state.get("timeline"), dict) else {},
+        base_days={did: {"date": d.get("date"), "crew": d.get("crew"), "stops": list(d.get("stops") or [])}
+                   for did, d in base.items()},
     )
 
 

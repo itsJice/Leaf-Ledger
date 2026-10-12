@@ -18,6 +18,7 @@ import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
 import { appHome, currentMe, pageAllowed } from "utils/me";
 import { isInstallPath } from "utils/installViews";
+import { CHANGES_PATH, CHANGES_SEEN_EVENT, badgeText } from "utils/scheduleChanges";
 import {
   NAV_GROUPS,
   resolveSidebarRender,
@@ -212,6 +213,9 @@ function StaffLayout({ children }: Props) {
   // read-receipt) -- good enough for a small team, and avoids a table just
   // for this.
   const [hasNewClientComments, setHasNewClientComments] = useState(false);
+  // Count on "Install Changes" for someone who follows it: schedule changes
+  // since they last looked (server-side, so it follows them across devices).
+  const [changesUnseen, setChangesUnseen] = useState(0);
   // Below the `lg` breakpoint the sidebar is an off-canvas drawer opened from
   // the top bar. It closes on every navigation and on Escape.
   const [navOpen, setNavOpen] = useState(false);
@@ -375,6 +379,27 @@ function StaffLayout({ children }: Props) {
     window.addEventListener("focus", checkNewClientComments);
     return () => window.removeEventListener("focus", checkNewClientComments);
   }, [checkNewClientComments]);
+
+  const checkChanges = useCallback(() => {
+    if (!pageAllowed(currentMe(), CHANGES_PATH)) return;
+    apiFetch("/api/schedule-changes/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((st: { following?: boolean; unseen?: number } | null) => {
+        setChangesUnseen(st?.following ? Number(st.unseen) || 0 : 0);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    checkChanges();
+    window.addEventListener("focus", checkChanges);
+    window.addEventListener(CHANGES_SEEN_EVENT, checkChanges);
+    return () => {
+      window.removeEventListener("focus", checkChanges);
+      window.removeEventListener(CHANGES_SEEN_EVENT, checkChanges);
+    };
+  }, [checkChanges]);
+  const changesBadge = badgeText(changesUnseen);
 
   // Opening the Clients tab clears the dot -- everything up to now is "seen".
   useEffect(() => {
@@ -576,7 +601,12 @@ function StaffLayout({ children }: Props) {
           aria-expanded={navOpen}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
         >
-          <Menu size={20} />
+          <span className="relative">
+            <Menu size={20} />
+            {changesBadge && (
+              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#1c2e1e]" aria-label="New schedule changes" />
+            )}
+          </span>
         </button>
         <Link to={appHome()} className="flex items-center rounded-lg px-1 py-1" aria-label="Leaf & Ledger home">
           <LeafLedgerLogo className="h-9 w-auto" />
@@ -646,9 +676,22 @@ function StaffLayout({ children }: Props) {
                           active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
                         }`}
                       >
-                        <Icon size={16} strokeWidth={1.8} className="flex-none" />
+                        <span className="relative flex-none">
+                          <Icon size={16} strokeWidth={1.8} />
+                          {path === CHANGES_PATH && changesBadge && collapsed && (
+                            <span className="absolute -right-0.5 -top-0.5 hidden h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#1c2e1e] lg:block" aria-hidden="true" />
+                          )}
+                        </span>
                         <span className={`truncate${RC}`}>{label}</span>
-                        {active && <ChevronRight size={12} className={`ml-auto opacity-60${RC}`} />}
+                        {path === CHANGES_PATH && changesBadge && (
+                          <span
+                            className={`ml-auto flex h-5 min-w-5 flex-none items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-bold leading-none text-white${RC}`}
+                            aria-label={`${changesUnseen} new schedule change${changesUnseen === 1 ? "" : "s"}`}
+                          >
+                            {changesBadge}
+                          </span>
+                        )}
+                        {active && !(path === CHANGES_PATH && changesBadge) && <ChevronRight size={12} className={`ml-auto opacity-60${RC}`} />}
                       </Link>
                     );
                   })}

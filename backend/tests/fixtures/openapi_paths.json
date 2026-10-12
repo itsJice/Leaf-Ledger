@@ -455,6 +455,18 @@
   "/api/requests/{request_id}/save": [
     "POST"
   ],
+  "/api/schedule-changes": [
+    "GET"
+  ],
+  "/api/schedule-changes/follow": [
+    "PUT"
+  ],
+  "/api/schedule-changes/seen": [
+    "POST"
+  ],
+  "/api/schedule-changes/status": [
+    "GET"
+  ],
   "/api/scraper/backfill-images": [
     "POST"
   ],
