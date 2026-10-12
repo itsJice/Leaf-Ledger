@@ -28,6 +28,10 @@ export interface ChangeEvent {
   by: string;
   isNew: boolean;
   mine: boolean;
+  /** Recovered from a backup rather than read from the save history. */
+  fromBackup?: boolean;
+  /** Saved by a local dev server (only listed when a super admin asks). */
+  test?: boolean;
 }
 
 export interface ChangesPage {
@@ -38,6 +42,9 @@ export interface ChangesPage {
   lastSeenAt: string | null;
   unseen: number;
   newest: string | null;
+  /** Super admins may list local-dev test saves (hidden for everyone else). */
+  canShowTests?: boolean;
+  showingTests?: boolean;
 }
 
 export interface ChangeStatus {
@@ -69,9 +76,10 @@ export function hasFilters(f: ChangeFilters): boolean {
 }
 
 /** The feed's query string for a page of results. */
-export function changesQuery(f: ChangeFilters, before?: string | null, limit = 50): string {
+export function changesQuery(f: ChangeFilters, before?: string | null, limit = 50, tests = false): string {
   const p = new URLSearchParams();
   p.set("limit", String(limit));
+  if (tests) p.set("tests", "1");
   if (before) p.set("before", before);
   if (f.q.trim()) p.set("q", f.q.trim());
   if (f.from) p.set("from", f.from);

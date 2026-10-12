@@ -108,9 +108,10 @@ def test_get_state_rejects_bad_version(fake_db):
 # ─── /state PUT ──────────────────────────────────────────────────────────────
 
 
-def test_put_state_statement_sequence_and_history_trim(fake_db, fake_request):
-    # A version already holding MAX_HISTORY_PER_VERSION rows: trimming is done
-    # by the DELETE ... NOT IN (... LIMIT $2) in SQL, not in Python.
+def test_put_state_statement_sequence_and_history_is_never_trimmed(fake_db, fake_request):
+    # A version already holding more than MAX_HISTORY_PER_VERSION rows: the
+    # save appends one more and deletes nothing (Install Changes reads every
+    # save back to the start of the season).
     fake_db.on_fetch("FROM ll_app.install_schedule_history",
                      [{"id": i, "updated_by": "u", "created_at": T0} for i in range(201)])
     fake_db.on_fetchval("RETURNING updated_at", T0)
@@ -133,10 +134,8 @@ def test_put_state_statement_sequence_and_history_trim(fake_db, fake_request):
          ("build-1", encoded, "user-7", "2026")),
         ("INSERT INTO ll_app.install_schedule_history (version, season, state, updated_by) "
          "VALUES ($1, $2, $3::jsonb, $4)", ("build-1", "2026", encoded, "user-7")),
-        ("DELETE FROM ll_app.install_schedule_history WHERE version = $1 AND id NOT IN ("
-         "  SELECT id FROM ll_app.install_schedule_history   WHERE version = $1 ORDER BY created_at DESC LIMIT $2)",
-         ("build-1", 200)),
     ]
+    assert not fake_db.seen("DELETE FROM ll_app.install_schedule_history")
     assert not fake_db.seen("client_activity")
 
 

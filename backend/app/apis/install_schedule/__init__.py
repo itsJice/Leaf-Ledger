@@ -186,10 +186,9 @@ async def list_seasons() -> dict:
 
 # ─── Shared reschedule state ─────────────────────────────────────────────────
 
-#: Keep at most this many history rows per schedule version -- an append-
-#: only log with no cap would grow forever across a season of frequent
-#: small saves (the tool debounces to one save per 600ms of inactivity,
-#: but that's still potentially hundreds of saves over several weeks).
+#: The most rows one /history response LISTS. It used to be a retention cap
+#: (older saves were deleted); since 2026-10-12 every save is kept so the
+#: Install Changes list can reach back to the start of the season.
 MAX_HISTORY_PER_VERSION = 200
 
 #: Bootstrap for a database that has never seen these tables -- a fresh dev
@@ -875,9 +874,10 @@ async def put_state(
                 user_id,
                 payload_season,
             )
-            # Append to history, then trim to the retention cap -- every
-            # save gets a row, restoring an old one included, so the trail
-            # itself is never rewritten.
+            # Append to history. Never trimmed (user, 2026-10-12): the
+            # Install Changes list (app/apis/schedule_changes) reads every
+            # save back to the start of the season. Restoring an old version
+            # adds a row too, so the trail itself is never rewritten.
             await conn.execute(
                 "INSERT INTO ll_app.install_schedule_history "
                 "(version, season, state, updated_by) "
@@ -886,15 +886,6 @@ async def put_state(
                 payload_season,
                 encoded,
                 user_id,
-            )
-            await conn.execute(
-                "DELETE FROM ll_app.install_schedule_history "
-                "WHERE version = $1 AND id NOT IN ("
-                "  SELECT id FROM ll_app.install_schedule_history "
-                "  WHERE version = $1 ORDER BY created_at DESC LIMIT $2"
-                ")",
-                v,
-                MAX_HISTORY_PER_VERSION,
             )
             # Write the not-installing / on-hold decisions through to the
             # client record, inside the same transaction as the state save so

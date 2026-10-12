@@ -69,6 +69,9 @@ export default function InstallChanges() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Super admins only (the server ignores it for anyone else): list the
+  // saves a local dev server made against the live database.
+  const [showTests, setShowTests] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth >= 640 : true,
   );
@@ -84,11 +87,11 @@ export default function InstallChanges() {
     return () => window.clearTimeout(t);
   }, [query]);
 
-  const load = useCallback(async (f: ChangeFilters) => {
+  const load = useCallback(async (f: ChangeFilters, tests: boolean) => {
     setLoading(true);
     setError(null);
     try {
-      const r = await apiFetch(`/api/schedule-changes?${changesQuery(f)}`);
+      const r = await apiFetch(`/api/schedule-changes?${changesQuery(f, null, 50, tests)}`);
       if (!r.ok) throw new Error(r.status === 403 ? "You don't have access to the changes list." : "Couldn't load changes.");
       const page: ChangesPage = await r.json();
       setData(page);
@@ -105,8 +108,8 @@ export default function InstallChanges() {
   }, []);
 
   useEffect(() => {
-    load(filters);
-  }, [filters, load]);
+    load(filters, showTests);
+  }, [filters, showTests, load]);
 
   useEffect(() => () => {
     if (!following.current || !newestShown.current || !canFollow) return;
@@ -121,7 +124,7 @@ export default function InstallChanges() {
     if (!data?.next) return;
     setLoadingMore(true);
     try {
-      const r = await apiFetch(`/api/schedule-changes?${changesQuery(filters, data.next)}`);
+      const r = await apiFetch(`/api/schedule-changes?${changesQuery(filters, data.next, 50, showTests)}`);
       if (!r.ok) throw new Error();
       const page: ChangesPage = await r.json();
       setEvents((shown) => mergePages(shown, page.events));
@@ -144,7 +147,7 @@ export default function InstallChanges() {
       if (r.ok) {
         following.current = on;
         announceSeen();
-        await load(filters);
+        await load(filters, showTests);
       }
     } finally {
       setBusy(false);
@@ -313,6 +316,17 @@ export default function InstallChanges() {
                 </button>
               )}
             </div>
+            {data?.canShowTests && (
+              <label className="mt-3 flex min-h-10 cursor-pointer items-center gap-2 text-xs text-stone-500">
+                <input
+                  type="checkbox"
+                  checked={showTests}
+                  onChange={(e) => setShowTests(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-700"
+                />
+                Show test saves (made by a local dev server)
+              </label>
+            )}
           </div>
         )}
 
@@ -373,7 +387,11 @@ function ChangeRow({ e }: { e: ChangeEvent }) {
   return (
     <li
       className={`flex gap-3 border-b border-stone-100 px-3 py-2.5 last:border-b-0 sm:px-4 ${
-        e.isNew ? "bg-emerald-50/50" : ""
+        // Fixed colours, not the remapped emerald ramp: emerald-50 sinks into
+        // the card in dark mode. A tint plus a left accent bar reads in both.
+        e.isNew
+          ? "bg-[rgba(16,185,129,0.07)] shadow-[inset_3px_0_0_#10b981] dark:bg-[rgba(52,211,153,0.13)] dark:shadow-[inset_3px_0_0_#34d399]"
+          : ""
       }`}
     >
       <span
@@ -394,6 +412,7 @@ function ChangeRow({ e }: { e: ChangeEvent }) {
         </p>
         <p className="mt-0.5 text-xs text-stone-500">
           {e.time} CT · {e.mine ? "You" : e.by}
+          {e.test && <span className="ml-1.5 rounded bg-stone-100 px-1 py-px text-[10px] font-semibold uppercase text-stone-500">Test save</span>}
         </p>
       </div>
     </li>

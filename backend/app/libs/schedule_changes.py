@@ -55,6 +55,9 @@ TIME_SHIFT_MIN = 30
 #: One save that would take more lines than this to describe was a bulk edit
 #: (a restore, a rebuild remap). It is summarised as one line instead.
 BULK_LIMIT = 15
+#: Same idea for a whole save: more lines than this, of any kind, is a restore
+#: or a script's bulk edit, and reads as one line.
+SAVE_LIMIT = 12
 #: A person added to more crew-days than this in one save reads as one line.
 STAFF_COLLAPSE = 3
 
@@ -284,6 +287,18 @@ def names_from_state(state: Optional[dict]) -> tuple[dict[int, str], dict[str, s
 
     s = state if isinstance(state, dict) else {}
     clients = {}
+    # A backfilled plan carries its own client list; the tool's moves log
+    # names each row it touched. Both name rows of builds whose page is gone
+    # (row numbers are the season sheet's rows, stable across rebuilds).
+    for r, n in (s.get("planClients") or {}).items():
+        rr = _row(r)
+        if rr is not None and n:
+            clients[rr] = str(n)
+    for m in s.get("moves") or []:
+        if isinstance(m, dict):
+            rr = _row(m.get("row"))
+            if rr is not None and m.get("name"):
+                clients.setdefault(rr, str(m["name"]))
     for c in s.get("newClients") or []:
         if isinstance(c, dict):
             r = _row(c.get("row"))
@@ -390,9 +405,9 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
         place.append(_ev("moved", "moves", text, names, da + db_, was + now))
     if len(place) > BULK_LIMIT:
         clients = sorted({c for e in place for c in e["clients"]}, key=str.lower)
-        out.append(_ev("bulk", "moves",
-                       f"Large update: {len(clients)} stops changed at once (a restore or bulk edit)",
-                       clients, [d for e in place for d in e["dates"]]))
+        out.append({**_ev("bulk", "moves",
+                          f"Large update: {len(clients)} stops changed at once (a restore or bulk edit)",
+                          clients, [d for e in place for d in e["dates"]]), "count": len(clients)})
     else:
         out.extend(place)
 
@@ -516,19 +531,66 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
             d, _ = _split_day(did)
             if len(a.crews_on.get(d, [])) > len(b.crews_on.get(d, [])):
                 out.append(_ev("crew_removed", "dates", f"Crew removed from {fmt_day(d)} ({a.label(did)})", [], [d], [did]))
+    if len(out) > SAVE_LIMIT:
+        clients = sorted({c for e in out for c in e["clients"]}, key=str.lower)
+        n = sum(e.get("count", 1) for e in out)
+        return [{**_ev("bulk", "moves", f"Large update: {n} changes at once (a restore or bulk edit)",
+                       clients, [d for e in out for d in e["dates"]]), "count": n}]
     return out
 
 
 # ─── The feed ────────────────────────────────────────────────────────────────
 
-def build_feed(rows: list[dict], ctx: Context, writer_names: dict[str, str]) -> list[dict]:
-    """Every event across consecutive saves, newest first.
+#: The writer label of saves made by a local dev server against the live
+#: database. Hidden from the feed unless a super admin asks for them.
+TEST_WRITER = "local-dev-user"
+#: Who a backfilled save is credited to when the backup didn't say.
+UNKNOWN_BACKUP = "Unknown (from backup)"
+#: Who a plan (a spreadsheet build of the schedule) is credited to.
+PLAN_BY = "Schedule build"
 
-    ``rows`` are history rows oldest first (``id``, ``state``, ``updated_by``,
-    ``created_at``). The oldest row has nothing before it (history keeps the
-    newest 200 saves), so it is the baseline and yields no events. Names
-    the tool added itself (``newClients``) and roster people are collected
-    from every row, so a client or person removed later still has a name.
+
+def _plan_context(state: dict) -> tuple[dict[int, str], dict[str, dict]]:
+    clients = {r: n for r, n in ((_row(k), v) for k, v in (state.get("planClients") or {}).items()) if r is not None}
+    days = {}
+    for d in state.get("planDays") or []:
+        if isinstance(d, dict) and d.get("id"):
+            days[str(d["id"])] = {"date": d.get("date"), "crew": d.get("crew"), "stops": list(d.get("stops") or [])}
+    return clients, days
+
+
+def _placement_of(state: Optional[dict]) -> dict:
+    p = (state or {}).get("placement") if isinstance(state, dict) else None
+    return {str(k): sorted(map(str, v)) for k, v in p.items()} if isinstance(p, dict) else {}
+
+
+def _plan_summary(state: dict) -> str:
+    place = _placement_of(state)
+    n_days = len({d for ids in place.values() for d in ids})
+    return f"{len(place)} clients on {n_days} crew days"
+
+
+def build_feed(rows: list[dict], ctx: Context, writer_names: dict[str, str],
+               *, current_version: Optional[str] = None) -> list[dict]:
+    """Every event across consecutive saved states, newest first.
+
+    ``rows`` are snapshots oldest first: ``state``, ``updated_by``,
+    ``created_at`` and an ``id`` or ``key`` (unique; event ids derive from
+    it), plus optionally ``version`` (the schedule build), ``kind``
+    (``"save"``, or ``"plan"`` for a backfilled build of the schedule) and
+    ``from_backup`` (restored from a backup rather than read from history).
+
+    Saves are diffed against the one before them. Where the build changes,
+    rows were re-planned and every row's day changed meaning, so a diff would
+    be a flood of fake moves: that boundary is ONE "Schedule rebuilt" line --
+    unless the placement came across unchanged (a page splice, a restore),
+    in which case it is diffed like any other save. The first row is the
+    baseline and yields nothing, unless it is a plan ("First plan built").
+
+    ``ctx`` names things for ``current_version`` (the published page's
+    clients and crew-days). Older builds whose page is gone are named from
+    the same rows -- they are the season sheet's rows, stable across
+    rebuilds -- and from what the states themselves carry.
     """
     clients, people = dict(ctx.clients), dict(ctx.people)
     for r in rows:
@@ -537,28 +599,92 @@ def build_feed(rows: list[dict], ctx: Context, writer_names: dict[str, str]) -> 
             clients.setdefault(k, v)
         for k, v in p.items():
             people.setdefault(k, v)
-    full = Context(clients=clients, base_days=ctx.base_days, people=people)
+
+    ctx_cache: dict[tuple, Context] = {}
+
+    def ctx_for(row: dict) -> Context:
+        v = row.get("version")
+        state = row.get("state") or {}
+        if row.get("kind") == "plan":
+            pc, pd = _plan_context(state)
+            key = ("plan", row.get("key", row.get("id")))
+            if key not in ctx_cache:
+                ctx_cache[key] = Context(clients={**clients, **pc}, base_days=pd, people=people)
+            return ctx_cache[key]
+        key = ("v", v)
+        if key not in ctx_cache:
+            same = current_version is None or v is None or v == current_version
+            ctx_cache[key] = Context(clients=clients, base_days=ctx.base_days if same else {}, people=people)
+        return ctx_cache[key]
+
+    def who(row: dict) -> str:
+        if row.get("kind") == "plan":
+            return f"{PLAN_BY} (from backup)" if row.get("from_backup") else PLAN_BY
+        writer = (row.get("updated_by") or "").strip()
+        if not writer and row.get("from_backup"):
+            return UNKNOWN_BACKUP
+        return writer_names.get(writer) or script_writer_name(writer) or "Someone"
 
     events: list[dict] = []
-    for prev, cur in zip(rows, rows[1:]):
-        at = cur["created_at"]
-        writer = cur.get("updated_by") or ""
-        by = writer_names.get(writer) or script_writer_name(writer) or "Someone"
-        for i, ev in enumerate(diff(prev.get("state"), cur.get("state"), full)):
-            c = central(at)
+
+    def emit(row: dict, idx: int, evs: list[dict]) -> None:
+        at = row["created_at"]
+        writer = row.get("updated_by") or ""
+        rid = row.get("key", row.get("id"))
+        for i, ev in enumerate(evs):
             events.append({
                 **ev,
-                "id": f"{cur['id']}-{i}",
+                "id": f"{rid}-{i}",
                 "at": at.astimezone(timezone.utc).isoformat(),
-                "day": c.date().isoformat(),
+                "day": central(at).date().isoformat(),
                 "time": fmt_time_ct(at),
-                "by": by,
+                "by": who(row),
                 "writer": writer,
-                "seq": (cur["id"], i),
+                "fromBackup": bool(row.get("from_backup")),
+                "test": writer == TEST_WRITER,
+                "seq": (idx, i),
             })
+
+    for idx, cur in enumerate(rows):
+        state = cur.get("state") or {}
+        if cur.get("kind") == "plan":
+            first = idx == 0
+            text = (f"First plan built: {_plan_summary(state)}" if first
+                    else f"Schedule re-planned: {_plan_summary(state)}")
+            # Several builds on one day read as one line.
+            last = events[-1] if events else None
+            if (not first and last and last["kind"] == "replan"
+                    and last["day"] == central(cur["created_at"]).date().isoformat()):
+                n = last.get("count", 1) + 1
+                events.pop()
+                text = f"Schedule re-planned {n} times; latest: {_plan_summary(state)}"
+                emit(cur, idx, [{**_ev("replan", "dates", text), "count": n}])
+                continue
+            emit(cur, idx, [_ev("first_plan" if first else "replan", "dates", text)])
+            continue
+        if idx == 0:
+            continue
+        prev = rows[idx - 1]
+        crossing = prev.get("kind") == "plan" or (
+            prev.get("version") != cur.get("version")
+            and prev.get("version") is not None and cur.get("version") is not None)
+        if crossing and _placement_of(prev.get("state")) != _placement_of(state):
+            emit({**cur, "kind": "plan"}, idx,
+                 [_ev("rebuilt", "dates", f"Schedule rebuilt: {_plan_summary(state)}")])
+            continue
+        evs = diff(prev.get("state"), state, ctx_for(cur))
+        if evs and (cur.get("updated_by") or "").lower().startswith("restore"):
+            # Restoring an older version is one decision, not N edits.
+            n = sum(e.get("count", 1) for e in evs)
+            evs = [_ev("restore", "moves", f"Restored an earlier version of the schedule ({n} changes)",
+                       sorted({c for e in evs for c in e["clients"]}, key=str.lower),
+                       [d for e in evs for d in e["dates"]])]
+        emit(cur, idx, evs)
+
     events.sort(key=lambda e: e["seq"], reverse=True)
     for e in events:
         del e["seq"]
+        e.pop("count", None)
     return events
 
 

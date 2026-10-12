@@ -54,6 +54,11 @@ describe("filters to a query", () => {
       .toBe("limit=25&before=13-0&q=jinks&from=2026-10-01&to=2026-10-12&type=moves%2Cholds");
   });
 
+  it("asks for test saves only when the toggle is on", () => {
+    expect(changesQuery(EMPTY_FILTERS, null, 50, false)).toBe("limit=50");
+    expect(changesQuery(EMPTY_FILTERS, "h9-0", 50, true)).toBe("limit=50&tests=1&before=h9-0");
+  });
+
   it("knows when any filter is on", () => {
     expect(hasFilters(EMPTY_FILTERS)).toBe(false);
     expect(hasFilters({ ...EMPTY_FILTERS, q: "  " })).toBe(false);
