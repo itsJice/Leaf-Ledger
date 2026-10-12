@@ -68,6 +68,7 @@ function SupplierModal({
   // Track whether credentials section is locked (true when creds already saved)
   const [credsLocked, setCredsLocked] = useState<boolean>(!!(supplier?.has_credentials));
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordArmed, setPasswordArmed] = useState(false);
   const [showSavedPassword, setShowSavedPassword] = useState(false);
   const [savedPassword, setSavedPassword] = useState<string | null>(null);
   const [revealingSavedPassword, setRevealingSavedPassword] = useState(false);
@@ -236,6 +237,13 @@ function SupplierModal({
                     onChange={(e) => set("login_username", e.target.value)}
                     placeholder={usernamePlaceholder}
                     autoFocus
+                    // Vendor-site login, not the user's own app login: keep the
+                    // browser's password manager from filling it (user, 2026-10-12).
+                    name="supplier-account-id"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    data-form-type="other"
                   />
                 </div>
                 <div>
@@ -247,6 +255,15 @@ function SupplierModal({
                       value={form.login_password || ""}
                       onChange={(e) => set("login_password", e.target.value)}
                       placeholder={passwordPlaceholder}
+                      name="supplier-account-secret"
+                      autoComplete="new-password"
+                      // Read-only until touched: browsers only autofill a
+                      // username/password pair into an editable password box.
+                      readOnly={!passwordArmed}
+                      onFocus={() => setPasswordArmed(true)}
+                      data-1p-ignore
+                      data-lpignore="true"
+                      data-form-type="other"
                     />
                     <button
                       type="button"
