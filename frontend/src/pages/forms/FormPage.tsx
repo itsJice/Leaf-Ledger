@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { appHome } from "utils/me";
+import { appHome, currentMe } from "utils/me";
+import Layout from "components/Layout";
 import { ArrowLeft, CheckCircle2, Loader2 } from "components/icons";
 import {
   carryOver, getForm, getSuggestions, submitForm, validateAnswers,
@@ -12,9 +13,9 @@ import {
  * question, "Section X of N" with Next / Back, "This is a required question"
  * under anything left empty, and a confirmation with "Submit another".
  *
- * Deliberately outside the app's sidebar layout -- installers open it on a
- * phone in the field, and field logins can reach this page and nothing else
- * but their shifts (app/auth/RoleGate.tsx). The questions come from the
+ * Shown inside the app's Layout (sidebar and all, user 2026-10-12); Layout
+ * gives field logins (leads/crew) their phone shell instead -- they
+ * can reach this page and nothing else but their shifts (app/auth/RoleGate.tsx). The questions come from the
  * database (backend/app/apis/forms), so this renders whatever the form holds.
  */
 
@@ -279,12 +280,15 @@ export default function FormPage() {
     </section>
   );
 
-  return (
-    <div className="min-h-screen px-3 pb-24 pt-2 sm:px-4 sm:pt-4" style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
+  const inApp = !currentMe()?.fieldOnly;
+  const page = (
+    <div className={`${inApp ? "min-h-full" : "min-h-screen"} px-3 pb-24 pt-2 sm:px-4 sm:pt-4`} style={{ backgroundColor: "rgb(var(--ll-brand-soft))" }}>
       <div ref={topRef} className="mx-auto max-w-[640px] space-y-3">
-        <Link to={appHome()} className="inline-flex items-center gap-1 px-1 py-2 text-xs font-medium text-emerald-800 hover:underline sm:py-0">
-          <ArrowLeft size={12} /> Leaf &amp; Ledger
-        </Link>
+        {!inApp && (
+          <Link to={appHome()} className="inline-flex items-center gap-1 px-1 py-2 text-xs font-medium text-emerald-800 hover:underline sm:py-0">
+            <ArrowLeft size={12} /> Leaf &amp; Ledger
+          </Link>
+        )}
 
         {loadError && <div className="rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700">{loadError}</div>}
         {!form && !loadError && (
@@ -398,4 +402,6 @@ export default function FormPage() {
       </div>
     </div>
   );
+  // Layout itself gives field logins their own phone shell (FieldLayout).
+  return <Layout>{page}</Layout>;
 }
