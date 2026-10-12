@@ -368,6 +368,11 @@ function CommentRow({ row, owner, onToggle, onComplete, onViewScreenshot, onRepl
           {row.message}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
+          {/* The number Claude and the team use to refer to a comment
+              (user, 2026-10-12: "you reference them but I can never see them"). */}
+          <span className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-stone-600" title={`Comment #${row.id}`}>
+            #{row.id}
+          </span>
           {!owner && (
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${STAGE_STYLE[row.stage ?? ""] ?? (
