@@ -87,6 +87,15 @@
   "/api/clients/delete/{client_name}": [
     "DELETE"
   ],
+  "/api/clients/import/commit": [
+    "POST"
+  ],
+  "/api/clients/import/template": [
+    "GET"
+  ],
+  "/api/clients/import/validate": [
+    "POST"
+  ],
   "/api/clients/list": [
     "GET"
   ],

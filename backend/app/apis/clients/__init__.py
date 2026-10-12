@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
-from app.libs import client_names, client_season, pricing
+from app.libs import client_import, client_names, client_season, pricing
 from app.libs.db import ensure_schema_once, get_conn, has_item_status_column
 from app.libs.roles import require_role
 
@@ -422,6 +422,56 @@ async def list_clients(request: Request):
         await conn.close()
 
 
+#: The one INSERT behind New Client and the spreadsheet import, guarded by
+#: the unique index on the name -- two people adding the same client at the
+#: same moment produce one row and one clean 409, instead of one silently
+#: overwriting the other.
+INSERT_CLIENT_SQL = f"""
+    INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference,
+                         first_name, last_name, company, site)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15)
+    ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
+    RETURNING {CLIENT_COLUMNS}
+"""
+
+
+async def insert_client(conn, *, name: str, parts: Optional[dict], email=None, phone=None, notes=None,
+                        street=None, city=None, state=None, zip=None,
+                        secondary_contacts: Optional[list] = None, created_by: Optional[str] = None,
+                        time_preference: Optional[str] = None):
+    """Insert one client; the new row, or None when the name is taken."""
+    return await conn.fetchrow(
+        INSERT_CLIENT_SQL,
+        name,
+        clean_name(email) or None,
+        clean_name(phone) or None,
+        clean_name(notes) or None,
+        clean_name(street) or None,
+        clean_name(city) or None,
+        clean_name(state) or None,
+        clean_name(zip) or None,
+        json.dumps(secondary_contacts) if secondary_contacts is not None else "[]",
+        created_by,
+        time_preference,
+        *((parts or {}).get(k) for k in NAME_PART_COLUMNS),
+    )
+
+
+def new_client_out(row) -> dict:
+    result = with_name_parts(dict(row))
+    sc = result.get("secondary_contacts")
+    result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
+    return {
+        **result,
+        "project_count": 0,
+        "bucket_count": 0,
+        "selected_cost": 0.0,
+        "last_project_at": None,
+        "source": "saved",
+        "activity": [],
+    }
+
+
 @router.post("/create", response_model=ClientOut)
 async def create_client(body: ClientCreate, request: Request):
     from app.auth.supabase_auth import get_optional_user
@@ -436,46 +486,135 @@ async def create_client(body: ClientCreate, request: Request):
     conn = await get_conn()
     try:
         await ensure_schema(conn)
-        # One INSERT, guarded by the unique index — two people adding the same
-        # client at the same moment produce one row and one clean 409, instead
-        # of one silently overwriting the other.
-        row = await conn.fetchrow(
-            f"""
-            INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference,
-                                 first_name, last_name, company, site)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15)
-            ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
-            RETURNING {CLIENT_COLUMNS}
-            """,
-            name,
-            clean_name(body.email) or None,
-            clean_name(body.phone) or None,
-            clean_name(body.notes) or None,
-            clean_name(body.street) or None,
-            clean_name(body.city) or None,
-            clean_name(body.state) or None,
-            clean_name(body.zip) or None,
-            json.dumps([c.dict() for c in body.secondary_contacts]) if body.secondary_contacts is not None else "[]",
-            signed_in.email if signed_in else None,
-            time_preference,
-            *((parts or {}).get(k) for k in NAME_PART_COLUMNS),
+        row = await insert_client(
+            conn, name=name, parts=parts, email=body.email, phone=body.phone, notes=body.notes,
+            street=body.street, city=body.city, state=body.state, zip=body.zip,
+            secondary_contacts=([c.dict() for c in body.secondary_contacts]
+                                if body.secondary_contacts is not None else None),
+            created_by=signed_in.email if signed_in else None,
+            time_preference=time_preference,
         )
         if row is None:
             raise HTTPException(status_code=409, detail=client_names.duplicate_name_message(
                 parts, name, "Client already exists"))
+        return new_client_out(row)
+    finally:
+        await conn.close()
 
-        result = with_name_parts(dict(row))
-        sc = result.get("secondary_contacts")
-        result["secondary_contacts"] = json.loads(sc) if isinstance(sc, str) else (sc or [])
-        return {
-            **result,
-            "project_count": 0,
-            "bucket_count": 0,
-            "selected_cost": 0.0,
-            "last_project_at": None,
-            "source": "saved",
-            "activity": [],
+
+# ─── spreadsheet import (Comment #11) ───────────────────────────────────────
+# Same gate as New Client: this router has no MIN_ROLE, so office staff and
+# up; production, viewer, leads and crew are refused (app.libs.roles).
+# Validate is a dry run that never writes; commit re-validates against the
+# clients as they are now and creates only the "create" rows, through the
+# same INSERT as the form, in one transaction. Existing clients are never
+# updated: a name that's taken is skipped and listed.
+
+
+class ClientImportIn(BaseModel):
+    filename: str = ""
+    #: The file's bytes, base64 (CSV in any encoding Excel saves, or .xlsx).
+    content_base64: str
+
+
+class ImportTemplateOut(BaseModel):
+    headers: List[str]
+    example_rows: List[List[str]]
+    odoo_aliases: List[List[str]]
+    max_rows: int
+
+
+@router.get("/import/template", response_model=ImportTemplateOut)
+async def import_template(request: Request):
+    """The template's headers (the New Client form's labels), the example
+    rows and the Odoo header mapping -- the dialog builds its downloads and
+    its sample table from this, so there is one list."""
+    fields = [k for k, _ in client_import.TEMPLATE_FIELDS]
+    return {
+        "headers": list(client_import.TEMPLATE_HEADERS),
+        "example_rows": [[ex.get(k, "") for k in fields] for ex in client_import.EXAMPLE_ROWS],
+        "odoo_aliases": [list(pair) for pair in client_import.ODOO_ALIAS_DOC],
+        "max_rows": client_import.MAX_ROWS,
+    }
+
+
+def _read_import(body: ClientImportIn) -> list:
+    try:
+        return client_import.read_rows(body.filename, client_import.decode_upload(body.content_base64))
+    except client_import.ImportFileError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+async def _validate_import(conn, rows: list) -> dict:
+    existing = await conn.fetch("SELECT name, former_names FROM clients")
+    try:
+        return client_import.validate(rows, client_import.existing_name_index(dict(r) for r in existing))
+    except client_import.ImportFileError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _import_answer(result: dict, **extra) -> dict:
+    return {
+        "counts": result["counts"],
+        "columns": result["columns"],
+        "ignored_columns": result["ignored_columns"],
+        "rows": [client_import.public_row(r) for r in result["rows"]],
+        **extra,
+    }
+
+
+@router.post("/import/validate")
+async def validate_client_import(body: ClientImportIn, request: Request):
+    """Dry run: what each row would do. Writes nothing."""
+    rows = _read_import(body)
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        return _import_answer(await _validate_import(conn, rows), dry_run=True)
+    finally:
+        await conn.close()
+
+
+@router.post("/import/commit")
+async def commit_client_import(body: ClientImportIn, request: Request):
+    """Create the rows the dry run marks "create" -- all or none."""
+    from app.auth.supabase_auth import get_optional_user
+
+    rows = _read_import(body)
+    signed_in = get_optional_user(request)
+    created_by = signed_in.email if signed_in else None
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        created: list = []
+        async with conn.transaction():
+            # Re-checked inside the transaction, against the clients as they
+            # are now -- not whatever the preview saw.
+            result = await _validate_import(conn, rows)
+            for r in result["rows"]:
+                if r["status"] != client_import.STATUS_CREATE:
+                    continue
+                f = r["fields"]
+                row = await insert_client(
+                    conn, name=r["name"], parts=f["parts"], email=f["email"], phone=f["phone"],
+                    notes=f["notes"], street=f["street"], city=f["city"], state=f["state"],
+                    zip=f["zip"], secondary_contacts=f["secondary_contacts"],
+                    created_by=created_by, time_preference=f["time_preference"],
+                )
+                if row is None:  # someone saved that name a moment ago
+                    r.update(status=client_import.STATUS_DUPLICATE, message=f'Already a client: "{r["name"]}"')
+                    continue
+                r["client_id"] = row["id"]
+                created.append(new_client_out(row))
+        result["counts"] = {
+            **{s: sum(1 for r in result["rows"] if r["status"] == s)
+               for s in (client_import.STATUS_CREATE, client_import.STATUS_DUPLICATE, client_import.STATUS_ERROR)},
+            "total": len(result["rows"]),
         }
+        answer = _import_answer(result, dry_run=False, created=created)
+        for out, r in zip(answer["rows"], result["rows"]):
+            out["client_id"] = r.get("client_id")
+        return answer
     finally:
         await conn.close()
 
