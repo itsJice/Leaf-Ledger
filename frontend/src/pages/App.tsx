@@ -31,6 +31,13 @@ async function getJson<T>(path: string): Promise<T | null> {
   }
 }
 
+/** First part of the signed-in email, capitalised: "justice@..." -> "Justice"
+ *  (user, 2026-10-13: greet people by name). */
+function firstName(): string {
+  const local = (currentMe()?.email || "").split("@")[0].split(/[._+-]/)[0];
+  return local ? local[0].toUpperCase() + local.slice(1).toLowerCase() : "";
+}
+
 function greeting(d: Date) {
   const h = d.getHours();
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
@@ -146,7 +153,7 @@ export default function App() {
       <div className="mx-auto w-full max-w-5xl px-4 pb-10 pt-6 sm:px-10 sm:pt-10">
         <header className="mb-6 sm:mb-8">
           <h1 className="text-2xl font-semibold text-stone-800 sm:text-3xl" style={SORA}>
-            {greeting(now)}
+            {greeting(now)}{firstName() ? `, ${firstName()}` : ""}
           </h1>
           <p className="mt-1 text-sm text-stone-500">
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
