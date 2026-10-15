@@ -639,6 +639,16 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .stfdetail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;
   position:sticky;top:0}
 .stfdetail h3{font-family:Georgia,serif;font-size:19px;margin:0 0 2px}
+/* Person panel: the name/title/phone header stays in view while the rest of
+   the card scrolls (user, 2026-10-15). Wide screens only; on a phone the
+   panel stacks under the list and scrolls with the page. */
+.stfdhead{background:var(--surface)}
+@media (min-width:768px){
+  .stfdetail{max-height:calc(100vh - 120px);overflow-y:auto;padding-top:0;overscroll-behavior:contain}
+  .stfdhead{position:sticky;top:0;z-index:3;padding-top:16px;margin:0 -16px;padding-left:16px;padding-right:16px;
+    border-bottom:1px solid var(--line);box-shadow:0 6px 8px -8px rgba(31,61,43,.18)}
+  .stfdhead .stfcard{margin-bottom:8px}
+}
 .stfdmeta{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}
 .stfcontact{font-size:11.5px;color:var(--mut);margin-bottom:4px}
 .stfcontact svg{width:11px;height:11px;vertical-align:-1px}
@@ -10296,7 +10306,7 @@ function personDetailHTML(){
   const hrs=sh.reduce((a,x)=>a+x.hours,0);
   const stops=sh.reduce((a,x)=>a+x.stops,0);
   const dayCount=sh.reduce((a,x)=>a+x.days.length,0);
-  let h=`<div class="stfdetail"><h3>${esc(p.name)}</h3>
+  let h=`<div class="stfdetail"><div class="stfdhead"><h3>${esc(p.name)}</h3>
     <div class="stfdmeta">
       <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
@@ -10306,7 +10316,7 @@ function personDetailHTML(){
     <div class="stfcard">
       <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
-    </div>
+    </div></div>
     ${canSeeContractor()?contractorHTML(p):''}
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
     ${textLogHTML(p)}
