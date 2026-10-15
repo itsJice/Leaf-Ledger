@@ -4070,8 +4070,15 @@ function rebaseOnto(j, base, mine){
  *  device). */
 let syncBlocked=false;
 function syncBlockedBy(j){
+  // Only a row the SERVER changed since this tab's base can clash. If the
+  // server still has what this tab started from, the difference is this
+  // tab's own edit (e.g. renaming a client it added) and merges normally
+  // (hotfix 2026-10-15: a rename blocked saving for days).
+  const baseRows=Object.fromEntries(((sharedBase && sharedBase.state && sharedBase.state.newClients)||[])
+    .map(d=>[String(d.row), d.name]));
   const rows=((j.state && j.state.newClients)||[])
-    .filter(def=>def && C[def.row] && C[def.row].synthetic && C[def.row].name!==def.name);
+    .filter(def=>def && C[def.row] && C[def.row].synthetic && C[def.row].name!==def.name
+      && baseRows[String(def.row)]!==def.name);
   if(!rows.length) return false;
   syncBlocked=true;
   showSyncBanner({title:'This tab is out of date and needs a reload.',

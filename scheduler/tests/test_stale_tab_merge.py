@@ -278,3 +278,25 @@ def test_every_save_path_sends_its_base():
     assert "saveLocal();" in js_function("persist")
     # the old "newest timestamp wins the whole document" path is gone
     assert "pushSharedNow();\n        return;" not in js_function("pullSharedNow")
+
+
+def test_renaming_own_new_client_does_not_block_sync():
+    """Hotfix 2026-10-15: a tab renamed two clients it had added; the server
+    still had the base names, and syncBlockedBy wrongly blocked every save."""
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "review_template.html").read_text(encoding="utf-8")
+    fn = re.search(r"function syncBlockedBy\(j\)\{[\s\S]*?\n\}", src).group(0)
+    js = """
+let syncBlocked=false; let banner=null; const showSyncBanner=b=>{banner=b};
+const C={900004:{synthetic:true,name:'William Brothers - NRG - TAKE DOWN'}};
+let sharedBase={state:{newClients:[{row:900004,name:'William Brothers-NRG — TEARDOWN'}]}};
+""" + fn + """
+const a = syncBlockedBy({state:{newClients:[{row:900004,name:'William Brothers-NRG — TEARDOWN'}]}});
+sharedBase={state:{newClients:[{row:900004,name:'Old name'}]}};
+const b = syncBlockedBy({state:{newClients:[{row:900004,name:'Someone Else Client'}]}});
+console.log(JSON.stringify([a,b]));
+"""
+    import json, subprocess
+    out = subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout
+    assert json.loads(out) == [False, True]
