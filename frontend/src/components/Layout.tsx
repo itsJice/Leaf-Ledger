@@ -129,7 +129,7 @@ function DisplayLayout({ children }: Props) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   return (
-    <div className="relative flex h-[100dvh] flex-col bg-[#f7f6f2]">
+    <div data-ll-shell className="relative flex h-[100dvh] flex-col bg-[#f7f6f2]">
       <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       <button
         type="button"
@@ -586,7 +586,7 @@ function StaffLayout({ children }: Props) {
   // The wrapper uses `bg-background` (previously a hardcoded #f7f4ef) so the
   // content area follows the theme while the sidebar keeps its dark identity.
   return (
-    <div className="min-h-[100dvh] flex bg-background" style={{ fontFamily: "'Nunito Sans', system-ui, sans-serif" }}>
+    <div data-ll-shell className="min-h-[100dvh] flex bg-background" style={{ fontFamily: "'Nunito Sans', system-ui, sans-serif" }}>
       {/* Phone / tablet top bar. Same dark chrome as the sidebar; hidden at lg
           where the sidebar is always on screen. */}
       <header
