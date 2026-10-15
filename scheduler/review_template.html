@@ -1371,6 +1371,16 @@ body.apple #newbtn .ic:last-child{width:12px;height:12px;opacity:.85}
 body.apple #newpop{position:absolute;right:0;top:40px;z-index:2000;min-width:170px;padding:6px;border-radius:12px;
   background:#fff;box-shadow:0 10px 30px rgba(28,46,30,.18),0 0 0 .5px rgba(28,46,30,.16);display:flex;flex-direction:column}
 body.apple #newpop[hidden]{display:none!important}
+body.apple #dlwrap{position:relative;display:flex;align-items:center}
+body.apple #dlpop{position:absolute;right:0;top:40px;z-index:2000;min-width:200px;padding:6px;border-radius:12px;
+  background:#fff;box-shadow:0 10px 30px rgba(28,46,30,.18),0 0 0 .5px rgba(28,46,30,.16);display:flex;flex-direction:column}
+body.apple #dlpop[hidden]{display:none!important}
+body.apple #dlpop button{all:unset;box-sizing:border-box;display:block;padding:9px 12px;border-radius:8px;
+  font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif}
+body.apple #dlpop button:hover,body.apple #dlpop button:focus-visible{background:var(--brand-soft)}
+/* The toolbar follows the view (user, 2026-10-15): a control that means
+   nothing on this screen is hidden, not left doing something else. */
+#app [data-tbhide]{display:none!important}
 body.apple #newpop button{all:unset;box-sizing:border-box;display:block;padding:9px 12px;border-radius:8px;
   font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'Nunito Sans',system-ui,sans-serif}
 body.apple #newpop button:hover,body.apple #newpop button:focus-visible{background:var(--brand-soft)}
@@ -2003,6 +2013,33 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   body.apple #side .ovspacer{display:block}
 }
 .ovspacer{display:none}
+/* ---- Cmd+P / Ctrl+P prints the whole view (user, 2026-10-15) ----
+   "When I hit Command P ... I want it to print the whole page, not just the
+   first screenshot." On screen every view is a fixed-height pane that
+   scrolls inside itself, so the browser printed one screenful. In print the
+   panes grow to their content and page normally; the chrome (dates column,
+   toolbar, banners, maps) is left off. The toolbar's Print button still
+   makes the purpose-built sheets. Hidden views stay hidden: their display
+   is set inline, which these (non-!important) display rules don't override. */
+@media print{
+  @page{margin:10mm}
+  html,body{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
+  body.apple #app,#app{display:block!important;height:auto!important;min-height:0!important;overflow:visible!important}
+  #datecol,header,#phonebar,#map,.colgrip,#searchresults,#tvhint,.shmapbox,.leaflet-container,
+  .printbtn,.stopbtns,.shcbtn,.stfbar,.stffilters,.calbar,#dsheethd{display:none!important}
+  #viewarea,#main,#side,#calwrap,#staffwrap,#calbodywrap,.stfsplit,.stfsplit>div{
+    height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;
+    flex:none!important;position:static!important}
+  #viewarea{display:block!important}
+  html body #main{display:block}
+  #side,body.apple #side{width:auto!important;min-width:0!important;max-width:none!important;padding:0!important}
+  #calwrap,#staffwrap{padding:0!important}
+  .shiftday{display:block!important}
+  .stop,.shcard,.calcell,.agday,.stfsec summary,tr,.dayhead,.daystats{break-inside:avoid;page-break-inside:avoid}
+  .dayhead,.chead{break-after:avoid}
+  .card,.shcard,.calcell,.calchip,.pill,.cvchip,.cdot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .calcell{min-height:0}
+}
 </style></head>
 <body class="apple"><div id="app">
 <aside id="datecol" aria-label="Dates">
@@ -2054,7 +2091,13 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
       </div>
     </div>
     <button id="tbprint" class="tbicon" type="button" title="Print the crew sheets for what's on screen" aria-label="Print crew sheets"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg></button>
-    <button id="billexportbtn" class="tbicon" type="button" title="Export" aria-label="Export"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></button>
+    <div id="dlwrap">
+      <button id="billexportbtn" class="tbicon" type="button" title="Export the schedule (Excel, CSV or PDF)" aria-label="Export the schedule"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></button>
+      <div id="dlpop" role="menu" hidden>
+        <button id="dlrosterxlsx" type="button" role="menuitem">Roster as Excel (.xlsx)</button>
+        <button id="dlrostercsv" type="button" role="menuitem">Roster as CSV</button>
+      </div>
+    </div>
     <button id="tvbtn" class="tbicon" type="button" title="TV mode: full-screen wall calendar for the studio TV" aria-label="TV mode"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></button>
     <div id="newmenu">
       <button id="newbtn" type="button" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>New</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -2943,10 +2986,24 @@ function applyPlacement(place){
  * Must run BEFORE applyPlacement(), which references these rows. */
 function restoreSyntheticClients(list){
   (list||[]).forEach(def=>{
-    if(C[def.row]) return;   // already present -- idempotent
+    if(C[def.row]){          // already present -- idempotent, but take the
+      // shared document's spelling (a rename saved elsewhere) for the row.
+      if(C[def.row].synthetic && def.name) syncSyntheticName(C[def.row], def.name);
+      return;
+    }
     addSyntheticClientSync(def);
     if(def.row >= nextSyntheticRow) nextSyntheticRow = def.row + 1;
   });
+}
+/** A synthetic client's stored name (what newClients saves) is `def.name`;
+ *  what is shown follows the Clients tab, as loadClientDirectory does. A
+ *  different spelling of the same name changes nothing. */
+function syncSyntheticName(c, name){
+  if(!name || normName(c.sheetName||c.name)===normName(name)) return;
+  let ac=null;   // (the directory is declared further down; bootstrap runs first)
+  try{ ac=clientDirectory ? clientDirectory.get(normName(name)) : null; }catch(e){}
+  if(ac && ac.name && normName(ac.name)!==normName(name)){ c.sheetName=name; c.name=ac.name; }
+  else { c.name=name; delete c.sheetName; }
 }
 // A brand-new deployment (or a save that predates staffing) has an empty
 // roster -- fall back to the real installer list baked in at build time
@@ -3107,6 +3164,16 @@ function stableJSON(v){
       .map(k=>JSON.stringify(k)+':'+stableJSON(v[k])).join(',')+'}';
   return JSON.stringify(v);
 }
+/** PURE. Two new-client definitions (newClients entries) are the same
+ *  client: the same name once spelling is normalized, or -- a rename -- the
+ *  same address and visit type. */
+function sameNewClient(a, b){
+  if(!a || !b) return false;
+  const n=s=>String(s||'').trim().toLowerCase().replace(/[,.]/g,'').replace(/\s+/g,' ');
+  if(n(a.name) && n(a.name)===n(b.name)) return true;
+  return !!n(a.street) && n(a.street)===n(b.street)
+    && (a.visitType||'Standard')===(b.visitType||'Standard');
+}
 /** PURE. Three-way merge of shared state documents: `base` is the server
  *  document this tab's changes were made on, `mine` is this tab now, `theirs`
  *  is the server document now. Returns {state, conflicts, changed, hard}:
@@ -3185,7 +3252,10 @@ function mergeShared(base, mine, theirs, label){
     if(nb[r] && same(nb[r], nm[r])) return;
     changed++;
     if(!nt[r] || same(nt[r], nb[r]) || same(nt[r], nm[r])) nc[r]=nm[r];
-    else hard.push(`New client ${nm[r].name||''}`.trim());
+    // The same client on both sides (already on the server, or edited there
+    // too): theirs is kept. Only a different client on the same row is hard.
+    else if(nb[r]) conflicts.push(`${nt[r].name||'New client'}: details`);
+    else if(!sameNewClient(nt[r], nm[r])) hard.push(`New client ${nm[r].name||''}`.trim());
   });
   Object.keys(nb).forEach(r=>{ if(!nm[r]){ changed++; if(same(nt[r], nb[r])) delete nc[r]; } });
   if(any('newClients')) out.newClients=Object.values(nc);
@@ -3255,8 +3325,11 @@ function mergeShared(base, mine, theirs, label){
   return {state:out, conflicts, changed, hard};
 }
 function snapshot(){
+  // The name as it was saved (c.sheetName), not the Clients tab's spelling
+  // that loadClientDirectory shows: a rename there is not this tab's edit,
+  // and sending it made every other tab's copy of the row look different.
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
-    {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
+    {row:c.row, name:c.sheetName||c.name, street:c.street, lat:c.lat, lon:c.lon,
      hours:c.h26, visitType:c.visitType, notes:c.advice,
      people:c.people, business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
@@ -3371,7 +3444,18 @@ window.parent.postMessage({type:'tbdg-ready'}, '*');
 // URL and highlighted entry follow. body.hosted hides our own tab row.
 const HOSTED = !!window.TBDG_HOSTED && window.parent!==window;
 if(HOSTED) document.body.classList.add('hosted');
-window.tbdgViews = true;          // the host checks for this before posting views
+window.tbdgViews = true;
+// Cmd/Ctrl+P inside the app: print THIS page, not the app around it. The app
+// prints its own window, where this page is an iframe the size of the screen,
+// so only one screenful came out. window.print() here prints the whole
+// schedule with the @media print rules above. (InstallSchedule.tsx forwards
+// the shortcut when focus is outside this frame.)
+window.tbdgPrint = ()=>window.print();
+if(HOSTED) document.addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey) && !e.altKey && !e.shiftKey && String(e.key).toLowerCase()==='p'){
+    e.preventDefault(); e.stopPropagation(); window.print();
+  }
+}, true);          // the host checks for this before posting views
 let lastToldView = null;
 function curView(){ return viewMode==='staff' ? (staffTab==='roster'?'roster':'staff') : viewMode; }
 function reportView(){
@@ -4070,8 +4154,20 @@ function rebaseOnto(j, base, mine){
  *  device). */
 let syncBlocked=false;
 function syncBlockedBy(j){
+  // Rows the server already had when this tab last synced are not this tab's
+  // own adds, whatever they are called now. Before 10/15 this compared the
+  // name shown here (the Clients tab's spelling, e.g. "Byrd, Grace - (Lucas/
+  // Eilers ...)") with the saved one ("Byrd, Grace") and blocked the tab on
+  // clients that were already saved.
+  const known=new Set(((sharedBase && sharedBase.state && sharedBase.state.newClients)||[])
+    .map(d=>String(d && d.row)));
+  const dirOf=n=>(clientDirectory && n) ? clientDirectory.get(normName(n)) : null;
+  const sameHere=(def,c)=>sameNewClient(def, {name:c.sheetName||c.name, street:c.street, visitType:c.visitType})
+    || normName(c.name)===normName(def.name)
+    || (!!dirOf(def.name) && dirOf(def.name)===dirOf(c.name));
   const rows=((j.state && j.state.newClients)||[])
-    .filter(def=>def && C[def.row] && C[def.row].synthetic && C[def.row].name!==def.name);
+    .filter(def=>def && C[def.row] && C[def.row].synthetic
+      && !known.has(String(def.row)) && !sameHere(def, C[def.row]));
   if(!rows.length) return false;
   syncBlocked=true;
   showSyncBanner({title:'This tab is out of date and needs a reload.',
@@ -5656,7 +5752,10 @@ function jumpToClient(row){
   // The found client stays highlighted green until the next click anywhere
   // (user, 2026-09-30), and the map centres on them.
   searchHit = row;
-  selDate = d.date; focusDayId = d.id; render();
+  selDate = d.date; focusDayId = d.id;
+  // From the Calendar or Staffing, the found client's day opens in Days
+  // (it used to change the selection behind the screen and show nothing).
+  if(viewMode!=='days') setView('days'); else render();
   requestAnimationFrame(()=>{
     const el = side.querySelector(`.stop[data-row="${row}"]`);
     if(el){ el.classList.add('searchhit'); el.scrollIntoView({block:'center', behavior: pkReduced()?'auto':'smooth'}); }
@@ -8074,7 +8173,20 @@ document.getElementById('viewdays').onclick = ()=> setView('days');
 document.getElementById('viewcal').onclick  = ()=> setView('cal');
 document.getElementById('viewstaff').onclick= ()=>{ staffTab='shifts'; setView('staff'); };
 document.getElementById('viewroster').onclick=()=>{ staffTab='roster'; setView('staff'); };
-document.getElementById('billexportbtn').onclick = ()=>{ drawBillCols(); syncBillBtn(); billdlg.showModal(); };
+document.getElementById('billexportbtn').onclick = e=>{
+  if(curView()==='roster'){
+    e.stopPropagation();
+    const pop=document.getElementById('dlpop'), willOpen=pop.hidden;
+    pop.hidden=!willOpen; e.currentTarget.setAttribute('aria-expanded', String(willOpen));
+    if(willOpen){ const f=pop.querySelector('button'); if(f) f.focus(); }
+    return;
+  }
+  drawBillCols(); syncBillBtn(); billdlg.showModal();
+};
+document.getElementById('dlrosterxlsx').onclick=()=>{ closeDlPop(); downloadRoster('xlsx'); };
+document.getElementById('dlrostercsv').onclick=()=>{ closeDlPop(); downloadRoster('csv'); };
+document.addEventListener('click', e=>{ if(!e.target.closest('#dlwrap')) closeDlPop(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDlPop(); });
 billdlg.querySelectorAll('.billscope button').forEach(b=>{
   b.onclick = ()=>{ billScope=b.dataset.scope; pick('.billscope', billScope, 'scope'); };
 });
@@ -8548,6 +8660,7 @@ function calShift(n){
   renderCalendar();
 }
 function renderCalendar(){
+  queueMicrotask(syncViewToolbar);   // "Print October 2026" follows the month
   const wrap=document.getElementById('calwrap');
   const nav=calView!=='agenda';
   wrap.innerHTML=`<div class="calbar">
@@ -10056,10 +10169,18 @@ function rosterRank(p){
 const RANK_LBL = ['Ready to schedule', 'Ready to schedule \u2014 no phone number',
                   'Needs availability', 'Needs availability and a phone number'];
 
+// Which roster blocks are opened/closed by hand (kept across re-renders, and
+// what the toolbar's Print follows).
+const rosterOpen={};
+document.addEventListener('toggle', e=>{
+  const d=e.target; if(!d.classList || !d.classList.contains('stfsec') || !d.dataset.sec) return;
+  rosterOpen[d.dataset.sec]=d.open;
+}, true);
 // A roster block: heading with a count, its own column headers, collapsible.
-function rosterSection(label, people, open){
+function rosterSection(label, people, open, key){
   if(!people.length) return '';
-  return `<details class="stfsec"${open?' open':''}>`
+  const was=key ? rosterOpen[key] : undefined;
+  return `<details class="stfsec"${key?` data-sec="${key}"`:''}${(was===undefined?open:was)?' open':''}>`
     + `<summary><span class="foldchev" aria-hidden="true">${IC.chev}</span>${esc(label)}<span class="stfsecn"> \u00b7 ${people.length}</span></summary>`
     + `<table class="stftable"><thead><tr><th>Name</th><th>Title</th><th>Lang</th>`
     + `<th>M/F</th><th>Free</th><th>Shifts</th>`
@@ -10068,7 +10189,10 @@ function rosterSection(label, people, open){
     + `</tbody></table></details>`;
 }
 
-function rosterHTML(){
+/** The Roster screen's people, filtered and ordered exactly as shown: `list`
+ *  (active, by readiness tier or by rating) and `off` (the inactive block).
+ *  The toolbar's Print and Download use the same lists. */
+function rosterLists(){
   const f=stfFilter;
   const matches=p=>
     (!f.title||p.title===f.title) && (!f.lang||p.lang===f.lang)
@@ -10091,6 +10215,25 @@ function rosterHTML(){
   // they are not staffing decisions this one.
   const off=(f.active===''||f.active==='0')
     ? roster.filter(p=>matches(p)&&p.active===false).sort(byRank) : [];
+  return {list, off, sortByRating};
+}
+/** The Roster screen's blocks, in screen order: [{key, label, people}]. */
+function rosterSections(){
+  const {list, off, sortByRating}=rosterLists();
+  const out=[];
+  if(sortByRating){
+    const rated=list.filter(p=>overallRating(p)).length;
+    if(list.length) out.push({key:'rating', label:`Alberto rating (overall) · ${rated} rated, ${list.length-rated} not yet`, people:list});
+  } else RANK_LBL.forEach((lbl, r)=>{
+    const people=list.filter(pp=>rosterRank(pp)===r);
+    if(people.length) out.push({key:'rank'+r, label:lbl, people});
+  });
+  if(off.length) out.push({key:'off', label:'Not working this season', people:off, closed:true});
+  return out;
+}
+function rosterHTML(){
+  const f=stfFilter;
+  const {list, off}=rosterLists();
   const sel=(id,val,opts,lbl)=>`<select data-f="${id}"${val?' class="on"':''}>`
     + `<option value="">${lbl}</option>`
     + opts.map(o=>`<option value="${esc(o[0])}"${val===o[0]?' selected':''}>${esc(o[1])}</option>`).join('')
@@ -10111,22 +10254,15 @@ function rosterHTML(){
     if(!off.length) h+= rosterQ.trim()
       ? `<div class="stfnone">No installers match "${esc(rosterQ.trim())}".</div>`
       : `<div class="stfnone">No installers match those filters.</div>`;
-  } else if(sortByRating){
-    const rated=list.filter(p=>overallRating(p)).length;
-    h += rosterSection(`Alberto rating (overall)`
-      + ` · ${rated} rated, ${list.length-rated} not yet`, list, true);
   } else {
-    // One block per completeness tier, each with its own column headers, so the
-    // groups are visually separate rather than divided by a row inside a single
-    // table. Empty tiers render nothing at all -- a roster where everyone is
-    // ready should read as one list, not a stack of labelled empties.
-    RANK_LBL.forEach((lbl, r) => {
-      h += rosterSection(lbl, list.filter(pp => rosterRank(pp) === r), true);
-    });
+    // One block per completeness tier (or one by rating), each with its own
+    // column headers, so the groups are visually separate rather than divided
+    // by a row inside a single table. Empty tiers render nothing at all. The
+    // inactive block ("Not working this season") starts collapsed, since they
+    // are not a staffing decision right now.
+    rosterSections().forEach(sec=>{ h += rosterSection(sec.label, sec.people, !sec.closed, sec.key); });
   }
-  // Still on the roster, just not this season -- collapsed, since they are not
-  // a staffing decision right now.
-  h += rosterSection('Not working this season', off, false);
+  if(!list.length && off.length) h += rosterSection('Not working this season', off, false, 'off');
   h+=`</div><div>${personDetailHTML()}</div></div>`;
   return h;
 }
@@ -10383,6 +10519,7 @@ function wireShiftMaps(wrap){
 function renderStaffing(){
   syncSearchMode();
   reportView();   // its Roster / Shifts sub-tabs switch views too
+  syncViewToolbar();
   const wrap=document.getElementById('staffwrap');
   // Keep the top-nav Staffing/Roster buttons in sync even when the tab
   // changes via the in-page sub-tabs rather than the top nav itself.
@@ -10923,6 +11060,7 @@ function setView(v){
   if(v!=='cal' && typeof closeCalSub==='function') closeCalSub();
   render();
   if(v==='days' && daysScrollKeep!=null){ side.scrollTop=daysScrollKeep; daysScrollKeep=null; phoneSpy(); }
+  syncViewToolbar();
   reportView();
 }
 
@@ -11065,6 +11203,256 @@ function printDate(dt){
     `Crew sheets — ${fmtMDYYYY(dt)}`);
 }
 
+// ---------- the toolbar follows the view (user, 2026-10-15) ----------
+// "Buttons at the top of the page need to correspond to what's on the page.
+// Right now, the print button doesn't print the roster." Each control does
+// the thing for the screen you're on, says so in its label, or is hidden.
+/** A plain printable page in a new window (one per call), printed on load. */
+function openPrintDoc(title, css, body, landscape){
+  const w=window.open('','_blank');
+  if(!w){ alert('Pop-up blocked. Allow pop-ups for this page to print.'); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+    @page{size:${landscape?'landscape':'portrait'};margin:11mm}
+    body{font:11px/1.38 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
+    .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;
+      border-bottom:2.5px solid #2d5a33;padding-bottom:6px;margin-bottom:10px}
+    h1{font-size:18px;margin:0}
+    .phead p{margin:2px 0 0;color:#555;font-size:11px}
+    h2{font-size:12.5px;margin:14px 0 4px;color:#2d5a33;break-after:avoid}
+    table{border-collapse:collapse;width:100%}
+    thead{display:table-header-group}
+    th{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#555;text-align:left;
+      border-bottom:1.2px solid #999;padding:0 5px 3px}
+    td{padding:4px 5px;vertical-align:top;border-bottom:1px solid #e3e3e3}
+    tr{break-inside:avoid}
+    .mut{color:#666}
+    ${css||''}
+  </style></head><body>${body}
+  <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`);
+  w.document.close();
+}
+function printedStamp(){
+  return 'Printed '+new Date().toLocaleString('en-US',{month:'numeric',day:'numeric',year:'numeric',
+    hour:'numeric',minute:'2-digit',timeZone:'America/Chicago'})+' CT';
+}
+/** "Oct 26, 27, 30 · Nov 2, 3": a person's free dates, short. */
+function fmtFreeDays(dates){
+  const by={};
+  (dates||[]).slice().sort().forEach(iso=>{
+    const [y,m,d]=iso.split('-').map(Number); const k=y+'-'+m;
+    (by[k]=by[k]||{m, ds:[]}).ds.push(d);
+  });
+  return Object.values(by).map(g=>MONTHS[g.m-1].slice(0,3)+' '+g.ds.join(', ')).join(' · ');
+}
+/** The Roster as rows (header first): what's on screen, in screen order.
+ *  Contractor fields only for admins (canSeeContractor), as on screen. */
+function rosterRows(sections){
+  const admin=canSeeContractor();
+  const head=['Name','Phone','Title','Language','M/F','Free days','Free dates'];
+  if(admin) head.push('Legal name','Address','1099','Direct deposit');
+  const rows=[head];
+  sections.forEach(sec=>sec.people.forEach(p=>{
+    const r=[p.name, p.phone?fmtPhone(p.phone):'', p.title, p.lang, p.gender==='Male'?'M':'F',
+             (p.dates||[]).length, fmtFreeDays(p.dates)];
+    if(admin) r.push(p.legalName||'',
+      [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', '),
+      p.tax1099?'Yes':'No', p.directDeposit?'On file':'');
+    rows.push(r);
+  }));
+  return rows;
+}
+/** Print the Roster: the blocks that are open on screen, filtered and sorted
+ *  as shown. */
+function printRoster(){
+  const secs=rosterSections().filter(sec=>{
+    const el=document.querySelector(`#staffwrap details.stfsec[data-sec="${sec.key}"]`);
+    return el ? el.open : !sec.closed;
+  });
+  const n=secs.reduce((a,x)=>a+x.people.length,0);
+  if(!n){ alert('Nobody on the roster matches what is on screen.'); return; }
+  const admin=canSeeContractor();
+  const rows=rosterRows(secs), head=rows[0];
+  const f=stfFilter, filt=[f.title, f.lang, f.gender, f.active==='1'?'Active':f.active==='0'?'Inactive':'',
+    rosterQ.trim()?`"${rosterQ.trim()}"`:''].filter(Boolean).join(' · ');
+  let i=1;
+  const body=secs.map(sec=>`<h2>${esc(sec.label)} · ${sec.people.length}</h2>
+    <table><thead><tr>${head.filter((_,ci)=>ci!==5).map(h=>`<th>${esc(h==='Free dates'?'Free days':h)}</th>`).join('')}</tr></thead><tbody>${
+      sec.people.map(()=>{ const r=rows[i++];
+        return `<tr><td class="nm">${esc(r[0])}</td><td class="nw">${esc(r[1])}</td><td>${esc(r[2])}</td>`
+          + `<td>${esc(r[3])}</td><td class="c">${esc(r[4])}</td>`
+          + `<td class="fd"><b>${r[5]}</b>${r[6]?' · '+esc(r[6]):''}</td>`
+          + (admin?r.slice(7).map(v=>`<td>${esc(v)}</td>`).join(''):'')+`</tr>`; }).join('')
+    }</tbody></table>`).join('');
+  openPrintDoc(`Roster — TBDG __SEASON__`,
+    `.nm{font-weight:700;white-space:nowrap}.nw{white-space:nowrap}.c{text-align:center}.fd{font-size:10px;max-width:${admin?'190px':'320px'}}`,
+    `<div class="phead"><div><h1>TBDG __SEASON__ installer roster</h1>`
+    + `<p>${n} ${n===1?'person':'people'}${filt?' · '+esc(filt):''}${admin?' · includes contractor info (admin only)':''}</p></div>`
+    + `<p>${esc(printedStamp())}</p></div>${body}`, admin);
+}
+function downloadRoster(fmt){
+  const secs=rosterSections();
+  const rows=rosterRows(secs);
+  if(rows.length<2){ alert('Nobody on the roster matches what is on screen.'); return; }
+  const file=`tbdg-__SEASON__-roster`;
+  if(fmt==='csv'){ dl(`${file}.csv`, rows.map(r=>r.map(csvCell).join(',')).join('\r\n')); return; }
+  const widths=rows[0].map(h=>({Name:24,Phone:15,Title:17,Language:10,'M/F':5,'Free days':9,'Free dates':48,
+    'Legal name':24,Address:40,'1099':6,'Direct deposit':13})[h]||14);
+  const blob=rowsToXlsx(rows, [], 'Roster', widths);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`${file}.xlsx`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+/** Print the Staffing screen: every shift it lists, with its need, crew and
+ *  coverage, grouped by date. */
+function printStaffing(){
+  const shifts=buildShifts();
+  if(!shifts.length){ alert('No shifts to print yet.'); return; }
+  const need=n=>[n.lead?n.lead+' lead':'', n.assist?n.assist+' assist':'', n.gen?n.gen+' general':'']
+    .filter(Boolean).join(', ')||'none';
+  let body='', last='';
+  shifts.forEach(sh=>{
+    if(sh.date!==last){
+      if(last) body+='</tbody></table>';
+      last=sh.date;
+      body+=`<h2>${esc(fmtDate(sh.date))}</h2><table><thead><tr><th>Crew</th><th>Jobs</th><th>Needs</th>`
+        + `<th>On the crew</th><th>Status</th></tr></thead><tbody>`;
+    }
+    const cv=shiftCoverage(sh);
+    const who=cv.who.slice().sort((a,b)=>TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
+      .map(p=>`${esc(p.name)} <span class="mut">(${esc(p.title)}${p.phone?', '+esc(fmtPhone(p.phone)):''})</span>`).join('<br>');
+    body+=`<tr><td class="nm">${esc(sh.label)}${sh.days.length>1?`<br><span class="mut">${esc(sh.when)}</span>`:''}</td>`
+      + `<td class="nw">${sh.stops} job${sh.stops===1?'':'s'} · ${sh.hours.toFixed(1)}h</td>`
+      + `<td>${esc(need(cv.need))}</td><td>${who||'<span class="mut">Nobody yet</span>'}</td>`
+      + `<td class="st ${cv.state}">${esc(coverageLabel(cv))}</td></tr>`;
+  });
+  body+='</tbody></table>';
+  const open=shifts.filter(sh=>!shiftCoverage(sh).who.length).length;
+  openPrintDoc(`Staffing — TBDG __SEASON__`,
+    `.nm{font-weight:700;width:150px}.nw{white-space:nowrap;width:90px}.st{width:150px;font-weight:700}
+     .st.bad,.st.none{color:#b91c1c}.st.short{color:#92400e}.st.ok{color:#2d5a33}`,
+    `<div class="phead"><div><h1>TBDG __SEASON__ staffing</h1>`
+    + `<p>${shifts.length} shifts · ${open} with nobody on them · ${fmtMDYYYY(shifts[0].date)} – ${fmtMDYYYY(shifts[shifts.length-1].date)}</p></div>`
+    + `<p>${esc(printedStamp())}</p></div>${body}`, true);
+}
+/** The dates the Calendar is showing (month, two weeks, week, day, or the
+ *  whole season in the Schedule list). */
+function calVisibleDates(){
+  if(calView==='month'||calView==='wall'){
+    const [y,m]=calAnchor.split('-').map(Number), n=new Date(y,m,0).getDate();
+    return Array.from({length:n},(_,i)=>`${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
+  }
+  if(calView==='wall2') return wall2Dates(calAnchor);
+  if(calView==='week'){ const s=addDays(calAnchor,-dateOf(calAnchor).getDay());
+    return Array.from({length:7},(_,i)=>addDays(s,i)); }
+  if(calView==='day') return [calAnchor];
+  return SEASON.filter(dt=>calDaysOn(dt).length || SPEC.calendar.some(c=>c.date===dt && c.label));
+}
+function calPrintTitle(){
+  if(calView==='agenda') return 'the season calendar';
+  if(calView==='day') return 'this day';
+  return calTitle();
+}
+/** Print what the Calendar shows as month grids (one page a month), each
+ *  day listing its crews and their stops. */
+function printCalendar(){
+  const ds=calVisibleDates(); if(!ds.length){ alert('Nothing on the calendar to print.'); return; }
+  const want=new Set(ds), months=[...new Set(ds.map(d=>d.slice(0,7)))];
+  const cell=iso=>{
+    const ci=SPEC.calendar.find(c=>c.date===iso), list=calDaysOn(iso);
+    const [,,dd]=iso.split('-').map(Number);
+    return `<td class="${want.has(iso)?'':'out'}"><div class="dn">${dd}${ci&&ci.label?` <span class="tag">${esc(ci.label)}</span>`:''}</div>${
+      !want.has(iso)?'':list.map(d=>{
+        const order=dayCalc(d).order.length?dayCalc(d).order:d.stops;
+        return `<div class="cr" style="border-color:${CREW_COLORS[d.crew]||'#555'}"><b>${esc(crewLabel(d))}${d.training?' · training':''}</b>`
+          + `${order.length?` · ${(dayCalc(d).total/60).toFixed(1)}h`:''}`
+          + order.map(r=>`<div class="st">${esc(String(C[r].name).split('|')[0].trim())}</div>`).join('')+`</div>`;
+      }).join('')}</td>`;
+  };
+  const body=months.map(ym=>{
+    const [y,m]=ym.split('-').map(Number), first=new Date(y,m-1,1), n=new Date(y,m,0).getDate();
+    const isos=Array.from({length:n},(_,i)=>`${ym}-${String(i+1).padStart(2,'0')}`)
+      .filter(iso=>calView==='month'||calView==='wall'||calView==='agenda'||want.has(iso)
+        || (iso>=ds[0] && iso<=ds[ds.length-1]));
+    // whole weeks around the dates in range
+    const start=addDays(isos[0], -dateOf(isos[0]).getDay());
+    const end=addDays(isos[isos.length-1], 6-dateOf(isos[isos.length-1]).getDay());
+    let rows='', cur=start;
+    while(cur<=end){
+      rows+='<tr>'+Array.from({length:7},(_,i)=>{ const iso=addDays(cur,i);
+        return iso.slice(0,7)===ym ? cell(iso) : '<td class="out"></td>'; }).join('')+'</tr>';
+      cur=addDays(cur,7);
+    }
+    void first;
+    return `<section class="mon"><div class="phead"><div><h1>${MONTHS[m-1]} ${y}</h1>`
+      + `<p>TBDG __SEASON__ install schedule</p></div><p>${esc(printedStamp())}</p></div>`
+      + `<table class="grid"><thead><tr>${DOW3.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></section>`;
+  }).join('');
+  openPrintDoc(`Calendar — ${calPrintTitle()}`,
+    `.mon{break-after:page}.mon:last-child{break-after:auto}
+     table.grid{table-layout:fixed}
+     .grid th{text-align:center;border:1px solid #bbb;padding:3px}
+     .grid td{border:1px solid #bbb;height:88px;padding:3px 4px;font-size:9px;line-height:1.25}
+     .grid td.out{background:#f6f6f4}
+     .dn{font-weight:800;font-size:11px;margin-bottom:2px}
+     .tag{font-weight:700;font-size:8px;color:#92400e;text-transform:uppercase}
+     .cr{border-left:3px solid #555;padding-left:4px;margin:2px 0 4px;break-inside:avoid;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+     .st{color:#333}`, body, true);
+}
+/** Days: the selected date's (or overview's) crew sheets. */
+function daysPrintable(){ return viewMode==='days' && selDate && selDate!=='NOINSTALL' && selDate!=='HOLD'; }
+function printDays(){
+  if(!daysPrintable()){ alert('Pick a date or an overview to print its crew sheets.'); return; }
+  if(isOverview(selDate)){
+    const t=overviewTitle(selDate)||'Overview';
+    printManifests(overviewSheets(daysFor(selDate)), `Crew sheets — ${t}`, {cover:t});
+  } else printDate(selDate);
+}
+/** Label, show or hide each toolbar control for the current view. */
+function syncViewToolbar(){
+  const v=curView();
+  const set=(id, label, show=true)=>{
+    const el=document.getElementById(id); if(!el) return;
+    if(show){ el.removeAttribute('data-tbhide'); } else el.setAttribute('data-tbhide','');
+    if(label){ el.title=label; el.setAttribute('aria-label', label); }
+  };
+  // Print
+  const pr = v==='roster' ? 'Print the roster (what is on screen)'
+    : v==='staff' ? 'Print the staffing sheet: every shift, what it needs and who is on it'
+    : v==='cal' ? `Print ${calPrintTitle()}`
+    : !daysPrintable() ? 'Pick a date or an overview to print its crew sheets'
+    : isOverview(selDate) ? `Print the crew sheets for ${
+        (t=>!t||t==='Overview'?'every date in this overview':t)(overviewTitle(selDate))} (${daysFor(selDate).length} crew-days)`
+    : `Print the crew sheets for ${fmtMDYYYY(selDate)}`;
+  set('tbprint', pr);
+  const tp=document.getElementById('tbprint'); if(tp) tp.disabled = v==='days' && !daysPrintable();
+  // Download
+  set('billexportbtn', v==='roster' ? 'Download the roster (Excel or CSV)'
+    : 'Export the schedule: client list with install dates and prices (Excel, CSV or PDF)', v!=='staff');
+  document.getElementById('billexportbtn').setAttribute('aria-haspopup', v==='roster' ? 'menu' : 'dialog');
+  if(v!=='roster') closeDlPop();
+  // TV mode is the wall calendar, so it lives on the Calendar.
+  set('tvbtn', 'TV mode: show this calendar full screen on the studio TV', v==='cal');
+  // + New makes what the view lists.
+  const nb=document.getElementById('newbtn');
+  if(nb){
+    const lbl = v==='roster' ? 'Add an installer' : v==='staff' ? 'Add a date (new shifts)' : 'Add a client or a date';
+    nb.title=lbl; nb.setAttribute('aria-label', lbl);
+    nb.setAttribute('aria-haspopup', v==='days'||v==='cal' ? 'menu' : 'dialog');
+    nb.querySelector('.ic:last-child').style.display = v==='days'||v==='cal' ? '' : 'none';
+  }
+  set('newclientbtn', null, v==='days'||v==='cal');
+  // Search
+  const sb=document.getElementById('searchbox');
+  if(sb && v!=='roster') sb.title = v==='days' ? 'Find a client and jump to their day'
+    : 'Find a client and open their day';
+}
+function closeDlPop(){
+  const pop=document.getElementById('dlpop');
+  if(pop && !pop.hidden){ pop.hidden=true; document.getElementById('billexportbtn').setAttribute('aria-expanded','false'); }
+}
+
 function render(){
   let pkKeep=null;
   { const pk=document.getElementById('peekdlg');
@@ -11073,6 +11461,7 @@ function render(){
       else { if(pk.open) (pk.closeNow||pk.close).call(pk); document.body.appendChild(pk); }
     } }
   if(hostingSeason) return;      // our DOM belongs to a hosted season now
+  queueMicrotask(syncViewToolbar);   // Print's label follows the picked date
   // Phones: a picked date becomes its overview's list, scrolled to it.
   const phPrevScope=phoneLastScope, phPrevTop=side.scrollTop;
   phoneNormalize();
@@ -11183,12 +11572,11 @@ function syncToolbar(){
 document.getElementById('tbundo').onclick=()=>undo();
 document.getElementById('tbredo').onclick=()=>redo();
 document.getElementById('tbprint').onclick=()=>{
-  if(viewMode!=='days' || selDate==='NOINSTALL' || selDate==='HOLD'){
-    alert('Pick a date or an overview in the Days view to print its crew sheets.'); return; }
-  if(isOverview(selDate)){
-    const t=overviewTitle(selDate)||'Overview';
-    printManifests(overviewSheets(daysFor(selDate)), `Crew sheets — ${t}`, {cover:t});
-  } else printDate(selDate);
+  const v=curView();
+  if(v==='roster') printRoster();
+  else if(v==='staff') printStaffing();
+  else if(v==='cal') printCalendar();
+  else printDays();
 };
 (function(){
   const btn=document.getElementById('tbhist'), pop=document.getElementById('histpop');
@@ -11205,7 +11593,12 @@ document.getElementById('tbprint').onclick=()=>{
 (function(){
   const btn=document.getElementById('newbtn'), pop=document.getElementById('newpop');
   const shut=()=>{ pop.hidden=true; btn.setAttribute('aria-expanded','false'); };
-  btn.onclick=e=>{ e.stopPropagation(); const willOpen=pop.hidden; pop.hidden=!willOpen;
+  btn.onclick=e=>{ e.stopPropagation();
+    // Roster: + New adds an installer; Staffing: a new date (its shifts).
+    const v=curView();
+    if(v==='roster'){ shut(); openPersonDlg(null); return; }
+    if(v==='staff'){ shut(); document.getElementById('newdatebtn').click(); return; }
+    const willOpen=pop.hidden; pop.hidden=!willOpen;
     btn.setAttribute('aria-expanded', String(willOpen));
     if(willOpen){ const f=pop.querySelector('button'); if(f) f.focus(); } };
   pop.addEventListener('click', shut);

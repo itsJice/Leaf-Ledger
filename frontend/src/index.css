@@ -774,6 +774,34 @@ html.dark {
    other printed pages keep their own). */
 @page ornament-sheet { size: letter; margin: 1in; }
 
+/* Cmd+P / Ctrl+P prints the whole page, not one screenful (user, 2026-10-15:
+   "I want it to be able to print the whole page, not just the first
+   screenshot"). On screen the app is a fixed-height shell whose content pane
+   ([data-scroll-root]) and the panes inside pages scroll on their own, so the
+   browser printed only what was in view. In print: no sidebar, top bar or
+   feedback button; the shell and its scrolling panes grow to their content
+   and flow across as many pages as it takes; cards and rows don't split.
+   (The Install Schedule is an iframe: InstallSchedule.tsx hands Cmd+P to it.) */
+@media print {
+  html, body, #root { height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  [data-ll-chrome], [data-feedback-widget], .ll-overlay { display: none !important; }
+  [data-ll-shell] { display: block !important; min-height: 0 !important; }
+  [data-scroll-root] {
+    height: auto !important; margin: 0 !important; overflow: visible !important;
+  }
+  [data-scroll-root] :is(.overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll) {
+    overflow: visible !important;
+  }
+  [data-scroll-root] :is(.h-full, .h-screen, .min-h-0, [class*="h-[calc"], [class*="h-[100dvh"], [class*="max-h-"]) {
+    height: auto !important; max-height: none !important;
+  }
+  [data-scroll-root] :is(.sticky, .fixed) { position: static !important; }
+  [data-scroll-root] :is(tr, li, article, [class*="rounded-xl"], [class*="rounded-2xl"]) {
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  [data-scroll-root] thead { display: table-header-group; }
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    shadcn semantic tokens (pre-existing)

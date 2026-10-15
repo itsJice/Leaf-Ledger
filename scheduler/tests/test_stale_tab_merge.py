@@ -29,7 +29,7 @@ def const_line(name):
 
 CONSTS = "\n".join(const_line(n) for n in ("SHARED_SET_KEYS", "SHARED_MAP_KEYS", "SHARED_KEYS"))
 MERGE = CONSTS + "\nconst TEXT_LOG_MAX=5;\n" + "\n".join(
-    js_function(n) for n in ("sharedDocOf", "stableJSON", "mergeShared"))
+    js_function(n) for n in ("sharedDocOf", "stableJSON", "sameNewClient", "mergeShared"))
 DATES = "\n".join(js_function(n) for n in ("boardDatesByClient", "boardDateMoves", "placementDayList"))
 
 
@@ -278,3 +278,123 @@ def test_every_save_path_sends_its_base():
     assert "saveLocal();" in js_function("persist")
     # the old "newest timestamp wins the whole document" path is gone
     assert "pushSharedNow();\n        return;" not in js_function("pullSharedNow")
+
+
+# 10/15/2026 (FAKE rows, the live names): the tab showed "This tab is out of
+# date and needs a reload ... add William Brothers - NRG - TAKE DOWN, Byrd,
+# Grace - (Lucas/Eilers Design Associates L.L.P) again." Both were already in
+# the live newClients, saved as "William Brothers-NRG — TEARDOWN" (900004) and
+# "Byrd, Grace" (900008). The tab showed the Clients tab's spelling
+# (loadClientDirectory renames C[row].name), and syncBlockedBy compared that
+# with the saved name, so a rename read as someone else's new client.
+SAVED_NC = [
+    {"row": 900004, "name": "William Brothers-NRG \u2014 TEARDOWN", "visitType": "Takedown",
+     "hours": 1.5, "street": "1 Fannin St"},
+    {"row": 900008, "name": "Byrd, Grace", "visitType": "Standard", "hours": 4,
+     "street": "3640 Inwood Drive"},
+]
+DIRECTORY = [
+    {"name": "William Brothers - NRG - TAKE DOWN", "sheet_name": "William Brothers-NRG \u2014 TEARDOWN",
+     "former_names": ["William Brothers-NRG \u2014 TEARDOWN", "William Brothers - NRG - TEAR DOWN"]},
+    {"name": "Byrd, Grace - (Lucas/Eilers Design Associates L.L.P)", "sheet_name": "Grace Byrd",
+     "former_names": ["Grace Byrd", "Byrd, Grace"]},
+]
+BLOCK = "\n".join(js_function(n) for n in (
+    "normName", "sameNewClient", "syncSyntheticName", "restoreSyntheticClients", "syncBlockedBy")) + """
+const C={}; let nextSyntheticRow=900001, syncBlocked=false, clientDirectory=null, sharedBase=null;
+const banners=[];
+function showSyncBanner(o){ banners.push(o); }
+function addSyntheticClientSync(d){ C[d.row]={...d, synthetic:true, h26:d.hours}; return d.row; }
+function loadDirectory(rows){            // what loadClientDirectory does
+  clientDirectory=new Map();
+  rows.forEach(c=>[c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
+    const k=normName(n); if(k && !clientDirectory.has(k)) clientDirectory.set(k, c); }));
+  Object.values(C).forEach(c=>{ const ac=clientDirectory.get(normName(c.name));
+    if(ac && ac.name && normName(ac.name)!==normName(c.name)){ c.sheetName=c.sheetName||c.name; c.name=ac.name; } });
+}
+"""
+
+
+def run_block(body):
+    return json.loads(run_js(BLOCK + f"const SAVED={json.dumps(SAVED_NC)}, DIR={json.dumps(DIRECTORY)};\n"
+                             + "const clone=x=>JSON.parse(JSON.stringify(x));\n" + body))
+
+
+def test_10_15_renamed_on_clients_tab_is_not_a_collision():
+    out = run_block("""
+      restoreSyntheticClients(clone(SAVED));       // the tab loads the live state
+      sharedBase={at:'t1', state:{newClients:clone(SAVED)}};
+      loadDirectory(DIR);                          // the Clients tab spelling is shown
+      const shown=Object.values(C).map(c=>c.name);
+      const blocked=syncBlockedBy({state:{newClients:clone(SAVED)}});
+      console.log(JSON.stringify({shown, blocked, syncBlocked, banners}));
+    """)
+    assert out["shown"] == ["William Brothers - NRG - TAKE DOWN",
+                            "Byrd, Grace - (Lucas/Eilers Design Associates L.L.P)"]
+    assert out["blocked"] is False and out["syncBlocked"] is False and out["banners"] == []
+
+
+def test_10_15_reload_with_no_base_and_the_shown_names_in_local_copy():
+    # The device copy was saved by the old page with the shown names, and a
+    # base that doesn't list the rows (e.g. {at:null, state:{}}): still the
+    # same clients, by address and visit type.
+    out = run_block("""
+      const local=clone(SAVED);
+      local[0].name='William Brothers - NRG - TAKE DOWN';
+      local[1].name='Byrd, Grace - (Lucas/Eilers Design Associates L.L.P)';
+      restoreSyntheticClients(local);              // bootstrap from localStorage
+      sharedBase={at:null, state:{}};
+      const blocked=syncBlockedBy({state:{newClients:clone(SAVED)}});
+      restoreSyntheticClients(clone(SAVED));       // applySharedDoc(j.state)
+      loadDirectory(DIR);
+      console.log(JSON.stringify({blocked, banners, stored:Object.values(C).map(c=>c.sheetName||c.name),
+                                  shown:Object.values(C).map(c=>c.name)}));
+    """)
+    assert out["blocked"] is False and out["banners"] == []
+    # The saved spelling is what this tab will send back; the Clients tab's is shown.
+    assert out["stored"] == ["William Brothers-NRG \u2014 TEARDOWN", "Byrd, Grace"]
+    assert out["shown"][1] == "Byrd, Grace - (Lucas/Eilers Design Associates L.L.P)"
+
+
+def test_10_15_a_different_client_on_my_new_row_still_blocks():
+    out = run_block("""
+      restoreSyntheticClients(clone(SAVED));
+      sharedBase={at:'t1', state:{newClients:clone(SAVED)}};
+      loadDirectory(DIR);
+      // This tab adds a client at 900009; another tab saved a different one there.
+      addSyntheticClientSync({row:900009, name:'Smith, Jo', street:'5 Elm St', visitType:'Standard', hours:2});
+      const theirs=[...clone(SAVED), {row:900009, name:'Lee, Kim', street:'9 Oak Ln', visitType:'Standard', hours:3}];
+      const blocked=syncBlockedBy({state:{newClients:theirs}});
+      console.log(JSON.stringify({blocked, title:banners[0] && banners[0].title, sub:banners[0] && banners[0].sub}));
+    """)
+    assert out["blocked"] is True
+    assert out["title"] == "This tab is out of date and needs a reload."
+    assert "add Smith, Jo again" in out["sub"]
+
+
+def test_10_15_merge_same_client_already_on_server_is_clean():
+    out = run(SCENARIO + f"const SAVED={json.dumps(SAVED_NC)};" + """
+      const base={...clone(BASE), newClients:[]};               // base from before they were added
+      const mine={...clone(BASE), newClients:clone(SAVED)};
+      mine.newClients[1].name='Byrd, Grace - (Lucas/Eilers Design Associates L.L.P)';
+      const theirs={...clone(BASE), newClients:clone(SAVED)};
+      const r=mergeShared(base, mine, theirs);
+      console.log(JSON.stringify({hard:r.hard, conflicts:r.conflicts, names:r.state.newClients.map(c=>c.name)}));
+    """)
+    assert out["hard"] == [] and out["conflicts"] == []
+    assert out["names"] == ["William Brothers-NRG \u2014 TEARDOWN", "Byrd, Grace"]
+
+
+def test_10_15_both_edited_a_saved_new_client_is_a_conflict_not_a_reload():
+    out = run(SCENARIO + f"const SAVED={json.dumps(SAVED_NC)};" + """
+      const base={...clone(BASE), newClients:clone(SAVED)};
+      const mine=clone(base), theirs=clone(base);
+      mine.newClients[1].hours=5; theirs.newClients[1].hours=6;
+      const r=mergeShared(base, mine, theirs);
+      console.log(JSON.stringify({hard:r.hard, conflicts:r.conflicts, hours:r.state.newClients[1].hours}));
+    """)
+    assert out == {"hard": [], "conflicts": ["Byrd, Grace: details"], "hours": 6}
+
+
+def test_snapshot_saves_the_stored_name_not_the_shown_one():
+    assert "name:c.sheetName||c.name, street:c.street" in js_function("snapshot")

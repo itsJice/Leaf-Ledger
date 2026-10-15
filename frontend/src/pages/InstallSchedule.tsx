@@ -33,7 +33,7 @@ import { type InstallView, legacyView, pathForView, viewForPath, withHostFlags }
  * listener exists; sending in direct response to that is what actually
  * guarantees delivery. `onLoad` stays wired too, as a second attempt.
  */
-type ToolWindow = Window & { tbdgFlush?: () => void; tbdgViews?: boolean };
+type ToolWindow = Window & { tbdgFlush?: () => void; tbdgViews?: boolean; tbdgPrint?: () => void };
 
 /** Builds published before the app nav existed have no `tbdg-view` listener:
  *  press their own tab button instead, so the nav still works until the new
@@ -179,6 +179,33 @@ export default function InstallSchedule() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cmd/Ctrl+P prints the whole schedule, not one screenful (user,
+  // 2026-10-15). The schedule is an iframe sized to the screen, and browsers
+  // print an iframe as a fixed box: printing this window clips it to what is
+  // in view (Chrome and Safari both treat it as one unbreakable block, so a
+  // taller iframe would not page either). So the shortcut prints the iframe's
+  // own window instead, where its @media print rules lay out every day across
+  // as many pages as it takes. With focus inside the schedule, the page
+  // catches the shortcut itself; this covers focus anywhere else in the app.
+  // (File > Print from the browser menu can't be redirected; it prints the
+  // screen as shown.)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "p") return;
+      const w = frameRef.current?.contentWindow as ToolWindow | null | undefined;
+      if (!w) return;
+      e.preventDefault();
+      try {
+        w.focus();
+        (w.tbdgPrint ?? w.print).call(w);
+      } catch {
+        window.print();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, []);
 
   return (
