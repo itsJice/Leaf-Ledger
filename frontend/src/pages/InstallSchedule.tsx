@@ -6,6 +6,7 @@ import { auth } from "app/auth/auth";
 import { apiFetch } from "utils/apiFetch";
 import { currentMe } from "utils/me";
 import { type InstallView, legacyView, pathForView, viewForPath, withHostFlags } from "utils/installViews";
+import { copyFrameForPrint, isPrintShortcut, printWithoutFallback, setPrintFallback } from "utils/printPage";
 
 /**
  * TBDG Install Schedule — the Christmas install scheduling tool.
@@ -182,30 +183,39 @@ export default function InstallSchedule() {
   }, []);
 
   // Cmd/Ctrl+P prints the whole schedule, not one screenful (user,
-  // 2026-10-15). The schedule is an iframe sized to the screen, and browsers
-  // print an iframe as a fixed box: printing this window clips it to what is
-  // in view (Chrome and Safari both treat it as one unbreakable block, so a
-  // taller iframe would not page either). So the shortcut prints the iframe's
-  // own window instead, where its @media print rules lay out every day across
-  // as many pages as it takes. With focus inside the schedule, the page
-  // catches the shortcut itself; this covers focus anywhere else in the app.
-  // (File > Print from the browser menu can't be redirected; it prints the
-  // screen as shown.)
+  // 2026-10-15; again 2026-10-17). The schedule is an iframe sized to the
+  // screen, and browsers print an iframe as one fixed box: printing this
+  // window clipped it to what was in view (Chrome and Safari treat it as an
+  // unbreakable block, so a taller iframe would not page either). So:
+  //   - Cmd+P with focus anywhere in the app (sidebar, nothing focused...)
+  //     prints the iframe's own window, where its @media print rules lay out
+  //     every day across as many pages as it takes. With focus inside the
+  //     schedule the page catches the shortcut itself (review_template.html).
+  //   - File > Print from the browser menu can't be intercepted, and prints
+  //     this window. For that, the app's print hook (utils/printPage.ts)
+  //     swaps in a full copy of the schedule as it looks right now -- same
+  //     view, its own print rules -- so that prints every page too.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "p") return;
+      if (!isPrintShortcut(e)) return;
       const w = frameRef.current?.contentWindow as ToolWindow | null | undefined;
       if (!w) return;
       e.preventDefault();
+      e.stopPropagation();
       try {
         w.focus();
-        (w.tbdgPrint ?? w.print).call(w);
+        const print = w.tbdgPrint ?? w.print;
+        printWithoutFallback(() => print.call(w));
       } catch {
         window.print();
       }
     };
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    setPrintFallback(() => copyFrameForPrint(frameRef.current));
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      setPrintFallback(null);
+    };
   }, []);
 
   return (
