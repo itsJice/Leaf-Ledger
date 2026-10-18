@@ -2036,7 +2036,11 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   html,body{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
   body.apple #app,#app{display:block!important;height:auto!important;min-height:0!important;overflow:visible!important}
   #datecol,header,#phonebar,#map,.colgrip,#searchresults,#tvhint,.shmapbox,.leaflet-container,
-  .printbtn,.stopbtns,.shcbtn,.stfbar,.stffilters,.calbar,#dsheethd{display:none!important}
+  .printbtn,.stopbtns,.shcbtn,.stfbar,.stffilters,#dsheethd{display:none!important}
+  /* The Calendar keeps its title ("October 2026") on paper; its buttons go. */
+  .calbar>:not(.caltitle){display:none!important}
+  .calbar{margin-bottom:8px}
+  #main,#side,body.apple #main,body.apple #side{background:#fff!important}
   #viewarea,#main,#side,#calwrap,#staffwrap,#calbodywrap,.stfsplit,.stfsplit>div{
     height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;
     flex:none!important;position:static!important}

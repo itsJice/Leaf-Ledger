@@ -774,32 +774,97 @@ html.dark {
    other printed pages keep their own). */
 @page ornament-sheet { size: letter; margin: 1in; }
 
-/* Cmd+P / Ctrl+P prints the whole page, not one screenful (user, 2026-10-15:
-   "I want it to be able to print the whole page, not just the first
-   screenshot"). On screen the app is a fixed-height shell whose content pane
-   ([data-scroll-root]) and the panes inside pages scroll on their own, so the
-   browser printed only what was in view. In print: no sidebar, top bar or
-   feedback button; the shell and its scrolling panes grow to their content
-   and flow across as many pages as it takes; cards and rows don't split.
-   (The Install Schedule is an iframe: InstallSchedule.tsx hands Cmd+P to it.) */
+/* Cmd+P / Ctrl+P prints the whole page you're on, sidebar left off (user,
+   2026-10-15 "print the whole page, not just the first screenshot"; again
+   2026-10-17 "every page ... everything on the page that I can scroll up and
+   down and see"). On screen the app is a fixed-height shell whose content
+   pane ([data-scroll-root]) and the panes inside pages scroll on their own,
+   so the browser printed only what was in view. In print:
+     - no sidebar, top bar, feedback button, toasts or [data-ll-print-hide];
+     - the shell and every scrolling pane grow to their content and flow
+       across as many pages as it takes; cards and rows don't split;
+     - breakpoints act as desktop (postcss.config.js), so print shows the
+       desktop columns and detail panes, not the phone layout.
+   The rules below are the static half. utils/printPage.ts marks what is
+   actually clipped the moment printing starts (data-ll-print-*), prints an
+   open modal on its own, and hands the Install Schedule's File > Print a
+   full copy of its iframe. */
+@media screen {
+  [data-ll-print-clone] { display: none !important; }
+  /* printPage.ts measures a wide table's narrowest printed width with this,
+     inside the beforeprint handler (never painted). */
+  [data-ll-print-measure] { width: min-content !important; }
+  [data-ll-print-measure] table { min-width: 0 !important; width: auto !important; }
+  [data-ll-print-measure] :is(th, td)[class*="whitespace-nowrap"] { white-space: normal !important; }
+}
 @media print {
-  html, body, #root { height: auto !important; min-height: 0 !important; overflow: visible !important; }
-  [data-ll-chrome], [data-feedback-widget], .ll-overlay { display: none !important; }
-  [data-ll-shell] { display: block !important; min-height: 0 !important; }
+  html, body, #root { height: auto !important; min-height: 0 !important; overflow: visible !important; background: #fff !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  [data-ll-chrome], [data-feedback-widget], [data-ll-print-hide], [data-sonner-toaster],
+  [data-radix-toast-viewport], .ll-overlay:empty { display: none !important; }
+  [data-ll-shell] {
+    display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important;
+    background: #fff !important;
+  }
+  [data-ll-shell] > main { display: block !important; min-height: 0 !important; }
   [data-scroll-root] {
     height: auto !important; margin: 0 !important; overflow: visible !important;
+    /* Paper is ~740px wide; the desktop layout wants more. At 80% it gets
+       ~925px (a laptop screen's worth) and text stays ~8.5pt. Keep
+       PRINT_ZOOM in utils/printPage.ts in step. */
+    zoom: 0.8;
   }
-  [data-scroll-root] :is(.overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll) {
+
+  /* Static half: scroll panes and fixed heights, including responsive
+     variants (lg:h-[calc(...)], lg:overflow-y-auto ...). */
+  [data-ll-shell] :is([class*="overflow-auto"], [class*="overflow-y-auto"], [class*="overflow-scroll"], [class*="overflow-y-scroll"]):not(img, svg, video, canvas, iframe, textarea) {
     overflow: visible !important;
   }
-  [data-scroll-root] :is(.h-full, .h-screen, .min-h-0, [class*="h-[calc"], [class*="h-[100dvh"], [class*="max-h-"]) {
+  [data-ll-shell] :is([class*="h-screen"], [class*="h-full"], [class*="h-[calc"], [class*="h-[100"], [class*="max-h-"], [class*="min-h-0"], [class*="h-dvh"], [class*="h-svh"]):not(img, svg, video, canvas, iframe, textarea, [class*="aspect-"]) {
     height: auto !important; max-height: none !important;
   }
-  [data-scroll-root] :is(.sticky, .fixed) { position: static !important; }
-  [data-scroll-root] :is(tr, li, article, [class*="rounded-xl"], [class*="rounded-2xl"]) {
-    break-inside: avoid; page-break-inside: avoid;
+  [data-ll-shell] :is(.sticky, [class*=":sticky"]) { position: static !important; }
+  [data-scroll-root] :is(.fixed, [class*=":fixed"]):not(.ll-overlay) { position: static !important; }
+  .ll-modal { max-height: none !important; overflow: visible !important; }
+  /* Shortened text ("Whitmore Residence — Exterior Roof…") prints in full. */
+  [data-ll-shell] :is(.truncate, [class*=":truncate"]) { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word; }
+  [data-ll-shell] [class*="line-clamp-"] { -webkit-line-clamp: none !important; overflow: visible !important; }
+
+  /* Dynamic half (utils/printPage.ts). */
+  [data-ll-print-unclip], [data-ll-print-grow] {
+    height: auto !important; max-height: none !important; min-height: 0 !important; overflow: visible !important;
   }
-  [data-scroll-root] thead { display: table-header-group; }
+  [data-ll-print-unclip] { flex-basis: auto !important; }
+  [data-ll-print-inplace] { position: static !important; inset: auto !important; transform: none !important; }
+  /* A sideways scroller (comparison board, wide table) is scaled to the
+     page width, so every column prints, as on screen. */
+  [data-ll-print-fit] { zoom: var(--ll-print-zoom, 1); overflow: visible !important; }
+  /* A sideways row that didn't need scaling (tabs, chips) wraps instead. */
+  .flex[class*="overflow-x-auto"]:not([data-ll-print-fit]) { flex-wrap: wrap !important; overflow: visible !important; }
+  [data-ll-print-fit] table { min-width: 0 !important; width: 100% !important; }
+  [data-ll-print-fit] :is(th, td)[class*="whitespace-nowrap"] { white-space: normal !important; }
+
+  /* An open modal prints on its own, in full. */
+  html[data-ll-print-modal-open] body *:not([data-ll-print-path]):not([data-ll-print-modal]):not([data-ll-print-modal] *) {
+    display: none !important;
+  }
+  [data-ll-print-path] { margin: 0 !important; padding: 0 !important; transform: none !important; }
+  [data-ll-print-modal] {
+    position: static !important; inset: auto !important; display: block !important; padding: 0 !important;
+    background: none !important; backdrop-filter: none !important;
+  }
+  [data-ll-print-modal] > * { max-width: none !important; max-height: none !important; box-shadow: none !important; }
+
+  /* A page's print fallback copy (the Install Schedule) prints alone. */
+  html[data-ll-print-clone-on] body > :not([data-ll-print-clone]) { display: none !important; }
+  [data-ll-print-clone] { display: block !important; }
+
+  /* Pages, not slices: rows and small cards stay whole (printPage.ts marks
+     the cards; big sections may split rather than leave blank pages). */
+  [data-ll-shell] tr, [data-ll-print-keep] { break-inside: avoid; page-break-inside: avoid; }
+  [data-ll-shell] :is(h1, h2, h3, thead) { break-after: avoid; page-break-after: avoid; }
+  [data-ll-shell] thead { display: table-header-group; }
+  [data-ll-shell] :is(img, svg, canvas) { break-inside: avoid; }
 }
 
 
