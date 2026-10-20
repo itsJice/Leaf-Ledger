@@ -326,6 +326,23 @@ dialog option:disabled{color:#b6b3ae}
 .badge.lock{background:var(--warn-soft);color:var(--warn-ink)}
 .badge.visittype{background:#e8e0f0;color:#4a2e7a}
 .stop .sub.advice{color:var(--warn-ink);font-style:italic;margin-top:3px}
+/* Install notes (the season card's "Install notes"): something to bring or
+   know on install day, so it reads as quick reference on the row, the card,
+   the crew sheet and the lead's Shifts page. */
+.badge.instnote{background:#e6f0ea;color:#1f5130;font-weight:800;display:inline-flex;align-items:center;gap:3px;vertical-align:1px}
+.badge.instnote .ic{width:11px;height:11px}
+.stop .sub.instline{display:flex;gap:5px;align-items:flex-start;margin-top:4px;padding:4px 7px;border-radius:6px;
+  background:#eef5f0;color:#1f3d2b;font-size:11.5px;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+.stop .sub.instline .ic{width:13px;height:13px;flex:none;margin-top:1px;color:var(--brand-deep)}
+.stop .sub.instline b{font-weight:800}
+.dayhead .instn,.ovdate .instn{display:inline-flex;align-items:center;gap:3px;color:#1f5130;font-weight:700;cursor:pointer;
+  border:0;background:none;padding:0;font:inherit;font-size:11px;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.dayhead .instn .ic,.ovdate .instn .ic{width:12px;height:12px}
+.pkinst{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:#eef5f0;border-left:3px solid var(--brand)}
+.pkinst .pkinstlbl{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:var(--brand-deep);margin:0 0 2px}
+.pkinst .pkinstlbl .ic{width:13px;height:13px}
+.pkinst p{margin:0;font-size:13px;line-height:1.45;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+.pkinst .pknotesrc{font-weight:600;color:var(--mut)}
 #summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
 #newclientbtn{align-self:center;padding:8px 14px;border-radius:8px;border:1.5px solid var(--brand);
   background:#fff;color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:700;
@@ -2393,6 +2410,7 @@ function roFlash(){
   roFlashTimer=setTimeout(()=>b.classList.remove('flash'), 1400);
 }
 const IC={
+ clip:'<svg class="ic" viewBox="0 0 24 24"><path d="M8 5H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-1"/><rect x="8" y="2.5" width="8" height="5" rx="2.5"/><path d="M11 12h5M11 17h5"/><circle cx="7.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="1" fill="currentColor" stroke="none"/></svg>',
  users:'<svg class="ic" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
  link:'<svg class="ic" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
  box:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
@@ -3386,6 +3404,47 @@ function snapshot(){
 // same origin but with no token of its own); with no token we stay on
 // localStorage alone, which is what the standalone file does.
 let AUTH = null, syncState = 'local';
+// ---------- authFetch: every API call, with a token that stays fresh ----------
+// The app posts its token in once, when this page loads. Supabase access
+// tokens expire after an hour, so a page left open longer used to send a
+// dead token: every save got a 401 (10/19: the stop card's "Couldn't save
+// that change" on a client's install notes -- nothing reached the
+// database). Now the app re-sends the token whenever it refreshes, and on a
+// 401 this asks for a fresh one and retries the call once.
+const tokenWaiters=[];
+let tokenAsk=null;
+/** Ask the app for a current token; resolves with it (or null after 6 s). */
+function requestFreshToken(){
+  if(tokenAsk) return tokenAsk;
+  const before=AUTH;
+  tokenAsk=new Promise(resolve=>{
+    let done=false;
+    const finish=t=>{ if(done) return; done=true; tokenAsk=null; resolve(t); };
+    tokenWaiters.push(t=>finish(t && t!==before ? t : (t||null)));
+    setTimeout(()=>finish(null), 6000);
+    try{ window.parent.postMessage({type:'tbdg-token-request'}, '*'); }catch(e){ finish(null); }
+  });
+  return tokenAsk;
+}
+/** fetch() with the current token; on 401, one retry with a fresh token. */
+async function authFetch(url, opts){
+  opts=opts||{};
+  const withAuth=()=>({...opts, headers:{...(opts.headers||{}), ...(AUTH?{Authorization:AUTH}:{})}});
+  let r=await fetch(url, withAuth());
+  if(r.status===401 && AUTH && window.parent!==window){
+    const t=await requestFreshToken();
+    if(t) r=await fetch(url, withAuth());
+  }
+  return r;
+}
+/** A hosted older season (see openSeason) has no token of its own: keep it
+ *  current too. */
+function passTokenToSeasonFrame(){
+  const f=document.getElementById('seasonframe');
+  if(f && f.contentWindow && AUTH){
+    try{ f.contentWindow.postMessage({type:'tbdg-auth', token:AUTH}, '*'); }catch(e){}
+  }
+}
 window.addEventListener('message', e=>{
   // Only ever accept a token from the actual parent window. That alone is
   // the real check here -- e.source can only equal window.parent if this
@@ -3401,7 +3460,15 @@ window.addEventListener('message', e=>{
   // every message -- this was live for a while before being caught.
   if(e.source !== window.parent) return;
   if(e.data && e.data.type==='tbdg-auth' && typeof e.data.token==='string'){
+    // A token after the first is a refresh (Supabase access tokens last an
+    // hour; the app sends a new one when it refreshes, or when authFetch
+    // asks after a 401). Swap it in and wake anything waiting -- don't
+    // reload the board.
+    const first = !AUTH;
     AUTH = e.data.token;
+    tokenWaiters.splice(0).forEach(fn=>fn(AUTH));
+    passTokenToSeasonFrame();
+    if(!first) return;
     loadMeRole();
     loadSeasons();
     loadCalSub();
@@ -3495,6 +3562,16 @@ window.addEventListener('message', e=>{
   if(TVMODE || hostingSeason) return;
   applyHostView(String(e.data.view||''));
 });
+// The app can open a date (/install-schedule?date=YYYY-MM-DD, from the home
+// page's "stops have install notes" line): Days view, on that date.
+window.addEventListener('message', e=>{
+  if(e.source !== window.parent || !e.data || e.data.type!=='tbdg-date') return;
+  if(TVMODE || hostingSeason) return;
+  const dt=String(e.data.date||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)) return;
+  if(viewMode!=='days') setView('days');
+  phoneGo(dt);
+});
 
 // ---------- season picker + archive (read-only) mode ----------
 // The tool is published per season and every published season stays
@@ -3520,7 +3597,7 @@ async function loadSeasons(){
   if(!AUTH) return;
   let j = null;
   try{
-    const r = await fetch('/api/install-schedule/seasons', {headers:{Authorization:AUTH}});
+    const r = await authFetch('/api/install-schedule/seasons', {headers:{Authorization:AUTH}});
     if(!r.ok) return;                        // no endpoint / not allowed: stay hidden
     j = await r.json();
   }catch(e){ return; }                       // offline or blocked: stay hidden
@@ -3599,6 +3676,9 @@ function showSeasonPage(html){
       if(!f.contentWindow || ev.source !== f.contentWindow) return;
       if(ev.data && ev.data.type === 'tbdg-ready' && AUTH)
         f.contentWindow.postMessage({type:'tbdg-auth', token:AUTH}, '*');
+      // It hit a 401: get a fresh token from the app, and pass it down.
+      if(ev.data && ev.data.type === 'tbdg-token-request')
+        requestFreshToken().then(()=>passTokenToSeasonFrame());
     });
   }
   hostingSeason = true;       // stop our own timers repainting a dead DOM
@@ -3625,7 +3705,7 @@ async function gotoSeason(y){
   const sel = document.getElementById('seasonpick');
   if(sel) sel.disabled = true;
   try{
-    const r = await fetch(url, AUTH ? {headers:{Authorization:AUTH}} : undefined);
+    const r = await authFetch(url, AUTH ? {headers:{Authorization:AUTH}} : undefined);
     if(!r.ok) throw new Error(r.status);
     const html = await r.text();
     (seasonHost() || window).showSeasonPage(html);
@@ -3854,7 +3934,7 @@ let clientDirectoryPromise = null;
 function normName(s){ return String(s||'').trim().toLowerCase().replace(/[,.]/g,'').replace(/\s+/g,' '); }
 function loadClientDirectory(){
   if(!AUTH || clientDirectoryPromise) return clientDirectoryPromise;
-  clientDirectoryPromise = fetch('/api/clients/list', {headers:{Authorization:AUTH}})
+  clientDirectoryPromise = authFetch('/api/clients/list', {headers:{Authorization:AUTH}})
     .then(r=>r.ok?r.json():[])
     .then(rows=>{
       // Indexed by every spelling the app knows for a client -- the current
@@ -3898,7 +3978,7 @@ const ALERT_EDIT_ROLES=new Set(['staff','admin','super_admin']);
 function loadMeRole(){
   if(!AUTH || ME_ROLE!==null) return;
   ME_ROLE='';
-  fetch('/api/me', {headers:{Authorization:AUTH}})
+  authFetch('/api/me', {headers:{Authorization:AUTH}})
     .then(r=>r.ok?r.json():null).then(m=>{
       ME_ROLE=(m && m.role) || '';
       // The roster card was drawn before the role was known; add the
@@ -3949,7 +4029,43 @@ function alertIconHTML(row, opts={}){
 /** The italic one-liner under a stop card's details: this season's install note. */
 function adviceLineHTML(row){
   const n=installNoteFor(row);
-  return n ? `<div class="sub advice">${peekEsc(n.text)}</div>` : '';
+  return n ? `<div class="sub instline">${IC.clip}<span><b>Install notes:</b> ${peekEsc(n.text)}</span></div>` : '';
+}
+/** The small "notes" chip on a stop row's name line when this season has
+ *  install notes (the full text is the line under the row). */
+function installNoteChipHTML(row){
+  const n=installNoteFor(row);
+  return n ? `<span class="badge instnote" title="Install notes: ${attrEsc(n.text)}">${IC.clip}notes</span>` : '';
+}
+/** Stops in a set of crew-days that have install notes, in day order. */
+function installNoteStops(dayList){
+  const out=[], seen=new Set();
+  dayList.forEach(d=>d.stops.forEach(r=>{
+    if(seen.has(r)) return; seen.add(r);
+    const n=installNoteFor(r); if(n) out.push({row:r, day:d, text:n.text});
+  }));
+  return out;
+}
+/** "2 stops have install notes" for a date heading; tapping it scrolls to
+ *  the first one. '' when none. */
+function installNoteCountHTML(dayList){
+  const n=installNoteStops(dayList).length;
+  return n ? `<button type="button" class="instn" data-instn="1">${IC.clip}${n} stop${n===1?' has':'s have'} install notes</button>` : '';
+}
+function wireInstallNoteCounts(root){
+  (root||document).querySelectorAll('.instn[data-instn]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      const head=b.closest('.dayhead,.ovdate');
+      let el=head ? head.nextElementSibling : null, hit=null;
+      while(el && !hit && !(el.classList && (el.classList.contains('ovdate')||el.classList.contains('ovanchor')) && el!==head)){
+        hit=el.querySelector && el.querySelector('.badge.instnote');
+        el=el.nextElementSibling;
+      }
+      const stop=hit && hit.closest('.stop');
+      if(stop){ stop.scrollIntoView({block:'center', behavior:'smooth'}); stop.classList.add('flash'); setTimeout(()=>stop.classList.remove('flash'), 1600); }
+    };
+  });
 }
 function installNoteFor(row){
   const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
@@ -4000,7 +4116,7 @@ async function pullShared(){ return syncQueued(pullSharedNow); }
 async function pullSharedNow(){
   if(!AUTH) return;
   try{
-    const r = await fetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`
+    const r = await authFetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`
                           + `&season=${encodeURIComponent(PAGE_SEASON)}`,
                           {headers:{Authorization:AUTH}});
     if(!r.ok) throw new Error(r.status);
@@ -4220,7 +4336,7 @@ async function putShared(){
   try{
     for(let attempt=0; attempt<4; attempt++){
       const st=sharedSnapshot(), sent=pendingBoardDates;
-      const r = await fetch('/api/install-schedule/state', {
+      const r = await authFetch('/api/install-schedule/state', {
         method:'PUT',
         headers:{'Content-Type':'application/json', Authorization:AUTH},
         body: JSON.stringify({version:SPEC.version, state:st,
@@ -4305,7 +4421,7 @@ function tbdgFlush(){
   clearTimeout(pushTimer); pushTimer = null;
   try{
     const st=sharedSnapshot(), sent=pendingBoardDates;
-    fetch('/api/install-schedule/state', {
+    authFetch('/api/install-schedule/state', {
       method:'PUT', keepalive:true,
       headers:{'Content-Type':'application/json', Authorization:AUTH},
       body: JSON.stringify({version:SPEC.version, state:st,
@@ -4354,7 +4470,7 @@ async function openHistory(){
   sub.textContent='Loading…';
   body.innerHTML='<div class="histloading">Loading past saves…</div>';
   try{
-    const r=await fetch(`/api/install-schedule/history?version=${encodeURIComponent(SPEC.version)}`,
+    const r=await authFetch(`/api/install-schedule/history?version=${encodeURIComponent(SPEC.version)}`,
                         {headers:{Authorization:AUTH}});
     const j=await r.json();
     const entries=j.entries||[];
@@ -4384,7 +4500,7 @@ async function restoreHistoryEntry(entryId, btn){
     return;
   btn.disabled=true; btn.textContent='Restoring…';
   try{
-    const r=await fetch(`/api/install-schedule/history/${entryId}?version=${encodeURIComponent(SPEC.version)}`,
+    const r=await authFetch(`/api/install-schedule/history/${entryId}?version=${encodeURIComponent(SPEC.version)}`,
                         {headers:{Authorization:AUTH}});
     if(!r.ok) throw new Error(r.status);
     const j=await r.json();
@@ -5942,7 +6058,7 @@ async function saveStaffAlert(row, text){
   const ac=appClientFor(row);
   if(!AUTH || !ac || !canEditAlerts()) return false;
   try{
-    const r=await fetch(`/api/clients/${ac.id}/staff-alert`, {
+    const r=await authFetch(`/api/clients/${ac.id}/staff-alert`, {
       method:'PUT', headers:{'Content-Type':'application/json', Authorization:AUTH},
       body:JSON.stringify({text}),
     });
@@ -6811,6 +6927,7 @@ function buildDayCard(d){
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
         ${pinBadgeHTML(r, d)}
+        ${installNoteChipHTML(r)}
         ${prefBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
@@ -6968,7 +7085,7 @@ function renderNotInstalling(){
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
       const was=lastScheduledFrom[row];
       el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
-          <span class="badge niout">${esc(entry.badge)}</span>${prefBadge(row)}
+          <span class="badge niout">${esc(entry.badge)}</span>${installNoteChipHTML(row)}${prefBadge(row)}
           ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
                  :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
@@ -7031,7 +7148,7 @@ function renderHold(){
     const el=document.createElement('div');
     el.className='stop nistop onhold'; el.dataset.row=row;
     el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
-        <span class="badge hold">on hold</span>${prefBadge(row)}</div>
+        <span class="badge hold">on hold</span>${installNoteChipHTML(row)}${prefBadge(row)}</div>
       ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewLabel(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
       <div class="sub">${esc(c.zone||'—')}</div>
@@ -7106,7 +7223,9 @@ function renderCards(){
       side.appendChild(an);
       const dh=document.createElement('div'); dh.className='ovdate'+(dt===dates[0]?' ovfirst':''); dh.dataset.date=dt;
       dh.style.cssText='display:flex;align-items:center;gap:8px';
-      dh.innerHTML=`<span>${esc(dateOf(dt).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))}</span>`;
+      dh.innerHTML=`<span>${esc(dateOf(dt).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))}</span>`
+        + installNoteCountHTML(ds);
+      wireInstallNoteCounts(dh);
       if(ds.some(d=>d.stops.length)){
         const pb=document.createElement('button');
         pb.className='printbtn picon'; pb.style.cssText='margin-left:auto';
@@ -7135,8 +7254,10 @@ function renderCards(){
     + `<span class="dhsub">${[city, onThisDate.length
         ? `${onThisDate.length} crew${onThisDate.length===1?'':'s'} · ${nStops} stop${nStops===1?'':'s'}`
         : 'No crews yet'].filter(Boolean).join(' · ')}`
-    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}</span>`;
+    + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}`
+    + `${(h=>h?` · ${h}`:'')(installNoteCountHTML(onThisDate))}</span>`;
   side.appendChild(hd);
+  wireInstallNoteCounts(hd);
   // Standing commitment for this date (HYROX etc.) -- advisory banner, shown
   // whether or not anything is booked, so an empty tagged day still explains
   // itself rather than just looking free.
@@ -8883,11 +9004,13 @@ function peekFactsHTML(row){
  *  tab) when it has them; otherwise the spreadsheet notes baked into this
  *  build, so nothing disappears before the notes move over. */
 function peekNotesHTML(row){
-  const inst=installNoteFor(row), prod=productionNoteFor(row);
+  // Install notes are quick reference (something to bring on the day), so
+  // they sit open in "This job" (peekInstallNoteHTML). Only production &
+  // repair and the client's general notes stay in this fold.
+  const prod=productionNoteFor(row);
   const ac=appClientFor(row);
   const gen=ac && ac.notes ? String(ac.notes).trim() : '';
   const list=[
-    inst && {cls:'inst', label:`Install notes ${peekEsc(inst.season)}`, n:inst},
     prod && {cls:'prod', label:`Production &amp; repair${prod.season?' '+peekEsc(prod.season):''}`, n:prod},
     gen && {cls:'gen', label:'Client notes', n:{text:gen, live:true}},
   ].filter(Boolean);
@@ -8898,6 +9021,12 @@ function peekNotesHTML(row){
   const lead=list.find(x=>x.cls==='prod') || list[0];
   return pkFold('notes', 'Notes', peekEsc(lead.n.text), body,
     `<span class="pkcount${list.some(x=>x.cls==='prod')?' warn':''}">${list.length}</span>`);
+}
+/** This season's install notes, open in the card's quick reference. */
+function peekInstallNoteHTML(row){
+  const n=installNoteFor(row);
+  if(!n) return '';
+  return `<div class="pkinst"><span class="pkinstlbl">${IC.clip}Install notes ${peekEsc(n.season)}${n.live?'':' <span class="pknotesrc">· from the spreadsheet</span>'}</span><p>${peekEsc(n.text)}</p></div>`;
 }
 /** "Position on the day" as one compact segmented control. */
 function peekPositionHTML(row, d){
@@ -8956,6 +9085,7 @@ function refreshPeekLive(row){
   const ch=document.getElementById('pkalertchip'); if(ch) ch.innerHTML=alertChipHTML(row);
   const al=document.getElementById('pkalert'); if(al) al.innerHTML=peekAlertHTML(row);
   const fa=document.getElementById('pkfactsbox'); if(fa) fa.innerHTML=peekFactsHTML(row);
+  const ib=document.getElementById('pkinstbox'); if(ib) ib.innerHTML=peekInstallNoteHTML(row);
   const nt=document.getElementById('pknotes'); if(nt) nt.innerHTML=peekNotesHTML(row);
   const pr=document.querySelector('#peekbody .pkprofile, #peekbody .pkloading');
   if(pr){ const tmp=document.createElement('div'); tmp.innerHTML=profileSectionHTML(row)||'<div class="pkprofile"></div>'; pr.replaceWith(...tmp.childNodes); }
@@ -9002,7 +9132,7 @@ document.addEventListener('click', async e=>{
     if(!AUTH || !ac) return;
     btn.disabled=true;
     try{
-      const r=await fetch(`/api/clients/${ac.id}/comments/${btn.dataset.server}`,
+      const r=await authFetch(`/api/clients/${ac.id}/comments/${btn.dataset.server}`,
         {method:'DELETE', headers:{Authorization:AUTH}});
       if(!r.ok) throw new Error(r.status);
       ac.activity=(ac.activity||[]).filter(a=>String(a.id)!==btn.dataset.server);
@@ -9432,73 +9562,100 @@ function wireContactBlock(row){
     const oldName=C[row].name;
     const oldPref=prefOf(row);
     let renamedNow=false;
+    // What failed, for the message: which call, its status and the server's
+    // reason. Network errors (no response at all) have status 0.
+    const fail=async(step, r)=>{
+      let detail='';
+      try{ const j=await r.json(); detail=(j && typeof j.detail==='string') ? j.detail : ''; }catch(_){}
+      return Object.assign(new Error(String(r.status)), {step, status:r.status, detail});
+    };
+    const send=async(step, url, method, payload)=>{
+      try{
+        return await authFetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      }catch(e){ throw Object.assign(new Error('network'), {step, status:0, detail:''}); }
+    };
+    let entry=null, seasonSaved=false;
+    const yr=String((SEASON[0]||'')).slice(0,4);
     try{
       const ac=appClientFor(row);
-      let entry;
       if(ac){
-        const r=await fetch(`/api/clients/update/${ac.id}`, {
-          method:'PUT', headers:{'Content-Type':'application/json', Authorization:AUTH},
-          body:JSON.stringify(body),
-        });
-        if(!r.ok) throw new Error(r.status);
+        const r=await send('client', `/api/clients/update/${ac.id}`, 'PUT', body);
+        if(!r.ok) throw await fail('client', r);
         entry=await r.json();
       } else {
         // Not synced into the app yet -- creating it here is what makes
         // editing work regardless of sync state, not just for clients
         // sync_clients.py already knows about.
-        const r=await fetch(`/api/clients/create`, {
-          method:'POST', headers:{'Content-Type':'application/json', Authorization:AUTH},
-          body:JSON.stringify({name:C[row].name, ...body, time_preference:body.time_preference||undefined}),
-        });
-        if(!r.ok) throw new Error(r.status);
+        const r=await send('client', `/api/clients/create`, 'POST',
+          {name:C[row].name, ...body, time_preference:body.time_preference||undefined});
+        if(!r.ok) throw await fail('client', r);
         entry=await r.json();
       }
-      // The season card's notes save through the season endpoint, the same
-      // one the Clients tab's season card uses (PUT .../seasons/{season}),
-      // and only the fields that changed.
       // The client record is saved: learn it now, so a season-notes failure
       // below still leaves the board showing what the server has.
       replaceDirectoryEntry(ac, entry);
       if(entry.name && entry.name!==oldName){ applyClientRename(oldName, entry.name); renamedNow=true; }
+      // The season card's notes save through the season endpoint, the same
+      // one the Clients tab's season card uses (PUT .../seasons/{season}),
+      // and only the fields that changed. It creates the season's row when
+      // the client has none yet.
       const seasonFields=seasonNotesChanges(contactFieldsForEdit);
       if(seasonFields && entry && entry.id!=null){
-        const yr=String((SEASON[0]||'')).slice(0,4);
-        const r2=await fetch(`/api/clients/${entry.id}/seasons/${encodeURIComponent(yr)}`, {
-          method:'PUT', headers:{'Content-Type':'application/json', Authorization:AUTH},
-          body:JSON.stringify({fields:seasonFields}),
-        });
-        if(!r2.ok) throw new Error(r2.status===403 ? '403' : 'season');
+        const r2=await send('season', `/api/clients/${entry.id}/seasons/${encodeURIComponent(yr)}`, 'PUT', {fields:seasonFields});
+        if(!r2.ok) throw await fail('season', r2);
         const saved=await r2.json();
         entry.activity=[...(entry.activity||[]).filter(a=>!(a.kind==='christmas_install' && String(a.season)===yr)), saved];
+        seasonSaved=true;
       }
-      pkEditingContact=false; contactFieldsForEdit=null; pkNameEdit=null;
-      holder.innerHTML=contactBlockHTML(row);
-      wireContactBlock(row);
-      // The time preference orders the crew's day and shows as a tag on the
-      // stop's row: redraw the board when it changed (a rename already did).
-      if(!renamedNow && prefOf(row)!==oldPref) render();
-      // Notes, facts (time preference), history and the profile row all read
-      // the same cached record -- redraw them so the change shows at once.
-      if(peekRow===row) refreshPeekLive(row);
-      const done=document.createElement('p');
-      done.className='pkce-saved'; done.textContent=entry.renamed ? `Saved. Renamed to ${entry.name} everywhere.` : 'Saved.';
-      holder.appendChild(done); setTimeout(()=>done.remove(), 3500);
     }catch(err){
-      const code=String(err && err.message);
-      if(code==='403'){
+      const step=err && err.step, status=err && err.status, detail=err && err.detail;
+      if(status===403 && step==='client'){
         clientEditDenied=true;
         pkEditingContact=false; contactFieldsForEdit=null; pkNameEdit=null;
         holder.innerHTML=contactBlockHTML(row); wireContactBlock(row);
       } else {
+        // The editor stays open with everything typed still in it.
         saveBtn.disabled=false; saveBtn.textContent='Save changes';
       }
-      alert(code==='409' ? duplicateNameMessage(nameBody)
-        : code==='403' ? "This login can view clients but can't edit them."
-        : code==='400' ? 'That name is missing a part -- check the fields and try again.'
-        : code==='season' ? "The client card saved, but this season's notes didn't -- try Save again."
-        : "Couldn't save that change -- try again in a moment.");
+      alert(cardSaveErrorMessage(step, status, detail, nameBody, yr));
+      return;
     }
+    // Both saves landed. Redrawing the card is bookkeeping: if it trips over
+    // something, the save itself still stands, so say so instead of "failed".
+    try{
+      pkEditingContact=false; contactFieldsForEdit=null; pkNameEdit=null;
+      holder.innerHTML=contactBlockHTML(row);
+      wireContactBlock(row);
+      // The time preference orders the crew's day and shows as a tag on the
+      // stop's row; install notes show as a chip on it: redraw the board.
+      if(!renamedNow && (prefOf(row)!==oldPref || seasonSaved)) render();
+      // Notes, facts (time preference), history and the profile row all read
+      // the same cached record -- redraw them so the change shows at once.
+      if(peekRow===row) refreshPeekLive(row);
+    }catch(e){ console.error('card redraw after save', e); }
+    const done=document.createElement('p');
+    done.className='pkce-saved';
+    done.textContent=entry.renamed ? `Saved. Renamed to ${entry.name} everywhere.`
+      : seasonSaved ? `Saved. ${yr} install notes updated.` : 'Saved.';
+    const h2=document.getElementById('pkcontact') || holder;
+    h2.appendChild(done); setTimeout(()=>done.remove(), 3500);
   };
+}
+/** What the stop card's Save says when it fails: which part didn't save
+ *  and why, in plain words. step is 'client' (the card's contact fields) or
+ *  'season' (this season's notes); status 0 means no response at all. */
+function cardSaveErrorMessage(step, status, detail, nameBody, yr){
+  const part = step==='season' ? `the ${yr} install notes` : 'the client card';
+  const lead = step==='season' ? `The client card saved, but ${part} didn't. ` : `Nothing was saved. `;
+  const why = detail ? ` (${detail})` : '';
+  if(status===0) return lead+`Couldn't reach the server to save ${part}. Check the connection and press Save again; what you typed is still here.`;
+  if(status===401) return lead+`Your sign-in has expired. Reload the page (Cmd+Shift+R on a Mac, Ctrl+Shift+R on Windows), sign in if asked, and save ${part} again.`;
+  if(status===403) return step==='season' ? lead+`This login can't edit season notes.` : "This login can view clients but can't edit them.";
+  if(status===409 && step==='client') return duplicateNameMessage(nameBody);
+  if(status===400 && step==='client' && nameBody) return 'That name is missing a part -- check the fields and try again.';
+  if(status===404) return lead+`The server has no client with this id any more (it may have been merged). Reload the page and try again.`;
+  if(status===400 || status===422) return lead+`The server turned down ${part}${why}. Check what you typed and press Save again.`;
+  return lead+`The server had a problem saving ${part} (error ${status||'unknown'})${why}. Press Save again in a moment; what you typed is still here.`;
 }
 // Why a client is off the schedule, for the popup's header line.
 function notInstallReason(row){
@@ -9536,7 +9693,7 @@ function openStopPeek(row,dayId){
     </div>
     <div id="pkalert">${peekAlertHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
-    ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div>`)}
+    ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div><div id="pkinstbox">${peekInstallNoteHTML(row)}</div>`)}
     <div class="pkfolds">
       <div class="pknotes" id="pknotes">${peekNotesHTML(row)}</div>
       ${d?peekPositionHTML(row, d):''}
@@ -9568,7 +9725,7 @@ function openStopPeek(row,dayId){
     if(AUTH && ac){
       btn.disabled=true;
       try{
-        const r=await fetch(`/api/clients/${ac.id}/comments`, {
+        const r=await authFetch(`/api/clients/${ac.id}/comments`, {
           method:'POST', headers:{'Content-Type':'application/json', Authorization:AUTH},
           body:JSON.stringify({text}),
         });
@@ -11094,7 +11251,10 @@ function manifestHTML(d){
     const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
                .filter(Boolean).join(' · ');
     // Live Clients-tab notes when the record has them, else the spreadsheet's.
-    const note=[installNoteFor(r), productionNoteFor(r)].filter(Boolean).map(n=>n.text).join(' — ');
+    // Install notes (what to bring / know today) and production & repair
+    // print on their own labelled lines, so the bring-list can't hide in a
+    // run-on italic line.
+    const inst=installNoteFor(r), prod=productionNoteFor(r);
     const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
@@ -11102,7 +11262,8 @@ function manifestHTML(d){
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
-      ${note?`<div class="nt">${esc(note)}</div>`:''}
+      ${inst?`<div class="in"><b>Bring / install notes:</b> ${esc(inst.text)}</div>`:''}
+      ${prod?`<div class="nt"><b>Production &amp; repair:</b> ${esc(prod.text)}</div>`:''}
     </td>
     <td class="c">${c.boxes||'—'}</td>
     <td class="c">${(mins/60).toFixed(2)}h</td>
@@ -11116,6 +11277,11 @@ function manifestHTML(d){
     }
   });
   const boxes=dayBoxes(d);
+  // Every stop's install notes in one box at the top, for loading the truck
+  // before it leaves the warehouse.
+  const pack=order.map((r,i)=>({r, i, n:installNoteFor(r)})).filter(x=>x.n);
+  const packHTML=pack.length ? `<div class="pack"><div class="packh">Pack list for this crew · ${pack.length} stop${pack.length===1?'':'s'} with install notes</div>
+      <ul>${pack.map(x=>`<li><span class="box"></span><span><b>${x.i+1}. ${esc(C[x.r].name)}:</b> ${esc(x.n.text)}</span></li>`).join('')}</ul></div>` : '';
   return `<section class="sheet">
     <div class="shead">
       <div><h1>${esc(crewLabel(d))} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
@@ -11131,6 +11297,7 @@ function manifestHTML(d){
                + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}</div>
       <div class="stot"><b>${(calc.total/60).toFixed(1)}h</b><span>total day</span></div>
     </div>
+    ${packHTML}
     <table><thead><tr><th></th><th>Client</th><th class="c">Boxes</th>
       <th class="c">Install</th><th class="c">Arrive ≈</th></tr></thead>
       <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(DEPART_MIN)}</td></tr>`:''}
@@ -11194,7 +11361,14 @@ function printManifests(list, title, opts={}){
     .nm{font-weight:700;font-size:13px}
     .ad{color:#444;font-size:11px;margin-top:1px}
     .ct{color:#666;font-size:10.5px;margin-top:1px}
-    .nt{margin-top:3px;font-size:10.5px;color:#8a5a00;font-style:italic}
+    .nt{margin-top:3px;font-size:10.5px;color:#8a5a00}
+    .in{margin-top:4px;padding:3px 6px;border-left:3px solid #2d5a33;background:#eef5f0;color:#1f3d2b;font-size:11.5px;
+      white-space:pre-wrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pack{border:2px solid #2d5a33;border-radius:6px;padding:7px 10px 6px;margin:0 0 12px;break-inside:avoid}
+    .packh{font-weight:800;font-size:12px;color:#2d5a33;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+    .pack ul{list-style:none;margin:0;padding:0}
+    .pack li{display:flex;gap:7px;align-items:flex-start;font-size:12px;margin:3px 0;white-space:pre-wrap}
+    .pack .box{flex:none;width:11px;height:11px;border:1.5px solid #333;border-radius:2px;margin-top:2px}
     .al{margin-top:4px;padding:3px 6px;border:1.5px solid #b45309;border-radius:4px;background:#fef3e2;
       color:#7c2d12;font-weight:800;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .hold{color:#92400e;font-weight:800;font-size:10px;border:1px solid #d97706;border-radius:4px;padding:0 4px;vertical-align:middle}
@@ -11629,7 +11803,7 @@ let calSubLoaded=false;
 async function loadCalSub(){
   if(calSubLoaded || !AUTH) return;
   try{
-    const r=await fetch('/api/install-schedule/calendar-link',{headers:{Authorization:AUTH}});
+    const r=await authFetch('/api/install-schedule/calendar-link',{headers:{Authorization:AUTH}});
     if(!r.ok) return;
     const j=await r.json();
     if(typeof j.path!=='string') return;

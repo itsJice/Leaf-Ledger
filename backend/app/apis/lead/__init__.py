@@ -240,6 +240,23 @@ def _note_out(r) -> dict:
     }
 
 
+def install_note(c: dict, extras: Optional[dict]) -> str:
+    """This season's install notes for a stop: the client card's season
+    "Install notes" (client_activity detail.notes -- what the Clients tab and
+    the schedule's stop card edit) when it has any, else the note baked into
+    the published schedule from the spreadsheet. The same rule as the
+    schedule page's installNoteFor(), so the Shifts page, the crew sheet and
+    the board always show the same text."""
+    live = (stop_extras((extras or {}).get(norm_name(c.get("name")))).get("installNotes") or "").strip()
+    return live or str(c.get("advice") or "").strip()
+
+
+def pack_list(stops: list) -> list:
+    """Every stop's install notes for one crew-day, in route order: the
+    "Pack list for today" a lead reads before leaving the warehouse."""
+    return [{"row": s["row"], "name": s["name"], "text": s["installNote"]} for s in stops if s.get("installNote")]
+
+
 def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
              extras: Optional[dict] = None) -> dict:
     lead = board.lead_of(day["id"])
@@ -259,6 +276,7 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
             "advice": c.get("advice") or "",
             "repairNotes": c.get("repairNotes") or "",
             **stop_extras((extras or {}).get(norm_name(c.get("name")))),
+            "installNote": install_note(c, extras),
             "hours": c.get("h26"),
             "people": c.get("people"),
             "timeEntries": [e for e in entries if e["row"] == row],
@@ -272,6 +290,7 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
         "lead": lead,
         "crew": [p for p in crew if p],
         "stops": stops,
+        "packList": pack_list(stops),
     }
 
 
@@ -354,9 +373,11 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
     }
 
 
-def today_summary_of(board: schedule_board.Board, days: list[dict], on: str) -> Optional[dict]:
+def today_summary_of(board: schedule_board.Board, days: list[dict], on: str,
+                     extras: Optional[dict] = None) -> Optional[dict]:
     """Today's install day, else the next one, as counts only: no names,
-    addresses or phone numbers. None when no day is left."""
+    addresses or phone numbers. None when no day is left. ``installNotes``
+    is how many of that date's stops have install notes (see install_note)."""
     ahead = [d for d in days if d["date"] >= on]
     if not ahead:
         return None
@@ -366,12 +387,15 @@ def today_summary_of(board: schedule_board.Board, days: list[dict], on: str) -> 
         ids = set(board.staffing.get(d["id"], []))
         everyone |= ids
         crews.append({"label": board.crew_label(d), "jobs": len(d["stops"]), "people": len(ids)})
+    rows = {r for d in ahead if d["date"] == date_ for r in d["stops"]}
+    noted = sum(1 for r in rows if install_note(board.clients.get(r) or {}, extras))
     return {
         "date": date_,
         "isToday": date_ == on,
         "crews": crews,
         "jobs": sum(c["jobs"] for c in crews),
         "people": len(everyone),
+        "installNotes": noted,
     }
 
 
@@ -382,8 +406,18 @@ async def today_summary(user: AuthorizedUser) -> dict:
     board = await _board()
     viewer = await _viewer(user, board)
     on = today()
+    days = _visible_days(viewer, board)
+    extras: dict = {}
+    if days:
+        conn = await get_conn()
+        try:
+            extras = await load_client_extras(conn, board.season)
+        except Exception as exc:  # noqa: BLE001 - the counts matter more than the notes
+            print(f"today summary install notes skipped: {exc}")
+        finally:
+            await conn.close()
     return {"season": board.season, "today": on,
-            "day": today_summary_of(board, _visible_days(viewer, board), on)}
+            "day": today_summary_of(board, days, on, extras)}
 
 
 # ─── time ────────────────────────────────────────────────────────────────────

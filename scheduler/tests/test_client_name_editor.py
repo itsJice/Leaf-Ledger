@@ -126,7 +126,9 @@ def test_parts_are_sent_only_when_touched_and_through_the_clients_api():
     assert "clientCardBody(contactFieldsForEdit, nameBody)" in save
     assert "...(nameBody||{})" in js_function("clientCardBody")
     assert "/api/clients/update/${ac.id}" in save
-    assert "'409'" in save  # a duplicate name says so
+    assert "cardSaveErrorMessage(step, status, detail, nameBody, yr)" in save
+    # a duplicate name says so
+    assert "status===409 && step==='client') return duplicateNameMessage(nameBody)" in js_function("cardSaveErrorMessage")
 
 
 def test_a_saved_rename_shows_now_and_survives_reload():

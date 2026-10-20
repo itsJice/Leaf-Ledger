@@ -17,4 +17,15 @@ export const auth = {
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? "";
   },
+  /**
+   * Calls `cb` whenever Supabase issues a new access token (the hourly
+   * refresh, or a sign-in). The Install Schedule iframe can't refresh its
+   * own copy, so it is handed each new one. Returns an unsubscribe.
+   */
+  onTokenChange: (cb: () => void): (() => void) => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") cb();
+    });
+    return () => data.subscription.unsubscribe();
+  },
 };

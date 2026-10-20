@@ -22,6 +22,7 @@ import "../../test/setup";
 import { userRoutes } from "../../user-routes";
 import {
   INSTALL_PATHS,
+  dateFromSearch,
   isInstallPath,
   legacyView,
   pathForView,
@@ -89,5 +90,14 @@ describe("startup flags", () => {
   it("keep the view-only and display flags", () => {
     const out = withHostFlags("<html><head></head></html>", "days", true, true);
     expect(out).toContain("window.TBDG_VIEWONLY=true;window.TBDG_DISPLAY=true;");
+  });
+});
+
+describe("?date= opens a day (the home page's install-notes link)", () => {
+  it("reads a YYYY-MM-DD date and ignores anything else", () => {
+    expect(dateFromSearch("?date=2026-11-10")).toBe("2026-11-10");
+    expect(dateFromSearch("?view=calendar&date=2026-12-01")).toBe("2026-12-01");
+    expect(dateFromSearch("?date=11/10/2026")).toBeNull();
+    expect(dateFromSearch("")).toBeNull();
   });
 });

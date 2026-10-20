@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   Clock,
   Loader2,
   MapPin,
@@ -22,14 +23,16 @@ import {
   addressLine,
   atTime,
   clock,
+  dayPackList,
   formatMinutes,
   hhmm,
   longDate,
   minutesOf,
   nextStopRow,
+  stopInstallNote,
   stopStatus,
 } from "utils/shifts";
-import type { Day, Note, ShiftsResponse, Stop, TimeEntry } from "utils/shifts";
+import type { Day, Note, PackItem, ShiftsResponse, Stop, TimeEntry } from "utils/shifts";
 
 // A crew lead's day on a phone: their shifts only (the server decides which --
 // backend app/apis/lead), stops in route order, tap an address for directions,
@@ -219,6 +222,7 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
   const nextStop = day.stops.find((s) => s.row === next);
   const done = day.stops.filter((s) => stopStatus(s) === "done").length;
   const total = day.stops.reduce((m, s) => m + s.timeEntries.reduce((a, e) => a + minutesOf(e, now), 0), 0);
+  const pack = dayPackList(day);
 
   return (
     <div className={`overflow-hidden rounded-xl border bg-white ${isToday ? "border-emerald-600" : "border-stone-200"}`}>
@@ -232,10 +236,15 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
             {(data.supervisor || data.readOnly) && day.lead ? ` · Lead: ${day.lead.name}` : ""} · {day.stops.length} stop{day.stops.length === 1 ? "" : "s"}
             {done ? ` · ${done} done` : ""}
             {total ? ` · ${formatMinutes(total)} logged` : ""}
+            {pack.length > 0 && !open ? ` · ${pack.length} with install notes` : ""}
           </p>
         </div>
         {open ? <ChevronDown size={18} className="mt-0.5 shrink-0 text-stone-400" /> : <ChevronRight size={18} className="mt-0.5 shrink-0 text-stone-400" />}
       </button>
+
+      {/* Before the truck leaves the warehouse: everything the day's stops
+          need brought along, in route order. Today's day shows it even folded. */}
+      {pack.length > 0 && (open || isToday) && <PackList items={pack} order={day.stops.map((s) => s.row)} isToday={isToday} />}
 
       {isToday && nextStop && nextStop.mapsUrl && (
         <a
@@ -288,6 +297,32 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
   );
 }
 
+/** The day's install notes in one box, as a checklist to load the truck by. */
+function PackList({ items, order, isToday }: { items: PackItem[]; order: number[]; isToday: boolean }) {
+  return (
+    <div className="mx-4 mb-4 rounded-lg border-2 border-emerald-700 bg-white p-3">
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-800">
+        <ClipboardList size={15} /> {isToday ? "Pack list for today" : "Pack list"}
+        <span className="ml-auto font-semibold normal-case tracking-normal text-stone-500">
+          {items.length} stop{items.length === 1 ? "" : "s"}
+        </span>
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((p) => (
+          <li key={p.row} className="flex items-start gap-2 text-sm text-stone-800">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-800">
+              {order.indexOf(p.row) + 1}
+            </span>
+            <span className="min-w-0 whitespace-pre-wrap break-words">
+              <span className="font-semibold">{p.name}:</span> {p.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload }: {
   index: number;
   stop: Stop;
@@ -302,7 +337,7 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
   const status = stopStatus(stop);
   // The client record's install notes are live (and may have been edited in
   // the app); the schedule's baked-in note is the fallback.
-  const installNotes = (stop.installNotes || stop.advice || "").trim();
+  const installNotes = stopInstallNote(stop);
   const open = (pid: string) => stop.timeEntries.find((e) => e.personId === pid && !e.endedAt);
   const onClock = day.crew.filter((p) => open(p.id));
   const offClock = day.crew.filter((p) => !open(p.id));
@@ -344,11 +379,18 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
               <Phone size={12} /> {stop.phone}
             </a>
           )}
-          {(installNotes || stop.repairNotes) && (
-            <div className="mt-2 space-y-1 text-xs text-stone-600">
-              {installNotes && <p className="whitespace-pre-wrap"><span className="font-semibold">Install notes:</span> {installNotes}</p>}
-              {stop.repairNotes && <p className="whitespace-pre-wrap"><span className="font-semibold">Production &amp; repair:</span> {stop.repairNotes}</p>}
+          {installNotes && (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border-l-4 border-emerald-700 bg-emerald-50 px-2.5 py-2 text-sm text-emerald-950">
+              <ClipboardList size={16} className="mt-0.5 shrink-0 text-emerald-700" />
+              <p className="min-w-0 whitespace-pre-wrap break-words">
+                <span className="font-semibold">Bring / install notes:</span> {installNotes}
+              </p>
             </div>
+          )}
+          {stop.repairNotes && (
+            <p className="mt-2 whitespace-pre-wrap text-xs text-stone-600">
+              <span className="font-semibold">Production &amp; repair:</span> {stop.repairNotes}
+            </p>
           )}
         </div>
       </div>

@@ -37,6 +37,9 @@ export interface Stop {
   repairNotes: string;
   /** This season's install notes from the client record ("" if none). */
   installNotes?: string;
+  /** The install note to show: the client card's, else the spreadsheet's
+   *  (the server resolves it; older servers leave it out). */
+  installNote?: string;
   /** The client's staff alert, read-only here. */
   staffAlert?: { text: string; by: string | null; at: string | null } | null;
   hours: number | null;
@@ -51,6 +54,13 @@ export interface Day {
   lead: Person | null;
   crew: Person[];
   stops: Stop[];
+  /** Every stop's install notes for the day, in route order. */
+  packList?: PackItem[];
+}
+export interface PackItem {
+  row: number;
+  name: string;
+  text: string;
 }
 export interface ShiftsResponse {
   season: string;
@@ -61,6 +71,22 @@ export interface ShiftsResponse {
   me: Person | null;
   leads: Person[];
   days: Day[];
+}
+
+// ─── install notes ───────────────────────────────────────────────────────────
+
+/** A stop's install notes: the client card's season "Install notes" first,
+ *  then the note baked into the schedule from the spreadsheet. */
+export function stopInstallNote(s: Pick<Stop, "installNote" | "installNotes" | "advice">): string {
+  return (s.installNote || s.installNotes || s.advice || "").trim();
+}
+
+/** "Pack list for today": each stop's install notes, in route order. */
+export function dayPackList(day: Pick<Day, "stops" | "packList">): PackItem[] {
+  if (day.packList) return day.packList.filter((p) => p.text.trim());
+  return day.stops
+    .map((s) => ({ row: s.row, name: s.name, text: stopInstallNote(s) }))
+    .filter((p) => p.text);
 }
 
 // ─── time helpers ────────────────────────────────────────────────────────────

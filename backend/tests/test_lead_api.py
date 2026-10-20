@@ -480,6 +480,7 @@ def test_today_summary_office_sees_every_crew_as_counts_only(fake_db, board, on_
     assert out["day"] == {
         "date": "2026-11-14", "isToday": True, "jobs": 3, "people": 3,
         "crews": [{"label": "Crew 1", "jobs": 2, "people": 2}, {"label": "Crew 2", "jobs": 1, "people": 1}],
+        "installNotes": 0,
     }
     # No client names, addresses or people in it.
     assert "Smith" not in str(out) and "Oak" not in str(out) and "Ana" not in str(out)
@@ -507,3 +508,84 @@ def test_today_summary_production_reads_it_like_shifts(fake_db, board, on_shift_
     assert out["day"]["jobs"] == 3
     assert roles.production_may("GET", "/api/lead/today-summary")
     assert not roles.production_may("POST", "/api/lead/today-summary")
+
+
+# ─── install notes on the morning of ─────────────────────────────────────────
+# 10/19: "Do I make a note that we need to bring eight extension cords to
+# a client's house?" -- Install notes on the client's season card. The
+# Shifts page gets each stop's note (card first, spreadsheet fallback) and a
+# pack list per crew-day; the home page's Today strip gets a count only.
+
+CORDS = "Install requires (8) longer extension cords.\nPlease pack in Kit"
+
+
+def _notes(fake_db, smith="", other=""):
+    fake_db.on_fetchval("information_schema.columns", 3)
+    rows = []
+    if smith:
+        rows.append({"id": 1, "name": "Smith Home", "sheet_name": None, "former_names": [],
+                     "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None, "install_notes": smith})
+    if other:
+        rows.append({"id": 3, "name": "Other Crew Client", "sheet_name": None, "former_names": [],
+                     "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None, "install_notes": other})
+    fake_db.on_fetch("LEFT JOIN client_activity ca", rows)
+
+
+def test_pack_list_collects_the_days_install_notes_in_route_order(fake_db, board, monkeypatch):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    # Jones has only the spreadsheet's note baked into the schedule.
+    monkeypatch.setitem(board.clients[11], "advice", "Side gate, call on arrival")
+    _notes(fake_db, smith=CORDS)
+    day = run(lead.my_shifts(user("ana@example.com")))["days"][0]
+    by = {s["name"]: s for s in day["stops"]}
+    assert by["Smith Home"]["installNote"] == CORDS
+    assert by["Jones Office"]["installNote"] == "Side gate, call on arrival"
+    assert day["packList"] == [
+        {"row": 11, "name": "Jones Office", "text": "Side gate, call on arrival"},
+        {"row": 10, "name": "Smith Home", "text": CORDS},
+    ]
+
+
+def test_the_card_note_wins_over_the_spreadsheet_note(fake_db, board, monkeypatch):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    monkeypatch.setitem(board.clients[10], "advice", "old sheet note")
+    _notes(fake_db, smith=CORDS)
+    day = run(lead.my_shifts(user("ana@example.com")))["days"][0]
+    assert [p["text"] for p in day["packList"]] == [CORDS]
+
+
+def test_a_lead_never_sees_another_crews_notes(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    _notes(fake_db, smith=CORDS, other="Bring the lift")
+    out = run(lead.my_shifts(user("ana@example.com")))
+    assert "Bring the lift" not in str(out)
+    office = run(lead.my_shifts(user("office@example.com")))
+    packs = {d["id"]: d["packList"] for d in office["days"]}
+    assert packs["2026-11-14|Crew 3|0"] == [{"row": 12, "name": "Other Crew Client", "text": "Bring the lift"}]
+
+
+def test_no_notes_means_an_empty_pack_list(fake_db, board):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    day = run(lead.my_shifts(user("ana@example.com")))["days"][0]
+    assert day["packList"] == [] and all(s["installNote"] == "" for s in day["stops"])
+
+
+def test_today_summary_counts_stops_with_install_notes(fake_db, board, on_shift_day):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+    _notes(fake_db, smith=CORDS, other="Bring the lift")
+    office = run(lead.today_summary(user("office@example.com")))
+    assert office["day"]["installNotes"] == 2
+    assert "cords" not in str(office) and "lift" not in str(office)    # a count, never the text
+    mine = run(lead.today_summary(user("ana@example.com")))
+    assert mine["day"]["installNotes"] == 1                            # only her own day
+
+
+def test_today_summary_survives_a_notes_lookup_failure(fake_db, board, on_shift_day):
+    fake_db.on_fetchval("FROM ll_app.user_roles", None)
+
+    def boom(*_):
+        raise RuntimeError("no column")
+
+    fake_db.on("LEFT JOIN client_activity ca", boom, method="fetch")
+    out = run(lead.today_summary(user("office@example.com")))
+    assert out["day"]["jobs"] == 3 and out["day"]["installNotes"] == 0

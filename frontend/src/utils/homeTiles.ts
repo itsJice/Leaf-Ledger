@@ -117,4 +117,17 @@ export interface TodaySummary {
   crews: Array<{ label: string; jobs: number; people: number }>;
   jobs: number;
   people: number;
+  /** How many of that date's stops have install notes (a count only). */
+  installNotes?: number;
+}
+
+/** "2 stops have install notes", or "" for none. */
+export function installNotesLine(n: number | undefined): string {
+  if (!n) return "";
+  return `${n} stop${n === 1 ? " has" : "s have"} install notes`;
+}
+
+/** The schedule opened on that day. */
+export function scheduleDayHref(date: string | undefined): string {
+  return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? `/install-schedule?date=${date}` : "/install-schedule";
 }

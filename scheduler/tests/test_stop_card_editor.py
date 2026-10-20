@@ -114,7 +114,10 @@ def test_notes_fold_counts_and_leads_with_production_notes():
       console.log(JSON.stringify(peekNotesHTML(1)));
     """)
     summary = out[out.index("<summary>"):out.index("</summary>")]
-    assert 'class="pkcount warn">3<' in summary and "Rebuild garland" in summary
+    # Install notes are quick reference now (peekInstallNoteHTML, open in
+    # "This job"); the fold keeps production & repair and the client notes.
+    assert 'class="pkcount warn">2<' in summary and "Rebuild garland" in summary
+    assert "Dock entrance" not in out
     assert " open" not in out.split(">")[0]
 
 
@@ -154,7 +157,7 @@ def test_save_goes_through_the_app_endpoints_and_redraws_without_reload():
     assert "seasonNotesChanges(contactFieldsForEdit)" in save
     assert "applyClientRename(oldName, entry.name)" in save
     assert "refreshPeekLive(row)" in save
-    assert "code==='403'" in save and "clientEditDenied=true" in save
+    assert "status===403 && step==='client'" in save and "clientEditDenied=true" in save
 
 
 def test_editor_has_the_app_fields():
