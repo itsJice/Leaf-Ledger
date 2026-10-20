@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
+  HelpCircle,
   Package,
   LogOut,
   Menu,
@@ -158,16 +159,26 @@ function FieldLayout({ children }: Props) {
           <p className="text-sm font-semibold">Leaf &amp; Ledger</p>
           <p className="truncate text-xs text-white/70">{me?.person?.name || me?.email}</p>
         </div>
-        <button
-          type="button"
-          onClick={async () => {
-            await signOut();
-            navigate("/login", { replace: true });
-          }}
-          className="flex items-center gap-1.5 rounded-lg border border-white/30 px-3 py-1.5 text-xs font-semibold"
-        >
-          <LogOut size={14} /> Sign out
-        </button>
+        <div className="flex flex-none items-center gap-2">
+          {/* How-to videos: the one other page a field login may open. */}
+          <Link
+            to="/help"
+            aria-label="Help: how-to videos"
+            className="flex min-h-10 items-center gap-1.5 rounded-lg border border-white/30 px-3 text-xs font-semibold"
+          >
+            <HelpCircle size={14} /> Help
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut();
+              navigate("/login", { replace: true });
+            }}
+            className="flex min-h-10 items-center gap-1.5 rounded-lg border border-white/30 px-3 text-xs font-semibold"
+          >
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
       </header>
       <main>{children}</main>
     </div>

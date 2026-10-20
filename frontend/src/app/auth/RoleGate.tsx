@@ -1,13 +1,12 @@
 import type * as React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { DISPLAY_HOME, FIELD_HOME, pageAllowed, useMe } from "utils/me";
-import { isInstallPath } from "utils/installViews";
-import { CHANGES_PATH } from "utils/scheduleChanges";
+import { useMe } from "utils/me";
+import { gateRedirect } from "./gate";
 import { useUserGuardContext } from "./UserGuard";
 
 /**
  * Sits inside <UserGuard>: waits for the account's role, then keeps field
- * logins (leads, crew) on the lead pages. Every API call is checked on the
+ * logins (leads, crew) on the lead pages (and Help). Every API call is checked on the
  * server too -- this only stops a lead landing on a page that would fail.
  */
 export const RoleGate = ({ children }: { children: React.ReactNode }) => {
@@ -36,23 +35,9 @@ export const RoleGate = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Restricted logins (production): only their pages; anything else -- the
-  // Dashboard at "/" included -- goes to their home page.
-  if (me.pages && !pageAllowed(me, location.pathname)) {
-    return <Navigate to={me.home || me.pages[0] || "/login"} replace />;
-  }
-  // The display login keeps the whole schedule: its four views are four
-  // routes now (Days, Calendar, Staffing, Roster), as they were four tabs.
-  // It may also read the Changes list (the server allows its GETs).
-  if (me.viewOnly && !isInstallPath(location.pathname) && location.pathname !== CHANGES_PATH) {
-    return <Navigate to={DISPLAY_HOME} replace />;
-  }
-  // Installers and leads can fill out a form (the product request form is
-  // filled in the field, on a phone) -- the form page only, never responses.
-  const onFormPage = /^\/forms\/[^/]+\/?$/.test(location.pathname);
-  if (me.fieldOnly && location.pathname !== FIELD_HOME && !onFormPage) {
-    return <Navigate to={FIELD_HOME} replace />;
-  }
+  // Who may open which page lives in gate.ts (tested there).
+  const to = gateRedirect(me, location.pathname);
+  if (to) return <Navigate to={to} replace />;
 
   return <>{children}</>;
 };

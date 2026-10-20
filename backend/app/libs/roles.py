@@ -199,6 +199,8 @@ PRODUCTION_PAGES = (
     # were tabs inside /install-schedule, which production could already open).
     "/install-calendar", "/install-staffing", "/install-roster",
     "/install-changes",
+    # Help > How-to videos: static videos, open to every signed-in role.
+    "/help",
 )
 
 
