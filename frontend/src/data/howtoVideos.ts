@@ -110,4 +110,116 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     needsRemake: false,
     composition: "HowToInstallNotes",
   },
+  {
+    id: "my-shifts",
+    title: "Your day on My Shifts",
+    description:
+      "For crew leads: today's stops, the Pack list, directions, your crew and upcoming days, all on your phone.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/gBfdXSsndNk
+    youtubeId: "gBfdXSsndNk",
+    durationSec: 58,
+    updatedAt: "2026-10-20",
+    screens: ["Crew Shifts (lead's phone)"],
+    sourceFiles: ["frontend/src/pages/Shifts.tsx", "frontend/src/utils/shifts.ts", "backend/app/apis/lead/__init__.py", "frontend/src/components/Layout.tsx"],
+    labels: ["My Shifts", "Pack list for today", "Next stop", "Help"],
+    needsRemake: false,
+    composition: "HowToMyShifts",
+  },
+  {
+    id: "read-day",
+    title: "Reading a day on the Install Schedule",
+    description:
+      "Crews, stops in driving order, drive times, Est. Finish, the day-length bar, the route map and Approve.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/AvM1kNmxKyE
+    youtubeId: "AvM1kNmxKyE",
+    durationSec: 57,
+    updatedAt: "2026-10-20",
+    screens: ["Install Schedule: Days view"],
+    sourceFiles: ["scheduler/review_template.html#day-view", "scheduler/review_template.html#crew-card", "scheduler/review_template.html#map"],
+    labels: ["Est. Finish", "Day length", "Approve", "notes"],
+    needsRemake: false,
+    composition: "HowToReadDay",
+  },
+  {
+    id: "find-client",
+    title: "Finding a client",
+    description:
+      "Type a name in Find a client and jump straight to their install day.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/GRHGmmAlbz0
+    youtubeId: "GRHGmmAlbz0",
+    durationSec: 42,
+    updatedAt: "2026-10-20",
+    screens: ["Install Schedule: toolbar search", "Days view", "Calendar view"],
+    sourceFiles: ["scheduler/review_template.html#find-client", "scheduler/review_template.html#toolbar"],
+    labels: ["Find a client"],
+    needsRemake: false,
+    composition: "HowToFindClient",
+  },
+  {
+    id: "move-client",
+    title: "Moving a client to another date or crew",
+    description:
+      "Drag a stop to another crew or onto a date, or use Reschedule. The client card's date updates automatically.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/qC0Xq3BRKE0
+    youtubeId: "qC0Xq3BRKE0",
+    durationSec: 52,
+    updatedAt: "2026-10-20",
+    screens: ["Install Schedule: Days view", "Move dialog"],
+    sourceFiles: ["scheduler/review_template.html#drag-drop", "scheduler/review_template.html#move-dialog", "scheduler/review_template.html#date-list"],
+    labels: ["Reschedule", "Move", "Cancel"],
+    needsRemake: false,
+    composition: "HowToMoveClient",
+  },
+  {
+    id: "staff-crew",
+    title: "Staffing a crew",
+    description:
+      "Add people to a crew shift from the day card or the Staffing view until it shows Staffed.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/s4X8JhRyrUw
+    youtubeId: "s4X8JhRyrUw",
+    durationSec: 59,
+    updatedAt: "2026-10-20",
+    screens: ["Install Schedule: crew shift on day card", "Install Staffing"],
+    sourceFiles: ["scheduler/review_template.html#crew-shift", "scheduler/review_template.html#staffing"],
+    labels: ["Crew shift", "+ add to shift", "Staffed", "Unstaffed", "Staff this shift"],
+    needsRemake: false,
+    composition: "HowToStaffCrew",
+  },
+  {
+    id: "mass-text",
+    title: "Sending a mass text",
+    description:
+      "Text installers one-on-one from your own phone, in English or Spanish. Never a group chat.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/VIPu-TfYHB8
+    youtubeId: "VIPu-TfYHB8",
+    durationSec: 67,
+    updatedAt: "2026-10-20",
+    screens: ["Install Roster: Send mass text"],
+    sourceFiles: ["scheduler/review_template.html#mass-text", "scheduler/review_template.html#roster"],
+    labels: ["Send mass text", "Send English", "Send Spanish", "Last texted"],
+    needsRemake: false,
+    composition: "HowToMassText",
+  },
+  {
+    id: "print-crew-sheets",
+    title: "Printing crew sheets",
+    description:
+      "Print a date, one crew or the whole page. Each sheet starts with the Pack list.",
+    category: "Install Schedule",
+    // Unlisted: https://youtu.be/k7K8PplmfW4
+    youtubeId: "k7K8PplmfW4",
+    durationSec: 51,
+    updatedAt: "2026-10-20",
+    screens: ["Install Schedule: toolbar printer", "Printed crew sheets"],
+    sourceFiles: ["scheduler/review_template.html#crew-sheet-print", "scheduler/review_template.html#toolbar", "frontend/src/utils/printPage.ts"],
+    labels: ["Pack list", "Print"],
+    needsRemake: false,
+    composition: "HowToPrint",
+  },
 ];
