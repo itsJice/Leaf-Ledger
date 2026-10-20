@@ -1,7 +1,15 @@
 import { useEffect, useRef } from "react";
 import { Play, RefreshCw, Search, X } from "components/icons";
 import type { HowToVideo } from "../../data/howtoVideos";
-import { categoriesWithVideos, filterVideos, formatDuration, formatUpdated } from "utils/howto";
+import {
+  categoriesWithVideos,
+  filterVideos,
+  formatDuration,
+  formatUpdated,
+  posterOf,
+  youtubeEmbedUrl,
+  youtubeIdOf,
+} from "utils/howto";
 import type { CategoryFilter } from "utils/howto";
 
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" };
@@ -19,6 +27,7 @@ export function RemakeBadge({ className = "" }: { className?: string }) {
 }
 
 export function VideoCard({ video, onOpen }: { video: HowToVideo; onOpen: (id: string) => void }) {
+  const poster = posterOf(video);
   return (
     <li className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <button
@@ -29,13 +38,15 @@ export function VideoCard({ video, onOpen }: { video: HowToVideo; onOpen: (id: s
         data-video-card={video.id}
       >
         <div className="relative aspect-video w-full overflow-hidden bg-stone-100">
-          <img
-            src={video.poster}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          />
+          {poster && (
+            <img
+              src={poster}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          )}
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1f3d2b]/85 text-white shadow-lg transition-transform duration-200 group-hover:scale-105">
               <Play size={20} className="translate-x-[1px]" />
@@ -61,8 +72,58 @@ export function VideoCard({ video, onOpen }: { video: HowToVideo; onOpen: (id: s
   );
 }
 
-/** The inline player: a dialog over the page with the native video controls. */
-export function VideoPlayer({ video, onClose }: { video: HowToVideo; onClose: () => void }) {
+/**
+ * The video itself in a 16:9 box: a YouTube embed when the entry has a
+ * `youtubeId`, else the local file with the native controls.
+ */
+function PlayerMedia({ video, autoplay }: { video: HowToVideo; autoplay: boolean }) {
+  const yt = youtubeIdOf(video);
+  if (yt) {
+    return (
+      <div className="relative aspect-video w-full bg-black" data-youtube-embed={yt}>
+        <iframe
+          key={yt}
+          src={youtubeEmbedUrl(yt, { autoplay })}
+          title={video.title}
+          loading="lazy"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="absolute inset-0 h-full w-full border-0"
+        />
+      </div>
+    );
+  }
+  return (
+    <video
+      key={video.file}
+      src={video.file}
+      poster={video.poster}
+      controls
+      playsInline
+      autoPlay
+      preload="metadata"
+      className="block aspect-video w-full bg-black"
+    >
+      Your browser can't play this video.
+    </video>
+  );
+}
+
+/**
+ * The inline player: a dialog over the page. `autoplay` is true when the
+ * viewer clicked a card (YouTube only starts on its own after a click); a
+ * `?v=` link opens it ready to play.
+ */
+export function VideoPlayer({
+  video,
+  onClose,
+  autoplay = false,
+}: {
+  video: HowToVideo;
+  onClose: () => void;
+  autoplay?: boolean;
+}) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
@@ -85,18 +146,7 @@ export function VideoPlayer({ video, onClose }: { video: HowToVideo; onClose: ()
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-5xl overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
       >
-        <video
-          key={video.file}
-          src={video.file}
-          poster={video.poster}
-          controls
-          playsInline
-          autoPlay
-          preload="metadata"
-          className="block aspect-video w-full bg-black"
-        >
-          Your browser can't play this video.
-        </video>
+        <PlayerMedia video={video} autoplay={autoplay} />
         <div className="flex items-start gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -132,6 +182,8 @@ export interface HowToVideosViewProps {
   category: CategoryFilter;
   /** The video playing, or null. */
   openId: string | null;
+  /** The player was opened by a click (so a YouTube embed may autoplay). */
+  autoplay?: boolean;
   onQuery: (q: string) => void;
   onCategory: (c: CategoryFilter) => void;
   onOpen: (id: string) => void;
@@ -144,6 +196,7 @@ export function HowToVideosView({
   query,
   category,
   openId,
+  autoplay = false,
   onQuery,
   onCategory,
   onOpen,
@@ -215,7 +268,7 @@ export function HowToVideosView({
         </div>
       )}
 
-      {open && <VideoPlayer video={open} onClose={onClose} />}
+      {open && <VideoPlayer video={open} onClose={onClose} autoplay={autoplay} />}
     </div>
   );
 }

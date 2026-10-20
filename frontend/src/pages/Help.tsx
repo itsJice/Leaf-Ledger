@@ -17,6 +17,8 @@ export default function Help() {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
+  // True once a card is clicked: YouTube embeds may autoplay then, not from a ?v= link.
+  const [clicked, setClicked] = useState(false);
   const openId = params.get("v");
   const me = currentMe();
   // Field and display logins have no sidebar: give them the way back.
@@ -27,13 +29,16 @@ export default function Help() {
       : null;
 
   const onOpen = useCallback(
-    (id: string) => setParams((p) => { const n = new URLSearchParams(p); n.set("v", id); return n; }, { replace: true }),
+    (id: string) => {
+      setClicked(true);
+      setParams((p) => { const n = new URLSearchParams(p); n.set("v", id); return n; }, { replace: true });
+    },
     [setParams],
   );
-  const onClose = useCallback(
-    () => setParams((p) => { const n = new URLSearchParams(p); n.delete("v"); return n; }, { replace: true }),
-    [setParams],
-  );
+  const onClose = useCallback(() => {
+    setClicked(false);
+    setParams((p) => { const n = new URLSearchParams(p); n.delete("v"); return n; }, { replace: true });
+  }, [setParams]);
 
   return (
     <Layout>
@@ -67,6 +72,7 @@ export default function Help() {
         query={query}
         category={category}
         openId={openId}
+        autoplay={clicked}
         onQuery={setQuery}
         onCategory={setCategory}
         onOpen={onOpen}

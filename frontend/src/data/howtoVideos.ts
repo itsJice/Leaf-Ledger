@@ -5,7 +5,17 @@
  * ------
  * Every video the app shows is one entry here. The page reads nothing else.
  *
- * Files: each video and its poster live in `frontend/public/howto/` and are
+ * YouTube (preferred): upload the video to YouTube as Unlisted and set
+ * `youtubeId`. The player then shows a privacy-enhanced embed
+ * (youtube-nocookie.com) and the card uses YouTube's thumbnail unless a
+ * local `poster` is set. Paste the share link into `parseYouTubeId` (in
+ * utils/howto.ts) to get the id: youtu.be/ID, youtube.com/watch?v=ID,
+ * /shorts/ID and /embed/ID links all work. Once an entry has a `youtubeId`,
+ * drop its `file` (and `poster`, unless you want a custom one) and delete
+ * the local files.
+ *
+ * Local files (fallback, used when `youtubeId` is empty): each video and its
+ * poster live in `frontend/public/howto/` and are
  * served as static files from the same origin (Vite copies public/ into
  * dist/, and backend main.py serves any real file under dist/). Put a
  * version in the file name (`-v2`) and bump it when a video is remade, so a
@@ -39,10 +49,16 @@ export interface HowToVideo {
   /** One line under the title. */
   description: string;
   category: HowToCategory;
-  /** Public path of the .mp4, under /howto/. */
-  file: string;
-  /** Public path of the poster image, under /howto/. */
-  poster: string;
+  /**
+   * YouTube video id (the 11 characters after `v=` or `youtu.be/`). When set,
+   * the player embeds YouTube instead of playing `file`. Empty = not on
+   * YouTube yet.
+   */
+  youtubeId?: string;
+  /** Public path of the .mp4, under /howto/. Needed when there's no `youtubeId`. */
+  file?: string;
+  /** Public path of the poster image, under /howto/. Optional with a `youtubeId` (its thumbnail is used). */
+  poster?: string;
   durationSec: number;
   /** YYYY-MM-DD the video was last made. */
   updatedAt: string;
@@ -65,8 +81,8 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     description:
       "Put what the crew needs to bring on the client's card so it shows in the lead's Pack list on install morning and on the printed crew sheet.",
     category: "Install Schedule",
-    file: "/howto/add-install-note-v2.mp4",
-    poster: "/howto/add-install-note-v2.jpg",
+    // Unlisted: https://youtu.be/hmeqv11SMYg
+    youtubeId: "hmeqv11SMYg",
     durationSec: 55,
     updatedAt: "2026-10-19",
     screens: [
