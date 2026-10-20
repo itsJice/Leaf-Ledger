@@ -13,6 +13,7 @@ import {
   NotebookPen,
   FileText,
   Heart,
+  HelpCircle,
   LayoutGrid,
   MessageSquare,
   Search,
@@ -113,6 +114,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/quote-calculator", label: "Quote Calculator", icon: FileText, adminOnly: true },
       { path: "/settings", label: "Settings", icon: Settings },
     ],
+  },
+  // Short videos of the app's own screens (data/howtoVideos.ts).
+  {
+    id: "help",
+    label: "Help",
+    items: [{ path: "/help", label: "How-to Videos", icon: HelpCircle }],
   },
 ];
 

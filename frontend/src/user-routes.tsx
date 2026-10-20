@@ -38,6 +38,7 @@ const InstallChanges = lazyWithReload(() => import("./pages/InstallChanges.tsx")
 const Shifts = lazyWithReload(() => import("./pages/Shifts.tsx"));
 const Settings = lazyWithReload(() => import("./pages/Settings.tsx"));
 const Suppliers = lazyWithReload(() => import("./pages/Suppliers.tsx"));
+const Help = lazyWithReload(() => import("./pages/Help.tsx"));
 
 export const userRoutes: RouteObject[] = [
 
@@ -90,5 +91,8 @@ export const userRoutes: RouteObject[] = [
 	// Leads land here and can open nothing else (app/auth/RoleGate.tsx).
 	{ path: "/shifts", element: <Shifts /> },
 	{ path: "/suppliers", element: <Suppliers /> },
+	// Help > How-to videos (data/howtoVideos.ts). Every signed-in role, field
+	// logins and the display too (app/auth/RoleGate.tsx).
+	{ path: "/help", element: <Help /> },
 
 ];

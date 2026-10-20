@@ -393,6 +393,23 @@ def test_production_me_lists_pages_and_home(fake_db, board):
         assert p in out["pages"]
 
 
+@pytest.mark.parametrize("role,email", [
+    ("production", "production@example.com"),
+    ("viewer", "ipad@example.com"),
+    ("lead", "lead@example.com"),
+    ("crew", "crew@example.com"),
+    ("staff", "staff@example.com"),
+])
+def test_every_role_may_open_help(fake_db, board, role, email):
+    # Help > How-to videos (/help) is open to every signed-in role. Only
+    # production has a page allowlist; the others aren't page-restricted by
+    # the server (the frontend gate, app/auth/gate.ts, lets field logins and
+    # the display open /help).
+    fake_db.on_fetchval("FROM ll_app.user_roles", role)
+    out = run(me.get_me(user(email)))
+    assert out["pages"] is None or "/help" in out["pages"]
+
+
 def test_production_sees_every_shift_read_only(fake_db, board):
     fake_db.on_fetchval("FROM ll_app.user_roles", "production")
     out = run(lead.my_shifts(user("production@example.com")))

@@ -15,6 +15,7 @@ import {
   ClipboardList,
   DollarSign,
   Heart,
+  HelpCircle,
   ListChecks,
   MapPinned,
   MessageSquare,
@@ -83,6 +84,7 @@ export const HOME_TILES: HomeTile[] = [
   { id: "jobs", label: "Jobs", path: "/jobs", icon: ClipboardList, group: "catalog", tone: T.clay },
   // Everything else.
   { id: "favorites", label: "Favorites", path: "/favorites", icon: Heart, group: "more", tone: T.clay },
+  { id: "help", label: "How-to", path: "/help", icon: HelpCircle, group: "more", tone: T.teal },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings, group: "more", tone: T.slate },
 ];
 
