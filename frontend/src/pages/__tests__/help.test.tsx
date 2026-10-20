@@ -156,10 +156,10 @@ describe("YouTube links", () => {
 
   it("builds the embed and thumbnail URLs", () => {
     expect(youtubeEmbedUrl(YT)).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1",
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&vq=hd1080",
     );
     expect(youtubeEmbedUrl(YT, { autoplay: true })).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&autoplay=1",
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&vq=hd1080&autoplay=1",
     );
     expect(youtubeThumbnailUrl(YT)).toBe("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg");
   });
@@ -237,7 +237,7 @@ describe("the page", () => {
     expect(html).toContain(`data-youtube-embed="${YT}"`);
     const tag = /<iframe[^>]*>/.exec(html)![0];
     expect(tag).toContain(
-      'src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&amp;modestbranding=1&amp;playsinline=1"',
+      'src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&amp;modestbranding=1&amp;playsinline=1&amp;vq=hd1080"',
     );
     expect(tag).toContain('allow="autoplay; encrypted-media; picture-in-picture; fullscreen"');
     expect(tag).toContain("allowfullscreen");
@@ -249,13 +249,13 @@ describe("the page", () => {
 
   it("plays Add an install note from YouTube", () => {
     const html = view({ openId: "add-install-note", autoplay: true });
-    expect(html).toContain('src="https://www.youtube-nocookie.com/embed/hmeqv11SMYg?rel=0&amp;modestbranding=1&amp;playsinline=1&amp;autoplay=1"');
+    expect(html).toContain('src="https://www.youtube-nocookie.com/embed/hmeqv11SMYg?rel=0&amp;modestbranding=1&amp;playsinline=1&amp;vq=hd1080&amp;autoplay=1"');
     expect(html).not.toContain("<video");
   });
 
   it("autoplays the embed only when opened by a click", () => {
     const v = ytVideo();
-    expect(view({ videos: [v], openId: v.id, autoplay: true })).toContain("playsinline=1&amp;autoplay=1");
+    expect(view({ videos: [v], openId: v.id, autoplay: true })).toContain("playsinline=1&amp;vq=hd1080&amp;autoplay=1");
     expect(view({ videos: [v], openId: v.id })).not.toContain("autoplay=1");
   });
 
@@ -318,5 +318,12 @@ describe("ways in", () => {
     expect(t.adminOnly).toBeFalsy();
     expect(visibleTiles({ isAdmin: false, pages: null }).map((x) => x.id)).toContain(t.id);
     expect(visibleTiles({ isAdmin: false, pages: ["/search", "/help"] }).map((x) => x.id)).toContain(t.id);
+  });
+});
+
+describe("how-to steps under the player", () => {
+  it("every video has numbered steps", async () => {
+    const { HOWTO_VIDEOS } = await import("../../data/howtoVideos");
+    for (const v of HOWTO_VIDEOS) expect(v.steps && v.steps.length >= 3).toBe(true);
   });
 });

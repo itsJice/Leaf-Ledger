@@ -144,7 +144,7 @@ export function VideoPlayer({
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        className="max-h-[100dvh] w-full max-w-5xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-h-[94vh] sm:rounded-2xl xl:max-w-6xl 2xl:max-w-7xl"
       >
         <PlayerMedia video={video} autoplay={autoplay} />
         <div className="flex items-start gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -157,6 +157,13 @@ export function VideoPlayer({
               {video.title}
             </h2>
             <p className="mt-1 text-sm text-stone-600">{video.description}</p>
+            {video.steps && video.steps.length > 0 && (
+              <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700" data-video-steps>
+                {video.steps.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            )}
             <p className="mt-2 text-xs text-stone-500">
               {formatDuration(video.durationSec)} · Last updated {formatUpdated(video.updatedAt)}
             </p>

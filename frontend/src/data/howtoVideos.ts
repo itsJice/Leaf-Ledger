@@ -48,6 +48,8 @@ export interface HowToVideo {
   title: string;
   /** One line under the title. */
   description: string;
+  /** The numbered steps shown under the player (same as the YouTube description). */
+  steps?: string[];
   category: HowToCategory;
   /**
    * YouTube video id (the 11 characters after `v=` or `youtu.be/`). When set,
@@ -80,6 +82,13 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Add an install note",
     description:
       "Put what the crew needs to bring on the client's card so it shows in the lead's Pack list on install morning and on the printed crew sheet.",
+    steps: [
+      "Open the client's stop on the Install Schedule.",
+      "Tap the pencil to edit the card.",
+      "Type what to bring under \"Install notes 2026\" (for example, \"Bring (8) longer extension cords. Pack in kit.\").",
+      "Save. The stop now shows a \"notes\" tag.",
+      "On install morning, the note shows up automatically in the crew lead's \"Pack list for today\" on their phone and on the printed crew sheet.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/hmeqv11SMYg
     youtubeId: "hmeqv11SMYg",
@@ -115,6 +124,19 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Your day on My Shifts",
     description:
       "For crew leads: today's stops, the Pack list, directions, your crew and upcoming days, all on your phone.",
+    steps: [
+      "Open Leaf & Ledger on your phone. It opens on My Shifts.",
+      "Today's card shows the date, your crew and how many stops you have.",
+      "The Pack list shows what to bring for today's stops.",
+      "Tap Next stop to get directions in your maps app.",
+      "See your crew for the day.",
+      "Your stops are listed in driving order.",
+      "Tap a client's phone number to call them.",
+      "Each stop has a Time box for your crew's hours.",
+      "Scroll down for the next stops and their install notes.",
+      "Your upcoming days are listed below today.",
+      "Need help? Tap Help for how-to videos.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/gBfdXSsndNk
     youtubeId: "gBfdXSsndNk",
@@ -131,6 +153,18 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Reading a day on the Install Schedule",
     description:
       "Crews, stops in driving order, drive times, Est. Finish, the day-length bar, the route map and Approve.",
+    steps: [
+      "Pick a date in the list on the left.",
+      "The day header shows how many crews and stops the day has.",
+      "Each crew has its own card: Crew 1, Crew 2 and Crew 3, in order.",
+      "Stops are numbered in driving order.",
+      "Between stops you see the drive time and miles.",
+      "Each card shows Arrive Depot, Depart and Est. Finish.",
+      "The day-length bar shows how full the day is, and how much time is spare. It turns amber near 10 hours and red when the day runs over.",
+      "Click a crew's name to show just its route and stops on the map.",
+      "A \"notes\" tag means the stop has install notes.",
+      "When the day looks right, click Approve.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/AvM1kNmxKyE
     youtubeId: "AvM1kNmxKyE",
@@ -147,6 +181,14 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Finding a client",
     description:
       "Type a name in Find a client and jump straight to their install day.",
+    steps: [
+      "Click \"Find a client\" in the toolbar at the top of the Install Schedule.",
+      "Start typing a name. Matches drop down as you type, each with its date and crew.",
+      "Pick the client. The schedule jumps to their day and scrolls their stop into view.",
+      "Their stop is highlighted green and the map zooms to their pin, with their address in a pop-up. The highlight stays until your next click.",
+      "Click the stop to open their card.",
+      "Searching works the same way from the Calendar or Staffing view. Picking a client there opens their day in Days.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/GRHGmmAlbz0
     youtubeId: "GRHGmmAlbz0",
@@ -163,6 +205,16 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Moving a client to another date or crew",
     description:
       "Drag a stop to another crew or onto a date, or use Reschedule. The client card's date updates automatically.",
+    steps: [
+      "In Days, drag the stop by its row onto another crew's card. The card shows a dashed outline where it will land.",
+      "Drop it. The stop joins that crew, and both crews' finish times, day length and drive times update.",
+      "To change the date, drag the stop onto a day in the date list on the left. The move box opens with that date picked.",
+      "Pick the crew for that day. The box shows who else each crew has and how long that day would run.",
+      "Press Move.",
+      "Click the new day in the date list to see them there.",
+      "You can also open the stop and press Reschedule. It opens the same move box.",
+      "The client's card picks up the new install date automatically.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/qC0Xq3BRKE0
     youtubeId: "qC0Xq3BRKE0",
@@ -179,6 +231,15 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Staffing a crew",
     description:
       "Add people to a crew shift from the day card or the Staffing view until it shows Staffed.",
+    steps: [
+      "On the Install Schedule, each day card shows what its crew needs, for example \"Unstaffed · needs 4\".",
+      "Open Crew shift at the bottom of the card.",
+      "Pick from \"+ add to shift…\". People who are free that day are listed first; anyone who can't work it is marked \"off\".",
+      "Add people one at a time until the crew is full. The chip counts down (Short 3 of 4, Short 2 of 4…).",
+      "When the crew is full, both chips turn green: \"Staffed 4/4\".",
+      "Install Staffing lists every shift this season and what it needs. Tap \"Staff this shift\" and tick who's working, then Done.",
+      "A Dallas week is staffed as one block: whoever works Dallas works all 5 nights.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/s4X8JhRyrUw
     youtubeId: "s4X8JhRyrUw",
@@ -195,6 +256,15 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Sending a mass text",
     description:
       "Text installers one-on-one from your own phone, in English or Spanish. Never a group chat.",
+    steps: [
+      "On the Install Roster, tap \"Send mass text\".",
+      "Step 1, choose people: tap groups (they combine, e.g. Needs availability + Leads) or tick people one by one. People without a valid phone number are greyed out.",
+      "Step 2, write the message once in the English box, and the Spanish box if you need it. Drag in the \"First name\" bubble so every text greets that person by name.",
+      "Step 3, send: each person has Send English and Send Spanish buttons. The solid one is their usual language.",
+      "Clicking Send opens Messages with that person's text filled in. Check it and press Send in Messages yourself.",
+      "Each text goes to one person, from your own number.",
+      "Their roster card keeps the history: \"Last texted Oct 20\".",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/VIPu-TfYHB8
     youtubeId: "VIPu-TfYHB8",
@@ -211,6 +281,14 @@ export const HOWTO_VIDEOS: HowToVideo[] = [
     title: "Printing crew sheets",
     description:
       "Print a date, one crew or the whole page. Each sheet starts with the Pack list.",
+    steps: [
+      "In Days, click the printer at the top to print every crew sheet for the date on screen. Each crew gets its own sheet.",
+      "In an overview (for example All Nov 2026), each date heading has its own printer that prints just that date. The \"Print all\" link prints every sheet in the overview.",
+      "The printer on a crew card prints just that crew's sheet.",
+      "Each sheet starts with a Pack list built from the install notes, then the stops in order with addresses, contacts, boxes, install time and arrival time.",
+      "The same toolbar printer prints the month on Calendar and the roster on Roster.",
+      "Command+P prints the whole page you're on.",
+    ],
     category: "Install Schedule",
     // Unlisted: https://youtu.be/k7K8PplmfW4
     youtubeId: "k7K8PplmfW4",
