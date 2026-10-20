@@ -66,7 +66,7 @@ export function youtubeIdOf(v: Pick<HowToVideo, "youtubeId">): string | null {
 
 /** Privacy-enhanced embed URL; `autoplay` when the viewer clicked to open it. */
 export function youtubeEmbedUrl(id: string, opts: { autoplay?: boolean } = {}): string {
-  const base = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0&modestbranding=1&playsinline=1`;
+  const base = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0&modestbranding=1&playsinline=1&vq=hd1080`;
   return opts.autoplay ? `${base}&autoplay=1` : base;
 }
 
