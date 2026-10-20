@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, TreePine } from "components/icons";
+import { ChevronRight, ClipboardList, TreePine } from "components/icons";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import { currentMe } from "utils/me";
@@ -15,6 +15,8 @@ import {
   type HomeTile,
   type TileGroup,
   type TodaySummary,
+  installNotesLine,
+  scheduleDayHref,
   openCommentCount,
   visibleTiles,
 } from "utils/homeTiles";
@@ -88,7 +90,7 @@ function TodayStrip({ summary, loading }: { summary: TodaySummary | null; loadin
     : "";
   return (
     <Link
-      to="/install-schedule"
+      to={scheduleDayHref(summary?.date)}
       className="mb-6 flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 transition-colors hover:border-stone-300 sm:mb-8 sm:px-5"
     >
       <span
@@ -114,6 +116,11 @@ function TodayStrip({ summary, loading }: { summary: TodaySummary | null; loadin
               {summary.people} people ·{" "}
               {summary.crews.map((c) => `${c.label}: ${c.jobs} ${c.jobs === 1 ? "job" : "jobs"}`).join(" · ")}
             </p>
+            {installNotesLine(summary.installNotes) && (
+              <p className="mt-0.5 flex items-center gap-1 truncate text-xs font-semibold text-emerald-800">
+                <ClipboardList size={13} className="flex-none" /> {installNotesLine(summary.installNotes)}
+              </p>
+            )}
           </>
         ) : (
           <p className="text-sm text-stone-600">No install days left on the board</p>

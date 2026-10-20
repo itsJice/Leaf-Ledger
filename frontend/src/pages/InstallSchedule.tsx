@@ -5,7 +5,7 @@ import Layout from "components/Layout";
 import { auth } from "app/auth/auth";
 import { apiFetch } from "utils/apiFetch";
 import { currentMe } from "utils/me";
-import { type InstallView, legacyView, pathForView, viewForPath, withHostFlags } from "utils/installViews";
+import { type InstallView, dateFromSearch, legacyView, pathForView, viewForPath, withHostFlags } from "utils/installViews";
 import { copyFrameForPrint, isPrintShortcut, printWithoutFallback, setPrintFallback } from "utils/printPage";
 
 /**
@@ -62,6 +62,8 @@ export default function InstallSchedule() {
   const pageView = useRef<InstallView>(routeView);
   const pathRef = useRef(location.pathname);
   pathRef.current = location.pathname;
+  const searchRef = useRef(location.search);
+  searchRef.current = location.search;
   const heardFromPage = useRef(false);
   const pageReady = useRef(false);
 
@@ -109,6 +111,15 @@ export default function InstallSchedule() {
       /* tool falls back to localStorage */
     }
   };
+
+  // The page keeps the token it was handed, and Supabase access tokens last
+  // an hour: hand it every refreshed one. (Before 10/19 it only ever got the
+  // first, so a schedule left open past the hour failed every save with a
+  // 401 -- the stop card's "Couldn't save that change".) The page also asks
+  // after a 401 (tbdg-token-request, below), for a tab whose timers slept.
+  useEffect(() => auth.onTokenChange(() => void sendToken()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []);
 
   /** Show `view` in the already-loaded page: no reload, no remount. */
   const showView = (view: InstallView) => {
@@ -164,7 +175,13 @@ export default function InstallSchedule() {
         pageReady.current = true;
         const want = viewForPath(pathRef.current);
         if (want !== pageView.current) showView(want);
+        // ?date=YYYY-MM-DD (the home page's install-notes link): open that day.
+        const date = dateFromSearch(searchRef.current);
+        if (date) frameRef.current?.contentWindow?.postMessage({ type: "tbdg-date", date }, window.location.origin);
       }
+      // The page got a 401: its token is older than Supabase's hour. Send
+      // the current one (getSession refreshes it if it has to).
+      if (type === "tbdg-token-request") sendToken();
       if (type === "tbdg-tv") setTv(Boolean(e.data.on));
       // The page changed view on its own (a day opened from the Calendar,
       // TV mode ending, the warehouse display opening on the wall calendar):

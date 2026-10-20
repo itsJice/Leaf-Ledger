@@ -121,6 +121,8 @@ async function fetch(url, init){
   server.log.push({status:200, base:b.baseUpdatedAt, dateMoves:b.state.dateMoves});
   return resp(200, {ok:true, updatedAt:server.at});
 }
+// The page sends through authFetch (fresh token, one retry on a 401).
+async function authFetch(url, init){ return fetch(url, init); }
 """ + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy")) + "\nasync " + js_function("putShared") + """
 function load(){        // what pullSharedNow does with GET /state
   DOC={}; rebaseOnto({state:clone(server.doc), updatedAt:server.at, updatedBy:server.by}, null, {});

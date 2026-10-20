@@ -80,3 +80,10 @@ export function withHostFlags(html: string, view: InstallView, viewOnly: boolean
   const flag = `<script>${js}</script>`;
   return html.includes("<head>") ? html.replace("<head>", `<head>${flag}`) : flag + html;
 }
+
+/** `?date=YYYY-MM-DD` on /install-schedule: the date to open (the home
+ *  page's "stops have install notes" link). null when absent or malformed. */
+export function dateFromSearch(search: string): string | null {
+  const d = new URLSearchParams(search).get("date") || "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+}

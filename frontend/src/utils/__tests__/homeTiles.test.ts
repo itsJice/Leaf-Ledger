@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOME_TILES, openCommentCount, visibleTiles } from "../homeTiles";
+import { HOME_TILES, installNotesLine, openCommentCount, scheduleDayHref, visibleTiles } from "../homeTiles";
 import { userRoutes } from "../../user-routes";
 import { INSTALL_PATHS } from "../installViews";
 
@@ -26,5 +26,20 @@ describe("home tiles", () => {
   it("counts open comments", () => {
     expect(openCommentCount([{ status: "new" }, { status: "done" }, { status: "new" }])).toBe(2);
     expect(openCommentCount(null)).toBe(0);
+  });
+});
+
+describe("Today strip: install notes", () => {
+  it("says how many stops have install notes, and nothing when none", () => {
+    expect(installNotesLine(2)).toBe("2 stops have install notes");
+    expect(installNotesLine(1)).toBe("1 stop has install notes");
+    expect(installNotesLine(0)).toBe("");
+    expect(installNotesLine(undefined)).toBe("");
+  });
+
+  it("links to the schedule opened on that day", () => {
+    expect(scheduleDayHref("2026-11-10")).toBe("/install-schedule?date=2026-11-10");
+    expect(scheduleDayHref(undefined)).toBe("/install-schedule");
+    expect(scheduleDayHref("11/10/2026")).toBe("/install-schedule");
   });
 });
