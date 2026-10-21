@@ -2310,6 +2310,8 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <input id="nddate" type="date" min="__SPAN_START__" max="__SPAN_END__">
   <label class="ndtraining"><input type="checkbox" id="ndtrain"> Training day &mdash;
     no client stops, just a shift to staff</label>
+  <label class="ndtraining"><input type="checkbox" id="nddallas"> Dallas night (hotel):
+    11 PM start, no drive from the branch, crews staffed for the whole run</label>
   <div id="nderr" class="nderr"></div>
   <div id="ndadded" class="ndadded"></div>
   <div class="btns"><button onclick="newdatedlg.close()">Cancel</button>
@@ -2595,14 +2597,45 @@ async function createSyntheticClient(def){
   return addSyntheticClientSync({...def, outRow: legs?legs.outRow:null, inCol: legs?legs.inCol:null});
 }
 
+// ---------- Dallas nights ----------
+// The Mi Cocina week is built in (SPEC.calendar kind 'dallas_night'). Another
+// run booked later -- the January takedowns, "we're going to use the same
+// timing" (user, 2026-10-21) -- is kept in shared state instead (dallasNights,
+// a date list like trainingDays): the build can't change, because a new DATA
+// is a new version and the board would look wiped. Declared ahead of metaFor
+// because `days` is hydrated right below it.
+const DALLAS_CAL = new Set(SPEC.calendar.filter(c=>c.kind==='dallas_night').map(c=>c.date));
+let dallasNights = new Set();
+function normDallasNights(list){
+  return new Set((Array.isArray(list)?list:[]).filter(d=>typeof d==='string' && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+}
+function isDallasDate(dt){ return DALLAS_CAL.has(dt) || dallasNights.has(dt); }
+/** PURE. The meta for a crew-day on a Dallas night the build has no meta
+ *  for: a built Mi Cocina night's (this crew's if it has one, else the first)
+ *  -- 11 PM start, no lunch, away from the branch -- without anything that was
+ *  about that night's own stops (note, joint wiring, first stop, zones). */
+function dallasNightMeta(dayMeta, calendar, crew, night){
+  const dates = new Set((calendar||[]).filter(c=>c.kind==='dallas_night').map(c=>c.date));
+  const nights = Object.keys(dayMeta||{}).sort()
+    .filter(id=>dates.has(id.split('|')[0]) && dayMeta[id] && dayMeta[id].win===night);
+  const id = nights.find(x=>x.split('|')[1]===crew) || nights[0];
+  const m = id ? dayMeta[id]
+    : {cat:'M Crowd', lunchMin:0, winReason:'Dallas night shift, 11 PM start', flags:[]};
+  return {...m, win:night, anchored:false, stacked:1, note:'', half:[], joint:'', startRow:null,
+          flags:[], zones:[], _synthetic:true, crew};
+}
+
 // ---------- day metadata ----------
 // Metadata is keyed by day id in an immutable side map, so a day that gets
 // emptied and later refilled keeps its negotiated window, note and joint
-// wiring instead of silently reverting to a bare 10h default.
+// wiring instead of silently reverting to a bare 10h default. A day the build
+// has no meta for on a Dallas night runs like a Mi Cocina night.
 function metaFor(id){
   const m = SPEC.dayMeta[id];
   if(m) return m;
   const crew = (id||'').split('|')[1] || '';
+  if(isDallasDate((id||'').split('|')[0]) && K.CREWS.includes(crew))
+    return dallasNightMeta(SPEC.dayMeta, SPEC.calendar, crew, K.NIGHT);
   return {cat:'Standard', anchored:true, stacked:1, note:'', win:K.DAY_CAP,
           lunchMin:K.LUNCH, half:[], joint:'', startRow:null, winReason:'',
           flags:[], zones:[], _synthetic:true, crew};
@@ -2613,6 +2646,44 @@ function hydrate(d){
           cat:m.cat, anchored:m.anchored, stacked:m.stacked, note:m.note,
           win:m.win, lunchMin:m.lunchMin, half:[...(m.half||[])],
           joint:m.joint, startRow:m.startRow, winReason:m.winReason};
+}
+/** PURE. Joint stops the build didn't plan: a row on two or more crews'
+ *  cards on the same date is shared, so each crew does half its hours (the
+ *  same split and "joint w/" wiring as a built joint day). Only for days
+ *  `planned(id)` says the build has no meta for -- a built day keeps the
+ *  joint wiring it was built with. label(day) names a crew.
+ *  Returns {dayId: {half:[rows], joint:'Crew 2'}}. */
+function dynamicJoints(dayList, planned, label){
+  const byDate = {};
+  (dayList||[]).forEach(d=>{ if(d && !d.training) (byDate[d.date] = byDate[d.date] || []).push(d); });
+  const out = {};
+  Object.values(byDate).forEach(ds=>ds.forEach(d=>{
+    if(planned(d.id)) return;
+    const half = [], partners = new Set();
+    (d.stops||[]).forEach(r=>{
+      const others = ds.filter(x=>x!==d && (x.stops||[]).includes(r));
+      if(!others.length) return;
+      half.push(r);
+      others.forEach(x=>partners.add(label(x)));
+    });
+    out[d.id] = {half, joint:[...partners].sort().join(' + ')};
+  }));
+  return out;
+}
+/** Days the build has no meta for follow the board as it is now: a Dallas
+ *  night added since the build runs like a Mi Cocina night, and a stop on two
+ *  crews that date is a joint stop -- both crews open the night there, as the
+ *  built joint nights do. Run after every placement change, before drawing
+ *  and before the stop times are saved. */
+function refreshDerivedMeta(){
+  const joints = dynamicJoints(days, id=>!!SPEC.dayMeta[id], crewLabel);
+  days.forEach(d=>{
+    if(SPEC.dayMeta[d.id] || d.training) return;
+    const m = metaFor(d.id), j = joints[d.id] || {half:[], joint:''};
+    Object.assign(d, {cat:m.cat, anchored:m.anchored, stacked:m.stacked, note:m.note,
+                      win:m.win, lunchMin:m.lunchMin, winReason:m.winReason,
+                      half:j.half, joint:j.joint, startRow:j.half.length ? j.half[0] : m.startRow});
+  });
 }
 
 // ---------- state ----------
@@ -3011,6 +3082,7 @@ function applyPlacement(place){
     if(cur.length!==base.length || cur.some((v,i)=>v!==base[i])) d.edited = true;
   });
   days = days.filter(d=>d.stops.length);
+  refreshDerivedMeta();
   return missing;
 }
 /** Restore clients added in a previous session (or by another device) --
@@ -3061,6 +3133,7 @@ try{
     // date on the board, or its placement silently drops as unknown.
     newDates = normDates(s.newDates);
     trainingDays = normTrainingDays(s.trainingDays);
+    dallasNights = normDallasNights(s.dallasNights);
     notInstalling = normNotInstalling(s.notInstalling);
     hold = normNotInstalling(s.hold);
     stopPin = normStopPins(s.stopPin);
@@ -3177,7 +3250,7 @@ function placementBoardDates(place){
 // The documents compared are all in this page's own normalized form
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
-const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','notInstalling','hold'];
+const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
 const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
@@ -3197,14 +3270,17 @@ function stableJSON(v){
   return JSON.stringify(v);
 }
 /** PURE. Two new-client definitions (newClients entries) are the same
- *  client: the same name once spelling is normalized, or -- a rename -- the
- *  same address and visit type. */
+ *  client visit: the same visit type, and the same name once spelling is
+ *  normalized or -- a rename -- the same address. The visit type counts for
+ *  the name too: a takedown stop is added under the location's own name
+ *  ("M Crowd Lakewood", visit type Takedown), and is not the same row as
+ *  another tab's install or repair visit there. */
 function sameNewClient(a, b){
   if(!a || !b) return false;
+  if((a.visitType||'Standard')!==(b.visitType||'Standard')) return false;
   const n=s=>String(s||'').trim().toLowerCase().replace(/[,.]/g,'').replace(/\s+/g,' ');
   if(n(a.name) && n(a.name)===n(b.name)) return true;
-  return !!n(a.street) && n(a.street)===n(b.street)
-    && (a.visitType||'Standard')===(b.visitType||'Standard');
+  return !!n(a.street) && n(a.street)===n(b.street);
 }
 /** PURE. Three-way merge of shared state documents: `base` is the server
  *  document this tab's changes were made on, `mine` is this tab now, `theirs`
@@ -3356,6 +3432,22 @@ function mergeShared(base, mine, theirs, label){
   if(any('staffing')) out.staffing=staffing;
   return {state:out, conflicts, changed, hard};
 }
+/** PURE. Takedown stops are added as their own rows under the location's
+ *  name (visit type Takedown), so one client can have two rows. True for a
+ *  takedown row whose client also has a row that isn't one: that other row
+ *  is the client's -- its card flags, its billing line -- and the takedown
+ *  row only speaks for the takedown visit. rows: {row: {name, sheetName,
+ *  visitType}}. */
+function extraVisitRow(row, rows){
+  const c=rows[row];
+  if(!c || !/takedown/i.test(c.visitType||'')) return false;
+  const k=normName(c.sheetName||c.name);
+  return Object.keys(rows).some(r=>+r!==+row && rows[r] && !/takedown/i.test(rows[r].visitType||'')
+    && normName(rows[r].sheetName||rows[r].name)===k);
+}
+/** Whether a row's not-installing / hold mark is written to the client's
+ *  card: not for a takedown row of a client that has an install row. */
+function speaksForClient(r){ return !extraVisitRow(r, C); }
 function snapshot(){
   // The name as it was saved (c.sheetName), not the Clients tab's spelling
   // that loadClientDirectory shows: a rename there is not this tab's edit,
@@ -3371,7 +3463,7 @@ function snapshot(){
   // client is installing, so a removal made here has to reach the client
   // record, not just this tool's own state. Prefer the app's own spelling of
   // the name when the directory is loaded, so the match is exact.
-  const notInstallingNames=[...notInstalling].map(r=>{
+  const notInstallingNames=[...notInstalling].filter(speaksForClient).map(r=>{
     const ac=appClientFor(r);
     return (ac && ac.name) || (C[r] && C[r].name) || null;
   }).filter(Boolean);
@@ -3381,19 +3473,20 @@ function snapshot(){
   // installing" with no way to compare against what staff remember booking.
   const notInstallingDates={};
   notInstalling.forEach(r=>{
+    if(!speaksForClient(r)) return;
     const ac=appClientFor(r);
     const name=(ac && ac.name) || (C[r] && C[r].name);
     const info=lastScheduledFrom[r];
     if(name && info && info.date) notInstallingDates[name]=info.date;
   });
   // Same shape as notInstallingNames, for the hold write-through.
-  const holdNames=[...hold].map(r=>{
+  const holdNames=[...hold].filter(speaksForClient).map(r=>{
     const ac=appClientFor(r);
     return (ac && ac.name) || (C[r] && C[r].name) || null;
   }).filter(Boolean);
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
-          newDates:[...newDates], trainingDays:[...trainingDays],
+          newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           roster, staffing, savedAt:Date.now()};
@@ -4201,6 +4294,7 @@ let pushTimer = null;
  *  work for each localStorage write. */
 function sharedSnapshot(){
   const r1=x=>Math.round(x*10)/10, timeline={};
+  refreshDerivedMeta();
   days.forEach(d=>{
     if(!d.stops.length || d.training) return;
     const ts=stopTimes(d); if(!ts.length) return;
@@ -4292,9 +4386,11 @@ function syncBlockedBy(j){
   const known=new Set(((sharedBase && sharedBase.state && sharedBase.state.newClients)||[])
     .map(d=>String(d && d.row)));
   const dirOf=n=>(clientDirectory && n) ? clientDirectory.get(normName(n)) : null;
-  const sameHere=(def,c)=>sameNewClient(def, {name:c.sheetName||c.name, street:c.street, visitType:c.visitType})
-    || normName(c.name)===normName(def.name)
-    || (!!dirOf(def.name) && dirOf(def.name)===dirOf(c.name));
+  // The visit type has to match too: a takedown row shares its location's name.
+  const sameHere=(def,c)=>(def.visitType||'Standard')===(c.visitType||'Standard')
+    && (sameNewClient(def, {name:c.sheetName||c.name, street:c.street, visitType:c.visitType})
+      || normName(c.name)===normName(def.name)
+      || (!!dirOf(def.name) && dirOf(def.name)===dirOf(c.name)));
   const rows=((j.state && j.state.newClients)||[])
     .filter(def=>def && C[def.row] && C[def.row].synthetic
       && !known.has(String(def.row)) && !sameHere(def, C[def.row]));
@@ -4509,6 +4605,7 @@ async function restoreHistoryEntry(entryId, btn){
     restoreSyntheticClients(st.newClients);
     newDates = normDates(st.newDates);
     trainingDays = normTrainingDays(st.trainingDays);
+    dallasNights = normDallasNights(st.dallasNights);
     notInstalling = normNotInstalling(st.notInstalling);
     hold = normNotInstalling(st.hold);
     stopPin = normStopPins(st.stopPin);
@@ -4545,7 +4642,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -4553,6 +4650,7 @@ function restoreBlob(blob){
   // somewhere to put the stops that were sitting on it.
   newDates = normDates(s.newDates);
   trainingDays = normTrainingDays(s.trainingDays);
+  dallasNights = normDallasNights(s.dallasNights);
   notInstalling = normNotInstalling(s.notInstalling);
   hold = normNotInstalling(s.hold);
   stopPin = normStopPins(s.stopPin);
@@ -4854,13 +4952,20 @@ function effH(d,r){
 //     works that day (user, 2026-08-18).
 //   * The Dallas run is staffed a WEEK at a time, not a night at a time.
 //     Whoever works the Mi Cocina nights works all of them, so one crew's
-//     whole run of Dallas nights is a single shift.
+//     whole run of Dallas nights is a single shift. A run is back-to-back
+//     Dallas dates, so the November week and a January takedown week (added
+//     as dallasNights) are two shifts, not one.
 // `staffing` stays keyed by crew-day id -- assigning a block just writes the
 // same people to each of its days -- so the day cards, run sheets and the
 // per-day coverage maths all keep working unchanged.
-const DALLAS_DATES = new Set(SPEC.calendar.filter(c=>c.kind==='dallas_night').map(c=>c.date));
-function isDallasNight(d){ return DALLAS_DATES.has(d.date) && d.win===K.NIGHT; }
-function shiftKeyOf(d){ return isDallasNight(d) ? 'dallas|'+d.crew : d.id; }
+function isDallasNight(d){ return isDallasDate(d.date) && d.win===K.NIGHT; }
+/** The first date of the run of back-to-back Dallas dates `dt` is in. */
+function dallasRunStart(dt){
+  let s=dt;
+  while(isDallasDate(addDays(s,-1))) s=addDays(s,-1);
+  return s;
+}
+function shiftKeyOf(d){ return isDallasNight(d) ? 'dallas|'+dallasRunStart(d.date)+'|'+d.crew : d.id; }
 function buildShifts(){
   const map=new Map();
   days.forEach(d=>{
@@ -5946,7 +6051,8 @@ function renderSearch(q){
   if(!q.trim()){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
   searchResults.innerHTML = results.length ? results.map(r=>{
     const d = days.find(x=>x.stops.includes(r.row));
-    const where = d ? `${fmtDate(d.date)} · ${crewLabel(d)}` : 'not scheduled';
+    const where = (d ? `${fmtDate(d.date)} · ${crewLabel(d)}` : 'not scheduled')
+      + (C[r.row].visitType && C[r.row].visitType!=='Standard' ? ` · ${C[r.row].visitType}` : '');
     return `<div class="srow" data-row="${r.row}">
       <span class="srname">${r.name}</span>
       <span class="srwhere">${where}</span></div>`;
@@ -7540,6 +7646,7 @@ function removeAddedDate(date){
   pushUndo();
   newDates.delete(date);
   trainingDays.delete(date);
+  dallasNights.delete(date);
   // Drop the empty crew-day card that was sitting on it, if any.
   days.filter(d=>d.date===date).forEach(d=>{ delete staffing[d.id]; });
   days = days.filter(d=>!(d.date===date && !d.stops.length));
@@ -7549,20 +7656,29 @@ function removeAddedDate(date){
 }
 function renderAddedDates(){
   const box=document.getElementById('ndadded');
-  const list=[...newDates].filter(shownAsAdded).sort();
+  // A Dallas night is listed even on a takedown day (those are already on the
+  // board, so they aren't otherwise "added"); its button unmarks it first.
+  const list=[...new Set([...[...newDates].filter(shownAsAdded), ...dallasNights])].sort();
   if(!list.length){ box.innerHTML=''; return; }
   box.innerHTML='<b>Added</b><br>'+list.map(d=>
     `<span class="ndchip">${dowOf(d)} ${fmtMDYYYY(d)}${trainingDays.has(d)?' · training':''}`
-    +`<button data-rm="${d}" title="Remove">&times;</button></span>`
+    +`${dallasNights.has(d)?' · Dallas night':''}`
+    +(dallasNights.has(d)
+      ? `<button data-undal="${d}" title="Make it a regular day (not a Dallas night)">&times;</button></span>`
+      : `<button data-rm="${d}" title="Remove">&times;</button></span>`)
   ).join('');
   box.querySelectorAll('[data-rm]').forEach(b=>{
     b.onclick=()=>{ if(removeAddedDate(b.dataset.rm)) renderAddedDates(); };
+  });
+  box.querySelectorAll('[data-undal]').forEach(b=>{
+    b.onclick=()=>{ if(removeDallasNight(b.dataset.undal)) renderAddedDates(); };
   });
 }
 document.getElementById('newdatebtn').onclick=()=>{
   if(roBlocked()) return;
   document.getElementById('nddate').value='';
   document.getElementById('ndtrain').checked=false;
+  document.getElementById('nddallas').checked=false;
   const err=document.getElementById('nderr'); err.style.display='none'; err.textContent='';
   renderAddedDates();
   newdatedlg.showModal();
@@ -7577,6 +7693,32 @@ function addTrainingDay(date){
   trainingDays.add(date);
   materializeTrainingDays();
   persist();
+}
+/** Mark a date a Dallas night (hotel): every crew-day on it runs like a Mi
+ *  Cocina night -- 11 PM start, no lunch, no drive from or back to the branch
+ *  -- and a crew's back-to-back Dallas nights are staffed as one shift. Shared
+ *  state, so every tab sees it. Idempotent; a built-in Dallas night is one already. */
+function addDallasNight(date){
+  if(dallasNights.has(date) || DALLAS_CAL.has(date)) return;
+  pushUndo();
+  dallasNights.add(date);
+  refreshDerivedMeta();
+  persist(); render();
+}
+/** Back to a regular day: its crews return to the Houston day (8:30 AM
+ *  roll-out from the branch). The stops on it stay where they are. */
+function removeDallasNight(date){
+  if(roBlocked() || !dallasNights.has(date)) return false;
+  const n=days.filter(d=>d.date===date).reduce((a,d)=>a+d.stops.length,0);
+  if(!confirm(`Make ${dowOf(date)} ${fmtMDYYYY(date)} a regular day, not a Dallas night?\n\n`
+      +`Its crews go back to the Houston day (8:30 AM roll-out from the branch).`
+      +(n?` The ${n} stop${n===1?'':'s'} on it stay where ${n===1?'it is':'they are'}.`:'')))
+    return false;
+  pushUndo();
+  dallasNights.delete(date);
+  refreshDerivedMeta();
+  persist(); render();
+  return true;
 }
 /** Every roster person who's given real availability (at least one date) and
  *  a phone number to reach them -- what this tool already calls "Ready to
@@ -7624,17 +7766,28 @@ function addDate(v){
 document.getElementById('ndgo').onclick=()=>{
   const v=document.getElementById('nddate').value;
   const err=document.getElementById('nderr');
+  const train=document.getElementById('ndtrain').checked, dallas=document.getElementById('nddallas').checked;
+  if(train && dallas){
+    err.textContent='A date can be a training day or a Dallas night, not both.'; err.style.display='block'; return;
+  }
   // Oct 21 - cutoff is already listed; recording it as added keeps it
   // removable and lets it carry a training day, exactly as before.
-  const result = (v && inWorkWindow(v) && !newDates.has(v) && optionalDates().includes(v))
+  let result = (v && inWorkWindow(v) && !newDates.has(v) && optionalDates().includes(v))
     ? (roBlocked() ? {ok:false, msg:RO_MSG} : (pushUndo(), newDates.add(v), persist(), selDate=v, focusDayId=null, render(), {ok:true}))
     : addDate(v);
+  // A date already on the board (a takedown day, say) can still be made a
+  // Dallas night: nothing to add, just mark it.
+  if(!result.ok && dallas && v && !READONLY && activeCalendar().some(ci=>ci.date===v)){
+    result={ok:true}; selDate=v; focusDayId=null;
+  }
   if(!result.ok){ err.textContent=result.msg; err.style.display='block'; return; }
-  if(document.getElementById('ndtrain').checked) addTrainingDay(v);
+  if(train) addTrainingDay(v);
+  if(dallas) addDallasNight(v);
   renderAddedDates();
   err.style.display='none';
   document.getElementById('nddate').value='';
   document.getElementById('ndtrain').checked=false;
+  document.getElementById('nddallas').checked=false;
 };
 
 document.getElementById('newclientbtn').onclick=()=>{
@@ -8073,6 +8226,11 @@ function buildBillingRows(scope, cols){
   // like two separate charges.
   const seen = new Map();
   scopedDays.forEach(d=>d.stops.forEach(r=>{ if(!seen.has(r)) seen.set(r, d.date); }));
+  // Same for a takedown stop added as its own row under the location's name:
+  // the client's line is its install row, and the takedown is priced on it.
+  const keyOf = r=>normName(C[r].sheetName||C[r].name);
+  const billed = new Set([...seen.keys()].filter(r=>!extraVisitRow(r, C)).map(keyOf));
+  [...seen.keys()].forEach(r=>{ if(extraVisitRow(r, C) && billed.has(keyOf(r))) seen.delete(r); });
   const rows = [active.map(c=>c.label)];
   [...seen.entries()]
     .sort((a,b)=> a[1]<b[1] ? -1 : a[1]>b[1] ? 1 : C[a[0]].name.localeCompare(C[b[0]].name))
@@ -11655,6 +11813,8 @@ function render(){
   phoneNormalize();
   // Settle stop ordering ONCE, in the state phase. dayCalc is pure, so
   // paint can no longer mutate the schedule as a side effect of drawing.
+  // Dallas-night and joint wiring first: a move may have made or split one.
+  refreshDerivedMeta();
   days.forEach(d=>{
     const mo = manualOrder[d.id];
     if(mo){
