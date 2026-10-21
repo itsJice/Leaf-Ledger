@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 from app.libs import roles
 from app.libs import db
@@ -105,6 +106,72 @@ def _norm_person(p: dict) -> Optional[dict]:
             "email": str(p.get("email") or "").strip(), "phone": str(p.get("phone") or "").strip()}
 
 
+_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def dallas_dates(spec: dict, state: dict) -> set[str]:
+    """The build's Mi Cocina nights plus any date staff marked a Dallas night
+    since (``state.dallasNights``) -- the tool's isDallasDate()."""
+    built = {c.get("date") for c in spec.get("calendar") or []
+             if isinstance(c, dict) and c.get("kind") == "dallas_night"}
+    added = {d for d in state.get("dallasNights") or [] if isinstance(d, str) and _ISO.fullmatch(d)}
+    return built | added
+
+
+def dallas_night_meta(day_meta: dict, calendar: list, crew: str, night: Any) -> dict:
+    """A built Mi Cocina night's meta for a crew-day the build has none for
+    (this crew's if it has one, else the first) -- the tool's dallasNightMeta()."""
+    dates = {c.get("date") for c in calendar or [] if isinstance(c, dict) and c.get("kind") == "dallas_night"}
+    nights = sorted(k for k, v in (day_meta or {}).items()
+                    if isinstance(v, dict) and k.split("|")[0] in dates and v.get("win") == night)
+    pick = next((k for k in nights if k.split("|")[1:2] == [crew]), nights[0] if nights else None)
+    base = day_meta[pick] if pick else {"cat": "M Crowd", "lunchMin": 0,
+                                        "winReason": "Dallas night shift, 11 PM start"}
+    return {**base, "win": night, "anchored": False, "stacked": 1, "note": "", "half": [],
+            "joint": "", "startRow": None, "flags": [], "zones": [], "crew": crew}
+
+
+def derived_day_meta(spec: dict, state: dict, by_day: dict[str, list[int]]) -> dict[str, dict]:
+    """Meta for the crew-days the build has none for, as the tool's
+    refreshDerivedMeta() works it out: a Dallas night runs like a built Mi
+    Cocina night, and a row on two or more crews' cards the same date is a
+    joint stop (half hours each, both crews open the night there). Days the
+    build has meta for are left alone."""
+    meta = spec.get("dayMeta") or {}
+    crews = (spec.get("const") or {}).get("CREWS") or ["Crew 1", "Crew 2", "Crew 3"]
+    night = (spec.get("const") or {}).get("NIGHT")
+    dal = dallas_dates(spec, state)
+    on_date: dict[str, list[str]] = {}
+    for did in by_day:
+        parts = did.split("|")
+        if len(parts) == 3:
+            on_date.setdefault(parts[0], []).append(did)
+    out: dict[str, dict] = {}
+    for date, ids in on_date.items():
+        labels = sorted({i.split("|")[1] for i in ids})
+        for did in ids:
+            crew = did.split("|")[1]
+            if did in meta or crew not in crews:
+                continue
+            half, partners = [], set()
+            for r in by_day[did]:
+                others = [o for o in ids if o != did and r in by_day[o]]
+                if others:
+                    half.append(r)
+                    partners.update(f"Crew {labels.index(o.split('|')[1]) + 1}" for o in others)
+            if date in dal and night is not None:
+                m = dallas_night_meta(meta, spec.get("calendar") or [], crew, night)
+            elif half:
+                m = {"cat": "Standard", "anchored": True, "stacked": 1, "win": (spec.get("const") or {}).get("DAY_CAP"),
+                     "lunchMin": (spec.get("const") or {}).get("LUNCH"), "startRow": None}
+            else:
+                continue
+            if half:
+                m = {**m, "half": half, "joint": " + ".join(sorted(partners)), "startRow": half[0]}
+            out[did] = m
+    return out
+
+
 def resolve(season: str, payload: dict, state: Optional[dict], inherited: Optional[dict] = None) -> Board:
     state = state or {}
     people = state if state.get("roster") else (inherited or {})
@@ -134,7 +201,8 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
             by_day.setdefault(did, []).append(r)
 
     manual = state.get("manualOrder") or {}
-    meta = spec.get("dayMeta") or {}
+    built_meta = {k: v for k, v in (spec.get("dayMeta") or {}).items() if isinstance(v, dict)}
+    meta = {**built_meta, **derived_day_meta(spec, state, by_day)}
     days: dict[str, dict] = {}
     for did, rows in by_day.items():
         try:
@@ -165,7 +233,7 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         roster=roster,
         staffing=staffing,
         comments=state.get("comments") or {},
-        day_notes={k: v.get("note") or "" for k, v in meta.items() if isinstance(v, dict)},
+        day_notes={k: v.get("note") or "" for k, v in built_meta.items()},
         node={int(r): i for r, i in (payload.get("node") or {}).items()},
         durs=payload.get("durs") or [],
         depot=payload.get("depot") or {},
