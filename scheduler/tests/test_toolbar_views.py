@@ -14,7 +14,7 @@ NODE = shutil.which("node")
 
 def test_print_and_download_dispatch_on_the_view():
     pr = TEMPLATE[TEMPLATE.index("document.getElementById('tbprint').onclick"):][:300]
-    for fn in ("printRoster()", "printStaffing()", "printCalendar()", "printDays()"):
+    for fn in ("openRosterPrintDlg()", "printStaffing()", "printCalendar()", "printDays()"):
         assert fn in pr
     dl = TEMPLATE[TEMPLATE.index("document.getElementById('billexportbtn').onclick"):][:500]
     assert "curView()==='roster'" in dl and "billdlg.showModal()" in dl
@@ -23,7 +23,7 @@ def test_print_and_download_dispatch_on_the_view():
 
 def test_each_control_is_labelled_or_hidden_per_view():
     s = js_function("syncViewToolbar")
-    assert "'Print the roster (what is on screen)'" in s
+    assert "'Print the roster: choose who, which columns and the layout'" in s
     assert "Print the staffing sheet" in s and "`Print ${calPrintTitle()}`" in s
     assert "'Download the roster (Excel or CSV)'" in s
     assert "v!=='staff');" in s                      # no schedule export on Staffing
