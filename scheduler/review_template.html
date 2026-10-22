@@ -402,27 +402,51 @@ dialog option:disabled{color:#b6b3ae}
 #billdlg .billscope button:hover{border-color:var(--brand);background:var(--brand-soft)}
 #billdlg .billnote{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:2px}
 #billdlg .billscope button.sel{border-color:var(--brand);background:var(--brand-soft);font-weight:700}
-#billdlg .billfmt{display:flex;gap:8px;margin:8px 0 4px}
-#billdlg .billfmt button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+#billdlg .billfmt,#rpdlg .billfmt{display:flex;gap:8px;margin:8px 0 4px}
+#billdlg .billfmt button,#rpdlg .billfmt button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:10px 6px;border-radius:8px;border:1.5px solid var(--line);background:#fff;
   cursor:pointer;font-weight:700;font-size:12.5px}
-#billdlg .billfmt button:hover{border-color:var(--brand);background:var(--brand-soft)}
-#billdlg .billfmt button.sel{border-color:var(--brand);border-width:2px;
+#billdlg .billfmt button:hover,#rpdlg .billfmt button:hover{border-color:var(--brand);background:var(--brand-soft)}
+#billdlg .billfmt button.sel,#rpdlg .billfmt button.sel{border-color:var(--brand);border-width:2px;
   background:var(--brand-soft);box-shadow:inset 0 0 0 1px var(--brand-soft)}
-#billdlg .billfmt button.sel small{color:var(--brand)}
+#billdlg .billfmt button.sel small,#rpdlg .billfmt button.sel small{color:var(--brand)}
 #billdlg .nclabel{display:flex;align-items:center;justify-content:space-between}
 #billdlg .billcolall{display:flex;gap:10px}
 #billdlg .billcolall button{border:none;background:none;padding:0;color:var(--brand);
   font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;cursor:pointer;
   text-transform:uppercase;letter-spacing:.3px}
 #billdlg .billcolall button:hover{text-decoration:underline}
-#billdlg .billcols{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;
+#billdlg .billcols,#rpdlg .billcols{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;
   gap:2px 10px;margin:6px 0 4px;max-height:220px;overflow-y:auto;padding-right:2px}
-#billdlg .billcols label{display:flex;align-items:center;gap:7px;padding:4px 2px;
+#billdlg .billcols label,#rpdlg .billcols label{display:flex;align-items:center;gap:7px;padding:4px 2px;
   font-size:12.5px;cursor:pointer;border-radius:5px}
-#billdlg .billcols label:hover{background:var(--brand-soft)}
-#billdlg .billcols input{margin:0;accent-color:var(--brand)}
-#billdlg .billcols label.off{color:var(--mut)}
+#billdlg .billcols label:hover,#rpdlg .billcols label:hover{background:var(--brand-soft)}
+#billdlg .billcols input,#rpdlg .billcols input{margin:0;accent-color:var(--brand)}
+#billdlg .billcols label.off,#rpdlg .billcols label.off{color:var(--mut)}
+/* ---- Print roster dialog (user, 2026-10-22): who, columns, blank
+   check-in columns and layout. Reuses the Export dialog's grid and buttons. */
+#rpdlg{max-width:540px;width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box}
+#rpdlg .billcols{grid-auto-flow:row;max-height:none}
+#rpdlg .billfmt small{display:block}
+#rpdlg .rpcount{font-size:12px;color:var(--mut);margin:2px 0 4px}
+#rpdlg .rpcount b{color:var(--ink)}
+#rpdlg .rpchk{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;margin:6px 0}
+#rpdlg .rpchk input{margin:0;accent-color:var(--brand)}
+#rpdlg .rpcustom{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+#rpdlg .rpcustom span{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 9px;border-radius:6px;
+  background:var(--brand-soft);font-size:12px;font-weight:700}
+#rpdlg .rpcustom button{border:0;background:transparent;padding:2px;display:inline-flex;color:var(--mut);cursor:pointer}
+#rpdlg .rpcustom button:hover{color:var(--ink)}
+#rpdlg .rpadd{display:flex;gap:6px;align-items:center}
+#rpdlg .rpadd input{flex:1;margin:4px 0}
+#rpdlg .rpsec{margin-top:12px;padding-top:8px;border-top:1px solid var(--line)}
+#rpdlg .rpadm{font-size:10.5px;font-weight:700;color:var(--mut);margin-left:-2px}
+@media (max-width:767px){
+  #rpdlg{width:calc(100vw - 16px);max-width:none;padding:14px}
+  #rpdlg input[type=text],#rpdlg input[type=number],#rpdlg select{font-size:16px}
+  #rpdlg .btns button,#rpdlg .billfmt button,#rpdlg .rpadd button{min-height:40px}
+  #rpdlg .billcols label,#rpdlg .rpchk{min-height:36px}
+}
 /* ---- season picker + archive (read-only) mode ---- */
 .seasonpick{align-self:center;padding:7px 10px;border-radius:8px;
   border:1.5px solid var(--line);background:#fff;color:var(--ink);
@@ -1328,8 +1352,8 @@ body.apple .pkfold>summary{min-height:46px}
 #peekbody .pkfold .pkcount.warn{background:#fef3c7}
 #peekbody .pks-job{padding-bottom:10px}
 
-#billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
-#billdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
+#billdlg .billfmt small,#rpdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
+#billdlg .billfmt small,#rpdlg .billfmt small{font-weight:500;font-size:10px;color:var(--mut)}
 #searchwrap{position:relative;margin-left:auto;width:280px;max-width:100%}
 #searchbox{width:100%;padding:8px 12px;font-size:12.5px;font-family:'Montserrat',sans-serif;
   border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
@@ -2367,6 +2391,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <div class="btns"><button onclick="billdlg.close()">Cancel</button>
   <button class="go" id="billgo">Download</button></div>
 </dialog>
+<dialog id="rpdlg" aria-labelledby="rptitlehd"></dialog>
 <script>
 const DATA = __DATA__;
 // ---------- which season this page IS ----------
@@ -11608,33 +11633,343 @@ function rosterRows(sections){
   }));
   return rows;
 }
-/** Print the Roster: the blocks that are open on screen, filtered and sorted
- *  as shown. */
-function printRoster(){
-  const secs=rosterSections().filter(sec=>{
-    const el=document.querySelector(`#staffwrap details.stfsec[data-sec="${sec.key}"]`);
-    return el ? el.open : !sec.closed;
+// ---------- Print roster: pick who, which columns, and the layout ----------
+// User, 2026-10-22: "I need options on the print roster button ... choose
+// what information I want to print ... make a check-in sheet for training
+// ... I want verticle orientation". The toolbar's Print on the Roster opens
+// this dialog; Cmd+P still prints the screen as it is.
+/** Every column the roster print can have, in print order. `blank` columns
+ *  print empty for handwriting; `admin` ones are contractor info and only
+ *  offered to admins (canSeeContractor), as on screen. `w` is the relative
+ *  width on the page. Checked in is always the last column. */
+function rosterPrintColumns(){
+  return [
+    {key:'name',    label:'Name',        w:24},
+    {key:'phone',   label:'Phone',       w:14, nw:true},
+    {key:'email',   label:'Email',       w:20},
+    {key:'title',   label:'Title',       w:11},
+    {key:'lang',    label:'Language',    w:8},
+    {key:'gender',  label:'Gender',      w:6},
+    {key:'address', label:'Address',     w:22, admin:true},
+    {key:'legal',   label:'Legal name',  w:16, admin:true},
+    {key:'avail',   label:'Days marked', w:34, sm:true},
+    {key:'texted',  label:'Last texted', w:9},
+    {key:'notes',   label:'Notes',       w:24, sm:true},
+    {key:'w9',      label:'W-9',            w:10, blank:true, pick:'W-9 received'},
+    {key:'dd',      label:'Direct deposit', w:11, blank:true, pick:'Direct deposit received'},
+    {key:'availrec',label:'Availability',   w:11, blank:true, pick:'Availability received'},
+    {key:'timein',  label:'Time in',        w:9,  blank:true},
+    {key:'sign',    label:'Signature',      w:22, blank:true},
+    {key:'checkin', label:'Checked in',     w:11, blank:true},
+  ];
+}
+/** One-click setups. Training check-in is the sign-in sheet (user,
+ *  2026-10-23): #, Name, Phone, W-9, Direct deposit, Availability, Checked
+ *  in; A to Z by the name as shown; portrait; blank rows to the bottom of
+ *  the last page for walk-ins. Full roster is close to the old Print. */
+function rosterPrintPreset(name){
+  if(name==='full') return {who:'filters', inactive:false, sort:'last', orient:'landscape',
+    cols:['name','phone','title','lang','gender','address','legal','avail'], custom:[],
+    nums:false, walkins:0, fill:false, title:'TBDG __SEASON__ installer roster', details:''};
+  return {who:'active', inactive:false, sort:'first', orient:'portrait',
+    cols:['name','phone','w9','dd','availrec','checkin'], custom:[],
+    nums:true, walkins:10, fill:true, title:'Installer Training Check-in'};
+}
+/** Clean up saved or preset choices: known columns only (no contractor
+ *  columns for non-admins), Name always on, sane numbers. */
+function normRosterPrintOpts(o, admin, today){
+  o = o && typeof o==='object' ? o : {};
+  const known = rosterPrintColumns().filter(c=>admin||!c.admin).map(c=>c.key);
+  const want = new Set((Array.isArray(o.cols)?o.cols:[]).concat('name'));
+  const pick = (v, ok, d)=>ok.includes(v) ? v : d;
+  const n = Math.round(+o.walkins);
+  return {
+    who: pick(o.who, ['active','ready','needs','filters','title','lang'], 'active'),
+    whoTitle: pick(o.whoTitle, TITLES, TITLES[0]),
+    whoLang: pick(o.whoLang, LANGS, LANGS[0]),
+    inactive: o.inactive===true,
+    cols: known.filter(k=>want.has(k)),
+    custom: (Array.isArray(o.custom)?o.custom:[])
+      .map(x=>String(x==null?'':x).replace(/\s+/g,' ').trim().slice(0,40))
+      .filter((x,i,a)=>x && a.indexOf(x)===i).slice(0,6),
+    sort: pick(o.sort, ['first','last','title'], 'first'),
+    orient: pick(o.orient, ['portrait','landscape'], 'portrait'),
+    nums: o.nums!==false,
+    walkins: isFinite(n) ? Math.max(0, Math.min(60, n)) : 0,
+    fill: o.fill===true,
+    title: (o.title==null ? 'Installer roster' : String(o.title)).trim().slice(0,80),
+    details: String(o.details||'').trim().slice(0,160),
+    date: o.date==null ? today : String(o.date).trim().slice(0,40),
+  };
+}
+/** Sort key with accents and punctuation folded, so Érica sorts with Erica
+ *  and "(Fuentes)" with the F's. */
+function rosterPrintKey(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+}
+/** 'first': A to Z by the name as shown; 'last': by last name (a person
+ *  with only one name sorts by it); 'title': Lead first, then by name. */
+function rosterPrintSort(list, sort){
+  const shown=p=>rosterPrintKey(p.name||[p.first,p.last].filter(Boolean).join(' '));
+  const last=p=>rosterPrintKey(p.last||p.first||p.name);
+  const cmp=(a,b)=>a<b?-1:a>b?1:0;
+  const byShown=(a,b)=>cmp(shown(a),shown(b));
+  const byLast=(a,b)=>cmp(last(a),last(b)) || byShown(a,b);
+  const byTitle=(a,b)=>TITLES.indexOf(a.title)-TITLES.indexOf(b.title) || byShown(a,b);
+  return list.slice().sort(sort==='last'?byLast:sort==='title'?byTitle:byShown);
+}
+/** Who goes on the sheet. `screen` is the Roster as currently filtered
+ *  (used by 'filters'); ready / needs follow the Roster's readiness blocks
+ *  (any date marked or none). Inactive people only when asked for. */
+function rosterPrintPeople(all, screen, o){
+  const ready=p=>(p.dates||[]).length>0;
+  const keep = {
+    active:()=>true, filters:()=>true,
+    ready, needs:p=>!ready(p),
+    title:p=>p.title===o.whoTitle, lang:p=>p.lang===o.whoLang,
+  }[o.who] || (()=>true);
+  const list=(o.who==='filters' ? screen : all)
+    .filter(p=>(o.inactive || p.active!==false) && keep(p));
+  return rosterPrintSort(list, o.sort);
+}
+/** What one person's cell says in a data column. */
+function rosterPrintCell(p, key){
+  switch(key){
+    case 'name': return p.name||'';
+    case 'phone': return p.phone ? fmtPhone(p.phone) : '';
+    case 'email': return p.email||'';
+    case 'title': return p.title||'';
+    case 'lang': return p.lang||'';
+    case 'gender': return p.gender==='Male' ? 'M' : 'F';
+    case 'address': return [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')]
+      .filter(Boolean).join(', ');
+    case 'legal': return p.legalName||'';
+    case 'avail': { const n=(p.dates||[]).length; return n ? `${n} · ${fmtFreeDays(p.dates)}` : 'None marked'; }
+    case 'texted': return p.texts && p.texts[0] ? fmtTextDay(p.texts[0].at) : '';
+    case 'notes': return p.notes||'';
+  }
+  return '';
+}
+/** The printed columns in order: picked columns, custom blanks just before
+ *  Checked in (or at the end). */
+function rosterPrintLayout(o){
+  const on=rosterPrintColumns().filter(c=>o.cols.includes(c.key));
+  const custom=o.custom.map((label,i)=>({key:'custom'+i, label, w:12, blank:true}));
+  const ci=on.findIndex(c=>c.key==='checkin');
+  on.splice(ci<0 ? on.length : ci, 0, ...custom);
+  return on;
+}
+/** "Friday 10/23/2026" from "10/23/2026"; anything else as typed. */
+function rosterPrintDateLine(s){
+  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||'').trim());
+  if(!m) return String(s||'');
+  const d=new Date(+m[3], +m[1]-1, +m[2]);
+  return isNaN(d) || d.getDate()!==+m[2] ? s : d.toLocaleDateString('en-US',{weekday:'long'})+' '+s;
+}
+/** The sheet's HTML (heading + one table). Blank cells stay empty; walk-in
+ *  rows are empty rows numbered on from the people. With `fill`, a row
+ *  template rides along for rosterPrintFill to top up the last page. */
+function rosterPrintBody(people, o, stamp){
+  const cols=rosterPrintLayout(o);
+  const tot=cols.reduce((a,c)=>a+c.w,0);
+  const colg=`<colgroup>${o.nums?'<col class="n">':''}${
+    cols.map(c=>`<col style="width:${(c.w/tot*100).toFixed(2)}%">`).join('')}</colgroup>`;
+  const head=(o.nums?'<th class="n">#</th>':'')+cols.map(c=>`<th${c.blank?' class="c"':''}>${esc(c.label)}</th>`).join('');
+  let i=0;
+  const row=p=>`<tr>${o.nums?`<td class="n">${p===undefined?'':++i}</td>`:''}${cols.map(c=>
+    c.blank||!p ? '<td></td>'
+    : `<td${c.key==='name'?' class="nm"':c.nw?' class="nw"':c.sm?' class="sm"':''}>${esc(rosterPrintCell(p, c.key))}</td>`).join('')}</tr>`;
+  const n=people.length;
+  const sub=[o.date ? rosterPrintDateLine(o.date) : 'Date: ______________', o.details,
+    `${n} ${n===1?'person':'people'}${o.walkins||o.fill?', blank rows for walk-ins at the end':''}`]
+    .filter(Boolean).join(' · ');
+  return `<div class="phead"><div><h1>${esc(o.title||'Installer roster')}</h1><p>${esc(sub)}</p></div>`
+    + `<p>${esc(stamp)}</p></div>`
+    + `<table class="rp">${colg}<thead><tr>${head}</tr></thead><tbody>`
+    + people.map(row).join('') + Array.from({length:o.walkins}, ()=>row(null)).join('')
+    + `</tbody></table>`
+    + (o.fill ? `<template id="rpblank">${row(undefined)}</template>` : '');
+}
+/** Print CSS: letter paper in the picked orientation, dark green header row
+ *  repeated on every page, ruled 24px rows (room to write), zebra stripes,
+ *  page numbers, long text wraps inside its column. */
+function rosterPrintCSS(o){
+  const w = o.orient==='landscape' ? '10.1in' : '7.6in';
+  return `@page{size:letter ${o.orient};margin:.45in;
+      @bottom-right{content:"Page " counter(page) " of " counter(pages);font-size:9px;color:#777}}
+    @media screen{body{width:${w};margin:16px auto}}
+    .phead{border-bottom:0;margin-bottom:8px}
+    table.rp{table-layout:fixed;font-size:10.5px}
+    table.rp col.n{width:30px}
+    table.rp th{background:#1f3d2b;color:#fff;font-size:9px;text-transform:none;letter-spacing:0;
+      padding:5px 4px;border:1px solid #1f3d2b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.rp th.c{text-align:center}
+    table.rp td{border:1px solid #9aa79e;height:24px;padding:2px 5px;vertical-align:middle;
+      overflow-wrap:anywhere;box-sizing:border-box}
+    table.rp tbody tr:nth-child(even) td{background:#f6f7f4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.rp .n{text-align:right;color:#777}
+    table.rp th.n{color:#fff}
+    table.rp .nm{font-weight:600}
+    table.rp .nw{white-space:nowrap}
+    table.rp .sm{font-size:9px;line-height:1.3}`;
+}
+/** Runs inside the print window: adds blank rows until the last printed
+ *  page is full (user, 2026-10-23: "make that third page go all the way
+ *  down to the bottom with blanks"). The window lays out at the page's
+ *  printable width, so this walks the rows the way the printer paginates
+ *  them (whole rows, header row repeated on every page). Serialized into
+ *  the print window, so it may only use what's in that window. */
+function rosterPrintFill(pageH){
+  var tb=document.querySelector('table.rp'), tpl=document.getElementById('rpblank');
+  if(!tb || !tpl) return;
+  var tbody=tb.tBodies[0], headH=tb.tHead.getBoundingClientRect().height;
+  var y=tb.getBoundingClientRect().top - document.body.getBoundingClientRect().top + headH;
+  var rows=tbody.rows, i, h;
+  for(i=0;i<rows.length;i++){
+    h=rows[i].getBoundingClientRect().height;
+    if(y+h>pageH) y=headH+h; else y+=h;
+  }
+  for(i=0;i<300;i++){
+    var tr=tpl.content.firstElementChild.cloneNode(true);
+    tbody.appendChild(tr);
+    h=tr.getBoundingClientRect().height;
+    if(y+h>pageH-3){ tbody.removeChild(tr); break; }
+    y+=h;
+  }
+  var n=tb.querySelectorAll('tbody td.n');
+  for(i=0;i<n.length;i++) n[i].textContent=String(i+1);
+}
+/** Print the sheet in its own window, from the dialog's choices. */
+function printRosterSheet(o){
+  const {list, off}=rosterLists();
+  const people=rosterPrintPeople(roster, list.concat(off), o);
+  if(!people.length && !o.walkins && !o.fill){ alert('Nobody on the roster matches those choices.'); return; }
+  // Printable height of a letter page at .45in margins, in CSS px (96/in).
+  const pageH = ((o.orient==='landscape' ? 8.5 : 11) - .9) * 96;
+  const body = rosterPrintBody(people, o, printedStamp())
+    + (o.fill ? `<script>(${rosterPrintFill.toString()})(${pageH});<\/script>` : '');
+  openPrintDoc(o.title||'Installer roster', rosterPrintCSS(o), body, o.orient==='landscape');
+}
+
+// ---- the dialog ----
+// Last choices are remembered in this browser (not the date: that starts
+// at today each time, so an old date never prints by accident).
+const RP_KEY='tbdg-roster-print';
+let rpOpts=null;
+function rpToday(){
+  return new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',timeZone:'America/Chicago'});
+}
+function saveRpOpts(){
+  try{ const {date, ...keep}=rpOpts; localStorage.setItem(RP_KEY, JSON.stringify(keep)); }catch(e){}
+}
+function openRosterPrintDlg(){
+  let saved=null;
+  try{ saved=JSON.parse(localStorage.getItem(RP_KEY)||'null'); }catch(e){}
+  rpOpts=normRosterPrintOpts(saved || rosterPrintPreset('training'), canSeeContractor(), rpToday());
+  drawRosterPrintDlg();
+  document.getElementById('rpdlg').showModal();
+}
+function applyRosterPrintPreset(name){
+  const p=rosterPrintPreset(name);
+  rpOpts=normRosterPrintOpts({...p, details: p.details==null ? rpOpts.details : p.details,
+    date: rpOpts.date}, canSeeContractor(), rpToday());
+  saveRpOpts(); drawRosterPrintDlg();
+}
+function drawRosterPrintDlg(){
+  const dlg=document.getElementById('rpdlg'), o=rpOpts, admin=canSeeContractor();
+  const opt=(v,l,cur)=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(l)}</option>`;
+  const box=c=>{ const on=o.cols.includes(c.key), lock=c.key==='name';
+    return `<label class="${on?'':'off'}"><input type="checkbox" data-col="${c.key}"${on?' checked':''}${lock?' disabled':''}>`
+      + `${esc(c.pick||c.label)}${c.admin?'<span class="rpadm">admin</span>':''}</label>`; };
+  const cat=rosterPrintColumns().filter(c=>admin||!c.admin);
+  dlg.innerHTML=`<b id="rptitlehd">Print roster</b>
+    <div class="billfmt rppresets">
+      <button type="button" data-preset="training">Training check-in<small>sign-in sheet, portrait</small></button>
+      <button type="button" data-preset="full">Full roster<small>contact and availability</small></button>
+    </div>
+    <label class="nclabel" for="rpwho">Who</label>
+    <select id="rpwho">${[['active','Everyone active'],['ready','Ready to schedule'],['needs','Needs availability'],
+      ['filters','Current roster filters'],['title','By title'],['lang','By language']].map(x=>opt(x[0],x[1],o.who)).join('')}</select>
+    <select id="rpwhotitle"${o.who==='title'?'':' hidden'} aria-label="Title">${TITLES.map(t=>opt(t,t,o.whoTitle)).join('')}</select>
+    <select id="rpwholang"${o.who==='lang'?'':' hidden'} aria-label="Language">${LANGS.map(t=>opt(t,t,o.whoLang)).join('')}</select>
+    <label class="rpchk"><input type="checkbox" id="rpinactive"${o.inactive?' checked':''}>Include inactive people</label>
+    <div class="rpcount" id="rpcount"></div>
+    <div class="rpsec"><span class="nclabel">Columns</span>
+      <div class="billcols">${cat.filter(c=>!c.blank).map(box).join('')}</div></div>
+    <div class="rpsec"><span class="nclabel">Blank columns to fill in by hand</span>
+      <div class="billcols">${cat.filter(c=>c.blank).map(box).join('')}</div>
+      <div class="rpcustom">${o.custom.map((x,i)=>`<span>${esc(x)}<button type="button" data-rmcustom="${i}"
+        title="Remove ${esc(x)}" aria-label="Remove ${esc(x)}">${IC.close}</button></span>`).join('')}</div>
+      <div class="rpadd"><input id="rpcustomin" type="text" autocomplete="off" maxlength="40"
+        placeholder="Add a blank column, e.g. Shirt size"${o.custom.length>=6?' disabled':''}>
+        <button type="button" id="rpcustomadd"${o.custom.length>=6?' disabled':''}>Add</button></div></div>
+    <div class="rpsec"><span class="nclabel">Sheet</span>
+      <span class="nclabel">Title</span>
+      <input id="rptitle" type="text" autocomplete="off" value="${esc(o.title)}">
+      <div class="perrow">
+        <div><span class="nclabel">Date</span>
+          <input id="rpdate" type="text" autocomplete="off" placeholder="MM/DD/YYYY" value="${esc(o.date)}"></div>
+        <div><span class="nclabel">Sort</span>
+          <select id="rpsort">${[['first','Name A to Z'],['last','Last name'],['title','Title']].map(x=>opt(x[0],x[1],o.sort)).join('')}</select></div>
+      </div>
+      <span class="nclabel">Time and place (optional)</span>
+      <input id="rpdetails" type="text" autocomplete="off" placeholder="1:00 to 5:00 PM · address" value="${esc(o.details)}">
+      <div class="billfmt rporient">
+        <button type="button" data-orient="portrait"${o.orient==='portrait'?' class="sel"':''}>Portrait<small>tall</small></button>
+        <button type="button" data-orient="landscape"${o.orient==='landscape'?' class="sel"':''}>Landscape<small>wide</small></button>
+      </div>
+      <label class="rpchk"><input type="checkbox" id="rpnums"${o.nums?' checked':''}>Row numbers</label>
+      <label class="rpchk"><input type="checkbox" id="rpfill"${o.fill?' checked':''}>Fill the last page with blank rows</label>
+      <div class="perrow"><div><span class="nclabel">${o.fill?'At least this many blank rows':'Blank rows for walk-ins'}</span>
+        <input id="rpwalk" type="number" min="0" max="60" step="1" value="${o.walkins}"></div><div></div></div>
+    </div>
+    <div class="btns"><button type="button" id="rpcancel">Cancel</button><button type="button" class="go" id="rpgo">Print</button></div>`;
+  const $=id=>dlg.querySelector('#'+id);
+  const set=(k,v,redraw)=>{ rpOpts={...rpOpts,[k]:v}; saveRpOpts(); redraw ? drawRosterPrintDlg() : syncRosterPrintDlg(); };
+  dlg.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>applyRosterPrintPreset(b.dataset.preset));
+  $('rpwho').onchange=e=>set('who', e.target.value, true);
+  $('rpwhotitle').onchange=e=>set('whoTitle', e.target.value);
+  $('rpwholang').onchange=e=>set('whoLang', e.target.value);
+  $('rpinactive').onchange=e=>set('inactive', e.target.checked);
+  dlg.querySelectorAll('input[data-col]').forEach(cb=>cb.onchange=()=>{
+    const k=cb.dataset.col, cols=rpOpts.cols.filter(x=>x!==k);
+    if(cb.checked) cols.push(k);
+    cb.closest('label').classList.toggle('off', !cb.checked);
+    rpOpts=normRosterPrintOpts({...rpOpts, cols}, canSeeContractor(), rpToday()); saveRpOpts(); syncRosterPrintDlg();
   });
-  const n=secs.reduce((a,x)=>a+x.people.length,0);
-  if(!n){ alert('Nobody on the roster matches what is on screen.'); return; }
-  const admin=canSeeContractor();
-  const rows=rosterRows(secs), head=rows[0];
-  const f=stfFilter, filt=[f.title, f.lang, f.gender, f.active==='1'?'Active':f.active==='0'?'Inactive':'',
-    rosterQ.trim()?`"${rosterQ.trim()}"`:''].filter(Boolean).join(' · ');
-  let i=1;
-  const body=secs.map(sec=>`<h2>${esc(sec.label)} · ${sec.people.length}</h2>
-    <table><thead><tr>${head.filter((_,ci)=>ci!==5).map(h=>`<th>${esc(h==='Free dates'?'Free days':h)}</th>`).join('')}</tr></thead><tbody>${
-      sec.people.map(()=>{ const r=rows[i++];
-        return `<tr><td class="nm">${esc(r[0])}</td><td class="nw">${esc(r[1])}</td><td>${esc(r[2])}</td>`
-          + `<td>${esc(r[3])}</td><td class="c">${esc(r[4])}</td>`
-          + `<td class="fd"><b>${r[5]}</b>${r[6]?' · '+esc(r[6]):''}</td>`
-          + (admin?r.slice(7).map(v=>`<td>${esc(v)}</td>`).join(''):'')+`</tr>`; }).join('')
-    }</tbody></table>`).join('');
-  openPrintDoc(`Roster — TBDG __SEASON__`,
-    `.nm{font-weight:700;white-space:nowrap}.nw{white-space:nowrap}.c{text-align:center}.fd{font-size:10px;max-width:${admin?'190px':'320px'}}`,
-    `<div class="phead"><div><h1>TBDG __SEASON__ installer roster</h1>`
-    + `<p>${n} ${n===1?'person':'people'}${filt?' · '+esc(filt):''}${admin?' · includes contractor info (admin only)':''}</p></div>`
-    + `<p>${esc(printedStamp())}</p></div>${body}`, admin);
+  const addCustom=()=>{ const v=$('rpcustomin').value.trim(); if(!v) return;
+    rpOpts=normRosterPrintOpts({...rpOpts, custom:rpOpts.custom.concat(v)}, canSeeContractor(), rpToday());
+    saveRpOpts(); drawRosterPrintDlg(); const inp=document.getElementById('rpcustomin'); if(inp && !inp.disabled) inp.focus(); };
+  $('rpcustomadd').onclick=addCustom;
+  $('rpcustomin').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); addCustom(); } };
+  dlg.querySelectorAll('[data-rmcustom]').forEach(b=>b.onclick=()=>
+    set('custom', rpOpts.custom.filter((_,i)=>i!==+b.dataset.rmcustom), true));
+  $('rptitle').oninput=e=>set('title', e.target.value.slice(0,80));
+  $('rpdate').oninput=e=>set('date', e.target.value.slice(0,40));
+  $('rpdetails').oninput=e=>set('details', e.target.value.slice(0,160));
+  $('rpsort').onchange=e=>set('sort', e.target.value);
+  dlg.querySelectorAll('[data-orient]').forEach(b=>b.onclick=()=>set('orient', b.dataset.orient, true));
+  $('rpnums').onchange=e=>set('nums', e.target.checked);
+  $('rpfill').onchange=e=>set('fill', e.target.checked, true);
+  $('rpwalk').oninput=e=>{ const n=Math.round(+e.target.value);
+    rpOpts={...rpOpts, walkins: isFinite(n) ? Math.max(0, Math.min(60, n)) : 0}; saveRpOpts(); syncRosterPrintDlg(); };
+  $('rpcancel').onclick=()=>dlg.close();
+  $('rpgo').onclick=()=>{ const o={...rpOpts, title:rpOpts.title.trim(), details:rpOpts.details.trim(), date:rpOpts.date.trim()};
+    dlg.close(); printRosterSheet(o); };
+  syncRosterPrintDlg();
+}
+/** The live count and the Print button's label. */
+function syncRosterPrintDlg(){
+  const dlg=document.getElementById('rpdlg'); if(!dlg || !rpOpts) return;
+  const {list, off}=rosterLists();
+  const n=rosterPrintPeople(roster, list.concat(off), rpOpts).length;
+  const extra=rpOpts.fill ? ' plus blank rows to the end of the last page'
+    : rpOpts.walkins ? ` plus ${rpOpts.walkins} blank row${rpOpts.walkins===1?'':'s'}` : '';
+  dlg.querySelector('#rpcount').innerHTML=`<b>${n} ${n===1?'person':'people'}</b>${esc(extra)}`;
+  const go=dlg.querySelector('#rpgo');
+  go.disabled = !n && !rpOpts.walkins && !rpOpts.fill;
+  go.textContent = go.disabled ? 'Nobody to print' : `Print ${n} ${n===1?'person':'people'}`;
 }
 function downloadRoster(fmt){
   const secs=rosterSections();
@@ -11764,7 +12099,7 @@ function syncViewToolbar(){
     if(label){ el.title=label; el.setAttribute('aria-label', label); }
   };
   // Print
-  const pr = v==='roster' ? 'Print the roster (what is on screen)'
+  const pr = v==='roster' ? 'Print the roster: choose who, which columns and the layout'
     : v==='staff' ? 'Print the staffing sheet: every shift, what it needs and who is on it'
     : v==='cal' ? `Print ${calPrintTitle()}`
     : !daysPrintable() ? 'Pick a date or an overview to print its crew sheets'
@@ -11921,7 +12256,7 @@ document.getElementById('tbundo').onclick=()=>undo();
 document.getElementById('tbredo').onclick=()=>redo();
 document.getElementById('tbprint').onclick=()=>{
   const v=curView();
-  if(v==='roster') printRoster();
+  if(v==='roster') openRosterPrintDlg();
   else if(v==='staff') printStaffing();
   else if(v==='cal') printCalendar();
   else printDays();
