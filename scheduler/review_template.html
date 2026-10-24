@@ -826,6 +826,7 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .crewnmbtn:focus-visible{opacity:1;outline:2px solid var(--brand)}
 .crewnmin{font:inherit;font-weight:700;font-size:16px;width:min(100%,260px);padding:3px 7px;margin:-4px 0;
   border:1px solid var(--brand);border-radius:6px;background:var(--surface);color:var(--ink)}
+.shctail{white-space:nowrap}
 .shcname.editing .crewnmbtn,.shcname.editing .crewpos{display:none}
 body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .shcsec{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
@@ -8232,7 +8233,8 @@ function exportJSON(){
 function exportCSV(){
   let rows=[['Client','Date','Crew','Crew name','Order']];
   days.forEach(d=>d.stops.forEach((r,i)=>rows.push([C[r].name,d.date,crewLabel(d),crewName(d),i+1])));
-  dl('tbdg-__SEASON__-assignments.csv',rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n'));
+  // Crew names are typed by staff, so quotes in them are doubled.
+  dl('tbdg-__SEASON__-assignments.csv',rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n'));
 }
 function dl(name,text){const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([text]));a.download=name;a.click();}
@@ -10892,7 +10894,7 @@ function shiftCardHTML(sh){
   return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
     <div class="shchead">
       <span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>
-      <span class="shcname">${crewNameEditHTML(sh)}${sh.tail?`<span class="shctail"> · ${esc(sh.tail)}</span>`:''}
+      <span class="shcname">${crewNameEditHTML(sh)}${sh.tail?`<span class="shctail"> · ${esc(sh.tail)}</span>`:''}${crewNamePencilHTML(sh)}
         <span class="shcwhen">${esc(sh.when)}</span></span>
       <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
     </div>
@@ -10915,9 +10917,13 @@ function crewNameEditHTML(sh){
     + (can ? ` role="button" tabindex="0" title="Double-click or double-tap to rename this crew"`
            + ` aria-label="${esc(shown)}. Rename crew"` : '')
     + `>${esc(shown)}</span>`
-    + (sh.name ? `<span class="crewpos">${esc(sh.pos)}</span>` : '')
-    + (can ? `<button type="button" class="crewnmbtn" data-crewnamebtn="${esc(sh.key)}"`
-           + ` title="Rename crew" aria-label="Rename crew">${IC.pencil}</button>` : '');
+    + (sh.name ? `<span class="crewpos">${esc(sh.pos)}</span>` : '');
+}
+/** The pencil after a card's title (training days and read-only: none). */
+function crewNamePencilHTML(sh){
+  return sh.training || READONLY ? ''
+    : `<button type="button" class="crewnmbtn" data-crewnamebtn="${esc(sh.key)}"`
+      + ` title="Rename crew" aria-label="Rename crew">${IC.pencil}</button>`;
 }
 /** Two taps or clicks on the same crew name within this many ms is a double
  *  tap. Touch browsers don't all send dblclick, so taps are timed by hand. */

@@ -140,6 +140,7 @@ def test_every_save_and_load_path_carries_crew_names():
 def test_only_the_crew_part_of_the_card_is_editable_and_read_only_cant():
     src = js_function("crewNameEditHTML")
     assert "READONLY" in src and "sh.training" in src
+    assert "READONLY" in js_function("crewNamePencilHTML")
     card = js_function("shiftCardHTML")
     # "Dallas week" / "night" sits outside the editable span
     assert "crewNameEditHTML(sh)" in card and 'class="shctail"' in card
