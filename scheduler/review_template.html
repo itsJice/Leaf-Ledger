@@ -1027,6 +1027,12 @@ body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .asgclash{color:var(--danger);font-size:10px;font-weight:800}
 .asghdr{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin:10px 0 3px}
+.untrtog{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--mut);margin:0 0 8px;
+  cursor:pointer;min-height:28px}
+.untrtog input{margin:0;flex:none;accent-color:var(--brand)}
+.untrtog .n{color:var(--faint)}
+.cshiftbody .untrtog{width:100%;margin:2px 0 0}
+body.readonly .untrtog,body.viewonly .untrtog{display:none}
 .printbtn{margin-left:auto;flex:none;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut)}
 .printbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
@@ -2299,6 +2305,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
+  <div id="stftrain"></div>
   <div class="asglist" id="stflist"></div>
   <div class="btns"><button onclick="stfdlg.close()">Done</button></div>
 </dialog>
@@ -7882,7 +7889,10 @@ function readyRoster(){
  *  path here. */
 function assignReadyRosterToShift(sh){
   if(roBlocked()) return;
-  const ids=readyRoster().map(p=>p.id);
+  // Outside a training shift, only the people the picker offers (attended
+  // training, or a Lead, unless "Show people who didn't attend training").
+  const o=staffPickOpts(sh);
+  const ids=readyRoster().filter(p=>staffPickable(p, o)).map(p=>p.id);
   if(!ids.length) return;
   pushUndo();
   sh.days.forEach(x=>{
@@ -10484,7 +10494,7 @@ function crewShiftSection(d){
   wrap.className='cshift';
   if(!sh){ wrap.style.display='none'; return wrap; }   // no matching shift block -- nothing to show
   const isOpen=openShiftCards.has(sh.key);
-  const cv=shiftCoverage(sh), on=shiftAssigned(sh);
+  const cv=shiftCoverage(sh), on=shiftAssigned(sh), pick=staffPickOpts(sh);
   wrap.innerHTML=`<button type="button" class="cshifthd">
       <span class="cvchip ${cv.state}">${IC.users}${esc(coverageLabel(cv))}</span>
       <span class="cshifttitle">Crew shift${sh.dallas?' — whole week':''}</span>
@@ -10499,13 +10509,19 @@ function crewShiftSection(d){
         : `<span class="cshiftnone">No one assigned yet.</span>`}
       <select class="cshiftadd">
         <option value="">+ add to shift…</option>
-        ${roster.filter(p=>p.active && !on.has(p.id))
+        ${roster.filter(p=>p.active && !on.has(p.id) && staffPickable(p, pick))
           .sort((a,b)=>(availFor(b,sh).ok-availFor(a,sh).ok)||a.name.localeCompare(b.name))
           .map(p=>{ const av=availFor(p,sh);
             return `<option value="${p.id}">${esc(p.name)} — ${esc(TITLE_ABBR[p.title])}`
                  + `${av.ok?'':' (off: '+esc(av.why)+')'}</option>`; }).join('')}
       </select>
+      ${untrainedToggleHTML(sh)}
     </div>`;
+  const tog=wrap.querySelector('input[data-untrained]');
+  if(tog){
+    tog.closest('label').onclick=e=>e.stopPropagation();
+    tog.onchange=()=>{ setStfShowUntrained(tog.checked); render(); };
+  }
   wrap.querySelector('.cshifthd').onclick=()=>{
     isOpen ? openShiftCards.delete(sh.key) : openShiftCards.add(sh.key);
     render();
@@ -10572,10 +10588,20 @@ function drawStaffDlg(){
     drawStaffDlg();
     render();
   };
-  const avail=roster.filter(p=>p.active||on.has(p.id));
+  // Only people who attended training (plus Leads and anyone already on it),
+  // unless the toggle is on or this IS the training shift.
+  const trainBox=document.getElementById('stftrain');
+  trainBox.innerHTML=untrainedToggleHTML(sh);
+  const tog=trainBox.querySelector('input[data-untrained]');
+  if(tog) tog.onchange=()=>{ setStfShowUntrained(tog.checked); drawStaffDlg(); render(); };
+  const pick=staffPickOpts(sh);
+  const avail=roster.filter(p=>staffPickable(p, pick));
   let h='';
-  if(!avail.length) h='<div class="stfnone">No installers on the roster yet — '
-                    + 'add them from the Staffing tab.</div>';
+  if(!avail.length) h= roster.some(p=>p.active)
+    ? '<div class="stfnone">No one who attended training yet. Tick "Show people who '
+      + 'didn\'t attend training" to pick from everyone.</div>'
+    : '<div class="stfnone">No installers on the roster yet. '
+      + 'Add them from the Staffing tab.</div>';
   TITLES.forEach(t=>{
     const grp=avail.filter(p=>p.title===t);
     if(!grp.length) return;
@@ -10646,6 +10672,62 @@ function trainingDotHTML(p){
   const t=personTrainingLabel(p);
   return t ? `<span class="trdot" role="img" title="${esc(t)}" aria-label="${esc(t)}"></span>` : '';
 }
+/** True when the person was staffed on any of this season's training days. */
+function attendedTraining(p, staffingMap, trainingSet){
+  return !!p && trainingDatesFor(p.id, staffingMap, trainingSet).length>0;
+}
+/** Which Roster block a person belongs in (user, 2026-10-24: "make another
+ *  category in the ui that says attended training"): 'off' (not working this
+ *  season), 'trained' (attended training, listed first), otherwise the
+ *  readiness tier 'rank0'..'rank3'. Each person is in exactly one block. */
+function rosterGroupKey(p, staffingMap, trainingSet){
+  if(p.active===false) return 'off';
+  if(attendedTraining(p, staffingMap, trainingSet)) return 'trained';
+  return 'rank'+rosterRank(p);
+}
+/** Whether a person is offered when staffing a shift ("i only want to
+ *  schedule from there"). Offered: anyone already on the shift (so nobody
+ *  silently drops off), and otherwise active people who attended training or
+ *  are a Lead (leads run the training and are not staffed on it). A training
+ *  shift, or the "Show people who didn't attend training" toggle, offers every
+ *  active person. o = {training, showAll, assigned, staffing, trainingDays}. */
+function staffPickable(p, o){
+  o=o||{};
+  const assigned = o.assigned instanceof Set ? o.assigned : new Set(o.assigned||[]);
+  if(assigned.has(p.id)) return true;
+  if(!p.active) return false;
+  if(o.training || o.showAll) return true;
+  return p.title==='Lead' || attendedTraining(p, o.staffing, o.trainingDays);
+}
+// The picker's "Show people who didn't attend training" toggle: off by
+// default, remembered per browser. Kept in memory too, so it still works for
+// the session when storage is blocked.
+const STF_UNTRAINED_KEY='tbdg-staff-show-untrained';
+let stfUntrainedMem=null;
+function stfShowUntrained(){
+  if(stfUntrainedMem!==null) return stfUntrainedMem;
+  try{ stfUntrainedMem = localStorage.getItem(STF_UNTRAINED_KEY)==='1'; }
+  catch(e){ stfUntrainedMem = false; }
+  return stfUntrainedMem;
+}
+function setStfShowUntrained(on){
+  stfUntrainedMem=!!on;
+  try{ on ? localStorage.setItem(STF_UNTRAINED_KEY,'1') : localStorage.removeItem(STF_UNTRAINED_KEY); }catch(e){}
+}
+function staffPickOpts(sh){
+  return {training:!!sh.training, showAll:stfShowUntrained(),
+          assigned:shiftAssigned(sh), staffing, trainingDays};
+}
+/** The toggle shown in a shift's picker ('' on a training shift, which
+ *  already lists everyone). */
+function untrainedToggleHTML(sh){
+  if(sh.training) return '';
+  const o=staffPickOpts(sh);
+  const hidden=roster.filter(p=>p.active && !staffPickable(p, {...o, showAll:false})).length;
+  return `<label class="untrtog" title="Normally only people who attended training, plus Leads, are listed">`
+    + `<input type="checkbox" data-untrained${o.showAll?' checked':''}>`
+    + `<span>Show people who didn't attend training${hidden?` <span class="n">(${hidden})</span>`:''}</span></label>`;
+}
 function personRow(p){
   const sh=shiftsFor(p.id).length;
   const rv=overallRating(p);
@@ -10678,6 +10760,7 @@ function rosterRank(p){
 }
 const RANK_LBL = ['Ready to schedule', 'Ready to schedule \u2014 no phone number',
                   'Needs availability', 'Needs availability and a phone number'];
+const TRAINED_LBL = 'Attended training';
 
 // Which roster blocks are opened/closed by hand (kept across re-renders, and
 // what the toolbar's Print follows).
@@ -10729,13 +10812,18 @@ function rosterLists(){
 }
 /** The Roster screen's blocks, in screen order: [{key, label, people}]. */
 function rosterSections(){
-  const {list, off, sortByRating}=rosterLists();
+  const {list:all, off, sortByRating}=rosterLists();
   const out=[];
+  // "Attended training" comes first; the blocks below hold everyone else, so
+  // nobody is listed twice.
+  const trained=all.filter(p=>rosterGroupKey(p, staffing, trainingDays)==='trained');
+  const list=all.filter(p=>rosterGroupKey(p, staffing, trainingDays)!=='trained');
+  if(trained.length) out.push({key:'trained', label:TRAINED_LBL, people:trained});
   if(sortByRating){
     const rated=list.filter(p=>overallRating(p)).length;
     if(list.length) out.push({key:'rating', label:`Alberto rating (overall) · ${rated} rated, ${list.length-rated} not yet`, people:list});
   } else RANK_LBL.forEach((lbl, r)=>{
-    const people=list.filter(pp=>rosterRank(pp)===r);
+    const people=list.filter(pp=>rosterGroupKey(pp, staffing, trainingDays)==='rank'+r);
     if(people.length) out.push({key:'rank'+r, label:lbl, people});
   });
   if(off.length) out.push({key:'off', label:'Not working this season', people:off, closed:true});
@@ -11430,6 +11518,7 @@ function txtWireWrite(body){
 const txtActive=p=>p.active!==false;
 const TXT_GROUPS=[
   {key:'all', label:'Everyone',            test:txtActive},
+  {key:'trained', label:TRAINED_LBL,       test:p=>txtActive(p)&&attendedTraining(p, staffing, trainingDays)},
   {key:'r0',  label:RANK_LBL[0],           test:p=>txtActive(p)&&rosterRank(p)===0},
   {key:'r2',  label:RANK_LBL[2],           test:p=>txtActive(p)&&rosterRank(p)===2},
   ...TITLES.map(t=>({key:'t:'+t, label:t==='Lead'?'Leads':t+'s', test:p=>txtActive(p)&&p.title===t})),
@@ -11457,6 +11546,8 @@ function txtRowHTML(p, picked){
     ${txtStatus(p)}${txtLastHTML(p)}
     <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
 }
+/** A textable person's block in the list, same split as the Roster. */
+function txtSecKey(p){ return rosterGroupKey({...p, active:txtActive(p)}, staffing, trainingDays); }
 function txtPickHTML(){
   const picked=new Set(txt.picked);
   const byName=(a,b)=>a.name.localeCompare(b.name);
@@ -11479,7 +11570,8 @@ function txtPickHTML(){
       groups combine — or tick people one by one. People without a phone number that can take
       a text are greyed out.</p>
     <div class="txtpick">${chips}<button type="button" data-grp="none">Clear</button></div>
-    ${RANK_LBL.map((lbl,r)=>section(lbl, active.filter(p=>rosterRank(p)===r).sort(byName), 'r'+r, true)).join('')}
+    ${section(TRAINED_LBL, active.filter(p=>txtSecKey(p)==='trained').sort(byName), 'trained', true)}
+    ${RANK_LBL.map((lbl,r)=>section(lbl, active.filter(p=>txtSecKey(p)==='rank'+r).sort(byName), 'r'+r, true)).join('')}
     ${section('Not working this season', off, 'off', off.some(p=>picked.has(p.id)))}`;
 }
 function txtWirePick(body){
@@ -11493,7 +11585,7 @@ function txtWirePick(body){
     cb.onchange=()=>{
       const k=cb.dataset.sec;
       const members=k==='off' ? roster.filter(p=>!txtActive(p))
-        : roster.filter(p=>txtActive(p)&&rosterRank(p)===+k.slice(1));
+        : roster.filter(p=>txtActive(p)&&txtSecKey(p)===(k==='trained'?'trained':'rank'+k.slice(1)));
       txtToggle(txtGroupState(members, new Set()).ids, cb.checked); txtDraw();
     };
   });
