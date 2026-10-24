@@ -2,8 +2,14 @@
 
 One row per signed-in user holding a small JSON document:
 
-    {"sidebar": {"order": [...], "hidden": [...]},
+    {"sidebar": {"order": [...], "hidden": [...], "pinned": true|false},
      "theme":   {"mode": "system|light|dark", "accent": "<key>"}}
+
+`sidebar.pinned` is optional and absent by default. Absent means "automatic":
+the menu stays open everywhere except the Install Schedule pages, which fold it
+to an icon rail. `true` keeps it open everywhere; `false` folds it to the rail
+everywhere (it slides open over the page on hover). Sending `null` clears it
+back to automatic.
 
 Three things make this more than a key/value store:
 
@@ -99,15 +105,20 @@ def deep_merge(base: dict, patch: dict) -> dict:
     """`patch` laid over `base`, recursing into nested objects.
 
     Objects merge key by key, so a patch of `{"theme": {"mode": "dark"}}` keeps
-    `theme.accent`. Everything else — including lists — replaces wholesale,
-    which is what `sidebar.hidden` needs: un-hiding an item is expressed by
+    `theme.accent`. A `None` value removes the key (JSON Merge Patch style),
+    which is how `sidebar.pinned` goes back to automatic. Everything else —
+    including lists — replaces wholesale, which is what `sidebar.hidden` needs: un-hiding an item is expressed by
     sending the shorter list, and a merged list could never shrink.
     """
     out = dict(base)
     for key, value in patch.items():
         current = out.get(key)
-        if isinstance(current, dict) and isinstance(value, dict):
-            out[key] = deep_merge(current, value)
+        if value is None:
+            out.pop(key, None)
+        elif isinstance(value, dict):
+            # Recurse even onto a missing/non-object base, so a nested None
+            # in the patch is dropped rather than stored.
+            out[key] = deep_merge(current if isinstance(current, dict) else {}, value)
         else:
             out[key] = value
     return out
@@ -191,6 +202,16 @@ def normalize(raw: Any, strict: bool = False) -> dict:
                     sidebar["hidden"] = [
                         p for p in hidden if canon_path(p) not in PINNED_PATHS
                     ]
+            if "pinned" in raw_sidebar:
+                pinned = raw_sidebar["pinned"]
+                # bool, or None to clear back to automatic. Anything else is a
+                # caller bug on write and is dropped on read.
+                if pinned is None or isinstance(pinned, bool):
+                    sidebar["pinned"] = pinned
+                elif strict:
+                    raise HTTPException(
+                        status_code=422, detail="sidebar.pinned must be true, false or null"
+                    )
             if sidebar:
                 out["sidebar"] = sidebar
 
@@ -230,7 +251,11 @@ def normalize(raw: Any, strict: bool = False) -> dict:
 
 
 def with_defaults(stored: Any) -> dict:
-    """The full document the client sees: defaults, with stored values on top."""
+    """The full document the client sees: defaults, with stored values on top.
+
+    A stored `None` (only ever `sidebar.pinned`) drops out in the merge, so the
+    client sees the key absent rather than null.
+    """
     return deep_merge(DEFAULT_PREFERENCES, normalize(stored, strict=False))
 
 
@@ -297,6 +322,8 @@ async def put_preferences(request: Request, body: Any = Body(default=None)) -> d
                 user_id,
             )
             merged = deep_merge(normalize(_loads(current), strict=False), patch)
+            # deep_merge already removed keys patched to None; `merged` holds
+            # only real values, so nothing null is ever stored.
             await conn.execute(
                 """
                 UPDATE ll_app.user_preferences

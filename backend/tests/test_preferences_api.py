@@ -378,3 +378,64 @@ def test_put_reports_a_storage_failure_rather_than_pretending_to_save(monkeypatc
 def test_routes_are_exactly_the_contracted_paths():
     paths = {(r.path, tuple(sorted(r.methods))) for r in preferences.router.routes}
     assert paths == {("/preferences", ("GET",)), ("/preferences", ("PUT",))}
+
+
+# ─── sidebar.pinned (keep the menu open / fold to the rail) ──────────────────
+
+
+def test_pinned_is_absent_by_default_meaning_automatic(db):
+    assert "pinned" not in get()["sidebar"]
+    assert "pinned" not in preferences.DEFAULT_PREFERENCES["sidebar"]
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_pinned_round_trips(db, value):
+    assert put({"sidebar": {"pinned": value}})["sidebar"]["pinned"] is value
+    assert db.stored() == {"sidebar": {"pinned": value}}
+    assert get()["sidebar"]["pinned"] is value
+
+
+def test_pinned_does_not_clobber_order_or_theme(db):
+    put({"sidebar": {"order": ["/designs", "/"], "hidden": ["/invoice"]},
+         "theme": {"mode": "dark"}})
+    result = put({"sidebar": {"pinned": False}})
+    assert result["sidebar"] == {"order": ["/designs", "/"], "hidden": ["/invoice"], "pinned": False}
+    assert result["theme"]["mode"] == "dark"
+    # And an order write keeps the pin.
+    assert put({"sidebar": {"order": ["/"]}})["sidebar"]["pinned"] is False
+
+
+def test_null_clears_pinned_back_to_automatic(db):
+    put({"sidebar": {"pinned": True, "hidden": ["/invoice"]}})
+    result = put({"sidebar": {"pinned": None}})
+    assert "pinned" not in result["sidebar"]
+    assert result["sidebar"]["hidden"] == ["/invoice"]
+    assert "pinned" not in db.stored()["sidebar"]  # never stored as null
+
+
+def test_null_pinned_on_a_brand_new_user_stores_nothing_null(db):
+    put({"sidebar": {"pinned": None}})
+    assert "pinned" not in db.stored().get("sidebar", {})
+
+
+@pytest.mark.parametrize("bad", ["yes", 1, 0, [], {"on": True}])
+def test_put_rejects_a_non_boolean_pinned(db, bad):
+    with pytest.raises(HTTPException) as err:
+        put({"sidebar": {"pinned": bad}})
+    assert err.value.status_code == 422
+    assert db.rows == {}
+
+
+def test_a_junk_stored_pinned_reads_as_automatic(db):
+    db.rows["local-dev-user"] = json.dumps({"sidebar": {"pinned": "yes", "hidden": ["/orders"]}})
+    prefs = get()
+    assert "pinned" not in prefs["sidebar"]
+    assert prefs["sidebar"]["hidden"] == ["/orders"]
+    db.rows["local-dev-user"] = json.dumps({"sidebar": {"pinned": None}})
+    assert "pinned" not in get()["sidebar"]
+
+
+def test_deep_merge_none_removes_a_key():
+    base = {"sidebar": {"order": ["/"], "pinned": True}}
+    assert preferences.deep_merge(base, {"sidebar": {"pinned": None}}) == {"sidebar": {"order": ["/"]}}
+    assert preferences.deep_merge({}, {"sidebar": {"pinned": None}}) == {"sidebar": {}}

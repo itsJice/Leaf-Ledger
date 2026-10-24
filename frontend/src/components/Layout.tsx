@@ -9,6 +9,8 @@ import {
   ChevronRight,
   Monitor,
   Moon,
+  Pin,
+  PinOff,
   Sun,
   Users,
 } from "components/icons";
@@ -19,6 +21,14 @@ import { usePreferences } from "utils/preferences";
 import { useTheme } from "utils/theme";
 import { appHome, currentMe, pageAllowed } from "utils/me";
 import { isInstallPath } from "utils/installViews";
+import {
+  RAIL_CLOSE_DELAY_MS,
+  RAIL_OPEN_DELAY_MS,
+  effectivePinned,
+  isRailMode,
+  nextPinned,
+  useCanHover,
+} from "utils/sidebarPin";
 import { CHANGES_PATH, CHANGES_SEEN_EVENT, badgeText } from "utils/scheduleChanges";
 import {
   NAV_GROUPS,
@@ -193,7 +203,8 @@ function StaffLayout({ children }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
-  const { prefs } = usePreferences();
+  const { prefs, save: savePrefs } = usePreferences();
+  const canHover = useCanHover();
   const { mode, setMode } = useTheme();
   const [projectClients, setProjectClients] = useState<Array<{ name: string; count: number }>>([]);
   const [sidebarProjects, setSidebarProjects] = useState<SidebarProject[]>(() => {
@@ -231,15 +242,20 @@ function StaffLayout({ children }: Props) {
   // the top bar. It closes on every navigation and on Escape.
   const [navOpen, setNavOpen] = useState(false);
   useEffect(() => { setNavOpen(false); }, [location.pathname, location.search]);
-  // The Install Schedule needs the width for its map, so on desktop the menu
-  // folds to an icon rail there and slides open OVER the page on hover (or
-  // keyboard focus) -- the page underneath never jumps. Everywhere else, and
-  // in the phone/tablet drawer, the menu is unchanged.
-  const railMode = isInstallPath(location.pathname);
+  // On desktop the menu is either open (pushing the page over) or folded to an
+  // icon rail that slides open OVER the page on hover or keyboard focus, so the
+  // page underneath never jumps (and the Install Schedule iframe never
+  // resizes). The account's "Keep menu open" pin decides which; left unset, it
+  // folds only on the Install Schedule, which needs the width for its map
+  // (utils/sidebarPin.ts). The phone/tablet drawer is unaffected.
+  const pinInputs = { pinned: prefs?.sidebar?.pinned, onInstallPage: isInstallPath(location.pathname), canHover };
+  const railMode = isRailMode(pinInputs);
   // Arriving from another page, the menu starts full width and then glides
   // closed to the rail (user, 2026-10-01) instead of snapping -- every page
   // mounts its own Layout, so "where we came from" lives at module scope.
-  const arrivingFromWide = railMode && !lastLayoutWasRail;
+  // Someone who chose the rail everywhere never came from a wide menu, so
+  // their first page load starts folded.
+  const arrivingFromWide = railMode && !lastLayoutWasRail && effectivePinned(pinInputs) !== false;
   const [railOpen, setRailOpen] = useState(arrivingFromWide);
   useEffect(() => {
     lastLayoutWasRail = railMode;
@@ -248,17 +264,63 @@ function StaffLayout({ children }: Props) {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const t = window.setTimeout(() => setRailOpen(false), reduce ? 0 : 450);
     return () => window.clearTimeout(t);
+    // railMode is deliberately left out: flipping the pin is handled by
+    // togglePinned below, which keeps the menu open under the cursor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
   const railTimer = React.useRef<number | undefined>(undefined);
+  const asideRef = React.useRef<HTMLElement>(null);
+  useEffect(() => () => window.clearTimeout(railTimer.current), []);
   const collapsed = railMode && !railOpen;
   const RC = collapsed ? " lg:hidden" : "";   // hidden while folded (desktop only)
+  // Keyboard focus inside the menu holds it open even after the cursor leaves.
+  const keyboardFocusInside = () => {
+    const active = document.activeElement as HTMLElement | null;
+    return Boolean(active && asideRef.current?.contains(active) && active.matches(":focus-visible"));
+  };
+  const scheduleRail = (open: boolean) => {
+    window.clearTimeout(railTimer.current);
+    railTimer.current = window.setTimeout(() => setRailOpen(open), open ? RAIL_OPEN_DELAY_MS : RAIL_CLOSE_DELAY_MS);
+  };
   const railHandlers = railMode ? {
-    onMouseEnter: () => { window.clearTimeout(railTimer.current); railTimer.current = window.setTimeout(() => setRailOpen(true), 120); },
-    onMouseLeave: () => { window.clearTimeout(railTimer.current); setRailOpen(false); },
-    onFocus: (e: React.FocusEvent<HTMLElement>) => { if ((e.target as HTMLElement).matches(":focus-visible")) setRailOpen(true); },
-    onBlur: (e: React.FocusEvent<HTMLElement>) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRailOpen(false); },
+    onMouseEnter: () => scheduleRail(true),
+    onMouseLeave: () => {
+      if (keyboardFocusInside()) { window.clearTimeout(railTimer.current); return; }
+      scheduleRail(false);
+    },
+    onFocus: (e: React.FocusEvent<HTMLElement>) => {
+      if ((e.target as HTMLElement).matches(":focus-visible")) { window.clearTimeout(railTimer.current); setRailOpen(true); }
+    },
+    onBlur: (e: React.FocusEvent<HTMLElement>) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null) && !e.currentTarget.matches(":hover")) {
+        window.clearTimeout(railTimer.current);
+        setRailOpen(false);
+      }
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key !== "Escape" || !railOpen) return;
+      window.clearTimeout(railTimer.current);
+      setRailOpen(false);
+      (document.activeElement as HTMLElement | null)?.blur();
+    },
+    // Picking a page from the slid-open menu goes there and folds it away.
+    onClick: (e: React.MouseEvent<HTMLElement>) => {
+      if (!(e.target as HTMLElement).closest("a[href]")) return;
+      window.clearTimeout(railTimer.current);
+      setRailOpen(false);
+    },
   } : {};
+  const togglePinned = () => {
+    const pinned = nextPinned(railMode);
+    window.clearTimeout(railTimer.current);
+    // Unpinning happens with the cursor on the menu: keep it slid open as an
+    // overlay until the cursor leaves, rather than snapping shut under it.
+    // Pinning just lets it settle into the page.
+    setRailOpen(!pinned);
+    lastLayoutWasRail = !pinned;
+    // Optimistic: the store updates (and re-renders) now; the PUT follows.
+    savePrefs({ sidebar: { pinned } });
+  };
   useEffect(() => {
     if (!navOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setNavOpen(false); };
@@ -644,6 +706,8 @@ function StaffLayout({ children }: Props) {
         }`}
         style={{ backgroundColor: "#1c2e1e" }}
         aria-label="Main navigation"
+        ref={asideRef}
+        data-ll-rail={railMode ? (railOpen ? "open" : "folded") : undefined}
         {...railHandlers}
       >
         {/* Logo */}
@@ -658,6 +722,24 @@ function StaffLayout({ children }: Props) {
           >
             <X size={18} />
           </button>
+          {/* Keep menu open / fold to icons. Desktop with a hover pointer only:
+              on a phone or tablet the menu is a drawer, and a device that can't
+              hover could never slide a folded rail back open. */}
+          {canHover && !collapsed && (
+            <button
+              type="button"
+              onClick={togglePinned}
+              aria-label="Keep menu open"
+              aria-pressed={!railMode}
+              title={railMode ? "Keep menu open" : "Fold menu to icons (opens when you hover)"}
+              data-ll-pin
+              className={`absolute -right-1 -top-2 hidden h-9 w-9 items-center justify-center rounded-lg transition-colors lg:flex ${
+                railMode ? "text-white/45 hover:bg-white/10 hover:text-white" : "text-emerald-300 hover:bg-white/10"
+              }`}
+            >
+              {railMode ? <PinOff size={16} strokeWidth={1.8} /> : <Pin size={16} strokeWidth={1.8} />}
+            </button>
+          )}
           <Link to={appHome()} className={`block w-[176px] pr-8${RC}`} aria-label="Leaf & Ledger home">
             <LeafLedgerLogo className="h-auto w-full" />
           </Link>
