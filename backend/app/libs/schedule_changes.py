@@ -152,6 +152,7 @@ class Context:
     clients: dict[int, str] = field(default_factory=dict)       # row -> name
     base_days: dict[str, dict] = field(default_factory=dict)    # day id -> {date, crew}
     people: dict[str, str] = field(default_factory=dict)        # person id -> name
+    dallas: set[str] = field(default_factory=set)               # the build's Dallas night dates
 
 
 def _row(x: Any) -> Optional[int]:
@@ -183,11 +184,27 @@ class View:
     times: dict[tuple[str, int], float]     # (day id, row) -> arrival minutes
     last_from: dict[int, dict]
     has_placement: bool
+    crew_names: dict[str, str] = field(default_factory=dict)  # state.crewNames
+    dallas: set[str] = field(default_factory=set)
 
     def label(self, did: str) -> str:
+        """The positional crew number. Comparisons use this, never title(),
+        so renaming a crew never reads as a stop changing crews."""
         d, crew = _split_day(did)
         on = self.crews_on.get(d) or []
         return f"Crew {on.index(crew) + 1}" if crew in on else (crew or "a crew")
+
+    def title(self, did: str) -> str:
+        """'Lesly's crew (Crew 1)' when staff named the crew, else label().
+        A Dallas night is looked up under its week's key too (the tool's
+        shiftKeyOf(), without the night-window check this view has no meta for)."""
+        from app.libs.schedule_board import dallas_run_start
+
+        d, crew = _split_day(did)
+        name = self.crew_names.get(str(did), "")
+        if not name and d in self.dallas and crew:
+            name = self.crew_names.get(f"dallas|{dallas_run_start(d, self.dallas)}|{crew}", "")
+        return f"{name} ({self.label(did)})" if name else self.label(did)
 
     def where(self, ids: Iterable[str]) -> str:
         """'Fri 11/13, Crew 1', or 'Fri 11/13, Crew 1 + Crew 2' for a joint stop."""
@@ -195,20 +212,22 @@ class View:
         if not ids:
             return "no date"
         dates = sorted({_split_day(i)[0] for i in ids})
-        crews = " + ".join(self.label(i) for i in ids)
+        crews = " + ".join(self.title(i) for i in ids)
         return f"{' / '.join(fmt_day(d) for d in dates)}, {crews}"
 
     def where_paren(self, ids: Iterable[str]) -> str:
         """'Fri 11/13 (Crew 1)', for either side of an arrow."""
         ids = sorted(ids)
         dates = sorted({_split_day(i)[0] for i in ids})
-        return f"{' / '.join(fmt_day(d) for d in dates)} ({' + '.join(self.label(i) for i in ids)})"
+        return f"{' / '.join(fmt_day(d) for d in dates)} ({' + '.join(self.title(i) for i in ids)})"
 
     def dates_of(self, ids: Iterable[str]) -> list[str]:
         return sorted({_split_day(i)[0] for i in ids})
 
 
 def view_of(state: Optional[dict], ctx: Context) -> View:
+    from app.libs.schedule_board import norm_crew_names
+
     s = state if isinstance(state, dict) else {}
     raw = s.get("placement")
     has_placement = isinstance(raw, dict) and bool(raw)
@@ -278,6 +297,8 @@ def view_of(state: Optional[dict], ctx: Context) -> View:
         times=times,
         last_from=last_from,
         has_placement=has_placement or bool(ctx.base_days),
+        crew_names=norm_crew_names(s.get("crewNames")),
+        dallas=set(ctx.dallas) | {x for x in (s.get("dallasNights") or []) if isinstance(x, str)},
     )
 
 
@@ -387,6 +408,8 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
             crews_b = " + ".join(b.label(i) for i in now)
             if crews_a == crews_b:
                 continue  # a crew was added or removed beside it: same card, renumbered id
+            crews_a = " + ".join(a.title(i) for i in was)
+            crews_b = " + ".join(b.title(i) for i in now)
             who = names[0] if len(names) == 1 else f"{len(names)} stops"
             tail = "" if len(names) == 1 else f": {'; '.join(names)}"
             place.append(_ev("crew", "moves",
@@ -395,7 +418,7 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
             continue
         same_crew = [a.label(i) for i in was] == [b.label(i) for i in now]
         if same_crew:
-            span = f"{' / '.join(fmt_day(d) for d in da)} → {' / '.join(fmt_day(d) for d in db_)} ({' + '.join(b.label(i) for i in now)})"
+            span = f"{' / '.join(fmt_day(d) for d in da)} → {' / '.join(fmt_day(d) for d in db_)} ({' + '.join(b.title(i) for i in now)})"
         else:
             span = f"{a.where_paren(was)} → {b.where_paren(now)}"
         if len(names) == 1:
@@ -422,7 +445,7 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
         names = [name(r) for r in rows_now]
         listed = " ".join(f"{i}. {n}" for i, n in enumerate(names, 1))
         out.append(_ev("order", "moves",
-                       f"Stop order changed on {fmt_day(d)} ({b.label(did)}): {listed}",
+                       f"Stop order changed on {fmt_day(d)} ({b.title(did)}): {listed}",
                        names, [d], [did]))
         touched_days.add(did)
     shifted: dict[str, list[str]] = {}
@@ -436,19 +459,19 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
     for did, parts in sorted(shifted.items()):
         d, _ = _split_day(did)
         out.append(_ev("time", "moves",
-                       f"Arrival times changed on {fmt_day(d)} ({b.label(did)}): {'; '.join(parts)}",
+                       f"Arrival times changed on {fmt_day(d)} ({b.title(did)}): {'; '.join(parts)}",
                        shifted_names[did], [d], [did]))
 
     # Approvals and confirmations. Moving a stop in or out of a day clears
     # its approval automatically; that is the move's news, not a second line.
     for did in sorted(b.approved - a.approved):
         d, _ = _split_day(did)
-        out.append(_ev("approved", "approvals", f"{b.label(did)} approved for {fmt_day(d)}", [], [d], [did]))
+        out.append(_ev("approved", "approvals", f"{b.title(did)} approved for {fmt_day(d)}", [], [d], [did]))
     for did in sorted(a.approved - b.approved):
         if did in touched_days:
             continue
         d, _ = _split_day(did)
-        out.append(_ev("unapproved", "approvals", f"{a.label(did)} approval removed for {fmt_day(d)}", [], [d], [did]))
+        out.append(_ev("unapproved", "approvals", f"{a.title(did)} approval removed for {fmt_day(d)}", [], [d], [did]))
     for r in sorted(b.confirmed - a.confirmed, key=name):
         now = b.placement.get(r) or ()
         on = f" on {b.where(now)}" if now else ""
@@ -497,7 +520,7 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
             if len(ids) > STAFF_COLLAPSE:
                 days_txt = f"{len(ids)} crew days ({fmt_day(dates[0])} to {fmt_day(dates[-1])})"
             else:
-                days_txt = ", ".join(f"{fmt_day(_split_day(i)[0])} ({view.label(i)})" for i in ids)
+                days_txt = ", ".join(f"{fmt_day(_split_day(i)[0])} ({view.title(i)})" for i in ids)
             who_all = sorted(who_all, key=str.lower)
             if len(who_all) > STAFF_COLLAPSE:
                 out.append(_ev(kind, "staffing", f"{len(who_all)} people {verb} {days_txt}: {', '.join(who_all)}",
@@ -526,11 +549,11 @@ def diff(prev_state: Optional[dict], cur_state: Optional[dict], ctx: Context) ->
         for did in sorted(days_b - days_a):
             d, _ = _split_day(did)
             if len(b.crews_on.get(d, [])) > len(a.crews_on.get(d, [])):
-                out.append(_ev("crew_added", "dates", f"New crew on {fmt_day(d)} ({b.label(did)})", [], [d], [did]))
+                out.append(_ev("crew_added", "dates", f"New crew on {fmt_day(d)} ({b.title(did)})", [], [d], [did]))
         for did in sorted(days_a - days_b):
             d, _ = _split_day(did)
             if len(a.crews_on.get(d, [])) > len(b.crews_on.get(d, [])):
-                out.append(_ev("crew_removed", "dates", f"Crew removed from {fmt_day(d)} ({a.label(did)})", [], [d], [did]))
+                out.append(_ev("crew_removed", "dates", f"Crew removed from {fmt_day(d)} ({a.title(did)})", [], [d], [did]))
     if len(out) > SAVE_LIMIT:
         clients = sorted({c for e in out for c in e["clients"]}, key=str.lower)
         n = sum(e.get("count", 1) for e in out)
@@ -609,12 +632,13 @@ def build_feed(rows: list[dict], ctx: Context, writer_names: dict[str, str],
             pc, pd = _plan_context(state)
             key = ("plan", row.get("key", row.get("id")))
             if key not in ctx_cache:
-                ctx_cache[key] = Context(clients={**clients, **pc}, base_days=pd, people=people)
+                ctx_cache[key] = Context(clients={**clients, **pc}, base_days=pd, people=people, dallas=ctx.dallas)
             return ctx_cache[key]
         key = ("v", v)
         if key not in ctx_cache:
             same = current_version is None or v is None or v == current_version
-            ctx_cache[key] = Context(clients=clients, base_days=ctx.base_days if same else {}, people=people)
+            ctx_cache[key] = Context(clients=clients, base_days=ctx.base_days if same else {}, people=people,
+                                     dallas=ctx.dallas)
         return ctx_cache[key]
 
     def who(row: dict) -> str:

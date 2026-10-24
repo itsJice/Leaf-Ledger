@@ -800,6 +800,27 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .shchead .cdot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:4px}
 .shcname{font-weight:800;font-size:13.5px;flex:1;min-width:0}
 .shcwhen{display:block;font-weight:500;color:var(--mut);font-size:11px;margin-top:1px}
+/* Crew names (crewNames): the renamable crew part of a card title, its
+   positional number beside it, and the pencil. */
+.crewnm{border-radius:4px;overflow-wrap:anywhere}
+.crewnm.can{cursor:text;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+@media (hover:hover){ .crewnm.can:hover{background:var(--brand-soft);box-shadow:0 0 0 3px var(--brand-soft)} }
+.crewnm.can:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.crewpos{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid var(--line);border-radius:4px;
+  font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);
+  vertical-align:1px;white-space:nowrap;line-height:15px}
+.cname .crewpos{font-family:inherit;letter-spacing:.05em}
+.crewnmbtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin:-5px 0 -5px 2px;
+  padding:0;border:0;border-radius:6px;background:none;color:var(--mut);cursor:pointer;vertical-align:middle;
+  opacity:.55;touch-action:manipulation}
+.crewnmbtn .ic{width:13px;height:13px}
+@media (hover:hover){ .shcard:hover .crewnmbtn{opacity:1} .crewnmbtn:hover{background:var(--brand-soft);color:var(--ink)} }
+@media (hover:none){ .crewnmbtn{width:34px;height:34px;margin:-9px -4px -9px 0;opacity:.8} }
+.crewnmbtn:focus-visible{opacity:1;outline:2px solid var(--brand)}
+.crewnmin{font:inherit;font-weight:700;font-size:16px;width:min(100%,260px);padding:3px 7px;margin:-4px 0;
+  border:1px solid var(--brand);border-radius:6px;background:var(--surface);color:var(--ink)}
+.shcname.editing .crewnmbtn,.shcname.editing .crewpos{display:none}
+body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .shcsec{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin:11px 0 4px;display:flex;align-items:center;gap:6px}
 .shcsec:after{content:'';flex:1;height:1px;background:var(--line)}
@@ -2990,6 +3011,60 @@ function crewLabel(d){
 function byCrew(a,b){ return a.crew<b.crew ? -1 : a.crew>b.crew ? 1 : 0; }
 /** Short form for the dense month/calendar chips: "C1", "C2". */
 function crewLabelShort(d){ return crewLabel(d).replace('Crew ','C'); }
+// ---------- crew names ----------
+// "So for each specific shift, I can identify who is who, like who the leader
+// is" (user, 2026-10-24). Staff name a crew from its Staffing card (double-
+// click or double-tap the crew name, or the pencil), and the name shows
+// everywhere that crew-day is labelled: Days view, Calendar, map, print
+// sheets, exports and the server-side readers (the calendar feed, lead pages,
+// crew-day profit and the Changes feed, via backend app/libs/schedule_board.py).
+//
+// Shared state `crewNames` is {shiftKey: name}, keyed by shiftKeyOf(): a
+// normal crew-day's own id ("2026-11-10|Crew 3|0"), or for a Dallas run the
+// run's key ("dallas|2026-11-02|Crew 1"), so one name covers every night of
+// that week. Keys are the STORED crew, never the positional number, so a
+// name stays with its crew-day when another crew on that date is removed and
+// "Crew 3" starts reading as "Crew 2". A name does NOT follow stops that move
+// to another crew-day, and it goes away with its crew-day (normCrewNames
+// drops keys for shifts that no longer exist, the way normStaffing does).
+// A Dallas run's key is its first date, so adding a Dallas night in front of
+// a run starts a new key and that week's name has to be set again.
+// Training days have no crew to name.
+const CREW_NAME_MAX = 40;
+let crewNames = {};
+/** PURE. A typed name as stored: whitespace collapsed, trimmed, capped. */
+function normCrewName(v){
+  return String(v==null?'':v).replace(/\s+/g,' ').trim().slice(0, CREW_NAME_MAX);
+}
+/** The crewNames key for a crew-day: its shift. null for a training day. */
+function crewNameKey(d){ return d && d.crew && !d.training ? shiftKeyOf(d) : null; }
+/** Saved crewNames as this page keeps them: string names, normalized, only
+ *  for shifts on the board (`keys`, default: every shift right now). */
+function normCrewNames(obj, keys){
+  const ok = keys || new Set(days.map(crewNameKey).filter(Boolean));
+  const out = {};
+  if(obj && typeof obj==='object' && !Array.isArray(obj))
+    Object.keys(obj).sort().forEach(k=>{
+      const n = typeof obj[k]==='string' ? normCrewName(obj[k]) : '';
+      if(n && ok.has(k)) out[k] = n;
+    });
+  return out;
+}
+/** PURE. `names` with `key` set to `name`; an empty name removes it, which
+ *  puts the crew back to its "Crew N" label. */
+function withCrewName(names, key, name){
+  const out = {...(names||{})}, n = normCrewName(name);
+  if(n) out[key] = n; else delete out[key];
+  return out;
+}
+/** The name staff gave this crew-day's shift, or ''. */
+function crewName(d){ const k=crewNameKey(d); return (k && crewNames[k]) || ''; }
+/** The crew as a line of text: "Lesly's crew (Crew 1)", or "Crew 1" when
+ *  it has no name. The positional number stays so a sheet still matches the
+ *  board. Plain text: esc() it before putting it in HTML. */
+function crewTitle(d){ const n=crewName(d), p=crewLabel(d); return n ? `${n} (${p})` : p; }
+/** Dense calendar chips: "C1 Lesly's crew". */
+function crewTitleShort(d){ const n=crewName(d), p=crewLabelShort(d); return n ? `${p} ${n}` : p; }
 // Every date in the season, not just the ones that currently have crew-days
 // (user, 2026-08-18): work moves, and someone's availability is a fact about
 // them, not about today's schedule. Marking a person free on a date nobody is
@@ -3188,6 +3263,7 @@ try{
     comments = normComments(s.comments);
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
+    crewNames = normCrewNames(s.crewNames);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
   } else if(s.moves && s.moves.length){
@@ -3293,7 +3369,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -3376,7 +3452,8 @@ function mergeShared(base, mine, theirs, label){
   const MAP_WHAT={placement:r=>`${label('row',r)}: day`,
                   manualOrder:d=>`Stop order on ${label('day',d)}`,
                   stopPin:r=>`${label('row',r)}: position lock`,
-                  lastScheduledFrom:r=>`${label('row',r)}: previous date`};
+                  lastScheduledFrom:r=>`${label('row',r)}: previous date`,
+                  crewNames:k=>`Crew name for ${label('shift',k)}`};
   SHARED_MAP_KEYS.forEach(k=>{
     if(any(k)) out[k]=mapMerge(base[k], mine[k], theirs[k], MAP_WHAT[k], k==='placement' ? sortedIds : null);
   });
@@ -3531,7 +3608,7 @@ function snapshot(){
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
-          roster, staffing, savedAt:Date.now()};
+          roster, staffing, crewNames, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -4385,6 +4462,10 @@ function conflictLabel(kind, key){
     const date=String(key).split('|')[0];
     return /^\d{4}-\d{2}-\d{2}$/.test(date) ? fmtMDYYYY(date)+(d?' '+crewLabel(d):'') : String(key);
   }
+  if(kind==='shift'){
+    const d=days.find(x=>crewNameKey(x)===key);
+    return d ? fmtMDYYYY(d.date)+' '+crewLabel(d) : String(key);
+  }
   return String(key);
 }
 /** Put the server document `j` ({state, updatedAt, updatedBy}) on the board
@@ -4660,6 +4741,7 @@ async function restoreHistoryEntry(entryId, btn){
     manualOrder = normManualOrder(st.manualOrder);
     comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
+    crewNames = normCrewNames(st.crewNames);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
     saveLocal();
@@ -4684,7 +4766,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -4705,6 +4787,7 @@ function restoreBlob(blob){
   comments = normComments(s.comments);
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
+  crewNames = normCrewNames(s.crewNames);
   return missing;
 }
 /** Call immediately BEFORE mutating, so the stack holds the prior state. */
@@ -5022,9 +5105,13 @@ function buildShifts(){
     sh.night = sh.days.some(x=>x.win===K.NIGHT);
     sh.stops = sh.days.reduce((a,x)=>a+x.stops.length,0);
     sh.hours = sh.days.reduce((a,x)=>a+dayCalc(x).total/60,0);
-    sh.label = sh.dallas
-      ? `${sh.crew} · Dallas week`
-      : `${crewLabel(sh.days[0])}${sh.night?' · night':''}`;
+    // The crew part (sh.pos, renamable as sh.name) and the shift part
+    // (sh.tail: "Dallas week" / "night", never renamable) are kept apart so
+    // the Staffing card can make only the crew part editable.
+    sh.pos  = sh.dallas ? sh.crew : crewLabel(sh.days[0]);
+    sh.name = sh.training ? '' : (crewNames[sh.key] || '');
+    sh.tail = sh.dallas ? 'Dallas week' : (sh.night ? 'night' : '');
+    sh.label = shiftLabelOf(sh);
     sh.when = sh.dallas
       ? `${fmtMDYYYY(sh.days[0].date)} – ${fmtMDYYYY(sh.days[sh.days.length-1].date)}`
         + ` · ${sh.days.length} night${sh.days.length===1?'':'s'}`
@@ -5032,6 +5119,11 @@ function buildShifts(){
   });
   return out.sort((a,b)=>a.date.localeCompare(b.date)||byCrew(a,b)
                         ||(a.night?1:0)-(b.night?1:0));
+}
+/** PURE. "Lesly's crew (Crew 1) · Dallas week", "Crew 2 · night", "Crew 3". */
+function shiftLabelOf(sh){
+  const crew = sh.name ? `${sh.name} (${sh.pos})` : sh.pos;
+  return sh.tail ? `${crew} · ${sh.tail}` : crew;
 }
 function shiftFor(key){ return buildShifts().find(s=>s.key===key) || null; }
 function shiftOfDay(d){ return shiftFor(shiftKeyOf(d)); }
@@ -5935,7 +6027,7 @@ function drawDate(date){
         fillColor:'#d97706',fillOpacity:.95});
       const d=days.find(x=>x.stops.includes(r));
       mk.bindPopup(`<b>${esc(c.name)}</b><br><i>On hold</i>`
-        + (d?`<br>${esc(fmtDate(d.date))} · ${esc(crewLabel(d))}`:''));
+        + (d?`<br>${esc(fmtDate(d.date))} · ${esc(crewTitle(d))}`:''));
       mk.bindTooltip(c.name,{permanent:true,direction:'right',offset:[9,0],className:'name-label'});
       layerGroup.addLayer(mk);
     });
@@ -5967,7 +6059,7 @@ function drawDate(date){
       if(rg.pts.length>1)
         layerGroup.addLayer(L.polyline(rg.pts,{color:col,weight:rg.real?3.5:2.5,
           opacity:.7,dashArray:rg.real?null:'6 6'})
-          .bindPopup(`${crewLabel(d)}<br><b>${miTxt(rg.mi,rg.pending)}</b>`));
+          .bindPopup(`${esc(crewTitle(d))}<br><b>${miTxt(rg.mi,rg.pending)}</b>`));
     }
     d.stops.forEach((r,i)=>{
       const c=C[r]; bounds.push([c.lat,c.lon]);
@@ -5984,7 +6076,7 @@ function drawDate(date){
       } else {
         const isHalf=(d.half||[]).includes(r);
         const estH=isHalf?(c.h26/2).toFixed(1):c.h26;
-        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${crewLabel(d)}`+
+        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${esc(crewTitle(d))}`+
           `<br>Est. time: ${estH}h · Box count: ${c.boxes||'—'}`,
           {direction:'top',offset:[0,-8]});
       }
@@ -6093,7 +6185,7 @@ function renderSearch(q){
   if(!q.trim()){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
   searchResults.innerHTML = results.length ? results.map(r=>{
     const d = days.find(x=>x.stops.includes(r.row));
-    const where = (d ? `${fmtDate(d.date)} · ${crewLabel(d)}` : 'not scheduled')
+    const where = (d ? `${fmtDate(d.date)} · ${esc(crewTitle(d))}` : 'not scheduled')
       + (C[r.row].visitType && C[r.row].visitType!=='Standard' ? ` · ${C[r.row].visitType}` : '');
     return `<div class="srow" data-row="${r.row}">
       <span class="srname">${r.name}</span>
@@ -6357,7 +6449,7 @@ function moveWholeDay(dayId, toDate){
   const src = days.find(d=>d.id===dayId);
   if(!src || !toDate || isOverview(toDate) || src.date===toDate) return;
   if(src.joint){
-    alert(`${crewLabel(src)} works this day jointly with ${src.joint}.\n\n`
+    alert(`${crewTitle(src)} works this day jointly with ${src.joint}.\n\n`
       + `Move both crews' cards, or split the job first — moving one side `
       + `alone would leave the other short-handed.`);
     return;
@@ -6391,6 +6483,7 @@ function moveWholeDay(dayId, toDate){
   const order = [...src.stops];
   const wasManual = manualOrder[dayId];
   const wasStaffed = staffing[dayId];
+  const nameKey = crewNameKey(src), wasNamed = nameKey===dayId ? crewNames[dayId] : '';
   order.forEach(r=>applyMove(r, toId, false));
   // Carry the day's own settings across, so a hand-ordered run and its
   // crew don't silently reset just because the date changed.
@@ -6402,6 +6495,13 @@ function moveWholeDay(dayId, toDate){
   // .forceFirst is only a badge in this tool -- schedule.py is what
   // actually enforces it). Staff can still hit "reset to shortest route".
   if(wasStaffed){ staffing[toId] = [...wasStaffed]; delete staffing[dayId]; }
+  // Its crew name travels with it too (a Dallas week's name stays with the
+  // week: one night leaving doesn't take the week's name along).
+  if(wasNamed){
+    const to = days.find(d=>d.id===toId), toKey = to && crewNameKey(to);
+    if(toKey && !crewNames[toKey]) crewNames = withCrewName(crewNames, toKey, wasNamed);
+    crewNames = withCrewName(crewNames, dayId, '');
+  }
   manualOrder[toId] = wasManual ? [...wasManual] : order;
   if(wasManual) delete manualOrder[dayId];
   moves.push({row:null, name:`${label} — whole day (${n} stop${n===1?'':'s'})`,
@@ -6991,9 +7091,9 @@ function buildDayCard(d){
     (focusDayId===d.id?' focused':'');
   card.dataset.dayid=d.id;
   card.innerHTML=`<div class="chead">
-    <span class="chead-crew" draggable="${READONLY?'false':'true'}" title="Click to zoom the map to just ${crewLabel(d)}'s stops — or drag this onto a date to move the whole day">
+    <span class="chead-crew" draggable="${READONLY?'false':'true'}" title="Click to zoom the map to just ${esc(crewTitle(d))}'s stops — or drag this onto a date to move the whole day">
       <span class="cdot" style="background:${col}"></span>
-      <span class="cname">${crewLabel(d)}${d.edited?'<span class="edited">EDITED</span>':''}</span>
+      <span class="cname">${crewName(d)?`${esc(crewName(d))}<span class="crewpos">${esc(crewLabel(d))}</span>`:crewLabel(d)}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
     <button class="printbtn picon" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
@@ -7010,7 +7110,7 @@ function buildDayCard(d){
           + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}`;
   card.querySelector('.printbtn').onclick=(e)=>{
     e.stopPropagation();
-    printManifests([d], `${crewLabel(d)} — ${fmtMDYYYY(d.date)}`);
+    printManifests([d], `${crewTitle(d)} — ${fmtMDYYYY(d.date)}`);
   };
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
   const chead = card.querySelector('.chead-crew');
@@ -7297,7 +7397,7 @@ function renderHold(){
     el.className='stop nistop onhold'; el.dataset.row=row;
     el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
         <span class="badge hold">on hold</span>${installNoteChipHTML(row)}${prefBadge(row)}</div>
-      ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewLabel(d))}</div>`
+      ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewTitle(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
       <div class="sub">${esc(c.zone||'—')}</div>
       <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
@@ -7581,7 +7681,7 @@ function openMoveDlg(row,presetDate){
       const isSel=csel.value.startsWith(`${dt}|${cr}|`);
       return `<div class="mvcrewrow${isSel?' mvsel':''}">`
         +`<span class="cdot" style="background:${CREW_COLORS[cr]||'#555'}"></span>`
-        +`<span class="mvcrewnames"><b>${crewLabel(ds[0])}</b>`
+        +`<span class="mvcrewnames"><b>${esc(crewTitle(ds[0]))}</b>`
         +(names.length?': '+names.join(', '):' <span class="mvcrewempty">(only this stop)</span>')
         +'</span></div>';
     });
@@ -7617,7 +7717,7 @@ function openMoveDlg(row,presetDate){
       const chk=checkPlan(planFor(row, d.id));
       const tag=d.win===480?' (day shift 9-5)':(d.win===K.NIGHT?' (night)':'');
       const dupe=crewCounts[d.crew]>1?` — ${d.stops.length} stop${d.stops.length===1?'':'s'}`:'';
-      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${crewLabel(d)}${tag}${dupe}`
+      return `<option value="${d.id}" ${chk.ok?'':'disabled'}>${esc(crewTitle(d))}${tag}${dupe}`
            + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`;});
     // One "start another crew" option, not one per stored name: crew
     // numbers are positional per day, so which stored slot a new day lands
@@ -8017,7 +8117,7 @@ function openSlotFinder(row){
     // option is chosen -- state them once.
     const sw = res.length ? res[0].sourceWarnings : [];
     if(sw.length && cur)
-      head += `<div class="sfsrc"><b>Leaving ${crewLabel(cur)} on ${fmtDate(cur.date)}:</b> `
+      head += `<div class="sfsrc"><b>Leaving ${esc(crewTitle(cur))} on ${fmtDate(cur.date)}:</b> `
             + sw.map(w=>w.short||w.msg).join(' · ')+`</div>`;
     const card=(r,best)=>{
       // deltas are already in MINUTES (dayCalc divides seconds by 60)
@@ -8118,13 +8218,13 @@ function openSlotFinder(row){
 
 // ---------- export ----------
 function exportJSON(){
-  const out={approved:[...approved],moves,final:days.map(d=>({date:d.date,crew:crewLabel(d),
+  const out={approved:[...approved],moves,final:days.map(d=>({date:d.date,crew:crewLabel(d),crewName:crewName(d),
     stops:d.stops.map(r=>C[r].name)}))};
   dl('tbdg-__SEASON__-review-changes.json',JSON.stringify(out,null,2));
 }
 function exportCSV(){
-  let rows=[['Client','Date','Crew','Order']];
-  days.forEach(d=>d.stops.forEach((r,i)=>rows.push([C[r].name,d.date,crewLabel(d),i+1])));
+  let rows=[['Client','Date','Crew','Crew name','Order']];
+  days.forEach(d=>d.stops.forEach((r,i)=>rows.push([C[r].name,d.date,crewLabel(d),crewName(d),i+1])));
   dl('tbdg-__SEASON__-assignments.csv',rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n'));
 }
 function dl(name,text){const a=document.createElement('a');
@@ -8787,7 +8887,7 @@ function monthHTML(anchor){
         ? `${gridHourLabel(ts[0].start)}–${gridHourLabel(ts[ts.length-1].end)}` : '';
       inner+=`<div class="calchip${night?' night':''}${approved.has(d.id)?' appr':''}" `
            + `style="--cc:${CREW_COLORS[d.crew]||'#555'}">`
-           + `<b>${crewLabelShort(d)}</b> `
+           + `<b>${esc(crewTitleShort(d))}</b> `
            + (span?`<span class="cctime">${span}</span> · `:'')
            + `${d.stops.length} stop${d.stops.length===1?'':'s'}`
            + `${approved.has(d.id)?' <span class="apprdot">✓</span>':''}`
@@ -8882,7 +8982,7 @@ function gridHTML(cols){
           + `data-row="${b.row}" data-dayid="${b.d.id}" `
           + `title="${C[b.row].name} — ${gridHourLabel(b.start)} to ${gridHourLabel(b.end)}">`
           + `<span class="cevn">${alertIconHTML(b.row)}${C[b.row].name.split('|')[0].trim()}</span>`
-          + `<span class="cevt">${gridHourLabel(b.start)} · ${crewLabel(b.d)}</span></div>`;
+          + `<span class="cevt">${gridHourLabel(b.start)} · ${esc(crewTitle(b.d))}</span></div>`;
       }
     });
     body+=`<div class="calgcol${col.today?' today':''}"`
@@ -8933,7 +9033,7 @@ function dayHTML(anchor){
   // header IS this day, so making it clickable would only re-render the view
   // you are already on.
   return gridHTML(ds.map(d=>({days:[d], dropDayId:d.id,
-      sub:crewLabel(d).toUpperCase()+(d.win===K.NIGHT?' · NIGHT':''),
+      sub:esc(crewTitle(d).toUpperCase())+(d.win===K.NIGHT?' · NIGHT':''),
       title:`${d.stops.length} stop${d.stops.length===1?'':'s'} · ${dayBoxes(d)||0} boxes`
            + (approved.has(d.id)?' <span class="apprtag">APPROVED</span>':'')})));
 }
@@ -8957,7 +9057,7 @@ function agendaHTML(){
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
          + `<span class="agn">${C[t.row].name}${alertIconHTML(t.row)}</span>`
-         + `<span class="agm">${crewLabel(d)}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
+         + `<span class="agm">${esc(crewTitle(d))}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
       });
     h+=`</div></div>`;
   });
@@ -9885,7 +9985,7 @@ function openStopPeek(row,dayId){
             ?` · ${fmtClock(t.start)} – ${fmtClock(t.end)}${t.end>=1440?' (next day)':''}`:''}</p>`
           : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
       <div class="pkchips">
-        ${d?`<span class="pkchip crew" style="--crew:${crewCol}"><i></i><span>${esc(crewLabel(d))}</span></span>`:''}
+        ${d?`<span class="pkchip crew" style="--crew:${crewCol}"><i></i><span>${esc(crewTitle(d))}</span></span>`:''}
         ${d && confirmed.has(row)?pkChip(IC.lock, 'Date confirmed', 'ok'):''}
         ${hold.has(row)?pkChip('', 'On hold', 'hold'):''}
         <span id="pkalertchip">${alertChipHTML(row)}</span>
@@ -9996,7 +10096,7 @@ function openStopPeek(row,dayId){
     openBtn.onclick=()=>{
       peekdlg.close(); selDate=d.date; focusDayId=d.id; setView('days'); };
     prBtn.onclick=()=>{
-      peekdlg.close(); printManifests([d],`${crewLabel(d)} — ${fmtMDYYYY(d.date)}`); };
+      peekdlg.close(); printManifests([d],`${crewTitle(d)} — ${fmtMDYYYY(d.date)}`); };
     mv.disabled = confirmed.has(row);
     mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, d.date); };
     cfBtn.innerHTML = confirmed.has(row) ? `${IC.unlock} unlock` : `${IC.lock} confirm date`;
@@ -10759,7 +10859,7 @@ function shiftCardHTML(sh){
   return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
     <div class="shchead">
       <span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>
-      <span class="shcname">${esc(sh.label)}
+      <span class="shcname">${crewNameEditHTML(sh)}${sh.tail?`<span class="shctail"> · ${esc(sh.tail)}</span>`:''}
         <span class="shcwhen">${esc(sh.when)}</span></span>
       <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
     </div>
@@ -10770,6 +10870,68 @@ function shiftCardHTML(sh){
     <button class="shcbtn" data-staff="${esc(sh.key)}">${
       cv.who.length?'Edit crew':'Staff this shift'}</button>
   </div>`;
+}
+/** The crew part of a Staffing card's title. Only this is editable (double-
+ *  click, double-tap or the pencil); the "Dallas week" / "night" part beside
+ *  it is plain text, and so are training days and read-only views. */
+function crewNameEditHTML(sh){
+  if(sh.training) return esc(sh.pos);
+  const can = !READONLY;
+  const shown = sh.name || sh.pos;
+  return `<span class="crewnm${can?' can':''}" data-crewname="${esc(sh.key)}"`
+    + (can ? ` role="button" tabindex="0" title="Double-click or double-tap to rename this crew"`
+           + ` aria-label="${esc(shown)}. Rename crew"` : '')
+    + `>${esc(shown)}</span>`
+    + (sh.name ? `<span class="crewpos">${esc(sh.pos)}</span>` : '')
+    + (can ? `<button type="button" class="crewnmbtn" data-crewnamebtn="${esc(sh.key)}"`
+           + ` title="Rename crew" aria-label="Rename crew">${IC.pencil}</button>` : '');
+}
+/** Two taps or clicks on the same crew name within this many ms is a double
+ *  tap. Touch browsers don't all send dblclick, so taps are timed by hand. */
+const CREW_TAP_MS = 400;
+let crewTap = {key:null, t:0};
+/** PURE. Is a tap on `key` at `now` the second of a double tap? */
+function isDoubleTap(prev, key, now, ms){
+  return !!prev && prev.key===key && now-prev.t>=0 && now-prev.t<(ms||CREW_TAP_MS);
+}
+/** Swap a crew name for a text box. Enter or leaving the box saves, Esc
+ *  cancels, and an empty box puts back the "Crew N" label. */
+function startCrewNameEdit(key){
+  if(roBlocked()) return;
+  const sh=shiftFor(key);
+  if(!sh || sh.training) return;
+  const el=[...document.querySelectorAll('[data-crewname]')].find(x=>x.dataset.crewname===key);
+  if(!el) return;
+  const head=el.closest('.shcname');
+  if(head) head.classList.add('editing');
+  const inp=document.createElement('input');
+  inp.type='text'; inp.className='crewnmin'; inp.maxLength=CREW_NAME_MAX;
+  inp.value=sh.name; inp.placeholder=sh.pos; inp.autocomplete='off';
+  inp.setAttribute('aria-label', `Name for ${sh.pos}. Leave empty for ${sh.pos}.`);
+  el.replaceWith(inp);
+  inp.focus(); inp.select();
+  let done=false;
+  const finish=save=>{
+    if(done) return; done=true;
+    if(!save || !setCrewName(key, inp.value)) render();
+  };
+  inp.onkeydown=e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'){ e.preventDefault(); finish(true); }
+    else if(e.key==='Escape'){ e.preventDefault(); finish(false); }
+  };
+  inp.onblur=()=>finish(true);
+  ['click','dblclick','pointerdown','pointerup'].forEach(t=>inp.addEventListener(t, e=>e.stopPropagation()));
+}
+/** Save one crew name (shared, undoable). False when nothing changed. */
+function setCrewName(key, value){
+  if(roBlocked()) return false;
+  const next=withCrewName(crewNames, key, value);
+  if(stableJSON(next)===stableJSON(crewNames)) return false;
+  pushUndo();
+  crewNames=next;
+  persist(); render();
+  return true;
 }
 function shiftsHTML(){
   const shifts=buildShifts();
@@ -10825,7 +10987,7 @@ function shiftMapDraw(date){
         bounds.push([c.lat,c.lon]);
         layer.addLayer(L.circleMarker([c.lat,c.lon],
           {radius:7,color:'#222',weight:1.5,fillColor:col,fillOpacity:.95})
-          .bindTooltip(`<b>${i+1}. ${c.name}</b><br>${sh.label}`
+          .bindTooltip(`<b>${i+1}. ${c.name}</b><br>${esc(sh.label)}`
             + `${sh.days.length>1?'<br>'+fmtMDYYYY(d.date):''}`,
             {direction:'top',offset:[0,-8]}));
       });
@@ -10948,6 +11110,32 @@ function renderStaffing(){
     const date=el.closest('.shiftday').querySelector('[data-shmap]').dataset.shmap;
     el.onclick=()=>focusShift(date, el.dataset.shift);
   });
+  // Crew names: the second click or tap on the same name renames it (that
+  // one doesn't also toggle the map focus the first one set); the pencil
+  // renames straight away; Enter or Space on the focused name does too.
+  if(!READONLY){
+    wrap.querySelectorAll('.crewnm.can[data-crewname]').forEach(el=>{
+      const key=el.dataset.crewname;
+      el.addEventListener('click', e=>{
+        const now=Date.now();
+        if(isDoubleTap(crewTap, key, now)){
+          e.stopPropagation(); e.preventDefault();
+          crewTap={key:null, t:0};
+          startCrewNameEdit(key);
+          return;
+        }
+        crewTap={key, t:now};
+      });
+      el.addEventListener('dblclick', e=>{ e.stopPropagation(); e.preventDefault();
+        if(el.isConnected){ crewTap={key:null, t:0}; startCrewNameEdit(key); } });
+      el.addEventListener('keydown', e=>{
+        if(e.key==='Enter' || e.key===' '){ e.preventDefault(); e.stopPropagation(); startCrewNameEdit(key); }
+      });
+    });
+    wrap.querySelectorAll('[data-crewnamebtn]').forEach(b=>{
+      b.onclick=e=>{ e.stopPropagation(); startCrewNameEdit(b.dataset.crewnamebtn); };
+    });
+  }
   wrap.querySelectorAll('[data-staff]').forEach(el=>{
     el.onclick=e=>{
       e.stopPropagation();
@@ -11491,7 +11679,7 @@ function manifestHTML(d){
       <ul>${pack.map(x=>`<li><span class="box"></span><span><b>${x.i+1}. ${esc(C[x.r].name)}:</b> ${esc(x.n.text)}</span></li>`).join('')}</ul></div>` : '';
   return `<section class="sheet">
     <div class="shead">
-      <div><h1>${esc(crewLabel(d))} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
+      <div><h1>${esc(crewTitle(d))} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
         <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
         ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
@@ -11530,7 +11718,7 @@ function coverHTML(list, heading){
     const calc=dayCalc(d), sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
     const who=cv.who.map(pn=>esc(pn.name)).join(', ');
     rows+=`<tr${d.date!==prev?' class="nd"':''}><td>${d.date!==prev?`${esc(dowOf(d.date)||d.dow||'')} ${fmtMDYYYY(d.date)}`:''}</td>`
-        +`<td>${esc(crewLabel(d))}</td><td class="c">${d.stops.length}</td>`
+        +`<td>${esc(crewTitle(d))}</td><td class="c">${d.stops.length}</td>`
         +`<td class="c">${(calc.total/60).toFixed(1)}h</td><td>${who||'<i>nobody assigned</i>'}</td>`
         +`<td class="c">${i+2}</td></tr>`;
     prev=d.date;
@@ -12069,7 +12257,7 @@ function printCalendar(){
     return `<td class="${want.has(iso)?'':'out'}"><div class="dn">${dd}${ci&&ci.label?` <span class="tag">${esc(ci.label)}</span>`:''}</div>${
       !want.has(iso)?'':list.map(d=>{
         const order=dayCalc(d).order.length?dayCalc(d).order:d.stops;
-        return `<div class="cr" style="border-color:${CREW_COLORS[d.crew]||'#555'}"><b>${esc(crewLabel(d))}${d.training?' · training':''}</b>`
+        return `<div class="cr" style="border-color:${CREW_COLORS[d.crew]||'#555'}"><b>${esc(crewTitle(d))}${d.training?' · training':''}</b>`
           + `${order.length?` · ${(dayCalc(d).total/60).toFixed(1)}h`:''}`
           + order.map(r=>`<div class="st">${esc(String(C[r].name).split('|')[0].trim())}</div>`).join('')+`</div>`;
       }).join('')}</td>`;
@@ -12174,6 +12362,9 @@ function render(){
   // paint can no longer mutate the schedule as a side effect of drawing.
   // Dallas-night and joint wiring first: a move may have made or split one.
   refreshDerivedMeta();
+  // A crew name whose crew-day is gone (emptied, or its Dallas run changed
+  // shape) goes with it, so it can't turn up on a new card later.
+  crewNames = normCrewNames(crewNames);
   days.forEach(d=>{
     const mo = manualOrder[d.id];
     if(mo){
