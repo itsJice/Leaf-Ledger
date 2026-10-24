@@ -175,6 +175,7 @@ def context_for(board: schedule_board.Board) -> sc.Context:
         clients={r: str(c.get("name") or "") for r, c in board.clients.items() if c.get("name")},
         base_days=board.base_days,
         people={p["id"]: p["name"] for p in board.roster},
+        dallas=set(board.dallas),
     )
 
 

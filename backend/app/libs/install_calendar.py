@@ -230,8 +230,10 @@ def day_events(board: Board, day: dict, storing: Optional[set] = None,
     def name_of(row, fallback: str) -> str:
         return names.get(row) or (board.clients.get(row) or {}).get("name") or fallback
 
-    label = board.crew_label(day)
-    label = f"{CREW_EMOJI[label]} {label}" if label in CREW_EMOJI else label
+    # The emoji follows the positional number; the text carries the crew's
+    # name when staff gave it one ("Lesly's crew (Crew 1)").
+    pos, label = board.crew_label(day), board.crew_title(day)
+    label = f"{CREW_EMOJI[pos]} {label}" if pos in CREW_EMOJI else label
     tl = day_timeline(board, day)
     if not tl["stops"]:
         return []

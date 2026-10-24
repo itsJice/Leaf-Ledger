@@ -285,7 +285,7 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
     return {
         "id": day["id"],
         "date": day["date"],
-        "crewLabel": board.crew_label(day),
+        "crewLabel": board.crew_title(day),
         "note": board.day_notes.get(day["id"], ""),
         "lead": lead,
         "crew": [p for p in crew if p],
@@ -386,7 +386,7 @@ def today_summary_of(board: schedule_board.Board, days: list[dict], on: str,
     for d in sorted((d for d in ahead if d["date"] == date_), key=board.crew_label):
         ids = set(board.staffing.get(d["id"], []))
         everyone |= ids
-        crews.append({"label": board.crew_label(d), "jobs": len(d["stops"]), "people": len(ids)})
+        crews.append({"label": board.crew_title(d), "jobs": len(d["stops"]), "people": len(ids)})
     rows = {r for d in ahead if d["date"] == date_ for r in d["stops"]}
     noted = sum(1 for r in rows if install_note(board.clients.get(r) or {}, extras))
     return {

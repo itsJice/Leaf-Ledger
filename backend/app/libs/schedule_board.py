@@ -18,6 +18,7 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from typing import Any, Optional
 
 from app.libs import roles
@@ -52,6 +53,11 @@ class Board:
     # The build's own crew-days before anything staff did ({id: date, crew,
     # stops}), for naming crews in an older saved state (app.libs.schedule_changes).
     base_days: dict[str, dict] = field(default_factory=dict)
+    # Crew names staff gave a shift on the Staffing tab (``state.crewNames``,
+    # {shift key: name}; see crewNames in the tool) and the Dallas dates the
+    # shift keys are worked out against.
+    crew_names: dict[str, str] = field(default_factory=dict)
+    dallas: set[str] = field(default_factory=set)
 
     def person(self, pid: str) -> Optional[dict]:
         return next((p for p in self.roster if p["id"] == pid), None)
@@ -81,6 +87,25 @@ class Board:
         on_date = sorted({d["crew"] for d in self.days.values() if d["date"] == day["date"]})
         return f"Crew {on_date.index(day['crew']) + 1}" if day["crew"] in on_date else day["crew"]
 
+    def shift_key(self, day: dict) -> str:
+        """The tool's shiftKeyOf(): a Dallas night's run key, else the day id."""
+        night = self.const.get("NIGHT")
+        win = (self.day_meta.get(day["id"]) or {}).get("win")
+        if day["date"] in self.dallas and night is not None and win == night:
+            return f"dallas|{dallas_run_start(day['date'], self.dallas)}|{day['crew']}"
+        return day["id"]
+
+    def crew_name(self, day: dict) -> str:
+        """The name staff gave this crew-day's shift, or ''. Training has none."""
+        if day.get("crew") == "Training":
+            return ""
+        return self.crew_names.get(self.shift_key(day), "")
+
+    def crew_title(self, day: dict) -> str:
+        """"Lesly's crew (Crew 1)", or "Crew 1" with no name -- crewTitle()."""
+        name, label = self.crew_name(day), self.crew_label(day)
+        return f"{name} ({label})" if name else label
+
 
 def extract_payload(html: str) -> dict:
     i = html.find(PAYLOAD_MARK)
@@ -107,6 +132,29 @@ def _norm_person(p: dict) -> Optional[dict]:
 
 
 _ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
+CREW_NAME_MAX = 40
+
+
+def norm_crew_names(raw: Any) -> dict[str, str]:
+    """``state.crewNames`` as the tool keeps it (normCrewName): string names,
+    whitespace collapsed, trimmed, at most 40 characters; empty ones dropped."""
+    out: dict[str, str] = {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            if isinstance(k, str) and isinstance(v, str):
+                n = " ".join(v.split())[:CREW_NAME_MAX].strip()
+                if n:
+                    out[k] = n
+    return out
+
+
+def dallas_run_start(day_iso: str, dallas: set[str]) -> str:
+    """The first date of the run of back-to-back Dallas dates ``day_iso`` is
+    in -- the tool's dallasRunStart()."""
+    d = date.fromisoformat(day_iso)
+    while (d - timedelta(days=1)).isoformat() in dallas:
+        d -= timedelta(days=1)
+    return d.isoformat()
 
 
 def dallas_dates(spec: dict, state: dict) -> set[str]:
@@ -242,6 +290,8 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         timeline=state.get("timeline") if isinstance(state.get("timeline"), dict) else {},
         base_days={did: {"date": d.get("date"), "crew": d.get("crew"), "stops": list(d.get("stops") or [])}
                    for did, d in base.items()},
+        crew_names=norm_crew_names(state.get("crewNames")),
+        dallas=dallas_dates(spec, state),
     )
 
 
