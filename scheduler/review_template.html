@@ -666,6 +666,13 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .stfsecn{font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)}
 .stftable tbody tr.sel{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
 .stftable tr.inactive td{opacity:.5}
+/* Attended training this season (user, 2026-10-24): a small green dot after
+   the name, its date in the hover text. The person card spells it out too,
+   which is what a phone (no hover) reads. */
+.trdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--brand);
+  margin-left:6px;vertical-align:1px;cursor:help;box-shadow:0 0 0 2px var(--brand-soft)}
+.stfdhead h3 .trdot{vertical-align:3px}
+.pill.trained{background:var(--brand-soft);color:var(--brand-deep)}
 .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;
   letter-spacing:.03em;white-space:nowrap}
 .pill.lead{background:#1f3d2b;color:#fff}
@@ -10613,11 +10620,35 @@ function drawStaffDlg(){
 }
 
 // ---- the Staffing view ----
+/** The training days (ISO dates, sorted) a person was staffed on this
+ *  season: every staffing entry whose crew-day falls on a date in
+ *  trainingDays (e.g. "2026-10-23|Training"). Derived, nothing stored. */
+function trainingDatesFor(pid, staffingMap, trainingSet){
+  const tr = trainingSet instanceof Set ? trainingSet : new Set(trainingSet||[]);
+  const out = new Set();
+  Object.entries(staffingMap||{}).forEach(([dayId, ids])=>{
+    const date = String(dayId).split('|')[0];
+    if(tr.has(date) && Array.isArray(ids) && ids.includes(pid)) out.add(date);
+  });
+  return [...out].sort();
+}
+/** "Attended training 10/23/2026" (several dates comma-separated), or ''. */
+function trainingLabel(dates){
+  return (dates&&dates.length) ? 'Attended training '+dates.map(fmtMDYYYY).join(', ') : '';
+}
+function personTrainingLabel(p){
+  return p ? trainingLabel(trainingDatesFor(p.id, staffing, trainingDays)) : '';
+}
+/** The green dot after a name when they attended training, or ''. */
+function trainingDotHTML(p){
+  const t=personTrainingLabel(p);
+  return t ? `<span class="trdot" role="img" title="${esc(t)}" aria-label="${esc(t)}"></span>` : '';
+}
 function personRow(p){
   const sh=shiftsFor(p.id).length;
   const rv=overallRating(p);
   return `<tr class="${p.active?'':'inactive'}${selPerson===p.id?' sel':''}" data-pid="${p.id}">
-    <td><b>${esc(p.name)}</b>${p.phone||p.email
+    <td><b>${esc(p.name)}</b>${trainingDotHTML(p)}${p.phone||p.email
         ? `<br><span style="color:var(--mut);font-size:10.5px">${
             esc(p.phone?fmtPhone(p.phone):p.email)}</span>`:''}</td>
     <td><span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span></td>
@@ -10773,12 +10804,14 @@ function personDetailHTML(){
   const hrs=sh.reduce((a,x)=>a+x.hours,0);
   const stops=sh.reduce((a,x)=>a+x.stops,0);
   const dayCount=sh.reduce((a,x)=>a+x.days.length,0);
-  let h=`<div class="stfdetail"><div class="stfdhead"><h3>${esc(p.name)}</h3>
+  const trained=personTrainingLabel(p);
+  let h=`<div class="stfdetail"><div class="stfdhead"><h3>${esc(p.name)}${trainingDotHTML(p)}</h3>
     <div class="stfdmeta">
       <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
       <span class="pill gen">${esc(p.gender)}</span>
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
+      ${trained?`<span class="pill trained">${esc(trained)}</span>`:''}
     </div>
     <div class="stfcard">
       <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
@@ -11867,6 +11900,7 @@ function rosterPrintColumns(){
     {key:'avail',   label:'Days marked', w:34, sm:true},
     {key:'texted',  label:'Last texted', w:9},
     {key:'notes',   label:'Notes',       w:24, sm:true},
+    {key:'training',label:'Attended training', w:10},
     {key:'w9',      label:'W-9',            w:10, blank:true, pick:'W-9 received'},
     {key:'dd',      label:'Direct deposit', w:11, blank:true, pick:'Direct deposit received'},
     {key:'availrec',label:'Availability',   w:11, blank:true, pick:'Availability received'},
@@ -11960,6 +11994,7 @@ function rosterPrintCell(p, key){
     case 'avail': { const n=(p.dates||[]).length; return n ? `${n} · ${fmtFreeDays(p.dates)}` : 'None marked'; }
     case 'texted': return p.texts && p.texts[0] ? fmtTextDay(p.texts[0].at) : '';
     case 'notes': return p.notes||'';
+    case 'training': return personTrainingLabel(p) ? 'Yes' : '';
   }
   return '';
 }
