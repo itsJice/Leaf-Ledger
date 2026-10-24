@@ -294,7 +294,7 @@ def crew_days(board: Board, prices: dict[str, dict], card: dict, assignments: di
         placeholder = bool(cost["missing"]) or overhead is None
 
         out_days.append({
-            "id": d["id"], "date": d["date"], "crew": board.crew_label(d), "night": night, "anchored": anchored,
+            "id": d["id"], "date": d["date"], "crew": board.crew_title(d), "night": night, "anchored": anchored,
             "staffed": bool(staffed_ids), "staffed_count": len(staffed_ids), "estimated_count": estimated,
             "crew_basis": crew_basis if estimated else None,
             "crew_people": crew,
