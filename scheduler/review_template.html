@@ -728,11 +728,14 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
    to the half-star under the cursor. */
 .ratrow{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap}
 .ratlbl{font-size:12.5px;font-weight:700;color:var(--mut);min-width:112px}
-/* Overall is computed (the average of whatever traits are rated), never
-   set directly -- set apart from the trait rows below it so that reads
-   clearly, not like an eighth trait alongside the other seven. */
+/* Overall is the average of whatever traits are rated, unless it was set
+   by hand (user, 2026-10-24: "give the ability to just select the overall
+   rating") -- set apart from the trait rows below it so that reads clearly,
+   not like one more trait alongside the others. .rathint says which. */
 .ratoverall{padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
 .ratoverall .ratlbl{color:var(--ink);font-size:13.5px}
+.rathint{font-size:12px;color:var(--faint);font-weight:600}
+.rathint.hand{color:var(--brand)}
 .stars{display:inline-flex;gap:0;white-space:nowrap}
 .stars span,.stars button{position:relative;display:inline-block;width:.5em;height:1em;
   overflow:hidden;font-size:28px;line-height:1;color:#d9d5ce;vertical-align:top;
@@ -2232,7 +2235,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <label class="perchk"><input id="perdd" type="checkbox"> Direct deposit on file</label>
   </div>
   <div class="availhd">Alberto rating</div>
-  <span class="nclabel">1–5 stars, half-star steps — click the same star again to clear. Overall is the average of whatever's rated.</span>
+  <span class="nclabel">1 to 5 stars in half-star steps. Click the same star again to clear. Overall is the average of the traits unless you pick it yourself.</span>
   <div id="perratings"></div>
   <div class="availhd">Availability</div>
   <span class="nclabel">Shift times they can work</span>
@@ -2868,9 +2871,12 @@ const LANGS  = ['English','Spanish','Both'];
 // Alberto rating (user, 2026-09-04): NOT year-over-year -- that got
 // scrapped the same day it shipped. "People are who they are": one
 // current rating per installer per trait, updated whenever, with no
-// history of who they used to be. Overall is never set directly -- it's
-// the average of whatever traits ARE rated, so it moves the moment any
-// trait does.
+// history of who they used to be. Overall is the average of whatever
+// traits ARE rated, so it moves the moment any trait does -- unless it was
+// set by hand (user, 2026-10-24: "give the ability to just select the
+// overall rating"), stored as ratings.overall on the same 1-10 scale. A
+// hand-set overall wins everywhere overall shows or sorts, and rating a
+// trait never overwrites it; clearing it goes back to the average.
 const RATING_DIMENSIONS=[
   {key:'speed', label:'Speed'},
   {key:'design', label:'Design quality', hint:'Makes beautiful things'},
@@ -2883,6 +2889,7 @@ const RATING_DIMENSIONS=[
   {key:'detail', label:'Detail', hint:'Thorough — finishing touches, clean-up, nothing missed'},
 ];
 const RATING_KEYS=new Set(RATING_DIMENSIONS.map(d=>d.key));
+const RATING_OVERALL='overall';
 const RATING_MAX=10;
 // Stored value stays 1-10 (half-star steps -- see the .stars CSS comment),
 // but nothing outside this rendering layer should ever show that raw
@@ -2914,7 +2921,7 @@ function normRatings(obj){
   const out={};
   Object.entries(obj&&typeof obj==='object'?obj:{}).forEach(([k,v])=>{
     const n=Math.round(+v);
-    if(RATING_KEYS.has(k) && n>=1 && n<=RATING_MAX) out[k]=n;
+    if((RATING_KEYS.has(k) || k===RATING_OVERALL) && n>=1 && n<=RATING_MAX) out[k]=n;
   });
   return out;
 }
@@ -2930,15 +2937,25 @@ function fmtPhone(v){
   return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
 }
 function ratingOf(p,key){ return (p&&p.ratings&&p.ratings[key])||0; }
-/** Average of whatever traits are actually rated, rounded to the nearest
- * half-star step -- 0 (unrated) if nobody's touched a single trait yet. A
- * partial set of traits still produces a real average; it just isn't
- * asking staff to rate all seven before it means anything. */
-function overallRating(p){
-  const vals=RATING_DIMENSIONS.map(d=>ratingOf(p,d.key)).filter(v=>v>0);
+/** Average of whatever traits are actually rated in a ratings object,
+ * rounded to the nearest half-star step -- 0 (unrated) if nobody's touched
+ * a single trait yet. A partial set of traits still produces a real
+ * average; it just isn't asking staff to rate every trait first. */
+function traitAverage(r){
+  const vals=RATING_DIMENSIONS.map(d=>(r&&+r[d.key])||0).filter(v=>v>0);
   if(!vals.length) return 0;
   return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
 }
+/** A hand-set overall (1-10) in a ratings object, or 0 if there isn't one. */
+function handOverall(r){
+  const n=Math.round(+(r&&r[RATING_OVERALL]));
+  return n>=1 && n<=RATING_MAX ? n : 0;
+}
+/** The overall for a ratings object: set by hand if it was, else the
+ * average of the traits. */
+function overallOf(r){ return handOverall(r) || traitAverage(r); }
+/** The one overall every screen, sort, filter and export uses. */
+function overallRating(p){ return overallOf(p&&p.ratings); }
 /** Read-only star row: 5 stars, half-filled up to v/10 -- see the .stars
  * CSS comment for how a pair of these slots becomes one half-star each. */
 function starsHTML(v){
@@ -10117,27 +10134,33 @@ function pushPerHist(){ perUndo.push([...perDates]); perRedo=[]; }
 // Alberto rating picker inside the installer dialog. Session-only until Save,
 // like the availability bubbles above it.
 let perRatings={};
-/** Same math as overallRating(), against the edit buffer instead of a
+/** Same rule as overallRating(), against the edit buffer instead of a
  * saved person -- so Overall updates live as each trait is picked,
  * before Save has even been clicked. */
-function overallFromDraft(){
-  const vals=RATING_DIMENSIONS.map(d=>perRatings[d.key]||0).filter(v=>v>0);
-  if(!vals.length) return 0;
-  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+function overallFromDraft(){ return overallOf(perRatings); }
+/** One picker row of 10 half-star buttons for rating key `k` at value v. */
+function ratingPickStars(k, v){
+  let stars='';
+  for(let i=1;i<=RATING_MAX;i++)
+    stars+=`<button type="button" class="${i<=v?'on':''}" data-rk="${k}" data-rv="${i}"
+              title="${ratingScale(i)}/5"></button>`;
+  return `<span class="stars pick">${stars}</span>`;
 }
 function drawPerRatings(){
   const box=document.getElementById('perratings');
-  const overall=overallFromDraft();
+  const overall=overallFromDraft(), byHand=!!handOverall(perRatings);
+  // Overall is a picker too: pick a star to set it by hand, pick the same
+  // star again (or clear) to go back to the average of the traits.
   const overallRow=`<div class="ratrow ratoverall"><span class="ratlbl">Overall</span>`
-    + starsHTML(overall) + `<span class="ratn">${ratingText(overall)}</span></div>`;
+    + ratingPickStars(RATING_OVERALL, overall)
+    + `<span class="ratn">${ratingText(overall)}</span>`
+    + `<span class="rathint${byHand?' hand':''}">${byHand?'Set by hand':'Average of the traits'}</span>`
+    + (byHand?`<button type="button" class="ratclr" data-rclr="${RATING_OVERALL}" title="Go back to the average of the traits">clear</button>`:'')
+    + `</div>`;
   const dimRows = RATING_DIMENSIONS.map(dim=>{
     const v=perRatings[dim.key]||0;
-    let stars='';
-    for(let i=1;i<=RATING_MAX;i++)
-      stars+=`<button type="button" class="${i<=v?'on':''}" data-rk="${dim.key}" data-rv="${i}"
-                title="${ratingScale(i)}/5"></button>`;
     return `<div class="ratrow"><span class="ratlbl"${dim.hint?` title="${esc(dim.hint)}"`:''}>${esc(dim.label)}</span>`
-      + `<span class="stars pick">${stars}</span>`
+      + ratingPickStars(dim.key, v)
       + `<span class="ratn">${ratingText(v)}</span>`
       + (v?`<button type="button" class="ratclr" data-rclr="${dim.key}">clear</button>`:'')
       + `</div>`;
@@ -10666,7 +10689,8 @@ function personDetailHTML(){
     ${textLogHTML(p)}
     <div class="stfrating"><b>Alberto rating</b>
       <div class="ratrow ratoverall"><span class="ratlbl">Overall</span>
-        ${starsHTML(overallRating(p))}<span class="ratn">${ratingText(overallRating(p))}</span></div>
+        ${starsHTML(overallRating(p))}<span class="ratn">${ratingText(overallRating(p))}</span>${
+          overallRating(p)?`<span class="rathint${handOverall(p.ratings)?' hand':''}">${handOverall(p.ratings)?'Set by hand':'Average of the traits'}</span>`:''}</div>
       ${RATING_DIMENSIONS.map(dim=>{
         const v=ratingOf(p,dim.key);
         return `<div class="ratrow"><span class="ratlbl"${dim.hint?` title="${esc(dim.hint)}"`:''}>${esc(dim.label)}</span>`
