@@ -34,6 +34,15 @@ export interface SidebarPrefs {
   order: string[];
   /** Nav item paths the user has hidden. "/" and "/settings" can never be hidden. */
   hidden: string[];
+  /**
+   * Keep the menu open. Absent (the default) means automatic: open everywhere
+   * except the Install Schedule pages, which fold it to the icon rail. `true`
+   * keeps it open everywhere; `false` folds it to the rail everywhere, and it
+   * slides open over the page on hover. See utils/sidebarPin.ts.
+   *
+   * In a patch, `null` clears it back to automatic (the server drops the key).
+   */
+  pinned?: boolean | null;
 }
 
 export interface ThemePrefs {
@@ -119,6 +128,10 @@ function normalize(raw: unknown): DeepPartial<UserPreferences> {
     if (order) sidebar.order = order;
     const hidden = stringList(src.sidebar.hidden);
     if (hidden) sidebar.hidden = hidden.filter((p) => !PINNED_PATHS.includes(canonPath(p)));
+    // bool, or null meaning "clear back to automatic". Anything else is dropped.
+    if (typeof src.sidebar.pinned === "boolean" || src.sidebar.pinned === null) {
+      sidebar.pinned = src.sidebar.pinned;
+    }
     if (Object.keys(sidebar).length) out.sidebar = sidebar;
   }
 
@@ -134,18 +147,26 @@ function normalize(raw: unknown): DeepPartial<UserPreferences> {
   return out;
 }
 
-/** `patch` over `base`, recursing into objects. Arrays and scalars replace. */
-function mergeInto<T>(base: T, patch: any): T {
+/**
+ * `patch` over `base`, recursing into objects. Arrays and scalars replace, and
+ * `null` removes the key, matching the server's merge (that is how
+ * `sidebar.pinned` returns to automatic). `keepNull` keeps the null instead,
+ * for building the unsent patch, which must still carry the clear.
+ */
+function mergeInto<T>(base: T, patch: any, keepNull = false): T {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) return base;
   const out: any = { ...(base as any) };
   for (const key of Object.keys(patch)) {
     const value = patch[key];
     const current = out[key];
-    if (
+    if (value === null) {
+      if (keepNull) out[key] = null;
+      else delete out[key];
+    } else if (
       value && typeof value === "object" && !Array.isArray(value) &&
       current && typeof current === "object" && !Array.isArray(current)
     ) {
-      out[key] = mergeInto(current, value);
+      out[key] = mergeInto(current, value, keepNull);
     } else if (value !== undefined) {
       out[key] = value;
     }
@@ -313,7 +334,7 @@ export function savePreferences(patch: DeepPartial<UserPreferences>): void {
   if (!Object.keys(clean).length) return;
   state = mergeInto(state, clean);
   writeCache(state);
-  pending = mergeInto(pending ?? {}, clean);
+  pending = mergeInto(pending ?? {}, clean, true);
   saving = true;
   emit();
   scheduleFlush();
@@ -326,7 +347,8 @@ export function resetPreferences(): void {
   // A full document (every leaf present) overwrites everything server-side,
   // since a deep merge of a complete object leaves nothing behind.
   pending = {
-    sidebar: { ...DEFAULT_PREFERENCES.sidebar },
+    // `pinned: null` clears a saved keep-open choice back to automatic.
+    sidebar: { ...DEFAULT_PREFERENCES.sidebar, pinned: null },
     theme: { ...DEFAULT_PREFERENCES.theme },
   };
   saving = true;

@@ -120,6 +120,64 @@ describe("savePreferences / resetPreferences", () => {
     mod.resetPreferences();
     expect(JSON.parse(store.get(KEY)!)).toEqual(mod.DEFAULT_PREFERENCES);
     await vi.advanceTimersByTimeAsync(400);
-    expect(apiFetch.mock.calls[0][1].body).toBe('{"sidebar":{"order":[],"hidden":[]},"theme":{"mode":"system","accent":"emerald"}}');
+    expect(apiFetch.mock.calls[0][1].body).toBe('{"sidebar":{"order":[],"hidden":[],"pinned":null},"theme":{"mode":"system","accent":"emerald"}}');
+  });
+});
+
+describe("sidebar.pinned (keep the menu open)", () => {
+  it("is absent by default, which means automatic", async () => {
+    const mod = await freshModule();
+    expect(mod.readCachedPreferences().sidebar).toEqual({ order: [], hidden: [] });
+    expect("pinned" in mod.readCachedPreferences().sidebar).toBe(false);
+  });
+
+  it("keeps true/false from the cache and drops junk", async () => {
+    const mod = await freshModule();
+    store.set(KEY, JSON.stringify({ sidebar: { pinned: false } }));
+    expect(mod.readCachedPreferences().sidebar.pinned).toBe(false);
+    store.set(KEY, JSON.stringify({ sidebar: { pinned: true } }));
+    expect(mod.readCachedPreferences().sidebar.pinned).toBe(true);
+    for (const junk of ["yes", 1, 0, [], {}]) {
+      store.set(KEY, JSON.stringify({ sidebar: { pinned: junk, hidden: ["/x"] } }));
+      expect(mod.readCachedPreferences().sidebar).toEqual({ order: [], hidden: ["/x"] });
+    }
+    store.set(KEY, JSON.stringify({ sidebar: { pinned: null } }));
+    expect("pinned" in mod.readCachedPreferences().sidebar).toBe(false);
+  });
+
+  it("saves optimistically and PUTs only the pin, leaving order alone", async () => {
+    vi.useFakeTimers();
+    apiFetch.mockImplementation(async () => new Response("{}", { status: 401 }));
+    store.set(KEY, JSON.stringify({ sidebar: { order: ["/designs", "/"], hidden: ["/x"] } }));
+    const mod = await freshModule();
+    mod.savePreferences({ sidebar: { pinned: false } });
+    expect(JSON.parse(store.get(KEY)!).sidebar).toEqual({ order: ["/designs", "/"], hidden: ["/x"], pinned: false });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(apiFetch.mock.calls[0][1].body).toBe('{"sidebar":{"pinned":false}}');
+  });
+
+  it("null clears it locally but still reaches the server as null", async () => {
+    vi.useFakeTimers();
+    apiFetch.mockImplementation(async () => new Response("{}", { status: 401 }));
+    store.set(KEY, JSON.stringify({ sidebar: { pinned: true } }));
+    const mod = await freshModule();
+    mod.savePreferences({ sidebar: { pinned: false } });
+    mod.savePreferences({ sidebar: { pinned: null } });
+    expect("pinned" in JSON.parse(store.get(KEY)!).sidebar).toBe(false);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(apiFetch.mock.calls[0][1].body).toBe('{"sidebar":{"pinned":null}}');
+  });
+
+  it("adopts the server's answer after a save", async () => {
+    vi.useFakeTimers();
+    apiFetch.mockImplementation(async () => new Response(
+      JSON.stringify({ sidebar: { order: [], hidden: [], pinned: true }, theme: { mode: "system", accent: "emerald" } }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    ));
+    const mod = await freshModule();
+    mod.savePreferences({ sidebar: { pinned: true } });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(JSON.parse(store.get(KEY)!).sidebar.pinned).toBe(true);
   });
 });

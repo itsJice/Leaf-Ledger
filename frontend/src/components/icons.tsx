@@ -1,7 +1,7 @@
 import * as React from "react";
 
 /**
- * The Leaf & Ledger icon set: the 117 icons the app uses, redrawn as our own
+ * The Leaf & Ledger icon set: the 119 icons the app uses, redrawn as our own
  * shapes (rounded geometry, botanical details) but with the exact API the
  * Lucide components had, so a page keeps `<Search size={15} strokeWidth={1.8} />`
  * and only its import line changes. Defaults match Lucide (24px, 2px stroke,
@@ -123,6 +123,8 @@ export const PackageSearch = icon("PackageSearch", "package-search", `<path d="m
 export const Palette = icon("Palette", "palette", `<path d="M12 3a9 9 0 0 0 0 18h1a2 2 0 0 0 1-4 2 2 0 0 1 1-3h3c5 0 4-11-6-11Z"/><circle cx="7" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="6.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="6.5" cy="15" r="1.2" fill="currentColor" stroke="none"/>`);
 export const Pencil = icon("Pencil", "pencil", `<path d="m4 15 12-12c2-2 7 3 5 5L9 20l-6 1ZM14 5l5 5M4 15l5 5"/>`);
 export const Phone = icon("Phone", "phone", `<path d="M5 3h3l2 5-3 3c1 3 3 5 6 6l3-3 5 2v3a2 2 0 0 1-2 2C10 21 3 14 3 5a2 2 0 0 1 2-2Z"/>`);
+export const Pin = icon("Pin", "pin", `<path d="M9 3h6l-1 6 4 4H6l4-4Z"/><path d="M12 13v8"/>`);
+export const PinOff = icon("PinOff", "pin-off", `<path d="M9 3h6l-.6 4M10.3 8.7 6 13h7M12 16v5M3 3l18 18"/>`);
 export const Play = icon("Play", "play", `<path d="M6 5c0-2 1-3 3-2l11 7c2 1 2 3 0 4L9 21c-2 1-3 0-3-2Z" fill="currentColor" stroke="none"/>`);
 export const Plus = icon("Plus", "plus", `<path d="M5 12h14M12 5v14"/>`);
 export const Printer = icon("Printer", "printer", `<path d="M7 8V3h10v5M7 18H5a2 2 0 0 1-2-2v-5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1.5"/><circle cx="17" cy="11" r="1" fill="currentColor" stroke="none"/>`);
