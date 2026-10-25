@@ -827,6 +827,148 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .shctail{white-space:nowrap}
 .shcname.editing .crewnmbtn,.shcname.editing .crewpos{display:none}
 body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
+/* Shift notes (shiftNotes): the Notes section on a Staffing card, its text
+   box, the Staff this shift field, and the Days view crew card's line. */
+.shnadd{display:inline-flex;align-items:center;gap:5px;padding:4px 2px;border:0;background:none;
+  color:var(--brand-deep);font:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;min-height:28px}
+.shnadd .ic{width:14px;height:14px}
+@media (hover:hover){ .shnadd:hover{text-decoration:underline} }
+.shnote{border-radius:7px;padding:6px 8px;margin:0 -2px;background:var(--brand-soft);
+  transition:box-shadow .15s ease,background-color .15s ease}
+.shnote.can{cursor:text}
+@media (hover:hover){ .shnote.can:hover{box-shadow:0 0 0 1.5px var(--brand)} }
+.shnote.can:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.shntext{font-size:12.5px;line-height:1.4;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.shnby{font-size:10.5px;color:var(--mut);margin-top:3px}
+.shnby:empty{display:none}
+.shnin{display:block;box-sizing:border-box;width:100%;min-height:52px;resize:none;overflow:hidden;
+  font:inherit;font-size:16px;line-height:1.4;padding:6px 8px;border:1px solid var(--brand);border-radius:7px;
+  background:var(--surface);color:var(--ink)}
+.shnin:focus{outline:none;box-shadow:0 0 0 3px var(--brand-soft)}
+@media (min-width:768px) and (hover:hover){ .shnin{font-size:13px} }
+.shnhint{font-size:10.5px;color:var(--faint);margin-top:3px}
+.stfnote{margin:8px 0 2px}
+.stfnotelbl{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+  font-weight:800;margin-bottom:4px}
+#stfdlg .stfnote .shnin{border-color:var(--line)}
+#stfdlg .stfnote .shnin:focus{border-color:var(--brand)}
+.cshnote{display:flex;gap:6px;align-items:flex-start;padding:6px 14px;border-bottom:1px solid var(--line);
+  background:var(--brand-soft);color:var(--ink);font-size:12px;line-height:1.35}
+.cshnote .ic{width:13px;height:13px;flex:none;margin-top:2px;color:var(--brand-deep)}
+.cshntext{white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cshnote.can{cursor:pointer}
+body.readonly .shnadd,body.viewonly .shnadd{display:none}
+@media print{ .shnadd{display:none!important} }
+/* Staffing card footer: Edit crew, Open day, Details. */
+.shcfoot{display:flex;gap:6px;align-items:stretch;margin-top:10px}
+.shcfoot .shcbtn{margin-top:0;flex:1 1 auto;width:auto;min-width:0}
+.shcopen,.shcdet{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 10px;border-radius:7px;
+  border:1.5px solid var(--line);background:#fff;cursor:pointer;font:inherit;font-weight:700;font-size:11.5px;
+  color:var(--ink);white-space:nowrap;touch-action:manipulation;transition:border-color .15s ease,background-color .15s ease}
+.shcopen .ic{width:14px;height:14px;color:var(--brand-deep)}
+.shcdet{border-color:transparent;background:none;color:var(--brand-deep);padding:6px 6px}
+@media (hover:hover){ .shcopen:hover{border-color:var(--brand);background:var(--brand-soft)} .shcdet:hover{text-decoration:underline} }
+@media (hover:none){ .shcfoot .shcbtn,.shcopen,.shcdet{min-height:40px} }
+.shcard{-webkit-user-select:none;user-select:none}
+.shcard .shntext,.shcard .shnin{-webkit-user-select:text;user-select:text}
+.stfshift[role=button]{cursor:pointer}
+.stfshift[role=button]:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+@media print{ .shcfoot{display:none!important} }
+/* Shift detail panel (#sddlg). */
+#sddlg{box-sizing:border-box;width:min(1120px,calc(100vw - 32px));max-width:none;height:calc(100vh - 32px);height:calc(100dvh - 32px);
+  max-height:none;padding:0;border-radius:14px;overflow:hidden;background:var(--page,#f7f4ef)}
+#sddlg:focus{outline:none}
+#sddlg[open]{display:flex;flex-direction:column;animation:stfin .18s cubic-bezier(0.23,1,0.32,1)}
+#sddlg[open]::backdrop{background:rgba(20,24,20,.38);animation:stfbd .18s ease-out}
+#sddlg.closing{animation:stfout .12s ease-in forwards}
+#sddlg.closing::backdrop{animation:stfbd .12s ease-in reverse forwards}
+.sdhead{display:flex;align-items:flex-start;gap:10px;padding:14px 14px 12px 18px;background:var(--surface);
+  border-bottom:1px solid var(--line);flex:none}
+.sdhead .cdot{width:11px;height:11px;border-radius:50%;flex:none;margin-top:7px}
+.sdheadtxt{flex:1;min-width:0}
+#sdtitle{display:block;font-size:18px;line-height:1.3;overflow-wrap:anywhere}
+.sdsub{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:3px;font-size:12.5px;color:var(--mut)}
+.sdicon{flex:none;width:38px;height:38px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:50%!important;border:0!important;background:#ece8e0!important;color:var(--ink);cursor:pointer}
+.sdicon .ic{width:17px;height:17px}
+@media (hover:hover){ .sdicon:hover{background:#e2dccf!important} }
+.sdnights{display:flex;gap:6px;padding:10px 18px 0;overflow-x:auto;flex:none;background:var(--page,#f7f4ef)}
+.sdnights[hidden]{display:none}
+.sdnight{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 12px!important;
+  border-radius:9px!important;border:1.5px solid var(--line)!important;background:var(--surface)!important;font-weight:800;font-size:12.5px}
+.sdnight small{font-weight:600;font-size:10.5px;color:var(--mut)}
+.sdnight.sel{border-color:var(--brand)!important;background:var(--brand-soft)!important;color:var(--brand-deep)}
+.sdbody{flex:1 1 auto;min-height:0;overflow-y:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,42%);
+  gap:14px;padding:14px 18px 18px;align-items:start}
+.sdbody[hidden]{display:none}
+.sdside{position:sticky;top:0;align-self:start}
+.sdmap{height:calc(100dvh - 32px - 120px);min-height:280px;max-height:620px;border-radius:12px;border:1px solid var(--line);overflow:hidden;background:#e8e4dc}
+.sdsec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.sdsec:last-child{margin-bottom:0}
+.sdh{display:flex;align-items:center;gap:8px;font-family:'Sora',system-ui,sans-serif;font-weight:600;font-size:14px;margin-bottom:8px}
+.sdlink{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 10px!important;border-radius:7px!important;
+  border:1.5px solid var(--line)!important;background:#fff!important;font-weight:700;font-size:12px;color:var(--ink);white-space:nowrap}
+.sdlink .ic{width:14px;height:14px;color:var(--brand-deep)}
+@media (hover:hover){ .sdlink:hover{border-color:var(--brand)!important;background:var(--brand-soft)!important} }
+.sdstats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.sdstats>div{background:#f6f3ee;border-radius:9px;padding:7px 8px;min-width:0}
+.sdstats b{display:block;font-size:14px;font-weight:800;white-space:nowrap}
+.sdstats span{display:block;font-size:10.5px;color:var(--mut);overflow-wrap:anywhere}
+.sdtl{list-style:none;margin:0;padding:0;position:relative}
+.sdtl>li{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px;align-items:start}
+.sdtt{font-size:12px;font-weight:800;color:var(--ink);text-align:right;padding-top:2px;white-space:nowrap}
+.sdtt small{display:block;font-weight:600;color:var(--mut);font-size:11px}
+.sdtm{padding:5px 0;font-size:12.5px;color:var(--brand-deep);font-weight:700}
+.sdtm .sdtt{color:var(--brand-deep)}
+.sdtd,.sdtlunch{padding:3px 0;font-size:12px;color:var(--mut)}
+.sdtd .ic{width:13px;height:13px;vertical-align:-2px}
+.sdtlunch{font-style:italic}
+.sdts{padding:2px 0}
+.sdstop{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;padding:8px 10px!important;
+  border-radius:10px!important;border:1px solid var(--line)!important;background:#fff!important;cursor:pointer;
+  transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease}
+@media (hover:hover){ .sdstop:hover{border-color:var(--brand)!important;background:var(--brand-soft)!important} }
+.sdstop:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.sdstop .num{flex:none;width:22px;height:22px;border-radius:50%;color:#fff;font-weight:800;font-size:11.5px;
+  display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
+.sdsb{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.sdsn{font-weight:800;font-size:13.5px;color:var(--ink);overflow-wrap:anywhere}
+.sdsm{font-size:11.5px;color:var(--mut)}
+.sdsi{margin-top:3px;padding:3px 7px;border-left:3px solid var(--brand);background:var(--brand-soft);border-radius:0 6px 6px 0;
+  font-size:11.5px;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.sdchev{flex:none;color:var(--faint);transform:rotate(-90deg);margin-top:3px}
+.sdchev .ic{width:15px;height:15px}
+.sdclientpane{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 18px 18px}
+.sdclientpane[hidden]{display:none}
+.sdback{display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;padding:7px 12px!important;border-radius:999px!important;
+  border:1.5px solid var(--line)!important;background:var(--surface)!important;font-weight:800;font-size:12.5px;color:var(--brand-deep)}
+.sdback .ic{width:15px;height:15px}
+.sdin{animation:sdslide .2s cubic-bezier(0.23,1,0.32,1)}
+@keyframes sdslide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#sddlg #peekdlg.insd{position:relative;display:block;margin:0 auto;width:auto;max-width:720px;max-height:none;
+  border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:16px 18px;box-shadow:none}
+#sddlg #peekdlg.insd:not([open]){display:none}
+body.apple #sddlg #peekdlg.insd::before,body.apple #sddlg #peekdlg.insd::after{display:none}
+body.apple #sddlg #peekdlg.insd #peekbody h3{display:block}
+body.apple #sddlg #peekdlg.insd .pkclose{top:12px;right:12px}
+@media (prefers-reduced-motion: reduce){ #sddlg[open],#sddlg.closing,#sddlg[open]::backdrop,.sdin{animation:none} }
+@media (max-width:767px){
+  #sddlg{width:100vw;height:100vh;height:100dvh;max-width:100vw;max-height:100dvh;margin:0;border-radius:0;border:0}
+  #sddlg[open]{animation:sdup .24s cubic-bezier(0.32,0.72,0,1)}
+  #sddlg.closing{animation:sddown .16s ease-in forwards}
+  .sdhead{padding:12px 10px 10px 14px;padding-top:max(12px, env(safe-area-inset-top))}
+  #sdtitle{font-size:16px}
+  .sdnights{padding:8px 12px 0}
+  .sdbody{grid-template-columns:minmax(0,1fr);gap:10px;padding:10px 12px 18px}
+  .sdside{position:static;order:-1}
+  .sdmap{height:210px;min-height:0}
+  .sdstats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sdclientpane{padding:10px 12px 18px}
+  .sdtl>li{grid-template-columns:54px minmax(0,1fr);gap:8px}
+  .sdsec{padding:11px 12px}
+}
+@keyframes sdup{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes sddown{from{transform:none;opacity:1}to{transform:translateY(24px);opacity:0}}
 .shcsec{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin:11px 0 4px;display:flex;align-items:center;gap:6px}
 .shcsec:after{content:'';flex:1;height:1px;background:var(--line)}
@@ -2404,6 +2546,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 <dialog id="stfdlg">
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
+  <div class="stfnote" id="stfnote"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div id="stftrain"></div>
   <div class="asglist" id="stflist"></div>
@@ -2412,6 +2555,23 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <button type="button" id="stfclear" title="Take everyone off this crew">Clear</button>
     <span class="sp"></span>
     <button type="button" onclick="stfdlg.close()">Done</button></div>
+</dialog>
+<dialog id="sddlg" aria-labelledby="sdtitle" tabindex="-1">
+  <div class="sdhead">
+    <span class="cdot" id="sddot"></span>
+    <div class="sdheadtxt"><b id="sdtitle">Shift</b><div class="sdsub" id="sdsub"></div></div>
+    <button type="button" class="sdicon" id="sdprint" title="Print this crew's run sheet" aria-label="Print run sheet"></button>
+    <button type="button" class="sdicon" id="sdclose" title="Close" aria-label="Close"></button>
+  </div>
+  <div class="sdnights" id="sdnights" role="tablist" aria-label="Nights"></div>
+  <div class="sdbody" id="sdday">
+    <div class="sdmain" id="sdmain"></div>
+    <div class="sdside"><div class="sdmap" id="sdmap" aria-label="Route map"></div></div>
+  </div>
+  <div class="sdclientpane" id="sdclientpane" hidden>
+    <button type="button" class="sdback" id="sdback"></button>
+    <div id="sdclient"></div>
+  </div>
 </dialog>
 <dialog id="teamdlg" aria-labelledby="teamtitle">
   <b id="teamtitle">Teams</b>
@@ -2608,6 +2768,10 @@ const IC={
  // Staff alert (the amber triangle by a client's name) -- see staffAlertOf().
  // Leaf & Ledger app icon set (frontend/src/components/icons.tsx)
  pin:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+ calday:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3.5"/><path d="M8 3v4M16 3v4M3 10h18"/><circle cx="8" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="1" fill="currentColor" stroke="none"/></svg>',
+ back:'<svg class="ic" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M4 12h16m-6-6 6 6-6 6"/></g></svg>',
+ expand:'<svg class="ic" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-7 7M3 14v7h7M3 21l7-7"/></svg>',
+ note:'<svg class="ic" viewBox="0 0 24 24"><path d="M7 3h10a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4H9l-5 3V7a4 4 0 0 1 3-4Z"/><path d="M8 8h8M8 13h5"/></svg>',
  pencil:'<svg class="ic" viewBox="0 0 24 24"><path d="m4 15 12-12c2-2 7 3 5 5L9 20l-6 1ZM14 5l5 5M4 15l5 5"/></svg>',
  arrowUR:'<svg class="ic" viewBox="0 0 24 24"><g transform="rotate(-45 12 12)"><path d="M4 12h16m-6-6 6 6-6 6"/></g></svg>',
  pkg:'<svg class="ic" viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10a2 2 0 0 1-1 2l-7 3-7-3a2 2 0 0 1-1-2ZM4 7l8 4 8-4M12 11v11M8 5l8 4"/></svg>',
@@ -3189,6 +3353,107 @@ function crewName(d){ const k=crewNameKey(d); return (k && crewNames[k]) || ''; 
 function crewTitle(d){ const n=crewName(d), p=crewLabel(d); return n ? `${n} (${p})` : p; }
 /** Dense calendar chips: "C1 Lesly's crew". */
 function crewTitleShort(d){ const n=crewName(d), p=crewLabelShort(d); return n ? `${p} ${n}` : p; }
+// ---------- shift notes ----------
+// "I need a way to make notes for the install day on this page" (user,
+// 2026-10-24, on a Staffing shift card). One note per shift: what the crew
+// needs to know that day ("Meet at the warehouse at 7:30", "Bring the tall
+// ladder"). Written on the Staffing card or in Staff this shift, and shown
+// on the Days view crew card, the crew run sheets, and server-side on the
+// lead pages and the calendar feed (backend app/libs/schedule_board.py).
+//
+// Shared state `shiftNotes` is {shiftKey: {text, by, at}}, keyed by
+// shiftKeyOf() exactly like crewNames: a crew-day's own id, or a Dallas run's
+// key so one note covers the whole week. Training days can have one too.
+// `by` is the signed-in email when the page knows it (else ''), `at` an ISO
+// time. Not the same thing as a client's season "Install notes" (per stop)
+// or the build's day note (d.note); those stay as they are.
+const SHIFT_NOTE_MAX = 2000;
+let shiftNotes = {};
+let ME_EMAIL = '';               // from /api/me, for a note's "by"
+/** PURE. Note text as stored: line endings unified, trailing spaces off each
+ *  line, no more than one blank line in a row, trimmed, capped. */
+function normShiftNoteText(v){
+  return String(v==null?'':v).replace(/\r\n?/g,'\n').split('\n').map(l=>l.replace(/[ \t]+$/,''))
+    .join('\n').replace(/\n{3,}/g,'\n\n').trim().slice(0, SHIFT_NOTE_MAX);
+}
+/** PURE. One saved note as this page keeps it, or null (empty or junk). A
+ *  bare string (hand-edited state) counts as the text. */
+function normShiftNote(v){
+  const o = typeof v==='string' ? {text:v} : v;
+  if(!o || typeof o!=='object' || Array.isArray(o)) return null;
+  const text = normShiftNoteText(typeof o.text==='string' ? o.text : '');
+  if(!text) return null;
+  const by = typeof o.by==='string' ? o.by.trim().slice(0, 120) : '';
+  let at = '';
+  if(typeof o.at==='string' && o.at && !isNaN(Date.parse(o.at))) at = o.at;
+  else if(typeof o.at==='number' && isFinite(o.at)) at = new Date(o.at).toISOString();
+  return {text, by, at};
+}
+/** The shiftNotes key for a crew-day: its shift. */
+function shiftNoteKey(d){ return d && d.crew ? shiftKeyOf(d) : null; }
+/** Saved shiftNotes, normalized, only for shifts on the board (`keys`,
+ *  default: every shift right now). */
+function normShiftNotes(obj, keys){
+  const ok = keys || new Set(days.map(shiftNoteKey).filter(Boolean));
+  const out = {};
+  if(obj && typeof obj==='object' && !Array.isArray(obj))
+    Object.keys(obj).sort().forEach(k=>{
+      const n = normShiftNote(obj[k]);
+      if(n && ok.has(k)) out[k] = n;
+    });
+  return out;
+}
+/** PURE. `notes` with `key`'s note set to `text`, stamped `by` / `at`. An
+ *  empty text removes it; the same text as now changes nothing (so the
+ *  stamp still says who last really changed it). */
+function withShiftNote(notes, key, text, by, at){
+  const out = {...(notes||{})}, t = normShiftNoteText(text);
+  if(!t){ delete out[key]; return out; }
+  if(out[key] && out[key].text===t) return out;
+  out[key] = {text:t, by:String(by||'').trim().slice(0,120), at:at||''};
+  return out;
+}
+/** The note on this crew-day's shift (or a shift key), or null. */
+function shiftNoteOf(dOrKey){
+  const k = typeof dOrKey==='string' ? dOrKey : shiftNoteKey(dOrKey);
+  // A joint shift (jointShiftGroups) keeps its note on each of its crew-days.
+  if(k && k.startsWith('joint|'))
+    return shiftNoteKeysFor(k).map(x=>shiftNotes[x]).find(Boolean) || null;
+  return (k && shiftNotes[k]) || null;
+}
+/** PURE. The shiftNotes keys a card's shift key writes: a joint shift's key
+ *  ('joint|<id>+<id>') is each of its crew-days, so the Days view, run
+ *  sheets, lead pages and calendar feed show the note on every crew. */
+function shiftNoteKeysFor(key){
+  return String(key||'').startsWith('joint|') ? key.slice(6).split('+') : [key];
+}
+/** PURE. "Edited 10/24/2026 8:31 PM" in Central time ('' with no time). */
+function shiftNoteStamp(at){
+  const t = at ? new Date(at) : null;
+  if(!t || isNaN(t)) return '';
+  const p = {};
+  new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago', month:'2-digit', day:'2-digit',
+    year:'numeric', hour:'numeric', minute:'2-digit', hour12:true})
+    .formatToParts(t).forEach(x=>{ p[x.type]=x.value; });
+  return `Edited ${p.month}/${p.day}/${p.year} ${p.hour}:${p.minute} ${String(p.dayPeriod||'').toUpperCase()}`;
+}
+/** Who wrote a note: their roster name when the email is on the roster,
+ *  else the email. */
+function shiftNoteBy(by){
+  if(!by) return '';
+  const e = by.toLowerCase();
+  const p = roster.find(x=>x && x.email && String(x.email).trim().toLowerCase()===e);
+  return p ? p.name : by;
+}
+/** The byline under a note: "Edited 10/24/2026 8:31 PM · Justice". */
+function shiftNoteByline(n){
+  return n ? [shiftNoteStamp(n.at), shiftNoteBy(n.by)].filter(Boolean).join(' · ') : '';
+}
+/** Who may write notes: not archived / view-only / TV, and not a lead or
+ *  production login (they read them). Unknown role (standalone) may. */
+function canEditShiftNotes(){
+  return !READONLY && !VIEWONLY && !TVMODE && (!ME_ROLE || ALERT_EDIT_ROLES.has(ME_ROLE));
+}
 // ---------- Teams (shared state `teams`) ----------
 // "give me a function to create teams, base teams by year that i can edit
 // ... when I hit staff this shift, I can hit Alberto's team, select it, and
@@ -3560,6 +3825,7 @@ try{
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     crewNames = normCrewNames(s.crewNames);
+    shiftNotes = normShiftNotes(s.shiftNotes);
     teams = loadTeams(s.teams);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
@@ -3666,7 +3932,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -3750,9 +4016,12 @@ function mergeShared(base, mine, theirs, label){
                   manualOrder:d=>`Stop order on ${label('day',d)}`,
                   stopPin:r=>`${label('row',r)}: position lock`,
                   lastScheduledFrom:r=>`${label('row',r)}: previous date`,
-                  crewNames:k=>`Crew name for ${label('shift',k)}`};
+                  crewNames:k=>`Crew name for ${label('shift',k)}`,
+                  shiftNotes:k=>`Note for ${label('shift',k)}`};
+  // A note is the same note when its text is: a stamp alone is no edit.
+  const MAP_NORM={placement:sortedIds, shiftNotes:v=>(v && typeof v==='object') ? v.text : v};
   SHARED_MAP_KEYS.forEach(k=>{
-    if(any(k)) out[k]=mapMerge(base[k], mine[k], theirs[k], MAP_WHAT[k], k==='placement' ? sortedIds : null);
+    if(any(k)) out[k]=mapMerge(base[k], mine[k], theirs[k], MAP_WHAT[k], MAP_NORM[k]||null);
   });
   // The change log: theirs, then what I logged since my base.
   const seenMove=new Set([...(base.moves||[]), ...(theirs.moves||[])].map(stableJSON));
@@ -3942,7 +4211,7 @@ function snapshot(){
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
-          roster, staffing, teams, crewNames, savedAt:Date.now()};
+          shiftNotes, roster, staffing, teams, crewNames, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -4527,6 +4796,9 @@ function loadMeRole(){
   authFetch('/api/me', {headers:{Authorization:AUTH}})
     .then(r=>r.ok?r.json():null).then(m=>{
       ME_ROLE=(m && m.role) || '';
+      ME_EMAIL=(m && typeof m.email==='string' && m.email) || '';
+      // Lead / production logins read shift notes but don't edit them.
+      if(ME_ROLE && !ALERT_EDIT_ROLES.has(ME_ROLE) && (viewMode==='staff' || viewMode==='days')) render();
       // The roster card was drawn before the role was known; add the
       // contractor section now that it is.
       if(canSeeContractor() && viewMode==='staff') renderStaffing();
@@ -4799,7 +5071,7 @@ function conflictLabel(kind, key){
     return /^\d{4}-\d{2}-\d{2}$/.test(date) ? fmtMDYYYY(date)+(d?' '+crewLabel(d):'') : String(key);
   }
   if(kind==='shift'){
-    const d=days.find(x=>crewNameKey(x)===key);
+    const d=days.find(x=>shiftNoteKey(x)===key);
     return d ? fmtMDYYYY(d.date)+' '+crewLabel(d) : String(key);
   }
   return String(key);
@@ -5078,6 +5350,7 @@ async function restoreHistoryEntry(entryId, btn){
     comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     crewNames = normCrewNames(st.crewNames);
+    shiftNotes = normShiftNotes(st.shiftNotes);
     teams = loadTeams(st.teams);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
@@ -5103,7 +5376,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing, teams, crewNames});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, shiftNotes, roster, staffing, teams, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -5125,6 +5398,7 @@ function restoreBlob(blob){
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
   crewNames = normCrewNames(s.crewNames);
+  shiftNotes = normShiftNotes(s.shiftNotes);
   teams = loadTeams(s.teams);
   return missing;
 }
@@ -6677,6 +6951,9 @@ document.addEventListener('click', e=>{
 document.addEventListener('mousedown', e=>{
   document.querySelectorAll('dialog[open]').forEach(dlg=>{
     if(dlg.classList.contains('inline') && e.target.closest && e.target.closest('#map')) return;
+    // The shift detail panel: a dialog opened over it (Edit crew, Reschedule)
+    // is not a click outside it. Its own backdrop click closes it (sddlg).
+    if(dlg.id==='sddlg') return;
     // The staff-alert card and its icons float above the list; using them
     // is not a click "outside" the open stop.
     if(e.target.closest && e.target.closest('#salertpop, .salert')) return;
@@ -6937,6 +7214,7 @@ function moveWholeDay(dayId, toDate){
   const wasManual = manualOrder[dayId];
   const wasStaffed = staffing[dayId];
   const nameKey = crewNameKey(src), wasNamed = nameKey===dayId ? crewNames[dayId] : '';
+  const wasNote = shiftNoteKey(src)===dayId ? shiftNotes[dayId] : null;
   order.forEach(r=>applyMove(r, toId, false));
   // Carry the day's own settings across, so a hand-ordered run and its
   // crew don't silently reset just because the date changed.
@@ -6954,6 +7232,13 @@ function moveWholeDay(dayId, toDate){
     const to = days.find(d=>d.id===toId), toKey = to && crewNameKey(to);
     if(toKey && !crewNames[toKey]) crewNames = withCrewName(crewNames, toKey, wasNamed);
     crewNames = withCrewName(crewNames, dayId, '');
+  }
+  // So does its shift note (same rule: a Dallas week keeps its own).
+  if(wasNote){
+    const to = days.find(d=>d.id===toId), toKey = to && shiftNoteKey(to);
+    const nx = {...shiftNotes}; delete nx[dayId];
+    if(toKey && !nx[toKey]) nx[toKey] = wasNote;
+    shiftNotes = nx;
   }
   manualOrder[toId] = wasManual ? [...wasManual] : order;
   if(wasManual) delete manualOrder[dayId];
@@ -7592,7 +7877,10 @@ function buildDayCard(d){
           + `title="Click to staff this shift`
           + `${sh&&sh.dallas?' (the whole Dallas week)':''}">`
           + `${IC.users}${coverageLabel(cv)}`
-          + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}`;
+          + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}
+  ${dayNoteLineHTML(d)}`;
+  { const nl=card.querySelector('.cshnote');
+    if(nl) nl.onclick=e=>{ e.stopPropagation(); if(canEditShiftNotes()) openStaffDlg(d.id); }; }
   card.querySelector('.printbtn').onclick=(e)=>{
     e.stopPropagation();
     printManifests([d], `${crewTitle(d)} — ${fmtMDYYYY(d.date)}`);
@@ -10617,11 +10905,22 @@ function openStopPeek(row,dayId){
   // On the Days list the details drop down right under the stop's row
   // (user, 2026-09-29); everywhere else (calendar, staffing, search) they
   // stay a pop-up.
-  const rowEl = (viewMode==='days' && dayId!=null)
+  // From the shift detail panel the client opens inside the panel, with a
+  // Back to the day button (sdShowClient); "Open day" is not needed there.
+  const sdHost = sdPeekHost();
+  const rowEl = (!sdHost && viewMode==='days' && dayId!=null)
     ? document.querySelector(`#side .card[data-dayid="${CSS.escape(dayId)}"] .stop[data-row="${row}"]`) : null;
   peekdlg.classList.remove('inspector');
-  peekdlg.classList.toggle('inline', !!rowEl);
-  if(rowEl){
+  peekdlg.classList.toggle('inline', !!rowEl || !!sdHost);
+  peekdlg.classList.toggle('insd', !!sdHost);
+  if(sdHost){
+    openBtn.hidden=true;
+    sdShowClient(row);
+    sdHost.appendChild(peekdlg); peekdlg.show();
+    if(peekdlg.contains(document.activeElement)) document.activeElement.blur();
+    document.getElementById('sdclientpane').scrollTop=0;
+  }
+  else if(rowEl){
     const sc=document.getElementById('side'), top=sc.scrollTop;
     rowEl.after(peekdlg); peekdlg.show();
     // show() focuses the first control inside, which can scroll the list.
@@ -10644,6 +10943,8 @@ var pkClosedRow=null, pkClosedAt=0, pkDayId=null;
 function afterPeekClose(){
   if(peekdlg.open) return;          // reopened meanwhile -- leave it be
   markPeekRow(null);
+  peekdlg.classList.remove('insd');
+  if(sd && sd.client!=null) sdBackToDay();
   // Park the dialog back on <body> so a re-render of the list can't take it with it.
   if(peekdlg.parentNode!==document.body) document.body.appendChild(peekdlg);
   peekdlg.classList.remove('inline');
@@ -11205,6 +11506,10 @@ function drawStaffDlg(){
   undoBtn.disabled=READONLY || !stfUndoN;
   undoBtn.innerHTML=`${IC.undo} Undo${stfUndoN>1?` <span class="n">(${stfUndoN})</span>`:''}`;
   undoBtn.onclick=stfUndo;
+  const noteBox=document.getElementById('stfnote');
+  if(noteBox && !(document.activeElement && document.activeElement.id==='stfnoteta')){
+    noteBox.innerHTML=stfNoteHTML(sh); wireStfNote(sh);
+  }
   const clearBtn=document.getElementById('stfclear');
   clearBtn.disabled=READONLY || !shiftAssigned(sh).size;
   clearBtn.onclick=()=>stfClear(sh);
@@ -11614,7 +11919,7 @@ function personDetailHTML(){
   if(clash.length) h+=`<div class="cvchip bad" style="display:block;margin-bottom:10px;padding:6px 9px">
       Double-booked ${clash.map(c=>fmtMDYYYY(c.date)+' ('+c.crews.join(' + ')+')').join(', ')}</div>`;
   h+= sh.length
-    ? sh.map(x=>`<div class="stfshift" data-goday="${x.days[0].id}">
+    ? sh.map(x=>`<div class="stfshift" data-goday="${x.days[0].id}" role="button" tabindex="0" title="Open this day in the schedule">
         <span class="sdot" style="background:${CREW_COLORS[x.crew]||'#555'}"></span>
         <span><span class="sd">${esc(x.when)} · ${esc(x.label)}</span>
         <span class="sj">${(x.joint?x.days.slice(0,1):x.days).flatMap(d=>d.stops.map(r=>
@@ -11666,13 +11971,7 @@ function shiftCardHTML(sh){
       ? `<div class="shcjoint">Saved on ${esc(sh.days.filter(x=>(staffing[x.id]||[]).length).map(crewLabel).join(' + '))} only so far.`
         + syncBtn(`Put them on ${esc(bare.join(' + '))} too`) + `</div>` : '')
     + notes.map(t=>`<div class="shcjoint">${IC.link} ${esc(t)}</div>`).join('');
-  const crew=cv.who.length
-    ? `<div class="shcrew">${cv.who.slice().sort((a,b)=>
-         TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
-        .map(pn=>`<span class="shcp ${TITLE_CLS[pn.title]}">${esc(pn.name)}`
-          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':pn.title==='Designer'?' · designer':''}</span>`)
-        .join('')}</div>`
-    : `<div class="shcempty">No one assigned yet.</div>`;
+  const crew=shiftCrewHTML(cv);
   return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
     <div class="shchead">
       <span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>
@@ -11684,9 +11983,401 @@ function shiftCardHTML(sh){
     ${extra}${jobs}
     <div class="shcsec">Crew${cv.who.length?' ('+cv.who.length+')':''}</div>
     ${crew}
-    <button class="shcbtn" data-staff="${esc(sh.key)}">${
-      cv.who.length?'Edit crew':'Staff this shift'}</button>
+    ${shiftNoteCardHTML(sh)}
+    <div class="shcfoot">
+      <button class="shcbtn" data-staff="${esc(sh.key)}">${
+        cv.who.length?'Edit crew':'Staff this shift'}</button>
+      <button type="button" class="shcopen" data-openday="${esc(sh.days[0].id)}"
+        title="Open this crew's day in the schedule${sh.days.length>1?' (first night)':''}">${IC.calday}<span>Open day</span></button>
+      <button type="button" class="shcdet" data-shdetail="${esc(sh.key)}"
+        title="Everything about this shift: times, drives, map, crew and clients (or double-click the card)">Details</button>
+    </div>
   </div>`;
+}
+/** The crew chips (lead first), or "No one assigned yet". */
+function shiftCrewHTML(cv){
+  return cv.who.length
+    ? `<div class="shcrew">${cv.who.slice().sort((a,b)=>
+         TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
+        .map(pn=>`<span class="shcp ${TITLE_CLS[pn.title]}">${esc(pn.name)}`
+          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':pn.title==='Designer'?' · designer':''}</span>`)
+        .join('')}</div>`
+    : `<div class="shcempty">No one assigned yet.</div>`;
+}
+/** Jump from Staffing to this crew-day on the Days view: its date picked
+ *  and its crew focused, as if the date and the crew header were clicked
+ *  ("so when I'm staffing, I can quickly edit the schedule", user,
+ *  2026-10-24). The host app follows the view in its URL, so Back returns
+ *  to Staffing. */
+function openDayInSchedule(dayId){
+  const d=days.find(x=>x.id===dayId); if(!d) return;
+  if(sddlg.open) sddlg.closeNow();
+  if(stfdlg.open) stfdlg.close();
+  selDate=d.date; focusDayId=d.id;
+  daysScrollKeep=null;   // go to that date, not back to where the list was left
+  setView('days');
+  // Bring that crew's card up (another crew may come first on that date).
+  requestAnimationFrame(()=>{
+    const c=side.querySelector(`.card[data-dayid="${CSS.escape(d.id)}"]`);
+    if(!c) return;
+    // The phone list's date headings stick to the top: clear them.
+    const head=[...side.querySelectorAll('.ovdate')].find(h=>getComputedStyle(h).position==='sticky');
+    const pad=head ? head.offsetHeight+8 : 8;
+    side.scrollTop=Math.max(0, c.getBoundingClientRect().top-side.getBoundingClientRect().top+side.scrollTop-pad);
+    if(typeof phoneSpy==='function') phoneSpy();
+  });
+}
+/** A Staffing card's Notes section: the note (tap to edit), or "Add note"
+ *  when there is none. Read-only views see the note and nothing to edit,
+ *  and no section at all when there is no note. */
+function shiftNoteCardHTML(sh){
+  const n=shiftNoteOf(sh.key), can=canEditShiftNotes();
+  if(!n && !can) return '';
+  let h=`<div class="shcsec">Notes</div>`;
+  if(!n) return h+`<button type="button" class="shnadd" data-shnoteadd="${esc(sh.key)}">${IC.note}Add note</button>`;
+  const by=shiftNoteByline(n);
+  return h+`<div class="shnote${can?' can':''}" data-shnote="${esc(sh.key)}"`
+    + (can ? ` role="button" tabindex="0" title="Click to edit this note" aria-label="Note for this shift. Edit note"` : '')
+    + `><div class="shntext">${esc(n.text)}</div>`
+    + (by ? `<div class="shnby">${esc(by)}</div>` : '') + `</div>`;
+}
+/** Grow a note box to fit its text (no inner scrollbar). */
+function autosizeNote(ta){
+  ta.style.height='auto';
+  ta.style.height=Math.min(ta.scrollHeight+2, 480)+'px';
+}
+/** Swap a card's note (or its "Add note") for a text box. Leaving the box or
+ *  Cmd/Ctrl+Enter saves, Esc cancels, and an empty box removes the note. */
+// A redraw while a note is being typed (a route finishing, someone else's
+// save merging in) would throw the box away: the draft is kept here and the
+// box comes back after the redraw (renderStaffing), cursor at the end.
+let shiftNoteDraft = null;   // {key, text} while a card's note box is open
+let shiftNoteRedraw = false; // true while renderStaffing takes the box away
+function startShiftNoteEdit(key, draft){
+  if(roBlocked() || !canEditShiftNotes()) return;
+  const el=[...document.querySelectorAll('[data-shnote],[data-shnoteadd]')]
+    .find(x=>(x.dataset.shnote||x.dataset.shnoteadd)===key);
+  if(!el) return;
+  const n=shiftNoteOf(key), sh=shiftFor(key);
+  const ta=document.createElement('textarea');
+  ta.className='shnin'; ta.rows=2; ta.maxLength=SHIFT_NOTE_MAX;
+  ta.value=draft!=null ? draft : (n ? n.text : '');
+  ta.placeholder='Notes for the crew this day';
+  ta.setAttribute('aria-label', `Note for ${sh ? sh.label : 'this shift'}. Leave empty to remove it.`);
+  const hint=document.createElement('div');
+  hint.className='shnhint'; hint.textContent='Saves when you click away. Esc cancels.';
+  el.replaceWith(ta);
+  ta.after(hint);
+  autosizeNote(ta);
+  ta.focus(draft!=null ? {preventScroll:true} : undefined);
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  shiftNoteDraft={key, text:ta.value};
+  let done=false;
+  const finish=save=>{
+    if(done) return; done=true;
+    shiftNoteDraft=null;
+    if(!save || !setShiftNote(key, ta.value)) render();
+  };
+  ta.oninput=()=>{ autosizeNote(ta); shiftNoteDraft={key, text:ta.value}; };
+  ta.onkeydown=e=>{
+    e.stopPropagation();
+    if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); finish(true); }
+    else if(e.key==='Escape'){ e.preventDefault(); finish(false); }
+  };
+  // Taken out by a redraw rather than left by the user: keep the draft.
+  ta.onblur=()=>{ if(ta.isConnected && !shiftNoteRedraw) finish(true); else done=true; };
+  ['click','dblclick','pointerdown','pointerup'].forEach(t=>ta.addEventListener(t, e=>e.stopPropagation()));
+}
+/** Save one shift note (shared, undoable). False when nothing changed. */
+function setShiftNote(key, text){
+  if(roBlocked() || !canEditShiftNotes()) return false;
+  const at=new Date().toISOString();
+  const next=shiftNoteKeysFor(key).reduce((m,k)=>withShiftNote(m, k, text, ME_EMAIL, at), shiftNotes);
+  if(stableJSON(next)===stableJSON(shiftNotes)) return false;
+  pushUndo();
+  shiftNotes=next;
+  persist(); render();
+  return true;
+}
+/** A shift's Notes field (Staff this shift, the shift detail panel): a text
+ *  box for editors, the note as text for read-only views. `pre` keeps the
+ *  ids apart ("stf" -> #stfnoteta, #stfnoteby). Same note as the card's. */
+function shiftNoteFieldHTML(sh, pre){
+  const n=shiftNoteOf(sh.key), by=shiftNoteByline(n);
+  if(!canEditShiftNotes())
+    return `<div class="stfnotelbl">Notes for this day</div>`
+      + (n ? `<div class="shnote"><div class="shntext">${esc(n.text)}</div>${by?`<div class="shnby">${esc(by)}</div>`:''}</div>`
+           : `<div class="shcempty">No notes for this day.</div>`);
+  return `<label class="stfnotelbl" for="${pre}noteta">Notes for this day</label>`
+    + `<textarea id="${pre}noteta" class="shnin" rows="2" maxlength="${SHIFT_NOTE_MAX}"`
+    + ` placeholder="Anything the crew should know (start time, gate code, what to bring)">${esc(n ? n.text : '')}</textarea>`
+    + `<div class="shnby" id="${pre}noteby">${esc(by)}</div>`;
+}
+function stfNoteHTML(sh){ return shiftNoteFieldHTML(sh, 'stf'); }
+function wireStfNote(sh){
+  wireShiftNoteField(sh, 'stf', fn=>stfTrack(fn), ()=>{
+    const u=document.getElementById('stfundo');
+    if(u){ stfUndoN=stfUndoLeft(stfUndoN, undoStack.length); u.disabled=READONLY || !stfUndoN;
+      u.innerHTML=`${IC.undo} Undo${stfUndoN>1?` <span class="n">(${stfUndoN})</span>`:''}`; }
+  });
+}
+/** Wire a shiftNoteFieldHTML box: leaving it or Cmd/Ctrl+Enter saves; the
+ *  first Esc puts the note back (the next one closes the window). */
+function wireShiftNoteField(sh, pre, track, after){
+  const ta=document.getElementById(pre+'noteta'); if(!ta) return;
+  autosizeNote(ta);
+  const key=sh.key;
+  let start=ta.value;
+  const save=()=>{
+    if(ta.value===start) return;
+    (track||(fn=>fn()))(()=>setShiftNote(key, ta.value));
+    start=ta.value;
+    const by=document.getElementById(pre+'noteby');
+    if(by) by.textContent=shiftNoteByline(shiftNoteOf(key));
+    if(after) after();
+  };
+  ta.oninput=()=>autosizeNote(ta);
+  ta.onblur=save;
+  ta.onkeydown=e=>{
+    if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); save(); ta.blur(); }
+    else if(e.key==='Escape' && ta.value!==start){
+      // First Esc puts the note back; the next one closes the window.
+      e.preventDefault(); e.stopPropagation(); ta.value=start; autosizeNote(ta);
+    }
+  };
+}
+/** The Days view crew card's note line (full text on hover). '' with none. */
+function dayNoteLineHTML(d){
+  const n=shiftNoteOf(d); if(!n) return '';
+  const by=shiftNoteByline(n);
+  return `<div class="cshnote${canEditShiftNotes()?' can':''}" title="${esc(n.text+(by?'\n'+by:''))}">`
+    + `${IC.note}<span class="cshntext">${esc(n.text)}</span></div>`;
+}
+// ---------- shift detail panel ----------
+// "I want to be able to double click on this crew, on this staffing shift,
+// and it open up in detail what I can see on the install schedule. It should
+// give me a place to make notes, a place to understand how the drive times in
+// between each place is, etc. Should give me an opportunity to click into the
+// client pages staying in this window." (user, 2026-10-24)
+//
+// A large dialog over Staffing (no navigation): the shift's header, its
+// notes, the day's timeline (roll-out, each stop's arrive / done times and
+// hours, the drive and miles between stops, lunch, back at the branch), the
+// route map, and the crew. A stop opens that client's stop card INSIDE the
+// panel (the same openStopPeek the Days view uses) with a Back to the day
+// button. A Dallas week gets one tab per night. Everything is read from the
+// same functions the Days view and run sheet use (dayCalc, stopTimes, leg,
+// routeGeom, shiftCoverage), so the numbers always agree.
+var sd = null;                    // {key, night, client} while the panel is open
+var cardTap = {key:null, t:0};    // double tap on a Staffing card
+var sdMap = null, sdLayer = null;
+/** Clicks on these parts of a card do their own thing, never open the panel. */
+function cardTapIgnored(t){
+  return !!(t && t.closest && t.closest('button, a, input, textarea, select, label, .crewnm, .shnote, .shnin, .shnadd'));
+}
+/** PURE. The day's timeline as rows, from times in minutes after midnight
+ *  (past 1440 is the next morning):
+ *  t = {anchored, night, arrive, start, finish, lunchMin,
+ *       stops:[{row, name, start, end}], legs:[{min, mi}]}
+ *  `legs` are the drives in order: branch to the first stop (anchored days
+ *  only), between stops, and the last stop back to the branch (anchored).
+ *  Rows: {kind:'mark', label, t} | {kind:'drive', min, mi, to} |
+ *        {kind:'stop', n, row, name, start, end, hours} | {kind:'lunch', min}. */
+function timelineRows(t){
+  const rows=[], stops=t.stops||[], legs=t.legs||[];
+  if(t.anchored){
+    if(t.arrive!=null) rows.push({kind:'mark', label:'Arrive at the branch', t:t.arrive});
+    rows.push({kind:'mark', label:'Roll out from the branch', t:t.start});
+  } else rows.push({kind:'mark', label:t.night?'Night shift starts':'Shift starts', t:t.start});
+  let li=0;
+  stops.forEach((x,i)=>{
+    if(i>0 || t.anchored){
+      const L=legs[li++]||{};
+      rows.push({kind:'drive', min:L.min==null?null:Math.round(L.min), mi:L.mi==null?null:L.mi, to:x.name});
+    }
+    rows.push({kind:'stop', n:i+1, row:x.row, name:x.name, start:x.start, end:x.end, hours:(x.end-x.start)/60});
+  });
+  if(stops.length){
+    if(t.lunchMin) rows.push({kind:'lunch', min:t.lunchMin});
+    if(t.anchored){
+      const L=legs[li]||{};
+      rows.push({kind:'drive', min:L.min==null?null:Math.round(L.min), mi:L.mi==null?null:L.mi, to:'the branch'});
+      rows.push({kind:'mark', label:'Back at the branch', t:t.finish});
+    } else rows.push({kind:'mark', label:'Last stop done', t:stops[stops.length-1].end});
+  }
+  return rows;
+}
+/** The timeline inputs for one crew-day, from the Days view's own numbers. */
+function dayTimeline(d){
+  const calc=dayCalc(d), ts=stopTimes(d), rg=routeGeom(d);
+  const anchored=d.anchored!==false, start=shiftStart(d);
+  const order=ts.map(x=>x.row), legs=[];
+  const mi=i=>rg.pending ? null : (rg.legMi && rg.legMi[i]!=null ? rg.legMi[i] : null);
+  if(anchored && order.length) legs.push({min:leg(0,N[order[0]])/60});
+  for(let i=0;i+1<order.length;i++) legs.push({min:leg(N[order[i]],N[order[i+1]])/60});
+  if(anchored && order.length) legs.push({min:leg(N[order[order.length-1]],0)/60});
+  legs.forEach((L,i)=>{ L.mi=mi(i); });
+  return {anchored, night:d.win===K.NIGHT, start, arrive:anchored && start===DEPART_MIN ? ARRIVE_MIN : null,
+    finish:start+calc.total, lunchMin:(d.lunchMin??LUNCH)||0, legs, calc, rg,
+    stops:ts.map(x=>({row:x.row, name:String(C[x.row].name||'').split('|')[0].trim(), start:x.start, end:x.end}))};
+}
+/** A clock time, saying so when it rolls past midnight. */
+function sdClock(m){ return esc(fmtClock(m))+(m>=1440?'<small>next day</small>':''); }
+function sdTimelineHTML(d, info){
+  const rows=timelineRows(info);
+  if(!info.stops.length) return `<div class="shcempty">No jobs on this day.</div>`;
+  return `<ol class="sdtl">`+rows.map(r=>{
+    if(r.kind==='mark') return `<li class="sdtm"><span class="sdtt">${sdClock(r.t)}</span><span class="sdtl-l">${esc(r.label)}</span></li>`;
+    if(r.kind==='lunch') return `<li class="sdtlunch"><span class="sdtt"></span><span>Lunch, ${r.min} min (fit in between stops; the times above leave it out)</span></li>`;
+    if(r.kind==='drive') return `<li class="sdtd"><span class="sdtt"></span><span>${IC.truck} `
+      + `${r.min==null?'drive':r.min+' min'}${info.rg.pending?' · …mi':r.mi!=null?` · ${r.mi.toFixed(1)} mi`:''}`
+      + ` to ${esc(r.to)}</span></li>`;
+    const c=C[r.row]||{}, inst=installNoteFor(r.row);
+    return `<li class="sdts"><span class="sdtt">${esc(fmtClock(r.start))}<small>${esc(fmtClock(r.end))}</small></span>`
+      + `<button type="button" class="sdstop" data-sdrow="${r.row}" title="Open ${esc(r.name)}">`
+      + `<span class="num" style="background:${CREW_COLORS[d.crew]||'#555'}">${r.n}</span>`
+      + `<span class="sdsb"><span class="sdsn">${esc(r.name)}${alertIconHTML(r.row,{static:true})}${hold.has(r.row)?' <span class="badge hold">on hold</span>':''}</span>`
+      + `<span class="sdsm">${esc([c.zone, `${r.hours.toFixed(2)}h`, c.boxes?`${c.boxes} boxes`:''].filter(Boolean).join(' · '))}</span>`
+      + (inst ? `<span class="sdsi">${esc(inst.text)}</span>` : '')
+      + `</span><span class="sdchev">${IC.chev}</span></button></li>`;
+  }).join('')+`</ol>`;
+}
+function openShiftDetail(key, night){
+  const sh=shiftFor(key); if(!sh) return;
+  if(peekdlg.open) (peekdlg.closeNow||peekdlg.close).call(peekdlg);
+  sd={key, night:night||0, client:null};
+  sddlg.classList.remove('closing');
+  document.getElementById('sdclose').innerHTML=IC.close;
+  document.getElementById('sdprint').innerHTML=IC.print;
+  document.getElementById('sdback').innerHTML=`${IC.back}<span>Back to the day</span>`;
+  sdBackToDay(true);
+  sddlg.showModal();
+  sddlg.focus();          // not the first button: no stray focus ring on open
+  sdDraw();
+  document.getElementById('sdday').scrollTop=0;
+  // The map measures itself once the panel has its size.
+  setTimeout(()=>{ if(sdMap){ sdMap.invalidateSize(); sdDrawMap(); } }, pkReduced()?0:200);
+}
+/** Redraw after any change on the page (render() calls this). */
+function sdRefresh(){
+  if(!sd || typeof sddlg==='undefined' || !sddlg.open) return;
+  sdDraw();
+}
+function sdDraw(){
+  const sh=shiftFor(sd.key);
+  if(!sh){ sddlg.closeNow(); return; }
+  sd.night=Math.max(0, Math.min(sd.night, sh.days.length-1));
+  const d=sh.days[sd.night], cv=shiftCoverage(sh);
+  const leads=cv.who.filter(p=>p.title==='Lead').map(p=>p.name);
+  document.getElementById('sddot').style.background=CREW_COLORS[sh.crew]||'#555';
+  document.getElementById('sdtitle').textContent=sh.label;
+  document.getElementById('sdsub').innerHTML=`<span>${esc(sh.when)}</span>`
+    + `<span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>`
+    + `<span>${leads.length?`Lead: ${esc(leads.join(', '))}`:'No lead yet'}</span>`;
+  document.getElementById('sdprint').onclick=()=>printManifests(sh.days.filter(x=>x.stops.length),
+    `${crewTitle(d)} ${fmtMDYYYY(sh.days[0].date)}`);
+  // One tab per night of a Dallas week.
+  const nights=document.getElementById('sdnights');
+  nights.hidden = sh.days.length<2 || sd.client!=null;
+  nights.innerHTML = sh.days.length<2 ? '' : sh.days.map((x,i)=>
+    `<button type="button" role="tab" class="sdnight${i===sd.night?' sel':''}" data-sdnight="${i}" aria-selected="${i===sd.night}">`
+    + `${DOW3[dateOf(x.date).getDay()]} ${fmtMDYYYY(x.date).slice(0,5)}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
+  nights.querySelectorAll('[data-sdnight]').forEach(b=>b.onclick=()=>{ sd.night=+b.dataset.sdnight; sdDraw(); });
+  // A note being typed is left alone; it redraws when it saves.
+  const ae=document.activeElement;
+  if(ae && ae.id==='sdnoteta') { sdDrawMap(); return; }
+  const info=dayTimeline(d), calc=info.calc;
+  const main=document.getElementById('sdmain');
+  main.innerHTML=
+    `<div class="sdsec">${shiftNoteFieldHTML(sh, 'sd')}</div>`
+    + `<div class="sdsec"><div class="sdh">${sh.days.length>1?`${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}`:'The day'}`
+    + `<button type="button" class="sdlink" id="sdopenday">${IC.calday}<span>Open in schedule</span></button></div>`
+    + `<div class="sdstats"><div><b>${esc(fmtClock(info.start))}</b><span>${info.anchored?'roll out':'start'}</span></div>`
+    + `<div><b>${esc(fmtClock(info.anchored?info.finish:(info.stops.length?info.stops[info.stops.length-1].end:info.start)))}</b><span>${info.anchored?'back ≈':'done ≈'}</span></div>`
+    + `<div><b>${calc.inst.toFixed(1)}h</b><span>install</span></div>`
+    + `<div><b>${fmtH(calc.drive)}</b><span>drive · ${esc(miTxt(info.rg.mi, info.rg.pending))}</span></div>`
+    + `<div><b>${fmtH(calc.total)}</b><span>day of ${((d.win||600)/60).toFixed(d.win%60?1:0)}h</span></div></div>`
+    + sdTimelineHTML(d, info) + `</div>`
+    + `<div class="sdsec"><div class="sdh">Crew${cv.who.length?' ('+cv.who.length+')':''}`
+    + (READONLY ? '' : `<button type="button" class="sdlink" id="sdstaff">${IC.users}<span>${cv.who.length?'Edit crew':'Staff this shift'}</span></button>`)
+    + `</div>${shiftCrewHTML(cv)}</div>`;
+  wireShiftNoteField(sh, 'sd');
+  main.querySelectorAll('[data-sdrow]').forEach(b=>b.onclick=()=>openStopPeek(+b.dataset.sdrow, d.id));
+  const st=document.getElementById('sdstaff'); if(st) st.onclick=()=>openStaffDlg(sh.key);
+  document.getElementById('sdopenday').onclick=()=>openDayInSchedule(d.id);
+  sdDrawMap();
+}
+function sdDrawMap(){
+  if(!sd) return;
+  const sh=shiftFor(sd.key); if(!sh) return;
+  const d=sh.days[sd.night]||sh.days[0];
+  const el=document.getElementById('sdmap');
+  if(!sdMap){
+    sdMap=L.map(el,{zoomSnap:.5, attributionControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(sdMap);
+    sdLayer=L.layerGroup().addTo(sdMap);
+  }
+  sdLayer.clearLayers();
+  const bounds=[];
+  addDayRouteLayers(sdLayer, sh, d, bounds, r=>openStopPeek(r, d.id));
+  if(d.anchored) sdLayer.addLayer(L.marker([DATA.depot.lat,DATA.depot.lon],{icon:depotIcon,zIndexOffset:1000}));
+  sdMap.invalidateSize();
+  if(bounds.length>1) sdMap.fitBounds(bounds,{padding:[28,28]});
+  else if(bounds.length===1) sdMap.setView(bounds[0],12);
+}
+/** Show a client inside the panel (openStopPeek puts its card in #sdclient). */
+function sdShowClient(row){
+  if(!sd) return;
+  sd.client=row;
+  document.getElementById('sdday').hidden=true;
+  document.getElementById('sdnights').hidden=true;
+  const pane=document.getElementById('sdclientpane');
+  pane.hidden=false;
+  pane.classList.remove('sdin'); void pane.offsetWidth; pane.classList.add('sdin');
+}
+function sdBackToDay(quiet){
+  if(sd) sd.client=null;
+  if(peekdlg.open && peekdlg.closest('#sddlg')) (peekdlg.closeNow||peekdlg.close).call(peekdlg);
+  document.getElementById('sdclientpane').hidden=true;
+  const day=document.getElementById('sdday');
+  day.hidden=false;
+  if(quiet || !sd) return;
+  day.classList.remove('sdin'); void day.offsetWidth; day.classList.add('sdin');
+  sdDraw();
+  if(sdMap) setTimeout(()=>sdMap.invalidateSize(), 0);
+}
+// Close: X, Esc (a client open inside goes back to the day first), or a
+// click on the backdrop. Quick fade like Staff this shift.
+{ const nativeClose=sddlg.close.bind(sddlg);
+  const done=()=>{
+    if(peekdlg.open && peekdlg.closest('#sddlg')) (peekdlg.closeNow||peekdlg.close).call(peekdlg);
+    sd=null;
+  };
+  sddlg.closeNow=function(v){ sddlg.classList.remove('closing'); if(sddlg.open){ nativeClose(v); } done(); };
+  sddlg.close=function(v){
+    if(!sddlg.open || sddlg.classList.contains('closing')) return;
+    const a=document.activeElement;
+    if(a && a.id==='sdnoteta') a.blur();          // saves the note first
+    if(pkReduced()) return sddlg.closeNow(v);
+    sddlg.classList.add('closing');
+    let fin=false;
+    const end=()=>{ if(fin) return; fin=true; sddlg.closeNow(v); };
+    sddlg.addEventListener('animationend', function h(e){
+      if(e.target!==sddlg) return; sddlg.removeEventListener('animationend', h); end(); });
+    setTimeout(end, 220);
+  };
+  sddlg.addEventListener('cancel', e=>{
+    e.preventDefault();
+    if(sd && sd.client!=null){ if(peekdlg.open) peekdlg.close(); else sdBackToDay(); return; }
+    sddlg.close();
+  });
+  sddlg.addEventListener('click', e=>{ if(e.target===sddlg) sddlg.close(); });
+  document.getElementById('sdclose').onclick=()=>sddlg.close();
+  document.getElementById('sdback').onclick=()=>{ if(peekdlg.open) peekdlg.close(); else sdBackToDay(); };
+}
+/** Where a stop card opens: inside the panel while it is up, else null. */
+function sdPeekHost(){
+  return (sd && typeof sddlg!=='undefined' && sddlg.open) ? document.getElementById('sdclient') : null;
 }
 /** The crew part of a Staffing card's title. Only this is editable (double-
  *  click, double-tap or the pencil); the "Dallas week" / "night" part beside
@@ -11836,26 +12527,7 @@ function shiftMapDraw(date){
   const key = shFocus[date];
   const shown = key ? all.filter(sh=>sh.key===key) : all;
   const bounds = [];
-  shown.forEach(sh=>{
-    const col = CREW_COLORS[sh.crew]||'#555';
-    sh.days.forEach(d=>{
-      const rg = routeGeom(d);
-      if(rg.pts.length>1)
-        layer.addLayer(L.polyline(rg.pts,{color:col,weight:rg.real?3:2.5,opacity:.65,
-          dashArray:rg.real?null:'6 6'}));
-      const order = dayCalc(d).order.length?dayCalc(d).order:d.stops;
-      order.forEach((r,i)=>{
-        const c=C[r]; if(c.lat==null||c.lon==null) return;
-        bounds.push([c.lat,c.lon]);
-        layer.addLayer(L.circleMarker([c.lat,c.lon],
-          {radius:7,color:'#222',weight:1.5,fillColor:col,fillOpacity:.95})
-          .bindTooltip(`<b>${i+1}. ${c.name}</b><br>${esc(sh.label)}`
-            + `${sh.days.length>1?'<br>'+fmtMDYYYY(d.date):''}`,
-            {direction:'top',offset:[0,-8]}));
-      });
-      if(d.anchored) bounds.push([DATA.depot.lat,DATA.depot.lon]);
-    });
-  });
+  shown.forEach(sh=>sh.days.forEach(d=>addDayRouteLayers(layer, sh, d, bounds)));
   m.invalidateSize();
   if(bounds.length>1) m.fitBounds(bounds,{padding:[28,28]});
   else if(bounds.length===1) m.setView(bounds[0],12);
@@ -11871,6 +12543,29 @@ function shiftMapDraw(date){
     const btn=hd.querySelector('[data-mapall]');
     if(btn) btn.onclick=e=>{ e.stopPropagation(); focusShift(date,null); };
   }
+}
+/** One crew-day's route and numbered stops on a Leaflet layer (the Staffing
+ *  date maps and the shift detail panel). `bounds` collects the points to
+ *  fit; `onStop(row)` (optional) runs when a stop's dot is clicked. */
+function addDayRouteLayers(layer, sh, d, bounds, onStop){
+  const col = CREW_COLORS[sh.crew]||'#555';
+  const rg = routeGeom(d);
+  if(rg.pts.length>1)
+    layer.addLayer(L.polyline(rg.pts,{color:col,weight:rg.real?3:2.5,opacity:.65,
+      dashArray:rg.real?null:'6 6'}));
+  const order = dayCalc(d).order.length?dayCalc(d).order:d.stops;
+  order.forEach((r,i)=>{
+    const c=C[r]; if(c.lat==null||c.lon==null) return;
+    bounds.push([c.lat,c.lon]);
+    const mk=L.circleMarker([c.lat,c.lon],
+      {radius:7,color:'#222',weight:1.5,fillColor:col,fillOpacity:.95})
+      .bindTooltip(`<b>${i+1}. ${c.name}</b><br>${esc(sh.label)}`
+        + `${sh.days.length>1?'<br>'+fmtMDYYYY(d.date):''}`,
+        {direction:'top',offset:[0,-8]});
+    if(onStop) mk.on('click', ()=>onStop(r));
+    layer.addLayer(mk);
+  });
+  if(d.anchored) bounds.push([DATA.depot.lat,DATA.depot.lon]);
 }
 function shiftMapInit(el){
   const date = el.dataset.shmap;
@@ -11929,6 +12624,9 @@ function renderStaffing(){
   document.getElementById('viewstaff').classList.toggle('sel',staffTab!=='roster');
   document.getElementById('viewroster').classList.toggle('sel',staffTab==='roster');
   teardownShiftMaps();   // innerHTML below destroys their containers
+  shiftNoteRedraw=true;  // a note box losing focus to this redraw is not "done"
+  try{ if(wrap.contains(document.activeElement) && document.activeElement.classList.contains('shnin')) document.activeElement.blur(); }
+  finally{ shiftNoteRedraw=false; }
   const short=buildShifts().filter(sh=>shiftCoverage(sh).state!=='ok').length;
   wrap.innerHTML=`<div class="stfbar">
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
@@ -11982,9 +12680,30 @@ function renderStaffing(){
   });
   // Clicking a card focuses that crew on the date's map; the button also
   // opens the staffing dialog.
+  // A second click or tap on the same card (not on its crew name, note or
+  // buttons) opens the shift detail panel; the first one focuses the map.
   wrap.querySelectorAll('.shcard[data-shift]').forEach(el=>{
     const date=el.closest('.shiftday').querySelector('[data-shmap]').dataset.shmap;
-    el.onclick=()=>focusShift(date, el.dataset.shift);
+    el.onclick=e=>{
+      const key=el.dataset.shift;
+      if(!cardTapIgnored(e.target)){
+        const now=Date.now();
+        if(isDoubleTap(cardTap, key, now)){
+          cardTap={key:null, t:0};
+          try{ window.getSelection().removeAllRanges(); }catch(_){}
+          openShiftDetail(key);
+          return;
+        }
+        cardTap={key, t:now};
+      }
+      focusShift(date, key);
+    };
+  });
+  wrap.querySelectorAll('[data-shdetail]').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation(); openShiftDetail(b.dataset.shdetail); };
+  });
+  wrap.querySelectorAll('[data-openday]').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation(); openDayInSchedule(b.dataset.openday); };
   });
   // Crew names: the second click or tap on the same name renames it (that
   // one doesn't also toggle the map focus the first one set); the pencil
@@ -12023,6 +12742,17 @@ function renderStaffing(){
       persist(); render();
     };
   });
+  // Shift notes: tap the note (or Add note) to write it.
+  wrap.querySelectorAll('[data-shnoteadd]').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation(); startShiftNoteEdit(b.dataset.shnoteadd); };
+  });
+  wrap.querySelectorAll('.shnote[data-shnote]').forEach(el=>{
+    el.addEventListener('click', e=>{ e.stopPropagation();
+      if(el.classList.contains('can') && !String(window.getSelection&&window.getSelection()||'')) startShiftNoteEdit(el.dataset.shnote); });
+    el.addEventListener('keydown', e=>{
+      if((e.key==='Enter' || e.key===' ') && el.classList.contains('can')){ e.preventDefault(); e.stopPropagation(); startShiftNoteEdit(el.dataset.shnote); }
+    });
+  });
   wrap.querySelectorAll('[data-staff]').forEach(el=>{
     el.onclick=e=>{
       e.stopPropagation();
@@ -12038,9 +12768,15 @@ function renderStaffing(){
     };
   });
   if(staffTab==='shifts') wireShiftMaps(wrap);
-  wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>
-    el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
-                     selDate=d.date; focusDayId=d.id; setView('days'); });
+  // A note box that a redraw replaced comes back with what was typed.
+  if(shiftNoteDraft && staffTab==='shifts'){
+    const dr=shiftNoteDraft;
+    if(shiftFor(dr.key)) startShiftNoteEdit(dr.key, dr.text); else shiftNoteDraft=null;
+  }
+  wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>{
+    el.onclick=()=>openDayInSchedule(el.dataset.goday);
+    el.onkeydown=e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openDayInSchedule(el.dataset.goday); } };
+  });
 }
 
 // ---- Teams (Roster > Teams) ----
@@ -12664,6 +13400,8 @@ function setView(v){
   // Calendar, Staffing and Roster hide the day list; coming back to it lands
   // where you were (the nav switches views without reloading anything).
   if(viewMode==='days' && v!=='days') daysScrollKeep=side.scrollTop;
+  // Leaving Staffing with a note box a redraw had to put back: keep the note.
+  if(v!=='staff' && shiftNoteDraft){ const dr=shiftNoteDraft; shiftNoteDraft=null; setShiftNote(dr.key, dr.text); }
   viewMode=v;
   if(typeof syncSearchMode==='function') syncSearchMode();
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
@@ -12742,7 +13480,9 @@ function manifestHTML(d){
           // Same wording as the on-screen chip -- coverageLabel is the one
           // place that decides "no lead" vs "short a lead".
           return `<p class="crew">${who||'<i>nobody assigned yet</i>'}`
-               + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}</div>
+               + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}
+        ${(()=>{ const sn=shiftNoteOf(d);
+          return sn ? `<div class="shn"><b>Notes for the day:</b> ${esc(sn.text)}</div>` : ''; })()}</div>
       <div class="stot"><b>${(calc.total/60).toFixed(1)}h</b><span>total day</span></div>
     </div>
     ${packHTML}
@@ -12791,6 +13531,8 @@ function printManifests(list, title, opts={}){
     @page{size:portrait;margin:12mm}
     body{font:12px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
     .shead p.crew{margin:3px 0 0;font-size:11px;color:#444}
+    .shn{margin-top:5px;padding:4px 7px;border-left:3px solid #1e3a5f;background:#eef2f8;color:#1e2b3d;font-size:11.5px;
+      white-space:pre-wrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .sheet{page-break-after:always;break-after:page}
     .sheet:last-child{page-break-after:auto;break-after:auto}
     .shead{display:flex;justify-content:space-between;align-items:flex-start;
@@ -13404,7 +14146,7 @@ function closeDlPop(){
 function render(){
   let pkKeep=null;
   { const pk=document.getElementById('peekdlg');
-    if(pk && pk.parentNode!==document.body){
+    if(pk && pk.parentNode!==document.body && !pk.closest('#sddlg')){
       if(pk.open && !(pk.isClosing && pk.isClosing()) && viewMode==='days'){ pkKeep=pk; pk.style.display='none'; document.body.appendChild(pk); }
       else { if(pk.open) (pk.closeNow||pk.close).call(pk); document.body.appendChild(pk); }
     } }
@@ -13420,6 +14162,7 @@ function render(){
   // A crew name whose crew-day is gone (emptied, or its Dallas run changed
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
+  shiftNotes = normShiftNotes(shiftNotes);
   // A team member who was deleted from the roster comes off their team.
   teams = loadTeams(teams);
   days.forEach(d=>{
@@ -13466,6 +14209,7 @@ function render(){
   const w=document.getElementById('statewarn');
   if(w){ w.textContent = stateWarning||''; w.style.display = stateWarning?'block':'none'; }
   if(typeof syncTvBack==='function') syncTvBack();
+  sdRefresh();
 }
 // ---------- resizable columns ----------
 // Drag either vertical border (dates | day, day | map) to resize; double-

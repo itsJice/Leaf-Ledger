@@ -58,6 +58,10 @@ class Board:
     # shift keys are worked out against.
     crew_names: dict[str, str] = field(default_factory=dict)
     dallas: set[str] = field(default_factory=set)
+    # Notes staff wrote for a shift on the Staffing tab (``state.shiftNotes``,
+    # {shift key: {text, by, at}}; see shiftNotes in the tool), keyed like
+    # crew_names. Not a client's install notes, not the build's day note.
+    shift_notes: dict[str, dict] = field(default_factory=dict)
 
     def person(self, pid: str) -> Optional[dict]:
         return next((p for p in self.roster if p["id"] == pid), None)
@@ -126,6 +130,12 @@ class Board:
             return ""
         return self.crew_names.get(self.shift_key(day), "")
 
+    def shift_note(self, day: dict) -> str:
+        """The note staff wrote for this crew-day's shift (a Dallas week's one
+        note covers every night of it), or ''."""
+        n = self.shift_notes.get(self.shift_key(day))
+        return n["text"] if n else ""
+
     def crew_title(self, day: dict) -> str:
         """"Lesly's crew (Crew 1)", or "Crew 1" with no name -- crewTitle()."""
         name, label = self.crew_name(day), self.crew_label(day)
@@ -170,6 +180,33 @@ def norm_crew_names(raw: Any) -> dict[str, str]:
                 n = " ".join(v.split())[:CREW_NAME_MAX].strip()
                 if n:
                     out[k] = n
+    return out
+
+
+SHIFT_NOTE_MAX = 2000
+
+
+def norm_shift_note_text(v: Any) -> str:
+    """The tool's normShiftNoteText(): line endings unified, trailing spaces
+    off each line, at most one blank line in a row, trimmed, capped."""
+    lines = [ln.rstrip(" \t") for ln in str(v or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()[:SHIFT_NOTE_MAX]
+
+
+def norm_shift_notes(raw: Any) -> dict[str, dict]:
+    """``state.shiftNotes`` as the tool keeps it (normShiftNote): {text, by,
+    at} with cleaned text; a bare string is the text; empty ones dropped."""
+    out: dict[str, dict] = {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            o = {"text": v} if isinstance(v, str) else v
+            if not isinstance(k, str) or not isinstance(o, dict):
+                continue
+            text = norm_shift_note_text(o.get("text") if isinstance(o.get("text"), str) else "")
+            if text:
+                out[k] = {"text": text,
+                          "by": o["by"].strip()[:120] if isinstance(o.get("by"), str) else "",
+                          "at": o["at"] if isinstance(o.get("at"), str) else ""}
     return out
 
 
@@ -316,6 +353,7 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         base_days={did: {"date": d.get("date"), "crew": d.get("crew"), "stops": list(d.get("stops") or [])}
                    for did, d in base.items()},
         crew_names=norm_crew_names(state.get("crewNames")),
+        shift_notes=norm_shift_notes(state.get("shiftNotes")),
         dallas=dallas_dates(spec, state),
     )
 

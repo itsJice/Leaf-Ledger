@@ -172,3 +172,17 @@ def test_every_staffing_write_path_unifies_a_joint_shift_first():
         assert "unifyJointStaffing(sh)" in js_function(fn), fn
     card = js_function("shiftCardHTML")
     assert "data-jointsync" in card and "Make both the same" in card and "shiftShareNotes(sh)" in card
+
+
+def test_a_joint_shifts_note_is_kept_on_each_crew_day():
+    src = "\n".join(js_function(n) for n in ("shiftNoteKeysFor", "shiftNoteOf", "withShiftNote", "normShiftNoteText"))
+    out = json.loads(run_js(src + """
+      let shiftNotes={}; const shiftNoteKey=d=>d.id;
+      const key='joint|2026-11-12|Crew 1|0+2026-11-12|Crew 2|0';
+      shiftNotes=shiftNoteKeysFor(key).reduce((m,k)=>withShiftNote(m,k,'Bring the lift','me','t'), shiftNotes);
+      console.log(JSON.stringify({keys:Object.keys(shiftNotes), joint:shiftNoteOf(key).text,
+        day2:shiftNoteOf({id:'2026-11-12|Crew 2|0', crew:'Crew 2'}).text, plain:shiftNoteKeysFor('a|b|0')}));
+    """))
+    assert out == {"keys": ["2026-11-12|Crew 1|0", "2026-11-12|Crew 2|0"], "joint": "Bring the lift",
+                   "day2": "Bring the lift", "plain": ["a|b|0"]}
+    assert "shiftNoteKeysFor(key).reduce(" in js_function("setShiftNote")
