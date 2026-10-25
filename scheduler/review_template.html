@@ -911,9 +911,12 @@ body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .cshnote.can{cursor:pointer}
 body.readonly .shnadd,body.viewonly .shnadd{display:none}
 @media print{ .shnadd{display:none!important} }
-/* Staffing card footer: Edit crew, Open day, Details. */
-.shcfoot{display:flex;gap:6px;align-items:stretch;margin-top:10px}
-.shcfoot .shcbtn{margin-top:0;flex:1 1 auto;width:auto;min-width:0}
+/* Staffing card footer: Edit crew, Open day, Text crew, Details. On a
+   narrow card Edit crew takes its own row and the rest share the next. */
+.shcfoot{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin-top:10px}
+.shcfoot .shcbtn{margin-top:0;flex:1 1 auto;width:auto;min-width:96px}
+.shcfoot .shcopen{flex:0 1 auto}
+@media (max-width:480px){ .shcfoot .shcbtn{flex-basis:100%} .shcfoot .shcopen{flex:1 1 0} }
 .shcopen,.shcdet{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 10px;border-radius:7px;
   border:1.5px solid var(--line);background:#fff;cursor:pointer;font:inherit;font-weight:700;font-size:11.5px;
   color:var(--ink);white-space:nowrap;touch-action:manipulation;transition:border-color .15s ease,background-color .15s ease}
@@ -13092,6 +13095,8 @@ function shiftCardHTML(sh){
         cv.who.length?'Edit crew':'Staff this shift'}</button>
       <button type="button" class="shcopen" data-openday="${esc(sh.days[0].id)}"
         title="Open this crew's day in the schedule">${IC.calday}<span>Open day</span></button>
+      ${READONLY || !cv.who.length ? '' : `<button type="button" class="shcopen shctext" data-remind="${esc(sh.date)}" data-remkeys="${esc(sh.key)}"
+        title="Text everyone on this crew about this shift (starts from the reminder, or write your own)">${IC.msg}<span>Text crew</span></button>`}
       <button type="button" class="shcdet" data-shdetail="${esc(sh.key)}"
         title="Everything about this shift: times, drives, map, crew and clients (or double-click the card)">Details</button>
     </div>
@@ -14141,7 +14146,7 @@ function txtFields(){ return txt.mode==='remind' ? REM_FIELDS : TXT_FIELDS; }
 /** The draft in one language: the mass text's, or the reminder template. */
 function txtDraft(lang){ return txt.mode==='remind' ? rem[lang] : txt[lang]; }
 function txtSetDraft(lang, v){
-  if(txt.mode==='remind'){ rem[lang]=v; remSaveTpl(); } else { txt[lang]=v; txtSave(); }
+  if(txt.mode==='remind'){ rem[lang]=v; if(!rem.own) remSaveTpl(); } else { txt[lang]=v; txtSave(); }
 }
 /** `vals` (optional) is {key: text} for fields that aren't about the person
  *  alone -- a reminder's date, crew and meet time. */
@@ -14577,9 +14582,21 @@ const DOW_ES=['domingo','lunes','martes','miércoles','jueves','viernes','sábad
 let rem=(()=>{
   let s={};
   try{ s=JSON.parse(localStorage.getItem(REM_TPL_KEY)||'{}')||{}; }catch(e){}
-  return {date:null, keys:null, skip:new Set(),
+  return {date:null, keys:null, skip:new Set(), own:false,
           en:typeof s.en==='string'?s.en:REM_DEFAULT.en, es:typeof s.es==='string'?s.es:REM_DEFAULT.es};
 })();
+/** The saved reminder template (this browser), else the standard one. */
+function remLoadTpl(){
+  let s={};
+  try{ s=JSON.parse(localStorage.getItem(REM_TPL_KEY)||'{}')||{}; }catch(e){}
+  rem.own=false;
+  rem.en=typeof s.en==='string'?s.en:REM_DEFAULT.en;
+  rem.es=typeof s.es==='string'?s.es:REM_DEFAULT.es;
+}
+/** "Write my own message": both boxes start empty, and what is typed is a
+ *  one-off for this send (not remembered), so the next reminder starts from
+ *  the reminder template again. */
+function remWriteOwn(){ rem.own=true; rem.en=''; rem.es=''; }
 function remSaveTpl(){
   try{ localStorage.setItem(REM_TPL_KEY, JSON.stringify({en:rem.en, es:rem.es})); }catch(e){}
 }
@@ -14734,6 +14751,7 @@ function wireRemButtons(root){
 function openReminderDlg(iso, keys){
   if(roBlocked() || !iso) return;
   rem.date=iso; rem.keys=keys&&keys.length?keys:null; rem.skip=new Set();
+  if(rem.own) remLoadTpl();   // a one-off message from last time doesn't carry over
   txt.mode='remind'; txt.step=3; txtRange=null;
   const go=d=>{ txt.step+=d; document.getElementById('txtbody').scrollTop=0; txtDraw(); };
   document.getElementById('txtback').onclick=()=>go(-1);
@@ -14789,11 +14807,16 @@ function remWirePick(body){
   });
 }
 function remWriteHTML(){
-  return `<p class="txthint">This is the reminder each person gets, with their own name, day, crew and
+  return (rem.own
+    ? `<p class="txthint">Writing your own message: it is just for this send and isn't remembered, so the
+      next reminder starts from the standard one again. Drag a bubble in, or click it to drop it where your
+      cursor is, and each person's details fill in.
+      <a href="#" data-remreset>Put back the standard message</a></p>`
+    : `<p class="txthint">This is the reminder each person gets, with their own name, day, crew and
       lead, and meet time filled in where the bubbles are. Change the words if you like (it is remembered
       in this browser for next time); drag a bubble in, or click it to drop it where your cursor is.
-      <a href="#" data-remreset>Put back the standard message</a></p>
-    <div class="txtfields"><span class="lbl">Drag in</span>${REM_FIELDS.map(f=>
+      <a href="#" data-remown>Write my own message</a> · <a href="#" data-remreset>Put back the standard message</a></p>`)
+    + `<div class="txtfields"><span class="lbl">Drag in</span>${REM_FIELDS.map(f=>
       `<span class="txttok" draggable="true" data-field="${f.key}" title="Drag into the message, or click to add it at your cursor">${esc(f.label)}</span>`).join('')}</div>
     ${TXT_LANGS.map(l=>`<div class="txtedlbl"><b>${l.label} message</b>
         <span>${l.key==='es'?'Spanish and bilingual people get this one':'English speakers get this one'}</span></div>
@@ -14802,7 +14825,10 @@ function remWriteHTML(){
 }
 function remWireWrite(body){
   const r=body.querySelector('[data-remreset]');
-  if(r) r.onclick=e=>{ e.preventDefault(); rem.en=REM_DEFAULT.en; rem.es=REM_DEFAULT.es; remSaveTpl(); txtDraw(); };
+  if(r) r.onclick=e=>{ e.preventDefault(); rem.own=false; rem.en=REM_DEFAULT.en; rem.es=REM_DEFAULT.es; remSaveTpl(); txtDraw(); };
+  const o=body.querySelector('[data-remown]');
+  if(o) o.onclick=e=>{ e.preventDefault(); remWriteOwn(); txtDraw();
+    const ed=body.querySelector('.txted[data-lang="en"]'); if(ed) ed.focus(); };
 }
 function remSendHTML(){
   const all=remList(), infos=remShiftInfos(rem.date, rem.keys), today=todayISO();
@@ -14811,7 +14837,8 @@ function remSendHTML(){
   const langs=TXT_LANGS.filter(l=>rem[l.key].trim());
   const st=remStatus(rows, rem.date);
   return `<div class="txtprog"><b>${st.sent} of ${st.total}</b> reminded for ${esc(remDateLabel(rem.date))}.
-      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.</div>`
+      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.
+      <a href="#" data-remedit>Change the message or write your own</a></div>`
     + infos.filter(i=>rows.some(r=>r.info.key===i.key)).map(i=>remCrewHead(i, rows)
       + rows.filter(r=>r.info.key===i.key).map(r=>{
         const p=r.p, why=remReason(p), num=smsNumber(p.phone), mine=txtLangFor(p);
@@ -14847,6 +14874,8 @@ function remUnlog(p){
 }
 function remWireSend(body){
   const today=todayISO();
+  const ed=body.querySelector('[data-remedit]');
+  if(ed) ed.onclick=e=>{ e.preventDefault(); txt.step=2; body.scrollTop=0; txtDraw(); };
   const prog=()=>{
     const rows=remList().filter(r=>!rem.skip.has(r.p.id)), st=remStatus(rows, rem.date);
     const b=body.querySelector('.txtprog b'); if(b) b.textContent=`${st.sent} of ${st.total}`;
