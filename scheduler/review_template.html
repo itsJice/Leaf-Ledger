@@ -2321,11 +2321,6 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <span class="nclabel">1 to 5 stars in half-star steps. Click the same star again to clear. Overall is the average of the traits unless you pick it yourself.</span>
   <div id="perratings"></div>
   <div class="availhd">Availability</div>
-  <span class="nclabel">Shift times they can work</span>
-  <div class="bubrow" id="pertimes">
-    <button type="button" class="bub" data-time="day">Day</button>
-    <button type="button" class="bub" data-time="night">Night</button>
-  </div>
   <span class="nclabel">Days they can work
     <span class="availcount" id="peravailn"></span></span>
   <div class="bubrow presets">
@@ -2343,9 +2338,8 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <button type="button" class="bub preset" id="perredo" disabled>&#8631; Redo</button>
   </div>
   <div class="bubrow" id="perdays"></div>
-  <div id="peravailwarn" class="availwarn">Nothing marked yet — until a shift
-    time and at least one day are picked, this person shows as unavailable
-    for every shift.</div>
+  <div id="peravailwarn" class="availwarn">No dates marked yet: this person
+    shows as unavailable until at least one date is picked.</div>
   <div class="btns"><button onclick="perdlg.close()">Cancel</button>
   <button class="go" id="pergo">Save</button></div>
 </dialog>
@@ -3317,8 +3311,10 @@ function normRoster(list){
       notes: String(p.notes||'').trim(),
       ratings: normRatings(p.ratings),
       texts: normTexts(p.texts),
-      // No stored availability (an older record) means no restriction --
-      // treat them as available rather than silently unstaffable.
+      // `times` (day/night) is no longer read or shown anywhere: availability
+      // is dates only (user, 2026-10-24). It is still carried through so a
+      // save never strips it and it can come back. No stored availability (an
+      // older record) means no restriction.
       times: Array.isArray(p.times) ? p.times.filter(t=>t==='day'||t==='night')
                                     : ['day','night'],
       dates: Array.isArray(p.dates) ? p.dates.filter(d=>all.includes(d)) : all.slice(),
@@ -3332,14 +3328,18 @@ function normRoster(list){
   nextPersonId = out.reduce((m,p)=>Math.max(m, (+String(p.id).replace(/\D/g,'')||0)+1), 1);
   return out;
 }
-/** Can this person work this shift? A shift is all-or-nothing, so being off
- *  any one of its days (a single Dallas night, say) rules out the block. */
+/** Can this person work this shift? Dates only (user, 2026-10-24: "take out
+ *  the day and night options... just select the dates"): a date in their
+ *  `dates` means they can work that day, and for a Dallas date that means
+ *  the night shift too. `times` is ignored. A shift is all-or-nothing, so
+ *  being off any one of its days (a single Dallas night, say) rules out the
+ *  block. */
 function availFor(p, sh){
-  const t = sh.night ? 'night' : 'day';
-  if(!(p.times||[]).includes(t)) return {ok:false, why:'no '+t+' shifts'};
-  const miss = sh.days.filter(d=>!(p.dates||[]).includes(d.date));
+  const mine = (p && p.dates) || [];
+  if(!mine.length) return {ok:false, why:'No dates marked'};
+  const miss = sh.days.filter(d=>!mine.includes(d.date));
   if(miss.length) return {ok:false,
-    why:'off '+miss.slice(0,2).map(d=>fmtMDYYYY(d.date).slice(0,5)).join(', ')
+    why:'Not available '+miss.slice(0,2).map(d=>fmtMDYYYY(d.date).slice(0,5)).join(', ')
         +(miss.length>2?` +${miss.length-2}`:'')};
   return {ok:true, why:''};
 }
@@ -10481,7 +10481,7 @@ function esc(x){ return String(x==null?'':x)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ---- add / edit a person ----
-let editingPerson=null, perDates=new Set(), perTimes=new Set();
+let editingPerson=null, perDates=new Set();
 // Undo/redo for the day-picker only, scoped to this one dialog session --
 // separate from the app-wide pushUndo() (that one is for saved changes;
 // this is for backing out clicks before you've even hit Save). Reset
@@ -10588,20 +10588,14 @@ function drawPerAvail(){
   }
   document.getElementById('peravailn').textContent = `${perDates.size} of ${all.length}`;
   const warn=document.getElementById('peravailwarn');
-  if(warn) warn.style.display = (perTimes.size && perDates.size) ? 'none' : 'block';
+  if(warn) warn.style.display = perDates.size ? 'none' : 'block';
   updatePerHistBtns();
-  document.querySelectorAll('#pertimes .bub').forEach(b=>
-    b.classList.toggle('on', perTimes.has(b.dataset.time)));
   document.querySelectorAll('#perdays .bub').forEach(b=>
     b.onclick=()=>{ pushPerHist();
                     perDates.has(b.dataset.date)?perDates.delete(b.dataset.date)
                                                 :perDates.add(b.dataset.date);
                     drawPerAvail(); });
 }
-document.querySelectorAll('#pertimes .bub').forEach(b=>
-  b.onclick=()=>{ perTimes.has(b.dataset.time)?perTimes.delete(b.dataset.time)
-                                              :perTimes.add(b.dataset.time);
-                  drawPerAvail(); });
 // Quick selections REPLACE the current pick (Undo brings the old one back).
 function wirePreset(b){
   b.onclick=()=>{
@@ -10659,7 +10653,6 @@ function openPersonDlg(person){
   // something you mark, not something assumed. Until it is marked the
   // person is unavailable everywhere, which the assign list says out loud
   // rather than quietly dropping them.
-  perTimes = new Set(person ? person.times : []);
   perDates = new Set(person ? person.dates : []);
   perUndo=[]; perRedo=[];
   drawPerAvail();
@@ -10679,7 +10672,7 @@ document.getElementById('pergo').onclick=()=>{
     phone:fmtPhone(document.getElementById('perphone').value),
     notes:document.getElementById('pernotes').value.trim(),
     ratings:normRatings(perRatings),
-    times:[...perTimes], dates:[...perDates]};
+    dates:[...perDates]};   // `times` deliberately not written: an edit keeps whatever is stored
   // Only an admin's dialog shows (and so saves) contractor info; anyone
   // else's save leaves whatever is on the record untouched.
   if(canSeeContractor() && !document.getElementById('percontract').hidden){
@@ -10751,7 +10744,7 @@ function crewShiftSection(d){
           .sort((a,b)=>(availFor(b,sh).ok-availFor(a,sh).ok)||a.name.localeCompare(b.name))
           .map(p=>{ const av=availFor(p,sh);
             return `<option value="${p.id}">${esc(p.name)} — ${esc(TITLE_ABBR[p.title])}`
-                 + `${av.ok?'':' (off: '+esc(av.why)+')'}</option>`; }).join('')}
+                 + `${av.ok?'':' ('+esc(av.why)+')'}</option>`; }).join('')}
       </select>
       ${untrainedToggleHTML(sh)}
     </div>`;
@@ -11090,8 +11083,7 @@ function personRow(p){
     <td><span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span></td>
     <td><span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></td>
     <td>${p.gender==='Male'?'M':'F'}</td>
-    <td>${(p.dates||[]).length}d${(p.times||[]).length===1
-        ? ' <span class="pill gen">'+p.times[0]+'</span>':''}</td>
+    <td>${(p.dates||[]).length}d</td>
     <td>${sh||'—'}</td>
     <td class="ratcell${rv?'':' none'}" title="Alberto rating (overall)">${
         rv?ratingScale(rv)+'★':'—'}</td></tr>`;
@@ -11271,9 +11263,7 @@ function personDetailHTML(){
         return `<div class="ratrow"><span class="ratlbl"${dim.hint?` title="${esc(dim.hint)}"`:''}>${esc(dim.label)}</span>`
           + starsHTML(v) + `<span class="ratn">${ratingText(v)}</span></div>`;
       }).join('')}</div>
-    <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days
-      · ${(p.times||[]).length===2?'day + night'
-          :(p.times||[]).length?esc(p.times[0])+' only':'<b>no shift times set</b>'}</div>
+    <div class="stfcontact">Available ${(p.dates||[]).length}/${workDates().length} days</div>
     ${weekRowsHTML(workDates(), dt=>{
         const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
         return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
@@ -12135,8 +12125,7 @@ function txtSendHTML(){
           <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
           ${txtLastHTML(p)}${txtStatus(p)}</div>
         ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
-        <details><summary>Their days · ${(p.times||[]).length===2?'day + night'
-            :(p.times||[]).length?esc(p.times[0])+' only':'no shift times set'}</summary>
+        <details><summary>Their days · ${(p.dates||[]).length} marked</summary>
           <div class="bubrow">${workDates().map(dt=>{
             const d=dateOf(dt), has=(p.dates||[]).includes(dt), wk=(d.getDay()===0||d.getDay()===6);
             return `<span class="bub ro${has?' on':''}${wk?' weekend':''}"
