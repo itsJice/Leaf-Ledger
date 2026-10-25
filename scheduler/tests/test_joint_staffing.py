@@ -177,7 +177,7 @@ def test_every_staffing_write_path_unifies_a_joint_shift_first():
 def test_a_joint_shifts_note_is_kept_on_each_crew_day():
     src = "\n".join(js_function(n) for n in ("shiftNoteKeysFor", "shiftNoteOf", "withShiftNote", "normShiftNoteText"))
     out = json.loads(run_js(src + """
-      let shiftNotes={}; const shiftNoteKey=d=>d.id;
+      const SHIFT_NOTE_MAX=2000; let shiftNotes={}; const shiftNoteKey=d=>d.id;
       const key='joint|2026-11-12|Crew 1|0+2026-11-12|Crew 2|0';
       shiftNotes=shiftNoteKeysFor(key).reduce((m,k)=>withShiftNote(m,k,'Bring the lift','me','t'), shiftNotes);
       console.log(JSON.stringify({keys:Object.keys(shiftNotes), joint:shiftNoteOf(key).text,

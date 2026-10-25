@@ -11988,7 +11988,7 @@ function shiftCardHTML(sh){
       <button class="shcbtn" data-staff="${esc(sh.key)}">${
         cv.who.length?'Edit crew':'Staff this shift'}</button>
       <button type="button" class="shcopen" data-openday="${esc(sh.days[0].id)}"
-        title="Open this crew's day in the schedule${sh.days.length>1?' (first night)':''}">${IC.calday}<span>Open day</span></button>
+        title="Open this crew's day in the schedule${sh.days.length>1&&!sh.joint?' (first night)':''}">${IC.calday}<span>Open day</span></button>
       <button type="button" class="shcdet" data-shdetail="${esc(sh.key)}"
         title="Everything about this shift: times, drives, map, crew and clients (or double-click the card)">Details</button>
     </div>
@@ -12276,12 +12276,12 @@ function sdDraw(){
     + `<span>${leads.length?`Lead: ${esc(leads.join(', '))}`:'No lead yet'}</span>`;
   document.getElementById('sdprint').onclick=()=>printManifests(sh.days.filter(x=>x.stops.length),
     `${crewTitle(d)} ${fmtMDYYYY(sh.days[0].date)}`);
-  // One tab per night of a Dallas week.
+  // One tab per night of a Dallas week (per crew of a joint shift).
   const nights=document.getElementById('sdnights');
   nights.hidden = sh.days.length<2 || sd.client!=null;
   nights.innerHTML = sh.days.length<2 ? '' : sh.days.map((x,i)=>
     `<button type="button" role="tab" class="sdnight${i===sd.night?' sel':''}" data-sdnight="${i}" aria-selected="${i===sd.night}">`
-    + `${DOW3[dateOf(x.date).getDay()]} ${fmtMDYYYY(x.date).slice(0,5)}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
+    + `${sh.joint ? esc(crewTitle(x)) : DOW3[dateOf(x.date).getDay()]+' '+fmtMDYYYY(x.date).slice(0,5)}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
   nights.querySelectorAll('[data-sdnight]').forEach(b=>b.onclick=()=>{ sd.night=+b.dataset.sdnight; sdDraw(); });
   // A note being typed is left alone; it redraws when it saves.
   const ae=document.activeElement;
@@ -12290,7 +12290,7 @@ function sdDraw(){
   const main=document.getElementById('sdmain');
   main.innerHTML=
     `<div class="sdsec">${shiftNoteFieldHTML(sh, 'sd')}</div>`
-    + `<div class="sdsec"><div class="sdh">${sh.days.length>1?`${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}`:'The day'}`
+    + `<div class="sdsec"><div class="sdh">${sh.joint ? esc(crewTitle(d)) : sh.days.length>1?`${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}`:'The day'}`
     + `<button type="button" class="sdlink" id="sdopenday">${IC.calday}<span>Open in schedule</span></button></div>`
     + `<div class="sdstats"><div><b>${esc(fmtClock(info.start))}</b><span>${info.anchored?'roll out':'start'}</span></div>`
     + `<div><b>${esc(fmtClock(info.anchored?info.finish:(info.stops.length?info.stops[info.stops.length-1].end:info.start)))}</b><span>${info.anchored?'back ≈':'done ≈'}</span></div>`
