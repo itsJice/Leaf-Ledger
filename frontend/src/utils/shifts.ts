@@ -51,6 +51,8 @@ export interface Day {
   date: string;
   crewLabel: string;
   note: string;
+  /** The office's note for this shift, from the Install Schedule's Staffing tab. */
+  shiftNote?: string;
   lead: Person | null;
   crew: Person[];
   stops: Stop[];

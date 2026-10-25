@@ -287,6 +287,9 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
         "date": day["date"],
         "crewLabel": board.crew_title(day),
         "note": board.day_notes.get(day["id"], ""),
+        # The office's note for this shift (Staffing tab), separate from the
+        # build's day note above.
+        "shiftNote": board.shift_note(day),
         "lead": lead,
         "crew": [p for p in crew if p],
         "stops": stops,

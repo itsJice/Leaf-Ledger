@@ -244,6 +244,12 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
 
       {/* Before the truck leaves the warehouse: everything the day's stops
           need brought along, in route order. Today's day shows it even folded. */}
+      {day.shiftNote && (open || isToday) && (
+        <div className="mx-4 mb-3 rounded-lg border-l-4 border-emerald-700 bg-emerald-50 px-3 py-2 text-sm text-stone-800">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">Notes for the day</p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words">{day.shiftNote}</p>
+        </div>
+      )}
       {pack.length > 0 && (open || isToday) && <PackList items={pack} order={day.stops.map((s) => s.row)} isToday={isToday} />}
 
       {isToday && nextStop && nextStop.mapsUrl && (
