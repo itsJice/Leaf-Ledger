@@ -3049,6 +3049,10 @@ let days = DATA.days.map(hydrate);
 // moved (the line simply doesn't reach that dot).
 const BASELINE_STOPS = {};
 DATA.days.forEach(d=>{ BASELINE_STOPS[d.id] = [...d.stops].sort((a,b)=>a-b); });
+// ...and the order the build planned them in (its route), for putting an
+// unchanged day back in that order after a load or an undo.
+const BASELINE_ORDER = {};
+DATA.days.forEach(d=>{ BASELINE_ORDER[d.id] = [...d.stops]; });
 let approved = new Set(), moves = [], selDate = null;
 // A STAFF-set per-stop confirmation ("this client's date is locked in,
 // they called and confirmed it") -- distinct from `c.locked`, which is the
@@ -3821,6 +3825,19 @@ function applyPlacement(place){
     const cur = [...d.stops].sort((a,b)=>a-b);
     const base = BASELINE_STOPS[d.id] || [];
     if(cur.length!==base.length || cur.some((v,i)=>v!==base[i])) d.edited = true;
+    else if(BASELINE_ORDER[d.id]){
+      // The stops the build planned for this day: run them in the build's
+      // route order, as an untouched day does on a fresh page. The rows above
+      // were pushed in row-number order (object keys), and routeDay trusts an
+      // unedited day's order as planned, so every built day showed (and
+      // printed) its stops by row number once the shared state loaded --
+      // e.g. a Dallas night as Mercury, Las Colinas, Preston Forest instead of
+      // its planned Las Colinas, Preston Forest, Mercury. A day put back the
+      // way it was (an undo) is unedited again. A hand order (manualOrder)
+      // and position locks still win in render().
+      d.stops = [...BASELINE_ORDER[d.id]];
+      d.edited = false;
+    }
   });
   days = days.filter(d=>d.stops.length);
   refreshDerivedMeta();
@@ -14284,6 +14301,10 @@ function render(){
   // paint can no longer mutate the schedule as a side effect of drawing.
   // Dallas-night and joint wiring first: a move may have made or split one.
   refreshDerivedMeta();
+  // A training day has no stops, and the empty-day clean-up after a drag
+  // (applyMove) or a "not installing" took its card off until a reload.
+  // trainingDays is the record; put any missing card back.
+  materializeTrainingDays();
   // A crew name whose crew-day is gone (emptied, or its Dallas run changed
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
