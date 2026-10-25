@@ -114,3 +114,15 @@ def test_unmarked_date_stays_a_houston_day_but_still_splits_a_joint_stop():
 def test_junk_in_dallas_nights_is_ignored():
     assert schedule_board.dallas_dates(PAYLOAD["spec"], {"dallasNights": ["2027-01-02", 5, "Jan 3", None]}) \
         == {"2026-11-02", "2027-01-02"}
+
+
+def test_joint_stop_moved_onto_a_built_day_splits_there():
+    from app.libs import schedule_board as sb
+    spec = {"const": {"CREWS": ["Crew 1", "Crew 2", "Crew 3"], "NIGHT": 450},
+            "dayMeta": {"2026-11-04|Crew 1|0": {"win": 450, "anchored": False, "half": [], "joint": "", "startRow": None},
+                        "2026-11-04|Crew 2|0": {"win": 450, "anchored": False, "half": [], "joint": "", "startRow": None}},
+            "calendar": []}
+    by_day = {"2026-11-04|Crew 1|0": [63, 65], "2026-11-04|Crew 2|0": [63, 71]}
+    out = sb.derived_day_meta(spec, {}, by_day)
+    assert out["2026-11-04|Crew 1|0"]["half"] == [63] and out["2026-11-04|Crew 1|0"]["joint"] == "Crew 2"
+    assert out["2026-11-04|Crew 2|0"]["half"] == [63] and out["2026-11-04|Crew 1|0"]["win"] == 450

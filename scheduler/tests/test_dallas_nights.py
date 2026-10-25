@@ -127,24 +127,35 @@ def test_a_row_on_two_crews_the_same_night_is_a_joint_stop():
                    [[], "", None], [[], "", None]]
 
 
-def test_dynamic_joints_leave_built_days_alone():
+def test_dynamic_joints_cover_built_days_too():
     out = run("""
       const ds=[{id:'a', date:'d', crew:'Crew 1', stops:[1,2]}, {id:'b', date:'d', crew:'Crew 2', stops:[1]},
                 {id:'c', date:'d', crew:'Crew 3', stops:[1,3]}, {id:'t', date:'d', crew:'Training', stops:[3], training:true}];
       console.log(JSON.stringify(dynamicJoints(ds, id=>id==='b', d=>d.crew)));
     """)
     assert out == {"a": {"half": [1], "joint": "Crew 2 + Crew 3"},
+                   "b": {"half": [1], "joint": "Crew 1 + Crew 3"},
                    "c": {"half": [1], "joint": "Crew 1 + Crew 2"}}
 
 
-def test_built_joint_night_keeps_its_build_meta():
+def test_built_night_keeps_its_meta_but_shared_stops_follow_the_board():
     out = run("""
       days=[day('2026-11-02|Crew 1|0',[63,65]), day('2026-11-02|Crew 2|0',[75])];
       refreshDerivedMeta();
       console.log(JSON.stringify(days.map(d=>[d.half, d.joint, d.note])));
     """)
-    # Both are built days: they keep the build's joint wiring as it was.
-    assert out == [[[63], "Crew 2", "JOINT"], [[63], "Crew 1", "built"]]
+    # Built days keep their note/window and the build's joint rows that are
+    # still on them; Crew 2 no longer has 63, so it doesn't count it as half.
+    assert out == [[[63], "Crew 2", "JOINT"], [[], "", "built"]]
+
+
+def test_joint_stop_moved_onto_a_built_night_splits_there():
+    out = run("""
+      days=[day('2026-11-02|Crew 1|0',[63,65]), day('2026-11-02|Crew 2|0',[63,75])];
+      refreshDerivedMeta();
+      console.log(JSON.stringify(days.map(d=>[d.half, d.joint])));
+    """)
+    assert out == [[[63], "Crew 2"], [[63], "Crew 1"]]
 
 
 # ---- shared state: dallasNights saves, loads and merges like trainingDays ----

@@ -3055,16 +3055,15 @@ function hydrate(d){
 }
 /** PURE. Joint stops the build didn't plan: a row on two or more crews'
  *  cards on the same date is shared, so each crew does half its hours (the
- *  same split and "joint w/" wiring as a built joint day). Only for days
- *  `planned(id)` says the build has no meta for -- a built day keeps the
- *  joint wiring it was built with. label(day) names a crew.
+ *  same split and "joint w/" wiring as a built joint day). Worked out for
+ *  every day, built or not, from where the stops are now (`planned` is kept
+ *  for callers but no longer skips a day). label(day) names a crew.
  *  Returns {dayId: {half:[rows], joint:'Crew 2'}}. */
 function dynamicJoints(dayList, planned, label){
   const byDate = {};
   (dayList||[]).forEach(d=>{ if(d && !d.training) (byDate[d.date] = byDate[d.date] || []).push(d); });
   const out = {};
   Object.values(byDate).forEach(ds=>ds.forEach(d=>{
-    if(planned(d.id)) return;
     const half = [], partners = new Set();
     (d.stops||[]).forEach(r=>{
       const others = ds.filter(x=>x!==d && (x.stops||[]).includes(r));
@@ -3084,7 +3083,20 @@ function dynamicJoints(dayList, planned, label){
 function refreshDerivedMeta(){
   const joints = dynamicJoints(days, id=>!!SPEC.dayMeta[id], crewLabel);
   days.forEach(d=>{
-    if(SPEC.dayMeta[d.id] || d.training) return;
+    if(d.training) return;
+    // A built day keeps its window and timing, but which stops it shares
+    // follows the board: a joint stop moved onto a built night (e.g. the
+    // Dallas week reshuffled) splits its hours there too, and a stop that
+    // left stops counting as half.
+    if(SPEC.dayMeta[d.id]){
+      const m = SPEC.dayMeta[d.id], dj = joints[d.id] || {half:[], joint:''};
+      const built = (m.half||[]).filter(r=>d.stops.includes(r));
+      const j = dj.half.length ? dj : {half:built, joint:built.length ? (m.joint||'') : ''};
+      const startRow = (m.startRow!=null && d.stops.includes(m.startRow)) ? m.startRow
+                     : (j.half.length ? j.half[0] : null);
+      Object.assign(d, {half:j.half, joint:j.joint, startRow});
+      return;
+    }
     const m = metaFor(d.id), j = joints[d.id] || {half:[], joint:''};
     Object.assign(d, {cat:m.cat, anchored:m.anchored, stacked:m.stacked, note:m.note,
                       win:m.win, lunchMin:m.lunchMin, winReason:m.winReason,

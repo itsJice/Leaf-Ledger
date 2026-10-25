@@ -265,7 +265,7 @@ def derived_day_meta(spec: dict, state: dict, by_day: dict[str, list[int]]) -> d
         labels = sorted({i.split("|")[1] for i in ids})
         for did in ids:
             crew = did.split("|")[1]
-            if did in meta or (crew not in crews and not EXTRA_CREW.match(crew)):
+            if crew not in crews and not EXTRA_CREW.match(crew):
                 continue
             half, partners = [], set()
             for r in by_day[did]:
@@ -273,6 +273,19 @@ def derived_day_meta(spec: dict, state: dict, by_day: dict[str, list[int]]) -> d
                 if others:
                     half.append(r)
                     partners.update(f"Crew {labels.index(o.split('|')[1]) + 1}" for o in others)
+            if did in meta:
+                # Built day: keep its window/timing, but the shared stops follow
+                # the board (a joint stop moved onto a built night splits there).
+                b = meta[did]
+                if half:
+                    joint = " + ".join(sorted(partners))
+                else:
+                    half = [r for r in (b.get("half") or []) if r in by_day[did]]
+                    joint = b.get("joint", "") if half else ""
+                start = b.get("startRow") if b.get("startRow") in by_day[did] else (half[0] if half else None)
+                if half != list(b.get("half") or []) or start != b.get("startRow"):
+                    out[did] = {**b, "half": half, "joint": joint, "startRow": start}
+                continue
             if date in dal and night is not None:
                 m = dallas_night_meta(meta, spec.get("calendar") or [], crew, night)
             elif half:
