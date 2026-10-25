@@ -279,7 +279,8 @@ def _clean_version(version: str) -> str:
 #: would look up again. The tool fell back to roster_seed.json -- which stores
 #: everyone with `dates: []`, meaning available never -- so the season's crew
 #: silently became unschedulable.
-CARRY_FORWARD_KEYS = ("roster", "staffing")
+#: Teams (saved groups of roster people, by year) are about people too.
+CARRY_FORWARD_KEYS = ("roster", "staffing", "teams")
 
 
 async def _inheritable_people(conn, version: str, season: str | None) -> dict | None:
@@ -754,6 +755,18 @@ def keep_for_legacy_save(state: dict, stored: Any) -> tuple[dict, dict]:
     return {**state, "roster": out}, kept
 
 
+def keep_stored_teams(state: dict, stored: Any) -> dict:
+    """A save with no `teams` key at all comes from a page published before
+    teams existed (a tab opened before the publish). Leaving the key out
+    would erase every team, so the stored teams are kept. A page that knows
+    teams always sends the key, even as [], so deleting teams still works."""
+    if "teams" in state or not isinstance(stored, dict):
+        return state
+    if isinstance(stored.get("teams"), list) and stored["teams"]:
+        return {**state, "teams": stored["teams"]}
+    return state
+
+
 @router.put("/state")
 async def put_state(
     request: Request, body: Any = Body(default=None), role: str = Depends(caller_role)
@@ -855,6 +868,7 @@ async def put_state(
                     )
                 if not full:
                     state = keep_stored_contractor_info(state, stored)
+                state = keep_stored_teams(state, stored)
             if conflict is not None:
                 # Nothing written: no state, no history row, no card dates.
                 return JSONResponse(status_code=409, content=conflict)

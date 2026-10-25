@@ -1033,6 +1033,54 @@ body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .untrtog .n{color:var(--faint)}
 .cshiftbody .untrtog{width:100%;margin:2px 0 0}
 body.readonly .untrtog,body.viewonly .untrtog{display:none}
+/* Teams: Roster > Teams, and the team buttons in Staff this shift */
+.stfteams{display:inline-flex;align-items:center;gap:6px}
+.stfteams .ic{width:14px;height:14px}
+body.tv .stfteams,body.viewonly .stfteams{display:none}
+.stfteamrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px}
+.stfteamlbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-right:2px}
+.stfteambtn{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+  border:1.5px solid var(--brand);background:#fff;color:var(--brand);font-weight:700;font-size:12px;
+  cursor:pointer;min-height:32px;max-width:100%}
+.stfteambtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stfteambtn .ic{width:14px;height:14px;flex:none}
+.stfteambtn:hover{background:var(--brand-soft)}
+.stfteambtn.on{background:var(--brand-soft)}
+.stfteamnote{background:var(--brand-soft);border-radius:8px;padding:7px 9px;font-size:11.5px;
+  line-height:1.45;color:var(--ink);margin:0 0 10px}
+dialog .stfteamname{margin-top:6px;padding:4px 10px;font-size:11.5px;border-color:var(--brand);color:var(--brand)}
+.stfbtns{align-items:center}
+.stfbtns .sp{flex:1}
+.stfbtns button .ic{width:13px;height:13px;vertical-align:-2px}
+.stfbtns button:disabled{opacity:.45;cursor:default}
+.stfbtns .n{color:var(--faint);font-weight:600}
+#stfclear:not(:disabled):hover{border-color:var(--danger);color:var(--danger)}
+body.readonly #stfundo,body.readonly #stfclear,body.readonly .stfteamrow,
+body.viewonly #stfundo,body.viewonly #stfclear,body.viewonly .stfteamrow{display:none}
+#teamdlg{max-width:480px;width:calc(100vw - 32px);box-sizing:border-box}
+.teamsub{font-size:11.5px;color:var(--mut);margin:4px 0 10px;line-height:1.45}
+.teamlist{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;margin-top:8px}
+.teamrow{border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.teamhd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.teamnm{font-size:13.5px}
+.teammeta{font-size:11.5px;color:var(--mut);font-weight:600}
+body.tv .teamrat{display:none}
+.teamppl{font-size:11.5px;color:var(--ink);margin-top:4px;line-height:1.45}
+.teamlead{display:inline-block;font-weight:700;margin-right:6px}
+.teamacts{display:flex;gap:6px;margin-top:7px}
+dialog .teamacts button{padding:4px 11px;font-size:11.5px}
+dialog .teamacts .teamdel:hover{border-color:var(--danger);color:var(--danger)}
+.teamtwo{display:grid;grid-template-columns:110px 1fr;gap:10px}
+.teamcount{font-size:11.5px;color:var(--mut);font-weight:700;margin:4px 0 6px}
+.teampick{max-height:38vh}
+.teamon{color:var(--warn-ink);font-size:9.5px;font-weight:800;white-space:nowrap;max-width:40%;
+  overflow:hidden;text-overflow:ellipsis}
+.teamerr{color:var(--danger);font-size:11.5px;font-weight:600;min-height:14px;margin-top:6px}
+@media (max-width:767px){
+  #teamdlg input[type=text],#teamdlg input[type=number],#teamdlg select{font-size:16px}
+  #teamdlg button,#stfdlg .stfbtns button,.stfteambtn{min-height:40px}
+  .teamtwo{grid-template-columns:1fr}
+}
 .printbtn{margin-left:auto;flex:none;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--mut)}
 .printbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
@@ -2298,10 +2346,20 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 <dialog id="stfdlg">
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
+  <div id="stfteams"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div id="stftrain"></div>
   <div class="asglist" id="stflist"></div>
-  <div class="btns"><button onclick="stfdlg.close()">Done</button></div>
+  <div class="btns stfbtns">
+    <button type="button" id="stfundo" title="Undo the last change made in this window" disabled>Undo</button>
+    <button type="button" id="stfclear" title="Take everyone off this crew">Clear</button>
+    <span class="sp"></span>
+    <button type="button" onclick="stfdlg.close()">Done</button></div>
+</dialog>
+<dialog id="teamdlg" aria-labelledby="teamtitle">
+  <b id="teamtitle">Teams</b>
+  <div id="teambody"></div>
+  <div class="btns" id="teambtns"></div>
 </dialog>
 <dialog id="txtdlg" aria-labelledby="txttitle">
   <div class="txthd"><b id="txttitle">Send mass text</b>
@@ -3074,6 +3132,142 @@ function crewName(d){ const k=crewNameKey(d); return (k && crewNames[k]) || ''; 
 function crewTitle(d){ const n=crewName(d), p=crewLabel(d); return n ? `${n} (${p})` : p; }
 /** Dense calendar chips: "C1 Lesly's crew". */
 function crewTitleShort(d){ const n=crewName(d), p=crewLabelShort(d); return n ? `${p} ${n}` : p; }
+// ---------- Teams (shared state `teams`) ----------
+// "give me a function to create teams, base teams by year that i can edit
+// ... when I hit staff this shift, I can hit Alberto's team, select it, and
+// if I need to edit it, I can deselect a person and select somebody
+// different depending on the day" (user, 2026-10-24).
+//
+// A team is a saved group of people for a season: {id, name, season (year),
+// leadId ('' for none), members: [personId], color?}. Teams are made in
+// Roster > Teams. In Staff this shift, a team's button ADDS its members to
+// that crew (every night of a Dallas week), skipping anyone not available
+// or already on another crew that day; the checklist stays editable. A team
+// never staffs anything by itself: who works is still state.staffing.
+// A person is on at most one team per season; saving a team moves them.
+const TEAM_NAME_MAX = 40;
+let teams = [];
+/** The season a new team gets: this page's season. */
+function teamSeasonDefault(){
+  const y=parseInt(PAGE_SEASON, 10);
+  return Number.isFinite(y) ? y : new Date().getFullYear();
+}
+/** PURE. A typed team name as stored: whitespace collapsed, trimmed, capped. */
+function normTeamName(v){
+  return String(v==null?'':v).replace(/\s+/g,' ').trim().slice(0, TEAM_NAME_MAX);
+}
+/** PURE. Saved teams as this page keeps them. `ids`: the roster ids that
+ *  exist (members and leads who are no longer on the roster are dropped;
+ *  omit to keep everyone). `season`: the year for a team saved without a
+ *  valid one. A team needs an id and a name. The lead is always a member.
+ *  One team per person per season: an earlier team in the list keeps them. */
+function normTeams(list, ids, season){
+  const known = ids ? (ids instanceof Set ? ids : new Set(ids)) : null;
+  const ok = x => !known || known.has(x);
+  const out=[], seen=new Set(), taken={};
+  (Array.isArray(list)?list:[]).forEach(t=>{
+    if(!t || typeof t!=='object' || Array.isArray(t)) return;
+    const id=String(t.id==null?'':t.id).trim(), name=normTeamName(t.name);
+    if(!id || !name || seen.has(id)) return;
+    const yr=parseInt(t.season, 10);
+    const yearOf = (yr>=2000 && yr<=2100) ? yr : season;
+    const used = taken[yearOf] || (taken[yearOf]=new Set());
+    let leadId = t.leadId==null ? '' : String(t.leadId);
+    const raw = (Array.isArray(t.members)?t.members:[]).map(String);
+    if(leadId) raw.unshift(leadId);
+    const members=[...new Set(raw)].filter(x=>x && ok(x) && !used.has(x));
+    if(!members.includes(leadId)) leadId='';
+    members.forEach(x=>used.add(x));
+    const team={id, name, season:yearOf, leadId, members};
+    if(typeof t.color==='string' && /^#[0-9a-f]{6}$/i.test(t.color)) team.color=t.color.toLowerCase();
+    seen.add(id); out.push(team);
+  });
+  return out;
+}
+/** Teams as loaded onto this page: normalized against the current roster. */
+function loadTeams(v){ return normTeams(v, roster.map(p=>p.id), teamSeasonDefault()); }
+function newTeamId(){ return 't'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+/** PURE. One season's teams, by name. */
+function teamsForSeason(list, season){
+  return (list||[]).filter(t=>+t.season===+season).sort((a,b)=>a.name.localeCompare(b.name));
+}
+/** PURE. The team a person is on in `season` (ignoring team `exceptId`), or null. */
+function teamOfPerson(list, pid, season, exceptId){
+  return (list||[]).find(t=>t.id!==exceptId && +t.season===+season && t.members.includes(pid)) || null;
+}
+/** PURE. `list` with `team` saved (replaced by id, or added at the end).
+ *  Its members come off any other team that season, so saving moves them. */
+function withTeam(list, team){
+  const out=[]; let placed=false;
+  (list||[]).forEach(t=>{
+    if(t.id===team.id){ out.push(team); placed=true; return; }
+    if(+t.season===+team.season && t.members.some(x=>team.members.includes(x))){
+      const members=t.members.filter(x=>!team.members.includes(x));
+      out.push({...t, members, leadId:members.includes(t.leadId) ? t.leadId : ''});
+      return;
+    }
+    out.push(t);
+  });
+  if(!placed) out.push(team);
+  return out;
+}
+/** PURE. `list` without team `id`. */
+function withoutTeam(list, id){ return (list||[]).filter(t=>t.id!==id); }
+/** PURE. {count, rated, avg}: members still on the roster, how many have an
+ *  overall rating, and their average (1-10 scale, 0 when nobody is rated).
+ *  person(id) -> person or null; rate(person) -> overall rating or 0. */
+function teamStats(team, person, rate){
+  const ps=(team&&team.members||[]).map(person).filter(Boolean);
+  const rs=ps.map(rate).filter(v=>v>0);
+  return {count:ps.length, rated:rs.length,
+          avg: rs.length ? Math.round(rs.reduce((a,b)=>a+b,0)/rs.length*10)/10 : 0};
+}
+/** PURE. What adding `team` to a shift would do, member by member:
+ *  {add, already, unavailable:[{id,why}], busy:[{id,crew}], gone}.
+ *  o = {person(id) -> person|null, onShift: Set of ids already on it,
+ *       avail(person) -> {ok, why}, otherCrew(id) -> crew label or ''}.
+ *  gone: no longer on the roster or not working this season. */
+function teamApplyPlan(team, o){
+  const r={add:[], already:[], unavailable:[], busy:[], gone:[]};
+  (team&&team.members||[]).forEach(id=>{
+    const p=o.person(id);
+    if(!p || p.active===false){ r.gone.push(id); return; }
+    if(o.onShift.has(id)){ r.already.push(id); return; }
+    const av=o.avail(p)||{ok:true};
+    if(!av.ok){ r.unavailable.push({id, why:av.why||''}); return; }
+    const crew=o.otherCrew(id);
+    if(crew){ r.busy.push({id, crew}); return; }
+    r.add.push(id);
+  });
+  return r;
+}
+/** PURE. A copy of staffing with `ids` added to every crew-day in `dayIds`. */
+function staffingWith(map, dayIds, ids){
+  const out={...(map||{})};
+  if(!ids.length) return out;
+  dayIds.forEach(k=>{ out[k]=[...new Set([...(out[k]||[]), ...ids])]; });
+  return out;
+}
+/** PURE. A copy of staffing with nobody on the crew-days in `dayIds`. */
+function staffingCleared(map, dayIds){
+  const out={...(map||{})};
+  dayIds.forEach(k=>{ delete out[k]; });
+  return out;
+}
+/** PURE. The lines shown after a team is added to a crew, e.g.
+ *  ["Added 4 from Alberto's team.", "3 not available: Jany, Estafany, Yamile."].
+ *  nameOf(id) -> a person's name. */
+function teamApplyNote(team, plan, nameOf){
+  const names=l=>l.map(x=>nameOf(typeof x==='string' ? x : x.id)).join(', ');
+  const n=plan.add.length, lines=[];
+  lines.push(n ? `Added ${n} from ${team.name}.` : `Nobody new added from ${team.name}.`);
+  if(plan.already.length) lines.push(`${plan.already.length} already on this crew.`);
+  if(plan.unavailable.length) lines.push(`${plan.unavailable.length} not available: ${names(plan.unavailable)}.`);
+  if(plan.busy.length) lines.push(`${plan.busy.length} on another crew that day: `
+    + plan.busy.map(b=>`${nameOf(b.id)} (${b.crew})`).join(', ')+'.');
+  if(plan.gone.length) lines.push(`${plan.gone.length} not working this season: ${names(plan.gone)}.`);
+  return lines;
+}
 // Every date in the season, not just the ones that currently have crew-days
 // (user, 2026-08-18): work moves, and someone's availability is a fact about
 // them, not about today's schedule. Marking a person free on a date nobody is
@@ -3279,6 +3473,7 @@ try{
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     crewNames = normCrewNames(s.crewNames);
+    teams = loadTeams(s.teams);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
   } else if(s.moves && s.moves.length){
@@ -3385,7 +3580,7 @@ function placementBoardDates(place){
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
 const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames'];
-const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing'];
+const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
 function sharedDocOf(st){
@@ -3564,6 +3759,43 @@ function mergeShared(base, mine, theirs, label){
     if(l.length) staffing[d]=l;
   });
   if(any('staffing')) out.staffing=staffing;
+  // Teams: per team (by id), per field. Members are a set, so two tabs that
+  // each add someone to the same team both land.
+  if(any('teams')){
+    const byId=l=>Object.fromEntries((Array.isArray(l)?l:[]).map(t=>[t.id,t]));
+    const tb=byId(base.teams), tm=byId(mine.teams), tt=byId(theirs.teams);
+    const tname=t=>(t && t.name) || 'A team';
+    const mergeTeam=(b,m,t)=>{
+      const res={...t};
+      new Set([...Object.keys(b), ...Object.keys(m), ...Object.keys(t)]).forEach(f=>{
+        if(f==='id') return;
+        let v;
+        if(same(b[f], m[f])) v=t[f];
+        else if(f==='members') v=setMerge(b[f], m[f], t[f]);
+        else v=pick(b[f], m[f], t[f], `${tname(t)}: team ${f==='leadId'?'lead':f}`);
+        if(v===undefined) delete res[f]; else res[f]=v;
+      });
+      return res;
+    };
+    const list=[];
+    (Array.isArray(theirs.teams)?theirs.teams:[]).forEach(t=>{
+      const b=tb[t.id], m=tm[t.id];
+      if(b && m) list.push(mergeTeam(b,m,t));
+      else if(b && !m){                     // I deleted it
+        changed++;
+        if(!same(t,b)){ conflicts.push(`${tname(t)} (changed by someone else, so not deleted)`); list.push(t); }
+      }
+      else if(!b && m && !same(m,t)) list.push(mergeTeam({},m,t));
+      else list.push(t);
+    });
+    (Array.isArray(mine.teams)?mine.teams:[]).forEach(m=>{
+      if(tt[m.id]) return;
+      const b=tb[m.id];
+      if(b){ if(!same(m,b)){ changed++; conflicts.push(`${tname(m)} (deleted by someone else)`); } return; }
+      changed++; list.push(m);             // I added it
+    });
+    out.teams=list;
+  }
   return {state:out, conflicts, changed, hard};
 }
 /** PURE. Takedown stops are added as their own rows under the location's
@@ -3623,7 +3855,7 @@ function snapshot(){
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
-          roster, staffing, crewNames, savedAt:Date.now()};
+          roster, staffing, teams, crewNames, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -4403,6 +4635,8 @@ async function pullSharedNow(){
     if(!roster.length && j.inherit && Array.isArray(j.inherit.roster) && j.inherit.roster.length){
       roster = normRoster(j.inherit.roster);
       staffing = normStaffing(j.inherit.staffing);
+      // Teams are about people too, so they carry over the same way.
+      if(!teams.length) teams = loadTeams(j.inherit.teams);
       if(roster.length){
         stateWarning = `Roster carried over from the previous build`
           + `${j.inherit.inheritedFrom ? ' ('+j.inherit.inheritedFrom+')' : ''}`
@@ -4757,6 +4991,7 @@ async function restoreHistoryEntry(entryId, btn){
     comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     crewNames = normCrewNames(st.crewNames);
+    teams = loadTeams(st.teams);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
     saveLocal();
@@ -4781,7 +5016,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing, crewNames});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing, teams, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -4803,10 +5038,13 @@ function restoreBlob(blob){
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
   crewNames = normCrewNames(s.crewNames);
+  teams = loadTeams(s.teams);
   return missing;
 }
 /** Call immediately BEFORE mutating, so the stack holds the prior state. */
+let undoSeq = 0;   // counts pushUndo() calls (the Staff dialog's own Undo uses it)
 function pushUndo(){
+  undoSeq++;
   undoStack.push(stateBlob());
   if(undoStack.length > UNDO_LIMIT) undoStack.shift();
   redoStack = [];      // a fresh edit invalidates the redo branch
@@ -10555,14 +10793,128 @@ function openStaffDlg(idOrKey){
   const sh=d ? shiftOfDay(d) : shiftFor(idOrKey);
   if(!sh) return;
   stfKey=sh.key;
+  stfUndoN=0; stfTeamNote=null;
   document.getElementById('stftitle').textContent=`${sh.label} — ${sh.when}`;
   drawStaffDlg();
   stfdlg.showModal();
 }
 function shiftAssigned(sh){ return new Set(sh.days.flatMap(x=>staffing[x.id]||[])); }
+// ---- Staff dialog: Undo and Clear ----
+// "I need an undo button and a clear button on the staff / edit crew"
+// (user, 2026-10-24). Every change in this dialog already goes on the page's
+// undo stack (pushUndo), so the dialog's Undo steps back through the ones
+// made since it opened, using the same undo() as the toolbar: both stay in
+// step, and the toolbar can still undo them after the dialog closes.
+let stfUndoN = 0;        // undo steps made since this dialog opened
+let stfTeamNote = null;  // {teamId, lines, name} after a team is added
+/** Run a dialog change; counts it when it pushed an undo step. */
+function stfTrack(fn){
+  const s=undoSeq;
+  fn();
+  if(undoSeq!==s) stfUndoN++;
+}
+/** Undo steps the dialog can still take. A merge with someone else's save
+ *  empties the page's undo stack, so it never goes past what's there. */
+function stfUndoLeft(n, stackLen){ return Math.max(0, Math.min(n, stackLen)); }
+function stfUndo(){
+  if(roBlocked()) return;
+  stfUndoN=stfUndoLeft(stfUndoN, undoStack.length);
+  if(!stfUndoN) return;
+  stfUndoN--; stfTeamNote=null;
+  undo();
+  drawStaffDlg();
+}
+/** "Clear": everyone off this crew (every night of a Dallas week), undoable. */
+function stfClear(sh){
+  if(roBlocked()) return;
+  const n=shiftAssigned(sh).size;
+  if(!n) return;
+  if(!confirm(`Remove all ${n} ${n===1?'person':'people'} from this crew?`
+    + (sh.dallas ? `\n\nThis takes them off all ${sh.days.length} nights of the Dallas week.` : ''))) return;
+  stfTrack(()=>{
+    pushUndo();
+    staffing=staffingCleared(staffing, sh.days.map(x=>x.id));
+    persist();
+  });
+  stfTeamNote=null;
+  drawStaffDlg(); render();
+}
+/** The crew (label) someone is on that shares a date with this shift, or ''. */
+function shiftOtherCrew(sh, pid){
+  const mine=new Set(sh.days.map(x=>x.id)), myDates=new Set(sh.days.map(x=>x.date));
+  const o=days.find(x=>!mine.has(x.id) && myDates.has(x.date) && (staffing[x.id]||[]).includes(pid));
+  return o ? crewTitle(o)+(isDallasNight(o) ? ' · Dallas week' : o.win===K.NIGHT ? ' · night' : '') : '';
+}
+/** Add a team's members to this shift (every night of a Dallas week),
+ *  skipping anyone not available or already on another crew that day. */
+function applyTeamToShift(sh, team){
+  if(roBlocked()) return null;
+  const plan=teamApplyPlan(team, {person:personById, onShift:shiftAssigned(sh),
+    avail:p=>availFor(p, sh), otherCrew:id=>shiftOtherCrew(sh, id)});
+  if(plan.add.length) stfTrack(()=>{
+    pushUndo();
+    staffing=staffingWith(staffing, sh.days.map(x=>x.id), plan.add);
+    persist();
+  });
+  stfTeamNote={teamId:team.id, name:team.name,
+    lines:teamApplyNote(team, plan, id=>{ const p=personById(id); return p ? p.name : id; })};
+  return plan;
+}
+/** The row of team buttons at the top of the dialog ('' when there are none
+ *  this season, or on a training day). */
+function stfTeamsHTML(sh){
+  if(sh.training) return '';
+  const list=teamsForSeason(teams, teamSeasonDefault());
+  if(!list.length) return '';
+  const on=shiftAssigned(sh);
+  let h=`<div class="stfteamrow"><span class="stfteamlbl">Add a team</span>`
+    + list.map(t=>{
+        const st=teamStats(t, personById, ()=>0);
+        const all=t.members.length && t.members.every(id=>on.has(id));
+        return `<button type="button" class="stfteambtn${all?' on':''}" data-team="${esc(t.id)}"`
+          + ` title="Add everyone on ${esc(t.name)} who can work this shift">`
+          + `${IC.users}<span>${esc(t.name)} (${st.count})</span></button>`;
+      }).join('')
+    + `</div>`;
+  const note=stfTeamNote;
+  if(note && list.some(t=>t.id===note.teamId)){
+    h+=`<div class="stfteamnote">${note.lines.map(l=>`<div>${esc(l)}</div>`).join('')}`;
+    if(!sh.name && normTeamName(note.name))
+      h+=`<button type="button" class="stfteamname" data-teamname="${esc(note.teamId)}">`
+        + `Name this crew "${esc(note.name)}"</button>`;
+    h+=`</div>`;
+  }
+  return h;
+}
 function drawStaffDlg(){
   const sh=shiftFor(stfKey); if(!sh) return;
   const d=sh.days[0];
+  document.getElementById('stftitle').textContent=`${sh.label} — ${sh.when}`;
+  // Teams, Undo and Clear
+  const teamBox=document.getElementById('stfteams');
+  teamBox.innerHTML=stfTeamsHTML(sh);
+  teamBox.querySelectorAll('[data-team]').forEach(b=>{
+    b.onclick=()=>{
+      const t=teams.find(x=>x.id===b.dataset.team); if(!t) return;
+      applyTeamToShift(sh, t);
+      drawStaffDlg(); render();
+    };
+  });
+  teamBox.querySelectorAll('[data-teamname]').forEach(b=>{
+    b.onclick=()=>{
+      const t=teams.find(x=>x.id===b.dataset.teamname); if(!t) return;
+      stfTrack(()=>setCrewName(sh.key, t.name));
+      drawStaffDlg();
+    };
+  });
+  const undoBtn=document.getElementById('stfundo');
+  stfUndoN=stfUndoLeft(stfUndoN, undoStack.length);
+  undoBtn.disabled=READONLY || !stfUndoN;
+  undoBtn.innerHTML=`${IC.undo} Undo${stfUndoN>1?` <span class="n">(${stfUndoN})</span>`:''}`;
+  undoBtn.onclick=stfUndo;
+  const clearBtn=document.getElementById('stfclear');
+  clearBtn.disabled=READONLY || !shiftAssigned(sh).size;
+  clearBtn.onclick=()=>stfClear(sh);
   const cv=shiftCoverage(sh), on=shiftAssigned(sh);
   document.getElementById('stfneed').innerHTML = sh.training
     ? `Training day — no jobs, no fixed headcount. Add whoever's attending.`
@@ -10577,7 +10929,7 @@ function drawStaffDlg(){
           + `${sh.hours.toFixed(1)}h. No half days.`);
   const readyBtn=document.getElementById('stfready');
   readyBtn.onclick=()=>{
-    assignReadyRosterToShift(sh);
+    stfTrack(()=>assignReadyRosterToShift(sh));
     drawStaffDlg();
     render();
   };
@@ -10628,7 +10980,7 @@ function drawStaffDlg(){
   list.querySelectorAll('input[data-pid]').forEach(cb=>{
     cb.onchange=()=>{
       if(roBlocked()){ cb.checked=!cb.checked; return; }
-      pushUndo();
+      stfTrack(()=>pushUndo());
       // Write every day in the shift, so a block is all-or-nothing.
       sh.days.forEach(x=>{
         const cur=new Set(staffing[x.id]||[]);
@@ -11189,7 +11541,8 @@ function renderStaffing(){
       <button class="stftab${staffTab==='shifts'?' sel':''}" data-tab="shifts">Shifts${
         short?` (${short})`:''}</button>
       ${staffTab==='roster'?'<button class="stftxt" id="masstext"><span class="stflg">Send mass text</span><span class="stfsm">Mass text</span></button>'
-        +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts"><span class="stflg">Download contacts</span><span class="stfsm">Contacts</span></button>':''}
+        +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts"><span class="stflg">Download contacts</span><span class="stfsm">Contacts</span></button>'
+        +`<button class="stfvcf stfteams" id="teamsbtn" title="Saved teams you can add to a crew in one tap">${IC.users}<span>Teams${(n=>n?` (${n})`:'')(teamsForSeason(teams, teamSeasonDefault()).length)}</span></button>`:''}
       <button class="stfadd" id="addperson"><span class="stflg">+ Add installer</span><span class="stfsm">+ Add installer</span></button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   wrap.querySelectorAll('.stftab').forEach(b=>
@@ -11199,6 +11552,8 @@ function renderStaffing(){
   if(mt) mt.onclick=openTextDlg;
   const dl=document.getElementById('dlcontacts');
   if(dl) dl.onclick=downloadContacts;
+  const tb=document.getElementById('teamsbtn');
+  if(tb) tb.onclick=openTeamsDlg;
   wrap.querySelectorAll('select[data-f]').forEach(sl=>
     sl.onchange=()=>{ stfFilter[sl.dataset.f]=sl.value; renderStaffing(); });
   wrap.querySelectorAll('tr[data-pid]').forEach(tr=>{
@@ -11271,6 +11626,169 @@ function renderStaffing(){
   wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
                      selDate=d.date; focusDayId=d.id; setView('days'); });
+}
+
+// ---- Teams (Roster > Teams) ----
+// List a season's teams; make, edit and delete them. See the Teams notes by
+// normTeams() for the data. Read-only pages can look but not change.
+let teamView = {mode:'list', season:null, draft:null};
+function openTeamsDlg(){
+  teamView={mode:'list', season:teamSeasonDefault(), draft:null};
+  drawTeamsDlg();
+  if(!teamdlg.open) teamdlg.showModal();
+}
+function teamPersonName(id){ const p=personById(id); return p ? p.name : 'Someone no longer on the roster'; }
+function teamListHTML(){
+  const season=teamView.season;
+  const years=[...new Set([teamSeasonDefault(), ...teams.map(t=>t.season)])].sort((a,b)=>b-a);
+  const list=teamsForSeason(teams, season);
+  let h=`<div class="teamsub">Saved groups of people. In <b>Staff this shift</b>, tap a team to add `
+    + `everyone on it who can work that day, then change anyone you need to.</div>`;
+  if(years.length>1)
+    h+=`<label class="nclabel" for="teamyear">Year</label><select id="teamyear">`
+      + years.map(y=>`<option value="${y}"${y===season?' selected':''}>${y}</option>`).join('')+`</select>`;
+  if(!list.length) h+=`<div class="stfnone">No teams for ${season} yet.`
+    + (READONLY ? '' : ` Tap <b>+ New team</b> to make one.`)+`</div>`;
+  h+=`<div class="teamlist">`+list.map(t=>{
+    const st=teamStats(t, personById, overallRating);
+    const lead=t.leadId ? personById(t.leadId) : null;
+    const names=t.members.filter(id=>id!==t.leadId).map(teamPersonName);
+    return `<div class="teamrow" data-teamrow="${esc(t.id)}">
+      <div class="teamhd"><b class="teamnm">${esc(t.name)}</b>
+        <span class="teammeta">${st.count} ${st.count===1?'person':'people'}`
+        + `<span class="teamrat"> · ${st.rated?`avg ${ratingScale(st.avg).toFixed(1)}★`:'not rated'}</span></span></div>
+      <div class="teamppl">${lead?`<span class="teamlead">Lead: ${esc(lead.name)}</span>`:''}`
+        + `${esc(names.join(', '))}</div>
+      ${READONLY?'':`<div class="teamacts">
+        <button type="button" data-teamedit="${esc(t.id)}">Edit</button>
+        <button type="button" class="teamdel" data-teamdel="${esc(t.id)}">Delete</button></div>`}
+    </div>`;
+  }).join('')+`</div>`;
+  return h;
+}
+function teamEditHTML(){
+  const dr=teamView.draft;
+  const sel=new Set(dr.members);
+  const pick={training:false, showAll:stfShowUntrained(), assigned:sel, staffing, trainingDays};
+  const people=roster.filter(p=>staffPickable(p, pick));
+  const hidden=roster.filter(p=>p.active && !staffPickable(p, {...pick, showAll:false})).length;
+  const leads=roster.filter(p=>p.active!==false || p.id===dr.leadId)
+    .sort((a,b)=>TITLES.indexOf(a.title)-TITLES.indexOf(b.title) || a.name.localeCompare(b.name));
+  let h=`<label class="nclabel" for="teamname">Team name</label>
+    <input type="text" id="teamname" maxlength="${TEAM_NAME_MAX}" value="${esc(dr.name)}" placeholder="e.g. Alberto's team">
+    <div class="teamtwo"><div><label class="nclabel" for="teamseason">Year</label>
+      <input type="number" id="teamseason" min="2000" max="2100" value="${dr.season}"></div>
+    <div><label class="nclabel" for="teamleadsel">Lead</label>
+      <select id="teamleadsel"><option value="">No lead</option>`
+    + leads.map(p=>`<option value="${esc(p.id)}"${p.id===dr.leadId?' selected':''}>${esc(p.name)} (${esc(p.title)})</option>`).join('')
+    + `</select></div></div>
+    <div class="teamcount">${sel.size} picked</div>
+    <label class="untrtog" title="Normally only people who attended training, plus Leads, are listed">`
+    + `<input type="checkbox" id="teamuntr"${pick.showAll?' checked':''}>`
+    + `<span>Show people who didn't attend training${hidden?` <span class="n">(${hidden})</span>`:''}</span></label>`
+    + `<div class="asglist teampick">`;
+  if(!people.length) h+=`<div class="stfnone">No one who attended training yet. Tick "Show people who didn't attend training" to pick from everyone.</div>`;
+  TITLES.forEach(ttl=>{
+    const grp=people.filter(p=>p.title===ttl).sort((a,b)=>a.name.localeCompare(b.name));
+    if(!grp.length) return;
+    h+=`<div class="asghdr">${esc(ttl)}</div>`;
+    grp.forEach(p=>{
+      const other=teamOfPerson(teams, p.id, dr.season, dr.id);
+      h+=`<label class="asgrow${sel.has(p.id)?' on':''}">`
+        + `<input type="checkbox" data-tpid="${esc(p.id)}"${sel.has(p.id)?' checked':''}>`
+        + `<span class="asgn">${esc(p.name)}</span>`
+        + (other?`<span class="teamon" title="Saving moves them off ${esc(other.name)}">ON ${esc(other.name.toUpperCase())}</span>`:'')
+        + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></label>`;
+    });
+  });
+  h+=`</div><div class="teamerr" id="teamerr"></div>`;
+  return h;
+}
+function drawTeamsDlg(){
+  const body=document.getElementById('teambody'), btns=document.getElementById('teambtns');
+  const title=document.getElementById('teamtitle');
+  if(teamView.mode==='edit' && teamView.draft){
+    const dr=teamView.draft;
+    title.textContent = teams.some(t=>t.id===dr.id) ? `Edit ${dr.name||'team'}` : 'New team';
+    body.innerHTML=teamEditHTML();
+    btns.innerHTML=`<button type="button" id="teamcancel">Cancel</button><button type="button" class="go" id="teamsave">Save team</button>`;
+    // Keep what's typed when the list redraws.
+    const keep=()=>{
+      dr.name=document.getElementById('teamname').value;
+      const y=parseInt(document.getElementById('teamseason').value, 10);
+      if(y>=2000 && y<=2100) dr.season=y;
+      dr.leadId=document.getElementById('teamleadsel').value;
+    };
+    const redraw=()=>{ keep(); const sc=body.querySelector('.teampick'); const top=sc?sc.scrollTop:0;
+      drawTeamsDlg(); const sc2=body.querySelector('.teampick'); if(sc2) sc2.scrollTop=top; };
+    body.querySelectorAll('input[data-tpid]').forEach(cb=>{
+      cb.onchange=()=>{
+        const id=cb.dataset.tpid;
+        dr.members = cb.checked ? [...new Set([...dr.members, id])] : dr.members.filter(x=>x!==id);
+        if(!cb.checked && dr.leadId===id){ dr.leadId=''; document.getElementById('teamleadsel').value=''; }
+        redraw();
+      };
+    });
+    document.getElementById('teamleadsel').onchange=e=>{
+      const v=e.target.value;
+      if(v && !dr.members.includes(v)) dr.members=[v, ...dr.members];
+      redraw();
+    };
+    document.getElementById('teamseason').onchange=redraw;
+    document.getElementById('teamuntr').onchange=e=>{ setStfShowUntrained(e.target.checked); redraw(); };
+    document.getElementById('teamcancel').onclick=()=>{ teamView.mode='list'; teamView.draft=null; drawTeamsDlg(); };
+    document.getElementById('teamsave').onclick=()=>{ keep(); saveTeamDraft(); };
+    return;
+  }
+  title.textContent='Teams';
+  body.innerHTML=teamListHTML();
+  btns.innerHTML=(READONLY?'':`<button type="button" class="go" id="teamnew">+ New team</button>`)
+    + `<button type="button" id="teamdone">Done</button>`;
+  const ys=document.getElementById('teamyear');
+  if(ys) ys.onchange=()=>{ teamView.season=+ys.value; drawTeamsDlg(); };
+  document.getElementById('teamdone').onclick=()=>teamdlg.close();
+  const nb=document.getElementById('teamnew');
+  if(nb) nb.onclick=()=>{
+    if(roBlocked()) return;
+    teamView.mode='edit';
+    teamView.draft={id:newTeamId(), name:'', season:teamView.season, leadId:'', members:[]};
+    drawTeamsDlg();
+    const n=document.getElementById('teamname'); if(n) n.focus();
+  };
+  body.querySelectorAll('[data-teamedit]').forEach(b=>b.onclick=()=>{
+    if(roBlocked()) return;
+    const t=teams.find(x=>x.id===b.dataset.teamedit); if(!t) return;
+    teamView.mode='edit';
+    teamView.draft=JSON.parse(JSON.stringify(t));
+    drawTeamsDlg();
+  });
+  body.querySelectorAll('[data-teamdel]').forEach(b=>b.onclick=()=>{
+    if(roBlocked()) return;
+    const t=teams.find(x=>x.id===b.dataset.teamdel); if(!t) return;
+    if(!confirm(`Delete "${t.name}"?\n\nNobody is taken off any crew. Only the saved team goes away.`)) return;
+    pushUndo();
+    teams=withoutTeam(teams, t.id);
+    persist(); drawTeamsDlg(); render();
+  });
+}
+/** Save the team being edited (shared, undoable). */
+function saveTeamDraft(){
+  if(roBlocked()) return;
+  const dr=teamView.draft; if(!dr) return;
+  const err=document.getElementById('teamerr');
+  const name=normTeamName(dr.name);
+  if(!name){ err.textContent='Give the team a name.'; document.getElementById('teamname').focus(); return; }
+  const team=normTeams([{...dr, name}], roster.map(p=>p.id), teamSeasonDefault())[0];
+  if(!team){ err.textContent='That team could not be saved.'; return; }
+  const moving=team.members.map(id=>({id, from:teamOfPerson(teams, id, team.season, team.id)})).filter(x=>x.from);
+  if(moving.length && !confirm(`${moving.length===1?'This person is':'These people are'} already on another ${team.season} team:\n\n`
+      + moving.map(x=>`${teamPersonName(x.id)} (${x.from.name})`).join('\n')
+      + `\n\nA person can be on one team per year. Move ${moving.length===1?'them':'them all'} to ${team.name}?`)) return;
+  pushUndo();
+  teams=withTeam(teams, team);
+  persist();
+  teamView={mode:'list', season:team.season, draft:null};
+  drawTeamsDlg(); render();
 }
 
 // ---- Download contacts (Roster) ----
@@ -12487,6 +13005,8 @@ function render(){
   // A crew name whose crew-day is gone (emptied, or its Dallas run changed
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
+  // A team member who was deleted from the roster comes off their team.
+  teams = loadTeams(teams);
   days.forEach(d=>{
     const mo = manualOrder[d.id];
     if(mo){
