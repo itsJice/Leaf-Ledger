@@ -193,6 +193,12 @@ def crew_days(board: Board, prices: dict[str, dict], card: dict, assignments: di
         for s in tl["stops"]:
             onsite_total[s["row"]] = onsite_total.get(s["row"], 0.0) + max(0.0, s["end"] - s["start"])
 
+    # A joint shift (crews on the same stops that date) is staffed as one
+    # crew written to each crew-day, so someone on two of its crew-days is
+    # one person working one day: their pay is split between those days,
+    # not counted on each.
+    joints = board.joint_groups()
+
     out_days = []
     for d in sorted(board.days.values(), key=lambda x: (x["date"], x["crew"], x["id"])):
         tl = lines.get(d["id"])
@@ -211,10 +217,18 @@ def crew_days(board: Board, prices: dict[str, dict], card: dict, assignments: di
         staffed_ids = board.staffing.get(d["id"]) or []
         crew: list[dict] = []
         needed, crew_basis = estimated_crew(board, rows)
+        group = joints.get(d["id"]) or [d["id"]]
+        shared = 0
         for pid in staffed_ids:
             p = board.person(pid) or {"id": pid, "name": pid, "title": "General Installer"}
             pr = ic.person_rate(p, assignments.get(pid), card)
-            crew.append({"name": p["name"], "pay_class": pr["pay_class"], "label": pr["label"], "rate": pr["rate"]})
+            on = sum(1 for g in group if pid in (board.staffing.get(g) or []))
+            entry = {"name": p["name"], "pay_class": pr["pay_class"], "label": pr["label"], "rate": pr["rate"]}
+            if on > 1:
+                shared += 1
+                entry["share"] = round(1 / on, 3)
+                entry["rate"] = None if pr["rate"] is None else pr["rate"] / on
+            crew.append(entry)
             # This person covers one needed seat: their own class if the
             # stops call for one, otherwise a general installer's.
             for slug in (pr["pay_class"], "general", *needed):
@@ -228,6 +242,8 @@ def crew_days(board: Board, prices: dict[str, dict], card: dict, assignments: di
         estimated = sum(1 for c in crew if c["name"] is None)
         if not crew:
             notes.append("No crew staffed and no role needs on these stops")
+        if shared:
+            notes.append(f"Joint shift: {shared} people also on the other crew this date, pay split between them")
 
         # ---- paid time ----
         first, last = tl["stops"][0], tl["stops"][-1]

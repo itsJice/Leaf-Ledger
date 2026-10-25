@@ -204,7 +204,7 @@ def test_staff_dialog_has_teams_undo_and_clear():
     # every change made in the dialog is tracked for its Undo
     assert "stfTrack(()=>assignReadyRosterToShift(sh))" in draw
     assert "stfTrack(()=>pushUndo())" in draw
-    assert "stfTrack(()=>setCrewName(sh.key, t.name))" in draw
+    assert "stfTrack(()=>setCrewName(sh.nameKey, t.name))" in draw
     assert "stfTrack(" in js_function("applyTeamToShift")
     assert "stfTrack(" in js_function("stfClear")
     # the dialog's Undo is the page's undo, so the toolbar stays in step

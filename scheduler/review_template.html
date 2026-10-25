@@ -984,6 +984,14 @@ body.apple #sddlg #peekdlg.insd .pkclose{top:12px;right:12px}
 .shcp.lead{background:#1f3d2b;color:#fff;font-weight:800}
 .shcp.assist{background:var(--brand-soft);color:var(--brand-deep);font-weight:700}
 .shcempty{color:var(--mut);font-style:italic;font-size:11.5px}
+.shcjoint{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;font-size:11px;color:var(--mut);margin:2px 0 4px}
+.shcjoint .ic{width:12px;height:12px}
+.shcjoint.warn{color:var(--warn-ink);background:var(--warn-soft);border:1px solid #f3d9ad;
+  border-radius:7px;padding:5px 8px;font-weight:600}
+.shcsync{border:1px solid var(--warn-ink);background:transparent;color:var(--warn-ink);border-radius:6px;
+  padding:3px 8px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.shcsync:hover{background:#fff}
+.crewplus{color:var(--mut);font-weight:600}
 .shcbtn{margin-top:10px;width:100%;padding:6px;border-radius:7px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;font-weight:700;font-size:11.5px;color:var(--ink);
   font-family:'Montserrat',sans-serif}
@@ -3408,7 +3416,16 @@ function withShiftNote(notes, key, text, by, at){
 /** The note on this crew-day's shift (or a shift key), or null. */
 function shiftNoteOf(dOrKey){
   const k = typeof dOrKey==='string' ? dOrKey : shiftNoteKey(dOrKey);
+  // A joint shift (jointShiftGroups) keeps its note on each of its crew-days.
+  if(k && k.startsWith('joint|'))
+    return shiftNoteKeysFor(k).map(x=>shiftNotes[x]).find(Boolean) || null;
   return (k && shiftNotes[k]) || null;
+}
+/** PURE. The shiftNotes keys a card's shift key writes: a joint shift's key
+ *  ('joint|<id>+<id>') is each of its crew-days, so the Days view, run
+ *  sheets, lead pages and calendar feed show the note on every crew. */
+function shiftNoteKeysFor(key){
+  return String(key||'').startsWith('joint|') ? key.slice(6).split('+') : [key];
 }
 /** PURE. "Edited 10/24/2026 8:31 PM" in Central time ('' with no time). */
 function shiftNoteStamp(at){
@@ -5688,26 +5705,128 @@ function dallasRunStart(dt){
   return s;
 }
 function shiftKeyOf(d){ return isDallasNight(d) ? 'dallas|'+dallasRunStart(d.date)+'|'+d.crew : d.id; }
+// ---- joint shifts ----
+// "If there are two crews assigned to these days and I assign the people to
+// crew one, then they need to be represented on crew two as well" (user,
+// 2026-10-24). Crew-days on one date that work exactly the same stops (a
+// fully joint pair, or three crews on one big job) are ONE shift: one
+// Staffing card, one crew list, and staffing it writes the same people to
+// every crew-day in it -- the way a Dallas week writes every night -- so the
+// Days view, crew sheets, exports, calendar feed and profit see them on each.
+// A crew-day that shares only some of its stops stays its own shift (no half
+// days: its people work its other stops too) and just says what it shares.
+// Dallas nights keep their week-long shifts. Staffing and crew names stay
+// keyed by crew-day (crewNameKey), so nothing stored changes shape.
+/** PURE. {dayId: 'joint|<ids>'} for every crew-day in a fully joint group:
+ *  two or more crew-days on one date, not training, not a Dallas night
+ *  (isDallas(d)), with the same non-empty set of stops. */
+function jointShiftGroups(dayList, isDallas){
+  const byDate={};
+  (dayList||[]).forEach(d=>{
+    if(!d || d.training || !(d.stops||[]).length || (isDallas && isDallas(d))) return;
+    (byDate[d.date]=byDate[d.date]||[]).push(d);
+  });
+  const out={};
+  Object.values(byDate).forEach(ds=>{
+    if(ds.length<2) return;
+    const bySet={};
+    ds.forEach(d=>{
+      const sig=[...d.stops].sort((a,b)=>a-b).join(',');
+      (bySet[sig]=bySet[sig]||[]).push(d.id);
+    });
+    Object.values(bySet).forEach(ids=>{
+      if(ids.length<2) return;
+      const key='joint|'+ids.slice().sort().join('+');
+      ids.forEach(id=>{ out[id]=key; });
+    });
+  });
+  return out;
+}
+/** PURE. The stops `d` shares with crew-days outside its own shift on its
+ *  date: [{row, days:[day,...]}]. sameShift(x) says x is in d's shift. */
+function sharedStopsOutside(d, dayList, sameShift){
+  const others=(dayList||[]).filter(x=>x && x.id!==d.id && x.date===d.date && !x.training
+                                       && !(sameShift && sameShift(x)));
+  return (d.stops||[]).map(r=>({row:r, days:others.filter(x=>(x.stops||[]).includes(r))}))
+    .filter(x=>x.days.length);
+}
+/** PURE. A copy of staffing with every crew-day in `dayIds` holding the
+ *  union of who is on any of them (empty ones dropped). A joint shift's
+ *  crew-days are kept equal this way the first time it's edited, so a pair
+ *  staffed on one side only (from before joint shifts) fills in the other. */
+function staffingUnified(map, dayIds){
+  const out={...(map||{})};
+  const all=[...new Set(dayIds.flatMap(k=>out[k]||[]))];
+  dayIds.forEach(k=>{ if(all.length) out[k]=all.slice(); else delete out[k]; });
+  return out;
+}
+/** PURE. True when two or more of the crew-days have people on them and
+ *  they aren't the same people -- "different people on Crew 1 and Crew 2". */
+function staffingDiffers(map, dayIds){
+  const sets=dayIds.map(k=>[...new Set((map||{})[k]||[])].sort().join(',')).filter(Boolean);
+  return sets.length>1 && new Set(sets).size>1;
+}
+/** The other crews of a joint shift, from crew-day d's side: "Crew 2". */
+function jointPartnersOf(sh, d){
+  return sh.days.filter(x=>!d || x.id!==d.id).map(crewTitle).join(' + ');
+}
+/** "Shares Bourque with Crew 2" lines for a shift: the stops it has on
+ *  other crews that date that aren't part of it. Dallas weeks: none (their
+ *  joint nights are wired by the build). */
+function shiftShareNotes(sh){
+  if(sh.training || sh.dallas) return [];
+  const mine=new Set(sh.days.map(x=>x.id));
+  const by=new Map();
+  sharedStopsOutside(sh.days[0], days, x=>mine.has(x.id)).forEach(s=>{
+    const w=s.days.map(crewTitle).join(' + ');
+    by.set(w, [...(by.get(w)||[]), jointStopName(s.row)]);
+  });
+  return [...by].map(([w, names])=>`Shares ${names.join(', ')} with ${w}`);
+}
+function jointStopName(r){ return String((C[r]||{}).name||'').split('|')[0].trim(); }
+/** PURE. 'same' (all the same people, or nobody), 'partial' (people on some
+ *  of the crew-days, nobody on the rest) or 'differs' (staffingDiffers). */
+function jointStaffingState(map, dayIds){
+  if(staffingDiffers(map, dayIds)) return 'differs';
+  const on=dayIds.filter(k=>((map||{})[k]||[]).length).length;
+  return on && on<dayIds.length ? 'partial' : 'same';
+}
+/** Before an edit to a joint shift: make its crew-days the same people. */
+function unifyJointStaffing(sh){
+  if(sh && sh.joint) staffing=staffingUnified(staffing, sh.days.map(x=>x.id));
+}
 function buildShifts(){
   const map=new Map();
+  const jg=jointShiftGroups(days, isDallasNight);
   days.forEach(d=>{
-    const k=shiftKeyOf(d);
-    if(!map.has(k)) map.set(k,{key:k, crew:d.crew, dallas:isDallasNight(d), training:!!d.training, days:[]});
+    const k=jg[d.id]||shiftKeyOf(d);
+    if(!map.has(k)) map.set(k,{key:k, crew:d.crew, dallas:isDallasNight(d), training:!!d.training,
+                               joint:!!jg[d.id], days:[]});
     map.get(k).days.push(d);
   });
   const out=[...map.values()];
   out.forEach(sh=>{
-    sh.days.sort((a,b)=>a.date.localeCompare(b.date));
+    sh.days.sort((a,b)=>a.date.localeCompare(b.date)||byCrew(a,b));
     sh.date  = sh.days[0].date;                       // where it sorts/appears
     sh.night = sh.days.some(x=>x.win===K.NIGHT);
-    sh.stops = sh.days.reduce((a,x)=>a+x.stops.length,0);
-    sh.hours = sh.days.reduce((a,x)=>a+dayCalc(x).total/60,0);
+    // A joint shift's crew-days are the same stops on the same date: count
+    // them once, and its day is as long as the longest crew-day in it.
+    sh.stops = sh.joint ? sh.days[0].stops.length : sh.days.reduce((a,x)=>a+x.stops.length,0);
+    sh.hours = sh.joint ? Math.max(...sh.days.map(x=>dayCalc(x).total/60))
+                        : sh.days.reduce((a,x)=>a+dayCalc(x).total/60,0);
     // The crew part (sh.pos, renamable as sh.name) and the shift part
     // (sh.tail: "Dallas week" / "night", never renamable) are kept apart so
-    // the Staffing card can make only the crew part editable.
-    sh.pos  = sh.dallas ? sh.crew : crewLabel(sh.days[0]);
-    sh.name = sh.training ? '' : (crewNames[sh.key] || '');
-    sh.tail = sh.dallas ? 'Dallas week' : (sh.night ? 'night' : '');
+    // the Staffing card can make only the crew part editable. sh.members is
+    // each renamable crew in it with its crewNames key: one for a normal
+    // shift or a Dallas week, one per crew-day for a joint shift.
+    sh.members = sh.training ? [] : sh.joint
+      ? sh.days.map(x=>({key:crewNameKey(x), pos:crewLabel(x), name:crewNames[crewNameKey(x)]||''}))
+      : [{key:sh.key, pos:sh.dallas ? sh.crew : crewLabel(sh.days[0]), name:crewNames[sh.key]||''}];
+    sh.nameKey = sh.members.length ? sh.members[0].key : null;
+    sh.pos  = sh.dallas ? sh.crew : sh.joint ? sh.members.map(m=>m.pos).join(' + ') : crewLabel(sh.days[0]);
+    sh.name = sh.training ? '' : sh.members.map(m=>m.name).filter(Boolean).join(' + ');
+    sh.tail = sh.dallas ? 'Dallas week' : sh.joint ? (sh.night ? 'joint · night' : 'joint')
+            : (sh.night ? 'night' : '');
     sh.label = shiftLabelOf(sh);
     sh.when = sh.dallas
       ? `${fmtMDYYYY(sh.days[0].date)} – ${fmtMDYYYY(sh.days[sh.days.length-1].date)}`
@@ -5719,14 +5838,23 @@ function buildShifts(){
 }
 /** PURE. "Lesly's crew (Crew 1) · Dallas week", "Crew 2 · night", "Crew 3". */
 function shiftLabelOf(sh){
-  const crew = sh.name ? `${sh.name} (${sh.pos})` : sh.pos;
+  const crew = sh.members && sh.members.length>1
+    ? sh.members.map(m=>m.name ? `${m.name} (${m.pos})` : m.pos).join(' + ')
+    : sh.name ? `${sh.name} (${sh.pos})` : sh.pos;
   return sh.tail ? `${crew} · ${sh.tail}` : crew;
 }
 function shiftFor(key){ return buildShifts().find(s=>s.key===key) || null; }
-function shiftOfDay(d){ return shiftFor(shiftKeyOf(d)); }
+function shiftOfDay(d){ return d ? buildShifts().find(s=>s.days.some(x=>x.id===d.id)) || null : null; }
 /** A block is staffed as one unit, so its need is the biggest single night in
- *  it -- the crew that shows up has to cover the heaviest one. */
+ *  it -- the crew that shows up has to cover the heaviest one. A joint shift
+ *  is every crew in it on site together, so its need is theirs added up:
+ *  each crew-day's dayNeed already carries its half of the shared jobs (and
+ *  its own lead -- every crew-day needs one, it is still its own van), so
+ *  the sum is exactly what the board asks of the crews today. */
 function shiftNeed(sh){
+  if(sh.joint) return sh.days.map(dayNeed).reduce((a,n)=>({
+    lead:a.lead+n.lead, assist:a.assist+n.assist, gen:a.gen+n.gen, total:a.total+n.total}),
+    {lead:0,assist:0,gen:0,total:0});
   return sh.days.map(dayNeed).reduce((a,n)=>({
     lead:Math.max(a.lead,n.lead), assist:Math.max(a.assist,n.assist),
     gen:Math.max(a.gen,n.gen), total:Math.max(a.total,n.total)}),
@@ -5826,8 +5954,10 @@ function clashesFor(id){
     const d=days.find(x=>x.id===dayId); if(!d) return;
     (byDate[d.date]=byDate[d.date]||[]).push(d);
   });
+  // Both crews of a joint shift is one place, not two.
+  const jg=jointShiftGroups(days, isDallasNight);
   return Object.entries(byDate).filter(([,ds])=>
-    new Set(ds.map(d=>d.crew)).size>1).map(([dt,ds])=>({date:dt,crews:ds.map(d=>d.crew)}));
+    new Set(ds.map(d=>jg[d.id]||d.crew)).size>1).map(([dt,ds])=>({date:dt,crews:ds.map(d=>d.crew)}));
 }
 /** The shifts a person is on. A Dallas week counts as ONE shift, not five --
  *  that is how it is worked and how it should read on their card. */
@@ -8523,6 +8653,7 @@ function assignReadyRosterToShift(sh){
   const ids=readyRoster().filter(p=>staffPickable(p, o)).map(p=>p.id);
   if(!ids.length) return;
   pushUndo();
+  unifyJointStaffing(sh);
   sh.days.forEach(x=>{
     const cur=new Set(staffing[x.id]||[]);
     ids.forEach(id=>cur.add(id));
@@ -11131,7 +11262,7 @@ function crewShiftSection(d){
   const cv=shiftCoverage(sh), on=shiftAssigned(sh), pick=staffPickOpts(sh);
   wrap.innerHTML=`<button type="button" class="cshifthd">
       <span class="cvchip ${cv.state}">${IC.users}${esc(coverageLabel(cv))}</span>
-      <span class="cshifttitle">Crew shift${sh.dallas?' — whole week':''}</span>
+      <span class="cshifttitle">Crew shift${sh.dallas?' — whole week':sh.joint?' — joint with '+esc(jointPartnersOf(sh, d)):''}</span>
       <span class="cshiftarrow${isOpen?' open':''}" aria-hidden="true">${IC.chev}</span>
     </button>
     <div class="cshiftbody" style="display:${isOpen?'flex':'none'}">
@@ -11165,6 +11296,7 @@ function crewShiftSection(d){
       e.stopPropagation();
       if(roBlocked()) return;
       pushUndo();
+      unifyJointStaffing(sh);
       sh.days.forEach(x=>{
         const cur=new Set(staffing[x.id]||[]);
         cur.delete(btn.dataset.pid);
@@ -11179,8 +11311,10 @@ function crewShiftSection(d){
     if(!sel.value) return;
     if(roBlocked()){ sel.value=''; return; }
     pushUndo();
+    unifyJointStaffing(sh);
     // Write every day in the shift, same as the full dialog -- a Dallas
-    // block is staffed as one unit, not one night at a time.
+    // block is staffed as one unit, not one night at a time, and a joint
+    // shift puts them on every crew in it.
     sh.days.forEach(x=>{
       const cur=new Set(staffing[x.id]||[]);
       cur.add(sel.value);
@@ -11271,7 +11405,8 @@ function stfClearMsg(sh, n){
   if(sh.training) return `Remove all ${who} from the training? `
     + `This removes their Attended training status.\n\nUndo brings them back.`;
   return `Remove all ${who} from this crew?`
-    + (sh.dallas ? `\n\nThis takes them off all ${sh.days.length} nights of the Dallas week.` : '');
+    + (sh.dallas ? `\n\nThis takes them off all ${sh.days.length} nights of the Dallas week.`
+       : sh.joint ? `\n\nThis takes them off ${sh.pos} (joint).` : '');
 }
 /** The crew (label) someone is on that shares a date with this shift, or ''. */
 function shiftOtherCrew(sh, pid){
@@ -11294,6 +11429,7 @@ function toggleTeamOnShift(sh, team){
   const ids=plan.already;
   stfTrack(()=>{
     pushUndo();
+    unifyJointStaffing(sh);
     staffing=staffingWithout(staffing, sh.days.map(x=>x.id), ids);
     persist();
   });
@@ -11309,6 +11445,7 @@ function applyTeamToShift(sh, team, plan){
   stfScrollToNew=plan.add.length>0;
   if(plan.add.length) stfTrack(()=>{
     pushUndo();
+    unifyJointStaffing(sh);
     staffing=staffingWith(staffing, sh.days.map(x=>x.id), plan.add);
     persist();
   });
@@ -11391,6 +11528,9 @@ function drawStaffDlg(){
     + (sh.dallas
         ? `Staffed as a block — whoever works Dallas works all `
           + `${sh.days.length} nights.`
+        : sh.joint
+        ? `Joint — ${esc(sh.pos)} work the same ${sh.stops} job${sh.stops===1?'':'s'} together. `
+          + `Everyone you add goes on every crew.`
         : `Whole day — all ${sh.stops} job${sh.stops===1?'':'s'}, `
           + `${sh.hours.toFixed(1)}h. No half days.`);
   const readyBtn=document.getElementById('stfready');
@@ -11460,7 +11600,7 @@ function drawStaffDlg(){
   list.querySelectorAll('[data-teamname]').forEach(b=>{
     b.onclick=()=>{
       const t=teams.find(x=>x.id===b.dataset.teamname); if(!t) return;
-      stfTrack(()=>setCrewName(sh.key, t.name));
+      stfTrack(()=>setCrewName(sh.nameKey, t.name));
       drawStaffDlg();
     };
   });
@@ -11480,7 +11620,9 @@ function drawStaffDlg(){
     cb.onchange=()=>{
       if(roBlocked()){ cb.checked=!cb.checked; return; }
       stfTrack(()=>pushUndo());
-      // Write every day in the shift, so a block is all-or-nothing.
+      unifyJointStaffing(sh);
+      // Write every day in the shift, so a block (or a joint shift) is
+      // all-or-nothing.
       sh.days.forEach(x=>{
         const cur=new Set(staffing[x.id]||[]);
         cb.checked ? cur.add(cb.dataset.pid) : cur.delete(cb.dataset.pid);
@@ -11780,7 +11922,7 @@ function personDetailHTML(){
     ? sh.map(x=>`<div class="stfshift" data-goday="${x.days[0].id}" role="button" tabindex="0" title="Open this day in the schedule">
         <span class="sdot" style="background:${CREW_COLORS[x.crew]||'#555'}"></span>
         <span><span class="sd">${esc(x.when)} · ${esc(x.label)}</span>
-        <span class="sj">${x.days.flatMap(d=>d.stops.map(r=>
+        <span class="sj">${(x.joint?x.days.slice(0,1):x.days).flatMap(d=>d.stops.map(r=>
             esc((C[r].name||'').split('|')[0].trim()))).join(', ')||'no stops'}</span></span>
       </div>`).join('')
     : `<div class="stfnone" style="padding:12px">Not on any shift yet.</div>`;
@@ -11793,10 +11935,10 @@ function personDetailHTML(){
 /** One card per shift: the jobs that shift covers at the top, then who is
  *  on the crew. Multi-night shifts (the Dallas week) list their jobs night
  *  by night, since that is how the crew works them. */
-function jobLineHTML(d, r, n){
+function jobLineHTML(d, r, n, whole){
   const c=C[r]||{};
   const where=c.zone||c.city||'';
-  const hrs=effH(d,r);
+  const hrs=whole ? (c.h26||0) : effH(d,r);   // a joint card shows the whole job
   const bits=[where, hrs?(+hrs.toFixed(2))+'h':'',
               c.boxes?c.boxes+' box':''].filter(Boolean).join(' · ');
   return `<div class="shcjob"><span class="jn">${n}</span><span class="jb">`
@@ -11806,13 +11948,29 @@ function jobLineHTML(d, r, n){
 function shiftCardHTML(sh){
   const cv=shiftCoverage(sh);
   let jobs='', n=0;
-  sh.days.forEach(d=>{
+  // A joint shift's crew-days are the same stops: list them once.
+  (sh.joint ? sh.days.slice(0,1) : sh.days).forEach(d=>{
     const order=dayCalc(d).order.length?dayCalc(d).order:d.stops;
-    if(sh.days.length>1)
+    if(sh.days.length>1 && !sh.joint)
       jobs+=`<div class="shcnight">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}</div>`;
     if(!order.length) jobs+=`<div class="shcempty">no jobs</div>`;
-    order.forEach(r=>{ jobs+=jobLineHTML(d, r, ++n); });
+    order.forEach(r=>{ jobs+=jobLineHTML(d, r, ++n, sh.joint); });
   });
+  const ids=sh.days.map(x=>x.id);
+  const sync=sh.joint ? jointStaffingState(staffing, ids) : 'same';
+  const notes=shiftShareNotes(sh);
+  const syncBtn=label=>READONLY ? ''
+    : ` <button type="button" class="shcsync" data-jointsync="${esc(sh.key)}">${label}</button>`;
+  // Saved on one crew only (staffed before joint shifts): the card shows them
+  // on the pair already, and any change -- or this button -- saves both.
+  const bare=sh.days.filter(x=>!(staffing[x.id]||[]).length).map(crewLabel);
+  const extra=(sync==='differs'
+      ? `<div class="shcjoint warn">Different people on ${esc(sh.days.map(crewLabel).join(' and '))}`
+        + syncBtn('Make both the same') + `</div>`
+      : sync==='partial'
+      ? `<div class="shcjoint">Saved on ${esc(sh.days.filter(x=>(staffing[x.id]||[]).length).map(crewLabel).join(' + '))} only so far.`
+        + syncBtn(`Put them on ${esc(bare.join(' + '))} too`) + `</div>` : '')
+    + notes.map(t=>`<div class="shcjoint">${IC.link} ${esc(t)}</div>`).join('');
   const crew=shiftCrewHTML(cv);
   return `<div class="shcard ${cv.state}" data-shift="${esc(sh.key)}">
     <div class="shchead">
@@ -11822,7 +11980,7 @@ function shiftCardHTML(sh){
       <span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span>
     </div>
     <div class="shcsec">${n} job${n===1?'':'s'} · ${sh.hours.toFixed(1)}h</div>
-    ${jobs}
+    ${extra}${jobs}
     <div class="shcsec">Crew${cv.who.length?' ('+cv.who.length+')':''}</div>
     ${crew}
     ${shiftNoteCardHTML(sh)}
@@ -11830,7 +11988,7 @@ function shiftCardHTML(sh){
       <button class="shcbtn" data-staff="${esc(sh.key)}">${
         cv.who.length?'Edit crew':'Staff this shift'}</button>
       <button type="button" class="shcopen" data-openday="${esc(sh.days[0].id)}"
-        title="Open this crew's day in the schedule${sh.days.length>1?' (first night)':''}">${IC.calday}<span>Open day</span></button>
+        title="Open this crew's day in the schedule${sh.days.length>1&&!sh.joint?' (first night)':''}">${IC.calday}<span>Open day</span></button>
       <button type="button" class="shcdet" data-shdetail="${esc(sh.key)}"
         title="Everything about this shift: times, drives, map, crew and clients (or double-click the card)">Details</button>
     </div>
@@ -11933,7 +12091,8 @@ function startShiftNoteEdit(key, draft){
 /** Save one shift note (shared, undoable). False when nothing changed. */
 function setShiftNote(key, text){
   if(roBlocked() || !canEditShiftNotes()) return false;
-  const next=withShiftNote(shiftNotes, key, text, ME_EMAIL, new Date().toISOString());
+  const at=new Date().toISOString();
+  const next=shiftNoteKeysFor(key).reduce((m,k)=>withShiftNote(m, k, text, ME_EMAIL, at), shiftNotes);
   if(stableJSON(next)===stableJSON(shiftNotes)) return false;
   pushUndo();
   shiftNotes=next;
@@ -12117,12 +12276,12 @@ function sdDraw(){
     + `<span>${leads.length?`Lead: ${esc(leads.join(', '))}`:'No lead yet'}</span>`;
   document.getElementById('sdprint').onclick=()=>printManifests(sh.days.filter(x=>x.stops.length),
     `${crewTitle(d)} ${fmtMDYYYY(sh.days[0].date)}`);
-  // One tab per night of a Dallas week.
+  // One tab per night of a Dallas week (per crew of a joint shift).
   const nights=document.getElementById('sdnights');
   nights.hidden = sh.days.length<2 || sd.client!=null;
   nights.innerHTML = sh.days.length<2 ? '' : sh.days.map((x,i)=>
     `<button type="button" role="tab" class="sdnight${i===sd.night?' sel':''}" data-sdnight="${i}" aria-selected="${i===sd.night}">`
-    + `${DOW3[dateOf(x.date).getDay()]} ${fmtMDYYYY(x.date).slice(0,5)}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
+    + `${sh.joint ? esc(crewTitle(x)) : DOW3[dateOf(x.date).getDay()]+' '+fmtMDYYYY(x.date).slice(0,5)}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
   nights.querySelectorAll('[data-sdnight]').forEach(b=>b.onclick=()=>{ sd.night=+b.dataset.sdnight; sdDraw(); });
   // A note being typed is left alone; it redraws when it saves.
   const ae=document.activeElement;
@@ -12131,7 +12290,7 @@ function sdDraw(){
   const main=document.getElementById('sdmain');
   main.innerHTML=
     `<div class="sdsec">${shiftNoteFieldHTML(sh, 'sd')}</div>`
-    + `<div class="sdsec"><div class="sdh">${sh.days.length>1?`${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}`:'The day'}`
+    + `<div class="sdsec"><div class="sdh">${sh.joint ? esc(crewTitle(d)) : sh.days.length>1?`${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}`:'The day'}`
     + `<button type="button" class="sdlink" id="sdopenday">${IC.calday}<span>Open in schedule</span></button></div>`
     + `<div class="sdstats"><div><b>${esc(fmtClock(info.start))}</b><span>${info.anchored?'roll out':'start'}</span></div>`
     + `<div><b>${esc(fmtClock(info.anchored?info.finish:(info.stops.length?info.stops[info.stops.length-1].end:info.start)))}</b><span>${info.anchored?'back ≈':'done ≈'}</span></div>`
@@ -12226,17 +12385,20 @@ function sdPeekHost(){
 function crewNameEditHTML(sh){
   if(sh.training) return esc(sh.pos);
   const can = !READONLY;
-  const shown = sh.name || sh.pos;
-  return `<span class="crewnm${can?' can':''}" data-crewname="${esc(sh.key)}"`
-    + (can ? ` role="button" tabindex="0" title="Double-click or double-tap to rename this crew"`
-           + ` aria-label="${esc(shown)}. Rename crew"` : '')
-    + `>${esc(shown)}</span>`
-    + (sh.name ? `<span class="crewpos">${esc(sh.pos)}</span>` : '');
+  // One renamable name per crew: a joint shift's read "Crew 1 + Crew 2".
+  return sh.members.map(m=>{
+    const shown = m.name || m.pos;
+    return `<span class="crewnm${can?' can':''}" data-crewname="${esc(m.key)}"`
+      + (can ? ` role="button" tabindex="0" title="Double-click or double-tap to rename this crew"`
+             + ` aria-label="${esc(shown)}. Rename crew"` : '')
+      + `>${esc(shown)}</span>`
+      + (m.name ? `<span class="crewpos">${esc(m.pos)}</span>` : '');
+  }).join('<span class="crewplus"> + </span>');
 }
 /** The pencil after a card's title (training days and read-only: none). */
 function crewNamePencilHTML(sh){
   return sh.training || READONLY ? ''
-    : `<button type="button" class="crewnmbtn" data-crewnamebtn="${esc(sh.key)}"`
+    : `<button type="button" class="crewnmbtn" data-crewnamebtn="${esc(sh.nameKey)}"`
       + ` title="Rename crew" aria-label="Rename crew">${IC.pencil}</button>`;
 }
 /** Two taps or clicks on the same crew name within this many ms is a double
@@ -12249,10 +12411,17 @@ function isDoubleTap(prev, key, now, ms){
 }
 /** Swap a crew name for a text box. Enter or leaving the box saves, Esc
  *  cancels, and an empty box puts back the "Crew N" label. */
+function crewNameMember(key){
+  for(const s of buildShifts()){
+    const m=(s.members||[]).find(x=>x.key===key);
+    if(m) return m;
+  }
+  return null;
+}
 function startCrewNameEdit(key){
   if(roBlocked()) return;
-  const sh=shiftFor(key);
-  if(!sh || sh.training) return;
+  const sh=crewNameMember(key);   // {key, pos, name}: one crew of the shift
+  if(!sh) return;
   const el=[...document.querySelectorAll('[data-crewname]')].find(x=>x.dataset.crewname===key);
   if(!el) return;
   const head=el.closest('.shcname');
@@ -12369,7 +12538,7 @@ function shiftMapDraw(date){
     hd.innerHTML = (sh
         ? `<span class="cdot" style="background:${CREW_COLORS[sh.crew]||'#555'}"></span>`
           + esc(sh.label)
-        : `${all.length} crew${all.length===1?'':'s'} on this date`)
+        : (n=>`${n} crew${n===1?'':'s'} on this date`)(all.reduce((a,s)=>a+(s.joint?s.days.length:1),0)))
       + `<button class="shmapall" data-mapall="${date}"${key?'':' disabled'}>show all</button>`;
     const btn=hd.querySelector('[data-mapall]');
     if(btn) btn.onclick=e=>{ e.stopPropagation(); focusShift(date,null); };
@@ -12562,6 +12731,17 @@ function renderStaffing(){
       b.onclick=e=>{ e.stopPropagation(); startCrewNameEdit(b.dataset.crewnamebtn); };
     });
   }
+  // "Make both the same": a joint shift's crews get everyone on any of them.
+  wrap.querySelectorAll('[data-jointsync]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      if(roBlocked()) return;
+      const sh=shiftFor(b.dataset.jointsync); if(!sh || !sh.joint) return;
+      pushUndo();
+      unifyJointStaffing(sh);
+      persist(); render();
+    };
+  });
   // Shift notes: tap the note (or Add note) to write it.
   wrap.querySelectorAll('[data-shnoteadd]').forEach(b=>{
     b.onclick=e=>{ e.stopPropagation(); startShiftNoteEdit(b.dataset.shnoteadd); };

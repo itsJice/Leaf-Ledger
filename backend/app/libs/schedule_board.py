@@ -91,13 +91,38 @@ class Board:
         on_date = sorted({d["crew"] for d in self.days.values() if d["date"] == day["date"]})
         return f"Crew {on_date.index(day['crew']) + 1}" if day["crew"] in on_date else day["crew"]
 
-    def shift_key(self, day: dict) -> str:
-        """The tool's shiftKeyOf(): a Dallas night's run key, else the day id."""
+    def is_dallas_night(self, day: dict) -> bool:
+        """The tool's isDallasNight(): a night crew-day on a Dallas date."""
         night = self.const.get("NIGHT")
         win = (self.day_meta.get(day["id"]) or {}).get("win")
-        if day["date"] in self.dallas and night is not None and win == night:
+        return day["date"] in self.dallas and night is not None and win == night
+
+    def shift_key(self, day: dict) -> str:
+        """The tool's shiftKeyOf(): a Dallas night's run key, else the day id."""
+        if self.is_dallas_night(day):
             return f"dallas|{dallas_run_start(day['date'], self.dallas)}|{day['crew']}"
         return day["id"]
+
+    def joint_groups(self) -> dict[str, list[str]]:
+        """The tool's jointShiftGroups(): {day id: every crew-day id in its
+        joint shift} for crew-days on one date working exactly the same
+        (non-empty) stops -- staffed as ONE shift, so the same people sit on
+        each of them. Training days and Dallas nights are never joint shifts."""
+        by_date: dict[str, list[dict]] = {}
+        for d in self.days.values():
+            if d.get("crew") == "Training" or not d.get("stops") or self.is_dallas_night(d):
+                continue
+            by_date.setdefault(d["date"], []).append(d)
+        out: dict[str, list[str]] = {}
+        for ds in by_date.values():
+            by_set: dict[tuple, list[str]] = {}
+            for d in ds:
+                by_set.setdefault(tuple(sorted(d["stops"])), []).append(d["id"])
+            for ids in by_set.values():
+                if len(ids) > 1:
+                    for i in ids:
+                        out[i] = sorted(ids)
+        return out
 
     def crew_name(self, day: dict) -> str:
         """The name staff gave this crew-day's shift, or ''. Training has none."""
