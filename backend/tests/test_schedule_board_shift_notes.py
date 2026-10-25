@@ -1,7 +1,8 @@
 """Shift notes staff wrote on the Staffing tab (state.shiftNotes, see
 shiftNotes in scheduler/review_template.html), read server-side: the lead
-pages and the calendar feed show the note for the crew's day, and a Dallas
-week's one note covers every night of it.
+pages and the calendar feed show the note for the crew's day. Each Dallas
+night is its own shift (10/24/2026); a note saved under a Dallas run's old
+week key still covers every night of that run until a night gets its own.
 """
 from app.libs import install_calendar as cal
 from app.libs import schedule_board
@@ -24,11 +25,19 @@ def test_houston_note_is_keyed_by_its_day_id():
     assert b.shift_note(b.days[NOV1]) == ""
 
 
-def test_dallas_week_note_covers_every_night_of_its_run():
+def test_old_dallas_week_note_covers_every_night_of_its_run():
     b = board(dallasNights=["2027-01-02", "2027-01-03"],
               shiftNotes={"dallas|2027-01-02|Crew 1": {"text": "Park in back"}})
     assert b.shift_note(b.days[JAN1]) == "Park in back"
     assert b.shift_note(b.days[JAN2]) == ""
+
+
+def test_a_dallas_night_note_is_keyed_by_its_day_id_and_wins():
+    b = board(shiftNotes={"dallas|2026-11-02|Crew 1": {"text": "Week"}, NOV1: {"text": "Mon only"}})
+    assert b.shift_note(b.days[NOV1]) == "Mon only"
+    b2 = board(dallasNights=["2027-01-02"], shiftNotes={JAN1: {"text": "Sat only"}})
+    assert b2.shift_note(b2.days[JAN1]) == "Sat only"
+    assert b2.shift_note(b2.days[JAN2]) == ""
 
 
 def test_notes_are_normalized_and_junk_dropped():

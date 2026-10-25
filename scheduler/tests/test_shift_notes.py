@@ -4,8 +4,9 @@
 install day on this page."
 
 Shared state `shiftNotes` is {shiftKey: {text, by, at}}, keyed like
-crewNames: a crew-day's own id, or a Dallas run's key so one note covers the
-whole week. These run the template's own functions in node, like
+crewNames: a crew-day's own id, Dallas nights included (each night is its
+own shift since 10/24/2026). A note saved under a Dallas run's old week key
+shows on every night of that run until one night is edited. These run the template's own functions in node, like
 test_crew_names.py. No real names.
 """
 import json
@@ -22,14 +23,15 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 NOTES = BOARD + "\nconst SHIFT_NOTE_MAX=2000;\nlet shiftNotes={};\nlet roster=[];\n" + fns(
     "normShiftNoteText", "normShiftNote", "shiftNoteKey", "normShiftNotes", "withShiftNote",
-    "shiftNoteOf", "shiftNoteStamp", "shiftNoteBy", "shiftNoteByline")
+    "shiftNoteOf", "shiftNoteStamp", "shiftNoteBy", "shiftNoteByline", "shiftNoteKeysFor",
+    "dallasWeekKeyOf", "liveShiftKeys", "withWeekKeySplit", "weekSplitFor", "dallasRunNights")
 
 
 def run(body):
     return json.loads(run_js(NOTES + body))
 
 
-def test_key_is_the_day_id_for_houston_and_the_run_for_a_dallas_week():
+def test_key_is_the_day_id_and_an_old_week_note_shows_on_every_night_of_its_run():
     out = run("""
       days=['2026-11-02|Crew 1|0','2026-11-05|Crew 1|0','2026-11-04|Crew 2|0','2026-12-01|Crew 3|0']
         .map(id=>day(id,[1]));
@@ -38,10 +40,37 @@ def test_key_is_the_day_id_for_houston_and_the_run_for_a_dallas_week():
       console.log(JSON.stringify({keys:days.map(shiftNoteKey),
         notes:days.map(d=>{ const n=shiftNoteOf(d); return n && n.text; })}));
     """)
-    assert out["keys"] == ["dallas|2026-11-02|Crew 1", "dallas|2026-11-02|Crew 1", "dallas|2026-11-02|Crew 2",
+    assert out["keys"] == ["2026-11-02|Crew 1|0", "2026-11-05|Crew 1|0", "2026-11-04|Crew 2|0",
                            "2026-12-01|Crew 3|0", "2026-12-01|Training|0"]
-    # one note covers every night of that crew's Dallas week, and nobody else
+    # the old week note shows on every night of that crew's run, and nobody else
     assert out["notes"] == ["Gate code at the office", "Gate code at the office", None, None, None]
+
+
+def test_editing_one_night_splits_the_week_note_and_keeps_the_others():
+    out = run("""
+      days=['2026-11-02|Crew 1|0','2026-11-03|Crew 1|0','2026-11-04|Crew 1|0'].map(id=>day(id,[1]));
+      shiftNotes={'dallas|2026-11-02|Crew 1':{text:'Week note', by:'a', at:''}};
+      // what setShiftNote does for one night
+      const k='2026-11-04|Crew 1|0', sp=weekSplitFor(k);
+      shiftNotes=withShiftNote(withWeekKeySplit(shiftNotes, sp.weekKey, sp.ids), k, 'Thu only', 'b', 't');
+      const texts=days.map(d=>shiftNoteOf(d).text);
+      const byKey=shiftNoteOf('2026-11-02|Crew 1|0').text;
+      console.log(JSON.stringify({texts, keys:Object.keys(shiftNotes).sort(), byKey}));
+    """)
+    assert out["texts"] == ["Week note", "Week note", "Thu only"]
+    assert out["keys"] == ["2026-11-02|Crew 1|0", "2026-11-03|Crew 1|0", "2026-11-04|Crew 1|0"]
+    assert out["byKey"] == "Week note"
+
+
+def test_a_shift_key_lookup_falls_back_to_the_week_note():
+    out = run("""
+      days=['2026-11-03|Crew 2|0'].map(id=>day(id,[1]));
+      shiftNotes={'dallas|2026-11-02|Crew 2':{text:'Old', by:'', at:''}};
+      console.log(JSON.stringify(shiftNoteOf('2026-11-03|Crew 2|0').text));
+    """)
+    assert out == "Old"
+    assert "withWeekKeySplit(" in js_function("setShiftNote")
+    assert "withWeekKeySplit(" in js_function("setCrewName")
 
 
 def test_text_is_cleaned_and_capped():

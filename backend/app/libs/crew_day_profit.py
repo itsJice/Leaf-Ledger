@@ -193,8 +193,8 @@ def crew_days(board: Board, prices: dict[str, dict], card: dict, assignments: di
         for s in tl["stops"]:
             onsite_total[s["row"]] = onsite_total.get(s["row"], 0.0) + max(0.0, s["end"] - s["start"])
 
-    # A joint shift (crews on the same stops that date) is staffed as one
-    # crew written to each crew-day, so someone on two of its crew-days is
+    # A joint shift (crews on the same stops that date, Dallas nights
+    # included) is staffed as one crew written to each crew-day, so someone on two of its crew-days is
     # one person working one day: their pay is split between those days,
     # not counted on each.
     joints = board.joint_groups()

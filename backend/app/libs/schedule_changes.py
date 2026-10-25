@@ -196,8 +196,9 @@ class View:
 
     def title(self, did: str) -> str:
         """'Lesly's crew (Crew 1)' when staff named the crew, else label().
-        A Dallas night is looked up under its week's key too (the tool's
-        shiftKeyOf(), without the night-window check this view has no meta for)."""
+        A Dallas night is keyed by its own id like any day; a name saved under
+        its run's old week key is the fallback (the tool's dallasWeekKeyOf(),
+        without the night-window check this view has no meta for)."""
         from app.libs.schedule_board import dallas_run_start
 
         d, crew = _split_day(did)

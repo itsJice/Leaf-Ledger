@@ -5,7 +5,8 @@ stops: "if there are two crews assigned to these days and I assign the
 people to crew one, then they need to be represented on crew two as well."
 Crew-days on one date working exactly the same stops are ONE shift: one card,
 the need added up, one crew list, and staffing it writes the same people to
-every crew-day in it (like a Dallas week writes every night). A crew-day
+every crew-day in it. Dallas nights follow the same rules night by night
+(each Dallas night is its own shift since 10/24/2026). A crew-day
 that shares only some stops stays its own shift and says what it shares.
 These run the template's own functions in node. Names are made up.
 """
@@ -24,7 +25,8 @@ FNS = ("jointShiftGroups", "jointStaffingState", "sharedStopsOutside", "staffing
        "staffingWith", "staffingWithout", "staffingCleared", "buildShifts", "shiftLabelOf",
        "shiftKeyOf", "isDallasNight", "dallasRunStart", "crewLabel", "byCrew", "crewNameKey",
        "crewName", "crewTitle", "shiftFor", "shiftOfDay", "shiftNeed", "shiftCoverage",
-       "dayNeed", "coverageLabel", "clashesFor")
+       "dayNeed", "coverageLabel", "clashesFor", "dallasWeekKeyOf", "dallasRunNights",
+       "staffingCopiedTo", "stfWeekTargets", "stfSyncWeek", "stfWeekDays")
 
 BOARD = """
 const K={NIGHT:450, DAY_CAP:600, CREWS:['Crew 1','Crew 2','Crew 3']};
@@ -38,7 +40,9 @@ const C={1:{name:'Bourque', roleNeed:{leads:1, general:6}, h26:6},
          3:{name:'Cain', roleNeed:{leads:1, general:2}, h26:2},
          4:{name:'Other', roleNeed:{leads:1, general:3}, h26:5},
          5:{name:'Dallas Spot', roleNeed:{leads:1, general:3}, h26:5}};
-let crewNames={}, staffing={};
+let crewNames={}, staffing={}, stfWeekSync=false;
+const DOW3=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function dateOf(s){ return new Date(s+'T12:00:00'); }
 const roster=[...Array(20)].map((_,i)=>({id:'p'+i, name:'P'+i, active:true,
   title: i<2 ? 'Lead' : 'General Installer'}));
 function personById(id){ return roster.find(p=>p.id===id); }
@@ -74,17 +78,41 @@ def test_three_crew_joint_and_a_partial_third():
     assert out["share"] == [[1, ["Crew 1", "Crew 2"]]]
 
 
-def test_dallas_training_and_empty_days_are_never_joint():
+def test_training_and_empty_days_are_never_joint():
     out = run("""
-      days=[mk('2026-11-02','Crew 1',[5],{win:K.NIGHT}), mk('2026-11-02','Crew 2',[5],{win:K.NIGHT}),
-            mk('2026-10-23','Training',[], {training:true}), mk('2026-10-23','Crew 1',[]), mk('2026-10-23','Crew 2',[])];
+      days=[mk('2026-10-23','Training',[], {training:true}), mk('2026-10-23','Crew 1',[]), mk('2026-10-23','Crew 2',[])];
       const sh=buildShifts();
-      console.log(JSON.stringify({g:jointShiftGroups(days, isDallasNight),
-        keys:sh.map(s=>s.key), joint:sh.map(s=>s.joint)}));
+      console.log(JSON.stringify({g:jointShiftGroups(days), joint:sh.map(s=>s.joint)}));
     """)
     assert out["g"] == {}
-    assert "dallas|2026-11-02|Crew 1" in out["keys"] and "dallas|2026-11-02|Crew 2" in out["keys"]
     assert not any(out["joint"])
+
+
+def test_a_dallas_night_with_two_crews_on_the_same_stops_is_one_joint_card_that_night():
+    # e.g. a joint Crew 1 + 2 night: the PR #118 rules apply per night.
+    out = run("""
+      days=[mk('2026-11-03','Crew 1',[5],{win:K.NIGHT}), mk('2026-11-03','Crew 2',[5],{win:K.NIGHT}),
+            mk('2026-11-02','Crew 1',[1],{win:K.NIGHT}), mk('2026-11-02','Crew 2',[2],{win:K.NIGHT})];
+      const sh=buildShifts();
+      console.log(JSON.stringify({g:jointShiftGroups(days), keys:sh.map(s=>s.key), joint:sh.map(s=>s.joint),
+        labels:sh.map(s=>s.label), whens:sh.map(s=>s.when)}));
+    """)
+    assert out["g"]["2026-11-03|Crew 1|0"] == "joint|2026-11-03|Crew 1|0+2026-11-03|Crew 2|0"
+    assert out["keys"] == ["2026-11-02|Crew 1|0", "2026-11-02|Crew 2|0",
+                           "joint|2026-11-03|Crew 1|0+2026-11-03|Crew 2|0"]
+    assert out["joint"] == [False, False, True]
+    assert out["labels"] == ["Crew 1 · night", "Crew 2 · night", "Crew 1 + Crew 2 · joint · night"]
+    assert out["whens"] == ["2026-11-02", "2026-11-02", "2026-11-03"]
+
+
+def test_a_dallas_night_sharing_one_stop_stays_two_cards_that_say_so():
+    out = run("""
+      days=[mk('2026-11-04','Crew 1',[5,1],{win:K.NIGHT}), mk('2026-11-04','Crew 2',[5,2],{win:K.NIGHT})];
+      const sh=buildShifts();
+      console.log(JSON.stringify({n:sh.length, joint:sh.map(s=>s.joint), notes:sh.map(shiftShareNotes)}));
+    """)
+    assert out == {"n": 2, "joint": [False, False],
+                   "notes": [["Shares Dallas Spot with Crew 2"], ["Shares Dallas Spot with Crew 1"]]}
 
 
 def test_joint_card_need_label_and_union_of_one_sided_staffing():
@@ -157,13 +185,66 @@ def test_partial_day_stays_separate_and_says_what_it_shares():
     assert out["notes"] == [["Shares Bourque with Crew 2"], ["Shares Bourque with Crew 1"]]
 
 
-def test_dallas_week_still_one_block_with_max_need():
+def test_each_dallas_night_is_its_own_shift_with_its_own_need_and_crew():
     out = run("""
       days=[mk('2026-11-02','Crew 1',[5],{win:K.NIGHT}), mk('2026-11-03','Crew 1',[1],{win:K.NIGHT})];
+      staffing={'2026-11-02|Crew 1|0':['p0','p2'], '2026-11-03|Crew 1|0':['p1','p3','p4']};
       const sh=buildShifts();
-      console.log(JSON.stringify({n:sh.length, days:sh[0].days.length, need:shiftNeed(sh[0]).total, tail:sh[0].tail}));
+      console.log(JSON.stringify({n:sh.length, days:sh.map(s=>s.days.length), need:sh.map(s=>shiftNeed(s).total),
+        tail:sh.map(s=>s.tail), who:sh.map(s=>shiftCoverage(s).who.map(p=>p.id)), keys:sh.map(s=>s.key),
+        dayToShift:days.map(d=>shiftOfDay(d).key)}));
     """)
-    assert out == {"n": 1, "days": 2, "need": 7, "tail": "Dallas week"}
+    assert out["n"] == 2 and out["days"] == [1, 1]
+    assert out["need"] == [4, 7] and out["tail"] == ["night", "night"]
+    assert out["who"] == [["p0", "p2"], ["p1", "p3", "p4"]]          # Mon and Tue staffed differently
+    assert out["keys"] == out["dayToShift"] == ["2026-11-02|Crew 1|0", "2026-11-03|Crew 1|0"]
+
+
+def test_also_apply_to_the_other_nights_copies_this_crew_to_the_same_crew_only():
+    out = run("""
+      days=[mk('2026-11-02','Crew 1',[1],{win:K.NIGHT}), mk('2026-11-03','Crew 1',[2],{win:K.NIGHT}),
+            mk('2026-11-03','Crew 2',[3],{win:K.NIGHT}), mk('2026-12-01','Crew 1',[4])];
+      staffing={'2026-11-02|Crew 1|0':['p0','p2'], '2026-11-03|Crew 1|0':['p9'], '2026-11-03|Crew 2|0':['p5']};
+      const mon=shiftOfDay(days[0]), ts=stfWeekTargets(mon);
+      const before=JSON.stringify(staffing);
+      stfSyncWeek(mon);                       // box not ticked: nothing
+      const untouched=JSON.stringify(staffing)===before;
+      stfWeekSync=true; stfSyncWeek(mon);
+      console.log(JSON.stringify({ts:ts.map(t=>t.ids), wd:stfWeekDays(ts), untouched, staffing,
+        houston:stfWeekTargets(shiftOfDay(days[3])).length,
+        cleared:staffingCopiedTo({a:['x'], b:['y']}, ['z'], [['a'],['b']])}));
+    """)
+    assert out["ts"] == [["2026-11-03|Crew 1|0"]] and out["wd"] == "Tue"
+    assert out["untouched"] is True
+    assert out["staffing"] == {"2026-11-02|Crew 1|0": ["p0", "p2"], "2026-11-03|Crew 1|0": ["p0", "p2"],
+                               "2026-11-03|Crew 2|0": ["p5"]}     # Crew 2 untouched
+    assert out["houston"] == 0
+    assert out["cleared"] == {}
+
+
+def test_also_apply_onto_a_joint_night_fills_every_crew_of_it_and_a_joint_night_cant_apply():
+    out = run("""
+      days=[mk('2026-11-02','Crew 1',[1],{win:K.NIGHT}),
+            mk('2026-11-03','Crew 1',[5],{win:K.NIGHT}), mk('2026-11-03','Crew 2',[5],{win:K.NIGHT})];
+      staffing={'2026-11-02|Crew 1|0':['p0','p2']};
+      const ts=stfWeekTargets(shiftOfDay(days[0]));
+      stfWeekSync=true; stfSyncWeek(shiftOfDay(days[0]));
+      console.log(JSON.stringify({ts:ts.map(t=>[t.ids, t.joint]), staffing,
+        fromJoint:stfWeekTargets(shiftOfDay(days[1])).length}));
+    """)
+    assert out["ts"] == [[["2026-11-03|Crew 1|0", "2026-11-03|Crew 2|0"], True]]
+    assert out["staffing"]["2026-11-03|Crew 1|0"] == out["staffing"]["2026-11-03|Crew 2|0"] == ["p0", "p2"]
+    assert out["fromJoint"] == 0
+
+
+def test_staff_dialog_offers_also_apply_and_every_dialog_write_follows_it():
+    html = TEMPLATE[TEMPLATE.index('<dialog id="stfdlg">'):]
+    assert '<div id="stfweek"></div>' in html[:html.index("</dialog>")]
+    assert "Also apply to the other nights this week (" in js_function("stfWeekHTML")
+    assert "stfWeekSync=false" in js_function("openStaffDlg")
+    for fn in ("stfClear", "toggleTeamOnShift", "applyTeamToShift", "drawStaffDlg"):
+        assert "stfSyncWeek(sh)" in js_function(fn), fn
+    assert "pushUndo()" in js_function("wireStfWeek")
 
 
 def test_every_staffing_write_path_unifies_a_joint_shift_first():

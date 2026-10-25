@@ -148,6 +148,24 @@ def test_joint_groups_match_the_tool():
     assert b.joint_groups() == {pair[0]: pair, pair[1]: pair}     # 11/03 only shares one stop
 
 
+JAN1 = "2027-01-02|Crew 1|0"
+JAN2 = "2027-01-02|Crew 2|0"
+
+
+def test_dallas_nights_are_joint_night_by_night():
+    # Each Dallas night is its own shift now (10/24/2026), so two crews on
+    # the same stops that night are a joint shift like any Houston pair.
+    from tests.test_schedule_board_dallas_nights import PAYLOAD, state
+    from app.libs import schedule_board
+    st = state(dallasNights=["2027-01-02"])
+    st["placement"] = {**st["placement"], "900011": [JAN1, JAN2]}
+    b = schedule_board.resolve("2026", PAYLOAD, st)
+    assert b.is_dallas_night(b.days[JAN1])
+    pair = [JAN1, JAN2]
+    assert b.joint_groups() == {JAN1: pair, JAN2: pair}
+    assert b.shift_key(b.days[JAN1]) == JAN1
+
+
 def test_a_person_on_both_crews_of_a_joint_shift_is_paid_once():
     both = ["p1", "p2"]
     out = cdp.crew_days(_joint_board({"2026-11-02|Crew 1|0": both, "2026-11-02|Crew 2|0": both}),
