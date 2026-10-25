@@ -155,18 +155,21 @@ def test_swap_trades_stops_in_order_and_touches_nothing_else():
                              "from": "2026-12-01|Crew 1|0", "to": "2026-12-03|Crew 1|0"}]
 
 
-def test_dallas_swap_keeps_the_weeks_people_and_moves_the_joint_pair():
+def test_dallas_swap_moves_each_nights_people_with_it_and_the_joint_pair_together():
     out = run("""
       dallasWeek();
-      staffing={'2026-11-02|Crew 1|0':['p1'], '2026-11-04|Crew 1|0':['p4'], '2026-11-04|Crew 3|0':['p3']};
+      staffing={'2026-11-02|Crew 1|0':['p1'], '2026-11-02|Crew 2|0':['p2'], '2026-11-04|Crew 1|0':['p4'],
+                '2026-11-04|Crew 3|0':['p3']};
       const opt=rearrangeOptions(days[0], '2026-11-04', days)[0];
       exchangeCrewDays(opt.pairs);
       console.log(JSON.stringify({where:where(), staffing}));
     """)
     assert out["where"] == {"2026-11-02|Crew 1|0": [5, 6], "2026-11-02|Crew 2|0": [7, 8], "2026-11-02|Crew 3|0": [4],
                             "2026-11-04|Crew 1|0": [1, 2], "2026-11-04|Crew 2|0": [1, 3], "2026-11-04|Crew 3|0": [9, 10, 11]}
-    # A Dallas week is staffed a week at a time: swapping nights leaves people put.
-    assert out["staffing"] == {"2026-11-02|Crew 1|0": ["p1"], "2026-11-04|Crew 1|0": ["p4"], "2026-11-04|Crew 3|0": ["p3"]}
+    # Dallas nights are staffed night by night (PR #121): people go with their
+    # crew-day's stops, like a Houston day. Crew 3 (not in the swap) stays put.
+    assert out["staffing"] == {"2026-11-04|Crew 1|0": ["p1"], "2026-11-04|Crew 2|0": ["p2"],
+                               "2026-11-02|Crew 1|0": ["p4"], "2026-11-04|Crew 3|0": ["p3"]}
 
 
 def test_a_4th_crew_move_creates_the_day_and_empties_the_old_one():

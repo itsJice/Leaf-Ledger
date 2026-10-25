@@ -64,7 +64,7 @@ def test_takedown_line_goes_before_the_first_week_after_the_cutoff_only():
 
 
 def test_takedown_line_when_the_first_takedown_date_is_in_january():
-    # Staffing lists only dates with shifts: Dec 23 then the Jan 2 Dallas week.
+    # Staffing lists only dates with shifts: Dec 23 then the Jan 2-3 Dallas nights.
     out = weeks(["2026-12-23", "2027-01-02", "2027-01-03"])
     assert [(w["dates"], w["takedownStart"], w["newMonth"]) for w in out] == [
         (["2026-12-23"], False, True),

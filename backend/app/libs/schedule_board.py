@@ -98,19 +98,28 @@ class Board:
         return day["date"] in self.dallas and night is not None and win == night
 
     def shift_key(self, day: dict) -> str:
-        """The tool's shiftKeyOf(): a Dallas night's run key, else the day id."""
+        """The tool's shiftKeyOf(): the crew-day's own id. Every Dallas night
+        is its own shift, staffed like any day (user, 2026-10-24)."""
+        return day["id"]
+
+    def dallas_week_key(self, day: dict) -> Optional[str]:
+        """The tool's dallasWeekKeyOf(): the OLD whole-week shift key of a
+        Dallas night ('dallas|<run start>|<crew>'), else None. Only read, so
+        names and notes saved before Dallas was staffed night by night still
+        show on every night of that run."""
         if self.is_dallas_night(day):
             return f"dallas|{dallas_run_start(day['date'], self.dallas)}|{day['crew']}"
-        return day["id"]
+        return None
 
     def joint_groups(self) -> dict[str, list[str]]:
         """The tool's jointShiftGroups(): {day id: every crew-day id in its
         joint shift} for crew-days on one date working exactly the same
         (non-empty) stops -- staffed as ONE shift, so the same people sit on
-        each of them. Training days and Dallas nights are never joint shifts."""
+        each of them. Training days are never joint shifts; Dallas nights follow
+        the same rule night by night."""
         by_date: dict[str, list[dict]] = {}
         for d in self.days.values():
-            if d.get("crew") == "Training" or not d.get("stops") or self.is_dallas_night(d):
+            if d.get("crew") == "Training" or not d.get("stops"):
                 continue
             by_date.setdefault(d["date"], []).append(d)
         out: dict[str, list[str]] = {}
@@ -128,12 +137,17 @@ class Board:
         """The name staff gave this crew-day's shift, or ''. Training has none."""
         if day.get("crew") == "Training":
             return ""
-        return self.crew_names.get(self.shift_key(day), "")
+        name = self.crew_names.get(self.shift_key(day), "")
+        wk = None if name else self.dallas_week_key(day)
+        return self.crew_names.get(wk, "") if wk else name
 
     def shift_note(self, day: dict) -> str:
-        """The note staff wrote for this crew-day's shift (a Dallas week's one
-        note covers every night of it), or ''."""
+        """The note staff wrote for this crew-day's shift, or ''. A Dallas
+        night falls back to a note saved under its run's old week key."""
         n = self.shift_notes.get(self.shift_key(day))
+        if not n:
+            wk = self.dallas_week_key(day)
+            n = self.shift_notes.get(wk) if wk else None
         return n["text"] if n else ""
 
     def crew_title(self, day: dict) -> str:

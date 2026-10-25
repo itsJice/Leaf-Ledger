@@ -1024,7 +1024,6 @@ body.apple #sddlg #peekdlg.insd .pkclose{top:12px;right:12px}
 .shcsec{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin:11px 0 4px;display:flex;align-items:center;gap:6px}
 .shcsec:after{content:'';flex:1;height:1px;background:var(--line)}
-.shcnight{font-size:10.5px;font-weight:800;color:var(--mut);margin:7px 0 2px}
 .shcjob{display:flex;gap:7px;padding:3px 0;line-height:1.35}
 .shcjob .jn{color:var(--faint);font-weight:800;font-size:10.5px;min-width:14px;
   text-align:right;padding-top:1px}
@@ -1280,6 +1279,10 @@ body.tv .stfteams,body.viewonly .stfteams{display:none}
 .asgteam{font-size:9.5px;font-weight:800;color:var(--brand);background:var(--brand-soft);border-radius:999px;
   padding:1px 7px;white-space:nowrap;max-width:38%;overflow:hidden;text-overflow:ellipsis;flex:none}
 #stfdlg .stfteamnote{margin:6px 0 4px}
+.stfweek{display:flex;align-items:flex-start;gap:7px;font-size:12px;font-weight:700;color:var(--ink);
+  margin:0 0 8px;cursor:pointer;line-height:1.35}
+.stfweek input{margin:1px 0 0;flex:none}
+.stfweeknote{font-size:11px;font-weight:600;color:var(--mut);margin:-4px 0 8px 21px;line-height:1.4}
 .stfteamnote{background:var(--brand-soft);border-radius:8px;padding:7px 9px;font-size:11.5px;
   line-height:1.45;color:var(--ink);margin:0 0 10px}
 dialog .stfteamname{margin-top:6px;padding:4px 10px;font-size:11.5px;border-color:var(--brand);color:var(--brand)}
@@ -2604,6 +2607,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <div class="asgneed" id="stfneed"></div>
   <div class="stfnote" id="stfnote"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
+  <div id="stfweek"></div>
   <div id="stftrain"></div>
   <div class="asglist" id="stflist"></div>
   <div class="btns stfbtns">
@@ -3390,16 +3394,18 @@ function crewLabelShort(d){ return crewLabel(d).replace('Crew ','C'); }
 // sheets, exports and the server-side readers (the calendar feed, lead pages,
 // crew-day profit and the Changes feed, via backend app/libs/schedule_board.py).
 //
-// Shared state `crewNames` is {shiftKey: name}, keyed by shiftKeyOf(): a
-// normal crew-day's own id ("2026-11-10|Crew 3|0"), or for a Dallas run the
-// run's key ("dallas|2026-11-02|Crew 1"), so one name covers every night of
-// that week. Keys are the STORED crew, never the positional number, so a
+// Shared state `crewNames` is {shiftKey: name}, keyed by shiftKeyOf(): the
+// crew-day's own id ("2026-11-10|Crew 3|0"), Dallas nights included. A name
+// saved before Dallas was staffed night by night sits under the run's old
+// week key ("dallas|2026-11-02|Crew 1"): it still shows on every night of
+// that crew's run, and the first edit to one of those nights copies it onto
+// each night's own key (withWeekKeySplit) and retires the week key, so
+// nothing disappears. Keys are the STORED crew, never the positional number, so a
 // name stays with its crew-day when another crew on that date is removed and
 // "Crew 3" starts reading as "Crew 2". A name does NOT follow stops that move
 // to another crew-day, and it goes away with its crew-day (normCrewNames
-// drops keys for shifts that no longer exist, the way normStaffing does).
-// A Dallas run's key is its first date, so adding a Dallas night in front of
-// a run starts a new key and that week's name has to be set again.
+// drops keys for shifts that no longer exist, the way normStaffing does;
+// an old Dallas week key is kept while that run is on the board).
 // Training days have no crew to name.
 const CREW_NAME_MAX = 40;
 let crewNames = {};
@@ -3409,10 +3415,32 @@ function normCrewName(v){
 }
 /** The crewNames key for a crew-day: its shift. null for a training day. */
 function crewNameKey(d){ return d && d.crew && !d.training ? shiftKeyOf(d) : null; }
+/** Every key a saved crewNames / shiftNotes entry may live under right now:
+ *  each crew-day's own key, plus the old week key of each Dallas run. */
+function liveShiftKeys(keyOf){
+  return new Set(days.flatMap(d=>[keyOf(d), keyOf(d) && dallasWeekKeyOf(d)]).filter(Boolean));
+}
+/** PURE. `map` with an old Dallas week key's value copied onto each of
+ *  `nightIds` that has none of its own, and the week key removed. Used the
+ *  first time a night of that run is edited, so the other nights keep
+ *  showing what they showed and the edit stays on that one night. */
+function withWeekKeySplit(map, weekKey, nightIds){
+  const out = {...(map||{})};
+  if(!weekKey || !(weekKey in out)) return out;
+  (nightIds||[]).forEach(k=>{ if(!(k in out)) out[k] = out[weekKey]; });
+  delete out[weekKey];
+  return out;
+}
+/** The night ids and week key to split before editing crew-day `key`'s
+ *  name or note: {weekKey, ids} (weekKey null when it isn't a Dallas night). */
+function weekSplitFor(key){
+  const d = days.find(x=>x.id===key), wk = d ? dallasWeekKeyOf(d) : null;
+  return {weekKey:wk, ids: wk ? [d, ...dallasRunNights(d)].map(x=>x.id) : []};
+}
 /** Saved crewNames as this page keeps them: string names, normalized, only
  *  for shifts on the board (`keys`, default: every shift right now). */
 function normCrewNames(obj, keys){
-  const ok = keys || new Set(days.map(crewNameKey).filter(Boolean));
+  const ok = keys || liveShiftKeys(crewNameKey);
   const out = {};
   if(obj && typeof obj==='object' && !Array.isArray(obj))
     Object.keys(obj).sort().forEach(k=>{
@@ -3428,8 +3456,14 @@ function withCrewName(names, key, name){
   if(n) out[key] = n; else delete out[key];
   return out;
 }
-/** The name staff gave this crew-day's shift, or ''. */
-function crewName(d){ const k=crewNameKey(d); return (k && crewNames[k]) || ''; }
+/** The name staff gave this crew-day's shift, or ''. A Dallas night falls
+ *  back to a name saved under its run's old week key. */
+function crewName(d){
+  const k=crewNameKey(d); if(!k) return '';
+  if(crewNames[k]) return crewNames[k];
+  const wk=dallasWeekKeyOf(d);
+  return (wk && crewNames[wk]) || '';
+}
 /** The crew as a line of text: "Lesly's crew (Crew 1)", or "Crew 1" when
  *  it has no name. The positional number stays so a sheet still matches the
  *  board. Plain text: esc() it before putting it in HTML. */
@@ -3445,8 +3479,9 @@ function crewTitleShort(d){ const n=crewName(d), p=crewLabelShort(d); return n ?
 // lead pages and the calendar feed (backend app/libs/schedule_board.py).
 //
 // Shared state `shiftNotes` is {shiftKey: {text, by, at}}, keyed by
-// shiftKeyOf() exactly like crewNames: a crew-day's own id, or a Dallas run's
-// key so one note covers the whole week. Training days can have one too.
+// shiftKeyOf() exactly like crewNames: a crew-day's own id (a Dallas night's
+// too). A note saved under a Dallas run's old week key shows on every night
+// of it until one is edited (see crewNames). Training days can have one too.
 // `by` is the signed-in email when the page knows it (else ''), `at` an ISO
 // time. Not the same thing as a client's season "Install notes" (per stop)
 // or the build's day note (d.note); those stay as they are.
@@ -3477,7 +3512,7 @@ function shiftNoteKey(d){ return d && d.crew ? shiftKeyOf(d) : null; }
 /** Saved shiftNotes, normalized, only for shifts on the board (`keys`,
  *  default: every shift right now). */
 function normShiftNotes(obj, keys){
-  const ok = keys || new Set(days.map(shiftNoteKey).filter(Boolean));
+  const ok = keys || liveShiftKeys(shiftNoteKey);
   const out = {};
   if(obj && typeof obj==='object' && !Array.isArray(obj))
     Object.keys(obj).sort().forEach(k=>{
@@ -3501,8 +3536,13 @@ function shiftNoteOf(dOrKey){
   const k = typeof dOrKey==='string' ? dOrKey : shiftNoteKey(dOrKey);
   // A joint shift (jointShiftGroups) keeps its note on each of its crew-days.
   if(k && k.startsWith('joint|'))
-    return shiftNoteKeysFor(k).map(x=>shiftNotes[x]).find(Boolean) || null;
-  return (k && shiftNotes[k]) || null;
+    return shiftNoteKeysFor(k).map(x=>shiftNoteOf(x)).find(Boolean) || null;
+  if(!k) return null;
+  if(shiftNotes[k]) return shiftNotes[k];
+  // A Dallas night: a note saved under its run's old week key.
+  const d = typeof dOrKey==='string' ? days.find(x=>x.id===k) : dOrKey;
+  const wk = d ? dallasWeekKeyOf(d) : null;
+  return (wk && shiftNotes[wk]) || null;
 }
 /** PURE. The shiftNotes keys a card's shift key writes: a joint shift's key
  *  ('joint|<id>+<id>') is each of its crew-days, so the Days view, run
@@ -3546,7 +3586,7 @@ function canEditShiftNotes(){
 // A team is a saved group of people for a season: {id, name, season (year),
 // leadId ('' for none), members: [personId], color?}. Teams are made in
 // Roster > Teams. In Staff this shift, a team's button ADDS its members to
-// that crew (every night of a Dallas week), skipping anyone not available
+// that crew, skipping anyone not available
 // or already on another crew that day; the checklist stays editable. A team
 // never staffs anything by itself: who works is still state.staffing.
 // A person is on at most one team per season; saving a team moves them.
@@ -3680,6 +3720,17 @@ function teamRemoveNote(team, n, where){
   where=where||'this crew';
   return [n ? `Took ${n} from ${team.name} off ${where}.` : `Nobody from ${team.name} was on ${where}.`,
           'Undo puts them back.'];
+}
+/** PURE. A copy of staffing with each target group set to exactly who is on
+ *  the `fromIds` crew-days (their union; nobody clears the targets). Each of
+ *  `targets` is a list of crew-day ids staffed together: one Dallas night,
+ *  or every crew of a joint night. "Also apply to the other nights this
+ *  week" in Staff this shift. */
+function staffingCopiedTo(map, fromIds, targets){
+  const out={...(map||{})};
+  const who=[...new Set((fromIds||[]).flatMap(k=>out[k]||[]))];
+  (targets||[]).forEach(g=>g.forEach(k=>{ if(who.length) out[k]=who.slice(); else delete out[k]; }));
+  return out;
 }
 /** PURE. A copy of staffing with nobody on the crew-days in `dayIds`. */
 function staffingCleared(map, dayIds){
@@ -5779,13 +5830,14 @@ function effH(d,r){
 //   * A normal shift is one crew-day, and it is the WHOLE day. There are no
 //     half days -- if you are Crew 2 on 11/27 you are on every job Crew 2
 //     works that day (user, 2026-08-18).
-//   * The Dallas run is staffed a WEEK at a time, not a night at a time.
-//     Whoever works the Mi Cocina nights works all of them, so one crew's
-//     whole run of Dallas nights is a single shift. A run is back-to-back
-//     Dallas dates, so the November week and a January takedown week (added
-//     as dallasNights) are two shifts, not one.
-// `staffing` stays keyed by crew-day id -- assigning a block just writes the
-// same people to each of its days -- so the day cards, run sheets and the
+//   * A Dallas night is staffed like any other day: one crew-day, one shift
+//     ("I need to be able to staff the individual crew shifts per day for
+//     Dallas, not just the whole week", user, 2026-10-24). It used to be one
+//     shift per crew for the whole run ('dallas|<run start>|<crew>'); crew
+//     names and notes saved under that old week key still show on every
+//     night of the run (dallasWeekKeyOf) until a night is edited. Staff this
+//     shift can copy a night's crew to the same crew's other nights.
+// `staffing` stays keyed by crew-day id, so the day cards, run sheets and the
 // per-day coverage maths all keep working unchanged.
 function isDallasNight(d){ return isDallasDate(d.date) && d.win===K.NIGHT; }
 /** The first date of the run of back-to-back Dallas dates `dt` is in. */
@@ -5794,22 +5846,35 @@ function dallasRunStart(dt){
   while(isDallasDate(addDays(s,-1))) s=addDays(s,-1);
   return s;
 }
-function shiftKeyOf(d){ return isDallasNight(d) ? 'dallas|'+dallasRunStart(d.date)+'|'+d.crew : d.id; }
+function shiftKeyOf(d){ return d.id; }
+/** The OLD whole-week shift key of a Dallas night ('dallas|<run start>|
+ *  <crew>'), or null. Only read, as a fallback for crewNames / shiftNotes
+ *  saved before Dallas was staffed night by night. */
+function dallasWeekKeyOf(d){
+  return d && isDallasNight(d) ? 'dallas|'+dallasRunStart(d.date)+'|'+d.crew : null;
+}
+/** The same crew's other nights in d's run of Dallas dates (by stored crew),
+ *  in date order. [] for anything that isn't a Dallas night. */
+function dallasRunNights(d){
+  const wk=dallasWeekKeyOf(d); if(!wk) return [];
+  return days.filter(x=>x.id!==d.id && !x.training && dallasWeekKeyOf(x)===wk)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+}
 // ---- joint shifts ----
 // "If there are two crews assigned to these days and I assign the people to
 // crew one, then they need to be represented on crew two as well" (user,
 // 2026-10-24). Crew-days on one date that work exactly the same stops (a
 // fully joint pair, or three crews on one big job) are ONE shift: one
 // Staffing card, one crew list, and staffing it writes the same people to
-// every crew-day in it -- the way a Dallas week writes every night -- so the
+// every crew-day in it -- so the
 // Days view, crew sheets, exports, calendar feed and profit see them on each.
 // A crew-day that shares only some of its stops stays its own shift (no half
 // days: its people work its other stops too) and just says what it shares.
-// Dallas nights keep their week-long shifts. Staffing and crew names stay
-// keyed by crew-day (crewNameKey), so nothing stored changes shape.
+// Dallas nights follow the same rules night by night. Staffing and crew
+// names stay keyed by crew-day (crewNameKey), so nothing stored changes shape.
 /** PURE. {dayId: 'joint|<ids>'} for every crew-day in a fully joint group:
- *  two or more crew-days on one date, not training, not a Dallas night
- *  (isDallas(d)), with the same non-empty set of stops. */
+ *  two or more crew-days on one date, not training, with the same non-empty
+ *  set of stops. `isDallas` (optional) leaves out days it returns true for. */
 function jointShiftGroups(dayList, isDallas){
   const byDate={};
   (dayList||[]).forEach(d=>{
@@ -5861,10 +5926,9 @@ function jointPartnersOf(sh, d){
   return sh.days.filter(x=>!d || x.id!==d.id).map(crewTitle).join(' + ');
 }
 /** "Shares Bourque with Crew 2" lines for a shift: the stops it has on
- *  other crews that date that aren't part of it. Dallas weeks: none (their
- *  joint nights are wired by the build). */
+ *  other crews that date that aren't part of it. */
 function shiftShareNotes(sh){
-  if(sh.training || sh.dallas) return [];
+  if(sh.training) return [];
   const mine=new Set(sh.days.map(x=>x.id));
   const by=new Map();
   sharedStopsOutside(sh.days[0], days, x=>mine.has(x.id)).forEach(s=>{
@@ -5887,7 +5951,7 @@ function unifyJointStaffing(sh){
 }
 function buildShifts(){
   const map=new Map();
-  const jg=jointShiftGroups(days, isDallasNight);
+  const jg=jointShiftGroups(days);
   days.forEach(d=>{
     const k=jg[d.id]||shiftKeyOf(d);
     if(!map.has(k)) map.set(k,{key:k, crew:d.crew, dallas:isDallasNight(d), training:!!d.training,
@@ -5905,28 +5969,23 @@ function buildShifts(){
     sh.hours = sh.joint ? Math.max(...sh.days.map(x=>dayCalc(x).total/60))
                         : sh.days.reduce((a,x)=>a+dayCalc(x).total/60,0);
     // The crew part (sh.pos, renamable as sh.name) and the shift part
-    // (sh.tail: "Dallas week" / "night", never renamable) are kept apart so
-    // the Staffing card can make only the crew part editable. sh.members is
+    // (sh.tail: "joint" / "night", never renamable) are kept apart so the
+    // Staffing card can make only the crew part editable. sh.members is
     // each renamable crew in it with its crewNames key: one for a normal
-    // shift or a Dallas week, one per crew-day for a joint shift.
-    sh.members = sh.training ? [] : sh.joint
-      ? sh.days.map(x=>({key:crewNameKey(x), pos:crewLabel(x), name:crewNames[crewNameKey(x)]||''}))
-      : [{key:sh.key, pos:sh.dallas ? sh.crew : crewLabel(sh.days[0]), name:crewNames[sh.key]||''}];
+    // shift, one per crew-day for a joint shift.
+    sh.members = sh.training ? [] : sh.days.slice(0, sh.joint ? sh.days.length : 1)
+      .map(x=>({key:crewNameKey(x), pos:crewLabel(x), name:crewName(x)}));
     sh.nameKey = sh.members.length ? sh.members[0].key : null;
-    sh.pos  = sh.dallas ? sh.crew : sh.joint ? sh.members.map(m=>m.pos).join(' + ') : crewLabel(sh.days[0]);
+    sh.pos  = sh.joint ? sh.members.map(m=>m.pos).join(' + ') : crewLabel(sh.days[0]);
     sh.name = sh.training ? '' : sh.members.map(m=>m.name).filter(Boolean).join(' + ');
-    sh.tail = sh.dallas ? 'Dallas week' : sh.joint ? (sh.night ? 'joint · night' : 'joint')
-            : (sh.night ? 'night' : '');
+    sh.tail = sh.joint ? (sh.night ? 'joint · night' : 'joint') : (sh.night ? 'night' : '');
     sh.label = shiftLabelOf(sh);
-    sh.when = sh.dallas
-      ? `${fmtMDYYYY(sh.days[0].date)} – ${fmtMDYYYY(sh.days[sh.days.length-1].date)}`
-        + ` · ${sh.days.length} night${sh.days.length===1?'':'s'}`
-      : fmtMDYYYY(sh.date);
+    sh.when = fmtMDYYYY(sh.date);
   });
   return out.sort((a,b)=>a.date.localeCompare(b.date)||byCrew(a,b)
                         ||(a.night?1:0)-(b.night?1:0));
 }
-/** PURE. "Lesly's crew (Crew 1) · Dallas week", "Crew 2 · night", "Crew 3". */
+/** PURE. "Lesly's crew (Crew 1) · night", "Crew 2 + Crew 3 · joint", "Crew 3". */
 function shiftLabelOf(sh){
   const crew = sh.members && sh.members.length>1
     ? sh.members.map(m=>m.name ? `${m.name} (${m.pos})` : m.pos).join(' + ')
@@ -6045,12 +6104,12 @@ function clashesFor(id){
     (byDate[d.date]=byDate[d.date]||[]).push(d);
   });
   // Both crews of a joint shift is one place, not two.
-  const jg=jointShiftGroups(days, isDallasNight);
+  const jg=jointShiftGroups(days);
   return Object.entries(byDate).filter(([,ds])=>
     new Set(ds.map(d=>jg[d.id]||d.crew)).size>1).map(([dt,ds])=>({date:dt,crews:ds.map(d=>d.crew)}));
 }
-/** The shifts a person is on. A Dallas week counts as ONE shift, not five --
- *  that is how it is worked and how it should read on their card. */
+/** The shifts a person is on (each Dallas night is its own, like any day;
+ *  a joint shift counts once). */
 function shiftsFor(id){
   const on=new Set(Object.entries(staffing).filter(([,l])=>l.includes(id)).map(([k])=>k));
   return buildShifts().filter(sh=>sh.days.some(d=>on.has(d.id)));
@@ -7399,9 +7458,9 @@ function rearrangeBlockers(pairs){
 /** Trade the stops of each [a, b] crew-day pair (b may not exist yet: that's
  *  a move onto a new crew). Each itinerary keeps its order. What belongs to
  *  the itinerary goes with it, as a whole-day move always did: its people,
- *  crew name and shift note. A Dallas week is staffed (and named) a week at
- *  a time, so swapping two Dallas nights leaves every crew's people where
- *  they are. Nothing outside the pairs changes. No undo step, save or redraw
+ *  crew name and shift note -- Dallas nights included, since they are staffed
+ *  night by night like any other crew-day. A name or note still on an old
+ *  Dallas week key stays with the week. Nothing outside the pairs changes. No undo step, save or redraw
  *  here: callers do that, and the chooser runs this on a scratch copy to
  *  preview warnings. Returns the moves entries it logged. */
 function exchangeCrewDays(pairs){
@@ -7417,14 +7476,13 @@ function exchangeCrewDays(pairs){
   const logged=[];
   plan.forEach(p=>{
     const A=dayById(p.a, true), B=dayById(p.b, true);
-    const keepPeople=p.swap && isDallasNight(A) && isDallasNight(B);
     A.stops=[...p.bStops]; B.stops=[...p.aStops];
     [A,B].forEach(d=>{ d.edited=true; approved.delete(d.id); });
     const mo={...manualOrder};
     if(p.bStops.length) mo[p.a]=[...p.bStops]; else delete mo[p.a];
     if(p.aStops.length) mo[p.b]=[...p.aStops]; else delete mo[p.b];
     manualOrder=mo;
-    if(!keepPeople) staffing=swapKeys(staffing, p.a, p.b);
+    staffing=swapKeys(staffing, p.a, p.b);
     if(crewNameKey(A)===p.a && crewNameKey(B)===p.b) crewNames=swapKeys(crewNames, p.a, p.b);
     if(shiftNoteKey(A)===p.a && shiftNoteKey(B)===p.b) shiftNotes=swapKeys(shiftNotes, p.a, p.b);
     const m={row:null, name:p.name, from:p.a, to:p.b};
@@ -8326,10 +8384,8 @@ function buildDayCard(d){
   ${orderBarHTML(d)}
   ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
-          + `title="Click to staff this shift`
-          + `${sh&&sh.dallas?' (the whole Dallas week)':''}">`
-          + `${IC.users}${coverageLabel(cv)}`
-          + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}
+          + `title="Click to staff this shift">`
+          + `${IC.users}${coverageLabel(cv)}</span></div>`; })()}
   ${dayNoteLineHTML(d)}`;
   { const nl=card.querySelector('.cshnote');
     if(nl) nl.onclick=e=>{ e.stopPropagation(); if(canEditShiftNotes()) openStaffDlg(d.id); }; }
@@ -11708,12 +11764,9 @@ function deletePerson(pn){
 
 // ---- assign people to a crew-day ----
 let stfKey=null;
-/** Takes a crew-day id OR a shift key. A Dallas night resolves to its whole
- *  week, so there is exactly one way to staff it and the block cannot be
- *  half-assigned by going in through a day card. */
 // ---- inline crew-shift staffing (bottom of each Days-view card) ----
 // The same assignment underneath the full Staffing-tab dialog (shiftAssigned,
-// availFor, "write every day in the block" for a Dallas week) -- this is a
+// availFor, "write every crew-day in the shift" for a joint one) -- this is a
 // quicker way to reach it from the card you're already looking at, not a
 // second, different way to staff someone. Toggle state is session-only
 // (not part of saved state) -- purely which cards you have open right now.
@@ -11727,7 +11780,7 @@ function crewShiftSection(d){
   const cv=shiftCoverage(sh), on=shiftAssigned(sh), pick=staffPickOpts(sh);
   wrap.innerHTML=`<button type="button" class="cshifthd">
       <span class="cvchip ${cv.state}">${IC.users}${esc(coverageLabel(cv))}</span>
-      <span class="cshifttitle">Crew shift${sh.dallas?' — whole week':sh.joint?' — joint with '+esc(jointPartnersOf(sh, d)):''}</span>
+      <span class="cshifttitle">Crew shift${sh.joint?' — joint with '+esc(jointPartnersOf(sh, d)):''}</span>
       <span class="cshiftarrow${isOpen?' open':''}" aria-hidden="true">${IC.chev}</span>
     </button>
     <div class="cshiftbody" style="display:${isOpen?'flex':'none'}">
@@ -11777,8 +11830,7 @@ function crewShiftSection(d){
     if(roBlocked()){ sel.value=''; return; }
     pushUndo();
     unifyJointStaffing(sh);
-    // Write every day in the shift, same as the full dialog -- a Dallas
-    // block is staffed as one unit, not one night at a time, and a joint
+    // Write every crew-day in the shift, same as the full dialog -- a joint
     // shift puts them on every crew in it.
     sh.days.forEach(x=>{
       const cur=new Set(staffing[x.id]||[]);
@@ -11795,7 +11847,7 @@ function openStaffDlg(idOrKey){
   const sh=d ? shiftOfDay(d) : shiftFor(idOrKey);
   if(!sh) return;
   stfKey=sh.key;
-  stfUndoN=0; stfTeamNote=null; stfPrevOn=null;
+  stfUndoN=0; stfTeamNote=null; stfPrevOn=null; stfWeekSync=false;
   stfdlg.classList.remove('closing');
   document.getElementById('stftitle').textContent=`${sh.label} — ${sh.when}`;
   const list=document.getElementById('stflist');
@@ -11848,7 +11900,7 @@ function stfUndo(){
   undo();
   drawStaffDlg();
 }
-/** "Clear": everyone off this crew (every night of a Dallas week), undoable. */
+/** "Clear": everyone off this crew (both crews of a joint shift), undoable. */
 function stfClear(sh){
   if(roBlocked()) return;
   const n=shiftAssigned(sh).size;
@@ -11857,6 +11909,7 @@ function stfClear(sh){
   stfTrack(()=>{
     pushUndo();
     staffing=staffingCleared(staffing, sh.days.map(x=>x.id));
+    stfSyncWeek(sh);
     persist();
   });
   stfTeamNote=null;
@@ -11870,14 +11923,13 @@ function stfClearMsg(sh, n){
   if(sh.training) return `Remove all ${who} from the training? `
     + `This removes their Attended training status.\n\nUndo brings them back.`;
   return `Remove all ${who} from this crew?`
-    + (sh.dallas ? `\n\nThis takes them off all ${sh.days.length} nights of the Dallas week.`
-       : sh.joint ? `\n\nThis takes them off ${sh.pos} (joint).` : '');
+    + (sh.joint ? `\n\nThis takes them off ${sh.pos} (joint).` : '');
 }
 /** The crew (label) someone is on that shares a date with this shift, or ''. */
 function shiftOtherCrew(sh, pid){
   const mine=new Set(sh.days.map(x=>x.id)), myDates=new Set(sh.days.map(x=>x.date));
   const o=days.find(x=>!mine.has(x.id) && myDates.has(x.date) && (staffing[x.id]||[]).includes(pid));
-  return o ? crewTitle(o)+(isDallasNight(o) ? ' · Dallas week' : o.win===K.NIGHT ? ' · night' : '') : '';
+  return o ? crewTitle(o)+(o.win===K.NIGHT ? ' · night' : '') : '';
 }
 /** What tapping `team` would do on this shift (teamApplyPlan). */
 function teamPlanFor(sh, team){
@@ -11896,13 +11948,14 @@ function toggleTeamOnShift(sh, team){
     pushUndo();
     unifyJointStaffing(sh);
     staffing=staffingWithout(staffing, sh.days.map(x=>x.id), ids);
+    stfSyncWeek(sh);
     persist();
   });
   stfTeamNote={teamId:team.id, name:team.name, removed:true,
     lines:teamRemoveNote(team, ids.length, sh.training ? 'the training' : 'this crew')};
   return plan;
 }
-/** Add a team's members to this shift (every night of a Dallas week),
+/** Add a team's members to this shift (every crew of a joint one),
  *  skipping anyone not available or already on another crew that day. */
 function applyTeamToShift(sh, team, plan){
   if(roBlocked()) return null;
@@ -11912,6 +11965,7 @@ function applyTeamToShift(sh, team, plan){
     pushUndo();
     unifyJointStaffing(sh);
     staffing=staffingWith(staffing, sh.days.map(x=>x.id), plan.add);
+    stfSyncWeek(sh);
     persist();
   });
   stfTeamNote={teamId:team.id, name:team.name,
@@ -11961,6 +12015,63 @@ function stfTeamsHTML(sh){
   }
   return h;
 }
+// ---- Staff dialog: "Also apply to the other nights this week" ----
+// Dallas nights are staffed one at a time like any day, but the crew is
+// often the same all week. Ticking this copies this night's crew to the
+// same crew's other nights of the run (undoable), and while it stays ticked
+// every change made here goes to those nights too. Not offered on a joint
+// night (its crews' other nights can differ). A target night that is joint
+// gets the crew on each of its crews, as the joint rules require.
+let stfWeekSync = false;   // reset whenever the dialog opens
+/** The other nights this shift's crew works in its Dallas run, each as the
+ *  crew-day ids staffed together: [{day, ids, joint}] ([] when none). */
+function stfWeekTargets(sh){
+  if(!sh || sh.joint || sh.training || sh.days.length!==1) return [];
+  return dallasRunNights(sh.days[0]).map(x=>{
+    const o=shiftOfDay(x);
+    return {day:x, ids:o ? o.days.map(y=>y.id) : [x.id], joint:!!(o && o.joint), shift:o};
+  });
+}
+/** "Tue, Wed, Thu": the weekday of each target night. */
+function stfWeekDays(ts){ return ts.map(t=>DOW3[dateOf(t.day.date).getDay()]).join(', '); }
+/** Copy this shift's crew to its other Dallas nights (call inside the same
+ *  undo step as the change it follows). Nothing unless the box is ticked. */
+function stfSyncWeek(sh){
+  if(!stfWeekSync) return;
+  const ts=stfWeekTargets(sh);
+  if(ts.length) staffing=staffingCopiedTo(staffing, sh.days.map(x=>x.id), ts.map(t=>t.ids));
+}
+function stfWeekHTML(sh){
+  const ts=stfWeekTargets(sh);
+  if(!ts.length || READONLY) return '';
+  let h=`<label class="stfweek"><input type="checkbox" id="stfweekcb"${stfWeekSync?' checked':''}>`
+    + `<span>Also apply to the other nights this week (${esc(stfWeekDays(ts))})</span></label>`;
+  if(stfWeekSync){
+    const on=[...shiftAssigned(sh)].map(personById).filter(Boolean);
+    const lines=[`Same crew on ${ts.map(t=>`${DOW3[dateOf(t.day.date).getDay()]} ${fmtMDYYYY(t.day.date).slice(0,5)}`
+      + (t.joint ? ` (joint with ${jointPartnersOf(t.shift, t.day)})` : '')).join(', ')}. Undo takes it back.`];
+    ts.forEach(t=>{
+      const off=on.filter(p=>!availFor(p, {days:[t.day]}).ok).map(p=>p.name);
+      if(off.length) lines.push(`Not available ${DOW3[dateOf(t.day.date).getDay()]}: ${off.join(', ')}`);
+    });
+    h+=`<div class="stfweeknote">${lines.map(esc).join('<br>')}</div>`;
+  }
+  return h;
+}
+function wireStfWeek(sh){
+  const cb=document.getElementById('stfweekcb'); if(!cb) return;
+  cb.onchange=()=>{
+    if(roBlocked()){ cb.checked=!cb.checked; return; }
+    stfWeekSync=cb.checked;
+    if(stfWeekSync) stfTrack(()=>{
+      const before=stableJSON(staffing);
+      const next=staffingCopiedTo(staffing, sh.days.map(x=>x.id), stfWeekTargets(sh).map(t=>t.ids));
+      if(stableJSON(next)===before) return;
+      pushUndo(); staffing=next; persist();
+    });
+    drawStaffDlg(); render();
+  };
+}
 function drawStaffDlg(){
   const sh=shiftFor(stfKey); if(!sh) return;
   const d=sh.days[0];
@@ -11990,22 +12101,21 @@ function drawStaffDlg(){
     : `Needs <b>${cv.need.lead} lead</b>${cv.need.assist?` · ${cv.need.assist} assist`:''}`
     + `${cv.need.gen?` · ${cv.need.gen} general`:''} — <b>${cv.need.total} on site</b>. `
     + `<span class="cvchip ${cv.state}${bump}">${esc(coverageLabel(cv))}</span><br>`
-    + (sh.dallas
-        ? `Staffed as a block — whoever works Dallas works all `
-          + `${sh.days.length} nights.`
-        : sh.joint
+    + (sh.joint
         ? `Joint — ${esc(sh.pos)} work the same ${sh.stops} job${sh.stops===1?'':'s'} together. `
           + `Everyone you add goes on every crew.`
         : `Whole day — all ${sh.stops} job${sh.stops===1?'':'s'}, `
           + `${sh.hours.toFixed(1)}h. No half days.`);
   const readyBtn=document.getElementById('stfready');
   readyBtn.onclick=()=>{
-    stfTrack(()=>assignReadyRosterToShift(sh));
+    stfTrack(()=>{ assignReadyRosterToShift(sh); if(stfWeekSync){ stfSyncWeek(sh); persist(); } });
     drawStaffDlg();
     render();
   };
   // Only people who attended training (plus Leads and anyone already on it),
   // unless the toggle is on or this IS the training shift.
+  const weekBox=document.getElementById('stfweek');
+  if(weekBox){ weekBox.innerHTML=stfWeekHTML(sh); wireStfWeek(sh); }
   const trainBox=document.getElementById('stftrain');
   trainBox.innerHTML=untrainedToggleHTML(sh);
   const tog=trainBox.querySelector('input[data-untrained]');
@@ -12030,7 +12140,7 @@ function drawStaffDlg(){
     grp.forEach(p=>{
       rowI++;
       // Booked on a DIFFERENT crew on a date this shift covers -- one body,
-      // two places. For a Dallas block that means any night of the week.
+      // two places.
       const clash=Object.entries(staffing).some(([k,l])=>{
         if(mine.has(k)||!l.includes(p.id)) return false;
         const o=days.find(x=>x.id===k); return o && myDates.has(o.date);
@@ -12093,6 +12203,7 @@ function drawStaffDlg(){
         cb.checked ? cur.add(cb.dataset.pid) : cur.delete(cb.dataset.pid);
         if(cur.size) staffing[x.id]=[...cur]; else delete staffing[x.id];
       });
+      stfSyncWeek(sh);
       persist(); drawStaffDlg(); render();
     };
   });
@@ -12398,8 +12509,7 @@ function personDetailHTML(){
   return h;
 }
 /** One card per shift: the jobs that shift covers at the top, then who is
- *  on the crew. Multi-night shifts (the Dallas week) list their jobs night
- *  by night, since that is how the crew works them. */
+ *  on the crew. */
 function jobLineHTML(d, r, n, whole){
   const c=C[r]||{};
   const where=c.zone||c.city||'';
@@ -12416,8 +12526,6 @@ function shiftCardHTML(sh){
   // A joint shift's crew-days are the same stops: list them once.
   (sh.joint ? sh.days.slice(0,1) : sh.days).forEach(d=>{
     const order=dayCalc(d).order.length?dayCalc(d).order:d.stops;
-    if(sh.days.length>1 && !sh.joint)
-      jobs+=`<div class="shcnight">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}</div>`;
     if(!order.length) jobs+=`<div class="shcempty">no jobs</div>`;
     order.forEach(r=>{ jobs+=jobLineHTML(d, r, ++n, sh.joint); });
   });
@@ -12453,7 +12561,7 @@ function shiftCardHTML(sh){
       <button class="shcbtn" data-staff="${esc(sh.key)}">${
         cv.who.length?'Edit crew':'Staff this shift'}</button>
       <button type="button" class="shcopen" data-openday="${esc(sh.days[0].id)}"
-        title="Open this crew's day in the schedule${sh.days.length>1&&!sh.joint?' (first night)':''}">${IC.calday}<span>Open day</span></button>
+        title="Open this crew's day in the schedule">${IC.calday}<span>Open day</span></button>
       <button type="button" class="shcdet" data-shdetail="${esc(sh.key)}"
         title="Everything about this shift: times, drives, map, crew and clients (or double-click the card)">Details</button>
     </div>
@@ -12557,7 +12665,10 @@ function startShiftNoteEdit(key, draft){
 function setShiftNote(key, text){
   if(roBlocked() || !canEditShiftNotes()) return false;
   const at=new Date().toISOString();
-  const next=shiftNoteKeysFor(key).reduce((m,k)=>withShiftNote(m, k, text, ME_EMAIL, at), shiftNotes);
+  const next=shiftNoteKeysFor(key).reduce((m,k)=>{
+    const sp=weekSplitFor(k);
+    return withShiftNote(withWeekKeySplit(m, sp.weekKey, sp.ids), k, text, ME_EMAIL, at);
+  }, shiftNotes);
   if(stableJSON(next)===stableJSON(shiftNotes)) return false;
   pushUndo();
   shiftNotes=next;
@@ -12630,7 +12741,7 @@ function dayNoteLineHTML(d){
 // hours, the drive and miles between stops, lunch, back at the branch), the
 // route map, and the crew. A stop opens that client's stop card INSIDE the
 // panel (the same openStopPeek the Days view uses) with a Back to the day
-// button. A Dallas week gets one tab per night. Everything is read from the
+// button. A joint shift gets one tab per crew. Everything is read from the
 // same functions the Days view and run sheet use (dayCalc, stopTimes, leg,
 // routeGeom, shiftCoverage), so the numbers always agree.
 var sd = null;                    // {key, night, client} while the panel is open
@@ -12741,12 +12852,12 @@ function sdDraw(){
     + `<span>${leads.length?`Lead: ${esc(leads.join(', '))}`:'No lead yet'}</span>`;
   document.getElementById('sdprint').onclick=()=>printManifests(sh.days.filter(x=>x.stops.length),
     `${crewTitle(d)} ${fmtMDYYYY(sh.days[0].date)}`);
-  // One tab per night of a Dallas week (per crew of a joint shift).
+  // One tab per crew of a joint shift.
   const nights=document.getElementById('sdnights');
   nights.hidden = sh.days.length<2 || sd.client!=null;
   nights.innerHTML = sh.days.length<2 ? '' : sh.days.map((x,i)=>
     `<button type="button" role="tab" class="sdnight${i===sd.night?' sel':''}" data-sdnight="${i}" aria-selected="${i===sd.night}">`
-    + `${sh.joint ? esc(crewTitle(x)) : DOW3[dateOf(x.date).getDay()]+' '+fmtMDYYYY(x.date).slice(0,5)}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
+    + `${esc(crewTitle(x))}<small>${x.stops.length} stop${x.stops.length===1?'':'s'}</small></button>`).join('');
   nights.querySelectorAll('[data-sdnight]').forEach(b=>b.onclick=()=>{ sd.night=+b.dataset.sdnight; sdDraw(); });
   // A note being typed is left alone; it redraws when it saves.
   const ae=document.activeElement;
@@ -12755,7 +12866,7 @@ function sdDraw(){
   const main=document.getElementById('sdmain');
   main.innerHTML=
     `<div class="sdsec">${shiftNoteFieldHTML(sh, 'sd')}</div>`
-    + `<div class="sdsec"><div class="sdh">${sh.joint ? esc(crewTitle(d)) : sh.days.length>1?`${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}`:'The day'}`
+    + `<div class="sdsec"><div class="sdh">${sh.joint ? esc(crewTitle(d)) : 'The day'}`
     + `<button type="button" class="sdlink" id="sdopenday">${IC.calday}<span>Open in schedule</span></button></div>`
     + `<div class="sdstats"><div><b>${esc(fmtClock(info.start))}</b><span>${info.anchored?'roll out':'start'}</span></div>`
     + `<div><b>${esc(fmtClock(info.anchored?info.finish:(info.stops.length?info.stops[info.stops.length-1].end:info.start)))}</b><span>${info.anchored?'back ≈':'done ≈'}</span></div>`
@@ -12845,7 +12956,7 @@ function sdPeekHost(){
   return (sd && typeof sddlg!=='undefined' && sddlg.open) ? document.getElementById('sdclient') : null;
 }
 /** The crew part of a Staffing card's title. Only this is editable (double-
- *  click, double-tap or the pencil); the "Dallas week" / "night" part beside
+ *  click, double-tap or the pencil); the "joint" / "night" part beside
  *  it is plain text, and so are training days and read-only views. */
 function crewNameEditHTML(sh){
   if(sh.training) return esc(sh.pos);
@@ -12913,7 +13024,8 @@ function startCrewNameEdit(key){
 /** Save one crew name (shared, undoable). False when nothing changed. */
 function setCrewName(key, value){
   if(roBlocked()) return false;
-  const next=withCrewName(crewNames, key, value);
+  const sp=weekSplitFor(key);
+  const next=withCrewName(withWeekKeySplit(crewNames, sp.weekKey, sp.ids), key, value);
   if(stableJSON(next)===stableJSON(crewNames)) return false;
   pushUndo();
   crewNames=next;
@@ -12928,13 +13040,13 @@ const STAFF_SHUT_KEY='tbdg-staff-shut';
  *  ("Mon, Nov 2", weekends tinted) over that date's cards and map. Same
  *  builders and classes as the date list -- monthWeeks, dateMonthHead,
  *  dateWeekBar, takedownLine, listDate, .dchip -- so the two stay one look.
- *  A Dallas week sits under the date it starts on, as before. */
+ *  Each Dallas night sits under its own date, like any other day. */
 function shiftsHTML(){
   const shifts=buildShifts();
   const unstaffed=shifts.filter(sh=>!shiftCoverage(sh).who.length).length;
   let h=`<div class="shifthdr">${shifts.length} shifts this season · `
       + `<b>${unstaffed} with nobody on them</b>. A shift is the whole day — `
-      + `everyone on it works every job that day. Dallas is staffed as one week.</div>`;
+      + `everyone on it works every job that day.</div>`;
   const byDate=new Map();
   shifts.forEach(sh=>{ if(!byDate.has(sh.date)) byDate.set(sh.date,[]); byDate.get(sh.date).push(sh); });
   h+='<div class="stfgroups" id="stfgroups">';

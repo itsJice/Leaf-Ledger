@@ -6,7 +6,7 @@ The build (DATA/SPEC) can't change -- a new DATA is a new version and the
 board would look wiped -- so those dates live in shared state (dallasNights,
 like trainingDays) and the page derives the rest: a crew-day there runs like a
 built Mi Cocina night, a stop on two crews that night is a joint stop, the
-crews are staffed for the whole run, and the takedown visits (rows under the
+each night is staffed on its own like any day (10/24/2026), and the takedown visits (rows under the
 locations' own names, visit type Takedown) don't get mistaken for the
 install rows. These run the template's own functions in node, like
 test_stale_tab_merge.py. Every name below is a Dallas location the page
@@ -59,7 +59,7 @@ let dallasNights = new Set();
 let days = [];
 """ + fns("normDallasNights", "isDallasDate", "dallasNightMeta", "metaFor", "hydrate",
           "dynamicJoints", "refreshDerivedMeta", "crewLabel", "isDallasNight", "dallasRunStart",
-          "shiftKeyOf", "addDays", "dateOf", "isoOf", "isCrewName") + """
+          "shiftKeyOf", "dallasWeekKeyOf", "addDays", "dateOf", "isoOf", "isCrewName") + """
 const day=(id, stops)=>{ const [date,crew]=id.split('|'); return hydrate({id, date, crew, stops}); };
 """
 
@@ -92,27 +92,32 @@ def test_marking_a_date_makes_its_days_dallas_nights_and_unmarking_undoes_it():
       const before=days.map(d=>[d.win, d.anchored, d.lunchMin]);
       dallasNights=normDallasNights(['2027-01-02', 'junk', 5]);
       refreshDerivedMeta();
-      const after=days.map(d=>[d.win, d.anchored, d.lunchMin, d.cat, isDallasNight(d), shiftKeyOf(d)]);
+      const after=days.map(d=>[d.win, d.anchored, d.lunchMin, d.cat, isDallasNight(d), shiftKeyOf(d), dallasWeekKeyOf(d)]);
       dallasNights=new Set(); refreshDerivedMeta();
       console.log(JSON.stringify({before, after, undone:days.map(d=>[d.win, d.anchored, isDallasNight(d)]),
                                   set:[...normDallasNights(['2027-01-02','junk',5])]}));
     """)
     assert out["set"] == ["2027-01-02"]
     assert out["before"][0] == [600, True, 40]
-    assert out["after"][0] == [450, False, 0, "M Crowd", True, "dallas|2027-01-02|Crew 1"]
-    assert out["after"][2] == [600, True, 40, "Standard", False, "2026-12-01|Crew 1|0"]
+    assert out["after"][0] == [450, False, 0, "M Crowd", True, "2027-01-02|Crew 1|0", "dallas|2027-01-02|Crew 1"]
+    assert out["after"][2] == [600, True, 40, "Standard", False, "2026-12-01|Crew 1|0", None]
     assert out["undone"][0] == [600, True, False]
 
 
-def test_each_run_of_dallas_nights_is_its_own_whole_shift():
+def test_each_dallas_night_is_its_own_shift_and_the_old_week_key_is_per_run():
+    # "I need to be able to staff the individual crew shifts per day for
+    # Dallas, not just the whole week" (10/24/2026): the shift is the night's
+    # crew-day; the old run key is only read back for names and notes.
     out = run("""
       dallasNights=new Set(['2027-01-02','2027-01-03','2027-01-04']);
       days=['2026-11-02|Crew 1|0','2026-11-05|Crew 1|0','2027-01-02|Crew 1|0','2027-01-04|Crew 1|0','2027-01-04|Crew 2|0']
         .map(id=>day(id,[1]));
-      console.log(JSON.stringify(days.map(shiftKeyOf)));
+      console.log(JSON.stringify({keys:days.map(shiftKeyOf), week:days.map(dallasWeekKeyOf)}));
     """)
-    assert out == ["dallas|2026-11-02|Crew 1", "dallas|2026-11-02|Crew 1",
-                   "dallas|2027-01-02|Crew 1", "dallas|2027-01-02|Crew 1", "dallas|2027-01-02|Crew 2"]
+    assert out["keys"] == ["2026-11-02|Crew 1|0", "2026-11-05|Crew 1|0", "2027-01-02|Crew 1|0",
+                           "2027-01-04|Crew 1|0", "2027-01-04|Crew 2|0"]
+    assert out["week"] == ["dallas|2026-11-02|Crew 1", "dallas|2026-11-02|Crew 1",
+                           "dallas|2027-01-02|Crew 1", "dallas|2027-01-02|Crew 1", "dallas|2027-01-02|Crew 2"]
 
 
 def test_a_row_on_two_crews_the_same_night_is_a_joint_stop():

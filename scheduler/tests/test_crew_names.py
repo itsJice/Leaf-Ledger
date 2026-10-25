@@ -5,8 +5,10 @@ crew 2, crew 3, and ... change the name via there, and it update globally.
 When I do it on Dallas week, I should not be able to edit Dallas week, but I
 want to be able to edit the crew name."
 
-Shared state `crewNames` is {shiftKey: name}: a crew-day's own id, or a
-Dallas run's shift key so one name covers the whole week. These run the
+Shared state `crewNames` is {shiftKey: name}: a crew-day's own id, Dallas
+nights included (each night is its own shift since 10/24/2026). A name saved
+under a Dallas run's old week key still shows on every night of that run, and
+the first edit of a night splits it onto each night. These run the
 template's own functions in node, like test_dallas_nights.py. No real names.
 """
 import json
@@ -22,7 +24,8 @@ NODE = shutil.which("node")
 pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 NAMES = BOARD + "\nconst CREW_NAME_MAX=40, CREW_TAP_MS=400;\nlet crewNames={};\n" + fns(
-    "normCrewName", "crewNameKey", "normCrewNames", "withCrewName", "crewName",
+    "normCrewName", "crewNameKey", "normCrewNames", "withCrewName", "crewName", "dallasWeekKeyOf",
+    "liveShiftKeys", "withWeekKeySplit", "weekSplitFor", "dallasRunNights",
     "crewTitle", "crewLabelShort", "crewTitleShort", "shiftLabelOf", "isDoubleTap")
 
 
@@ -30,18 +33,18 @@ def run(body):
     return json.loads(run_js(NAMES + body))
 
 
-def test_key_is_the_day_id_for_houston_and_the_run_for_a_dallas_week():
+def test_key_is_the_day_id_for_houston_and_for_each_dallas_night():
     out = run("""
       days=['2026-11-02|Crew 1|0','2026-11-04|Crew 1|0','2026-11-04|Crew 2|0','2026-12-01|Crew 3|0']
         .map(id=>day(id,[1]));
       days.push(hydrate({id:'2026-12-01|Training|0', date:'2026-12-01', crew:'Training', stops:[], training:true}));
       console.log(JSON.stringify(days.map(crewNameKey)));
     """)
-    assert out == ["dallas|2026-11-02|Crew 1", "dallas|2026-11-02|Crew 1", "dallas|2026-11-02|Crew 2",
+    assert out == ["2026-11-02|Crew 1|0", "2026-11-04|Crew 1|0", "2026-11-04|Crew 2|0",
                    "2026-12-01|Crew 3|0", None]
 
 
-def test_one_name_covers_every_night_of_a_dallas_week():
+def test_a_name_saved_on_the_old_week_key_shows_on_every_night_of_that_run():
     out = run("""
       days=['2026-11-02|Crew 1|0','2026-11-03|Crew 1|0','2026-11-06|Crew 1|0','2026-11-03|Crew 2|0']
         .map(id=>day(id,[1]));
@@ -49,6 +52,40 @@ def test_one_name_covers_every_night_of_a_dallas_week():
       console.log(JSON.stringify(days.map(crewTitle)));
     """)
     assert out == ["Lead A's crew (Crew 1)"] * 3 + ["Crew 2"]
+
+
+def test_a_night_name_wins_over_the_week_name_and_editing_splits_the_week_key():
+    out = run("""
+      days=['2026-11-02|Crew 1|0','2026-11-03|Crew 1|0','2026-11-04|Crew 1|0','2026-11-03|Crew 2|0']
+        .map(id=>day(id,[1]));
+      crewNames={'dallas|2026-11-02|Crew 1':'Week A'};
+      // what setCrewName does: split the old week key, then set this night
+      const sp=weekSplitFor('2026-11-03|Crew 1|0');
+      crewNames=withCrewName(withWeekKeySplit(crewNames, sp.weekKey, sp.ids), '2026-11-03|Crew 1|0', 'Tue B');
+      const after=days.map(crewName);
+      const cleared=withCrewName(crewNames, '2026-11-03|Crew 1|0', '');
+      crewNames=cleared;
+      console.log(JSON.stringify({sp, after, saved:cleared, afterClear:days.map(crewName),
+        houston:weekSplitFor('2026-12-01|Crew 1|0')}));
+    """)
+    assert out["sp"] == {"weekKey": "dallas|2026-11-02|Crew 1",
+                         "ids": ["2026-11-03|Crew 1|0", "2026-11-02|Crew 1|0", "2026-11-04|Crew 1|0"]}
+    assert out["after"] == ["Week A", "Tue B", "Week A", ""]
+    # the week key is gone once split, so clearing a night really clears it
+    assert out["saved"] == {"2026-11-02|Crew 1|0": "Week A", "2026-11-04|Crew 1|0": "Week A"}
+    assert out["afterClear"] == ["Week A", "", "Week A", ""]
+    assert out["houston"] == {"weekKey": None, "ids": []}
+
+
+def test_week_key_split_is_pure_and_keeps_night_values():
+    out = run("""
+      const m={'dallas|2026-11-02|Crew 1':'W', 'a':'A'};
+      console.log(JSON.stringify([withWeekKeySplit(m, 'dallas|2026-11-02|Crew 1', ['a','b']), m,
+        withWeekKeySplit(m, null, ['a']), withWeekKeySplit(m, 'dallas|x', ['c'])]));
+    """)
+    assert out[0] == {"a": "A", "b": "W"}
+    assert out[1] == {"dallas|2026-11-02|Crew 1": "W", "a": "A"}
+    assert out[2] == out[1] and out[3] == out[1]
 
 
 def test_title_keeps_the_positional_number_and_follows_its_crew_day():
@@ -85,18 +122,19 @@ def test_saved_names_are_normalized_and_dropped_for_shifts_that_are_gone():
         normCrewNames(null), normCrewNames(['a']),
         normCrewNames({a:'A', b:'B'}, new Set(['a']))]));
     """)
+    # an old Dallas week key is kept while that run is on the board
     assert out == [{"2026-12-01|Crew 1|0": "A", "dallas|2026-11-02|Crew 2": "B"}, {}, {}, {"a": "A"}]
 
 
-def test_shift_label_names_the_crew_but_never_renames_dallas_week():
+def test_shift_label_names_the_crew_but_never_renames_the_tail():
     out = run("""
       console.log(JSON.stringify([
-        shiftLabelOf({pos:'Crew 1', name:'Team A', tail:'Dallas week'}),
-        shiftLabelOf({pos:'Crew 1', name:'', tail:'Dallas week'}),
+        shiftLabelOf({pos:'Crew 1', name:'Team A', tail:'joint'}),
+        shiftLabelOf({pos:'Crew 1', name:'', tail:'joint'}),
         shiftLabelOf({pos:'Crew 2', name:'Team B', tail:'night'}),
         shiftLabelOf({pos:'Crew 3', name:'', tail:''})]));
     """)
-    assert out == ["Team A (Crew 1) · Dallas week", "Crew 1 · Dallas week",
+    assert out == ["Team A (Crew 1) · joint", "Crew 1 · joint",
                    "Team B (Crew 2) · night", "Crew 3"]
 
 
@@ -142,7 +180,7 @@ def test_only_the_crew_part_of_the_card_is_editable_and_read_only_cant():
     assert "READONLY" in src and "sh.training" in src
     assert "READONLY" in js_function("crewNamePencilHTML")
     card = js_function("shiftCardHTML")
-    # "Dallas week" / "night" sits outside the editable span
+    # "joint" / "night" sits outside the editable span
     assert "crewNameEditHTML(sh)" in card and 'class="shctail"' in card
     assert "data-crewname" not in card
     for fn in ("startCrewNameEdit", "setCrewName"):
