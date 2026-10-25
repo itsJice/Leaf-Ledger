@@ -1188,6 +1188,8 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 #txtdlg .txtgrp.on{background:var(--brand);border-color:var(--brand);color:#fff}
 #txtdlg .txtgrp.on .n{color:#d6e6d7}
 #txtdlg .txtgrp:disabled{opacity:.45;cursor:default}
+#txtdlg .txtgrp.team .ic{width:12px;height:12px;margin-right:3px}
+.txtrow .asgteam{max-width:30%}
 .txtsec{margin-top:10px}
 .txtsec>summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:10.5px;
   letter-spacing:.05em;text-transform:uppercase;font-weight:800;color:var(--mut);
@@ -1200,6 +1202,13 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .txtrow.off:hover{background:none}
 .txtrow .nm{font-weight:600;flex:1 1 auto;min-width:0}
 .txtrow .ph{color:var(--mut);font-size:11.5px;white-space:nowrap}
+/* Phones: the name gets its own line and the tags wrap under it, so a row
+   (team tag, title, language, days, last texted, phone) never runs off the side. */
+@media (max-width:600px){
+  .txtrow{flex-wrap:wrap;row-gap:4px}
+  .txtrow .nm{flex:1 1 calc(100% - 40px)}
+  .txtrow .asgteam{max-width:60%}
+}
 .txtchip{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .txtchip.none{background:var(--danger-soft);color:var(--danger)}
 .txtchip.some{background:var(--warn-soft);color:var(--warn-ink)}
@@ -14299,6 +14308,18 @@ const TXT_GROUPS=[
   {key:'en',  label:'English speakers',    test:p=>txtActive(p)&&p.lang==='English'},
   {key:'es',  label:'Spanish + bilingual', test:p=>txtActive(p)&&p.lang!=='English'},
 ];
+/** PURE. One group chip per saved team in `season` (user, 2026-10-25: "i
+ *  should be able to mass text and select teams too"), by name, after the
+ *  standard groups. A team chip covers its members who are working this
+ *  season; like every group, only those with a textable phone count. */
+function txtTeamGroups(list, season){
+  return teamsForSeason(list, season).map(t=>{
+    const ids=new Set(t.members);
+    return {key:'team:'+t.id, label:t.name, team:true, test:p=>txtActive(p)&&ids.has(p.id)};
+  });
+}
+/** Every group chip on the Choose people step: the standard ones, then teams. */
+function txtAllGroups(){ return [...TXT_GROUPS, ...txtTeamGroups(teams, teamSeasonDefault())]; }
 /** The textable people a group (or a list) covers, and whether all are picked. */
 function txtGroupState(members, picked){
   const ids=members.filter(p=>smsNumber(p.phone)).map(p=>p.id);
@@ -14315,6 +14336,7 @@ function txtRowHTML(p, picked){
   return `<label class="txtrow${ok?'':' off'}">
     <input type="checkbox" data-pid="${esc(p.id)}"${ok&&picked.has(p.id)?' checked':''}${ok?'':' disabled'}>
     <span class="nm">${esc(p.name)}</span>
+    ${(tm=>tm?`<span class="asgteam" title="On ${esc(tm.name)}">${esc(tm.name)}</span>`:'')(teamOfPerson(teams, p.id, teamSeasonDefault()))}
     <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
     <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
     ${txtStatus(p)}${txtLastHTML(p)}
@@ -14325,10 +14347,11 @@ function txtSecKey(p){ return rosterGroupKey({...p, active:txtActive(p)}, staffi
 function txtPickHTML(){
   const picked=new Set(txt.picked);
   const byName=(a,b)=>a.name.localeCompare(b.name);
-  const chips=TXT_GROUPS.map(g=>{
+  const chips=txtAllGroups().map(g=>{
     const st=txtGroupState(roster.filter(g.test), picked);
-    return `<button type="button" class="txtgrp${st.on?' on':''}" data-grp="${esc(g.key)}"${st.ids.length?'':' disabled'}>`
-      + `${esc(g.label)} <span class="n">${st.ids.length}</span></button>`;
+    return `<button type="button" class="txtgrp${g.team?' team':''}${st.on?' on':''}" data-grp="${esc(g.key)}"${st.ids.length?'':' disabled'}`
+      + `${g.team?` title="Everyone on ${esc(g.label)}"`:''}>`
+      + `${g.team?IC.users:''}${esc(g.label)} <span class="n">${st.ids.length}</span></button>`;
   }).join('');
   const section=(label, people, key, open)=>{
     if(!people.length) return '';
@@ -14340,8 +14363,8 @@ function txtPickHTML(){
       ${people.map(p=>txtRowHTML(p, picked)).join('')}</details>`;
   };
   const active=roster.filter(txtActive), off=roster.filter(p=>!txtActive(p)).sort(byName);
-  return `<p class="txthint">Who should get it? Tap a group to add it (tap again to take it off) —
-      groups combine — or tick people one by one. People without a phone number that can take
+  return `<p class="txthint">Who should get it? Tap a group or a team to add it (tap again to take it off).
+      Groups combine, or tick people one by one. People without a phone number that can take
       a text are greyed out.</p>
     <div class="txtpick">${chips}<button type="button" data-grp="none">Clear</button></div>
     ${section(TRAINED_LBL, active.filter(p=>txtSecKey(p)==='trained').sort(byName), 'trained', true)}
@@ -14365,7 +14388,8 @@ function txtWirePick(body){
   });
   body.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>{
     if(b.dataset.grp==='none'){ txt.picked=[]; txtSave(); txtDraw(); return; }
-    const g=TXT_GROUPS.find(x=>x.key===b.dataset.grp);
+    const g=txtAllGroups().find(x=>x.key===b.dataset.grp);
+    if(!g) return;
     const st=txtGroupState(roster.filter(g.test), new Set(txt.picked));
     txtToggle(st.ids, !st.on); txtDraw();
   });
