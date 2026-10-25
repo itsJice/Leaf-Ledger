@@ -126,3 +126,14 @@ def test_joint_stop_moved_onto_a_built_day_splits_there():
     out = sb.derived_day_meta(spec, {}, by_day)
     assert out["2026-11-04|Crew 1|0"]["half"] == [63] and out["2026-11-04|Crew 1|0"]["joint"] == "Crew 2"
     assert out["2026-11-04|Crew 2|0"]["half"] == [63] and out["2026-11-04|Crew 1|0"]["win"] == 450
+
+
+def test_a_4th_crew_on_a_dallas_night_runs_as_a_night():
+    """Rearranging (10/24): a crew-day added as a 4th crew on a full night is a
+    night like the other three, in the feed and the profit page too."""
+    b = schedule_board.resolve("2026", PAYLOAD, state(placement={"1": [NOV1, NOV2], "2": ["2026-11-02|Crew 4|0"]}))
+    m = b.day_meta["2026-11-02|Crew 4|0"]
+    assert (m["win"], m["anchored"], m["lunchMin"], m["cat"]) == (450, False, 0, "M Crowd")
+    assert "2026-11-02|Crew 4|0" in b.days
+    # Anything that isn't a crew is still ignored.
+    assert not schedule_board.EXTRA_CREW.match("Crew 1 + Crew 2 (stacked)")
