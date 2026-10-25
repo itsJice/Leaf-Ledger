@@ -239,7 +239,9 @@ def day_events(board: Board, day: dict, storing: Optional[set] = None,
         return []
     crew = _crew_line(board, day["id"])
     note = board.day_notes.get(day["id"], "")
-    base = f"Crew: {crew}" + (f"\nDay note: {note}" if note else "")
+    shift_note = board.shift_note(day)
+    base = (f"Crew: {crew}" + (f"\nDay note: {note}" if note else "")
+            + (f"\nNotes for the day: {shift_note}" if shift_note else ""))
     uid = re.sub(r"[^A-Za-z0-9-]+", "-", day["id"])
     events = []
 

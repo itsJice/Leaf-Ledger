@@ -827,6 +827,38 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .shctail{white-space:nowrap}
 .shcname.editing .crewnmbtn,.shcname.editing .crewpos{display:none}
 body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
+/* Shift notes (shiftNotes): the Notes section on a Staffing card, its text
+   box, the Staff this shift field, and the Days view crew card's line. */
+.shnadd{display:inline-flex;align-items:center;gap:5px;padding:4px 2px;border:0;background:none;
+  color:var(--brand-deep);font:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;min-height:28px}
+.shnadd .ic{width:14px;height:14px}
+@media (hover:hover){ .shnadd:hover{text-decoration:underline} }
+.shnote{border-radius:7px;padding:6px 8px;margin:0 -2px;background:var(--brand-soft);
+  transition:box-shadow .15s ease,background-color .15s ease}
+.shnote.can{cursor:text}
+@media (hover:hover){ .shnote.can:hover{box-shadow:0 0 0 1.5px var(--brand)} }
+.shnote.can:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.shntext{font-size:12.5px;line-height:1.4;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.shnby{font-size:10.5px;color:var(--mut);margin-top:3px}
+.shnby:empty{display:none}
+.shnin{display:block;box-sizing:border-box;width:100%;min-height:52px;resize:none;overflow:hidden;
+  font:inherit;font-size:16px;line-height:1.4;padding:6px 8px;border:1px solid var(--brand);border-radius:7px;
+  background:var(--surface);color:var(--ink)}
+.shnin:focus{outline:none;box-shadow:0 0 0 3px var(--brand-soft)}
+@media (min-width:768px) and (hover:hover){ .shnin{font-size:13px} }
+.shnhint{font-size:10.5px;color:var(--faint);margin-top:3px}
+.stfnote{margin:8px 0 2px}
+.stfnotelbl{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+  font-weight:800;margin-bottom:4px}
+#stfdlg .stfnote .shnin{border-color:var(--line)}
+#stfdlg .stfnote .shnin:focus{border-color:var(--brand)}
+.cshnote{display:flex;gap:6px;align-items:flex-start;padding:6px 14px;border-bottom:1px solid var(--line);
+  background:var(--brand-soft);color:var(--ink);font-size:12px;line-height:1.35}
+.cshnote .ic{width:13px;height:13px;flex:none;margin-top:2px;color:var(--brand-deep)}
+.cshntext{white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cshnote.can{cursor:pointer}
+body.readonly .shnadd,body.viewonly .shnadd{display:none}
+@media print{ .shnadd{display:none!important} }
 .shcsec{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin:11px 0 4px;display:flex;align-items:center;gap:6px}
 .shcsec:after{content:'';flex:1;height:1px;background:var(--line)}
@@ -2396,6 +2428,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 <dialog id="stfdlg">
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
+  <div class="stfnote" id="stfnote"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div id="stftrain"></div>
   <div class="asglist" id="stflist"></div>
@@ -2600,6 +2633,7 @@ const IC={
  // Staff alert (the amber triangle by a client's name) -- see staffAlertOf().
  // Leaf & Ledger app icon set (frontend/src/components/icons.tsx)
  pin:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+ note:'<svg class="ic" viewBox="0 0 24 24"><path d="M7 3h10a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4H9l-5 3V7a4 4 0 0 1 3-4Z"/><path d="M8 8h8M8 13h5"/></svg>',
  pencil:'<svg class="ic" viewBox="0 0 24 24"><path d="m4 15 12-12c2-2 7 3 5 5L9 20l-6 1ZM14 5l5 5M4 15l5 5"/></svg>',
  arrowUR:'<svg class="ic" viewBox="0 0 24 24"><g transform="rotate(-45 12 12)"><path d="M4 12h16m-6-6 6 6-6 6"/></g></svg>',
  pkg:'<svg class="ic" viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10a2 2 0 0 1-1 2l-7 3-7-3a2 2 0 0 1-1-2ZM4 7l8 4 8-4M12 11v11M8 5l8 4"/></svg>',
@@ -3181,6 +3215,98 @@ function crewName(d){ const k=crewNameKey(d); return (k && crewNames[k]) || ''; 
 function crewTitle(d){ const n=crewName(d), p=crewLabel(d); return n ? `${n} (${p})` : p; }
 /** Dense calendar chips: "C1 Lesly's crew". */
 function crewTitleShort(d){ const n=crewName(d), p=crewLabelShort(d); return n ? `${p} ${n}` : p; }
+// ---------- shift notes ----------
+// "I need a way to make notes for the install day on this page" (user,
+// 2026-10-24, on a Staffing shift card). One note per shift: what the crew
+// needs to know that day ("Meet at the warehouse at 7:30", "Bring the tall
+// ladder"). Written on the Staffing card or in Staff this shift, and shown
+// on the Days view crew card, the crew run sheets, and server-side on the
+// lead pages and the calendar feed (backend app/libs/schedule_board.py).
+//
+// Shared state `shiftNotes` is {shiftKey: {text, by, at}}, keyed by
+// shiftKeyOf() exactly like crewNames: a crew-day's own id, or a Dallas run's
+// key so one note covers the whole week. Training days can have one too.
+// `by` is the signed-in email when the page knows it (else ''), `at` an ISO
+// time. Not the same thing as a client's season "Install notes" (per stop)
+// or the build's day note (d.note); those stay as they are.
+const SHIFT_NOTE_MAX = 2000;
+let shiftNotes = {};
+let ME_EMAIL = '';               // from /api/me, for a note's "by"
+/** PURE. Note text as stored: line endings unified, trailing spaces off each
+ *  line, no more than one blank line in a row, trimmed, capped. */
+function normShiftNoteText(v){
+  return String(v==null?'':v).replace(/\r\n?/g,'\n').split('\n').map(l=>l.replace(/[ \t]+$/,''))
+    .join('\n').replace(/\n{3,}/g,'\n\n').trim().slice(0, SHIFT_NOTE_MAX);
+}
+/** PURE. One saved note as this page keeps it, or null (empty or junk). A
+ *  bare string (hand-edited state) counts as the text. */
+function normShiftNote(v){
+  const o = typeof v==='string' ? {text:v} : v;
+  if(!o || typeof o!=='object' || Array.isArray(o)) return null;
+  const text = normShiftNoteText(typeof o.text==='string' ? o.text : '');
+  if(!text) return null;
+  const by = typeof o.by==='string' ? o.by.trim().slice(0, 120) : '';
+  let at = '';
+  if(typeof o.at==='string' && o.at && !isNaN(Date.parse(o.at))) at = o.at;
+  else if(typeof o.at==='number' && isFinite(o.at)) at = new Date(o.at).toISOString();
+  return {text, by, at};
+}
+/** The shiftNotes key for a crew-day: its shift. */
+function shiftNoteKey(d){ return d && d.crew ? shiftKeyOf(d) : null; }
+/** Saved shiftNotes, normalized, only for shifts on the board (`keys`,
+ *  default: every shift right now). */
+function normShiftNotes(obj, keys){
+  const ok = keys || new Set(days.map(shiftNoteKey).filter(Boolean));
+  const out = {};
+  if(obj && typeof obj==='object' && !Array.isArray(obj))
+    Object.keys(obj).sort().forEach(k=>{
+      const n = normShiftNote(obj[k]);
+      if(n && ok.has(k)) out[k] = n;
+    });
+  return out;
+}
+/** PURE. `notes` with `key`'s note set to `text`, stamped `by` / `at`. An
+ *  empty text removes it; the same text as now changes nothing (so the
+ *  stamp still says who last really changed it). */
+function withShiftNote(notes, key, text, by, at){
+  const out = {...(notes||{})}, t = normShiftNoteText(text);
+  if(!t){ delete out[key]; return out; }
+  if(out[key] && out[key].text===t) return out;
+  out[key] = {text:t, by:String(by||'').trim().slice(0,120), at:at||''};
+  return out;
+}
+/** The note on this crew-day's shift (or a shift key), or null. */
+function shiftNoteOf(dOrKey){
+  const k = typeof dOrKey==='string' ? dOrKey : shiftNoteKey(dOrKey);
+  return (k && shiftNotes[k]) || null;
+}
+/** PURE. "Edited 10/24/2026 8:31 PM" in Central time ('' with no time). */
+function shiftNoteStamp(at){
+  const t = at ? new Date(at) : null;
+  if(!t || isNaN(t)) return '';
+  const p = {};
+  new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago', month:'2-digit', day:'2-digit',
+    year:'numeric', hour:'numeric', minute:'2-digit', hour12:true})
+    .formatToParts(t).forEach(x=>{ p[x.type]=x.value; });
+  return `Edited ${p.month}/${p.day}/${p.year} ${p.hour}:${p.minute} ${String(p.dayPeriod||'').toUpperCase()}`;
+}
+/** Who wrote a note: their roster name when the email is on the roster,
+ *  else the email. */
+function shiftNoteBy(by){
+  if(!by) return '';
+  const e = by.toLowerCase();
+  const p = roster.find(x=>x && x.email && String(x.email).trim().toLowerCase()===e);
+  return p ? p.name : by;
+}
+/** The byline under a note: "Edited 10/24/2026 8:31 PM · Justice". */
+function shiftNoteByline(n){
+  return n ? [shiftNoteStamp(n.at), shiftNoteBy(n.by)].filter(Boolean).join(' · ') : '';
+}
+/** Who may write notes: not archived / view-only / TV, and not a lead or
+ *  production login (they read them). Unknown role (standalone) may. */
+function canEditShiftNotes(){
+  return !READONLY && !VIEWONLY && !TVMODE && (!ME_ROLE || ALERT_EDIT_ROLES.has(ME_ROLE));
+}
 // ---------- Teams (shared state `teams`) ----------
 // "give me a function to create teams, base teams by year that i can edit
 // ... when I hit staff this shift, I can hit Alberto's team, select it, and
@@ -3552,6 +3678,7 @@ try{
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     crewNames = normCrewNames(s.crewNames);
+    shiftNotes = normShiftNotes(s.shiftNotes);
     teams = loadTeams(s.teams);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
@@ -3658,7 +3785,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -3742,9 +3869,12 @@ function mergeShared(base, mine, theirs, label){
                   manualOrder:d=>`Stop order on ${label('day',d)}`,
                   stopPin:r=>`${label('row',r)}: position lock`,
                   lastScheduledFrom:r=>`${label('row',r)}: previous date`,
-                  crewNames:k=>`Crew name for ${label('shift',k)}`};
+                  crewNames:k=>`Crew name for ${label('shift',k)}`,
+                  shiftNotes:k=>`Note for ${label('shift',k)}`};
+  // A note is the same note when its text is: a stamp alone is no edit.
+  const MAP_NORM={placement:sortedIds, shiftNotes:v=>(v && typeof v==='object') ? v.text : v};
   SHARED_MAP_KEYS.forEach(k=>{
-    if(any(k)) out[k]=mapMerge(base[k], mine[k], theirs[k], MAP_WHAT[k], k==='placement' ? sortedIds : null);
+    if(any(k)) out[k]=mapMerge(base[k], mine[k], theirs[k], MAP_WHAT[k], MAP_NORM[k]||null);
   });
   // The change log: theirs, then what I logged since my base.
   const seenMove=new Set([...(base.moves||[]), ...(theirs.moves||[])].map(stableJSON));
@@ -3934,7 +4064,7 @@ function snapshot(){
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
-          roster, staffing, teams, crewNames, savedAt:Date.now()};
+          shiftNotes, roster, staffing, teams, crewNames, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -4519,6 +4649,9 @@ function loadMeRole(){
   authFetch('/api/me', {headers:{Authorization:AUTH}})
     .then(r=>r.ok?r.json():null).then(m=>{
       ME_ROLE=(m && m.role) || '';
+      ME_EMAIL=(m && typeof m.email==='string' && m.email) || '';
+      // Lead / production logins read shift notes but don't edit them.
+      if(ME_ROLE && !ALERT_EDIT_ROLES.has(ME_ROLE) && (viewMode==='staff' || viewMode==='days')) render();
       // The roster card was drawn before the role was known; add the
       // contractor section now that it is.
       if(canSeeContractor() && viewMode==='staff') renderStaffing();
@@ -4791,7 +4924,7 @@ function conflictLabel(kind, key){
     return /^\d{4}-\d{2}-\d{2}$/.test(date) ? fmtMDYYYY(date)+(d?' '+crewLabel(d):'') : String(key);
   }
   if(kind==='shift'){
-    const d=days.find(x=>crewNameKey(x)===key);
+    const d=days.find(x=>shiftNoteKey(x)===key);
     return d ? fmtMDYYYY(d.date)+' '+crewLabel(d) : String(key);
   }
   return String(key);
@@ -5070,6 +5203,7 @@ async function restoreHistoryEntry(entryId, btn){
     comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     crewNames = normCrewNames(st.crewNames);
+    shiftNotes = normShiftNotes(st.shiftNotes);
     teams = loadTeams(st.teams);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
@@ -5095,7 +5229,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, roster, staffing, teams, crewNames});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, shiftNotes, roster, staffing, teams, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -5117,6 +5251,7 @@ function restoreBlob(blob){
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
   crewNames = normCrewNames(s.crewNames);
+  shiftNotes = normShiftNotes(s.shiftNotes);
   teams = loadTeams(s.teams);
   return missing;
 }
@@ -6816,6 +6951,7 @@ function moveWholeDay(dayId, toDate){
   const wasManual = manualOrder[dayId];
   const wasStaffed = staffing[dayId];
   const nameKey = crewNameKey(src), wasNamed = nameKey===dayId ? crewNames[dayId] : '';
+  const wasNote = shiftNoteKey(src)===dayId ? shiftNotes[dayId] : null;
   order.forEach(r=>applyMove(r, toId, false));
   // Carry the day's own settings across, so a hand-ordered run and its
   // crew don't silently reset just because the date changed.
@@ -6833,6 +6969,13 @@ function moveWholeDay(dayId, toDate){
     const to = days.find(d=>d.id===toId), toKey = to && crewNameKey(to);
     if(toKey && !crewNames[toKey]) crewNames = withCrewName(crewNames, toKey, wasNamed);
     crewNames = withCrewName(crewNames, dayId, '');
+  }
+  // So does its shift note (same rule: a Dallas week keeps its own).
+  if(wasNote){
+    const to = days.find(d=>d.id===toId), toKey = to && shiftNoteKey(to);
+    const nx = {...shiftNotes}; delete nx[dayId];
+    if(toKey && !nx[toKey]) nx[toKey] = wasNote;
+    shiftNotes = nx;
   }
   manualOrder[toId] = wasManual ? [...wasManual] : order;
   if(wasManual) delete manualOrder[dayId];
@@ -7471,7 +7614,10 @@ function buildDayCard(d){
           + `title="Click to staff this shift`
           + `${sh&&sh.dallas?' (the whole Dallas week)':''}">`
           + `${IC.users}${coverageLabel(cv)}`
-          + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}`;
+          + `${sh&&sh.dallas?' · whole week':''}</span></div>`; })()}
+  ${dayNoteLineHTML(d)}`;
+  { const nl=card.querySelector('.cshnote');
+    if(nl) nl.onclick=e=>{ e.stopPropagation(); if(canEditShiftNotes()) openStaffDlg(d.id); }; }
   card.querySelector('.printbtn').onclick=(e)=>{
     e.stopPropagation();
     printManifests([d], `${crewTitle(d)} — ${fmtMDYYYY(d.date)}`);
@@ -11077,6 +11223,10 @@ function drawStaffDlg(){
   undoBtn.disabled=READONLY || !stfUndoN;
   undoBtn.innerHTML=`${IC.undo} Undo${stfUndoN>1?` <span class="n">(${stfUndoN})</span>`:''}`;
   undoBtn.onclick=stfUndo;
+  const noteBox=document.getElementById('stfnote');
+  if(noteBox && !(document.activeElement && document.activeElement.id==='stfnoteta')){
+    noteBox.innerHTML=stfNoteHTML(sh); wireStfNote(sh);
+  }
   const clearBtn=document.getElementById('stfclear');
   clearBtn.disabled=READONLY || !shiftAssigned(sh).size;
   clearBtn.onclick=()=>stfClear(sh);
@@ -11535,9 +11685,121 @@ function shiftCardHTML(sh){
     ${jobs}
     <div class="shcsec">Crew${cv.who.length?' ('+cv.who.length+')':''}</div>
     ${crew}
+    ${shiftNoteCardHTML(sh)}
     <button class="shcbtn" data-staff="${esc(sh.key)}">${
       cv.who.length?'Edit crew':'Staff this shift'}</button>
   </div>`;
+}
+/** A Staffing card's Notes section: the note (tap to edit), or "Add note"
+ *  when there is none. Read-only views see the note and nothing to edit,
+ *  and no section at all when there is no note. */
+function shiftNoteCardHTML(sh){
+  const n=shiftNoteOf(sh.key), can=canEditShiftNotes();
+  if(!n && !can) return '';
+  let h=`<div class="shcsec">Notes</div>`;
+  if(!n) return h+`<button type="button" class="shnadd" data-shnoteadd="${esc(sh.key)}">${IC.note}Add note</button>`;
+  const by=shiftNoteByline(n);
+  return h+`<div class="shnote${can?' can':''}" data-shnote="${esc(sh.key)}"`
+    + (can ? ` role="button" tabindex="0" title="Click to edit this note" aria-label="Note for this shift. Edit note"` : '')
+    + `><div class="shntext">${esc(n.text)}</div>`
+    + (by ? `<div class="shnby">${esc(by)}</div>` : '') + `</div>`;
+}
+/** Grow a note box to fit its text (no inner scrollbar). */
+function autosizeNote(ta){
+  ta.style.height='auto';
+  ta.style.height=Math.min(ta.scrollHeight+2, 480)+'px';
+}
+/** Swap a card's note (or its "Add note") for a text box. Leaving the box or
+ *  Cmd/Ctrl+Enter saves, Esc cancels, and an empty box removes the note. */
+// A redraw while a note is being typed (a route finishing, someone else's
+// save merging in) would throw the box away: the draft is kept here and the
+// box comes back after the redraw (renderStaffing), cursor at the end.
+let shiftNoteDraft = null;   // {key, text} while a card's note box is open
+let shiftNoteRedraw = false; // true while renderStaffing takes the box away
+function startShiftNoteEdit(key, draft){
+  if(roBlocked() || !canEditShiftNotes()) return;
+  const el=[...document.querySelectorAll('[data-shnote],[data-shnoteadd]')]
+    .find(x=>(x.dataset.shnote||x.dataset.shnoteadd)===key);
+  if(!el) return;
+  const n=shiftNoteOf(key), sh=shiftFor(key);
+  const ta=document.createElement('textarea');
+  ta.className='shnin'; ta.rows=2; ta.maxLength=SHIFT_NOTE_MAX;
+  ta.value=draft!=null ? draft : (n ? n.text : '');
+  ta.placeholder='Notes for the crew this day';
+  ta.setAttribute('aria-label', `Note for ${sh ? sh.label : 'this shift'}. Leave empty to remove it.`);
+  const hint=document.createElement('div');
+  hint.className='shnhint'; hint.textContent='Saves when you click away. Esc cancels.';
+  el.replaceWith(ta);
+  ta.after(hint);
+  autosizeNote(ta);
+  ta.focus(draft!=null ? {preventScroll:true} : undefined);
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  shiftNoteDraft={key, text:ta.value};
+  let done=false;
+  const finish=save=>{
+    if(done) return; done=true;
+    shiftNoteDraft=null;
+    if(!save || !setShiftNote(key, ta.value)) render();
+  };
+  ta.oninput=()=>{ autosizeNote(ta); shiftNoteDraft={key, text:ta.value}; };
+  ta.onkeydown=e=>{
+    e.stopPropagation();
+    if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); finish(true); }
+    else if(e.key==='Escape'){ e.preventDefault(); finish(false); }
+  };
+  // Taken out by a redraw rather than left by the user: keep the draft.
+  ta.onblur=()=>{ if(ta.isConnected && !shiftNoteRedraw) finish(true); else done=true; };
+  ['click','dblclick','pointerdown','pointerup'].forEach(t=>ta.addEventListener(t, e=>e.stopPropagation()));
+}
+/** Save one shift note (shared, undoable). False when nothing changed. */
+function setShiftNote(key, text){
+  if(roBlocked() || !canEditShiftNotes()) return false;
+  const next=withShiftNote(shiftNotes, key, text, ME_EMAIL, new Date().toISOString());
+  if(stableJSON(next)===stableJSON(shiftNotes)) return false;
+  pushUndo();
+  shiftNotes=next;
+  persist(); render();
+  return true;
+}
+/** The Notes field in Staff this shift. Same note as the card's. */
+function stfNoteHTML(sh){
+  const n=shiftNoteOf(sh.key), by=shiftNoteByline(n);
+  return `<label class="stfnotelbl" for="stfnoteta">Notes for this day</label>`
+    + `<textarea id="stfnoteta" class="shnin" rows="2" maxlength="${SHIFT_NOTE_MAX}"`
+    + ` placeholder="Anything the crew should know (start time, gate code, what to bring)">${esc(n ? n.text : '')}</textarea>`
+    + `<div class="shnby" id="stfnoteby">${esc(by)}</div>`;
+}
+function wireStfNote(sh){
+  const ta=document.getElementById('stfnoteta'); if(!ta) return;
+  autosizeNote(ta);
+  const key=sh.key;
+  let start=ta.value;
+  const save=()=>{
+    if(ta.value===start) return;
+    stfTrack(()=>setShiftNote(key, ta.value));
+    start=ta.value;
+    const by=document.getElementById('stfnoteby');
+    if(by) by.textContent=shiftNoteByline(shiftNoteOf(key));
+    const u=document.getElementById('stfundo');
+    if(u){ stfUndoN=stfUndoLeft(stfUndoN, undoStack.length); u.disabled=READONLY || !stfUndoN;
+      u.innerHTML=`${IC.undo} Undo${stfUndoN>1?` <span class="n">(${stfUndoN})</span>`:''}`; }
+  };
+  ta.oninput=()=>autosizeNote(ta);
+  ta.onblur=save;
+  ta.onkeydown=e=>{
+    if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); save(); ta.blur(); }
+    else if(e.key==='Escape' && ta.value!==start){
+      // First Esc puts the note back; the next one closes the window.
+      e.preventDefault(); e.stopPropagation(); ta.value=start; autosizeNote(ta);
+    }
+  };
+}
+/** The Days view crew card's note line (full text on hover). '' with none. */
+function dayNoteLineHTML(d){
+  const n=shiftNoteOf(d); if(!n) return '';
+  const by=shiftNoteByline(n);
+  return `<div class="cshnote${canEditShiftNotes()?' can':''}" title="${esc(n.text+(by?'\n'+by:''))}">`
+    + `${IC.note}<span class="cshntext">${esc(n.text)}</span></div>`;
 }
 /** The crew part of a Staffing card's title. Only this is editable (double-
  *  click, double-tap or the pencil); the "Dallas week" / "night" part beside
@@ -11770,6 +12032,9 @@ function renderStaffing(){
   document.getElementById('viewstaff').classList.toggle('sel',staffTab!=='roster');
   document.getElementById('viewroster').classList.toggle('sel',staffTab==='roster');
   teardownShiftMaps();   // innerHTML below destroys their containers
+  shiftNoteRedraw=true;  // a note box losing focus to this redraw is not "done"
+  try{ if(wrap.contains(document.activeElement) && document.activeElement.classList.contains('shnin')) document.activeElement.blur(); }
+  finally{ shiftNoteRedraw=false; }
   const short=buildShifts().filter(sh=>shiftCoverage(sh).state!=='ok').length;
   wrap.innerHTML=`<div class="stfbar">
       <button class="stftab${staffTab==='roster'?' sel':''}" data-tab="roster">Roster</button>
@@ -11853,6 +12118,17 @@ function renderStaffing(){
       b.onclick=e=>{ e.stopPropagation(); startCrewNameEdit(b.dataset.crewnamebtn); };
     });
   }
+  // Shift notes: tap the note (or Add note) to write it.
+  wrap.querySelectorAll('[data-shnoteadd]').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation(); startShiftNoteEdit(b.dataset.shnoteadd); };
+  });
+  wrap.querySelectorAll('.shnote[data-shnote]').forEach(el=>{
+    el.addEventListener('click', e=>{ e.stopPropagation();
+      if(el.classList.contains('can') && !String(window.getSelection&&window.getSelection()||'')) startShiftNoteEdit(el.dataset.shnote); });
+    el.addEventListener('keydown', e=>{
+      if((e.key==='Enter' || e.key===' ') && el.classList.contains('can')){ e.preventDefault(); e.stopPropagation(); startShiftNoteEdit(el.dataset.shnote); }
+    });
+  });
   wrap.querySelectorAll('[data-staff]').forEach(el=>{
     el.onclick=e=>{
       e.stopPropagation();
@@ -11868,6 +12144,11 @@ function renderStaffing(){
     };
   });
   if(staffTab==='shifts') wireShiftMaps(wrap);
+  // A note box that a redraw replaced comes back with what was typed.
+  if(shiftNoteDraft && staffTab==='shifts'){
+    const dr=shiftNoteDraft;
+    if(shiftFor(dr.key)) startShiftNoteEdit(dr.key, dr.text); else shiftNoteDraft=null;
+  }
   wrap.querySelectorAll('.stfshift[data-goday]').forEach(el=>
     el.onclick=()=>{ const d=days.find(x=>x.id===el.dataset.goday); if(!d) return;
                      selDate=d.date; focusDayId=d.id; setView('days'); });
@@ -12494,6 +12775,8 @@ function setView(v){
   // Calendar, Staffing and Roster hide the day list; coming back to it lands
   // where you were (the nav switches views without reloading anything).
   if(viewMode==='days' && v!=='days') daysScrollKeep=side.scrollTop;
+  // Leaving Staffing with a note box a redraw had to put back: keep the note.
+  if(v!=='staff' && shiftNoteDraft){ const dr=shiftNoteDraft; shiftNoteDraft=null; setShiftNote(dr.key, dr.text); }
   viewMode=v;
   if(typeof syncSearchMode==='function') syncSearchMode();
   document.getElementById('viewdays').classList.toggle('sel',v==='days');
@@ -12572,7 +12855,9 @@ function manifestHTML(d){
           // Same wording as the on-screen chip -- coverageLabel is the one
           // place that decides "no lead" vs "short a lead".
           return `<p class="crew">${who||'<i>nobody assigned yet</i>'}`
-               + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}</div>
+               + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}
+        ${(()=>{ const sn=shiftNoteOf(d);
+          return sn ? `<div class="shn"><b>Notes for the day:</b> ${esc(sn.text)}</div>` : ''; })()}</div>
       <div class="stot"><b>${(calc.total/60).toFixed(1)}h</b><span>total day</span></div>
     </div>
     ${packHTML}
@@ -12621,6 +12906,8 @@ function printManifests(list, title, opts={}){
     @page{size:portrait;margin:12mm}
     body{font:12px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
     .shead p.crew{margin:3px 0 0;font-size:11px;color:#444}
+    .shn{margin-top:5px;padding:4px 7px;border-left:3px solid #1e3a5f;background:#eef2f8;color:#1e2b3d;font-size:11.5px;
+      white-space:pre-wrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .sheet{page-break-after:always;break-after:page}
     .sheet:last-child{page-break-after:auto;break-after:auto}
     .shead{display:flex;justify-content:space-between;align-items:flex-start;
@@ -13250,6 +13537,7 @@ function render(){
   // A crew name whose crew-day is gone (emptied, or its Dallas run changed
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
+  shiftNotes = normShiftNotes(shiftNotes);
   // A team member who was deleted from the roster comes off their team.
   teams = loadTeams(teams);
   days.forEach(d=>{
