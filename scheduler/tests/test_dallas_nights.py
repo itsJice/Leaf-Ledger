@@ -59,7 +59,7 @@ let dallasNights = new Set();
 let days = [];
 """ + fns("normDallasNights", "isDallasDate", "dallasNightMeta", "metaFor", "hydrate",
           "dynamicJoints", "refreshDerivedMeta", "crewLabel", "isDallasNight", "dallasRunStart",
-          "shiftKeyOf", "addDays", "dateOf", "isoOf") + """
+          "shiftKeyOf", "addDays", "dateOf", "isoOf", "isCrewName") + """
 const day=(id, stops)=>{ const [date,crew]=id.split('|'); return hydrate({id, date, crew, stops}); };
 """
 

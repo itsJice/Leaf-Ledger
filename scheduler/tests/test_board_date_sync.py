@@ -108,7 +108,7 @@ def test_every_save_carries_date_moves_and_baselines_are_set():
     assert "syncedBoardDates = placementBoardDates(baselinePlacement());" in pull
     # never the other way: nothing reads a card's date onto the board
     assert "install_date" not in js_function("applyPlacement")
-    for fn in ("moveWholeDay", "undo", "redo"):
+    for fn in ("applyRearrange", "applyDraft", "undo", "redo"):
         assert "persist()" in js_function(fn)
 
 

@@ -241,6 +241,10 @@ def dallas_night_meta(day_meta: dict, calendar: list, crew: str, night: Any) -> 
             "joint": "", "startRow": None, "flags": [], "zones": [], "crew": crew}
 
 
+#: An extra crew added for a big day ("Crew 4"): kept like the build's own.
+EXTRA_CREW = re.compile(r"^Crew [1-9]\d*$")
+
+
 def derived_day_meta(spec: dict, state: dict, by_day: dict[str, list[int]]) -> dict[str, dict]:
     """Meta for the crew-days the build has none for, as the tool's
     refreshDerivedMeta() works it out: a Dallas night runs like a built Mi
@@ -261,7 +265,7 @@ def derived_day_meta(spec: dict, state: dict, by_day: dict[str, list[int]]) -> d
         labels = sorted({i.split("|")[1] for i in ids})
         for did in ids:
             crew = did.split("|")[1]
-            if did in meta or crew not in crews:
+            if did in meta or (crew not in crews and not EXTRA_CREW.match(crew)):
                 continue
             half, partners = [], set()
             for r in by_day[did]:
