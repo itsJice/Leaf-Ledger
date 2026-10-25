@@ -778,8 +778,6 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .stfedit button.danger{color:var(--danger);border-color:#f3d4d4}
 /* shift cards */
 .shifthdr{font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.5}
-.shiftdate{font-family:Georgia,serif;font-size:14px;font-weight:600;margin:18px 0 8px}
-.shiftdate:first-of-type{margin-top:0}
 /* cards on the left, a map of that date's crews on the right */
 .shiftday{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start;
   margin-bottom:6px}
@@ -1759,6 +1757,22 @@ body.apple .dchip.off:hover .dcount,body.apple .dchip.off:focus-visible .dcount{
 body.apple .dchip.off:disabled{cursor:default;opacity:.7}
 @media (min-width:768px){ body.apple .dchip.off,body.apple .dchip.off.wknd{background:transparent;border:0} }
 body.apple .dchip.janpick{height:32px;margin-top:6px;border:1px dashed #cfc8ba;background:#fff;color:var(--mut);max-width:none}
+/* ---- Staffing: the same month / week / day headers as the date list ----
+   (user, 2026-10-24: "this visual theme and headers needs to be consistent
+   through the staffing ui"). Staffing reuses .dmon / .dsec / .dcity /
+   .dphase / .dchip above; these rules only fit them to the page: the
+   masks behind the pinned headings take the page colour instead of the date
+   column's, the day row is a heading (no hover), and the map stays pinned
+   below the month + week headings. */
+body.apple .stfgroups{--dmon-h:36px;--stf-pin:-16px}   /* -#staffwrap's top padding: pin flush to the top */
+body.apple .stfgroups .dmon,body.apple .stfgroups .dsec{--side:var(--page)}
+body.apple .stfgroups .dmon{top:var(--stf-pin)}
+body.apple .stfgroups .dsec{top:calc(var(--stf-pin) + var(--dmon-h))}
+body.apple .stfgroups .dchip.stfday{cursor:default;margin:12px 0 8px}
+body.apple .stfgroups .dsec + .dchip.stfday,body.apple .stfgroups .dgrp > .dchip.stfday:first-child{margin-top:6px}
+body.apple .stfgroups .dchip.stfday:not(.wknd):hover{background:transparent}
+body.apple .stfgroups .dchip.stfday.wknd:hover{background:#fdf1dc}
+body.apple .stfgroups .shmapbox{top:calc(var(--stf-pin) + var(--dmon-h) + 42px)}
 
 /* ---- day pane ---- */
 body.apple #main{background:var(--page)}
@@ -2001,6 +2015,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple #datestrip{flex:1 1 100%;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;margin:0;padding:0 0 4px}
   body.apple .dsec,body.apple .dmon{display:none}
   body.apple:not(.datesheet) .dgrp.shut{display:contents}
+  body.apple .stfgroups .dgrp.shut{display:none}
   body.apple .dphase{flex:none;align-self:stretch;margin:0 4px;gap:0;width:3px;border-radius:2px;
     background:var(--brand-deep);font-size:0}
   body.apple .dphase::before,body.apple .dphase::after{display:none}
@@ -2059,12 +2074,13 @@ body.apple header{container-type:inline-size}
   body.apple.datesheet .sbsub{display:block}
   body.apple.datesheet #datestrip{flex:1 1 auto;min-height:0;flex-direction:column;flex-wrap:nowrap;overflow-y:auto;
     overflow-x:hidden;gap:4px;margin:0;padding:0 0 8px}
-  body.apple.datesheet .dsec{display:flex}
-  body.apple.datesheet .dmon{display:flex}
-  body.apple.datesheet .dphase{width:auto;align-self:auto;margin:16px 0 4px;gap:8px;background:none;
+  body.apple.datesheet .dsec,body.apple .stfgroups .dsec{display:flex}
+  body.apple.datesheet .dmon,body.apple .stfgroups .dmon{display:flex}
+  body.apple.datesheet .dphase,body.apple .stfgroups .dphase{width:auto;align-self:auto;margin:16px 0 4px;gap:8px;background:none;
     border-radius:0;font-size:11.5px}
-  body.apple.datesheet .dphase::before,body.apple.datesheet .dphase::after{display:block}
-  body.apple.datesheet .dchip{width:100%;flex:none;border-radius:10px;min-height:44px;font-size:15px}
+  body.apple.datesheet .dphase::before,body.apple.datesheet .dphase::after,
+  body.apple .stfgroups .dphase::before,body.apple .stfgroups .dphase::after{display:block}
+  body.apple.datesheet .dchip,body.apple .stfgroups .dchip{width:100%;flex:none;border-radius:10px;min-height:44px;font-size:15px}
   body.apple.datesheet .dchipwrap{width:100%}
   body.apple.datesheet #datefoot{flex-direction:column;gap:4px;padding-top:8px;border-top:1px solid #e1dcd1}
   /* One scroll for the whole sheet: on a real iPhone the pinned title/summary/footer left the
@@ -6918,6 +6934,31 @@ function weekOf(dt){
   const d=dateOf(dt); const back=d.getDay(); d.setDate(d.getDate()-back);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+/** "Week 2": which Sunday-start row of its month's calendar dt sits on. */
+function weekOfMonth(dt){
+  const f=dateOf(dt), lead=new Date(f.getFullYear(), f.getMonth(), 1).getDay();
+  return Math.floor((f.getDate()-1+lead)/7)+1;
+}
+/** PURE. Month, then week, then day: how the Days date list groups dates
+ *  (comment #18), shared with the Staffing view so both read the same (user,
+ *  2026-10-24: "this visual theme and headers needs to be consistent through
+ *  the staffing ui"). A week that crosses into the next month is split, so
+ *  every date sits under its own month; the week holding the install cutoff
+ *  splits at it too. Returns [{mo:'2026-11', key, num, dates, newMonth,
+ *  takedownStart}] in date order -- newMonth: a month heading goes before it;
+ *  takedownStart: the hard "Takedown" line goes before it (only when install
+ *  dates come first). */
+function monthWeeks(dates, cutoff){
+  const weeks=[];
+  [...new Set(dates)].sort().forEach(dt=>{
+    const mo=dt.slice(0,7), key=weekOf(dt)+(dt>cutoff?'|takedown':''), last=weeks[weeks.length-1];
+    if(last && last.key===key && last.mo===mo){ last.dates.push(dt); return; }
+    weeks.push({mo, key, num:weekOfMonth(dt), dates:[dt],
+      newMonth: !last || last.mo!==mo,
+      takedownStart: !!last && dt>cutoff && last.dates[0]<=cutoff});
+  });
+  return weeks;
+}
 let stripScrolledFor=null;
 /** The dates list: the scope picker, an Overview group (All / city / month),
  * then every date grouped by week with its stop count and a status mark,
@@ -7123,6 +7164,55 @@ document.getElementById('pbmap').onclick=()=>{
   b.setAttribute('aria-label', on?'Hide the map':'Show the map');
   setTimeout(()=>{ try{ map.invalidateSize(); drawDate(phoneMapDate()); }catch(e){} fitPhoneSpacer(); }, 60);
 };
+// ---- date-list headers, shared by the Days date list and Staffing ----
+/** A week bar: "Week 2" with a Houston / Dallas / Both pill for the region
+ *  its crews work in (from cityOfDays). */
+function dateWeekBar(text, city){
+  const h=document.createElement('div'); h.className='dsec';
+  const t=document.createElement('span'); t.className='dsectxt'; t.textContent=text; h.appendChild(t);
+  if(city){ const c=document.createElement('span');
+    c.className='dcity '+(city==='Dallas'?'dal':city==='Houston'?'hou':'both');
+    c.textContent=(city==='Dallas'||city==='Houston')?city:'Both'; c.title=city; h.appendChild(c); }
+  return h;
+}
+/** A month heading ("November" + muted "2026"); foldMonths() adds the chevron. */
+function dateMonthHead(text, sub){
+  const h=document.createElement('div'); h.className='dmon';
+  const t=document.createElement('span'); t.className='dmontxt'; t.textContent=text; h.appendChild(t);
+  if(sub){ const y=document.createElement('span'); y.className='dmonsub'; y.textContent=sub; h.appendChild(y); }
+  return h;
+}
+/** The hard line where install season ends and takedown begins. */
+function takedownLine(firstTakedown){
+  const ln=document.createElement('div'); ln.className='dphase';
+  ln.setAttribute('role','separator');
+  ln.innerHTML=`<span>Takedown</span>`;
+  ln.title=`Install season ends ${listDate(TAKEDOWN_CUTOFF)} · takedown starts ${listDate(firstTakedown)}`;
+  return ln;
+}
+/** Every month heading directly inside `box` folds up what follows it, up to
+ *  the next heading (user, 2026-10-08). Which ones are shut is remembered per
+ *  browser under `storeKey`; a convenience only, so storage failing is fine.
+ *  onToggle(group, closed) runs after a tap. */
+function foldMonths(box, storeKey, onToggle){
+  let shut=[]; try{ shut=JSON.parse(localStorage.getItem(storeKey)||'[]'); }catch(e){}
+  [...box.querySelectorAll(':scope > .dmon')].forEach(h=>{
+    const key=h.textContent, g=document.createElement('div'); g.className='dgrp';
+    while(h.nextSibling && !(h.nextSibling.classList && h.nextSibling.classList.contains('dmon'))) g.appendChild(h.nextSibling);
+    h.after(g);
+    const chev=document.createElement('span'); chev.className='dmonchev foldchev'; chev.setAttribute('aria-hidden','true'); chev.innerHTML=IC.chev; h.appendChild(chev);
+    h.setAttribute('role','button'); h.tabIndex=0;
+    const set=closed=>{ g.classList.toggle('shut',closed); h.classList.toggle('shut',closed);
+      h.setAttribute('aria-expanded',String(!closed)); };
+    set(shut.includes(key));
+    const flip=()=>{ const closed=!g.classList.contains('shut'); set(closed);
+      shut=shut.filter(k=>k!==key); if(closed) shut.push(key);
+      try{ localStorage.setItem(storeKey, JSON.stringify(shut)); }catch(e){}
+      if(onToggle) onToggle(g, closed); };
+    h.onclick=flip;
+    h.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flip(); } };
+  });
+}
 const STRIP_SHUT_KEY='tbdg-strip-shut';
 function renderStrip(){
   strip.innerHTML='';
@@ -7184,19 +7274,12 @@ function renderStrip(){
     into.appendChild(b);
     return b;
   };
-  const sec=(text,city,dates)=>{ const h=document.createElement('div'); h.className='dsec';
-    const t=document.createElement('span'); t.className='dsectxt'; t.textContent=text; h.appendChild(t);
-    if(dates){ const d=document.createElement('span'); d.className='dsecspan'; d.textContent=dates; h.appendChild(d); }
-    if(city){ const c=document.createElement('span');
-      c.className='dcity '+(city==='Dallas'?'dal':city==='Houston'?'hou':'both');
-      c.textContent=(city==='Dallas'||city==='Houston')?city:'Both'; c.title=city; h.appendChild(c); }
-    strip.appendChild(h); };
+  // Week bars and month headings come from the shared builders below
+  // (dateWeekBar / dateMonthHead), which the Staffing view uses too.
+  const sec=(text,city)=>strip.appendChild(dateWeekBar(text,city));
   // Top-level heading in the list (Overview / October / November ...) --
   // the week bars sit under it (comment #18, user 2026-09-24).
-  const mon=(text,sub)=>{ const h=document.createElement('div'); h.className='dmon';
-    const t=document.createElement('span'); t.className='dmontxt'; t.textContent=text; h.appendChild(t);
-    if(sub){ const y=document.createElement('span'); y.className='dmonsub'; y.textContent=sub; h.appendChild(y); }
-    strip.appendChild(h); };
+  const mon=(text,sub)=>strip.appendChild(dateMonthHead(text,sub));
   const ov=(label,val,icon)=>mk(label,val,false,false,'',{icon:DICON[icon], count:stopsIn(val), cls:'ov'});
   const dateChip=dt=>{
     const ci=SPEC.calendar.find(x=>x.date===dt);
@@ -7306,58 +7389,23 @@ function renderStrip(){
   if(working.has(selDate) && !list.includes(selDate)){ list.push(selDate); list.sort(); }
   // Month first, then its weeks (comment #18): a week that crosses into the
   // next month is split, so every date sits under its own month heading.
+  // monthWeeks() is shared with the Staffing view.
   stripList=list.slice();   // the phone day bar steps through these
-  const weeks=[];
-  list.forEach(dt=>{
-    // The week holding the cutoff also splits at it, so the install/takedown
-    // line falls between Dec 25 and Dec 26 rather than inside one week's block.
-    const mo=dt.slice(0,7), wk=weekOf(dt)+(dt>TAKEDOWN_CUTOFF?'|takedown':''), last=weeks[weeks.length-1];
-    if(last && last.wk===wk && last.mo===mo) last.dates.push(dt); else weeks.push({mo, wk, dates:[dt]});
-  });
-  let curMo='';
-  weeks.forEach((w,i)=>{
+  monthWeeks(list, TAKEDOWN_CUTOFF).forEach(w=>{
     // A hard line where install season ends and takedown begins (user,
     // 2026-10-01). Only when both halves are listed.
-    if(i>0 && w.dates[0]>TAKEDOWN_CUTOFF && weeks[i-1].dates[0]<=TAKEDOWN_CUTOFF){
-      const ln=document.createElement('div'); ln.className='dphase';
-      ln.setAttribute('role','separator');
-      ln.innerHTML=`<span>Takedown</span>`;
-      ln.title=`Install season ends ${listDate(TAKEDOWN_CUTOFF)} · takedown starts ${listDate(w.dates[0])}`;
-      strip.appendChild(ln);
-    }
-    const a=w.dates[0];
+    if(w.takedownStart) strip.appendChild(takedownLine(w.dates[0]));
     const city=cityOfDays(days.filter(d=>w.dates.includes(d.date)));
-    const f=dateOf(a), lead=new Date(f.getFullYear(), f.getMonth(), 1).getDay();
-    if(w.mo!==curMo){
-      curMo=w.mo;
-      mon(f.toLocaleString('en-US',{month:'long'}), String(f.getFullYear()));
-    }
-    // "Week 2": which Sunday-start row of the month's calendar it sits on.
+    if(w.newMonth){ const f=dateOf(w.dates[0]);
+      mon(f.toLocaleString('en-US',{month:'long'}), String(f.getFullYear())); }
     // No date range on the bar (user, 2026-09-29) -- the rows under it say
     // the dates; the month is the heading above.
-    const wk=Math.floor((f.getDate()-1+lead)/7)+1;
-    sec(`Week ${wk}`, city);
+    sec(`Week ${w.num}`, city);
     w.dates.forEach(dt=> working.has(dt) ? dateChip(dt) : offChip(dt));
   });
 
   // Overview and each month fold up under their heading (user, 2026-10-08).
-  // Remembered per browser; a convenience only, so storage failing is fine.
-  let shut=[]; try{ shut=JSON.parse(localStorage.getItem(STRIP_SHUT_KEY)||'[]'); }catch(e){}
-  [...strip.querySelectorAll(':scope > .dmon')].forEach(h=>{
-    const key=h.textContent, g=document.createElement('div'); g.className='dgrp';
-    while(h.nextSibling && !h.nextSibling.classList.contains('dmon')) g.appendChild(h.nextSibling);
-    h.after(g);
-    const chev=document.createElement('span'); chev.className='dmonchev foldchev'; chev.setAttribute('aria-hidden','true'); chev.innerHTML=IC.chev; h.appendChild(chev);
-    h.setAttribute('role','button'); h.tabIndex=0;
-    const set=closed=>{ g.classList.toggle('shut',closed); h.classList.toggle('shut',closed);
-      h.setAttribute('aria-expanded',String(!closed)); };
-    set(shut.includes(key));
-    const flip=()=>{ const closed=!g.classList.contains('shut'); set(closed);
-      shut=shut.filter(k=>k!==key); if(closed) shut.push(key);
-      try{ localStorage.setItem(STRIP_SHUT_KEY, JSON.stringify(shut)); }catch(e){} };
-    h.onclick=flip;
-    h.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flip(); } };
-  });
+  foldMonths(strip, STRIP_SHUT_KEY);
 
   // Pinned at the bottom: everyone not getting an install, and the maybes.
   // Drop a stop on either, same as the old trailing bubbles.
@@ -11557,23 +11605,54 @@ function setCrewName(key, value){
   persist(); render();
   return true;
 }
+const STAFF_SHUT_KEY='tbdg-staff-shut';
+/** The shift list, grouped like the Days date list (user, 2026-10-24: "this
+ *  visual theme and headers needs to be consistent through the staffing
+ *  ui"): month headings that fold up, Week bars with the Houston / Dallas /
+ *  Both pill, the Takedown line after the cutoff, and a day row per date
+ *  ("Mon, Nov 2", weekends tinted) over that date's cards and map. Same
+ *  builders and classes as the date list -- monthWeeks, dateMonthHead,
+ *  dateWeekBar, takedownLine, listDate, .dchip -- so the two stay one look.
+ *  A Dallas week sits under the date it starts on, as before. */
 function shiftsHTML(){
   const shifts=buildShifts();
   const unstaffed=shifts.filter(sh=>!shiftCoverage(sh).who.length).length;
   let h=`<div class="shifthdr">${shifts.length} shifts this season · `
       + `<b>${unstaffed} with nobody on them</b>. A shift is the whole day — `
       + `everyone on it works every job that day. Dallas is staffed as one week.</div>`;
-  let lastDate='';
-  shifts.forEach(sh=>{
-    if(sh.date!==lastDate){
-      if(lastDate) h+=shiftDayClose(lastDate);
-      lastDate=sh.date;
-      h+=`<div class="shiftdate">${fmtDate(sh.date)}</div>`
-       + `<div class="shiftday"><div class="shiftgrid">`;
-    }
-    h+=shiftCardHTML(sh);
+  const byDate=new Map();
+  shifts.forEach(sh=>{ if(!byDate.has(sh.date)) byDate.set(sh.date,[]); byDate.get(sh.date).push(sh); });
+  h+='<div class="stfgroups" id="stfgroups">';
+  monthWeeks([...byDate.keys()], TAKEDOWN_CUTOFF).forEach(w=>{
+    if(w.takedownStart) h+=takedownLine(w.dates[0]).outerHTML;
+    if(w.newMonth){ const f=dateOf(w.dates[0]);
+      h+=dateMonthHead(f.toLocaleString('en-US',{month:'long'}), String(f.getFullYear())).outerHTML; }
+    // The pill reads the whole week's crews, the way the date list does.
+    const wk=days.filter(d=>d.date.slice(0,7)===w.mo
+      && weekOf(d.date)+(d.date>TAKEDOWN_CUTOFF?'|takedown':'')===w.key);
+    h+=dateWeekBar(`Week ${w.num}`, cityOfDays(wk)).outerHTML;
+    w.dates.forEach(dt=>{
+      h+=shiftDayRowHTML(dt)
+       + `<div class="shiftday"><div class="shiftgrid">`
+       + byDate.get(dt).map(shiftCardHTML).join('')
+       + shiftDayClose(dt);
+    });
   });
-  return h + (lastDate?shiftDayClose(lastDate):'');
+  return h+'</div>';
+}
+/** A date's heading in Staffing: the date list's day row ("Mon, Nov 2",
+ *  weekends tinted, the calendar flag, the stop count), as a heading rather
+ *  than a button -- nothing here changes when it's tapped. */
+function shiftDayRowHTML(dt){
+  const ci=SPEC.calendar.find(x=>x.date===dt);
+  const ds=days.filter(x=>x.date===dt);
+  const n=ds.reduce((a,d)=>a+d.stops.length,0);
+  const wknd=['Sat','Sun'].includes(dowOf(dt));
+  const tag=(ci&&ci.label)||'';
+  return `<div class="dchip stfday${wknd?' wknd':''}${tag?' tagged':''}" role="heading" aria-level="3" data-stfday="${dt}">`
+    + `<span class="dlab">${esc(listDate(dt))}</span>`
+    + (tag?`<span class="dtag" title="${esc(tag)}">${esc(String(tag).split(/\s*[—–-]\s*/)[0])}</span>`:'')
+    + `<span class="dcount" title="${n} stop${n===1?'':'s'} · ${ds.length} crew${ds.length===1?'':'s'}">${n}</span></div>`;
 }
 /** Closes a date's card grid and hangs the map panel beside it. */
 function shiftDayClose(date){
@@ -11637,6 +11716,7 @@ function shiftMapDraw(date){
 function shiftMapInit(el){
   const date = el.dataset.shmap;
   if(shMaps.has(date)) return;
+  if(el.closest('.dgrp.shut')) return;   // a folded month: mounted when it opens
   const m = L.map(el,{zoomSnap:.5, attributionControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(m);
   shMaps.set(date,{map:m, layer:L.layerGroup().addTo(m)});
@@ -11700,6 +11780,16 @@ function renderStaffing(){
         +`<button class="stfvcf stfteams" id="teamsbtn" title="Saved teams you can add to a crew in one tap">${IC.users}<span>Teams${(n=>n?` (${n})`:'')(teamsForSeason(teams, teamSeasonDefault()).length)}</span></button>`:''}
       <button class="stfadd" id="addperson"><span class="stflg">+ Add installer</span><span class="stfsm">+ Add installer</span></button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
+  // Months fold like the date list's; opening one mounts its maps.
+  const grp=document.getElementById('stfgroups');
+  if(grp) foldMonths(grp, STAFF_SHUT_KEY, (g, closed)=>{
+    if(closed) return;
+    g.querySelectorAll('[data-shmap]').forEach(el=>{
+      const rec=shMaps.get(el.dataset.shmap);
+      if(rec) rec.map.invalidateSize();
+    });
+    shiftMapsInReach(wrap);
+  });
   wrap.querySelectorAll('.stftab').forEach(b=>
     b.onclick=()=>{ staffTab=b.dataset.tab; renderStaffing(); });
   document.getElementById('addperson').onclick=()=>openPersonDlg(null);
