@@ -957,6 +957,7 @@ body.readonly .shnadd,body.viewonly .shnadd{display:none}
 .sdmap{height:calc(100dvh - 32px - 120px);min-height:280px;max-height:620px;border-radius:12px;border:1px solid var(--line);overflow:hidden;background:#e8e4dc}
 .sdsec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
 .sdsec:last-child{margin-bottom:0}
+.sdh .sdrem+.sdlink{margin-left:0}
 .sdh{display:flex;align-items:center;gap:8px;font-family:'Sora',system-ui,sans-serif;font-weight:600;font-size:14px;margin-bottom:8px}
 .sdlink{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 10px!important;border-radius:7px!important;
   border:1.5px solid var(--line)!important;background:#fff!important;font-weight:700;font-size:12px;color:var(--ink);white-space:nowrap}
@@ -1221,6 +1222,37 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .txtsend.primary{background:#0a7cff;color:#fff;box-shadow:none}
 .txtcopy{background:none!important;border:0!important;padding:3px 4px!important;color:var(--mut)!important;
   font-size:11.5px!important;text-decoration:underline}
+/* Text shift reminders */
+.remline{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:none;white-space:nowrap}
+.remst{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--warn-soft);color:var(--warn-ink)}
+.remst.done{background:var(--brand-soft);color:var(--brand)}
+.remhint{font-size:10.5px;font-weight:700;color:var(--warn-ink);font-style:italic}
+.rembtn,.remnext{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.rembtn{padding:3px 9px;border-radius:999px;border:1.5px solid var(--brand);background:#fff;color:var(--brand);
+  font-size:11px;font-weight:700;min-height:26px}
+.rembtn:hover{background:var(--brand-soft)}
+.rembtn .ic,.remnext .ic{width:14px;height:14px}
+.remnext{margin-left:auto}
+.remnext~.stfadd{margin-left:0}
+.dhrem{margin-top:5px;display:flex}
+.dhrem .remline{margin-left:0;flex-wrap:wrap;white-space:normal;flex:1 1 auto;min-width:0;row-gap:5px}
+.remline>*{white-space:nowrap}
+.remcrew{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:14px 0 6px;padding:0 2px 5px;
+  border-bottom:1.5px solid var(--line);font-size:12px;color:var(--mut)}
+.remcrew:first-of-type{margin-top:2px}
+.remcrew b{font-size:13.5px;color:var(--ink)}
+.remprev{white-space:pre-wrap;font-size:12.5px;line-height:1.5;background:var(--page);border-radius:8px;
+  padding:8px 10px;margin-top:8px;color:var(--ink);word-wrap:break-word}
+.remcard.off{opacity:.55}
+.remcard .remwhy{color:var(--danger);white-space:normal}
+.remcard .top .txtchip{margin-left:0}
+/* Phones: the reminder line drops to its own row under the date. */
+@media(max-width:600px){
+  .dchip.stfday:has(.remline){flex-wrap:wrap;row-gap:2px}
+  .stfday .remline{order:5;flex-basis:100%;margin-left:0;padding:0 0 7px;flex-wrap:wrap;white-space:normal}
+  .stfday .rembtn{min-height:32px}
+}
+#side .ovdate .dhrem{flex-basis:100%;margin-top:0}
 .txtprog{font-size:12.5px;color:var(--mut);margin-bottom:10px}
 .txtprog b{color:var(--ink)}
 /* assign dialog */
@@ -1358,6 +1390,10 @@ dialog .stfteamname{margin-top:6px;padding:4px 10px;font-size:11.5px;border-colo
 #stfclear:not(:disabled):hover{border-color:var(--danger);color:var(--danger)}
 body.readonly #stfundo,body.readonly #stfclear,body.readonly .asgteamrow,
 body.viewonly #stfundo,body.viewonly #stfclear,body.viewonly .asgteamrow{display:none}
+body.readonly [data-remind],body.viewonly [data-remind],body.readonly #stfremind,body.viewonly #stfremind,body.readonly .rembtn,body.viewonly .rembtn,
+body.readonly .remnext,body.viewonly .remnext,body.readonly .remcardbtn,body.viewonly .remcardbtn,
+body.readonly .remhint,body.viewonly .remhint,body.readonly .remcard .txtsend,body.viewonly .remcard .txtsend{display:none!important}
+#stfremind .ic{width:14px;height:14px;vertical-align:-2px}
 #teamdlg{max-width:480px;width:calc(100vw - 32px);box-sizing:border-box}
 .teamsub{font-size:11.5px;color:var(--mut);margin:4px 0 10px;line-height:1.45}
 .teamlist{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;margin-top:8px}
@@ -2688,6 +2724,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <button type="button" id="stfundo" title="Undo the last change made in this window" disabled>Undo</button>
     <button type="button" id="stfclear" title="Take everyone off this crew">Clear</button>
     <span class="sp"></span>
+    <button type="button" id="stfremind" title="Text everyone on this crew a reminder of their shift">Text this crew</button>
     <button type="button" onclick="stfdlg.close()">Done</button></div>
 </dialog>
 <dialog id="sddlg" aria-labelledby="sdtitle" tabindex="-1">
@@ -2901,6 +2938,7 @@ function roFlash(){
   roFlashTimer=setTimeout(()=>b.classList.remove('flash'), 1400);
 }
 const IC={
+ msg:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg>',
  clip:'<svg class="ic" viewBox="0 0 24 24"><path d="M8 5H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-1"/><rect x="8" y="2.5" width="8" height="5" rx="2.5"/><path d="M11 12h5M11 17h5"/><circle cx="7.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="1" fill="currentColor" stroke="none"/></svg>',
  users:'<svg class="ic" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
  swap:'<svg class="ic" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>',
@@ -3385,11 +3423,35 @@ function ratingText(v){ return v ? `${ratingScale(v)}/5` : 'not rated'; }
  *  last time i texted them. keep track of the last 5 texts"). Each is what
  *  went out: when, which language, and the text with their name filled in. */
 const TEXT_LOG_MAX=5;
+/** Shift reminders (Text reminders, 2026-10-25) are logged here too, tagged
+ *  {kind:'reminder', for:'YYYY-MM-DD'} with the date the shift is on. They
+ *  are kept on their own count so a season of nightly reminders never pushes
+ *  the last mass texts out. */
+const REMINDER_LOG_MAX=10;
+function isReminderText(t){ return !!t && t.kind==='reminder'; }
+/** PURE. Newest first: the last TEXT_LOG_MAX mass texts and the last
+ *  REMINDER_LOG_MAX reminders. */
+function capTexts(list){
+  let n=0, r=0;
+  return (list||[]).slice().sort((a,b)=>b.at.localeCompare(a.at))
+    .filter(t=>isReminderText(t) ? r++<REMINDER_LOG_MAX : n++<TEXT_LOG_MAX);
+}
 function normTexts(list){
-  return (Array.isArray(list)?list:[])
+  return capTexts((Array.isArray(list)?list:[])
     .filter(t=>t && typeof t.at==='string' && typeof t.body==='string')
-    .map(t=>({at:t.at, lang:t.lang==='es'?'es':'en', body:t.body.slice(0,2000)}))
-    .sort((a,b)=>b.at.localeCompare(a.at)).slice(0,TEXT_LOG_MAX);
+    .map(t=>{
+      const o={at:t.at, lang:t.lang==='es'?'es':'en', body:t.body.slice(0,2000)};
+      if(t.kind==='reminder' && /^\d{4}-\d{2}-\d{2}$/.test(String(t.for||''))){ o.kind='reminder'; o.for=t.for; }
+      return o;
+    }));
+}
+/** PURE. "Reminder 11/10 sent 11/09 7:42 PM" for a logged shift reminder. */
+function fmtReminderLog(t){
+  const d=new Date(t.at), md=iso=>iso.slice(5,7)+'/'+iso.slice(8,10);
+  if(isNaN(d)) return `Reminder ${md(t.for)}`;
+  const two=n=>String(n).padStart(2,'0'), h=d.getHours();
+  return `Reminder ${md(t.for)} sent ${two(d.getMonth()+1)}/${two(d.getDate())} `
+    + `${h%12||12}:${two(d.getMinutes())} ${h>=12?'PM':'AM'}`;
 }
 function fmtTextWhen(iso){
   const d=new Date(iso);
@@ -8823,6 +8885,8 @@ function buildDayCard(d){
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
     ${d.training?'':`<button type="button" class="printbtn picon mvdaybtn" title="Move or swap this whole day" aria-label="Move or swap ${esc(crewTitle(d))}'s whole day">${IC.swap}</button>`}
+    ${(sh=>!READONLY && sh && sh.days.some(x=>(staffing[x.id]||[]).length)
+      ? `<button type="button" class="printbtn picon remcardbtn" data-remind="${esc(d.date)}" data-remkeys="${esc(sh.key)}" title="Text this crew a reminder of their shift" aria-label="Text ${esc(crewTitle(d))} a reminder">${IC.msg}</button>` : '')(shiftOfDay(d))}
     <button class="printbtn picon" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
@@ -8836,10 +8900,11 @@ function buildDayCard(d){
   ${dayNoteLineHTML(d)}`;
   { const nl=card.querySelector('.cshnote');
     if(nl) nl.onclick=e=>{ e.stopPropagation(); if(canEditShiftNotes()) openStaffDlg(d.id); }; }
-  card.querySelector('.printbtn').onclick=(e)=>{
+  card.querySelector('.printbtn:not(.remcardbtn)').onclick=(e)=>{
     e.stopPropagation();
     printManifests([d], `${crewTitle(d)} — ${fmtMDYYYY(d.date)}`);
   };
+  wireRemButtons(card);
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
   { const mb=card.querySelector('.mvdaybtn');
     if(mb) mb.onclick=e=>{ e.stopPropagation(); openRearrange(d.id, null); }; }
@@ -9197,6 +9262,7 @@ function renderCards(){
       all.onclick=go;
       side.appendChild(all);
     }
+    const remShifts=buildShifts();
     dates.forEach(dt=>{
       const ds=pool.filter(d=>d.date===dt).sort(byCrew);
       // A plain (never sticky) marker the phone's continuous list scrolls to
@@ -9216,6 +9282,8 @@ function renderCards(){
         pb.onclick=()=>printDate(dt);
         dh.appendChild(pb);
       }
+      { const rl=remHeadHTML(dt, null, remShifts);
+        if(rl){ dh.style.flexWrap='wrap'; const r=document.createElement('div'); r.className='dhrem'; r.innerHTML=rl; dh.appendChild(r); wireRemButtons(r); } }
       side.appendChild(dh);
       ds.forEach(d=>side.appendChild(buildDayCard(d)));
     });
@@ -9238,6 +9306,8 @@ function renderCards(){
         : 'No crews yet'].filter(Boolean).join(' · ')}`
     + `${nHold?` · <span class="holdn">${nHold} on hold</span>`:''}`
     + `${(h=>h?` · ${h}`:'')(installNoteCountHTML(onThisDate))}</span>`;
+  { const rl=remHeadHTML(selDate);
+    if(rl){ const r=document.createElement('div'); r.className='dhrem'; r.innerHTML=rl; hd.appendChild(r); wireRemButtons(r); } }
   side.appendChild(hd);
   wireInstallNoteCounts(hd);
   // Standing commitment for this date (HYROX etc.) -- advisory banner, shown
@@ -12536,6 +12606,10 @@ function drawStaffDlg(){
   const clearBtn=document.getElementById('stfclear');
   clearBtn.disabled=READONLY || !shiftAssigned(sh).size;
   clearBtn.onclick=()=>stfClear(sh);
+  const remBtn=document.getElementById('stfremind');
+  remBtn.innerHTML=`${IC.msg} Text this crew`;
+  remBtn.disabled=READONLY || !shiftAssigned(sh).size;
+  remBtn.onclick=()=>openReminderDlg(sh.date, [sh.key]);
   const cv=shiftCoverage(sh), on=shiftAssigned(sh);
   // Motion cues: rows added since the last draw flash, and the count bumps.
   const prevOn=stfPrevOn;
@@ -12877,9 +12951,9 @@ function rosterHTML(){
 function textLogHTML(p){
   const t=p.texts||[];
   if(!t.length) return `<div class="stftexts"><b>Texts</b><span class="none">No mass texts sent yet</span></div>`;
-  return `<div class="stftexts"><b title="The last ${TEXT_LOG_MAX} are kept">Texts</b>
+  return `<div class="stftexts"><b title="The last ${TEXT_LOG_MAX} mass texts and ${REMINDER_LOG_MAX} shift reminders are kept">Texts</b>
     <div class="last">Last texted ${esc(fmtTextWhen(t[0].at))}</div>
-    ${t.map(x=>`<details><summary><span class="when">${esc(fmtTextWhen(x.at))}</span>
+    ${t.map(x=>`<details><summary><span class="when">${esc(isReminderText(x)?fmtReminderLog(x):fmtTextWhen(x.at))}</span>
         <span class="pill ${x.lang==='es'?'es':'en'}">${x.lang==='es'?'ES':'EN'}</span>
         <span class="pv">${esc(x.body.replace(/\s+/g,' ').slice(0,70))}</span></summary>
       <div class="body">${esc(x.body)}</div></details>`).join('')}</div>`;
@@ -13322,11 +13396,13 @@ function sdDraw(){
     + `<div><b>${fmtH(calc.total)}</b><span>day of ${((d.win||600)/60).toFixed(d.win%60?1:0)}h</span></div></div>`
     + sdTimelineHTML(d, info) + `</div>`
     + `<div class="sdsec"><div class="sdh">Crew${cv.who.length?' ('+cv.who.length+')':''}`
+    + (READONLY || !cv.who.length ? '' : `<button type="button" class="sdlink sdrem" data-remind="${esc(sh.date)}" data-remkeys="${esc(sh.key)}" title="Text everyone on this crew a reminder of their shift">${IC.msg}<span>Text this crew</span></button>`)
     + (READONLY ? '' : `<button type="button" class="sdlink" id="sdstaff">${IC.users}<span>${cv.who.length?'Edit crew':'Staff this shift'}</span></button>`)
     + `</div>${shiftCrewHTML(cv)}</div>`;
   wireShiftNoteField(sh, 'sd');
   main.querySelectorAll('[data-sdrow]').forEach(b=>b.onclick=()=>openStopPeek(+b.dataset.sdrow, d.id));
   const st=document.getElementById('sdstaff'); if(st) st.onclick=()=>openStaffDlg(sh.key);
+  wireRemButtons(main);
   document.getElementById('sdopenday').onclick=()=>openDayInSchedule(d.id);
   sdDrawMap();
 }
@@ -13506,7 +13582,7 @@ function shiftsHTML(){
       && weekOf(d.date)+(d.date>TAKEDOWN_CUTOFF?'|takedown':'')===w.key);
     h+=dateWeekBar(`Week ${w.num}`, cityOfDays(wk)).outerHTML;
     w.dates.forEach(dt=>{
-      h+=shiftDayRowHTML(dt)
+      h+=shiftDayRowHTML(dt, remHeadHTML(dt, null, shifts))
        + `<div class="shiftday"><div class="shiftgrid">`
        + byDate.get(dt).map(shiftCardHTML).join('')
        + shiftDayClose(dt);
@@ -13517,7 +13593,7 @@ function shiftsHTML(){
 /** A date's heading in Staffing: the date list's day row ("Mon, Nov 2",
  *  weekends tinted, the calendar flag, the stop count), as a heading rather
  *  than a button -- nothing here changes when it's tapped. */
-function shiftDayRowHTML(dt){
+function shiftDayRowHTML(dt, extra){
   const ci=SPEC.calendar.find(x=>x.date===dt);
   const ds=days.filter(x=>x.date===dt);
   const n=ds.reduce((a,d)=>a+d.stops.length,0);
@@ -13526,6 +13602,7 @@ function shiftDayRowHTML(dt){
   return `<div class="dchip stfday${wknd?' wknd':''}${tag?' tagged':''}" role="heading" aria-level="3" data-stfday="${dt}">`
     + `<span class="dlab">${esc(listDate(dt))}</span>`
     + (tag?`<span class="dtag" title="${esc(tag)}">${esc(String(tag).split(/\s*[—–-]\s*/)[0])}</span>`:'')
+    + (extra||'')
     + `<span class="dcount" title="${n} stop${n===1?'':'s'} · ${ds.length} crew${ds.length===1?'':'s'}">${n}</span></div>`;
 }
 /** Closes a date's card grid and hangs the map panel beside it. */
@@ -13658,7 +13735,8 @@ function renderStaffing(){
         short?` (${short})`:''}</button>
       ${staffTab==='roster'?'<button class="stftxt" id="masstext"><span class="stflg">Send mass text</span><span class="stfsm">Mass text</span></button>'
         +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts"><span class="stflg">Download contacts</span><span class="stfsm">Contacts</span></button>'
-        +`<button class="stfvcf stfteams" id="teamsbtn" title="Saved teams you can add to a crew in one tap">${IC.users}<span>Teams${(n=>n?` (${n})`:'')(teamsForSeason(teams, teamSeasonDefault()).length)}</span></button>`:''}
+        +`<button class="stfvcf stfteams" id="teamsbtn" title="Saved teams you can add to a crew in one tap">${IC.users}<span>Teams${(n=>n?` (${n})`:'')(teamsForSeason(teams, teamSeasonDefault()).length)}</span></button>`
+        :(nx=>nx&&!READONLY?`<button class="stfvcf remnext" data-remind="${nx}" title="Text everyone staffed ${esc(remDateLabel(nx))} a reminder of their shift">${IC.msg}<span>${nx===addDays(todayISO(),1)?"Text tomorrow's crews":`Text crews for ${esc(remDateLabel(nx))}`}</span></button>`:'')(nextReminderDate())}
       <button class="stfadd" id="addperson"><span class="stflg">+ Add installer</span><span class="stfsm">+ Add installer</span></button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   // Months fold like the date list's; opening one mounts its maps.
@@ -13676,6 +13754,7 @@ function renderStaffing(){
   document.getElementById('addperson').onclick=()=>openPersonDlg(null);
   const mt=document.getElementById('masstext');
   if(mt) mt.onclick=openTextDlg;
+  wireRemButtons(wrap);
   const dl=document.getElementById('dlcontacts');
   if(dl) dl.onclick=downloadContacts;
   const tb=document.getElementById('teamsbtn');
@@ -14047,8 +14126,19 @@ function smsNumber(v){
 /** Their usual language: English speakers get English, Spanish and bilingual
  *  people get Spanish -- the same default the first send used. */
 function txtLangFor(p){ return p.lang==='English' ? 'en' : 'es'; }
-function txtFill(tpl, p){
+/** The fill-in bubbles of the message being written: the mass text's name
+ *  fields, or a shift reminder's (REM_FIELDS). */
+function txtFields(){ return txt.mode==='remind' ? REM_FIELDS : TXT_FIELDS; }
+/** The draft in one language: the mass text's, or the reminder template. */
+function txtDraft(lang){ return txt.mode==='remind' ? rem[lang] : txt[lang]; }
+function txtSetDraft(lang, v){
+  if(txt.mode==='remind'){ rem[lang]=v; remSaveTpl(); } else { txt[lang]=v; txtSave(); }
+}
+/** `vals` (optional) is {key: text} for fields that aren't about the person
+ *  alone -- a reminder's date, crew and meet time. */
+function txtFill(tpl, p, vals){
   return tpl.replace(/\{\{(\w+)\}\}/g, (m,k)=>{
+    if(vals && Object.prototype.hasOwnProperty.call(vals, k)) return vals[k];
     const f=TXT_FIELDS.find(x=>x.key===k);
     return f ? f.val(p) : '';
   });
@@ -14074,7 +14164,7 @@ function txtStatus(p){
 // The editor holds text, line breaks and field bubbles; the draft is saved as
 // plain text with {{key}} where each bubble sits.
 function txtTok(key){
-  const f=TXT_FIELDS.find(x=>x.key===key);
+  const f=txtFields().find(x=>x.key===key);
   const s=document.createElement('span');
   s.className='txttok'; s.contentEditable='false'; s.dataset.tok=key;
   s.textContent=f?f.label:key;
@@ -14132,10 +14222,11 @@ document.addEventListener('selectionchange', ()=>{
 });
 
 function txtEdited(ed){
-  txt[ed.dataset.lang]=txtSerialize(ed); txtSave(); txtDrawFoot();
+  txtSetDraft(ed.dataset.lang, txtSerialize(ed)); txtDrawFoot();
 }
 
 function txtWriteHTML(){
+  if(txt.mode==='remind') return remWriteHTML();
   return `<p class="txthint">Write the message once — or paste it in — in English, Spanish or both.
       Drag a bubble into the text (or click it to drop it where your cursor is) and each person's
       text gets their own name in that spot. On the send list you pick which version each person gets.</p>
@@ -14149,14 +14240,14 @@ function txtWriteHTML(){
 function txtWireWrite(body){
   const eds=[...body.querySelectorAll('.txted')];
   eds.forEach(ed=>{
-    txtRender(ed, txt[ed.dataset.lang]);
+    txtRender(ed, txtDraft(ed.dataset.lang));
     ed.oninput=()=>{
       txtEdited(ed);
       // A field the browser dropped as plain "{{first}}" text (the drag
       // fallback) is redrawn as a bubble, caret at the end.
       const raw=[...ed.childNodes].some(n=>n.nodeType===3 && /\{\{\w+\}\}/.test(n.nodeValue));
       if(raw){
-        txtRender(ed, txt[ed.dataset.lang]);
+        txtRender(ed, txtDraft(ed.dataset.lang));
         const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
         const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
       }
@@ -14324,7 +14415,7 @@ function txtLog(p, lang, body){
   if(READONLY) return;
   const prev=txtLogged[p.id];
   const entry={at:new Date().toISOString(), lang, body:String(body).slice(0,2000)};
-  p.texts=[entry, ...(p.texts||[]).filter(t=>t.at!==prev)].slice(0,TEXT_LOG_MAX);
+  p.texts=capTexts([entry, ...(p.texts||[]).filter(t=>t.at!==prev)]);
   txtLogged[p.id]=entry.at;
   persist();
 }
@@ -14381,6 +14472,7 @@ function txtWireSend(body){
 function txtDrawFoot(){
   const back=document.getElementById('txtback'), next=document.getElementById('txtnext');
   const note=document.getElementById('txtfootnote');
+  if(txt.mode==='remind') return remDrawFoot(back, next, note);
   const textable=new Set(txtPeople().filter(p=>smsNumber(p.phone)).map(p=>p.id));
   const n=txt.picked.filter(id=>textable.has(id)).length;
   back.style.visibility = txt.step>1 ? 'visible' : 'hidden';
@@ -14397,13 +14489,19 @@ function txtDrawFoot(){
 }
 function txtDraw(){
   const body=document.getElementById('txtbody');
-  document.getElementById('txtsteps').innerHTML=['Choose people','Write','Send'].map((s,i)=>
+  document.getElementById('txttitle').textContent = txt.mode==='remind'
+    ? `Text shift reminders · ${remDateLabel(rem.date)}` : 'Send mass text';
+  document.getElementById('txtsteps').innerHTML=(txt.mode==='remind'?['Crew','Write','Send']:['Choose people','Write','Send']).map((s,i)=>
     `<span class="txtstep${i+1===txt.step?' on':i+1<txt.step?' done':''}">${i+1} · ${s}</span>`).join('');
   // Ticking someone redraws the list, so keep the scroll where it was; moving
   // between steps resets it (openTextDlg's go()).
   const y=body.scrollTop;
-  if(txt.step===1){ body.innerHTML=txtPickHTML(); txtWirePick(body); }
-  else if(txt.step===2){ body.innerHTML=txtWriteHTML(); txtWireWrite(body); }
+  if(txt.mode==='remind' && txt.step!==2){
+    if(txt.step===1){ body.innerHTML=remPickHTML(); remWirePick(body); }
+    else { body.innerHTML=remSendHTML(); remWireSend(body); }
+  }
+  else if(txt.step===1){ body.innerHTML=txtPickHTML(); txtWirePick(body); }
+  else if(txt.step===2){ body.innerHTML=txtWriteHTML(); txtWireWrite(body); if(txt.mode==='remind') remWireWrite(body); }
   else { body.innerHTML=txtSendHTML(); txtWireSend(body); }
   body.scrollTop=y;
   txtDrawFoot();
@@ -14411,13 +14509,375 @@ function txtDraw(){
 function openTextDlg(){
   // Starts with nobody picked, so a group button gives exactly that group.
   if(!txt.picked) txt.picked=[];
-  txt.step=1; txtRange=null;
+  txt.mode='mass'; txt.step=1; txtRange=null;
   const go=d=>{ txt.step+=d; document.getElementById('txtbody').scrollTop=0; txtDraw(); };
   document.getElementById('txtback').onclick=()=>go(-1);
   document.getElementById('txtnext').onclick=()=>go(1);
   txtDraw();
   document.getElementById('txtdlg').showModal();
 }
+
+// ---- Text shift reminders (Staffing, Days view, shift panel) ----
+// "need a way in the scheduling and staffing tab to text remind install crew
+// of their shifts upcoming likely sent out the night before" (user,
+// 2026-10-25). It is the Send mass text window in a second mode: the send
+// list comes preloaded with everyone staffed on a date (or one crew), and
+// each person's text is filled in from a template with their first name,
+// the day, their crew and lead, and when and where to meet. Same rules as
+// the mass text: every Send is an sms: link the user's own Messages opens
+// prefilled, HE presses Send; nothing is ever sent from here, and there is
+// no translation -- an English box and a Spanish box. What goes out is
+// logged on the person ({kind:'reminder', for:date} in texts), which is
+// also what the "Reminders sent 12/14" line on a date reads. "Night
+// before" is only a hint on tomorrow's date; nothing sends on its own.
+const BRANCH_ADDR='2860 Antoine Dr';
+const REM_TPL_KEY='tbdg-reminder-tpl';
+const REM_FIELDS=[
+  {key:'first', label:'First name'},
+  {key:'when',  label:'Day and date'},
+  {key:'crew',  label:'Crew'},
+  {key:'lead',  label:'Lead'},
+  {key:'meet',  label:'Meet time and place'},
+];
+const REM_DEFAULT={
+  en:'Hi {{first}}! This is The Branch Design Group (TBDG) with a reminder: you are on the install crew {{when}}.\n'
+    +'Crew: {{crew}} (lead: {{lead}})\n'
+    +'Meet: {{meet}}\n'
+    +'If anything has changed, please let me know. Thank you, see you then!',
+  es:'¡Hola {{first}}! Te escribe The Branch Design Group (TBDG) para recordarte que estás en el equipo de instalación {{when}}.\n'
+    +'Equipo: {{crew}} (líder: {{lead}})\n'
+    +'Hora y lugar: {{meet}}\n'
+    +'Si algo cambió, avísame por favor. ¡Gracias, nos vemos!',
+};
+const DOW_ES=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+let rem=(()=>{
+  let s={};
+  try{ s=JSON.parse(localStorage.getItem(REM_TPL_KEY)||'{}')||{}; }catch(e){}
+  return {date:null, keys:null, skip:new Set(),
+          en:typeof s.en==='string'?s.en:REM_DEFAULT.en, es:typeof s.es==='string'?s.es:REM_DEFAULT.es};
+})();
+function remSaveTpl(){
+  try{ localStorage.setItem(REM_TPL_KEY, JSON.stringify({en:rem.en, es:rem.es})); }catch(e){}
+}
+/** PURE. "11/10" from "2026-11-10". */
+function remMD(iso){ return iso.slice(5,7)+'/'+iso.slice(8,10); }
+/** PURE. "Tue 11/10". */
+function remDateLabel(iso){
+  const [y,m,d]=iso.split('-').map(Number);
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y,m-1,d).getDay()]+' '+remMD(iso);
+}
+/** PURE. Whole days from `today` to `iso` (both YYYY-MM-DD). */
+function remDaysAway(iso, today){
+  const t=s=>{ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); };
+  return Math.round((t(iso)-t(today))/864e5);
+}
+/** PURE. The {{when}} fill-in: "tomorrow, Tue 11/10" the day before,
+ *  "tomorrow night, ..." for a night shift, "today" / "tonight" on the day,
+ *  "on Tue 11/10" further out. Spanish spells the weekday out. */
+function remWhen(iso, today, night, lang){
+  const away=remDaysAway(iso, today), md=remMD(iso);
+  const [y,m,d]=iso.split('-').map(Number), dow=new Date(y,m-1,d).getDay();
+  if(lang==='es'){
+    const day=`${DOW_ES[dow]} ${md}`;
+    if(away===1) return `mañana${night?' en la noche':''}, ${day}`;
+    if(away===0) return `${night?'esta noche':'hoy'}, ${day}`;
+    return night ? `la noche del ${day}` : `el ${day}`;
+  }
+  const day=remDateLabel(iso);
+  if(away===1) return `tomorrow${night?' night':''}, ${day}`;
+  if(away===0) return `${night?'tonight':'today'}, ${day}`;
+  return night ? `the night of ${day}` : `on ${day}`;
+}
+/** PURE. The {{meet}} fill-in from a shift's start: a Houston day is "be at
+ *  the branch by 8:00, roll out 8:30"; a Dallas night is the 11 PM start;
+ *  anything else its own start time. info = {night, dallas, anchored,
+ *  start, arrive} in minutes after midnight. */
+function remMeet(info, lang){
+  const es=lang==='es', t=fmtClock(info.start);
+  if(info.night) return es ? `empezamos a las ${t} (turno de noche${info.dallas?' en Dallas':''})`
+                           : `${t} start (${info.dallas?'Dallas ':''}night shift)`;
+  if(info.anchored){
+    if(info.arrive!=null) return es
+      ? `${fmtClock(info.arrive)} en la bodega (${BRANCH_ADDR}), salimos a las ${t}`
+      : `${fmtClock(info.arrive)} at the branch (${BRANCH_ADDR}), we roll out at ${t}`;
+    return es ? `${t} en la bodega (${BRANCH_ADDR})` : `${t} at the branch (${BRANCH_ADDR})`;
+  }
+  return es ? `empezamos a las ${t}` : `${t} start`;
+}
+/** PURE. One row per person staffed on the given shifts (infos, in crew
+ *  order): {p, info, leads, also}. A joint pair is one shift, so its people
+ *  appear once; someone on two separate crews the same day gets one row (the
+ *  first crew) and `also` names the other(s), so the office can check.
+ *  Leads first in each crew, then by name. */
+function remPeople(infos, map, people){
+  const byId=new Map((people||[]).map(p=>[p.id,p]));
+  const rows=[], seen=new Map();
+  (infos||[]).forEach(info=>{
+    const ids=[...new Set((info.dayIds||[]).flatMap(k=>(map||{})[k]||[]))];
+    const who=ids.map(id=>byId.get(id)).filter(Boolean)
+      .sort((a,b)=>(a.title!=='Lead')-(b.title!=='Lead') || a.name.localeCompare(b.name));
+    const leads=who.filter(p=>p.title==='Lead');
+    who.forEach(p=>{
+      if(seen.has(p.id)){ seen.get(p.id).also.push(info.crew); return; }
+      const row={p, info, leads, also:[]};
+      seen.set(p.id, row); rows.push(row);
+    });
+  });
+  return rows;
+}
+/** PURE. The {{lead}} fill-in, from the reader's side: "you" for the lead. */
+function remLead(row, lang){
+  const es=lang==='es', me=row.leads.some(p=>p.id===row.p.id);
+  const others=row.leads.filter(p=>p.id!==row.p.id).map(p=>p.name);
+  const and=es?' y ':' and ';
+  if(me) return [es?'tú':'you', ...others].join(and);
+  return others.length ? others.join(and) : (es?'por confirmar':'to be confirmed');
+}
+/** PURE. Every fill-in for one person's reminder. */
+function remVals(row, lang, today){
+  const i=row.info;
+  return {
+    first: row.p.first || String(row.p.name||'').split(' ')[0],
+    when:  remWhen(i.date, today, i.night, lang),
+    crew:  i.training ? (lang==='es'?'entrenamiento':'training day') : i.crew,
+    lead:  remLead(row, lang),
+    meet:  remMeet(i, lang),
+  };
+}
+/** PURE. Why a reminder can't go to this person, or ''. */
+function remReason(p){
+  if(smsNumber(p.phone)) return '';
+  return String(p.phone||'').trim() ? `Phone number can't take a text (${p.phone})` : 'No phone number on file';
+}
+/** PURE. The reminder logged on a person for a date, or null. */
+function remSentFor(p, iso){
+  return ((p&&p.texts)||[]).find(t=>isReminderText(t) && t.for===iso) || null;
+}
+/** PURE. {sent, total}: of the people a reminder can go to, how many have
+ *  one logged for the date. */
+function remStatus(rows, iso){
+  const ok=rows.filter(r=>!remReason(r.p));
+  return {total:ok.length, sent:ok.filter(r=>remSentFor(r.p, iso)).length};
+}
+/** PURE. A person's texts with this reminder logged: one per shift date,
+ *  so sending again replaces the earlier one. */
+function withReminderLog(texts, entry){
+  return capTexts([entry, ...(texts||[]).filter(t=>!(isReminderText(t) && t.for===entry.for))]);
+}
+function withoutReminderLog(texts, iso){
+  return (texts||[]).filter(t=>!(isReminderText(t) && t.for===iso));
+}
+/** The shifts on a date as reminder infos (only `keys` when given).
+ *  `shifts` is buildShifts() when the caller already has it. */
+function remShiftInfos(iso, keys, shifts){
+  return (shifts||buildShifts()).filter(sh=>sh.date===iso && (!keys || keys.includes(sh.key))).map(sh=>{
+    const d=sh.days[0], start=shiftStart(d), anchored=d.anchored!==false && !sh.night;
+    return {key:sh.key, date:iso, dayIds:sh.days.map(x=>x.id), night:sh.night, dallas:sh.dallas,
+      training:sh.training, anchored, start, arrive:anchored && start===DEPART_MIN ? ARRIVE_MIN : null,
+      crew:sh.training ? 'Training' : sh.members.map(m=>m.name?`${m.name} (${m.pos})`:m.pos).join(' + ')};
+  });
+}
+function remRows(iso, keys, shifts){ return remPeople(remShiftInfos(iso, keys, shifts), staffing, roster); }
+/** The first date after today with anyone staffed: the "Text tomorrow's
+ *  crews" shortcut's date. */
+function nextReminderDate(){
+  const today=todayISO();
+  const dates=[...new Set(buildShifts().filter(sh=>sh.date>today
+    && sh.days.some(x=>(staffing[x.id]||[]).length)).map(sh=>sh.date))].sort();
+  return dates[0]||null;
+}
+/** A date's reminder line: "Reminders sent 12/14", the night-before hint
+ *  on tomorrow's date until everyone has one, and the Text reminders
+ *  button (not for read-only). '' when nobody is staffed. */
+function remHeadHTML(iso, keys, shifts){
+  const rows=remRows(iso, keys, shifts);
+  if(!rows.length) return '';
+  const st=remStatus(rows, iso), tomorrow=addDays(todayISO(), 1);
+  let h='';
+  if(st.sent) h+=`<span class="remst${st.sent>=st.total?' done':''}" title="Shift reminders logged for ${esc(remDateLabel(iso))}">Reminders sent ${st.sent}/${st.total}</span>`;
+  if(iso===tomorrow && st.sent<st.total) h+=`<span class="remhint" title="Reminders usually go out the night before. Nothing sends on its own.">Night before: send reminders</span>`;
+  if(!READONLY) h+=`<button type="button" class="rembtn" data-remind="${esc(iso)}"${keys?` data-remkeys="${esc(keys.join(','))}"`:''}`
+    + ` title="Text everyone staffed ${esc(remDateLabel(iso))} a reminder of their shift">${IC.msg}<span>Text reminders</span></button>`;
+  return `<span class="remline">${h}</span>`;
+}
+/** Wire every Text reminders button under `root`. */
+function wireRemButtons(root){
+  (root||document).querySelectorAll('[data-remind]').forEach(b=>{
+    b.onclick=e=>{ e.preventDefault(); e.stopPropagation();
+      openReminderDlg(b.dataset.remind, b.dataset.remkeys ? b.dataset.remkeys.split(',') : null); };
+  });
+}
+function openReminderDlg(iso, keys){
+  if(roBlocked() || !iso) return;
+  rem.date=iso; rem.keys=keys&&keys.length?keys:null; rem.skip=new Set();
+  txt.mode='remind'; txt.step=3; txtRange=null;
+  const go=d=>{ txt.step+=d; document.getElementById('txtbody').scrollTop=0; txtDraw(); };
+  document.getElementById('txtback').onclick=()=>go(-1);
+  document.getElementById('txtnext').onclick=()=>go(1);
+  txtDraw();
+  const dlg=document.getElementById('txtdlg');
+  if(!dlg.open) dlg.showModal();
+}
+/** The people on the send list, crew by crew, with what blocks or flags them. */
+function remList(){
+  return remRows(rem.date, rem.keys);
+}
+function remRowFlags(r, rows){
+  const f=[];
+  if(r.also.length) f.push(`<span class="txtchip some" title="Staffed on more than one crew this day: they get one text, for the first crew">Also on ${esc(r.also.join(', '))}: check which crew</span>`);
+  if(r.p.active===false) f.push(`<span class="txtchip some">Not working this season</span>`);
+  const num=smsNumber(r.p.phone);
+  const twin=num && rows.find(x=>x!==r && smsNumber(x.p.phone)===num);
+  if(twin) f.push(`<span class="txtchip some">Same phone as ${esc(twin.p.name)}</span>`);
+  const s=remSentFor(r.p, rem.date);
+  if(s) f.push(`<span class="txtlast" title="${esc(fmtReminderLog(s))}">reminded ${esc(fmtReminderLog(s).replace(/^Reminder \d\d\/\d\d sent /,''))}</span>`);
+  return f.join('');
+}
+function remCrewHead(info, rows){
+  const n=rows.filter(r=>r.info.key===info.key).length;
+  const leads=(rows.find(r=>r.info.key===info.key)||{leads:[]}).leads;
+  return `<div class="remcrew"><b>${esc(info.crew)}</b>`
+    + `<span>${esc(leads.length?'Lead: '+leads.map(p=>p.name).join(', '):'No lead yet')}</span>`
+    + `<span>${esc(info.night?fmtClock(info.start)+' start':info.anchored?'roll out '+fmtClock(info.start):fmtClock(info.start)+' start')}</span>`
+    + `<span>${n} ${n===1?'person':'people'}</span></div>`;
+}
+function remPickHTML(){
+  const rows=remList(), infos=remShiftInfos(rem.date, rem.keys);
+  if(!rows.length) return `<p class="txthint">Nobody is staffed on ${esc(remDateLabel(rem.date))} yet.</p>`;
+  return `<p class="txthint">Everyone staffed ${esc(remDateLabel(rem.date))}, crew by crew. Untick anyone who
+      shouldn't get a reminder. People without a phone number that can take a text are greyed out.</p>`
+    + infos.filter(i=>rows.some(r=>r.info.key===i.key)).map(i=>remCrewHead(i, rows)
+      + rows.filter(r=>r.info.key===i.key).map(r=>{
+        const why=remReason(r.p);
+        return `<label class="txtrow${why?' off':''}">
+          <input type="checkbox" data-rempid="${esc(r.p.id)}"${!why&&!rem.skip.has(r.p.id)?' checked':''}${why?' disabled':''}>
+          <span class="nm">${esc(r.p.name)}</span>
+          <span class="pill ${TITLE_CLS[r.p.title]}">${TITLE_ABBR[r.p.title]}</span>
+          <span class="pill ${LANG_CLS[r.p.lang]}">${LANG_ABBR[r.p.lang]}</span>
+          ${remRowFlags(r, rows)}
+          <span class="ph">${why?esc(why):esc(fmtPhone(r.p.phone))}</span></label>`;
+      }).join('')).join('');
+}
+function remWirePick(body){
+  body.querySelectorAll('input[data-rempid]').forEach(cb=>cb.onchange=()=>{
+    if(cb.checked) rem.skip.delete(cb.dataset.rempid); else rem.skip.add(cb.dataset.rempid);
+    txtDrawFoot();
+  });
+}
+function remWriteHTML(){
+  return `<p class="txthint">This is the reminder each person gets, with their own name, day, crew and
+      lead, and meet time filled in where the bubbles are. Change the words if you like (it is remembered
+      in this browser for next time); drag a bubble in, or click it to drop it where your cursor is.
+      <a href="#" data-remreset>Put back the standard message</a></p>
+    <div class="txtfields"><span class="lbl">Drag in</span>${REM_FIELDS.map(f=>
+      `<span class="txttok" draggable="true" data-field="${f.key}" title="Drag into the message, or click to add it at your cursor">${esc(f.label)}</span>`).join('')}</div>
+    ${TXT_LANGS.map(l=>`<div class="txtedlbl"><b>${l.label} message</b>
+        <span>${l.key==='es'?'Spanish and bilingual people get this one':'English speakers get this one'}</span></div>
+      <div class="txted" contenteditable="true" data-lang="${l.key}" data-ph="${esc(l.ph)}"
+           role="textbox" aria-multiline="true" aria-label="${l.label} reminder"></div>`).join('')}`;
+}
+function remWireWrite(body){
+  const r=body.querySelector('[data-remreset]');
+  if(r) r.onclick=e=>{ e.preventDefault(); rem.en=REM_DEFAULT.en; rem.es=REM_DEFAULT.es; remSaveTpl(); txtDraw(); };
+}
+function remSendHTML(){
+  const all=remList(), infos=remShiftInfos(rem.date, rem.keys), today=todayISO();
+  if(!all.length) return `<p class="txthint">Nobody is staffed on ${esc(remDateLabel(rem.date))} yet.</p>`;
+  const rows=all.filter(r=>!rem.skip.has(r.p.id));
+  const langs=TXT_LANGS.filter(l=>rem[l.key].trim());
+  const st=remStatus(rows, rem.date);
+  return `<div class="txtprog"><b>${st.sent} of ${st.total}</b> reminded for ${esc(remDateLabel(rem.date))}.
+      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.</div>`
+    + infos.filter(i=>rows.some(r=>r.info.key===i.key)).map(i=>remCrewHead(i, rows)
+      + rows.filter(r=>r.info.key===i.key).map(r=>{
+        const p=r.p, why=remReason(p), num=smsNumber(p.phone), mine=txtLangFor(p);
+        const sends=langs.map(l=>{
+          const body=txtFill(rem[l.key], p, remVals(r, l.key, today));
+          return {l, body, href:num?`sms:${num}&body=${encodeURIComponent(body)}`:''};
+        });
+        const main=sends.find(s=>s.l.key===mine)||sends[0], other=sends.filter(s=>s!==main);
+        const sent=!!remSentFor(p, rem.date);
+        return `<div class="txtcard remcard${sent?' sent':''}${why?' off':''}" data-pid="${esc(p.id)}">
+          <div class="top"><label><input type="checkbox" data-sent${sent?' checked':''}${why||READONLY?' disabled':''}>${esc(p.name)}</label>
+            <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+            <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+            ${remRowFlags(r, rows)}</div>
+          ${main?`<div class="remprev" data-prevlang="${main.l.key}">${esc(main.body)}</div>`:''}
+          ${other.map(s=>`<details class="remother"><summary>${s.l.label} version</summary><div class="remprev" data-prevlang="${s.l.key}">${esc(s.body)}</div></details>`).join('')}
+          <div class="acts">${why?`<span class="ph remwhy">${esc(why)}</span>`:`<span class="ph">${esc(fmtPhone(p.phone))}</span>
+            ${READONLY?'':sends.map(s=>`<a class="txtsend${s===main||sends.length===1?' primary':''}" data-lang="${s.l.key}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')
+              + sends.map(s=>`<button type="button" class="txtcopy" data-lang="${s.l.key}" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}`}
+          </div></div>`;
+      }).join('')).join('');
+}
+function remLog(p, lang, body){
+  if(READONLY) return;
+  p.texts=withReminderLog(p.texts||[], {at:new Date().toISOString(), lang, body:String(body).slice(0,2000),
+                                        kind:'reminder', for:rem.date});
+  persist();
+}
+function remUnlog(p){
+  if(READONLY) return;
+  p.texts=withoutReminderLog(p.texts||[], rem.date);
+  persist();
+}
+function remWireSend(body){
+  const today=todayISO();
+  const prog=()=>{
+    const rows=remList().filter(r=>!rem.skip.has(r.p.id)), st=remStatus(rows, rem.date);
+    const b=body.querySelector('.txtprog b'); if(b) b.textContent=`${st.sent} of ${st.total}`;
+  };
+  const mark=(card, on)=>{
+    card.classList.toggle('sent', on);
+    card.querySelector('[data-sent]').checked=on;
+    prog();
+  };
+  const rows=remList();
+  body.querySelectorAll('.remcard').forEach(card=>{
+    const r=rows.find(x=>x.p.id===card.dataset.pid); if(!r) return;
+    const p=r.p, bodyFor=lang=>txtFill(rem[lang], p, remVals(r, lang, today));
+    card.querySelector('[data-sent]').onchange=e=>{
+      // Ticked by hand (sent some other way): log their usual language.
+      if(e.target.checked){
+        const l=rem[txtLangFor(p)].trim() ? txtLangFor(p) : (rem.en.trim()?'en':'es');
+        remLog(p, l, bodyFor(l));
+      } else remUnlog(p);
+      mark(card, e.target.checked);
+    };
+    // Opening Messages counts as sent; untick it if the text never went.
+    card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',()=>{
+      remLog(p, a.dataset.lang, bodyFor(a.dataset.lang));
+      setTimeout(()=>mark(card, true), 400);
+    }));
+    card.querySelectorAll('[data-copy]').forEach(b=>{
+      const lbl=b.textContent;
+      b.onclick=async()=>{
+        remLog(p, b.dataset.lang, b.dataset.copy);
+        mark(card, true);
+        try{ await navigator.clipboard.writeText(b.dataset.copy); b.textContent='Copied'; }
+        catch(e){ b.textContent='Copy failed'; }
+        setTimeout(()=>b.textContent=lbl, 1500);
+      };
+    });
+  });
+}
+function remDrawFoot(back, next, note){
+  const ok=remList().filter(r=>!remReason(r.p) && !rem.skip.has(r.p.id)).length;
+  back.style.visibility = txt.step>1 ? 'visible' : 'hidden';
+  next.style.display = txt.step<3 ? '' : 'none';
+  if(txt.step===1){
+    next.textContent='Next: the message'; next.disabled=false;
+    note.textContent=`${ok} will get a reminder`;
+  } else if(txt.step===2){
+    next.textContent=`Next: send to ${ok}`;
+    next.disabled=!(rem.en.trim()||rem.es.trim());
+    note.textContent=next.disabled?'Write at least one message to continue.':'';
+  } else note.textContent='Back to change who gets it or the words.';
+}
+// The day headings read the reminder log, so redraw when the window closes.
+document.getElementById('txtdlg').addEventListener('close', ()=>{
+  if(txt.mode==='remind'){ txt.mode='mass'; render(); }
+});
 
 let daysScrollKeep=null;
 function setView(v){
