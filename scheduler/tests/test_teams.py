@@ -24,7 +24,8 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 HELPERS = "\nconst TEAM_NAME_MAX=40;\n" + fns(
     "normTeamName", "normTeams", "teamsForSeason", "teamOfPerson", "withTeam", "withoutTeam",
-    "teamStats", "teamApplyPlan", "staffingWith", "staffingCleared", "teamApplyNote", "stfUndoLeft")
+    "teamStats", "teamApplyPlan", "staffingWith", "staffingCleared", "teamApplyNote", "stfUndoLeft",
+    "stfClearMsg", "staffingWithout", "teamShiftState", "teamRemoveNote")
 
 
 def run(body):
@@ -187,7 +188,7 @@ def test_every_save_and_load_path_carries_teams():
 
 
 def test_read_only_cannot_create_edit_delete_or_apply():
-    for fn in ("applyTeamToShift", "saveTeamDraft", "stfUndo", "stfClear"):
+    for fn in ("applyTeamToShift", "toggleTeamOnShift", "saveTeamDraft", "stfUndo", "stfClear"):
         assert "roBlocked()" in js_function(fn), fn
     draw = js_function("drawTeamsDlg")
     assert draw.count("roBlocked()") >= 3        # new, edit, delete
@@ -198,7 +199,7 @@ def test_read_only_cannot_create_edit_delete_or_apply():
 
 
 def test_staff_dialog_has_teams_undo_and_clear():
-    assert 'id="stfundo"' in TEMPLATE and 'id="stfclear"' in TEMPLATE and 'id="stfteams"' in TEMPLATE
+    assert 'id="stfundo"' in TEMPLATE and 'id="stfclear"' in TEMPLATE
     draw = js_function("drawStaffDlg")
     # every change made in the dialog is tracked for its Undo
     assert "stfTrack(()=>assignReadyRosterToShift(sh))" in draw
@@ -210,7 +211,7 @@ def test_staff_dialog_has_teams_undo_and_clear():
     assert "undo();" in js_function("stfUndo")
     assert "undoSeq++" in js_function("pushUndo")
     assert "stfUndoN=0" in js_function("openStaffDlg")
-    assert "Remove all ${n} ${n===1?'person':'people'} from this crew?" in js_function("stfClear")
+    assert "confirm(stfClearMsg(sh, n))" in js_function("stfClear")
     # naming the crew after the team is offered, never done silently
     assert "setCrewName" not in js_function("applyTeamToShift")
     assert "Name this crew" in js_function("stfTeamsHTML")
@@ -247,9 +248,140 @@ def test_dialog_undo_steps_back_through_the_page_undo():
 
 def test_new_ui_text_has_no_em_dashes():
     for fn in ("teamListHTML", "teamEditHTML", "drawTeamsDlg", "saveTeamDraft", "stfTeamsHTML",
-               "teamApplyNote", "stfClear", "applyTeamToShift"):
+               "teamApplyNote", "stfClear", "stfClearMsg", "applyTeamToShift", "toggleTeamOnShift",
+               "teamRemoveNote"):
         assert "—" not in js_function(fn), fn
     dlg = TEMPLATE[TEMPLATE.index('<dialog id="teamdlg"'):]
     assert "—" not in dlg[:dlg.index("</dialog>")]
     stf = TEMPLATE[TEMPLATE.index('<div class="btns stfbtns">'):]
     assert "—" not in stf[:stf.index("</dialog>")]
+
+
+# User, 2026-10-24, on the "Training - 10/23/2026" Staffing dialog: "i need to
+# be able to select the teams at the top". Team buttons now show on every
+# shift, training days included, in a labelled "Teams" row at the very top.
+
+def test_team_buttons_show_on_training_days_too():
+    src = js_function("stfTeamsHTML")
+    assert "if(sh.training) return ''" not in src
+    assert "sh.training" in src                     # wording only, never a gate
+    # a "Team" section styled like the Lead / Designer ones: checkbox rows,
+    # count in the language-pill spot ("6/7" when some can't work that date)
+    assert '<div class="asghdr">Team</div>' in src
+    assert 'class="asgrow asgteamrow' in src and 'data-teampick=' in src
+    assert '<span class="pill teamcnt"' in src
+    assert "`${able}/${st.total}`" in src
+    assert "data-partial" in src                    # part-ticked after a swap
+    # applying a team on a training day uses the same availability skip
+    apply_src = js_function("applyTeamToShift")
+    assert "avail:p=>availFor(p, sh)" in js_function("teamPlanFor")
+    assert "teamPlanFor(sh, team)" in apply_src
+    assert "sh.training ? 'this training' : 'this crew'" in apply_src
+
+
+def test_team_section_is_first_in_the_people_list():
+    draw = js_function("drawStaffDlg")
+    assert "list.innerHTML=stfTeamsHTML(sh)+h" in draw    # before LEAD / LEAD ASSIST / ...
+    assert "cb.indeterminate=true" in draw
+    assert "toggleTeamOnShift(sh, t)" in draw
+    assert 'id="stfteams"' not in TEMPLATE                # the old pill row is gone
+    assert "stfteambtn" not in TEMPLATE
+
+
+def test_training_day_note_and_unavailable_skip():
+    out = run(APPLY + """
+      const note=teamApplyNote(team, plan, id=>(P[id]||{name:id}).name, 'this training');
+      console.log(JSON.stringify(note));
+    """)
+    assert out[1] == "1 already on this training."
+    assert out[2] == "1 not available: Cy."          # skipped and listed, like any shift
+    # the default wording is unchanged
+    assert run("console.log(JSON.stringify(teamApplyNote({name:'T'},"
+               "{add:[], already:['a'], unavailable:[], busy:[], gone:[]}, x=>x)))")[1] == "1 already on this crew."
+
+
+def test_clear_on_a_training_day_warns_it_removes_attendance():
+    out = run("""console.log(JSON.stringify([
+      stfClearMsg({training:true, days:[{}]}, 12),
+      stfClearMsg({training:true, days:[{}]}, 1),
+      stfClearMsg({days:[{}]}, 3),
+      stfClearMsg({dallas:true, days:[{},{},{},{}]}, 5)]))""")
+    assert out[0].startswith("Remove all 12 people from the training? This removes their Attended training status.")
+    assert "Undo" in out[0]
+    assert out[1].startswith("Remove all 1 person from the training?")
+    assert out[2] == "Remove all 3 people from this crew?"
+    assert out[3] == "Remove all 5 people from this crew?\n\nThis takes them off all 4 nights of the Dallas week."
+    # Clear stays one undo step
+    clear = js_function("stfClear")
+    assert "pushUndo()" in clear and "stfTrack(" in clear
+
+
+# User, 2026-10-24: "select the team ... just auto check off all of the people
+# on the team so that I could select the team, but switch one person out if I
+# wanted to." A team tap ticks its members; once they are all on, the same tap
+# takes them back off. Both are one undo step.
+
+def test_team_button_state_and_toggle_off():
+    out = run(APPLY + """
+      const st=teamShiftState(plan);
+      // after the tap: p1, p2 added; Cy unavailable, Di busy stay off
+      const after=teamApplyPlan(team, {...o, onShift:new Set(['p6','p1','p2'])});
+      const st2=teamShiftState(after);
+      // switch one out: Ben unticked, so the team is no longer "all on"
+      const st3=teamShiftState(teamApplyPlan(team, {...o, onShift:new Set(['p6','p1'])}));
+      const st0=teamShiftState(teamApplyPlan(team, {...o, onShift:new Set()}));
+      const days=['d1','d2'];
+      const map={d1:['p1','p2','p6','x'], d2:['p1','p2'], d3:['p1']};
+      console.log(JSON.stringify({st, st2, st3, st0,
+        off:staffingWithout(map, days, after.already), same:staffingWithout(map, days, []), map,
+        note:teamRemoveNote(team, 3, 'the training'), none:teamRemoveNote(team, 0)}));
+    """)
+    assert out["st"] == {"on": 1, "total": 5, "selected": False}
+    assert out["st2"] == {"on": 3, "total": 5, "selected": True}     # "3 of 5" with a tick
+    assert out["st3"] == {"on": 2, "total": 5, "selected": False}
+    assert out["st0"] == {"on": 0, "total": 5, "selected": False}
+    assert out["off"] == {"d1": ["x"], "d3": ["p1"]}                  # empty crew-day dropped
+    assert out["same"] == out["map"] == {"d1": ["p1", "p2", "p6", "x"], "d2": ["p1", "p2"], "d3": ["p1"]}
+    assert out["note"] == ["Took 3 from Ana's team off the training.", "Undo puts them back."]
+    assert out["none"][0] == "Nobody from Ana's team was on this crew."
+
+
+def test_team_tap_wiring_ticks_scrolls_and_tags():
+    draw = js_function("drawStaffDlg")
+    assert "toggleTeamOnShift(sh, t)" in draw
+    assert "applyTeamToShift(sh, t)" not in draw
+    tog = js_function("toggleTeamOnShift")
+    assert "pushUndo()" in tog and "stfTrack(" in tog and "staffingWithout(" in tog
+    assert "applyTeamToShift(sh, team, plan)" in tog
+    assert "stfScrollToNew=plan.add.length>0" in js_function("applyTeamToShift")
+    # ticked rows flash, get scrolled into view, and every member shows a team tag
+    assert "juston" in draw and "stfScrollToNew" in draw and "scrollTo(" in draw
+    assert 'class="asgteam"' in draw and "teamOfPerson(teams, p.id, teamSeasonDefault())" in draw
+    assert "${st.selected?' checked':''}" in js_function("stfTeamsHTML")
+
+
+# "why cant i see the whole list and why cant i scroll" (user, 2026-10-24):
+# the dialog uses the available height and the people list is the scroller.
+
+def test_staff_dialog_layout_scrolls_the_list():
+    css = TEMPLATE[TEMPLATE.index("#stfdlg[open]{display:flex"):]
+    css = css[:css.index("@media (prefers-reduced-motion: reduce){\n  #stfdlg")]
+    assert "max-height:calc(100dvh - 32px)" in css
+    lst = re.search(r"#stfdlg \.asglist\{[^}]*\}", css).group(0)
+    for need in ("flex:1 1 auto", "max-height:none", "overflow-y:auto", "overscroll-behavior:contain"):
+        assert need in lst, need
+    assert "min-height:min(" in lst
+    # the redraw keeps the scroll position
+    draw = js_function("drawStaffDlg")
+    assert "const keepTop=list.scrollTop" in draw and "list.scrollTop=keepTop" in draw
+
+
+def test_staff_dialog_motion_respects_reduced_motion():
+    i = TEMPLATE.index("@media (prefers-reduced-motion: reduce){\n  #stfdlg")
+    block = TEMPLATE[i:TEMPLATE.index("\n}\n", i)]
+    for sel in ("#stfdlg[open]", "#stfdlg.closing", ".asgrow.juston", ".stfbump", ".asglist.intro .asgrow"):
+        assert sel in block, sel
+    assert "animation:none" in block and "transition:none" in block
+    assert "@keyframes stfin" in TEMPLATE and "@keyframes stfout" in TEMPLATE
+    opener = js_function("openStaffDlg")
+    assert "stfPrevOn=null" in opener and "classList.add('intro')" in opener

@@ -1012,6 +1012,42 @@ body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .asgrow.unavail{opacity:.55}
 .asgunavail{color:var(--warn-ink);font-size:9.5px;font-weight:800;white-space:nowrap}
 #stfdlg{max-width:430px}
+/* Staff this shift: use the height there is ("why cant i see the whole list
+   and why cant i scroll", user, 2026-10-24). Title, Teams, Add everyone and
+   the toggle stay put at the top, the people list is the one scrolling part,
+   and Undo / Clear / Done stay pinned at the bottom. */
+#stfdlg[open]{display:flex;flex-direction:column;box-sizing:border-box;
+  max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}
+#stfdlg[open]>*{flex:none}
+#stfdlg .asglist{flex:1 1 auto;min-height:min(150px,30vh);max-height:none;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#stfdlg .stfbtns{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+/* Motion: quick and subtle (same ease as the stop popup); off for reduced motion. */
+#stfdlg[open]{animation:stfin .16s cubic-bezier(0.23,1,0.32,1)}
+#stfdlg[open]::backdrop{animation:stfbd .16s ease-out}
+#stfdlg.closing{animation:stfout .12s ease-in forwards}
+#stfdlg.closing::backdrop{animation:stfbd .12s ease-in reverse forwards}
+@keyframes stfin{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes stfout{from{opacity:1;transform:none}to{opacity:0;transform:scale(.97)}}
+@keyframes stfbd{from{opacity:0}to{opacity:1}}
+#stfdlg .asgrow{transition:background-color .15s ease,border-color .15s ease,opacity .15s ease}
+#stfdlg .asglist.intro .asgrow{animation:stfrow .22s cubic-bezier(0.23,1,0.32,1) both;
+  animation-delay:calc(var(--i,0) * 14ms)}
+@keyframes stfrow{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+#stfdlg .asgrow.juston{animation:stfflash .9s ease-out}
+#stfdlg .asgrow.juston input{animation:stftick .2s cubic-bezier(0.23,1,0.32,1)}
+@keyframes stfflash{0%{background:var(--brand-soft);box-shadow:0 0 0 2px var(--brand)}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes stftick{0%{transform:scale(.6)}70%{transform:scale(1.15)}100%{transform:none}}
+#stfdlg .stfbump{display:inline-block;animation:stfbump .3s cubic-bezier(0.23,1,0.32,1)}
+@keyframes stfbump{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:none}}
+#stfdlg button,#stfdlg .asgready{transition:transform .1s ease,background-color .15s ease,border-color .15s ease,color .15s ease}
+#stfdlg button:not(:disabled):active,#stfdlg .asgready:active{transform:scale(.96)}
+@media (prefers-reduced-motion: reduce){
+  #stfdlg[open],#stfdlg[open]::backdrop,#stfdlg.closing,#stfdlg.closing::backdrop,
+  #stfdlg .asglist.intro .asgrow,#stfdlg .asgrow.juston,#stfdlg .asgrow.juston input,#stfdlg .stfbump{animation:none}
+  #stfdlg .asgrow,#stfdlg button,#stfdlg .asgready{transition:none}
+  #stfdlg button:not(:disabled):active,#stfdlg .asgready:active{transform:none}
+}
 .asgneed{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
 .asgready{display:block;width:100%;margin:0 0 10px;padding:7px 10px;border-radius:8px;
   border:1.5px solid var(--brand);background:none;color:var(--brand);font-weight:600;
@@ -1037,15 +1073,13 @@ body.readonly .untrtog,body.viewonly .untrtog{display:none}
 .stfteams{display:inline-flex;align-items:center;gap:6px}
 .stfteams .ic{width:14px;height:14px}
 body.tv .stfteams,body.viewonly .stfteams{display:none}
-.stfteamrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px}
-.stfteamlbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-right:2px}
-.stfteambtn{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
-  border:1.5px solid var(--brand);background:#fff;color:var(--brand);font-weight:700;font-size:12px;
-  cursor:pointer;min-height:32px;max-width:100%}
-.stfteambtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.stfteambtn .ic{width:14px;height:14px;flex:none}
-.stfteambtn:hover{background:var(--brand-soft)}
-.stfteambtn.on{background:var(--brand-soft)}
+.asgteamrow .asgn{font-weight:700}
+.asgteamrow.part{border-color:var(--line)}
+.asgteamon{color:var(--mut);font-size:9.5px;font-weight:800;white-space:nowrap}
+.pill.teamcnt{background:var(--brand-soft);color:var(--brand);min-width:18px;text-align:center}
+.asgteam{font-size:9.5px;font-weight:800;color:var(--brand);background:var(--brand-soft);border-radius:999px;
+  padding:1px 7px;white-space:nowrap;max-width:38%;overflow:hidden;text-overflow:ellipsis;flex:none}
+#stfdlg .stfteamnote{margin:6px 0 4px}
 .stfteamnote{background:var(--brand-soft);border-radius:8px;padding:7px 9px;font-size:11.5px;
   line-height:1.45;color:var(--ink);margin:0 0 10px}
 dialog .stfteamname{margin-top:6px;padding:4px 10px;font-size:11.5px;border-color:var(--brand);color:var(--brand)}
@@ -1055,8 +1089,8 @@ dialog .stfteamname{margin-top:6px;padding:4px 10px;font-size:11.5px;border-colo
 .stfbtns button:disabled{opacity:.45;cursor:default}
 .stfbtns .n{color:var(--faint);font-weight:600}
 #stfclear:not(:disabled):hover{border-color:var(--danger);color:var(--danger)}
-body.readonly #stfundo,body.readonly #stfclear,body.readonly .stfteamrow,
-body.viewonly #stfundo,body.viewonly #stfclear,body.viewonly .stfteamrow{display:none}
+body.readonly #stfundo,body.readonly #stfclear,body.readonly .asgteamrow,
+body.viewonly #stfundo,body.viewonly #stfclear,body.viewonly .asgteamrow{display:none}
 #teamdlg{max-width:480px;width:calc(100vw - 32px);box-sizing:border-box}
 .teamsub{font-size:11.5px;color:var(--mut);margin:4px 0 10px;line-height:1.45}
 .teamlist{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;margin-top:8px}
@@ -1078,7 +1112,7 @@ dialog .teamacts .teamdel:hover{border-color:var(--danger);color:var(--danger)}
 .teamerr{color:var(--danger);font-size:11.5px;font-weight:600;min-height:14px;margin-top:6px}
 @media (max-width:767px){
   #teamdlg input[type=text],#teamdlg input[type=number],#teamdlg select{font-size:16px}
-  #teamdlg button,#stfdlg .stfbtns button,.stfteambtn{min-height:40px}
+  #teamdlg button,#stfdlg .stfbtns button{min-height:40px}
   .teamtwo{grid-template-columns:1fr}
 }
 .printbtn{margin-left:auto;flex:none;padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
@@ -2346,7 +2380,6 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 <dialog id="stfdlg">
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
-  <div id="stfteams"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div id="stftrain"></div>
   <div class="asglist" id="stflist"></div>
@@ -3248,6 +3281,34 @@ function staffingWith(map, dayIds, ids){
   dayIds.forEach(k=>{ out[k]=[...new Set([...(out[k]||[]), ...ids])]; });
   return out;
 }
+/** PURE. A copy of staffing with `ids` taken off every crew-day in `dayIds`
+ *  (a crew-day left empty is dropped, as the checklist does). */
+function staffingWithout(map, dayIds, ids){
+  const out={...(map||{})};
+  if(!ids.length) return out;
+  const drop=new Set(ids);
+  dayIds.forEach(k=>{
+    if(!out[k]) return;
+    const keep=out[k].filter(x=>!drop.has(x));
+    if(keep.length) out[k]=keep; else delete out[k];
+  });
+  return out;
+}
+/** PURE. A team button's state on a shift, from teamApplyPlan: {on, total,
+ *  selected}. on: members already on it; total: members still working this
+ *  season. Selected (a second tap takes them off) once everyone who CAN be
+ *  added is on: nobody left to add, and at least one is on. */
+function teamShiftState(plan){
+  const on=plan.already.length;
+  return {on, total: plan.add.length+on+plan.unavailable.length+plan.busy.length,
+          selected: on>0 && plan.add.length===0};
+}
+/** PURE. The note after a second tap takes a team back off a shift. */
+function teamRemoveNote(team, n, where){
+  where=where||'this crew';
+  return [n ? `Took ${n} from ${team.name} off ${where}.` : `Nobody from ${team.name} was on ${where}.`,
+          'Undo puts them back.'];
+}
 /** PURE. A copy of staffing with nobody on the crew-days in `dayIds`. */
 function staffingCleared(map, dayIds){
   const out={...(map||{})};
@@ -3256,12 +3317,14 @@ function staffingCleared(map, dayIds){
 }
 /** PURE. The lines shown after a team is added to a crew, e.g.
  *  ["Added 4 from Alberto's team.", "3 not available: Jany, Estafany, Yamile."].
- *  nameOf(id) -> a person's name. */
-function teamApplyNote(team, plan, nameOf){
+ *  nameOf(id) -> a person's name. where: what "already on ..." names
+ *  ('this crew' by default, 'this training' on a training day). */
+function teamApplyNote(team, plan, nameOf, where){
+  where=where||'this crew';
   const names=l=>l.map(x=>nameOf(typeof x==='string' ? x : x.id)).join(', ');
   const n=plan.add.length, lines=[];
   lines.push(n ? `Added ${n} from ${team.name}.` : `Nobody new added from ${team.name}.`);
-  if(plan.already.length) lines.push(`${plan.already.length} already on this crew.`);
+  if(plan.already.length) lines.push(`${plan.already.length} already on ${where}.`);
   if(plan.unavailable.length) lines.push(`${plan.unavailable.length} not available: ${names(plan.unavailable)}.`);
   if(plan.busy.length) lines.push(`${plan.busy.length} on another crew that day: `
     + plan.busy.map(b=>`${nameOf(b.id)} (${b.crew})`).join(', ')+'.');
@@ -10793,10 +10856,32 @@ function openStaffDlg(idOrKey){
   const sh=d ? shiftOfDay(d) : shiftFor(idOrKey);
   if(!sh) return;
   stfKey=sh.key;
-  stfUndoN=0; stfTeamNote=null;
+  stfUndoN=0; stfTeamNote=null; stfPrevOn=null;
+  stfdlg.classList.remove('closing');
   document.getElementById('stftitle').textContent=`${sh.label} — ${sh.when}`;
+  const list=document.getElementById('stflist');
+  list.classList.add('intro');                      // rows ease in on open only
+  clearTimeout(list._intro); list._intro=setTimeout(()=>list.classList.remove('intro'), 600);
   drawStaffDlg();
+  list.scrollTop=0;
   stfdlg.showModal();
+}
+// Close with a quick fade (Done, Esc). Reduced motion closes at once.
+let stfPrevOn = null;    // who was on the shift at the last draw (null right after open)
+let stfScrollToNew = false;  // scroll the just-ticked team rows into view on the next draw
+{ const nativeClose=stfdlg.close.bind(stfdlg);
+  stfdlg.close=function(v){
+    if(!stfdlg.open || stfdlg.classList.contains('closing')) return;
+    const reduced=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduced){ nativeClose(v); return; }
+    stfdlg.classList.add('closing');
+    let done=false;
+    const fin=()=>{ if(done) return; done=true; stfdlg.classList.remove('closing'); nativeClose(v); };
+    stfdlg.addEventListener('animationend', function h(e){
+      if(e.target!==stfdlg) return; stfdlg.removeEventListener('animationend', h); fin(); });
+    setTimeout(fin, 220);   // backstop: a paused animation never leaves it half-closed
+  };
+  stfdlg.addEventListener('cancel', e=>{ e.preventDefault(); stfdlg.close(); });
 }
 function shiftAssigned(sh){ return new Set(sh.days.flatMap(x=>staffing[x.id]||[])); }
 // ---- Staff dialog: Undo and Clear ----
@@ -10829,8 +10914,7 @@ function stfClear(sh){
   if(roBlocked()) return;
   const n=shiftAssigned(sh).size;
   if(!n) return;
-  if(!confirm(`Remove all ${n} ${n===1?'person':'people'} from this crew?`
-    + (sh.dallas ? `\n\nThis takes them off all ${sh.days.length} nights of the Dallas week.` : ''))) return;
+  if(!confirm(stfClearMsg(sh, n))) return;
   stfTrack(()=>{
     pushUndo();
     staffing=staffingCleared(staffing, sh.days.map(x=>x.id));
@@ -10839,47 +10923,96 @@ function stfClear(sh){
   stfTeamNote=null;
   drawStaffDlg(); render();
 }
+/** PURE. The Clear confirmation. On a training day, being on it IS the
+ *  "Attended training" status, so the message says so (user, 2026-10-24:
+ *  team buttons on training days, so Clear must not be hit by accident). */
+function stfClearMsg(sh, n){
+  const who=`${n} ${n===1?'person':'people'}`;
+  if(sh.training) return `Remove all ${who} from the training? `
+    + `This removes their Attended training status.\n\nUndo brings them back.`;
+  return `Remove all ${who} from this crew?`
+    + (sh.dallas ? `\n\nThis takes them off all ${sh.days.length} nights of the Dallas week.` : '');
+}
 /** The crew (label) someone is on that shares a date with this shift, or ''. */
 function shiftOtherCrew(sh, pid){
   const mine=new Set(sh.days.map(x=>x.id)), myDates=new Set(sh.days.map(x=>x.date));
   const o=days.find(x=>!mine.has(x.id) && myDates.has(x.date) && (staffing[x.id]||[]).includes(pid));
   return o ? crewTitle(o)+(isDallasNight(o) ? ' · Dallas week' : o.win===K.NIGHT ? ' · night' : '') : '';
 }
+/** What tapping `team` would do on this shift (teamApplyPlan). */
+function teamPlanFor(sh, team){
+  return teamApplyPlan(team, {person:personById, onShift:shiftAssigned(sh),
+    avail:p=>availFor(p, sh), otherCrew:id=>shiftOtherCrew(sh, id)});
+}
+/** A team button tap: ticks every member who can work it ("select the team,
+ *  but switch one person out if I wanted to", user, 2026-10-24). Once they're
+ *  all on, the same tap takes the team's members back off. Both undoable. */
+function toggleTeamOnShift(sh, team){
+  if(roBlocked()) return null;
+  const plan=teamPlanFor(sh, team);
+  if(!teamShiftState(plan).selected) return applyTeamToShift(sh, team, plan);
+  const ids=plan.already;
+  stfTrack(()=>{
+    pushUndo();
+    staffing=staffingWithout(staffing, sh.days.map(x=>x.id), ids);
+    persist();
+  });
+  stfTeamNote={teamId:team.id, name:team.name, removed:true,
+    lines:teamRemoveNote(team, ids.length, sh.training ? 'the training' : 'this crew')};
+  return plan;
+}
 /** Add a team's members to this shift (every night of a Dallas week),
  *  skipping anyone not available or already on another crew that day. */
-function applyTeamToShift(sh, team){
+function applyTeamToShift(sh, team, plan){
   if(roBlocked()) return null;
-  const plan=teamApplyPlan(team, {person:personById, onShift:shiftAssigned(sh),
-    avail:p=>availFor(p, sh), otherCrew:id=>shiftOtherCrew(sh, id)});
+  plan=plan||teamPlanFor(sh, team);
+  stfScrollToNew=plan.add.length>0;
   if(plan.add.length) stfTrack(()=>{
     pushUndo();
     staffing=staffingWith(staffing, sh.days.map(x=>x.id), plan.add);
     persist();
   });
   stfTeamNote={teamId:team.id, name:team.name,
-    lines:teamApplyNote(team, plan, id=>{ const p=personById(id); return p ? p.name : id; })};
+    lines:teamApplyNote(team, plan, id=>{ const p=personById(id); return p ? p.name : id; },
+      sh.training ? 'this training' : 'this crew')};
   return plan;
 }
-/** The row of team buttons at the top of the dialog ('' when there are none
- *  this season, or on a training day). */
+/** The "Team" section at the top of the people list, on every shift
+ *  including training days ("i need to be able to select the teams at the
+ *  top", user, 2026-10-24). Same look as the Lead / Designer sections (user:
+ *  "the SAME UI as the people list"): one row per season team, a checkbox,
+ *  the name, and the head count where the language pill sits ("6/7" when
+ *  some can't work that date). Checked once every member who can work it is
+ *  on; part-ticked (indeterminate) when only some are, e.g. after swapping
+ *  one person out. Ticking adds the members, unticking takes them off.
+ *  '' when the season has no teams. */
 function stfTeamsHTML(sh){
-  if(sh.training) return '';
   const list=teamsForSeason(teams, teamSeasonDefault());
   if(!list.length) return '';
-  const on=shiftAssigned(sh);
-  let h=`<div class="stfteamrow"><span class="stfteamlbl">Add a team</span>`
+  const what=sh.training ? 'the training' : 'this crew';
+  let h=`<div class="asghdr">Team</div>`
     + list.map(t=>{
-        const st=teamStats(t, personById, ()=>0);
-        const all=t.members.length && t.members.every(id=>on.has(id));
-        return `<button type="button" class="stfteambtn${all?' on':''}" data-team="${esc(t.id)}"`
-          + ` title="Add everyone on ${esc(t.name)} who can work this shift">`
-          + `${IC.users}<span>${esc(t.name)} (${st.count})</span></button>`;
-      }).join('')
-    + `</div>`;
+        const plan=teamPlanFor(sh, t), st=teamShiftState(plan);
+        const able=plan.add.length+st.on;
+        const partial=st.on>0 && !st.selected;
+        const tip=st.selected ? `Untick to take ${t.name} off ${what}`
+          : able ? `Tick everyone on ${t.name} who ${sh.training?'can come to this training':'can work this shift'}`
+          : `Nobody on ${t.name} can work this date`;
+        const cnt=able<st.total ? `${able}/${st.total}` : `${st.total}`;
+        return `<label class="asgrow asgteamrow${st.selected?' on':''}${partial?' part':''}${able?'':' unavail'}"`
+          + ` title="${esc(tip)}">`
+          + `<input type="checkbox" data-teampick="${esc(t.id)}"${st.selected?' checked':''}`
+          + `${partial?' data-partial="1"':''}${able||st.on?'':' disabled'}`
+          + ` aria-label="${esc(t.name)}: ${esc(cnt)} people">`
+          + `<span class="asgn">${esc(t.name)}</span>`
+          + (st.on && !st.selected ? `<span class="asgteamon">${st.on} on</span>` : '')
+          + `<span class="pill teamcnt" title="${able<st.total?`${able} of ${st.total} can work this date`:`${st.total} people`}">${esc(cnt)}</span>`
+          + `</label>`;
+      }).join('');
   const note=stfTeamNote;
   if(note && list.some(t=>t.id===note.teamId)){
     h+=`<div class="stfteamnote">${note.lines.map(l=>`<div>${esc(l)}</div>`).join('')}`;
-    if(!sh.name && normTeamName(note.name))
+    if(!note.removed && !sh.name && normTeamName(note.name))
       h+=`<button type="button" class="stfteamname" data-teamname="${esc(note.teamId)}">`
         + `Name this crew "${esc(note.name)}"</button>`;
     h+=`</div>`;
@@ -10890,23 +11023,7 @@ function drawStaffDlg(){
   const sh=shiftFor(stfKey); if(!sh) return;
   const d=sh.days[0];
   document.getElementById('stftitle').textContent=`${sh.label} — ${sh.when}`;
-  // Teams, Undo and Clear
-  const teamBox=document.getElementById('stfteams');
-  teamBox.innerHTML=stfTeamsHTML(sh);
-  teamBox.querySelectorAll('[data-team]').forEach(b=>{
-    b.onclick=()=>{
-      const t=teams.find(x=>x.id===b.dataset.team); if(!t) return;
-      applyTeamToShift(sh, t);
-      drawStaffDlg(); render();
-    };
-  });
-  teamBox.querySelectorAll('[data-teamname]').forEach(b=>{
-    b.onclick=()=>{
-      const t=teams.find(x=>x.id===b.dataset.teamname); if(!t) return;
-      stfTrack(()=>setCrewName(sh.key, t.name));
-      drawStaffDlg();
-    };
-  });
+  // Undo and Clear (the Team rows are wired with the list below)
   const undoBtn=document.getElementById('stfundo');
   stfUndoN=stfUndoLeft(stfUndoN, undoStack.length);
   undoBtn.disabled=READONLY || !stfUndoN;
@@ -10916,12 +11033,17 @@ function drawStaffDlg(){
   clearBtn.disabled=READONLY || !shiftAssigned(sh).size;
   clearBtn.onclick=()=>stfClear(sh);
   const cv=shiftCoverage(sh), on=shiftAssigned(sh);
+  // Motion cues: rows added since the last draw flash, and the count bumps.
+  const prevOn=stfPrevOn;
+  const justOn=new Set(prevOn ? [...on].filter(id=>!prevOn.has(id)) : []);
+  const bump=prevOn && prevOn.size!==on.size ? ' stfbump' : '';
+  stfPrevOn=new Set(on);
   document.getElementById('stfneed').innerHTML = sh.training
     ? `Training day — no jobs, no fixed headcount. Add whoever's attending.`
-    + (cv.who.length?` <b>${cv.who.length}</b> assigned so far.`:'')
+    + (cv.who.length?` <b class="stfcount${bump}">${cv.who.length}</b> assigned so far.`:'')
     : `Needs <b>${cv.need.lead} lead</b>${cv.need.assist?` · ${cv.need.assist} assist`:''}`
     + `${cv.need.gen?` · ${cv.need.gen} general`:''} — <b>${cv.need.total} on site</b>. `
-    + `<span class="cvchip ${cv.state}">${esc(coverageLabel(cv))}</span><br>`
+    + `<span class="cvchip ${cv.state}${bump}">${esc(coverageLabel(cv))}</span><br>`
     + (sh.dallas
         ? `Staffed as a block — whoever works Dallas works all `
           + `${sh.days.length} nights.`
@@ -10941,7 +11063,7 @@ function drawStaffDlg(){
   if(tog) tog.onchange=()=>{ setStfShowUntrained(tog.checked); drawStaffDlg(); render(); };
   const pick=staffPickOpts(sh);
   const avail=roster.filter(p=>staffPickable(p, pick));
-  let h='';
+  let h='', rowI=0;
   if(!avail.length) h= roster.some(p=>p.active)
     ? '<div class="stfnone">No one who attended training yet. Tick "Show people who '
       + 'didn\'t attend training" to pick from everyone.</div>'
@@ -10957,6 +11079,7 @@ function drawStaffDlg(){
     const mine=new Set(sh.days.map(x=>x.id));
     const myDates=new Set(sh.days.map(x=>x.date));
     grp.forEach(p=>{
+      rowI++;
       // Booked on a DIFFERENT crew on a date this shift covers -- one body,
       // two places. For a Dallas block that means any night of the week.
       const clash=Object.entries(staffing).some(([k,l])=>{
@@ -10964,9 +11087,11 @@ function drawStaffDlg(){
         const o=days.find(x=>x.id===k); return o && myDates.has(o.date);
       });
       const av=availFor(p,sh);
-      h+=`<label class="asgrow${on.has(p.id)?' on':''}${av.ok?'':' unavail'}">`
+      h+=`<label class="asgrow${on.has(p.id)?' on':''}${justOn.has(p.id)?' juston':''}${av.ok?'':' unavail'}"`
+       + ` style="--i:${Math.min(rowI,16)}">`
        + `<input type="checkbox" data-pid="${p.id}"${on.has(p.id)?' checked':''}>`
        + `<span class="asgn">${esc(p.name)}</span>`
+       + ((tm=>tm?`<span class="asgteam" title="On ${esc(tm.name)}">${esc(tm.name)}</span>`:'')(teamOfPerson(teams, p.id, teamSeasonDefault())))
        + (av.ok?'':`<span class="asgunavail">${esc(av.why.toUpperCase())}</span>`)
        + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
        + (clash?`<span class="asgclash">ALSO ${esc(
@@ -10976,7 +11101,37 @@ function drawStaffDlg(){
     });
   });
   const list=document.getElementById('stflist');
-  list.innerHTML=h;
+  const keepTop=list.scrollTop;          // a redraw never throws the list back to the top
+  list.innerHTML=stfTeamsHTML(sh)+h;
+  list.scrollTop=keepTop;
+  list.querySelectorAll('input[data-partial]').forEach(cb=>{ cb.indeterminate=true; });
+  list.querySelectorAll('input[data-teampick]').forEach(cb=>{
+    cb.onchange=()=>{
+      const t=teams.find(x=>x.id===cb.dataset.teampick);
+      if(!t || roBlocked()){ drawStaffDlg(); return; }
+      toggleTeamOnShift(sh, t);
+      drawStaffDlg(); render();
+    };
+  });
+  list.querySelectorAll('[data-teamname]').forEach(b=>{
+    b.onclick=()=>{
+      const t=teams.find(x=>x.id===b.dataset.teamname); if(!t) return;
+      stfTrack(()=>setCrewName(sh.key, t.name));
+      drawStaffDlg();
+    };
+  });
+  // After a team is ticked, bring its rows into view (first to last if they fit).
+  if(stfScrollToNew){
+    stfScrollToNew=false;
+    const rows=list.querySelectorAll('.asgrow.juston');
+    if(rows.length){
+      const lr=list.getBoundingClientRect(), a=rows[0].getBoundingClientRect(), b=rows[rows.length-1].getBoundingClientRect();
+      const top=list.scrollTop+(a.top-lr.top)-8, span=b.bottom-a.top;
+      if(a.top<lr.top || b.bottom>lr.bottom)
+        list.scrollTo({top: span<=lr.height ? Math.max(0, top-(lr.height-span)/2) : top,
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+    }
+  }
   list.querySelectorAll('input[data-pid]').forEach(cb=>{
     cb.onchange=()=>{
       if(roBlocked()){ cb.checked=!cb.checked; return; }
