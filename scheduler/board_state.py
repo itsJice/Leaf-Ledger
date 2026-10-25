@@ -29,6 +29,7 @@ Nothing here writes a file or a row on import; the callers decide that.
 import datetime
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -231,7 +232,8 @@ def notebook_from_board(payload, state, prior_notebook=None):
         except ValueError:
             report["bad_days"].append(did)
             continue
-        if date not in calendar or (crews and crew not in crews):
+        # An extra "Crew 4" added for a big day is a real crew-day too.
+        if date not in calendar or (crews and crew not in crews and not re.match(r"^Crew [1-9]\d*$", crew)):
             report["bad_days"].append(did)
             continue
         order = manual.get(did) or base_order.get(did) or []

@@ -471,6 +471,58 @@ dialog option:disabled{color:#b6b3ae}
   border-radius:6px;padding:6px 12px;min-height:32px;font-weight:700;font-size:12px;cursor:pointer}
 #syncbanner button.sbreload{background:var(--warn-ink);color:#fff}
 @media (max-width:600px){ #syncbanner{flex-direction:column} #syncbanner button{min-height:40px} }
+/* Try changes (a private draft of the board) and the move/swap chooser */
+#tbdraft{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:0 11px;height:32px;
+  border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);
+  font:700 12.5px 'Montserrat',sans-serif;white-space:nowrap;cursor:pointer;flex:none}
+#tbdraft .ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#tbdraft:hover{border-color:var(--brand);color:var(--brand)}
+#tbdraft.on{background:var(--warn-soft);border-color:var(--warn);color:var(--warn-ink)}
+#tbdraft[hidden],body.readonly #tbdraft,body.viewonly #tbdraft,body.readonly .mvdaybtn{display:none!important}
+#draftbanner{grid-column:1/-1;flex:1 1 100%;margin-top:10px;padding:10px 14px;border-radius:8px;
+  background:var(--warn-soft);color:var(--warn-ink);border:1.5px dashed var(--warn);font-size:12.5px;
+  line-height:1.5;display:flex;gap:12px;align-items:flex-start}
+#draftbanner[hidden]{display:none}
+#draftbanner .dbmsg{flex:1 1 auto;min-width:0}
+#draftbanner b{font-weight:800}
+#draftbanner .dbwarn{margin:4px 0 0;padding-left:18px}
+#draftbanner .dbok{display:block;margin-top:2px;color:var(--ok-ink)}
+#draftbanner .dbbtns{display:flex;gap:6px;flex:0 0 auto}
+#draftbanner button{border:1px solid var(--warn-ink);background:transparent;color:var(--warn-ink);
+  border-radius:6px;padding:6px 12px;min-height:32px;font-weight:700;font-size:12px;cursor:pointer}
+#draftbanner button:disabled{opacity:.45;cursor:default}
+#draftbanner button.dbapply{background:var(--brand);border-color:var(--brand);color:#fff}
+body.drafting #main{box-shadow:inset 0 0 0 2px var(--warn)}
+@media (max-width:600px){ #draftbanner{flex-direction:column} #draftbanner .dbbtns{width:100%}
+  #draftbanner button{min-height:40px;flex:1} }
+.chead .mvdaybtn{margin-left:auto}
+.chead .mvdaybtn + .printbtn{margin-left:0}
+#rrdlg{max-width:470px;width:calc(100vw - 32px)}
+.rrsub{margin:4px 0 8px;font-size:12px;color:var(--mut);line-height:1.4}
+.rrlab{font-size:12px;font-weight:700;color:var(--mut)}
+#rropts{display:flex;flex-direction:column;gap:8px;max-height:min(58vh,520px);overflow:auto;margin-top:2px}
+#rrdlg .rropt{display:flex;flex-direction:column;align-items:stretch;gap:3px;text-align:left;padding:10px 12px;
+  border:1.5px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font:inherit;color:var(--ink)}
+#rrdlg .rropt:hover:not(:disabled){border-color:var(--brand);background:var(--brand-soft)}
+#rrdlg .rropt.pref{border-color:var(--brand)}
+#rrdlg .rropt:disabled{cursor:not-allowed;background:#faf9f7}
+.rrt{display:flex;align-items:center;gap:7px;font-weight:700;font-size:13px}
+.rrt .ic,.rrw .ic,.rrok .ic,.rrnote .ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.rrw .ic,.rrok .ic{width:13px;height:13px;margin-top:2px}
+.rrs{font-size:12px;color:var(--mut);line-height:1.4}
+.rrw,.rrb,.rrok{display:flex;align-items:flex-start;gap:5px;font-size:12px;line-height:1.4}
+.rrw{color:var(--warn-ink)} .rrb{color:var(--danger);font-weight:700} .rrok{color:var(--ok)}
+.rrnote{display:flex;gap:7px;align-items:flex-start;font-size:12px;color:var(--brand-deep);
+  background:var(--brand-soft);padding:8px 10px;border-radius:8px;margin:2px 0}
+.rrnone{font-size:12.5px;color:var(--mut)}
+#drcmpdlg{max-width:680px;width:calc(100vw - 32px)}
+#drcmpbody{max-height:65vh;overflow:auto;margin-top:8px}
+table.drcmp{border-collapse:collapse;width:100%;font-size:12.5px}
+table.drcmp th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);
+  padding:4px 6px;border-bottom:1px solid var(--line)}
+table.drcmp td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+
 #robanner{grid-column:1/-1;flex:1 1 100%;margin-top:10px;padding:10px 14px;
   border-radius:8px;background:var(--warn-soft);color:var(--warn-ink);
   border:1px solid rgba(0,0,0,.06);font-size:12.5px;line-height:1.5}
@@ -2125,7 +2177,7 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
   body.apple.nodates #datecol{display:none}
   body.apple #datecol{grid-area:dates}
   body.apple header{grid-area:head;flex-wrap:nowrap}
-  body.apple header:has(#statewarn[style*="block"]),body.apple header:has(#robanner:not([hidden])),body.apple header:has(#syncbanner:not([hidden])){flex-wrap:wrap}
+  body.apple header:has(#statewarn[style*="block"]),body.apple header:has(#robanner:not([hidden])),body.apple header:has(#syncbanner:not([hidden])),body.apple header:has(#draftbanner:not([hidden])){flex-wrap:wrap}
   body.apple #viewarea{grid-area:view;min-height:0;display:flex;flex-direction:column}
 }
 /* ---- below 1024px: tighter toolbar, buttons under each stop ---- */
@@ -2183,6 +2235,8 @@ body.apple #peekdlg.inspector .pkclose{top:12px;right:12px;border-radius:50%;bac
 body.apple header{container-type:inline-size}
 @container (max-width:900px){
   body.apple .viewtog button{padding:0 10px}
+  body.apple #tbdraft{width:34px;padding:0;justify-content:center}
+  body.apple #tbdraft span{display:none}
   body.apple #tbsaved:not(.bad){display:none} /* a failed save always shows */
 }
 @media (max-width:1023px){ /* from 1024 the toolbar never wraps */
@@ -2407,6 +2461,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
       <div id="histpop" role="dialog" aria-label="Changes and version history" hidden></div>
     </div>
     <span id="tbsaved" aria-live="polite"></span>
+    <button id="tbdraft" type="button" aria-pressed="false" title="Rearrange freely without saving: nobody sees it until you Apply"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5.6 9.7A1.5 1.5 0 0 0 5.7 21h12.6a1.5 1.5 0 0 0 1.3-2.3L14 9V3"/><path d="M7.5 15h9"/></svg><span>Try changes</span></button>
   </div>
   <div class="viewtog">
     <button id="viewdays" class="sel" type="button">Days</button>
@@ -2453,6 +2508,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   </div>
   <div id="statewarn" style="display:none"></div>
   <div id="syncbanner" role="status" aria-live="polite" hidden></div>
+  <div id="draftbanner" role="status" aria-live="polite" hidden></div>
   <div id="robanner" hidden></div>
 </header>
 <div id="viewarea">
@@ -2601,6 +2657,19 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <div id="mvnote"></div>
   <div class="btns"><button onclick="mvdlg.close()">Cancel</button>
   <button class="go" id="mvgo">Move</button></div>
+</dialog>
+<dialog id="rrdlg" aria-labelledby="rrtitle">
+  <b id="rrtitle">Move or swap a day</b>
+  <p id="rrsub" class="rrsub"></p>
+  <label class="rrlab" for="rrdate">To</label>
+  <select id="rrdate"></select>
+  <div id="rropts"></div>
+  <div class="btns"><button type="button" id="rrcancel">Cancel</button></div>
+</dialog>
+<dialog id="drcmpdlg" aria-labelledby="drcmptitle">
+  <b id="drcmptitle">Compare</b>
+  <div id="drcmpbody"></div>
+  <div class="btns"><button type="button" id="drcmpclose">Close</button></div>
 </dialog>
 <dialog id="sfdlg">
   <b id="sftitle">Find a new date</b>
@@ -2751,6 +2820,7 @@ function roFlash(){
 const IC={
  clip:'<svg class="ic" viewBox="0 0 24 24"><path d="M8 5H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-1"/><rect x="8" y="2.5" width="8" height="5" rx="2.5"/><path d="M11 12h5M11 17h5"/><circle cx="7.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="1" fill="currentColor" stroke="none"/></svg>',
  users:'<svg class="ic" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+ swap:'<svg class="ic" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>',
  link:'<svg class="ic" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
  box:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
  truck:'<svg class="ic" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
@@ -2785,6 +2855,7 @@ const IC={
  amail:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="4"/><path d="m4 7 8 6 8-6"/></svg>',
  alert:'<svg class="ic" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
+  "Crew 4":"#7c3aed","Crew 5":"#be185d","Crew 6":"#0f766e",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
 const BASE_CREWS = ["Crew 1","Crew 2","Crew 3"];
 const SPEC = DATA.spec, K = SPEC.const;
@@ -2975,7 +3046,7 @@ function metaFor(id){
   const m = SPEC.dayMeta[id];
   if(m) return m;
   const crew = (id||'').split('|')[1] || '';
-  if(isDallasDate((id||'').split('|')[0]) && K.CREWS.includes(crew))
+  if(isDallasDate((id||'').split('|')[0]) && isCrewName(crew))
     return dallasNightMeta(SPEC.dayMeta, SPEC.calendar, crew, K.NIGHT);
   return {cat:'Standard', anchored:true, stacked:1, note:'', win:K.DAY_CAP,
           lunchMin:K.LUNCH, half:[], joint:'', startRow:null, winReason:'',
@@ -3808,7 +3879,7 @@ function applyPlacement(place){
         // id names a real working date and crew.
         const [date,crew] = id.split('|');
         const ci = SPEC.calendar.find(x=>x.date===date);
-        if(!ci || !K.CREWS.includes(crew)){ missing++; return; }
+        if(!ci || !isCrewName(crew)){ missing++; return; }
         d = hydrate({id, date, crew, dow:ci.dow,
                      stops:[], geom:null, mi:null, legMi:null});
         d.edited = true;
@@ -4995,7 +5066,9 @@ function storingWithUs(row){
 }
 async function pullShared(){ return syncQueued(pullSharedNow); }
 async function pullSharedNow(){
-  if(!AUTH) return;
+  // A draft is built on the board as it was; loading someone else's save
+  // under it would scramble it. Apply merges onto newer saves instead.
+  if(!AUTH || DRAFT) return;
   try{
     const r = await authFetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`
                           + `&season=${encodeURIComponent(PAGE_SEASON)}`,
@@ -5108,6 +5181,9 @@ function persist(){
   // path nobody remembered to guard, or a stray call from the console, still
   // cannot write -- not to localStorage, not to the shared document.
   if(READONLY) return;
+  // Try changes: nothing leaves this tab until Apply (not even this device's
+  // copy, which a reload would otherwise merge back in as real edits).
+  if(DRAFT) return;
   saveLocal();
   pushShared();
 }
@@ -5115,7 +5191,7 @@ function persist(){
  *  (sharedBase), written together so a reload can tell this tab's own
  *  unsaved changes from a stale copy and merge them (see pullSharedNow). */
 function saveLocal(){
-  if(READONLY) return;
+  if(READONLY || DRAFT) return;
   const st=snapshot();
   try{ localStorage.setItem(LS_KEY, JSON.stringify({...st, _base:sharedBase})); }
   catch(e){ try{ localStorage.setItem(LS_KEY, JSON.stringify(st)); }catch(_){} }
@@ -5223,6 +5299,7 @@ async function pushSharedNow(){
  *  this tab re-applies its own changes onto it and tries again. */
 async function putShared(){
   if(!AUTH || READONLY || syncBlocked) return false;
+  if(DRAFT) return false;   // Try changes: saved only by Apply
   try{
     for(let attempt=0; attempt<4; attempt++){
       const st=sharedSnapshot(), sent=pendingBoardDates;
@@ -5383,6 +5460,7 @@ async function openHistory(){
 }
 async function restoreHistoryEntry(entryId, btn){
   if(roBlocked()) return;
+  if(DRAFT){ alert('Apply or discard your draft (Try changes) first.'); return; }
   const row=document.querySelector(`.histrow[data-id="${entryId}"]`);
   const when=row?.querySelector('.histwhen')?.textContent||'this version';
   if(!confirm(`Restore to ${when}?\n\nThis replaces the current shared schedule state with `
@@ -6424,12 +6502,22 @@ function checkPlan(ops){
         short:'30+ min from the rest of that day'});
   });
 
+  // More crews on a date than the usual three: allowed (a big day can need a
+  // 4th), just said out loud (user, 10/24).
+  new Set(ops.map(o=>String(o.to).split('|')[0])).forEach(dt=>{
+    const n=crewCountOn(sim, dt);
+    if(n>MAX_CREWS && n>crewCountOn(days, dt))
+      warnings.push({code:'CREWS', msg:`${fmtDate(dt)} would have ${n} crews (usually ${MAX_CREWS})`,
+                     short:`${n} crews that day`});
+  });
   // R2 coverage, now ADVISORY rather than blocking (see rules.CODES
   // CLUB_CREW): crew numbers are positional per day, so "needs Crew 1"
   // stopped naming a real team and was refusing placements staff wanted.
   // Still surfaced, because clubs have historically run with the day's
   // first crew and that is worth knowing before you override it.
-  sim.forEach(d=>d.stops.forEach(r=>{
+  // Only the days this plan touches: checking the whole board flagged the
+  // same unrelated club on every single drag.
+  sim.forEach(d=>touched.has(d.id) && d.stops.forEach(r=>{
     if(C[r].cat!=='Country Club') return;
     const crews = sim.filter(x=>x.date===d.date && x.stops.includes(r)).map(x=>x.crew);
     if(!crews.some(c2=>c2.includes('Crew 1')))
@@ -7244,79 +7332,429 @@ function notInstallingPins(){
  *  Dragging a single stop moves just that stop -- that's deliberate, and
  *  stays. This is the other gesture staff asked for (user, 2026-08-31):
  *  grab the crew header and the whole itinerary travels together, for when
- *  a whole day slips rather than one client. */
+ *  a whole day slips rather than one client.
+ *
+ *  It opens the rearrange chooser (openRearrange) rather than moving
+ *  straight away. Until 10/24 a date that already had three crews refused
+ *  ("Every crew already has a day") and a joint day refused outright, which
+ *  made reshuffling a week "virtually impossible in the UI" (user). */
 function moveWholeDay(dayId, toDate){
   if(roBlocked()) return;
-  const src = days.find(d=>d.id===dayId);
-  if(!src || !toDate || isOverview(toDate) || src.date===toDate) return;
-  if(src.joint){
-    alert(`${crewTitle(src)} works this day jointly with ${src.joint}.\n\n`
-      + `Move both crews' cards, or split the job first — moving one side `
-      + `alone would leave the other short-handed.`);
-    return;
+  openRearrange(dayId, toDate);
+}
+// ---------- rearranging whole crew-days: swap, move, a 4th crew ----------
+// "if I were to try to drag crew one to another day, it wouldn't let me do it
+// because there's already three crews on every day. But someone's going to
+// need the flexibility to edit, try, and rearrange." (user, 10/24). A crew-day
+// dropped on a full date offers a SWAP with a crew already there (each group
+// keeps its stops, in order) or a 4th crew (allowed, flagged). A joint day
+// travels with its partner. Only the crew-days picked change: nothing else
+// moves to make room (the golden rule). The hard stops are the usual ones: a
+// confirmed stop changing date, or a stop that can't go on that date at all.
+const MAX_CREWS = (K.CREWS||[]).length || 3;
+/** PURE. A crew the board keeps: one of the build's crews, or an extra
+ *  "Crew N" added for a big day. */
+function isCrewName(c){ return (K.CREWS||[]).includes(c) || /^Crew [1-9]\d*$/.test(String(c||'')); }
+/** PURE. The first crew with no day on `date` (Crew 1, 2, 3, then 4, 5 ...),
+ *  also skipping `also` (crews already promised in the same change). */
+function spareCrewOn(dayList, date, also){
+  const used=new Set((dayList||[]).filter(d=>d.date===date).map(d=>d.crew).concat(also||[]));
+  for(let n=1; n<100; n++){ const c='Crew '+n; if(!used.has(c)) return c; }
+  return null;
+}
+/** PURE. How many crews work `date` (training days don't count). */
+function crewCountOn(dayList, date){
+  return new Set((dayList||[]).filter(d=>d.date===date && !d.training && (d.stops||[]).length)
+    .map(d=>d.crew)).size;
+}
+/** PURE. `d` plus every crew-day on its date it shares a stop with (and
+ *  theirs, and so on): the crews that travel together to another date, since
+ *  a joint stop moved on one card alone would leave the other short-handed. */
+function linkedDays(d, dayList){
+  const same=(dayList||[]).filter(x=>x.date===d.date && !x.training);
+  const out=[d], seen=new Set([d.id]);
+  for(let i=0; i<out.length; i++)
+    same.forEach(x=>{
+      if(!seen.has(x.id) && (x.stops||[]).some(r=>(out[i].stops||[]).includes(r))){
+        seen.add(x.id); out.push(x);
+      }
+    });
+  return out.sort(byCrew);
+}
+/** PURE. Every way to put crew-day `src` on `toDate`:
+ *   - its own date: swap with each other crew there (trades crew numbers);
+ *   - another date: swap its group (itself plus any joint partner) with
+ *     crews there that make up whole groups of the same size, or move the
+ *     group onto free crews -- a 4th crew when the date already has three.
+ *  [{kind:'swap'|'move', pairs:[[fromId, toId], ...], crews?:[...]}] */
+function rearrangeOptions(src, toDate, dayList){
+  const list=dayList||[];
+  if(!src || src.training || !toDate) return [];
+  const opts=[];
+  if(toDate===src.date){
+    list.filter(x=>x.date===toDate && x.id!==src.id && !x.training).sort(byCrew)
+      .forEach(x=>opts.push({kind:'swap', pairs:[[src.id, x.id]]}));
+    return opts;
   }
-  const label = crewLabel(src), n = src.stops.length;
-  const locked = src.stops.filter(r=>confirmed.has(r)).map(r=>C[r].name);
-  if(locked.length){
-    alert(`Can't move the whole day — these have confirmed dates:\n\n`
-      + locked.join('\n') + `\n\nUnlock them first, or move the rest one at a time.`);
-    return;
+  const group=linkedDays(src, list), k=group.length;
+  const seen=new Set(), comps=[];
+  list.filter(x=>x.date===toDate && !x.training).sort(byCrew).forEach(x=>{
+    if(seen.has(x.id)) return;
+    const c=linkedDays(x, list);
+    c.forEach(y=>seen.add(y.id));
+    comps.push(c);
+  });
+  const pick=(i, acc)=>{
+    if(acc.length>k) return;
+    if(acc.length===k){
+      const to=[...acc].sort(byCrew);
+      opts.push({kind:'swap', pairs:group.map((g,j)=>[g.id, to[j].id])});
+      return;
+    }
+    if(i>=comps.length) return;
+    pick(i+1, acc.concat(comps[i]));
+    pick(i+1, acc);
+  };
+  pick(0, []);
+  // A move keeps each crew's own number when it's free there (a Dallas
+  // week's people follow the crew), else takes the next free one.
+  const crews=[];
+  group.forEach(g=>{
+    const used=new Set(list.filter(d=>d.date===toDate).map(d=>d.crew).concat(crews));
+    crews.push(used.has(g.crew) ? spareCrewOn(list, toDate, crews) : g.crew);
+  });
+  opts.push({kind:'move', pairs:group.map((g,j)=>[g.id, `${toDate}|${crews[j]}|0`]), crews});
+  return opts;
+}
+/** PURE. A copy of `map` with the values at keys a and b traded. */
+function swapKeys(map, a, b){
+  const out={...(map||{})}, va=out[a], vb=out[b];
+  delete out[a]; delete out[b];
+  if(vb!==undefined) out[a]=vb;
+  if(va!==undefined) out[b]=va;
+  return out;
+}
+/** The dates a rearrange touches. */
+function rearrangeDates(pairs){
+  return [...new Set((pairs||[]).flat().map(id=>String(id).split('|')[0]))].sort();
+}
+/** The hard stops for a rearrange, the same ones a drag has: a confirmed
+ *  stop changing date, or a stop that can't go on its new date at all. A
+ *  swap between crews on the same date changes no one's date. */
+function rearrangeBlockers(pairs){
+  const out=[];
+  (pairs||[]).forEach(([a,b])=>[[a,b],[b,a]].forEach(([from,to])=>{
+    const d=days.find(x=>x.id===from); if(!d) return;
+    const dt=String(to).split('|')[0];
+    if(dt===d.date) return;
+    d.stops.forEach(r=>{
+      if(confirmed.has(r)) out.push(`${C[r].name}: date is confirmed with them. Unlock it first.`);
+      const bl=dateBlockers(r, dt);
+      if(bl.length) out.push(`${C[r].name}: ${codeMsg(bl[0])}`);
+    });
+  }));
+  return [...new Set(out)];
+}
+/** Trade the stops of each [a, b] crew-day pair (b may not exist yet: that's
+ *  a move onto a new crew). Each itinerary keeps its order. What belongs to
+ *  the itinerary goes with it, as a whole-day move always did: its people,
+ *  crew name and shift note -- Dallas nights included, since they are staffed
+ *  night by night like any other crew-day. A name or note still on an old
+ *  Dallas week key stays with the week. Nothing outside the pairs changes. No undo step, save or redraw
+ *  here: callers do that, and the chooser runs this on a scratch copy to
+ *  preview warnings. Returns the moves entries it logged. */
+function exchangeCrewDays(pairs){
+  const find=id=>days.find(d=>d.id===id);
+  const label=id=>{ const d=find(id), [dt,cr]=String(id).split('|');
+    return `${fmtDate(dt)} ${d?crewLabel(d):cr}`; };
+  const plan=(pairs||[]).map(([a,b])=>{
+    const A=find(a), B=find(b), n=A?A.stops.length:0;
+    return {a, b, swap:!!B, aStops:A?[...A.stops]:[], bStops:B?[...B.stops]:[],
+            name: B ? `${label(a)} swapped with ${label(b)}`
+                    : `${label(a)}: whole day (${n} stop${n===1?'':'s'})`};
+  });
+  const logged=[];
+  plan.forEach(p=>{
+    const A=dayById(p.a, true), B=dayById(p.b, true);
+    A.stops=[...p.bStops]; B.stops=[...p.aStops];
+    [A,B].forEach(d=>{ d.edited=true; approved.delete(d.id); });
+    const mo={...manualOrder};
+    if(p.bStops.length) mo[p.a]=[...p.bStops]; else delete mo[p.a];
+    if(p.aStops.length) mo[p.b]=[...p.aStops]; else delete mo[p.b];
+    manualOrder=mo;
+    staffing=swapKeys(staffing, p.a, p.b);
+    if(crewNameKey(A)===p.a && crewNameKey(B)===p.b) crewNames=swapKeys(crewNames, p.a, p.b);
+    if(shiftNoteKey(A)===p.a && shiftNoteKey(B)===p.b) shiftNotes=swapKeys(shiftNotes, p.a, p.b);
+    const m={row:null, name:p.name, from:p.a, to:p.b};
+    moves.push(m); logged.push(m);
+  });
+  const gone=new Set(plan.flatMap(p=>[p.a,p.b]).filter(id=>{ const d=find(id); return d && !d.stops.length; }));
+  days=days.filter(d=>!gone.has(d.id));
+  const live=new Set(days.map(x=>x.id));
+  [...approved].forEach(id=>{ if(!live.has(id)) approved.delete(id); });
+  return logged;
+}
+/** Advisory warnings for the crews on `dates` as the board stands: a day or
+ *  Dallas night past its hours, more crews than usual, someone on two crews
+ *  the same day. [{code, date, msg}] */
+function boardWarningsFor(dates){
+  const ds=[...new Set(dates||[])].filter(Boolean).sort(), out=[];
+  ds.forEach(dt=>{
+    days.filter(d=>d.date===dt && !d.training && d.stops.length).sort(byCrew).forEach(d=>{
+      const tot=dayCalc(d).total, win=d.win||K.DAY_CAP, night=isDallasNight(d);
+      if(tot>win) out.push({code:night?'NIGHT':'OVER', date:dt,
+        msg:`${fmtDate(dt)} ${crewLabel(d)}: ${night?'night':'day'} runs ${(tot/60).toFixed(1)}h, `
+           +`past its ${(win/60).toFixed(1)}h limit`});
+    });
+    const n=crewCountOn(days, dt);
+    if(n>MAX_CREWS) out.push({code:'CREWS', date:dt, msg:`${fmtDate(dt)} has ${n} crews (usually ${MAX_CREWS})`});
+  });
+  const want=new Set(ds), people=new Set();
+  days.forEach(d=>{ if(want.has(d.date)) (staffing[d.id]||[]).forEach(id=>people.add(id)); });
+  [...people].forEach(id=>clashesFor(id).filter(c=>want.has(c.date)).forEach(c=>{
+    const p=personById(id);
+    out.push({code:'STAFF', date:c.date, msg:`${p?p.name:'Someone'} is on two crews on ${fmtDate(c.date)}`});
+  }));
+  return out;
+}
+/** Run fn on a throwaway copy of the board, then put everything back:
+ *  previewing a rearrange is not an edit. */
+function withScratch(fn){
+  const keep={days, manualOrder, staffing, crewNames, shiftNotes, approved, moves};
+  days=days.map(d=>({...d, stops:[...d.stops], half:[...(d.half||[])]}));
+  manualOrder={...manualOrder}; staffing={...staffing}; crewNames={...crewNames};
+  shiftNotes={...shiftNotes}; approved=new Set(approved); moves=[...moves];
+  try{ return fn(); }
+  finally{ ({days, manualOrder, staffing, crewNames, shiftNotes, approved, moves}=keep); }
+}
+/** What a rearrange would cost: its hard stops, and the warnings it adds on
+ *  the dates it touches (ones already there before are not repeated). */
+function previewRearrange(opt){
+  const dates=rearrangeDates(opt.pairs);
+  const before=new Set(boardWarningsFor(dates).map(w=>w.msg));
+  const after=withScratch(()=>{ exchangeCrewDays(opt.pairs); refreshDerivedMeta(); return boardWarningsFor(dates); });
+  return {blockers:rearrangeBlockers(opt.pairs), warnings:after.filter(w=>!before.has(w.msg))};
+}
+/** Make it: one undo step, saved like any other change. */
+function applyRearrange(opt){
+  if(roBlocked()) return false;
+  const bl=rearrangeBlockers(opt.pairs);
+  if(bl.length){
+    alert('Cannot make this change:\n\n'+bl.map(b=>'  • '+b).join('\n'));
+    return false;
   }
-  const blocked = src.stops.filter(r=>dateBlockers(r,toDate).length)
-                           .map(r=>`${C[r].name} — ${codeMsg(dateBlockers(r,toDate)[0])}`);
-  if(blocked.length){
-    alert(`Can't move the whole day to ${fmtDate(toDate)}:\n\n`+blocked.join('\n'));
-    return;
-  }
-  // Keep the same crew slot if it's free on the target date, else take the
-  // first one that is. The LABEL staff read is positional per day, so which
-  // stored slot it lands on doesn't change what the card says.
-  const taken = new Set(days.filter(d=>d.date===toDate).map(d=>d.crew));
-  const crew = !taken.has(src.crew) ? src.crew : BASE_CREWS.find(cr=>!taken.has(cr));
-  if(!crew){
-    alert(`Every crew already has a day on ${fmtDate(toDate)}.`);
-    return;
-  }
-  const toId = `${toDate}|${crew}|0`;
-  if(!confirm(`Move all ${n} stop${n===1?'':'s'} from ${label} on `
-      + `${fmtDate(src.date)} to ${fmtDate(toDate)}?`)) return;
   pushUndo();
-  const order = [...src.stops];
-  const wasManual = manualOrder[dayId];
-  const wasStaffed = staffing[dayId];
-  const nameKey = crewNameKey(src), wasNamed = nameKey===dayId ? crewNames[dayId] : '';
-  const wasNote = shiftNoteKey(src)===dayId ? shiftNotes[dayId] : null;
-  order.forEach(r=>applyMove(r, toId, false));
-  // Carry the day's own settings across, so a hand-ordered run and its
-  // crew don't silently reset just because the date changed.
-  //
-  // The ORDER is pinned even when the source wasn't hand-ordered: this
-  // gesture moves an itinerary, and an itinerary is a sequence. Without
-  // this the day lands `edited` and dayCalc re-routes it from scratch,
-  // which quietly drops any "goes first" stop out of position (SPEC
-  // .forceFirst is only a badge in this tool -- schedule.py is what
-  // actually enforces it). Staff can still hit "reset to shortest route".
-  if(wasStaffed){ staffing[toId] = [...wasStaffed]; delete staffing[dayId]; }
-  // Its crew name travels with it too (a name still on a Dallas run's old
-  // week key stays with the week).
-  if(wasNamed){
-    const to = days.find(d=>d.id===toId), toKey = to && crewNameKey(to);
-    if(toKey && !crewNames[toKey]) crewNames = withCrewName(crewNames, toKey, wasNamed);
-    crewNames = withCrewName(crewNames, dayId, '');
+  exchangeCrewDays(opt.pairs);
+  persist(); render();
+  return true;
+}
+function stopsTxt(d){ return d && d.stops.length ? d.stops.map(jointStopName).join(', ') : 'no stops'; }
+function ordinalTxt(n){ const t=n%100; return n+((t>10&&t<14)?'th':({1:'st',2:'nd',3:'rd'}[n%10]||'th')); }
+/** {title, sub} for one choice in the chooser. */
+function rearrangeLabel(src, opt){
+  const find=id=>days.find(d=>d.id===id);
+  const toDate=String(opt.pairs[0][1]).split('|')[0];
+  const srcs=opt.pairs.map(p=>find(p[0])).filter(Boolean);
+  if(opt.kind==='swap'){
+    const tgt=opt.pairs.map(p=>find(p[1])).filter(Boolean);
+    if(toDate===src.date)
+      return {title:`Swap ${crewTitle(src)} and ${crewTitle(tgt[0])}`,
+              sub:`${crewTitle(src)} takes ${stopsTxt(tgt[0])}. ${crewTitle(tgt[0])} takes ${stopsTxt(src)}.`};
+    return {title:`Swap with ${tgt.map(crewTitle).join(' + ')} on ${fmtDate(toDate)}`,
+            sub:`Comes to ${fmtDate(src.date)}: `
+               +(tgt.length>1 ? tgt.map(t=>`${crewTitle(t)} (${stopsTxt(t)})`).join(', ') : stopsTxt(tgt[0]))};
   }
-  // So does its shift note (same rule).
-  if(wasNote){
-    const to = days.find(d=>d.id===toId), toKey = to && shiftNoteKey(to);
-    const nx = {...shiftNotes}; delete nx[dayId];
-    if(toKey && !nx[toKey]) nx[toKey] = wasNote;
-    shiftNotes = nx;
+  const n=crewCountOn(days, toDate), k=opt.pairs.length;
+  const what=srcs.length>1 ? 'both crews' : 'this day';
+  if(n+k>MAX_CREWS)
+    return {title: k===1 ? `Add as a ${ordinalTxt(n+1)} crew on ${fmtDate(toDate)}`
+                         : `Add as crews ${[...Array(k)].map((_,i)=>n+1+i).join(k===2?' and ':', ')} on ${fmtDate(toDate)}`,
+            sub:`Moves ${what}; the ${n} crew${n===1?'':'s'} there keep their days.`};
+  return {title:`Move to ${fmtDate(toDate)}`,
+          sub: n ? `Moves ${what} onto a free crew; the ${n} crew${n===1?'':'s'} there keep their days.`
+                 : `Moves ${what}. Nobody works that date yet.`};
+}
+// ---------- the chooser ----------
+const rrdlg=document.getElementById('rrdlg');
+let rrState=null;
+/** Move or swap crew-day `dayId`. toDate: the date it was dropped on (null:
+ *  pick one here). preferId: the crew card it was dropped on, listed first. */
+function openRearrange(dayId, toDate, preferId){
+  if(roBlocked()) return;
+  const src=days.find(d=>d.id===dayId);
+  if(!src || src.training) return;
+  rrState={dayId, preferId:preferId||null};
+  document.getElementById('rrtitle').textContent=`Move or swap ${crewTitle(src)}`;
+  document.getElementById('rrsub').textContent=`${fmtDate(src.date)}: ${stopsTxt(src)}`;
+  const sel=document.getElementById('rrdate');
+  const want=toDate || src.date;
+  sel.innerHTML=listCalendar().map(ci=>ci.date).filter(dt=>!isOverview(dt)).map(dt=>{
+    const n=crewCountOn(days, dt);
+    const tag=dt===src.date ? ' (this day: swap crews)' : n ? ` · ${n} crew${n===1?'':'s'}` : ' · open';
+    return `<option value="${dt}"${dt===want?' selected':''}>${esc(fmtDate(dt))}${tag}</option>`;
+  }).join('');
+  sel.onchange=()=>{ rrState.preferId=null; renderRearrangeOpts(); };
+  renderRearrangeOpts();
+  if(!rrdlg.open) rrdlg.showModal();
+}
+function renderRearrangeOpts(){
+  const box=document.getElementById('rropts');
+  const src=rrState && days.find(d=>d.id===rrState.dayId);
+  if(!src){ if(rrdlg.open) rrdlg.close(); return; }
+  const dt=document.getElementById('rrdate').value;
+  const opts=rearrangeOptions(src, dt, days);
+  const pref=o=>!!rrState.preferId && o.pairs.some(p=>p[1]===rrState.preferId) ? 1 : 0;
+  opts.sort((a,b)=>pref(b)-pref(a));
+  const group=linkedDays(src, days);
+  let head='';
+  if(dt!==src.date && group.length>1){
+    const shared=[...new Set(group.flatMap(d=>d.stops).filter(r=>group.filter(d=>d.stops.includes(r)).length>1))];
+    head=`<p class="rrnote">${IC.link}<span>Moves together with ${esc(group.filter(d=>d!==src).map(crewTitle).join(' + '))}: `
+        +`they share ${esc(shared.map(jointStopName).join(', '))}.</span></p>`;
   }
-  manualOrder[toId] = wasManual ? [...wasManual] : order;
-  if(wasManual) delete manualOrder[dayId];
-  moves.push({row:null, name:`${label} — whole day (${n} stop${n===1?'':'s'})`,
-              from:dayId, to:toId});
+  if(!opts.length){
+    box.innerHTML=head+`<p class="rrnone">No other crew works this date. Pick another date to swap with.</p>`;
+    return;
+  }
+  box.innerHTML=head+opts.map((o,i)=>{
+    const lb=rearrangeLabel(src, o), pv=previewRearrange(o), bad=pv.blockers.length>0;
+    return `<button type="button" class="rropt${pref(o)?' pref':''}" data-i="${i}"${bad?' disabled':''}>`
+      +`<span class="rrt">${o.kind==='swap'?IC.swap:IC.calday}<span>${esc(lb.title)}</span></span>`
+      +`<span class="rrs">${esc(lb.sub)}</span>`
+      +(bad ? `<span class="rrb">${esc(pv.blockers[0])}${pv.blockers.length>1?` (and ${pv.blockers.length-1} more)`:''}</span>` : '')
+      +pv.warnings.map(w=>`<span class="rrw">${IC.alert}<span>${esc(w.msg)}</span></span>`).join('')
+      +(!bad && !pv.warnings.length ? `<span class="rrok">${IC.check}<span>No new warnings</span></span>` : '')
+      +`</button>`;
+  }).join('');
+  box.querySelectorAll('.rropt').forEach(b=>b.onclick=()=>{
+    if(applyRearrange(opts[+b.dataset.i])) rrdlg.close();
+  });
+}
+document.getElementById('rrcancel').onclick=()=>rrdlg.close();
+// ---------- Try changes: a private draft of the board ----------
+// Rearranging a week takes several moves, and the board in between is a mess
+// everyone else would see (and the calendar feed would send). In a draft
+// nothing leaves this tab: moves, swaps, a 4th crew, staffing all stay here
+// until Apply saves them as ONE change (one undo step, through the normal
+// save, so a stale tab merges onto newer saves the usual way). Discard puts
+// the board back exactly as it was.
+let DRAFT=null;
+/** row -> [{date, crew, pos, n}] for every stop on the board, crew numbers as
+ *  staff read them (positional per day). */
+function draftLocations(){
+  const out={};
+  days.forEach(d=>{
+    if(d.training) return;
+    const crew=crewLabel(d);
+    d.stops.forEach((r,i)=>{ (out[r]=out[r]||[]).push({date:d.date, crew, pos:i+1, n:d.stops.length}); });
+  });
+  return out;
+}
+/** PURE. Where a stop is, as one line. */
+function draftLocText(list, fmt){
+  if(!list || !list.length) return 'Not on the board';
+  const crews=list.map(x=>x.crew).sort().join(' + ');
+  return `${fmt(list[0].date)} ${crews}${list.length===1 ? `, stop ${list[0].pos} of ${list[0].n}` : ''}`;
+}
+function draftLocKey(list){ return (list||[]).map(x=>x.date+'|'+x.crew).sort().join(','); }
+/** PURE. Before -> after for every stop whose date or crew changed, by date
+ *  then name. */
+function draftDiff(before, after, nameOf){
+  const rows=[...new Set([...Object.keys(before||{}), ...Object.keys(after||{})])];
+  const first=l=>(l&&l[0]&&l[0].date)||'9999';
+  return rows.filter(r=>draftLocKey((before||{})[r])!==draftLocKey((after||{})[r]))
+    .map(r=>({row:+r, name:nameOf(r), before:(before||{})[r]||[], after:(after||{})[r]||[]}))
+    .sort((a,b)=>first(a.after)<first(b.after)?-1:first(a.after)>first(b.after)?1
+                 :String(a.name).localeCompare(String(b.name)));
+}
+function startDraft(){
+  if(roBlocked() || DRAFT) return;
+  DRAFT={base:stateBlob(), undo:undoStack, redo:redoStack, before:draftLocations()};
+  undoStack=[]; redoStack=[];
+  render();
+}
+/** Save the whole draft as one change. The undo step goes back to the board
+ *  as it was before the draft. */
+function applyDraft(){
+  if(!DRAFT || roBlocked()) return;
+  const d=DRAFT;
+  if(stateBlob()===d.base){ discardDraft(); return; }
+  DRAFT=null;
+  undoStack=d.undo; redoStack=[];
+  undoSeq++;
+  undoStack.push(d.base);
+  if(undoStack.length > UNDO_LIMIT) undoStack.shift();
   persist(); render();
 }
+function discardDraft(){
+  if(!DRAFT) return;
+  const d=DRAFT;
+  DRAFT=null;
+  restoreBlob(d.base);
+  undoStack=d.undo; redoStack=d.redo;
+  render();
+  pullShared();   // pick up anything others saved while this tab was drafting
+}
+function draftChangeCount(){ return DRAFT ? undoStack.length : 0; }
+function openDraftCompare(){
+  if(!DRAFT) return;
+  const diff=draftDiff(DRAFT.before, draftLocations(), r=>jointStopName(+r));
+  const body=document.getElementById('drcmpbody');
+  body.innerHTML = diff.length
+    ? `<table class="drcmp"><thead><tr><th>Stop</th><th>Before</th><th>After</th></tr></thead><tbody>`
+      + diff.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(draftLocText(x.before, fmtDate))}</td>`
+                   +`<td><b>${esc(draftLocText(x.after, fmtDate))}</b></td></tr>`).join('')
+      + `</tbody></table>`
+    : '<p class="rrnone">No stop has changed date or crew yet.</p>';
+  document.getElementById('drcmptitle').textContent =
+    `Compare: ${diff.length} stop${diff.length===1?'':'s'} change${diff.length===1?'s':''}`;
+  document.getElementById('drcmpdlg').showModal();
+}
+/** The toolbar toggle and the draft banner. */
+function syncDraftUI(){
+  const btn=document.getElementById('tbdraft'), bn=document.getElementById('draftbanner');
+  if(!btn || !bn) return;
+  btn.hidden=!!READONLY;
+  btn.setAttribute('aria-pressed', DRAFT?'true':'false');
+  btn.classList.toggle('on', !!DRAFT);
+  btn.title = DRAFT ? 'Leave the draft (asks before throwing changes away)'
+                    : 'Rearrange freely without saving: nobody sees it until you Apply';
+  btn.querySelector('span').textContent = DRAFT ? 'Trying changes' : 'Try changes';
+  document.body.classList.toggle('drafting', !!DRAFT);
+  if(!DRAFT || READONLY){ bn.hidden=true; bn.innerHTML=''; return; }
+  const n=draftChangeCount();
+  const diff=draftDiff(DRAFT.before, draftLocations(), r=>jointStopName(+r));
+  const dates=new Set();
+  diff.forEach(x=>[...x.before, ...x.after].forEach(l=>dates.add(l.date)));
+  const warns=boardWarningsFor([...dates]);
+  bn.innerHTML=`<div class="dbmsg"><b>Draft: ${n ? `${n} change${n===1?'':'s'}, not saved.` : 'no changes yet.'}</b> `
+    + `<span class="dbsub">${n ? `${diff.length} stop${diff.length===1?'':'s'} on a new date or crew. ` : 'Move, swap or add crews freely. '}`
+    + `Nobody else sees this until you apply it.</span>`
+    + (warns.length
+        ? `<ul class="dbwarn">${warns.slice(0,6).map(w=>`<li>${esc(w.msg)}</li>`).join('')}`
+          + `${warns.length>6?`<li>and ${warns.length-6} more</li>`:''}</ul>`
+        : (diff.length ? `<span class="dbok">No warnings on the dates you changed.</span>` : ''))
+    + `</div><div class="dbbtns">`
+    + `<button type="button" id="dbcompare"${diff.length?'':' disabled'}>Compare</button>`
+    + `<button type="button" id="dbdiscard">Discard</button>`
+    + `<button type="button" id="dbapply" class="dbapply"${n?'':' disabled'}>Apply</button></div>`;
+  bn.querySelector('#dbcompare').onclick=openDraftCompare;
+  bn.querySelector('#dbdiscard').onclick=()=>{
+    if(draftChangeCount() && !confirm(`Throw away ${draftChangeCount()} draft change${draftChangeCount()===1?'':'s'}? The board goes back to how it was.`)) return;
+    discardDraft();
+  };
+  bn.querySelector('#dbapply').onclick=applyDraft;
+  bn.hidden=false;
+}
+document.getElementById('tbdraft').onclick=()=>{
+  if(!DRAFT){ startDraft(); return; }
+  if(draftChangeCount() && !confirm(`Leave the draft and throw away ${draftChangeCount()} change${draftChangeCount()===1?'':'s'}? Use Apply to keep them.`)) return;
+  discardDraft();
+};
+document.getElementById('drcmpclose').onclick=()=>document.getElementById('drcmpdlg').close();
+window.addEventListener('beforeunload', e=>{
+  if(DRAFT && draftChangeCount()){ e.preventDefault(); e.returnValue=''; }
+});
 /** Take a client out of the season. Pulls them off whatever crew-day
  *  they're on (dropping the card if that empties it) and remembers them, so
  *  a cancellation stops printing on a crew sheet instead of being parked on
@@ -7729,7 +8167,7 @@ function renderStrip(){
     b.ondragleave=()=>b.classList.remove('dragover');
     b.ondrop=e=>{e.preventDefault();b.classList.remove('dragover');
       const dayid=e.dataTransfer.getData('dayid');
-      if(dayid){ if(!isOverview(val)) moveWholeDay(dayid,val); return; }
+      if(dayid){ if(!isOverview(val)) openRearrange(dayid,val); return; }
       const row=+e.dataTransfer.getData('row'); if(!row) return;
       if(val==='NOINSTALL'){ markNotInstalling(row); return; }
       if(val==='HOLD'){ if(!hold.has(row)) toggleHold(row); return; }
@@ -7799,7 +8237,7 @@ function renderStrip(){
       if(!dayid && !row) return;
       if(!confirm(`${lab.textContent} isn't on the schedule yet. Add it and move there?`)) return;
       if(!add()) return;
-      if(dayid) moveWholeDay(dayid, dt); else openMoveDlg(row, dt); };
+      if(dayid) openRearrange(dayid, dt); else openMoveDlg(row, dt); };
     strip.appendChild(b);
     return b;
   };
@@ -7937,6 +8375,7 @@ function buildDayCard(d){
       <span class="cname">${crewName(d)?`${esc(crewName(d))}<span class="crewpos">${esc(crewLabel(d))}</span>`:crewLabel(d)}${d.edited?'<span class="edited">EDITED</span>':''}</span>
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
+    ${d.training?'':`<button type="button" class="printbtn picon mvdaybtn" title="Move or swap this whole day" aria-label="Move or swap ${esc(crewTitle(d))}'s whole day">${IC.swap}</button>`}
     <button class="printbtn picon" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
@@ -7955,6 +8394,8 @@ function buildDayCard(d){
     printManifests([d], `${crewTitle(d)} — ${fmtMDYYYY(d.date)}`);
   };
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
+  { const mb=card.querySelector('.mvdaybtn');
+    if(mb) mb.onclick=e=>{ e.stopPropagation(); openRearrange(d.id, null); }; }
   const chead = card.querySelector('.chead-crew');
   chead.onclick=()=>{
     focusDayId=d.id;
@@ -8089,6 +8530,10 @@ function buildDayCard(d){
   card.ondragover=e=>{e.preventDefault();card.classList.add('dragover');};
   card.ondragleave=()=>card.classList.remove('dragover');
   card.ondrop=e=>{e.preventDefault();card.classList.remove('dragover');
+    // A crew header dropped on another crew's card: swap with that crew
+    // (listed first in the chooser), on this date or across dates.
+    const dayid=e.dataTransfer.getData('dayid');
+    if(dayid){ if(dayid!==d.id && !d.training) openRearrange(dayid, d.date, d.id); return; }
     const row=+e.dataTransfer.getData('row');
     if(row && !d.stops.includes(row)) commitPlan(planFor(row, d.id));};
   return card;
@@ -8416,8 +8861,8 @@ function buildAddCrewButton(date){
   btn.className='addcrewbtn'; btn.type='button';
   btn.innerHTML=`<span class="plus">+</span> Add a crew`;
   btn.onclick=()=>{
-    const have=days.filter(d=>d.date===date).length + (pendingSlots[date]||[]).length;
-    const label=`Crew ${have+1}`;
+    // The next crew number nobody has on this date (Crew 4 on a full day).
+    const label=spareCrewOn(days, date, pendingSlots[date]||[]);
     pendingSlots[date]=[...(pendingSlots[date]||[]), label];
     render();
   };
@@ -8461,7 +8906,9 @@ function commitPlan(ops, {force=false}={}){
       + chk.blockers.map(b=>'  • '+b.msg).join('\n'));
     return false;
   }
-  if(chk.warnings.length && !confirm('Heads up:\n\n'
+  // In a draft (Try changes) the warnings show live in the draft banner
+  // instead of a pop-up on every move: trying things out should be free.
+  if(chk.warnings.length && !DRAFT && !confirm('Heads up:\n\n'
       + chk.warnings.map(w=>'  • '+w.msg).join('\n')
       + '\n\nMake the change anyway?')) return false;
   pushUndo();
@@ -8527,13 +8974,15 @@ function openMoveDlg(row,presetDate){
         +(names.length?': '+names.join(', '):' <span class="mvcrewempty">(only this stop)</span>')
         +'</span></div>';
     });
-    const spare=BASE_CREWS.find(cr=>!working.includes(cr));
+    const spare=spareCrewOn(days, dt);
     if(spare){
       const isSel=csel.value.startsWith(`${dt}|${spare}|`);
+      const extra=crewCountOn(days, dt)>=MAX_CREWS;
       rows.push(`<div class="mvcrewrow${isSel?' mvsel':''}">`
         +`<span class="cdot" style="background:${CREW_COLORS[spare]||'#555'}"></span>`
-        +`<span class="mvcrewnames"><b>+ another crew</b> <span class="mvcrewempty">`
-        +`${working.length?'not working this date — pick "new day" to start one':'nobody works this date yet'}</span></span></div>`);
+        +`<span class="mvcrewnames"><b>+ ${extra?`a ${ordinalTxt(crewCountOn(days, dt)+1)} crew`:'another crew'}</b> <span class="mvcrewempty">`
+        +`${extra?'allowed, just more crews than usual: pick "new day" to start one'
+           :working.length?'not working this date — pick "new day" to start one':'nobody works this date yet'}</span></span></div>`);
     }
     info.innerHTML=rows.join('');
     const note=document.getElementById('mvnote');
@@ -8565,12 +9014,14 @@ function openMoveDlg(row,presetDate){
     // numbers are positional per day, so which stored slot a new day lands
     // in is meaningless to staff (and its label would shift the moment the
     // day exists). The stored name stays in the id so nothing downstream moves.
-    const working=[...new Set(existing.map(d=>d.crew))].sort();
-    const spare=BASE_CREWS.find(cr=>!working.includes(cr));
+    // Always offered: a date that already has three crews can take a 4th
+    // (checkPlan flags it; it's advisory, not a block).
+    const spare=spareCrewOn(days, dt);
     if(spare){
       const id=`${dt}|${spare}|0`;
       const chk=checkPlan(planFor(row, id));
-      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>+ another crew (new day)`
+      const extra=crewCountOn(days, dt)>=MAX_CREWS;
+      opts.push(`<option value="${id}" ${chk.ok?'':'disabled'}>+ ${extra?`a ${ordinalTxt(crewCountOn(days, dt)+1)} crew`:'another crew'} (new day)`
               + `${chk.ok?'':' — '+chk.blockers[0].msg}</option>`);}
     csel.innerHTML=opts.join('');
     renderCrewInfo();
@@ -9488,6 +9939,7 @@ document.getElementById('billgo').onclick = ()=>{
 // Back-compat for anything still calling the old name.
 function exportBilling(scope){ void runExport(scope||'all','csv'); }
 function resetAll(){ if(roBlocked()) return;
+  if(DRAFT){ alert('Apply or discard your draft (Try changes) first.'); return; }
   if(confirm('Discard all moves & approvals?')){
   localStorage.removeItem(LS_KEY); location.reload(); }}
 
@@ -14386,12 +14838,15 @@ function syncToolbar(){
     const where = READONLY ? 'Read-only' : failed ? 'Not saved to the server'
       : (AUTH ? (syncState==='shared' ? 'Saved' : 'Saved on this device') : 'Saved on this device');
     sv.classList.toggle('bad', failed);
-    sv.innerHTML=`${failed?'':IC.check}<span>${where}${!READONLY&&moves.length?` · ${moves.length} change${moves.length===1?'':'s'}`:''}</span>`;
+    sv.innerHTML = DRAFT ? `<span>Draft, not saved</span>`
+      : `${failed?'':IC.check}<span>${where}${!READONLY&&moves.length?` · ${moves.length} change${moves.length===1?'':'s'}`:''}</span>`;
     sv.title = READONLY ? 'This season is archived -- nothing here can be changed'
       : failed ? 'The last save did not reach the server -- your changes are kept on this device and will retry with your next change'
       : AUTH ? 'Every change saves on its own and syncs to everyone'
              : 'Not connected to the app: changes are kept in this browser only';
+    if(DRAFT) sv.title='Trying changes: nothing is saved until you Apply';
   }
+  syncDraftUI();
 }
 document.getElementById('tbundo').onclick=()=>undo();
 document.getElementById('tbredo').onclick=()=>redo();

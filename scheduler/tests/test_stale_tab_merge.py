@@ -87,7 +87,7 @@ SAVE_LOOP = """
 // The real save loop, with the page's DOM/board stubbed: the board is one
 // document, DOC; applying a document replaces it (as applySharedDoc does).
 let DOC, sharedBase=null, syncedBoardDates=null, pendingBoardDates=null, syncState='local';
-let undoStack=['old step'], redoStack=[], lastPushOk=null, syncBlocked=false;
+let undoStack=['old step'], redoStack=[], lastPushOk=null, syncBlocked=false, DRAFT=null;
 const AUTH='token', READONLY=false, SPEC={version:'build-1'}, C={};
 const CUT='2026-12-25';
 const NAMES={1:'Jinks, Amy', 2:'Crane Worldwide'};
