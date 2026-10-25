@@ -18,7 +18,7 @@ import { currentSeasonLabel } from "utils/season";
  * server-side (GET /install-costs/crew-days) off the saved install cost card.
  */
 
-type CrewSeat = { name: string | null; pay_class: string | null; label: string; rate: number | null; half?: boolean; temp?: boolean };
+type CrewSeat = { name: string | null; pay_class: string | null; label: string; rate: number | null; half?: boolean; temp?: boolean; share?: number };
 type Cost = {
   labor: number; van: number; trailer: number; insurance: number; gas: number; wear: number;
   ancillary: number; tolls: number; parking: number; total: number; missing: string[];
@@ -527,7 +527,7 @@ function DayDetailBody({ d, overheadPct }: { d: Day; overheadPct: number | null 
             {d.crew_people.map((p, i) => (
               <li key={i} className="flex justify-between gap-2">
                 <span className={p.name ? "text-stone-800" : "italic text-stone-500"}>
-                  {p.name || `${p.label} (estimated)`}{p.half ? " · half day" : ""}{p.temp ? " · Xclusive temp" : ""}
+                  {p.name || `${p.label} (estimated)`}{p.half ? " · half day" : ""}{p.temp ? " · Xclusive temp" : ""}{p.share ? " · pay split with the joint crew" : ""}
                 </span>
                 <span className="tabular-nums">{p.name ? `${p.label} · ` : ""}{p.rate == null ? "no rate" : `${formatCurrency(p.rate)}/h`}</span>
               </li>

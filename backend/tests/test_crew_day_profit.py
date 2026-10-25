@@ -129,3 +129,35 @@ def test_the_biggest_2025_crew_sets_the_whole_days_crew():
         b.clients[r]["size25"] = n
     d = cdp.crew_days(b, PRICES, card(), {})["days"][1]
     assert len(d["crew_people"]) == 8 and d["crew_basis"] == "2025 crew"
+
+
+def _joint_board(staffing):
+    b = board(staffing=staffing)
+    d1 = b.days["2026-11-02|Crew 1|0"]
+    b.days["2026-11-02|Crew 2|0"] = {**d1, "id": "2026-11-02|Crew 2|0", "crew": "Crew 2"}
+    b.timeline["2026-11-02|Crew 2|0"] = b.timeline["2026-11-02|Crew 1|0"]
+    b.roster.append({"id": "p2", "name": "Bo", "title": "General Installer"})
+    return b
+
+
+def test_joint_groups_match_the_tool():
+    b = _joint_board({})
+    b.days["2026-11-03|Crew 1|0"] = {"id": "2026-11-03|Crew 1|0", "date": "2026-11-03", "crew": "Crew 1", "stops": [1, 3]}
+    b.days["2026-11-03|Crew 2|0"] = {"id": "2026-11-03|Crew 2|0", "date": "2026-11-03", "crew": "Crew 2", "stops": [1]}
+    pair = ["2026-11-02|Crew 1|0", "2026-11-02|Crew 2|0"]
+    assert b.joint_groups() == {pair[0]: pair, pair[1]: pair}     # 11/03 only shares one stop
+
+
+def test_a_person_on_both_crews_of_a_joint_shift_is_paid_once():
+    both = ["p1", "p2"]
+    out = cdp.crew_days(_joint_board({"2026-11-02|Crew 1|0": both, "2026-11-02|Crew 2|0": both}),
+                        PRICES, card(), {"p1": {"pay_class": "lead"}, "p2": {"pay_class": "general"}})
+    d1, d2 = out["days"]
+    staffed = [c for c in d1["crew_people"] if c["name"]]
+    assert [(c["name"], c["rate"], c["share"]) for c in staffed] == [("Ana", 9, 0.5), ("Bo", 7.5, 0.5)]
+    assert any("Joint shift" in n for n in d1["notes"])
+    # one side only: their full rate there, nothing split
+    solo = cdp.crew_days(_joint_board({"2026-11-02|Crew 1|0": both}), PRICES, card(),
+                         {"p1": {"pay_class": "lead"}, "p2": {"pay_class": "general"}})["days"][0]
+    assert [c["rate"] for c in solo["crew_people"] if c["name"]] == [18, 15]
+    assert "share" not in solo["crew_people"][0]
