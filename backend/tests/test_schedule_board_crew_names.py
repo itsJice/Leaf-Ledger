@@ -1,8 +1,9 @@
 """Crew names staff gave a shift on the Staffing tab (state.crewNames, see
 crewNames in scheduler/review_template.html), read server-side: the calendar
 feed, the lead pages, crew-day profit and the Changes feed name the crew the
-way the tool does ("Lesly's crew (Crew 1)"), and a Dallas week's one name
-covers every night of it.
+way the tool does ("Lesly's crew (Crew 1)"). Each Dallas night is its own
+shift (10/24/2026); a name saved under a Dallas run's old week key still
+covers every night of that run until a night gets its own.
 """
 import copy
 
@@ -28,14 +29,24 @@ def test_houston_day_name_is_keyed_by_its_day_id():
     assert b.crew_title(b.days[NOV1]) == "Crew 1"
 
 
-def test_dallas_week_name_covers_every_night_of_its_run():
+def test_old_dallas_week_name_covers_every_night_of_its_run():
     b = board(dallasNights=["2027-01-02", "2027-01-03"],
               crewNames={"dallas|2027-01-02|Crew 1": "Night A", "dallas|2026-11-02|Crew 2": "Nov B"})
-    assert b.shift_key(b.days[JAN1]) == "dallas|2027-01-02|Crew 1"
+    assert b.shift_key(b.days[JAN1]) == JAN1
+    assert b.dallas_week_key(b.days[JAN1]) == "dallas|2027-01-02|Crew 1"
+    assert b.dallas_week_key(b.days[HOU]) is None
     assert b.crew_title(b.days[JAN1]) == "Night A (Crew 1)"
     assert b.crew_title(b.days[JAN2]) == "Crew 2"
     assert b.crew_title(b.days[NOV2]) == "Nov B (Crew 2)"
     assert schedule_board.dallas_run_start("2027-01-03", {"2027-01-02", "2027-01-03"}) == "2027-01-02"
+
+
+def test_a_dallas_night_name_wins_over_the_old_week_name():
+    b = board(crewNames={"dallas|2026-11-02|Crew 1": "Week A", NOV1: "Mon A"})
+    assert b.shift_key(b.days[NOV1]) == NOV1
+    assert b.crew_title(b.days[NOV1]) == "Mon A (Crew 1)"
+    b2 = board(crewNames={NOV2: "Mon B"})
+    assert b2.crew_title(b2.days[NOV2]) == "Mon B (Crew 2)"
 
 
 def test_names_are_normalized_and_junk_dropped():
@@ -66,4 +77,8 @@ def test_changes_feed_names_the_crew_but_a_rename_is_not_a_crew_switch():
     view = sc.view_of({**named, "dallasNights": ["2027-01-02"],
                        "crewNames": {"dallas|2027-01-02|Crew 1": "Night A"}}, ctx)
     assert view.title(JAN1) == "Night A (Crew 1)"
+    # a per-night name (the key the tool writes now) wins
+    view2 = sc.view_of({**named, "dallasNights": ["2027-01-02"],
+                        "crewNames": {"dallas|2027-01-02|Crew 1": "Night A", JAN1: "Sat A"}}, ctx)
+    assert view2.title(JAN1) == "Sat A (Crew 1)"
     assert view.label(JAN1) == "Crew 1"

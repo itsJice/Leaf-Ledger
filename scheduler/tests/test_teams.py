@@ -202,7 +202,7 @@ def test_staff_dialog_has_teams_undo_and_clear():
     assert 'id="stfundo"' in TEMPLATE and 'id="stfclear"' in TEMPLATE
     draw = js_function("drawStaffDlg")
     # every change made in the dialog is tracked for its Undo
-    assert "stfTrack(()=>assignReadyRosterToShift(sh))" in draw
+    assert "stfTrack(()=>{ assignReadyRosterToShift(sh);" in draw
     assert "stfTrack(()=>pushUndo())" in draw
     assert "stfTrack(()=>setCrewName(sh.nameKey, t.name))" in draw
     assert "stfTrack(" in js_function("applyTeamToShift")
@@ -310,7 +310,8 @@ def test_clear_on_a_training_day_warns_it_removes_attendance():
     assert "Undo" in out[0]
     assert out[1].startswith("Remove all 1 person from the training?")
     assert out[2] == "Remove all 3 people from this crew?"
-    assert out[3] == "Remove all 5 people from this crew?\n\nThis takes them off all 4 nights of the Dallas week."
+    # a Dallas night is cleared like any day (each night is its own shift now)
+    assert out[3] == "Remove all 5 people from this crew?"
     # Clear stays one undo step
     clear = js_function("stfClear")
     assert "pushUndo()" in clear and "stfTrack(" in clear
