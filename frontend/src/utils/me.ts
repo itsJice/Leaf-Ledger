@@ -45,7 +45,18 @@ let cached: { token: string; promise: Promise<Me> } | null = null;
 
 async function fetchMe(): Promise<Me> {
   const r = await apiFetch("/api/me");
-  if (!r.ok) throw new Error(`Couldn't load your account (${r.status})`);
+  if (!r.ok) {
+    // Show the server's reason too, so a stuck login can be diagnosed from
+    // a photo of the screen.
+    let why = "";
+    try {
+      const body = await r.json();
+      if (body && typeof body.detail === "string") why = `: ${body.detail}`;
+    } catch {
+      /* not JSON */
+    }
+    throw new Error(`Couldn't load your account (${r.status}${why})`);
+  }
   return r.json();
 }
 
