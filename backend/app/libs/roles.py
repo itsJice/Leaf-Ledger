@@ -204,6 +204,17 @@ PRODUCTION_PAGES = (
 )
 
 
+def api_path(path: str) -> str:
+    """The route as the allowlists spell it ("/api/me"). Depending on the
+    FastAPI/Starlette version, a route's template inside the /api router can
+    come back without the router's prefix ("/me"); on 10/26/2026 that locked
+    the production login out of everything with a 403."""
+    path = path or ""
+    if path and not path.startswith("/api/") and path != "/api":
+        path = "/api" + (path if path.startswith("/") else "/" + path)
+    return path
+
+
 def production_may(method: str, path: str) -> bool:
     if any(path.startswith(d) for d in PRODUCTION_DENY):
         return False
@@ -234,7 +245,7 @@ def require_role(minimum: str, viewer_read: bool = False):
         role = await resolve_role(get_current_user(request).email)
         route = (getattr(request, "scope", None) or {}).get("route")
         url = getattr(request, "url", None)
-        path = getattr(route, "path", None) or (url.path if url else "")
+        path = api_path(getattr(route, "path", None) or (url.path if url else ""))
         if not allowed(role, minimum, request.method, viewer_read, path):
             # Say which role and route were refused, so a login stuck on
             # "Couldn't load your account (403)" can be diagnosed from a photo
