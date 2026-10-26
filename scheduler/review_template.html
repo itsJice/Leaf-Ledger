@@ -15027,8 +15027,14 @@ function manifestHTML(d){
               +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':pn.title==='Designer'?' (designer)':'')).join(' · ');
           // Same wording as the on-screen chip -- coverageLabel is the one
           // place that decides "no lead" vs "short a lead".
-          return `<p class="crew">${who||'<i>nobody assigned yet</i>'}`
-               + `${cv.state==='ok'?'':` — ${coverageLabel(cv).toUpperCase()}`}</p>`; })()}
+          // Everyone on the truck, one per box, so a long crew wraps onto
+          // more lines instead of running off the page (user, 10/26/2026).
+          const tag=pn=>pn.title==='Lead'?'lead':pn.title==='Lead Assist'?'assist':pn.title==='Designer'?'designer':'';
+          const list=cv.who.map(pn=>`<li><b>${esc(pn.name)}</b>${tag(pn)?` <span>${tag(pn)}</span>`:''}`
+              +`${pn.phone?`<i>${esc(fmtPhone(pn.phone))}</i>`:''}</li>`).join('');
+          return `<div class="crewbox"><div class="crewh">Crew (${cv.who.length})`
+               + `${cv.state==='ok'?'':` · ${esc(coverageLabel(cv).toUpperCase())}`}</div>`
+               + (list?`<ul>${list}</ul>`:'<p class="crew"><i>nobody assigned yet</i></p>')+`</div>`; })()}
         ${(()=>{ const sn=shiftNoteOf(d);
           return sn ? `<div class="shn"><b>Notes for the day:</b> ${esc(sn.text)}</div>` : ''; })()}</div>
       <div class="stot"><b>${(calc.total/60).toFixed(1)}h</b><span>total day</span></div>
@@ -15079,6 +15085,13 @@ function printManifests(list, title, opts={}){
     @page{size:portrait;margin:12mm}
     body{font:12px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0}
     .shead p.crew{margin:3px 0 0;font-size:11px;color:#444}
+    .shead > div:first-child{flex:1;min-width:0}
+    .crewbox{margin-top:6px;break-inside:avoid}
+    .crewh{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#2d5a33;margin-bottom:3px}
+    .crewbox ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:2px 10px}
+    .crewbox li{font-size:11.5px;line-height:1.35;padding:2px 0;border-bottom:1px dotted #ccc;overflow-wrap:anywhere}
+    .crewbox li span{font-size:9.5px;color:#2d5a33;font-weight:700;text-transform:uppercase}
+    .crewbox li i{display:block;font-style:normal;font-size:10px;color:#666}
     .shn{margin-top:5px;padding:4px 7px;border-left:3px solid #1e3a5f;background:#eef2f8;color:#1e2b3d;font-size:11.5px;
       white-space:pre-wrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .sheet{page-break-after:always;break-after:page}
