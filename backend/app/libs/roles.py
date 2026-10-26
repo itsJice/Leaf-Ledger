@@ -236,7 +236,11 @@ def require_role(minimum: str, viewer_read: bool = False):
         url = getattr(request, "url", None)
         path = getattr(route, "path", None) or (url.path if url else "")
         if not allowed(role, minimum, request.method, viewer_read, path):
-            raise HTTPException(status_code=403, detail="You don't have access to this")
+            # Say which role and route were refused, so a login stuck on
+            # "Couldn't load your account (403)" can be diagnosed from a photo
+            # of the screen (user, 10/26/2026). Neither is sensitive.
+            raise HTTPException(status_code=403,
+                                detail=f"You don't have access to this (role: {role}, route: {request.method} {path})")
         # Kept for handlers that shape their answer by role (the install
         # schedule's admin-only contractor fields), so they needn't look it up again.
         try:
