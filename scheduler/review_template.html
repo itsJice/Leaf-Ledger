@@ -6990,6 +6990,14 @@ function fmtMDY(iso){
   const [y,m,d]=iso.split('-');
   return `${m}/${d}/${y.slice(2)}`;
 }
+/** A day's weekday: from the calendar, else worked out from the date (a
+ *  day built without one carries dow '?'). */
+function dowName(d){
+  const c=dowOf(d.date);
+  if(c && c!=='?') return c;
+  const [y,m,dd]=String(d.date||'').split('-').map(Number);
+  return y ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(Date.UTC(y,m-1,dd)).getUTCDay()] : '';
+}
 function dowOf(iso){
   const ci=(SPEC.calendar||[]).find(x=>x.date===iso);
   if(ci) return ci.dow;
@@ -8899,7 +8907,7 @@ function buildDayCard(d){
     ${d.training?'':`<button type="button" class="printbtn picon mvdaybtn" title="Move or swap this whole day" aria-label="Move or swap ${esc(crewTitle(d))}'s whole day">${IC.swap}</button>`}
     ${(sh=>!READONLY && sh && sh.days.some(x=>(staffing[x.id]||[]).length)
       ? `<button type="button" class="printbtn picon remcardbtn" data-remind="${esc(d.date)}" data-remkeys="${esc(sh.key)}" title="Text this crew a reminder of their shift" aria-label="Text ${esc(crewTitle(d))} a reminder">${IC.msg}</button>` : '')(shiftOfDay(d))}
-    <button class="printbtn picon" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
+    <button type="button" class="printbtn picon sheetbtn" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
   ${(()=>{ const cf=lockConflicts(d.stops, r=>pinOf(r, d), orderName);
@@ -8912,9 +8920,12 @@ function buildDayCard(d){
   ${dayNoteLineHTML(d)}`;
   { const nl=card.querySelector('.cshnote');
     if(nl) nl.onclick=e=>{ e.stopPropagation(); if(canEditShiftNotes()) openStaffDlg(d.id); }; }
-  card.querySelector('.printbtn:not(.remcardbtn)').onclick=(e)=>{
+  // The print icon by its own class: since the swap button (also .printbtn)
+  // came first in the row, ':not(.remcardbtn)' grabbed that one and the
+  // print icon did nothing.
+  card.querySelector('.sheetbtn').onclick=(e)=>{
     e.stopPropagation();
-    printManifests([d], `${crewTitle(d)} — ${fmtMDYYYY(d.date)}`);
+    printManifests([d], `${crewTitle(d)} · ${fmtMDYYYY(d.date)}`);
   };
   wireRemButtons(card);
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
@@ -15007,7 +15018,7 @@ function manifestHTML(d){
       <ul>${pack.map(x=>`<li><span class="box"></span><span><b>${x.i+1}. ${esc(C[x.r].name)}:</b> ${esc(x.n.text)}</span></li>`).join('')}</ul></div>` : '';
   return `<section class="sheet">
     <div class="shead">
-      <div><h1>${esc(crewTitle(d))} — ${esc(d.dow)} ${fmtMDYYYY(d.date)}</h1>
+      <div><h1>${esc(crewTitle(d))} · ${esc(dowName(d))} ${fmtMDYYYY(d.date)}</h1>
         <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
         ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);

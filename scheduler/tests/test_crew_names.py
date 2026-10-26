@@ -195,7 +195,7 @@ def test_names_show_on_days_calendar_print_map_and_exports():
     assert "crewTitleShort(d)" in TEMPLATE and "crewTitle(b.d)" in TEMPLATE
     assert "'Crew name'" in js_function("exportCSV")
     assert "crewName:crewName(d)" in js_function("exportJSON")
-    assert "${esc(crewTitle(d))} — ${esc(d.dow)}" in TEMPLATE      # crew sheet
+    assert "${esc(crewTitle(d))} · ${esc(dowName(d))}" in TEMPLATE      # crew sheet
     assert "esc(crewTitle(d))}<br><b>${miTxt" in TEMPLATE         # map route popup
     # A whole-day move or swap carries a Houston crew's name with its stops
     # (a Dallas week's name stays with the week: its key isn't the day id).
