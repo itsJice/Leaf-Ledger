@@ -606,3 +606,14 @@ def test_today_summary_survives_a_notes_lookup_failure(fake_db, board, on_shift_
     fake_db.on("LEFT JOIN client_activity ca", boom, method="fetch")
     out = run(lead.today_summary(user("office@example.com")))
     assert out["day"]["jobs"] == 3 and out["day"]["installNotes"] == 0
+
+
+def test_production_allowlist_matches_routes_without_the_api_prefix():
+    # Live, the matched route template came back as "/me" (no "/api" prefix),
+    # so every production request was refused. Both spellings must work.
+    assert roles.api_path("/me") == "/api/me"
+    assert roles.api_path("/api/me") == "/api/me"
+    assert roles.api_path("/forms/{slug}/responses") == "/api/forms/{slug}/responses"
+    assert roles.allowed("production", "crew", "GET", False, roles.api_path("/me"))
+    assert roles.allowed("production", "staff", "POST", False, roles.api_path("/forms/{slug}/responses"))
+    assert not roles.allowed("production", "staff", "GET", False, roles.api_path("/pricing/rates"))
