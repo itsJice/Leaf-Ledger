@@ -14603,16 +14603,17 @@ const REM_TPL_KEY='tbdg-reminder-tpl';
 const REM_FIELDS=[
   {key:'first', label:'First name'},
   {key:'when',  label:'Day and date'},
+  {key:'job',   label:'Install or takedown crew'},
   {key:'crew',  label:'Crew'},
   {key:'lead',  label:'Lead'},
   {key:'meet',  label:'Meet time and place'},
 ];
 const REM_DEFAULT={
-  en:'Hi {{first}}! This is The Branch Design Group (TBDG) with a reminder: you are on the install crew {{when}}.\n'
+  en:'Hi {{first}}! This is The Branch Design Group (TBDG) with a reminder: you are on the {{job}} {{when}}.\n'
     +'Crew: {{crew}} (lead: {{lead}})\n'
     +'Meet: {{meet}}\n'
     +'If anything has changed, please let me know. Thank you, see you then!',
-  es:'¡Hola {{first}}! Te escribe The Branch Design Group (TBDG) para recordarte que estás en el equipo de instalación {{when}}.\n'
+  es:'¡Hola {{first}}! Te escribe The Branch Design Group (TBDG) para recordarte que estás en el {{job}} {{when}}.\n'
     +'Equipo: {{crew}} (líder: {{lead}})\n'
     +'Hora y lugar: {{meet}}\n'
     +'Si algo cambió, avísame por favor. ¡Gracias, nos vemos!',
@@ -14713,12 +14714,35 @@ function remLead(row, lang){
   if(me) return [es?'tú':'you', ...others].join(and);
   return others.length ? others.join(and) : (es?'por confirmar':'to be confirmed');
 }
+/** PURE. The {{job}} fill-in: "install crew" or "takedown crew" (Spanish
+ *  "equipo de instalación" / "equipo de desmontaje"). "make the reminder
+ *  text say takedown crew in January" (user, 2026-10-27); the kind is the
+ *  shift's dayKind, so an all-Install/Reinstall day in January stays install. */
+function remJob(kind, lang){
+  const td=kind==='takedown';
+  return lang==='es' ? (td?'equipo de desmontaje':'equipo de instalación') : (td?'takedown crew':'install crew');
+}
+/** PURE. A reminder template as it should read for a shift of `kind`. A
+ *  template saved in this browser before {{job}} existed still has the words
+ *  "install crew" / "equipo de instalación" typed in; on a takedown day they
+ *  read as the takedown wording instead, so old saved texts come out right. */
+function remTplFor(tpl, kind){
+  if(kind!=='takedown') return String(tpl||'');
+  return String(tpl||'')
+    .replace(/\b(install)(ation)? crew\b/gi, (m, w)=>(w[0]==='I'?'Takedown':'takedown')+' crew')
+    .replace(/\b(equipo) de instalaci[oó]n\b/gi, (m, w)=>w+' de desmontaje');
+}
+/** PURE. One person's finished reminder in `lang` from template `tpl`. */
+function remBody(tpl, row, lang, today){
+  return txtFill(remTplFor(tpl, row.info.kind), row.p, remVals(row, lang, today));
+}
 /** PURE. Every fill-in for one person's reminder. */
 function remVals(row, lang, today){
   const i=row.info;
   return {
     first: row.p.first || String(row.p.name||'').split(' ')[0],
     when:  remWhen(i.date, today, i.night, lang),
+    job:   remJob(i.kind, lang),
     crew:  i.training ? (lang==='es'?'entrenamiento':'training day') : i.crew,
     lead:  remLead(row, lang),
     meet:  remMeet(i, lang),
@@ -14752,7 +14776,9 @@ function withoutReminderLog(texts, iso){
 function remShiftInfos(iso, keys, shifts){
   return (shifts||buildShifts()).filter(sh=>sh.date===iso && (!keys || keys.includes(sh.key))).map(sh=>{
     const d=sh.days[0], start=shiftStart(d), anchored=d.anchored!==false && !sh.night;
-    return {key:sh.key, date:iso, dayIds:sh.days.map(x=>x.id), night:sh.night, dallas:sh.dallas,
+    // Install or takedown, by the same rule as the day cards (dayKind).
+    const kind=dayKind(iso, sh.days.flatMap(x=>(x.stops||[]).map(r=>(C[r]||{}).visitType)), TAKEDOWN_CUTOFF);
+    return {key:sh.key, date:iso, dayIds:sh.days.map(x=>x.id), night:sh.night, dallas:sh.dallas, kind,
       training:sh.training, anchored, start, arrive:anchored && start===DEPART_MIN ? ARRIVE_MIN : null,
       crew:sh.training ? 'Training' : sh.members.map(m=>m.name?`${m.name} (${m.pos})`:m.pos).join(' + ')};
   });
@@ -14851,7 +14877,7 @@ function remWriteHTML(){
       next reminder starts from the standard one again. Drag a bubble in, or click it to drop it where your
       cursor is, and each person's details fill in.
       <a href="#" data-remreset>Put back the standard message</a></p>`
-    : `<p class="txthint">This is the reminder each person gets, with their own name, day, crew and
+    : `<p class="txthint">This is the reminder each person gets, with their own name, day, install or takedown crew, crew and
       lead, and meet time filled in where the bubbles are. Change the words if you like (it is remembered
       in this browser for next time); drag a bubble in, or click it to drop it where your cursor is.
       <a href="#" data-remown>Write my own message</a> · <a href="#" data-remreset>Put back the standard message</a></p>`)
@@ -14882,7 +14908,7 @@ function remSendHTML(){
       + rows.filter(r=>r.info.key===i.key).map(r=>{
         const p=r.p, why=remReason(p), num=smsNumber(p.phone), mine=txtLangFor(p);
         const sends=langs.map(l=>{
-          const body=txtFill(rem[l.key], p, remVals(r, l.key, today));
+          const body=remBody(rem[l.key], r, l.key, today);
           return {l, body, href:num?`sms:${num}&body=${encodeURIComponent(body)}`:''};
         });
         const main=sends.find(s=>s.l.key===mine)||sends[0], other=sends.filter(s=>s!==main);
@@ -14927,7 +14953,7 @@ function remWireSend(body){
   const rows=remList();
   body.querySelectorAll('.remcard').forEach(card=>{
     const r=rows.find(x=>x.p.id===card.dataset.pid); if(!r) return;
-    const p=r.p, bodyFor=lang=>txtFill(rem[lang], p, remVals(r, lang, today));
+    const p=r.p, bodyFor=lang=>remBody(rem[lang], r, lang, today);
     card.querySelector('[data-sent]').onchange=e=>{
       // Ticked by hand (sent some other way): log their usual language.
       if(e.target.checked){

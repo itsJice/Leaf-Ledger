@@ -35,7 +35,8 @@ REM = BOARD + "\n".join(const_block(n) for n in (
     "TEXT_LOG_MAX", "REMINDER_LOG_MAX", "BRANCH_ADDR", "REM_DEFAULT", "DOW_ES", "TXT_FIELDS",
 )) + """
 const ARRIVE_MIN = 8*60, DEPART_MIN = 8*60+30;
-let staffing = {}, roster = [], crewNames = {};
+let staffing = {}, roster = [], crewNames = {}, C = {};
+const TAKEDOWN_CUTOFF = '2026-12-25';
 const crewName = d => crewNames[d.id] || '';
 const crewNameKey = d => d.id;
 """ + fns(
@@ -43,6 +44,7 @@ const crewNameKey = d => d.id;
     "txtFill", "remMD", "remDateLabel", "remDaysAway", "remWhen", "remMeet", "remPeople",
     "remLead", "remVals", "remReason", "remSentFor", "remStatus", "withReminderLog",
     "withoutReminderLog", "remShiftInfos", "remRows", "shiftStart", "jointShiftGroups",
+    "visitKind", "dayKind", "remJob", "remTplFor", "remBody",
 ) + """
 // The page's buildShifts, cut down to what reminders read: joint pairs
 // (the real jointShiftGroups) are one shift; every other crew-day its own.
@@ -63,7 +65,7 @@ function buildShifts(){
 }
 const person=(id, first, last, title, lang, phone)=>({id, first, last, name:first+' '+last,
   title, lang, phone, texts:[], active:true});
-const fill=(row, lang, today)=>txtFill(REM_DEFAULT[lang], row.p, remVals(row, lang, today));
+const fill=(row, lang, today)=>remBody(REM_DEFAULT[lang], row, lang, today);
 """
 
 
@@ -105,11 +107,11 @@ def test_message_has_no_stops_notes_em_dashes_or_24_hour_times():
     # place, and a closing line. No stop names, addresses, counts or notes.
     for lang in ("en", "es"):
         tpl = run(f"console.log(JSON.stringify(REM_DEFAULT.{lang}))")
-        assert set(re.findall(r"\{\{(\w+)\}\}", tpl)) == {"first", "when", "crew", "lead", "meet"}
+        assert set(re.findall(r"\{\{(\w+)\}\}", tpl)) == {"first", "when", "job", "crew", "lead", "meet"}
         assert "—" not in tpl and "–" not in tpl
     assert re.search(r"usted", run("console.log(JSON.stringify(REM_DEFAULT.es))"), re.I) is None
     fields = re.search(r"const REM_FIELDS=\[(.*?)\];", TEMPLATE, re.S).group(1)
-    assert re.findall(r"key:'(\w+)'", fields) == ["first", "when", "crew", "lead", "meet"]
+    assert re.findall(r"key:'(\w+)'", fields) == ["first", "when", "job", "crew", "lead", "meet"]
 
 
 def test_when_reads_tomorrow_today_or_the_date():
