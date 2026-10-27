@@ -6923,6 +6923,34 @@ const MONTH_OVERVIEWS={'ALL-OCT':'10','ALL-NOV':'11','ALL-DEC':'12','ALL-JAN':'0
 // anything after is takedown. A plain date-string cutoff, so it needs no
 // new data and works the moment takedown dates exist on the calendar.
 const TAKEDOWN_CUTOFF='__CUTOFF__';
+/** PURE. 'install' or 'takedown' for one stop on `date`. "Anything
+ *  represented in January after Christmas is a takedown unless otherwise
+ *  specified" (user, 2026-10-27): after the cutoff it's a takedown unless the
+ *  stop's visit type says Install or Reinstall; up to it, an install unless
+ *  the visit type says Takedown (an event teardown). */
+function visitKind(date, visitType, cutoff){
+  const vt=String(visitType||'').trim().toLowerCase();
+  if(vt==='takedown') return 'takedown';
+  if(vt==='install' || vt==='reinstall') return 'install';
+  return date>cutoff ? 'takedown' : 'install';
+}
+/** PURE. A crew-day's kind: the date's own (takedown after the cutoff),
+ *  unless every stop on it is explicitly the other kind. */
+function dayKind(date, visitTypes, cutoff){
+  const def = date>cutoff ? 'takedown' : 'install';
+  const vts=visitTypes||[];
+  if(vts.length && vts.every(v=>visitKind(date, v, cutoff)!==def)) return def==='takedown' ? 'install' : 'takedown';
+  return def;
+}
+/** "Install" or "Takedown" for a crew-day: the label on its card footer,
+ *  its shift detail and its printed crew sheet. */
+function dayKindLabel(d){
+  return dayKind(d.date, (d.stops||[]).map(r=>(C[r]||{}).visitType), TAKEDOWN_CUTOFF)==='takedown' ? 'Takedown' : 'Install';
+}
+/** "install" or "takedown" for stop `r` on crew-day `d`. */
+function stopKindWord(d, r){
+  return visitKind(d.date, (C[r]||{}).visitType, TAKEDOWN_CUTOFF);
+}
 // Which half of the season the date strip lists. Install (Oct-Dec) and
 // takedown (Jan) are worked weeks apart, and sixty chips for both at once was
 // a wall to scroll past every time (user, 2026-09-24). A per-device
@@ -8999,7 +9027,7 @@ function buildDayCard(d){
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
-      <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} install`,
+      <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
         c.boxes?`${c.boxes} boxes`:'boxes?'].filter(Boolean).join(' · ')}</div>
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
@@ -9058,7 +9086,7 @@ function buildDayCard(d){
     <b style="color:${barcol}">${fmtH(calc.total)} of ${winH}h</b>
     <em style="color:${overBy>0?'#b91c1c':'var(--mut)'}">${overBy>0?`${(overBy/60).toFixed(1)}h over`:`${(-overBy/60).toFixed(1)}h spare`}</em></div>
     <div class="bar"><i style="width:${pct}%;background:${barcol}"></i></div>
-    <div class="cfsub"><span>Install ${calc.inst.toFixed(1)}h</span><span>·</span>
+    <div class="cfsub"><span>${dayKindLabel(d)} ${calc.inst.toFixed(1)}h</span><span>·</span>
       <span>Drive ${fmtH(calc.drive)} (${miTxt(rg.mi,rg.pending)})</span><span>·</span><span>${shiftTxt}</span></div>
   </div>`);
   card.appendChild(crewShiftSection(d));
@@ -13416,7 +13444,7 @@ function sdDraw(){
     + `<button type="button" class="sdlink" id="sdopenday">${IC.calday}<span>Open in schedule</span></button></div>`
     + `<div class="sdstats"><div><b>${esc(fmtClock(info.start))}</b><span>${info.anchored?'roll out':'start'}</span></div>`
     + `<div><b>${esc(fmtClock(info.anchored?info.finish:(info.stops.length?info.stops[info.stops.length-1].end:info.start)))}</b><span>${info.anchored?'back ≈':'done ≈'}</span></div>`
-    + `<div><b>${calc.inst.toFixed(1)}h</b><span>install</span></div>`
+    + `<div><b>${calc.inst.toFixed(1)}h</b><span>${dayKindLabel(d).toLowerCase()}</span></div>`
     + `<div><b>${fmtH(calc.drive)}</b><span>drive · ${esc(miTxt(info.rg.mi, info.rg.pending))}</span></div>`
     + `<div><b>${fmtH(calc.total)}</b><span>day of ${((d.win||600)/60).toFixed(d.win%60?1:0)}h</span></div></div>`
     + sdTimelineHTML(d, info) + `</div>`
@@ -14977,6 +15005,8 @@ function manifestHTML(d){
   const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const calc=dayCalc(d), order=calc.order.length?calc.order:d.stops;
   const anchored=d.anchored!==false;
+  // A January day prints "Takedown", not "Install" (user, 2026-10-27).
+  const kind=dayKindLabel(d);
   let clock=DEPART_MIN, rows='';
   if(anchored && order.length) clock+=leg(0,N[order[0]])/60;
   order.forEach((r,i)=>{
@@ -14992,7 +15022,7 @@ function manifestHTML(d){
     const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?' <span class="hold">ON HOLD — confirm before install</span>':''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
+      <div class="nm">${esc(c.name)}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
@@ -15019,7 +15049,7 @@ function manifestHTML(d){
   return `<section class="sheet">
     <div class="shead">
       <div><h1>${esc(crewTitle(d))} · ${esc(dowName(d))} ${fmtMDYYYY(d.date)}</h1>
-        <p>${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
+        <p>${kind==='Takedown'?'<b>Takedown</b> · ':''}${order.length} stop${order.length===1?'':'s'} · ${boxes||0} boxes to pull
         ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
           // Who is actually on this truck, printed where the crew will see it.
@@ -15041,12 +15071,12 @@ function manifestHTML(d){
     </div>
     ${packHTML}
     <table><thead><tr><th></th><th>Client</th><th class="c">Boxes</th>
-      <th class="c">Install</th><th class="c">Arrive ≈</th></tr></thead>
+      <th class="c">${kind}</th><th class="c">Arrive ≈</th></tr></thead>
       <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(DEPART_MIN)}</td></tr>`:''}
       ${rows}
       ${anchored&&order.length?`<tr class="depot"><td></td><td colspan="4">Return to depot ≈ ${fmtClock(clock+leg(N[order[order.length-1]],0)/60)}</td></tr>`:''}
       </tbody></table>
-    <div class="sfoot">Install ${(calc.inst).toFixed(1)}h · Drive ${(calc.drive/60).toFixed(1)}h
+    <div class="sfoot">${kind} ${(calc.inst).toFixed(1)}h · Drive ${(calc.drive/60).toFixed(1)}h
       ${order.length?` · Lunch ${((d.lunchMin??LUNCH)/60).toFixed(1)}h`:''} · Boxes ${boxes||0}</div>
   </section>`;
 }

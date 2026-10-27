@@ -129,6 +129,16 @@ export function installNotesLine(n: number | undefined): string {
   return `${n} stop${n === 1 ? " has" : "s have"} install notes`;
 }
 
+/** The Today strip's heading. A day after Christmas (Dec 26 through
+ *  February) is a takedown day, so January doesn't say "install" (user,
+ *  2026-10-27); same cutoff as the schedule and client_share.is_takedown. */
+export function todayHeading(summary: Pick<TodaySummary, "date" | "isToday"> | null): string {
+  const m = summary?.date ? /^\d{4}-(\d{2})-(\d{2})$/.exec(summary.date) : null;
+  const takedown = !!m && (Number(m[1]) <= 2 || (m[1] === "12" && Number(m[2]) >= 26));
+  if (takedown) return summary?.isToday ? "Takedown today" : "Next takedown day";
+  return summary?.isToday ? "Installing today" : "Next install day";
+}
+
 /** The schedule opened on that day. */
 export function scheduleDayHref(date: string | undefined): string {
   return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? `/install-schedule?date=${date}` : "/install-schedule";

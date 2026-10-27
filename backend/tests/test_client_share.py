@@ -132,6 +132,11 @@ def test_takedown_cutoff():
     assert not cs.is_takedown("2026-12-25", None)
     assert cs.is_takedown("2026-12-26", None) and cs.is_takedown("2027-01-15", None)
     assert cs.is_takedown("2026-11-02", "Takedown")
+    # January is a takedown unless the visit says otherwise (2026-10-27).
+    assert cs.is_takedown("2027-01-02", "Standard")
+    assert not cs.is_takedown("2026-12-10", "Standard")
+    assert not cs.is_takedown("2027-01-02", "Install")
+    assert not cs.is_takedown("2027-01-02", "Reinstall")
 
 
 # ---------- ICS ----------

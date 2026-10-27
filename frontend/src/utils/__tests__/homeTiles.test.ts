@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOME_TILES, installNotesLine, openCommentCount, scheduleDayHref, visibleTiles } from "../homeTiles";
+import { HOME_TILES, installNotesLine, openCommentCount, scheduleDayHref, todayHeading, visibleTiles } from "../homeTiles";
 import { userRoutes } from "../../user-routes";
 import { INSTALL_PATHS } from "../installViews";
 
@@ -41,5 +41,16 @@ describe("Today strip: install notes", () => {
     expect(scheduleDayHref("2026-11-10")).toBe("/install-schedule?date=2026-11-10");
     expect(scheduleDayHref(undefined)).toBe("/install-schedule");
     expect(scheduleDayHref("11/10/2026")).toBe("/install-schedule");
+  });
+});
+
+describe("Today strip: install or takedown", () => {
+  it("calls a January day a takedown and a December day an install", () => {
+    expect(todayHeading({ date: "2027-01-02", isToday: false })).toBe("Next takedown day");
+    expect(todayHeading({ date: "2027-01-02", isToday: true })).toBe("Takedown today");
+    expect(todayHeading({ date: "2026-12-26", isToday: false })).toBe("Next takedown day");
+    expect(todayHeading({ date: "2026-12-10", isToday: false })).toBe("Next install day");
+    expect(todayHeading({ date: "2026-12-25", isToday: true })).toBe("Installing today");
+    expect(todayHeading(null)).toBe("Next install day");
   });
 });

@@ -17,6 +17,7 @@ import {
   type TodaySummary,
   installNotesLine,
   scheduleDayHref,
+  todayHeading,
   openCommentCount,
   visibleTiles,
 } from "utils/homeTiles";
@@ -101,7 +102,7 @@ function TodayStrip({ summary, loading }: { summary: TodaySummary | null; loadin
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-bold uppercase tracking-wide text-stone-500">
-          {summary?.isToday ? "Installing today" : "Next install day"}
+          {todayHeading(summary)}
         </p>
         {loading && !summary ? (
           <p className="text-sm text-stone-500">Loading the schedule…</p>
