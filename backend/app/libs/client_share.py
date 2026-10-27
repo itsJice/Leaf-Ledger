@@ -89,9 +89,15 @@ def display_name(rule: Rule, name: str) -> str:
 
 def is_takedown(day_iso: str, visit_type: Optional[str]) -> bool:
     """"if its before christmas its an install oct-dec 25 if its after dec25
-    - feb its a take down" (the user); a Takedown visit type wins."""
-    if str(visit_type or "").strip().lower() == "takedown":
+    - feb its a take down" (the user); an explicit visit type wins: Takedown
+    is always a takedown, Install / Reinstall always an install ("anything
+    represented in January after Christmas is a takedown unless otherwise
+    specified", 2026-10-27). Same rule as the schedule page's visitKind()."""
+    vt = str(visit_type or "").strip().lower()
+    if vt == "takedown":
         return True
+    if vt in ("install", "reinstall"):
+        return False
     d = date.fromisoformat(day_iso)
     return d.month <= 2 or (d.month == 12 and d.day >= 26)
 
