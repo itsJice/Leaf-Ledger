@@ -194,6 +194,9 @@ PRODUCTION_HOME = "/search"
 PRODUCTION_PAGES = (
     "/forms/product-request", "/forms/product-request/responses", "/search",
     "/favorites", "/jobs", "/suppliers", "/ornament-calculator", "/clients",
+    # Tree Install: the ornament calculator's counts on a 3D tree. Frontend
+    # only (no API of its own), so it opens to whoever opens the calculator.
+    "/tree-install",
     "/projects", "/arrangements", "/install-schedule", "/shifts", "/comments",
     # The schedule's other views, each a nav entry since 2026-10-08 (they
     # were tabs inside /install-schedule, which production could already open).

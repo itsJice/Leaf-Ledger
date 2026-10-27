@@ -32,6 +32,7 @@ const Mockups = lazyWithReload(() => import("./pages/Mockups.tsx"));
 const Orders = lazyWithReload(() => import("./pages/Orders.tsx"));
 const OrnamentCalculator = lazyWithReload(() => import("./pages/OrnamentCalculator.tsx"));
 const TreeCounts = lazyWithReload(() => import("./pages/TreeCounts.tsx"));
+const TreeInstall = lazyWithReload(() => import("./pages/TreeInstall.tsx"));
 const CatalogSearch = lazyWithReload(() => import("./pages/CatalogSearch.tsx"));
 const InstallSchedule = lazyWithReload(() => import("./pages/InstallSchedule.tsx"));
 const InstallChanges = lazyWithReload(() => import("./pages/InstallChanges.tsx"));
@@ -85,6 +86,8 @@ export const userRoutes: RouteObject[] = [
 	// the schedule iframe, so it loads fast on a phone.
 	{ path: "/install-changes", element: <InstallChanges /> },
 	{ path: "/ornament-calculator", element: <OrnamentCalculator /> },
+	// Tree Install: the calculator's counts placed on a 3D tree (designer rules).
+	{ path: "/tree-install", element: <TreeInstall /> },
 	{ path: "/tree-counts", element: <TreeCounts /> },
 	{ path: "/search", element: <CatalogSearch /> },
 	{ path: "/settings", element: <Settings /> },
