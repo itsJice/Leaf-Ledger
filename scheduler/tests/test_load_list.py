@@ -25,9 +25,9 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 PURE = ["trailerById", "defaultTrailerId", "normTrailers", "withTrailer", "parseBoxes",
         "sumBoxes", "normLoadStops", "withLoadStop", "stopShares", "nightTrailerLoads",
-        "loadZones", "weekZones", "lateZones", "zoneSizes", "buildLoadPlan", "loadStopName",
+        "loadZones", "weekZones", "lateZones", "zoneSizes", "buildLoadPlan", "loadStopName", "boxRange",
         "nightTag", "nightRuns", "loadEsc", "wrapWords", "boxesTxt", "trailerTitle",
-        "spartanGeom", "trailerOutlineSVG", "trailerSideSVG", "weekSideSVG", "weekTopSVG",
+        "spartanGeom", "trailerOutlineSVG", "weekTopSVG",
         "loadSpartanHTML", "loadWeekHTML", "loadLateHTML", "loadCoverHTML", "loadListHTML"]
 
 
@@ -173,25 +173,31 @@ def test_zone_sizes_follow_boxes_with_a_floor():
 
 
 @needs_node
-def test_week_views_scale_by_boxes_and_the_20_ft_is_shorter():
+def test_week_view_scales_by_boxes_and_the_20_ft_is_shorter():
     out = run(plan_js(json.dumps({"2": {"notReady": True}})) + """
-      const w1=p.weeks[0], w3=p.weeks[2];
-      const side=weekSideSVG(trailerById('bs24'), w1.zones), top=weekTopSVG(trailerById('bs24'), w1.zones, w1.total);
+      const w1=p.weeks[0], w2=p.weeks[1], w3=p.weeks[2];
+      const top=weekTopSVG(trailerById('bs24'), w1.zones, w1.total), top2=weekTopSVG(trailerById('wb24'), w2.zones, w2.total);
       const top20=weekTopSVG(trailerById('ab20'), w3.zones, w3.total), top24=weekTopSVG(trailerById('bs24'), w3.zones, w3.total);
-      const body=svg=>{ const m=/<rect x="150" y="58" width="70" height="([\\d.]+)" fill="none"/.exec(svg); return +m[1]; };
-      const panels=[...side.matchAll(/class="wpanel" data-night="(\\d)" data-stop="(\\d)" data-row="(\\d+)"><rect x="([\\d.]+)" y="\\d+" width="([\\d.]+)"/g)]
-        .map(m=>({n:+m[1], r:+m[3], w:+m[5]}));
-      console.log(JSON.stringify({rows:panels.map(x=>x.r), w20:panels.find(x=>x.r===20).w, w31:panels.find(x=>x.r===31).w,
-        sideBr:[...side.matchAll(/>Night (\\d)</g)].map(m=>+m[1]), topBr:[...top.matchAll(/>Night (\\d)</g)].map(m=>+m[1]),
-        bars:(top.match(/class="nbar"/g)||[]).length, h20:body(top20), h24:body(top24),
-        late:/Test Stop 2 · In the Late Trailer/.test(top), split:top.includes('Test Stop 20: 19 of 39')}));
+      const body=svg=>{ const m=/<rect x="150" y="58" width="90" height="([\\d.]+)" fill="none"/.exec(svg); return +m[1]; };
+      const bands=[...top.matchAll(/class="wrow" data-night="(\\d)" data-stop="(\\d)" data-row="(\\d+)"><rect x="150" y="[\\d.]+" width="90" height="([\\d.]+)"/g)]
+        .map(m=>({n:+m[1], r:+m[3], h:+m[4]}));
+      console.log(JSON.stringify({rows:bands.map(x=>x.r), h20:bands.find(x=>x.r===20).h, h31:bands.find(x=>x.r===31).h,
+        br:[...top.matchAll(/>Night (\\d)</g)].map(m=>+m[1]), bars:(top.match(/class="nbar"/g)||[]).length,
+        t20:body(top20), t24:body(top24), late:/Test Stop 2 · In the Late Trailer/.test(top),
+        r1:top.includes('Boxes 1–19 of 39'), r2:top2.includes('Boxes 20–39 of 39'), side:/wside|wpanel/.test(top)}));
     """)
     assert out["rows"] == [31, 30, 21, 20, 3, 1]          # in-production row 2 takes no floor
-    assert out["w20"] > out["w31"]
-    assert out["sideBr"] == out["topBr"] == [3, 2, 1]
-    assert out["bars"] == 6
-    assert out["h20"] < out["h24"]
-    assert out["late"] and out["split"]
+    assert out["h20"] > out["h31"]
+    assert out["br"] == [3, 2, 1] and out["bars"] == 6
+    assert out["t20"] < out["t24"]
+    assert out["late"] and out["r1"] and out["r2"] and not out["side"]
+
+
+@needs_node
+def test_box_ranges():
+    out = run("""console.log(JSON.stringify([loadStopName({name:'A', shared:true, boxes:19, full:39, from:1, to:19}),
+      loadStopName({name:'A', shared:true, boxes:20, full:39, from:20, to:39}), loadStopName({name:'B', shared:true, boxes:4, full:4, from:1, to:4})]));""")
+    assert out == ["A: Boxes 1–19 of 39", "A: Boxes 20–39 of 39", "B"]
 
 
 @needs_node
