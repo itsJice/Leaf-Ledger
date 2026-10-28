@@ -24,15 +24,14 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 PURE = ["trailerById", "defaultTrailerId", "normTrailers", "withTrailer", "parseBoxes",
         "sumBoxes", "leadCrewStops", "nightTrailerLoads", "loadZones", "truckZones",
         "zoneSizes", "buildLoadPlan", "loadEsc", "wrapWords", "boxesTxt",
-        "trailerOutlineSVG", "truckOutlineSVG", "loadSpartanHTML", "loadTruckHTML",
-        "loadCoverHTML", "loadListHTML"]
+        "trailerTitle", "spartanGeom", "trailerOutlineSVG", "trailerSideSVG", "truckSideSVG",
+        "truckOutlineSVG", "loadSpartanHTML", "loadTruckHTML", "loadCoverHTML", "loadListHTML"]
 
 
 def trailers_const():
     m = re.search(r"^const TRAILERS=\[.*?^\];\nconst TRUCK50=.*?$", TEMPLATE, re.M | re.S)
     assert m
-    return m.group(0) + "\nconst LOAD_SOURCE=" + re.search(
-        r"^const LOAD_SOURCE=(\{.*?^\});", TEMPLATE, re.M | re.S).group(1) + ";\n"
+    return m.group(0) + "\n"
 
 
 def run(body):
@@ -45,7 +44,7 @@ def stop(row, boxes, name=None):
 
 
 def crew(i, stops, trailer=None, title=None):
-    return {"id": f"d|Crew {i}", "title": title or f"Crew {i}", "lead": [],
+    return {"id": f"d|Crew {i}", "title": title or f"Crew {i}", "pos": i, "lead": [],
             "trailerId": trailer or ["bs24", "wb24", "ab20"][i - 1], "stops": stops}
 
 
@@ -114,13 +113,13 @@ def test_dallas_plan_night_one_in_spartans_rest_in_the_truck():
       console.log(JSON.stringify({{
         spartans:p.spartans.map(x=>[x.night, x.trailerId, x.source, x.total]),
         transfers:p.transfers.map(x=>[x.night, x.trailerId, x.source, x.zones.map(z=>z.row)]),
-        truck:p.truck.zones.slice().sort((a,b)=>a.pull-b.pull).map(z=>[z.pull, z.load, z.night, z.trailerSeq, z.row]),
+        truck:p.truck.zones.slice().sort((a,b)=>a.seq-b.seq).map(z=>[z.seq, z.load, z.night, z.trailerNum, z.row]),
         truckTotal:p.truck.total, nightTotals:p.truck.nights.map(n=>[n.night,n.total]),
         grand:p.grand, stops:p.stops, missing:p.missing}}));
     """)
-    assert out["spartans"] == [[1, "bs24", "warehouse", 24], [1, "wb24", "warehouse", 11],
-                               [1, "ab20", "warehouse", 7]]
-    # Pull order from the truck doors: night 2 first; Trailer 1's set, then
+    assert out["spartans"] == [[1, "bs24", "shop", 24], [1, "wb24", "shop", 11],
+                               [1, "ab20", "shop", 7]]
+    # Order off the Big Truck at the Doors: night 2 first; Trailer 1's set, then
     # 2's, then 3's; each set in its Spartan's loading order (last stop first).
     assert out["truck"] == [
         [1, 9, 2, 1, 21], [2, 8, 2, 1, 20],
@@ -170,20 +169,44 @@ def test_zone_sizes_follow_boxes_with_a_floor():
 
 
 @needs_node
-def test_the_20_ft_outline_is_shorter_than_the_24s():
+def test_the_20_ft_outline_is_shorter_than_the_24s_in_both_views():
     out = run("""
-      const z=loadZones([{row:1,name:'A',boxes:3,inst:1,of:2},{row:2,name:'B',boxes:5,inst:2,of:2}],'install');
-      const box=svg=>{ const m=[...svg.matchAll(/<rect x="([\\d.]+)" y="58" width="([\\d.]+)" height="212" fill="none"/g)]; return +m[0][2]; };
-      const s20=trailerOutlineSVG(trailerById('ab20'), z, 'install'), s24=trailerOutlineSVG(trailerById('bs24'), z, 'install');
-      console.log(JSON.stringify({w20:box(s20), w24:box(s24), len20:/data-len="20"/.test(s20), len24:/data-len="24"/.test(s24),
-        parts:['NOSE: load first','REAR DOOR: load last / unload first','SIDE DOOR (curb side)','wheel well','REAR RAMP DOOR','LOAD #1','Loaded ____ / 5']
-          .map(t=>s24.includes(t)), first:s24.indexOf('>B<')<s24.indexOf('>A<')}));
+      const z=loadZones([{row:1,name:'Test A',boxes:3,inst:1,of:2},{row:2,name:'Test B',boxes:5,inst:2,of:2}],'install');
+      const box=svg=>+/<rect x="[\\d.]+" y="24" width="([\\d.]+)" height="212" fill="none"/.exec(svg)[1];
+      const body=svg=>{ const m=/M([\\d.]+) 168 L[\\d.]+ [\\d.]+ Q[\\d.]+ [\\d.]+ [\\d.]+ [\\d.]+ L([\\d.]+) /.exec(svg); return +m[2]-(+m[1]); };
+      const t20=trailerOutlineSVG(trailerById('ab20'), z), t24=trailerOutlineSVG(trailerById('bs24'), z);
+      const s20=trailerSideSVG(trailerById('ab20'), z), s24=trailerSideSVG(trailerById('bs24'), z);
+      const xs=svg=>[...svg.matchAll(/<g class="(?:zone|panel)" data-stop="(\\d)"[^>]*><rect x="([\\d.]+)" y="[\\d.]+" width="([\\d.]+)"/g)].map(m=>[+m[1], Math.round(+m[2]), Math.round(+m[3])]);
+      console.log(JSON.stringify({w20:box(t20), w24:box(t24), b20:body(s20), b24:body(s24),
+        top:xs(t24), side:xs(s24), words:['NOSE','DOORS','Stop 2','Stop 1','5 boxes'].map(t=>t24.includes(t)||s24.includes(t)).concat([s24.includes('Test A'), !t24.includes('Test A')])}));
     """)
     assert out["w20"] == 500 and out["w24"] == 600   # 25 px a foot
-    assert out["len20"] and out["len24"]
-    assert all(out["parts"])
-    # The last stop (B) is drawn first, at the nose.
-    assert out["first"]
+    assert out["b20"] == 500 and out["b24"] == 600
+    assert all(out["words"])
+    # Stop 2 (the last stop) is at the Nose, Stop 1 at the Doors, in both
+    # views; panels line up and are sized by boxes (5 vs 3).
+    assert [x[0] for x in out["top"]] == [2, 1]
+    assert [[a[0], a[1] + 4, a[2] - 8] for a in out["top"]] == out["side"]
+    assert out["top"][0][2] > out["top"][1][2]
+
+
+@needs_node
+def test_big_truck_side_view_nights_and_trailers():
+    out = run(f"""
+      const p=buildLoadPlan({json.dumps(NIGHTS)}, {{dallas:true}});
+      const s=truckSideSVG(p.truck);
+      const blocks=[...s.matchAll(/class="tblock" data-night="(\\d)" data-trailer="(\\d)" data-row="(\\d+)" x="([\\d.]+)" y="\\d+" width="([\\d.]+)"/g)]
+        .map(m=>({{n:+m[1], t:+m[2], r:+m[3], w:+m[5]}}));
+      console.log(JSON.stringify({{order:blocks.map(b=>[b.n,b.t,b.r]), w20:blocks.find(b=>b.r===20).w, w32:blocks.find(b=>b.r===32).w,
+        brackets:[...s.matchAll(/>Night (\\d)</g)].map(m=>+m[1]), doors:s.includes('DOORS: unload this end first')}}));
+    """)
+    # Nose (left) to Doors (right): Night 3 then Night 2; within a night
+    # Trailer 3, 2, 1; Trailer 1 of Night 2 is last, its Stop 1 (row 20) in
+    # front of its Stop 2 (row 21).
+    assert out["order"] == [[3, 3, 32], [3, 3, 33], [3, 2, 31], [3, 1, 30],
+                            [2, 3, 23], [2, 3, 24], [2, 2, 22], [2, 1, 20], [2, 1, 21]]
+    assert out["w20"] > out["w32"]          # 39 boxes vs 2
+    assert out["brackets"] == [3, 2] and out["doors"]
 
 
 @needs_node
@@ -191,20 +214,22 @@ def test_printed_pages_cover_spartans_truck_and_transfers():
     out = run(f"""
       const p=buildLoadPlan({json.dumps(NIGHTS)}, {{dallas:true}});
       const h=loadListHTML(p, 'Dallas load list', 'Printed now');
-      console.log(JSON.stringify({{sections:[...h.matchAll(/<section class="lpage ([a-z0-9]+)"/g)].map(m=>m[1]),
-        h, missingNeeds:h.includes('NEEDS COUNT')}}));
+      console.log(JSON.stringify({{sections:[...h.matchAll(/<section class="lpage ([a-z0-9]+)"/g)].map(m=>m[1]), h}}));
     """)
-    assert out["sections"] == ["cover", "spartan", "spartan", "spartan", "truck", "truck2",
+    assert out["sections"] == ["cover", "spartan", "spartan", "spartan", "truck",
                                "spartan", "spartan", "spartan", "spartan", "spartan", "spartan"]
     h = out["h"]
-    assert "Transfer to Spartans before Night 2".lower() in h.lower()
-    assert "Night 2 · Tue 11/03/2026: transfer to Spartans before Night 2" in h
-    assert "PULL 1" in h and "Pull 1 comes off first" in h
-    assert "Grand total" in h and "All 4 trailers" in h
+    assert "Trailer 1 · Black &amp; Silver (24 ft)" in h
+    assert "Trailer 3 · All Black (20 ft)" in h
+    assert "Big Truck" in h and "from the Big Truck" in h
+    assert "Load Stop 3 first, at the Nose. Stop 1 goes in last, at the Doors." in h
+    assert "Night 2 · Trailer 1 · Stop 1" in h
+    assert "<th>Stop</th><th>Restaurant</th><th class=\"c\">Expected</th><th class=\"c\">Loaded</th>" in h
     assert "Loaded by" in h and "Checked by" in h
-    assert "50 ft truck" in h
-    assert out["missingNeeds"]
-    assert "—" not in h   # no em dashes on the sheets
+    # One vocabulary: none of the old or competing words.
+    for word in ("Pull", "PULL", "pull ", "load #", "LOAD #", "50 ft", "ramp door", "RAMP",
+                 "front wall", "install order", "Install order", "warehouse", "Spartan", "—"):
+        assert word not in h, word
 
 
 @needs_node
