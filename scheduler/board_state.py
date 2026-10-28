@@ -45,7 +45,7 @@ SYNTHETIC_ROW = 900000
 
 #: Keys in a state snapshot that are keyed by client row, or contain rows.
 #: Anything not listed here is carried verbatim.
-ROW_KEYED_MAPS = ("comments", "lastScheduledFrom")
+ROW_KEYED_MAPS = ("comments", "lastScheduledFrom", "loadStops")
 ROW_LISTS = ("notInstalling", "confirmed")
 
 
