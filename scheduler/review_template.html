@@ -15652,7 +15652,7 @@ function weekSideSVG(trailer, zones){
     s+=`<g class="wpanel" data-night="${z.night}" data-stop="${z.inst}" data-row="${e(z.row)}">`
       +`<rect x="${px}" y="${top}" width="${w}" height="${floor-top}" fill="${z.night%2?'#fff':'#e6e6e6'}" stroke="#777" stroke-width="1"/>`
       +(z.late
-        ? `<text x="${px+w/2}" y="${top+50}" text-anchor="middle" font-size="12" font-weight="800">${e(w>=60?(z.crews||[]).join(' + '):(z.crews||[]).map(c=>String(c).replace(/^Crew /,'')).join('+'))}</text>`
+        ? `<text x="${px+w/2}" y="${top+52}" text-anchor="middle" font-size="${w>=40?22:15}" font-weight="800">C${e((z.crews||[]).map(c=>(/Crew (\d+)/.exec(c)||[])[1]||'?').join('+'))}</text>`
         : `<text x="${px+w/2}" y="${top+52}" text-anchor="middle" font-size="${w>=34?26:18}" font-weight="800">${z.inst}</text>`)+`</g>`;
   });
   nightRuns(on).forEach(r=>{
