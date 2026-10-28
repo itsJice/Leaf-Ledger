@@ -497,6 +497,7 @@ body.drafting #main{box-shadow:inset 0 0 0 2px var(--warn)}
   #draftbanner button{min-height:40px;flex:1} }
 .chead .mvdaybtn{margin-left:auto}
 .chead .mvdaybtn + .printbtn{margin-left:0}
+.chead .sheetbtn + .loadbtn{margin-left:0}
 #rrdlg{max-width:470px;width:calc(100vw - 32px)}
 .rrsub{margin:4px 0 8px;font-size:12px;color:var(--mut);line-height:1.4}
 .rrlab{font-size:12px;font-weight:700;color:var(--mut)}
@@ -900,6 +901,8 @@ body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 @media (min-width:768px) and (hover:hover){ .shnin{font-size:13px} }
 .shnhint{font-size:10.5px;color:var(--faint);margin-top:3px}
 .stfnote{margin:8px 0 2px}
+.stftrl{display:inline-flex;align-items:center;gap:6px;margin:2px 10px 2px 0;font-size:13px}
+.stftrl select{font-size:16px;min-height:40px;border:1px solid var(--line);border-radius:7px;padding:4px 8px;background:var(--card,#fff);color:inherit}
 .stfnotelbl{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin-bottom:4px}
 #stfdlg .stfnote .shnin{border-color:var(--line)}
@@ -2728,6 +2731,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
   <div class="stfnote" id="stfnote"></div>
+  <div class="stfnote" id="stftrailer"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div id="stfweek"></div>
   <div id="stftrain"></div>
@@ -3570,6 +3574,15 @@ function crewLabelShort(d){ return crewLabel(d).replace('Crew ','C'); }
 // Training days have no crew to name.
 const CREW_NAME_MAX = 40;
 let crewNames = {};
+// Trailer picks for the load lists (see "trailer load lists"); declared
+// here because the saved state is read long before that section.
+const TRAILERS=[
+  {id:'bs24', name:'Black & Silver (24 ft)', len:24, folder:'Black and Silver 2026 Spartan 8.5x24'},
+  {id:'wb24', name:'White & Black (24 ft)', len:24, folder:'White and Black 2025 Spartan 8.5x24'},
+  {id:'ab20', name:'All Black (20 ft)', len:20, folder:'All Black 2026 Spartan 8.5x20'},
+];
+const TRUCK50={id:'truck50', name:'50 ft truck', len:53};
+let trailers={};
 /** PURE. A typed name as stored: whitespace collapsed, trimmed, capped. */
 function normCrewName(v){
   return String(v==null?'':v).replace(/\s+/g,' ').trim().slice(0, CREW_NAME_MAX);
@@ -4133,6 +4146,7 @@ try{
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     crewNames = normCrewNames(s.crewNames);
+    trailers = normTrailers(s.trailers, trailerKeys());
     shiftNotes = normShiftNotes(s.shiftNotes);
     teams = loadTeams(s.teams);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
@@ -4240,7 +4254,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes','trailers'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -4325,7 +4339,8 @@ function mergeShared(base, mine, theirs, label){
                   stopPin:r=>`${label('row',r)}: position lock`,
                   lastScheduledFrom:r=>`${label('row',r)}: previous date`,
                   crewNames:k=>`Crew name for ${label('shift',k)}`,
-                  shiftNotes:k=>`Note for ${label('shift',k)}`};
+                  shiftNotes:k=>`Note for ${label('shift',k)}`,
+                  trailers:k=>`Trailer for ${label('shift',k)}`};
   // A note is the same note when its text is: a stamp alone is no edit.
   const MAP_NORM={placement:sortedIds, shiftNotes:v=>(v && typeof v==='object') ? v.text : v};
   SHARED_MAP_KEYS.forEach(k=>{
@@ -4519,7 +4534,7 @@ function snapshot(){
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
-          shiftNotes, roster, staffing, teams, crewNames, savedAt:Date.now()};
+          trailers, shiftNotes, roster, staffing, teams, crewNames, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -5665,6 +5680,7 @@ async function restoreHistoryEntry(entryId, btn){
     comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     crewNames = normCrewNames(st.crewNames);
+    trailers = normTrailers(st.trailers, trailerKeys());
     shiftNotes = normShiftNotes(st.shiftNotes);
     teams = loadTeams(st.teams);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
@@ -5691,7 +5707,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, shiftNotes, roster, staffing, teams, crewNames});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, trailers, shiftNotes, roster, staffing, teams, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -5713,6 +5729,7 @@ function restoreBlob(blob){
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
   crewNames = normCrewNames(s.crewNames);
+  trailers = normTrailers(s.trailers, trailerKeys());
   shiftNotes = normShiftNotes(s.shiftNotes);
   teams = loadTeams(s.teams);
   return missing;
@@ -8936,6 +8953,7 @@ function buildDayCard(d){
     ${(sh=>!READONLY && sh && sh.days.some(x=>(staffing[x.id]||[]).length)
       ? `<button type="button" class="printbtn picon remcardbtn" data-remind="${esc(d.date)}" data-remkeys="${esc(sh.key)}" title="Text this crew a reminder of their shift" aria-label="Text ${esc(crewTitle(d))} a reminder">${IC.msg}</button>` : '')(shiftOfDay(d))}
     <button type="button" class="printbtn picon sheetbtn" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
+    ${d.training?'':`<button type="button" class="printbtn picon loadbtn" title="${isDallasDate(d.date)?'Print the trailer load list for this Dallas week':'Print the trailer load list for this date'}" aria-label="Print load list">${IC.pkg}</button>`}
     <button class="okbtn ${approved.has(d.id)?'on':''}">${IC.check} ${approved.has(d.id)?'Approved':'Approve'}</button>
   </div>
   ${(()=>{ const cf=lockConflicts(d.stops, r=>pinOf(r, d), orderName);
@@ -8955,6 +8973,8 @@ function buildDayCard(d){
     e.stopPropagation();
     printManifests([d], `${crewTitle(d)} · ${fmtMDYYYY(d.date)}`);
   };
+  { const lb=card.querySelector('.loadbtn');
+    if(lb) lb.onclick=e=>{ e.stopPropagation(); printLoadList(d.date); }; }
   wireRemButtons(card);
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
   { const mb=card.querySelector('.mvdaybtn');
@@ -9332,6 +9352,11 @@ function renderCards(){
         pb.innerHTML=IC.print;
         pb.onclick=()=>printDate(dt);
         dh.appendChild(pb);
+        const lb=document.createElement('button');
+        lb.className='printbtn picon'; lb.title=isDallasDate(dt)?'Print the trailer load list for this Dallas week':'Print the trailer load list for this date';
+        lb.setAttribute('aria-label','Print load list'); lb.innerHTML=IC.pkg;
+        lb.onclick=()=>printLoadList(dt);
+        dh.appendChild(lb);
       }
       { const rl=remHeadHTML(dt, null, remShifts);
         if(rl){ dh.style.flexWrap='wrap'; const r=document.createElement('div'); r.className='dhrem'; r.innerHTML=rl; dh.appendChild(r); wireRemButtons(r); } }
@@ -9383,6 +9408,13 @@ function renderCards(){
     all.textContent=`Print all ${onThisDate.length} crew sheets for ${dowOf(selDate)} ${fmtMDYYYY(selDate)}`;
     all.onclick=()=>printDate(selDate);
     side.appendChild(all);
+  }
+  if(onThisDate.some(d=>d.stops.length && !d.training)){
+    const lb=document.createElement('button');
+    lb.className='printbtn'; lb.style.cssText='margin:0 0 10px;width:100%';
+    lb.innerHTML=`${IC.pkg} ${isDallasDate(selDate)?'Print the Dallas load list (trailers + 50 ft truck)':'Print the trailer load list'}`;
+    lb.onclick=()=>printLoadList(selDate);
+    side.appendChild(lb);
   }
   onThisDate.forEach(d=>side.appendChild(buildDayCard(d)));
   // Blank boxes the user clicked "+ Add a crew" for but hasn't dropped a
@@ -12654,6 +12686,8 @@ function drawStaffDlg(){
   if(noteBox && !(document.activeElement && document.activeElement.id==='stfnoteta')){
     noteBox.innerHTML=stfNoteHTML(sh); wireStfNote(sh);
   }
+  { const trBox=document.getElementById('stftrailer');
+    if(trBox){ trBox.innerHTML=stfTrailerHTML(sh); trBox.hidden=!trBox.innerHTML; wireStfTrailer(trBox); } }
   const clearBtn=document.getElementById('stfclear');
   clearBtn.disabled=READONLY || !shiftAssigned(sh).size;
   clearBtn.onclick=()=>stfClear(sh);
@@ -15198,6 +15232,494 @@ function printDate(dt){
     `Crew sheets — ${fmtMDYYYY(dt)}`);
 }
 
+// ---------- trailer load lists ----------
+// "make them a 'load list' for dallas based on Trailer in reverse order of
+// installation ... the first stop of the night will be loaded last so its at
+// the front of the trailer. instead of a list do a trailer out line" (user,
+// 2026-10-28). Then: "only load the first day of installs into the trailers
+// ... the rest will be loaded into a huge 50-foot trailer truck", and the
+// truck stays parked at the hotel: before each later night the crews move
+// that night's boxes from the truck into their Spartans.
+//
+// The rules, in one place:
+//  - Each stop's boxes ride in ONE trailer: its lead crew's. A joint stop
+//    (two crews on one stop) rides with the first crew listed that night.
+//  - A Spartan is loaded in REVERSE install order: the night's last stop goes
+//    in first, against the nose; the first stop goes in last, at the rear
+//    door, so it comes off first.
+//  - A Dallas install run: night 1 loads at the warehouse into the three
+//    Spartans. Every later night goes in the 50 ft truck, pulled from the
+//    doors: night 2 first, then night 3 ...; within a night Trailer 1's set,
+//    then Trailer 2's, then Trailer 3's; within a set the Spartan's own
+//    loading order (its last stop first, straight into the nose). The truck
+//    is loaded at the warehouse in exactly the reverse of that pull order.
+//  - A takedown night fills the Spartan as it goes, so the first stop is at
+//    the nose (there is nothing to reverse).
+// Shared state `trailers` is {crew-day id: trailer id}; a crew-day without
+// one uses its crew number's default (defaultTrailerId).
+function trailerById(id){ return TRAILERS.find(t=>t.id===id) || (id===TRUCK50.id ? TRUCK50 : null); }
+/** PURE. The trailer a crew number gets when nobody picked one: Crew 1 the
+ *  Black & Silver, Crew 2 the White & Black, Crew 3 the short All Black. */
+function defaultTrailerId(pos){
+  const i=Math.max(1, Math.floor(+pos)||1)-1;
+  return TRAILERS[i % TRAILERS.length].id;
+}
+/** PURE. Saved trailer picks as this page keeps them: known trailer ids only,
+ *  for crew-days in `keys` (a Set; every key when omitted). */
+function normTrailers(obj, keys){
+  const out={};
+  if(obj && typeof obj==='object' && !Array.isArray(obj))
+    Object.keys(obj).sort().forEach(k=>{
+      const v=obj[k];
+      if(typeof v==='string' && TRAILERS.some(t=>t.id===v) && (!keys || keys.has(k))) out[k]=v;
+    });
+  return out;
+}
+/** PURE. `map` with crew-day `key` on trailer `id`; no id (or an unknown
+ *  one) puts it back on its default. */
+function withTrailer(map, key, id){
+  const out={...(map||{})};
+  if(id && TRAILERS.some(t=>t.id===id)) out[key]=id; else delete out[key];
+  return out;
+}
+/** Every crew-day a trailer can be saved for right now. */
+function trailerKeys(){ return new Set(days.filter(d=>!d.training).map(d=>d.id)); }
+function crewPos(d){ const m=/(\d+)\s*$/.exec(crewLabel(d)); return m ? +m[1] : 1; }
+function trailerIdOf(d){ return trailers[d.id] || defaultTrailerId(crewPos(d)); }
+/** Save one crew-day's trailer (shared, undoable). False when nothing changed. */
+function setTrailer(key, id){
+  if(roBlocked()) return false;
+  const next=withTrailer(trailers, key, id);
+  if(stableJSON(next)===stableJSON(trailers)) return false;
+  pushUndo();
+  trailers=next;
+  persist(); render();
+  return true;
+}
+/** PURE. A box count as a number, or null when it's blank (NEEDS COUNT). */
+function parseBoxes(v){
+  if(v==null || String(v).trim()==='') return null;
+  const n=parseFloat(v);
+  return isFinite(n) && n>=0 ? n : null;
+}
+/** PURE. Boxes in a list of zones/stops (blank counts add nothing). */
+function sumBoxes(list){ return (list||[]).reduce((a,z)=>a+(z.boxes==null?0:+z.boxes),0); }
+/** PURE. Which crew carries each stop. crews: [{id, stops:[row...]}] in crew
+ *  order, stops in install order. A row on two crews rides with the FIRST
+ *  (its lead crew). Returns {lead:{row:id}, byCrew:{id:[{row, inst, with:[ids]}]}}. */
+function leadCrewStops(crews){
+  const lead={}, byCrew={};
+  (crews||[]).forEach(c=>{ byCrew[c.id]=[]; (c.stops||[]).forEach(r=>{ if(!(r in lead)) lead[r]=c.id; }); });
+  (crews||[]).forEach(c=>(c.stops||[]).forEach((r,i)=>{
+    if(lead[r]===c.id) byCrew[c.id].push({row:r, inst:i+1,
+      with:crews.filter(x=>x.id!==c.id && (x.stops||[]).includes(r)).map(x=>x.id)});
+  }));
+  return {lead, byCrew};
+}
+/** PURE. One night's trailers. crews: [{id, title, lead, trailerId,
+ *  stops:[{row, name, city, boxes}]}] in crew order, stops in install order.
+ *  Crews on the same trailer share it (stops one after the other). Returns
+ *  [{trailerId, crews:[title], leads:[name], stops:[{...stop, inst, of,
+ *  crew, sharedWith:[title]}]}] in crew order, trailers with nothing on them
+ *  left out. */
+function nightTrailerLoads(crews){
+  const L=leadCrewStops((crews||[]).map(c=>({id:c.id, stops:(c.stops||[]).map(s=>s.row)})));
+  const groups=[], byT={};
+  (crews||[]).forEach(c=>{
+    let g=byT[c.trailerId];
+    if(!g){ g=byT[c.trailerId]={trailerId:c.trailerId, crews:[], leads:[], stops:[]}; groups.push(g); }
+    if(!g.crews.includes(c.title)) g.crews.push(c.title);
+    (c.lead||[]).forEach(n=>{ if(!g.leads.includes(n)) g.leads.push(n); });
+    L.byCrew[c.id].forEach(x=>{
+      const s=c.stops.find(y=>y.row===x.row);
+      g.stops.push({...s, crew:c.title,
+        sharedWith:x.with.map(id=>((crews.find(k=>k.id===id)||{}).title)||'')});
+    });
+  });
+  groups.forEach(g=>g.stops.forEach((s,i)=>{ s.inst=i+1; s.of=g.stops.length; }));
+  return groups.filter(g=>g.stops.length);
+}
+/** PURE. A Spartan's stops (install order) as zones in LOADING order: zone
+ *  #1 goes in first, against the nose. An install loads in reverse install
+ *  order (the first stop ends up at the rear door and comes off first); a
+ *  takedown fills as the night goes (the first stop is at the nose). */
+function loadZones(stops, kind){
+  const seq=kind==='takedown' ? (stops||[]).slice() : (stops||[]).slice().reverse();
+  return seq.map((s,i)=>({...s, load:i+1}));
+}
+/** PURE. The 50 ft truck's zones. nights: [{night, date, label, groups:[{trailerId,
+ *  crews, stops (install order)}]}] in date order (night 2 onward). Pull order
+ *  from the doors: night by night; within a night trailer by trailer; within
+ *  a trailer that Spartan's loading order (its last stop first). Returns the
+ *  zones in LOADING order (load #1 against the nose), each with `pull` (1 =
+ *  first off at the doors), `load`, `trailerSeq` (1 = Trailer 1 that night). */
+function truckZones(nights){
+  const pull=[];
+  (nights||[]).forEach(n=>(n.groups||[]).forEach((g,gi)=>loadZones(g.stops,'install').forEach(z=>{
+    pull.push({...z, night:n.night, date:n.date, nightLabel:n.label, trailerId:g.trailerId,
+               crews:g.crews, trailerSeq:gi+1});
+  })));
+  return pull.map((z,i)=>({...z, pull:i+1})).reverse().map((z,i)=>({...z, load:i+1}));
+}
+/** PURE. Split `total` into zone sizes proportional to box counts, none
+ *  smaller than `min` (all equal when even that doesn't fit). */
+function zoneSizes(counts, total, min){
+  const n=(counts||[]).length; if(!n) return [];
+  if(n*min>=total) return counts.map(()=>total/n);
+  const w=counts.map(c=>Math.max(1, +c||0)), sw=w.reduce((a,b)=>a+b,0), free=total-n*min;
+  return w.map(x=>min+free*x/sw);
+}
+/** PURE. The whole load plan. nights: [{night, date, label, kind:'install'|
+ *  'takedown', crews:[...as nightTrailerLoads]}] with stops, in date order.
+ *  opts.dallas: an install run of several Dallas nights puts night 1 in the
+ *  Spartans and the rest in the 50 ft truck, with a transfer page per
+ *  Spartan for each later night. Returns {spartans:[page], truck, transfers:
+ *  [page], grand, stops, missing:[{name, date}], dallas, useTruck}. */
+function buildLoadPlan(nights, opts){
+  const dallas=!!(opts && opts.dallas);
+  const list=(nights||[]).filter(n=>(n.crews||[]).some(c=>(c.stops||[]).length));
+  const allInstall=list.length && list.every(n=>n.kind!=='takedown');
+  const useTruck=dallas && allInstall && list.length>1;
+  const loads=list.map(n=>({...n, groups:nightTrailerLoads(n.crews)}));
+  const spartans=[], transfers=[];
+  loads.forEach((n,i)=>n.groups.forEach((g,gi)=>{
+    const source=n.kind==='takedown' ? 'takedown' : (useTruck && i>0 ? 'truck' : 'warehouse');
+    const zones=loadZones(g.stops, n.kind).map(z=>({...z, nightLabel:n.label}));
+    const page={night:n.night, date:n.date, label:n.label, kind:n.kind, source, trailerSeq:gi+1,
+      trailerId:g.trailerId, crews:g.crews, leads:g.leads, zones, total:sumBoxes(zones),
+      missing:zones.filter(z=>z.boxes==null).length};
+    (source==='truck' ? transfers : spartans).push(page);
+  }));
+  let truck=null;
+  if(useTruck){
+    const later=loads.slice(1);
+    const zones=truckZones(later);
+    truck={zones, total:sumBoxes(zones),
+      nights:later.map(n=>({night:n.night, date:n.date, label:n.label,
+        total:sumBoxes(zones.filter(z=>z.night===n.night)), stops:zones.filter(z=>z.night===n.night).length}))};
+  }
+  const carried=[...spartans.flatMap(p=>p.zones), ...(truck ? truck.zones : [])];
+  return {dallas, useTruck, spartans, truck, transfers, grand:sumBoxes(carried), stops:carried.length,
+    nights:loads.map(n=>({night:n.night, date:n.date, label:n.label, kind:n.kind, groups:n.groups})),
+    missing:carried.filter(z=>z.boxes==null).map(z=>({name:z.name, label:z.nightLabel||''}))};
+}
+function loadEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+/** PURE. A name broken into lines of at most `n` characters (max `max` lines). */
+function wrapWords(s, n, max){
+  const words=String(s||'').split(/\s+/).filter(Boolean), lines=[];
+  let cur='';
+  words.forEach(w=>{
+    if(!cur) cur=w;
+    else if((cur+' '+w).length<=n) cur+=' '+w;
+    else { lines.push(cur); cur=w; }
+  });
+  if(cur) lines.push(cur);
+  if(lines.length>max){ const keep=lines.slice(0,max); keep[max-1]=keep[max-1].slice(0, Math.max(1,n-1))+'…'; return keep; }
+  return lines.map(l=>l.length>n ? l.slice(0,n-1)+'…' : l);
+}
+function boxesTxt(b){ return b==null ? '?' : String(b); }
+/** PURE. A Spartan seen from above: V-nose and hitch on the left, rear ramp
+ *  door on the right, the side door on the curb side near the front, wheel
+ *  wells mid-length on both walls over a tandem axle. Drawn to scale (25 px
+ *  a foot), so the 20 ft All Black is visibly shorter. The floor is split
+ *  into the load zones (sized by boxes), #1 at the nose. */
+function trailerOutlineSVG(trailer, zones, kind){
+  const t=trailer||TRAILERS[0], PX=25, L=t.len*PX, BH=212, VN=44, TG=46;
+  const x0=14, bx=x0+TG+VN, by=58, mid=by+BH/2, door=10;
+  const e=loadEsc;
+  let s=`<svg class="trl" data-trailer="${e(t.id)}" data-len="${t.len}" viewBox="0 0 720 352" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">`;
+  // hitch: A-frame tongue to the coupler
+  s+=`<line x1="${x0+8}" y1="${mid}" x2="${bx-VN+6}" y2="${mid-16}" stroke="#222" stroke-width="3"/>`
+    +`<line x1="${x0+8}" y1="${mid}" x2="${bx-VN+6}" y2="${mid+16}" stroke="#222" stroke-width="3"/>`
+    +`<circle cx="${x0+8}" cy="${mid}" r="7" fill="#fff" stroke="#222" stroke-width="2.5"/>`;
+  // tires (tandem axle) outside both walls, under the wheel wells
+  const cx=bx+L/2;
+  [[cx-66,by-13],[cx+8,by-13],[cx-66,by+BH+3],[cx+8,by+BH+3]].forEach(([x,y])=>{
+    s+=`<rect x="${x}" y="${y}" width="58" height="10" rx="3" fill="#555"/>`; });
+  // floor zones
+  const sizes=zoneSizes(zones.map(z=>z.boxes), L-door, 88);
+  let x=bx;
+  zones.forEach((z,i)=>{
+    const w=sizes[i], c=x+w/2, nl=wrapWords(z.name, Math.max(8, Math.floor((w-10)/6.3)), 3);
+    s+=`<g class="zone" data-load="${z.load}" data-row="${e(z.row)}">`
+      +`<rect x="${x}" y="${by}" width="${w}" height="${BH}" fill="${i%2?'#efefef':'#fff'}" stroke="#777" stroke-width="1" stroke-dasharray="${i?'5 3':'0'}"/>`
+      +`<text x="${c}" y="${by+46}" text-anchor="middle" font-size="18" font-weight="800">LOAD #${z.load}</text>`
+      +nl.map((ln,k)=>`<text x="${c}" y="${by+66+k*13}" text-anchor="middle" font-size="11" font-weight="700">${e(ln)}</text>`).join('')
+      +`<text x="${c}" y="${by+112}" text-anchor="middle" font-size="10">Stop ${z.inst} of ${z.of}${z.sharedWith&&z.sharedWith.length?' · joint':''}</text>`
+      +`<text x="${c}" y="${by+130}" text-anchor="middle" font-size="13" font-weight="800">${z.boxes==null?'NEEDS COUNT':`${z.boxes} box${z.boxes===1?'':'es'}`}</text>`
+      +`<text x="${c}" y="${by+150}" text-anchor="middle" font-size="11">Loaded ____ / ${boxesTxt(z.boxes)}</text>`
+      +`<rect x="${c-7}" y="${by+158}" width="14" height="14" fill="#fff" stroke="#222" stroke-width="1.5"/>`
+      +`</g>`;
+    x+=w;
+  });
+  // wheel wells on both walls (drawn over the floor)
+  s+=`<rect x="${cx-70}" y="${by}" width="140" height="22" fill="#d4d4d4" stroke="#444"/>`
+    +`<rect x="${cx-70}" y="${by+BH-22}" width="140" height="22" fill="#d4d4d4" stroke="#444"/>`
+    +`<text x="${cx}" y="${by+15}" text-anchor="middle" font-size="9" fill="#333">wheel well</text>`
+    +`<text x="${cx}" y="${by+BH-7}" text-anchor="middle" font-size="9" fill="#333">wheel well</text>`;
+  // the box: V-nose + walls, a gap for the side door, the ramp door
+  s+=`<path d="M${bx} ${by} L${bx-VN} ${mid} L${bx} ${by+BH}" fill="#fff" stroke="#111" stroke-width="3"/>`
+    +`<text x="${bx-VN/2+4}" y="${mid+4}" text-anchor="middle" font-size="10" font-weight="800">NOSE</text>`
+    +`<rect x="${bx}" y="${by}" width="${L}" height="${BH}" fill="none" stroke="#111" stroke-width="3"/>`;
+  const sd=bx+26;
+  s+=`<line x1="${sd}" y1="${by}" x2="${sd+64}" y2="${by}" stroke="#fff" stroke-width="5"/>`
+    +`<path d="M${sd} ${by} L${sd} ${by-30} M${sd} ${by-30} A64 64 0 0 1 ${sd+64} ${by}" fill="none" stroke="#111" stroke-width="1.5" stroke-dasharray="3 2"/>`
+    +`<text x="${sd+70}" y="${by-18}" font-size="10" font-weight="700">SIDE DOOR (curb side)</text>`;
+  s+=`<rect x="${bx+L-door}" y="${by}" width="${door}" height="${BH}" fill="#333"/>`
+    +`<text x="${bx+L-door/2}" y="${mid}" text-anchor="middle" font-size="9" font-weight="800" fill="#fff" transform="rotate(-90 ${bx+L-door/2} ${mid})">REAR RAMP DOOR</text>`;
+  // the two ends, spelled out
+  const yl=by+BH+34;
+  s+=`<text x="${bx-VN}" y="${yl}" font-size="12" font-weight="800">NOSE: load first</text>`
+    +`<text x="${bx+L}" y="${yl}" text-anchor="end" font-size="12" font-weight="800">REAR DOOR: load last / unload first</text>`
+    +`<text x="${bx-VN}" y="${yl+15}" font-size="10">${kind==='takedown'?'First stop of the night':'Last stop of the night'}</text>`
+    +`<text x="${bx+L}" y="${yl+15}" text-anchor="end" font-size="10">${kind==='takedown'?'Last stop of the night':'Door end: the first stop sits here, grab it first'}</text>`;
+  // length bar
+  const yd=yl+34;
+  s+=`<line x1="${bx}" y1="${yd}" x2="${bx+L}" y2="${yd}" stroke="#444"/>`
+    +`<line x1="${bx}" y1="${yd-5}" x2="${bx}" y2="${yd+5}" stroke="#444"/><line x1="${bx+L}" y1="${yd-5}" x2="${bx+L}" y2="${yd+5}" stroke="#444"/>`
+    +`<text x="${bx+L/2}" y="${yd-4}" text-anchor="middle" font-size="10" fill="#333">${t.len} ft box · 8.5 ft wide · Spartan enclosed cargo</text>`;
+  return s+`</svg>`;
+}
+/** PURE. The 50 ft truck from above, nose at the top and the rear doors at
+ *  the bottom: a long box with a kingpin, landing gear and a tandem axle at
+ *  the back. Each band is one stop, sized by boxes, with its pull number,
+ *  and a row to the right of it to check off. Nights are split by a black
+ *  bar: "Night 2 · transfer to Spartans before Night 2". */
+function truckOutlineSVG(truck){
+  const e=loadEsc, zones=(truck&&truck.zones)||[];
+  const bx=64, bw=128, top=62, DIV=26, AVAIL=700;
+  const nNights=new Set(zones.map(z=>z.night)).size;
+  const sizes=zoneSizes(zones.map(z=>z.boxes), AVAIL-nNights*DIV, 30);
+  let y=top, s='', prev=null;
+  zones.forEach((z,i)=>{
+    if(z.night!==prev){
+      s+=`<g class="tdiv" data-night="${z.night}"><rect x="${bx}" y="${y}" width="${bw}" height="${DIV}" fill="#222"/>`
+        +`<text x="${bx+bw/2}" y="${y+17}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">NIGHT ${z.night}</text>`
+        +`<line x1="${bx+bw}" y1="${y+DIV/2}" x2="232" y2="${y+DIV/2}" stroke="#222" stroke-width="1"/>`
+        +`<text x="236" y="${y+17}" font-size="12" font-weight="800">Night ${z.night} · ${e(z.nightLabel)}: transfer to Spartans before Night ${z.night}</text></g>`;
+      y+=DIV; prev=z.night;
+    }
+    const h=sizes[i], c=y+h/2, t=trailerById(z.trailerId)||{};
+    s+=`<g class="tzone" data-pull="${z.pull}" data-load="${z.load}" data-night="${z.night}" data-row="${e(z.row)}">`
+      +`<rect x="${bx}" y="${y}" width="${bw}" height="${h}" fill="${i%2?'#efefef':'#fff'}" stroke="#777" stroke-width="1"/>`
+      +`<text x="${bx+bw/2}" y="${c-2}" text-anchor="middle" font-size="13" font-weight="800">PULL ${z.pull}</text>`
+      +`<text x="${bx+bw/2}" y="${c+11}" text-anchor="middle" font-size="9.5">${z.boxes==null?'NEEDS COUNT':`${z.boxes} box${z.boxes===1?'':'es'}`}</text>`
+      +`<line x1="${bx+bw}" y1="${c}" x2="232" y2="${c}" stroke="#bbb" stroke-dasharray="2 2"/>`
+      +`<text x="236" y="${c-3}" font-size="11" font-weight="700">${e(wrapWords(z.name, 40, 1)[0])}</text>`
+      +`<text x="236" y="${c+10}" font-size="9.5" fill="#333">Trailer ${z.trailerSeq}: ${e(t.name||'')} · ${e((z.crews||[]).join(' + '))} · stop ${z.inst} of ${z.of} · load #${z.load}</text>`
+      +`<text x="684" y="${c+4}" text-anchor="end" font-size="11">Loaded ____ / ${boxesTxt(z.boxes)}</text>`
+      +`<rect x="692" y="${c-7}" width="14" height="14" fill="#fff" stroke="#222" stroke-width="1.5"/>`
+      +`</g>`;
+    y+=h;
+  });
+  const bottom=y;
+  // the box, kingpin, landing gear, tandem axle, swing doors
+  let o=`<svg class="truck" data-len="53" viewBox="0 0 720 ${bottom+80}" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">`;
+  o+=`<text x="${bx}" y="22" font-size="12" font-weight="800">NOSE (front wall): load first</text>`
+    +`<text x="${bx}" y="37" font-size="10">Last night's last pull</text>`;
+  o+=`<line x1="${bx-26}" y1="${top}" x2="${bx-26}" y2="${bottom}" stroke="#444"/>`
+    +`<text x="${bx-31}" y="${(top+bottom)/2}" text-anchor="middle" font-size="10" fill="#333" transform="rotate(-90 ${bx-31} ${(top+bottom)/2})">50 ft truck (about 53 ft box · 8.5 ft wide)</text>`;
+  const ax=bottom-70;
+  [[bx-12,ax],[bx-12,ax+34],[bx+bw+3,ax],[bx+bw+3,ax+34]].forEach(([x,yy])=>{
+    o+=`<rect x="${x}" y="${yy}" width="9" height="28" rx="3" fill="#555"/>`; });
+  const lg=top+Math.round((bottom-top)*0.22);
+  o+=`<rect x="${bx-7}" y="${lg}" width="5" height="12" fill="#888"/><rect x="${bx+bw+2}" y="${lg}" width="5" height="12" fill="#888"/>`;
+  o+=s;
+  o+=`<rect x="${bx}" y="${top}" width="${bw}" height="${bottom-top}" fill="none" stroke="#111" stroke-width="3"/>`
+    +`<circle cx="${bx+bw/2}" cy="${top+14}" r="5" fill="none" stroke="#666" stroke-dasharray="2 2"/>`;
+  o+=`<rect x="${bx}" y="${bottom-3}" width="${bw}" height="8" fill="#333"/>`
+    +`<path d="M${bx} ${bottom+5} l-14 30 M${bx+bw} ${bottom+5} l14 30" stroke="#111" stroke-width="2" fill="none"/>`
+    +`<text x="${bx+bw/2}" y="${bottom+24}" text-anchor="middle" font-size="12" font-weight="800">REAR DOORS</text>`
+    +`<text x="${bx+bw+24}" y="${bottom+22}" font-size="12" font-weight="800">REAR DOORS: load last / unload first</text>`
+    +`<text x="${bx+bw+24}" y="${bottom+37}" font-size="10">Pull 1 is Night 2, Trailer 1's set</text>`;
+  return o+`</svg>`;
+}
+function loadListCSS(){
+  return `@page{size:letter portrait;margin:.45in}
+    .lpage{break-after:page;page-break-after:always}
+    .lpage:last-child{break-after:auto;page-break-after:auto}
+    .phead .tot{text-align:right;white-space:nowrap}
+    .phead .tot b{display:block;font-size:22px;line-height:1}
+    .phead .tot span{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:#555}
+    .how{border:1.5px solid #222;border-radius:5px;padding:5px 8px;margin:0 0 8px;font-size:11px}
+    .how b{text-transform:uppercase;font-size:10px;letter-spacing:.3px}
+    svg{display:block;width:100%;height:auto;margin:2px 0 8px}
+    svg.truck{max-height:8.55in}
+    td.c,th.c{text-align:center}
+    td.blank{border-bottom:1px solid #222;min-width:54px}
+    td.n{font-weight:800;font-size:13px;width:34px}
+    tr.tot td{font-weight:800;border-top:1.5px solid #222}
+    tr.nh td{font-weight:800;background:#e6e6e6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sm{font-size:9.5px;color:#444}
+    .sign{display:flex;gap:28px;margin-top:16px;font-size:11.5px}
+    .sign span{flex:1;border-bottom:1px solid #222;padding-bottom:16px}
+    .cover ul{margin:4px 0 0;padding-left:18px}
+    .cover li{margin:2px 0}
+    .grand{font-size:15px;font-weight:800;margin:8px 0}`;
+}
+const LOAD_SOURCE={
+  warehouse:'Load at the warehouse before the trip.',
+  truck:'Load from the 50 ft truck at the hotel before this night.',
+  takedown:'Takedown: boxes come on at each stop. The first stop goes against the nose.',
+};
+/** PURE. One Spartan's page: header, the outline, the check table. */
+function loadSpartanHTML(p, stamp){
+  const e=loadEsc, t=trailerById(p.trailerId)||{};
+  const head=p.source==='truck' ? `Night ${p.night} transfer` : `Night ${p.night}`;
+  const rows=p.zones.map(z=>`<tr><td class="n">${z.load}</td><td><b>${e(z.name)}</b>`
+      +`${z.sharedWith&&z.sharedWith.length?`<div class="sm">Joint with ${e(z.sharedWith.join(', '))}: all ${boxesTxt(z.boxes)} boxes ride in this trailer</div>`:''}`
+      +`${z.fromInstall?'<div class="sm">Expected = the install count</div>':''}</td>`
+      +`<td>${e(z.city||'')}</td><td class="c">${z.inst} of ${z.of}</td>`
+      +`<td class="c"><b>${z.boxes==null?'NEEDS COUNT':z.boxes}</b></td><td class="blank"></td><td class="blank"></td></tr>`).join('');
+  return `<section class="lpage spartan" data-trailer="${e(p.trailerId)}" data-night="${p.night}" data-source="${p.source}">
+    <div class="phead"><div><h1>${e(t.name)} · ${e(head)} · ${e(p.label)}</h1>
+      <p>${e(p.crews.join(' + '))}${p.leads&&p.leads.length?` · Lead: ${e(p.leads.join(', '))}`:' · Lead: ____________'} · ${p.zones.length} stop${p.zones.length===1?'':'s'}</p>
+      <p>${e(LOAD_SOURCE[p.source])}</p></div>
+      <div class="tot"><b>${p.total}</b><span>boxes${p.missing?` + ${p.missing} uncounted`:''}</span></div></div>
+    <div class="how"><b>Load order:</b> ${p.kind==='takedown'
+      ? 'pick up in stop order. Stop 1 fills the nose; the last stop ends at the rear door.'
+      : 'reverse install order. Load #1 (the night\'s LAST stop) goes in first, against the nose. The FIRST stop goes in last, at the rear door, so it comes off first.'}</div>
+    ${trailerOutlineSVG(t, p.zones, p.kind)}
+    <table><thead><tr><th>Load</th><th>Stop</th><th>City</th><th class="c">Install order</th><th class="c">Expected</th><th class="c">Loaded</th><th class="c">Initials</th></tr></thead>
+    <tbody>${rows}<tr class="tot"><td></td><td>Total</td><td></td><td></td><td class="c">${p.total}</td><td class="blank"></td><td></td></tr></tbody></table>
+    <div class="sign"><span>Loaded by</span><span>Checked by</span><span>Time</span></div>
+    <p class="sm">${e(stamp||'')}</p></section>`;
+}
+/** PURE. The 50 ft truck: the outline page, then the check table. */
+function loadTruckHTML(truck, stamp){
+  const e=loadEsc, rng=truck.nights.map(n=>n.night);
+  const lead=`<div class="how"><b>Pull order:</b> numbered from the doors. Pull 1 comes off first. `
+    +`Night 2 is at the doors, then Night 3, and the last night is at the nose. Within a night, Trailer 1's set comes off first, then Trailer 2's, then Trailer 3's. `
+    +`Within a set, that trailer's LAST stop comes off first and goes straight into its Spartan's nose, so nothing gets re-sorted. `
+    +`Load the truck at the warehouse in reverse: load #1 (the highest pull number) goes in first, against the nose.</div>`;
+  const head=`<div class="phead"><div><h1>50 ft truck · Nights ${rng[0]} to ${rng[rng.length-1]}</h1>
+      <p>Stays parked at the hotel. Before each night shift, crews move that night's boxes into their Spartans.</p></div>
+      <div class="tot"><b>${truck.total}</b><span>boxes · ${truck.zones.length} stops</span></div></div>`;
+  let prev=null, rows='';
+  truck.zones.slice().sort((a,b)=>a.pull-b.pull).forEach(z=>{
+    if(z.night!==prev){ prev=z.night;
+      const n=truck.nights.find(x=>x.night===z.night)||{};
+      rows+=`<tr class="nh"><td colspan="8">Night ${z.night} · ${e(z.nightLabel)}: transfer to Spartans before Night ${z.night} · ${n.total||0} boxes</td></tr>`; }
+    const t=trailerById(z.trailerId)||{};
+    rows+=`<tr><td class="n">${z.pull}</td><td class="c">${z.load}</td><td>Trailer ${z.trailerSeq}: ${e(t.name||'')}<div class="sm">${e((z.crews||[]).join(' + '))}</div></td>`
+      +`<td><b>${e(z.name)}</b><div class="sm">${e(z.city||'')} · stop ${z.inst} of ${z.of}</div></td>`
+      +`<td class="c"><b>${z.boxes==null?'NEEDS COUNT':z.boxes}</b></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>`;
+  });
+  return `<section class="lpage truck" data-trailer="truck50">${head}${lead}${truckOutlineSVG(truck)}</section>
+    <section class="lpage truck2"><div class="phead"><div><h1>50 ft truck · checklist (continued)</h1>
+      <p>Same stops as the drawing, in pull order from the doors.</p></div>
+      <div class="tot"><b>${truck.total}</b><span>boxes</span></div></div>
+    <table><thead><tr><th>Pull</th><th class="c">Load</th><th>Trailer</th><th>Stop</th><th class="c">Expected</th><th class="c">Loaded</th><th class="c">Pulled</th><th class="c">Initials</th></tr></thead>
+    <tbody>${rows}<tr class="tot"><td></td><td></td><td></td><td>Total</td><td class="c">${truck.total}</td><td class="blank"></td><td></td><td></td></tr></tbody></table>
+    <div class="sign"><span>Loaded by</span><span>Checked by</span><span>Date</span></div>
+    <p class="sm">${e(stamp||'')}</p></section>`;
+}
+/** PURE. The cover: which nights and stops are on which trailer, box totals. */
+function loadCoverHTML(plan, title, stamp){
+  const e=loadEsc;
+  const tname=id=>(trailerById(id)||{}).name||id;
+  let rows=plan.spartans.map(p=>`<tr><td><b>${e(tname(p.trailerId))}</b></td><td>${e(p.crews.join(' + '))}</td>`
+      +`<td>Night ${p.night} · ${e(p.label)}${p.source==='takedown'?' (takedown)':''}</td><td class="c">${p.zones.length}</td><td class="c">${p.total}</td></tr>`).join('');
+  if(plan.truck) rows+=`<tr><td><b>50 ft truck</b></td><td>Parked at the hotel</td><td>Nights ${plan.truck.nights.map(n=>n.night).join(', ')}</td>`
+      +`<td class="c">${plan.truck.zones.length}</td><td class="c">${plan.truck.total}</td></tr>`;
+  const night=plan.nights.map(n=>n.groups.map((g,gi)=>`<tr${gi?'':' class="nh"'}><td>${gi?'':`Night ${n.night} · ${e(n.label)}`}</td>`
+      +`<td>${e(g.crews.join(' + '))}</td><td>${e(tname(g.trailerId))}${plan.useTruck&&n.night!==plan.nights[0].night?' <span class="sm">(from the truck)</span>':''}</td>`
+      +`<td>${g.stops.map(s=>`${s.inst}. ${e(s.name)}${s.boxes==null?' (?)':` (${s.boxes})`}`).join('<br>')}</td>`
+      +`<td class="c">${sumBoxes(g.stops)}</td></tr>`).join('')).join('');
+  const notes=[];
+  if(plan.useTruck){
+    notes.push('Night 1 loads straight into the three Spartans at the warehouse. Every later night rides in the 50 ft truck.');
+    notes.push('The 50 ft truck stays parked at the hotel. Before each night shift, each crew moves that night\'s boxes from the truck into its Spartan (see the transfer pages).');
+    notes.push('Truck pull order from the doors: Night 2 first, then Night 3, last night at the nose. Within a night: Trailer 1, then 2, then 3. Within a trailer: its last stop first, straight into the Spartan\'s nose.');
+  }
+  if(plan.nights.some(n=>n.kind==='takedown'))
+    notes.push('Takedown nights: each Spartan fills as the night goes, so the first stop is at the nose. Expected boxes are the install counts.');
+  notes.push('Each stop\'s boxes ride in one trailer. A joint stop (two crews) rides in the lead crew\'s trailer, the first crew listed.');
+  if(plan.missing.length) notes.push('NEEDS A BOX COUNT: '+plan.missing.map(m=>`${e(m.name)} (${e(m.label)})`).join(', '));
+  const pages=plan.spartans.length+(plan.truck?2:0)+plan.transfers.length;
+  return `<section class="lpage cover"><div class="phead"><div><h1>${e(title)}</h1>
+      <p>${plan.nights.length} night${plan.nights.length===1?'':'s'} · ${plan.stops} stops · ${pages} load page${pages===1?'':'s'} after this one</p></div>
+      <div class="tot"><b>${plan.grand}</b><span>boxes in all</span></div></div>
+    <table><thead><tr><th>Trailer</th><th>Crew</th><th>Carries</th><th class="c">Stops</th><th class="c">Boxes</th></tr></thead>
+      <tbody>${rows}<tr class="tot"><td>Grand total</td><td></td><td>${plan.truck?'All 4 trailers':'All trailers'}</td><td class="c">${plan.stops}</td><td class="c">${plan.grand}</td></tr></tbody></table>
+    <h2>Night by night (install order)</h2>
+    <table><thead><tr><th>Night</th><th>Crew</th><th>Spartan</th><th>Stops (boxes)</th><th class="c">Boxes</th></tr></thead><tbody>${night}</tbody></table>
+    <h2>How it's loaded</h2><ul>${notes.map(n=>`<li>${n}</li>`).join('')}</ul>
+    <p class="sm">${e(stamp||'')}</p></section>`;
+}
+/** PURE. Every page of a plan, in the order they're used. */
+function loadListHTML(plan, title, stamp){
+  const first=plan.spartans.filter(p=>p.source!=='truck');
+  return (plan.nights.length>1 || plan.truck ? loadCoverHTML(plan, title, stamp) : '')
+    + first.map(p=>loadSpartanHTML(p, stamp)).join('')
+    + (plan.truck ? loadTruckHTML(plan.truck, stamp) : '')
+    + plan.transfers.map(p=>loadSpartanHTML(p, stamp)).join('');
+}
+/** The dates a load list covers: a Dallas date's whole run of back-to-back
+ *  Dallas dates, any other date on its own. */
+function loadListDates(dt){
+  if(!isDallasDate(dt)) return [dt];
+  const out=[]; let s=dallasRunStart(dt);
+  while(isDallasDate(s)){ out.push(s); s=addDays(s,1); }
+  return out;
+}
+/** The box count a load list uses for a stop. A takedown visit added without
+ *  one uses the install count of the same location (by name). */
+function loadBoxesFor(r){
+  const c=C[r]||{}, b=parseBoxes(c.boxes);
+  if(b!=null) return {boxes:b, fromInstall:false, city:c.city||''};
+  const nm=String(c.name||'').trim().toLowerCase();
+  const twin=Object.keys(C).map(k=>C[k]).find(x=>x && x!==c && String(x.name||'').trim().toLowerCase()===nm && parseBoxes(x.boxes)!=null);
+  return twin ? {boxes:parseBoxes(twin.boxes), fromInstall:true, city:c.city||twin.city||''} : {boxes:null, fromInstall:false, city:c.city||''};
+}
+/** The nights a load list prints, from the live board. */
+function loadNights(dates){
+  let n=0;
+  return dates.map(dt=>{
+    const ds=days.filter(d=>d.date===dt && !d.training && d.stops.length)
+      .sort((a,b)=>byCrew(a,b) || ((a.win===K.NIGHT)-(b.win===K.NIGHT)) || a.id.localeCompare(b.id));
+    if(!ds.length) return null;
+    const crews=ds.map(d=>{
+      const calc=dayCalc(d), order=calc.order.length?calc.order:d.stops;
+      const lead=(staffing[d.id]||[]).map(personById).filter(p=>p && p.title==='Lead').map(p=>p.name);
+      return {id:d.id, title:crewTitle(d), lead, trailerId:trailerIdOf(d),
+        stops:order.map(r=>{ const b=loadBoxesFor(r), ap=addrParts(C[r]||{});
+          return {row:r, name:(C[r]||{}).name||'', city:b.city||ap.city||'', boxes:b.boxes, fromInstall:b.fromInstall}; })};
+    });
+    n++;
+    return {night:n, date:dt, label:`${dowOf(dt)||dowName({date:dt})} ${fmtMDYYYY(dt)}`,
+      kind:dayKind(dt, ds.flatMap(d=>d.stops.map(r=>(C[r]||{}).visitType)), TAKEDOWN_CUTOFF), crews};
+  }).filter(Boolean);
+}
+/** Print the load list for the run (or date) `dt` is in. */
+function printLoadList(dt){
+  const dates=loadListDates(dt), dallas=isDallasDate(dt);
+  const plan=buildLoadPlan(loadNights(dates), {dallas});
+  if(!plan.stops){ alert('Nothing scheduled to load for that date.'); return; }
+  const first=plan.nights[0].date, last=plan.nights[plan.nights.length-1].date;
+  const title=(dallas?'Dallas load list':'Load list')+' · '+fmtMDYYYY(first)+(last!==first?' to '+fmtMDYYYY(last):'');
+  openPrintDoc(title, loadListCSS(), loadListHTML(plan, title, printedStamp()), false);
+}
+/** The trailer picker on a Dallas shift (Staff this shift). One per crew-day. */
+function stfTrailerHTML(sh){
+  if(!sh || sh.training) return '';
+  const ds=sh.days.filter(d=>isDallasDate(d.date));
+  if(!ds.length) return '';
+  return `<div class="stfnotelbl">Trailer (load list)</div>`+ds.map(d=>{
+    const cur=trailers[d.id]||'', def=trailerById(defaultTrailerId(crewPos(d)));
+    if(READONLY) return `<div class="stftrl">${ds.length>1?esc(crewLabel(d))+': ':''}${esc((trailerById(trailerIdOf(d))||{}).name||'')}</div>`;
+    return `<label class="stftrl">${ds.length>1?esc(crewLabel(d))+' ':''}<select data-trailer-day="${esc(d.id)}" aria-label="Trailer for ${esc(crewTitle(d))}">`
+      +`<option value=""${cur?'':' selected'}>Default: ${esc(def.name)}</option>`
+      +TRAILERS.map(t=>`<option value="${t.id}"${cur===t.id?' selected':''}>${esc(t.name)}</option>`).join('')
+      +`</select></label>`;
+  }).join('');
+}
+function wireStfTrailer(box){
+  box.querySelectorAll('select[data-trailer-day]').forEach(sel=>{
+    sel.onchange=()=>{ stfTrack(()=>setTrailer(sel.dataset.trailerDay, sel.value)); drawStaffDlg(); };
+  });
+}
+
 // ---------- the toolbar follows the view (user, 2026-10-15) ----------
 // "Buttons at the top of the page need to correspond to what's on the page.
 // Right now, the print button doesn't print the roster." Each control does
@@ -15784,6 +16306,7 @@ function render(){
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
   shiftNotes = normShiftNotes(shiftNotes);
+  trailers = normTrailers(trailers, trailerKeys());
   // A team member who was deleted from the roster comes off their team.
   teams = loadTeams(teams);
   days.forEach(d=>{
