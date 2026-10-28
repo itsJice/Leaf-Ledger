@@ -1,15 +1,17 @@
-import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   Calculator,
   CheckCircle2,
   Eye,
   EyeOff,
+  Layers,
   ListChecks,
   Loader2,
   Palette,
   Play,
+  Printer,
   Shrub,
   Spline,
   TreePine,
@@ -28,14 +30,13 @@ import {
   type WidthProfile,
 } from "utils/ornamentRecipe";
 import {
-  ENHANCER_LENGTH_IN,
-  ENHANCER_WIDTH_IN,
-  buildTreeInstallLayout,
+  BOW_IN,
   treeInstallCounts,
-  type TreeInstallLayout,
   type TreeInstallLayoutInput,
 } from "utils/treeInstallLayout";
 import type { TreeView } from "components/TreeInstall3D";
+import { useTreeLayout } from "components/useTreeLayout";
+import { treeInstallPrintUrl } from "utils/treeInstallPrint";
 
 // Tree Install: pick a tree's size, style and colors, get the Ornament
 // Calculator's counts for it, and see where every piece goes on a 3D tree you can
@@ -68,60 +69,6 @@ const DEFAULT_RIBBON_A = vick("Wine");
 const DEFAULT_RIBBON_B = vick("Antique Gold");
 const DEFAULT_TOPPER = vick("Honey Gold");
 
-/** Lays the tree out in a worker so typing a height never freezes the page. */
-function useTreeLayout(input: TreeInstallLayoutInput | null) {
-  const [layout, setLayout] = useState<TreeInstallLayout | null>(null);
-  const [busy, setBusy] = useState(false);
-  const workerRef = useRef<Worker | null>(null);
-  const idRef = useRef(0);
-  const key = input ? JSON.stringify(input) : "";
-
-  useEffect(() => {
-    return () => workerRef.current?.terminate();
-  }, []);
-
-  useEffect(() => {
-    if (!input) {
-      setLayout(null);
-      setBusy(false);
-      return;
-    }
-    const id = ++idRef.current;
-    setBusy(true);
-    const timer = window.setTimeout(() => {
-      const done = (next: TreeInstallLayout) => {
-        if (id !== idRef.current) return;
-        setLayout(next);
-        setBusy(false);
-      };
-      if (typeof Worker === "undefined") {
-        done(buildTreeInstallLayout(input));
-        return;
-      }
-      try {
-        if (!workerRef.current) {
-          workerRef.current = new Worker(new URL("../utils/treeInstall.worker.ts", import.meta.url), { type: "module" });
-        }
-        const worker = workerRef.current;
-        worker.onmessage = (event: MessageEvent<{ id: number; layout?: TreeInstallLayout; error?: string }>) => {
-          if (event.data.layout) {
-            if (event.data.id === idRef.current) done(event.data.layout);
-          } else if (event.data.id === idRef.current) {
-            setBusy(false);
-          }
-        };
-        worker.postMessage({ id, input });
-      } catch {
-        done(buildTreeInstallLayout(input));
-      }
-    }, 250);
-    return () => window.clearTimeout(timer);
-    // `key` is the input, by value
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-
-  return { layout, busy };
-}
 
 function ColorField({
   label,
@@ -162,16 +109,41 @@ function ColorField({
 
 export default function TreeInstall() {
   // Same inputs and defaults as the Ornament Calculator.
-  const [heightFt, setHeightFt] = useState<number | "">(7.5);
-  const [widthIn, setWidthIn] = useState<number | "">(widthForProfile(7.5, "standard"));
-  const [widthProfile, setWidthProfile] = useState<WidthProfile | null>("standard");
-  const [style, setStyle] = useState<DesignStyle>("traditional");
-  const [colorCount, setColorCount] = useState(LL_DEFAULT_COLOR_COUNT);
-  const [wholePacks, setWholePacks] = useState(true);
-  const [colors, setColors] = useState<string[]>(DEFAULT_COLORS);
-  const [ribbonA, setRibbonA] = useState(DEFAULT_RIBBON_A);
-  const [ribbonB, setRibbonB] = useState(DEFAULT_RIBBON_B);
-  const [topper, setTopper] = useState(DEFAULT_TOPPER);
+  // Same inputs and defaults as the Ornament Calculator; coming back from a printout
+  // (?h=&w=&n=...) picks up the tree that was printed.
+  const [q] = useSearchParams();
+  const init = useMemo(() => {
+    const h0 = Number(q.get("h"));
+    const w0 = Number(q.get("w"));
+    const n0 = Number(q.get("n"));
+    const hexOf = (v: string | null, d: string) => (v && /^[0-9a-f]{6}$/i.test(v) ? `#${v}` : d);
+    const given = (q.get("c") ?? "").split(",");
+    const heightFt = h0 > 0 ? h0 : 7.5;
+    return {
+      heightFt,
+      widthIn: w0 > 0 ? w0 : widthForProfile(heightFt, "standard"),
+      profile: w0 > 0 ? profileForWidth(heightFt, w0) : ("standard" as WidthProfile),
+      colorCount: n0 > 0 ? n0 : LL_DEFAULT_COLOR_COUNT,
+      style: (q.get("style") === "contemporary" ? "contemporary" : "traditional") as DesignStyle,
+      wholePacks: q.get("packs") !== "0",
+      colors: DEFAULT_COLORS.map((d, i) => hexOf(given[i] ?? null, d)),
+      ribbonA: hexOf(q.get("a"), DEFAULT_RIBBON_A),
+      ribbonB: hexOf(q.get("b"), DEFAULT_RIBBON_B),
+      topper: hexOf(q.get("t"), DEFAULT_TOPPER),
+    };
+    // read once, on arrival
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [heightFt, setHeightFt] = useState<number | "">(init.heightFt);
+  const [widthIn, setWidthIn] = useState<number | "">(init.widthIn);
+  const [widthProfile, setWidthProfile] = useState<WidthProfile | null>(init.profile);
+  const [style, setStyle] = useState<DesignStyle>(init.style);
+  const [colorCount, setColorCount] = useState(init.colorCount);
+  const [wholePacks, setWholePacks] = useState(init.wholePacks);
+  const [colors, setColors] = useState<string[]>(init.colors);
+  const [ribbonA, setRibbonA] = useState(init.ribbonA);
+  const [ribbonB, setRibbonB] = useState(init.ribbonB);
+  const [topper, setTopper] = useState(init.topper);
   const [showLabels, setShowLabels] = useState(true);
   const [showLines, setShowLines] = useState(true);
   const [spin, setSpin] = useState(true);
@@ -220,6 +192,18 @@ export default function TreeInstall() {
     setWidthProfile(profile);
     if (typeof heightFt === "number" && heightFt > 0) setWidthIn(widthForProfile(heightFt, profile));
   };
+  const printUrl = (sheet: "design" | "cone") =>
+    treeInstallPrintUrl(sheet, {
+      heightFt: dimsValid ? h : 9,
+      widthIn: dimsValid ? w : 59,
+      colorCount,
+      style,
+      wholePacks,
+      colors: usedColors,
+      ribbonA,
+      ribbonB,
+      topper,
+    });
   const jump = (name: TreeView) => {
     setSpin(false);
     setView((v) => ({ name, nonce: (v?.nonce ?? 0) + 1 }));
@@ -227,11 +211,15 @@ export default function TreeInstall() {
 
   const placedBySize = useMemo(() => {
     const map = new Map<number, number>();
-    layout?.ornaments.forEach((o) => map.set(o.size, (map.get(o.size) ?? 0) + 1));
+    layout?.items.forEach((o) => {
+      if (o.kind === "orn") map.set(o.inch, (map.get(o.inch) ?? 0) + 1);
+    });
     return map;
   }, [layout]);
-  const enhancersA = counts ? Math.ceil(counts.enhancers / 2) : 0;
-  const enhancersB = counts ? counts.enhancers - enhancersA : 0;
+  // A and B as placed (half and half; an odd count differs by one)
+  const enhancersA = layout && !stale ? layout.check.A : counts ? Math.ceil(counts.enhancers / 2) : 0;
+  const enhancersB = layout && !stale ? layout.check.B : counts ? counts.enhancers - enhancersA : 0;
+  const placedBows = layout ? layout.check.A + layout.check.B : 0;
   const looseTotal = counts ? Object.values(counts.loose).reduce((a, b) => a + b, 0) : 0;
   const insideTotal = counts ? Object.values(counts.inEnhancers).reduce((a, b) => a + b, 0) : 0;
   const usedColors = colors.slice(0, colorCount);
@@ -258,6 +246,23 @@ export default function TreeInstall() {
             goes.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <Link
+          to={printUrl("design")}
+          aria-disabled={!dimsValid}
+          className={`flex min-h-[40px] items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:border-emerald-400 hover:text-emerald-700 ${dimsValid ? "" : "pointer-events-none opacity-40"}`}
+        >
+          <Printer size={14} />
+          Print sheet
+        </Link>
+        <Link
+          to={printUrl("cone")}
+          aria-disabled={!dimsValid}
+          className={`flex min-h-[40px] items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:border-emerald-400 hover:text-emerald-700 ${dimsValid ? "" : "pointer-events-none opacity-40"}`}
+        >
+          <Layers size={14} />
+          Paper model
+        </Link>
         <Link
           to="/ornament-calculator"
           className="flex min-h-[40px] items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:border-emerald-400 hover:text-emerald-700"
@@ -265,6 +270,7 @@ export default function TreeInstall() {
           <Calculator size={14} />
           Ornament Calculator
         </Link>
+        </div>
       </header>
 
       <div className="max-w-[1600px] px-4 py-6 sm:px-10 sm:py-8">
@@ -429,7 +435,7 @@ export default function TreeInstall() {
                       <tr className="border-b border-stone-200 text-left text-[11px] uppercase tracking-wide text-stone-500">
                         <th className="py-2 pr-2 font-semibold">Piece</th>
                         <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">On tree</th>
-                        <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">In sprays</th>
+                        <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">In bows</th>
                         <th className="py-2 pl-2 text-right font-semibold">Total</th>
                       </tr>
                     </thead>
@@ -438,7 +444,7 @@ export default function TreeInstall() {
                         <td className="py-2 pr-2">
                           <div className="font-semibold text-stone-800">Enhancers</div>
                           <div className="text-xs text-stone-500">
-                            {ENHANCER_LENGTH_IN}&quot; x {ENHANCER_WIDTH_IN}&quot; sprays: {enhancersA} A, {enhancersB} B
+                            {BOW_IN}&quot; ribbon bows: {enhancersA} A, {enhancersB} B
                           </div>
                         </td>
                         <td className="px-2 py-2 text-right tabular-nums text-stone-700">{counts.enhancers}</td>
@@ -501,19 +507,25 @@ export default function TreeInstall() {
                     }`}
                   >
                     {layout.fits ? (
-                      <p className="flex items-start gap-2">
+                      <div className="flex items-start gap-2">
                         <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
-                        Everything fits with nothing overlapping: {layout.enhancers.length} enhancers and{" "}
-                        {layout.ornaments.length} loose ornaments, in real inches.
-                      </p>
+                        <div className="space-y-1">
+                          <p>
+                            Everything fits: {placedBows} bows and {layout.check.placed} loose ornaments at true size,
+                            nestled into the branches, none on the same spot and no color touching itself.
+                          </p>
+                          {layout.note && <p className="text-xs">{layout.note}</p>}
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex items-start gap-2">
                         <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                         <div className="space-y-1">
-                          <p className="font-semibold">This tree can&apos;t show everything without pieces overlapping.</p>
+                          <p className="font-semibold">This tree can&apos;t show everything by the rules.</p>
                           {layout.problems.map((p) => (
                             <p key={p}>{p}</p>
                           ))}
+                          {layout.note && <p className="text-xs">{layout.note}</p>}
                           <p className="text-xs">
                             The counts above are still the calculator&apos;s. The mockup only shows what fits on the
                             tree&apos;s surface.
@@ -651,11 +663,12 @@ export default function TreeInstall() {
               How to place it
             </h2>
             <ol className="list-decimal space-y-1.5 pl-5 text-sm text-stone-700">
-              <li>Topper first. Its spray and bow fill the top; the first enhancers start just below it.</li>
+              <li>Topper first. Its spray and bow fill the top and come down; no bows up there, the tree is too skinny.</li>
               <li>Six swirl lines start at the tip, all turning the same way, evenly spaced.</li>
-              <li>Enhancers lie along the lines: A, B, A, B. Every other line sits lower, and they never touch.</li>
-              <li>Ornaments fill between the lines. No color touches itself.</li>
-              <li>Big ornaments (8&quot; and up) go in the middle and bottom only, never the top 40%.</li>
+              <li>Bows sit on the lines, hanging diagonally down them: A, B, A, B. Every other line sits half a step lower.</li>
+              <li>Ornaments fill in around them, nestled into the branches. Touching is fine; two on the same spot is not.</li>
+              <li>No color touches itself.</li>
+              <li>Big ornaments (8&quot; and up) go in the middle and bottom only, never the top third.</li>
               <li>Every side looks the same. Spin it to check.</li>
             </ol>
           </section>
