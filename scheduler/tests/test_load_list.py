@@ -179,18 +179,22 @@ def test_week_view_scales_by_boxes_and_the_20_ft_is_shorter():
       const top=weekTopSVG(trailerById('bs24'), w1.zones, w1.total), top2=weekTopSVG(trailerById('wb24'), w2.zones, w2.total);
       const top20=weekTopSVG(trailerById('ab20'), w3.zones, w3.total), top24=weekTopSVG(trailerById('bs24'), w3.zones, w3.total);
       const body=svg=>{ const m=/<rect x="150" y="58" width="90" height="([\\d.]+)" fill="none"/.exec(svg); return +m[1]; };
-      const bands=[...top.matchAll(/class="wrow" data-night="(\\d)" data-stop="(\\d)" data-row="(\\d+)"><rect x="150" y="[\\d.]+" width="90" height="([\\d.]+)"/g)]
+      const bands=[...top.matchAll(/class="wrow" data-night="(\\d)" data-stop="(\\d)" data-row="(\\d+)"><rect[^>]*\/><rect x="150" y="[\\d.]+" width="90" height="([\\d.]+)"/g)]
         .map(m=>({n:+m[1], r:+m[3], h:+m[4]}));
       console.log(JSON.stringify({rows:bands.map(x=>x.r), h20:bands.find(x=>x.r===20).h, h31:bands.find(x=>x.r===31).h,
         br:[...top.matchAll(/>Night (\\d)</g)].map(m=>+m[1]), bars:(top.match(/class="nbar"/g)||[]).length,
         t20:body(top20), t24:body(top24), late:/Test Stop 2 · In the Late Trailer/.test(top),
-        r1:top.includes('Boxes 1–19 of 39'), r2:top2.includes('Boxes 20–39 of 39'), side:/wside|wpanel/.test(top)}));
+        r1:top.includes('Boxes 1–19 of 39'), r2:top2.includes('Boxes 20–39 of 39'), side:/wside|wpanel/.test(top),
+        nums:/font-size="30"/.test(top),
+        outline:/>Stop \\d</.test(trailerOutlineSVG(trailerById('bs24'), loadZones([{row:1,name:'Test A',boxes:3,inst:1}],'install')))}));
     """)
     assert out["rows"] == [31, 30, 21, 20, 3, 1]          # in-production row 2 takes no floor
     assert out["h20"] > out["h31"]
     assert out["br"] == [3, 2, 1] and out["bars"] == 6
     assert out["t20"] < out["t24"]
     assert out["late"] and out["r1"] and out["r2"] and not out["side"]
+    # No numbers in the blocks: each block lines up with its restaurant.
+    assert not out["nums"] and not out["outline"]
 
 
 @needs_node
@@ -208,7 +212,7 @@ def test_printed_words():
     h = out
     assert "Trailer 1 · Black &amp; Silver (24 ft)" in h and "Trailer 3 · All Black (20 ft)" in h
     assert "Late Trailer (drive-up)" in h
-    assert "Load Night 3 first, at the Nose. Night 1 Stop 1 goes in last, at the Doors." in h
+    assert "Load Night 3 first, at the Nose. Night 1 goes in last, at the Doors." in h
     assert "EXPECTED" in h and "LOADED" in h and "Loaded by" in h and "Checked by" in h
     assert "Night 2 · Crew 2 · Stop 2" in h
     for word in ("Pull", "PULL", "load #", "LOAD #", "50 ft", "Big Truck", "ramp door", "RAMP",

@@ -15351,9 +15351,8 @@ function trailerOutlineSVG(trailer, zones){
     const w=g.sizes[i], x=g.xs[i], c=x+w/2;
     s+=`<g class="zone" data-stop="${z.inst}" data-row="${e(z.row)}">`
       +`<rect x="${x}" y="${by}" width="${w}" height="${BH}" fill="${i%2?'#eee':'#fff'}" stroke="#555" stroke-width="1.2"/>`
-      +`<text x="${c}" y="${mid-8}" text-anchor="middle" font-size="${w>=110?30:24}" font-weight="800">Stop ${z.inst}</text>`
-      +wrapWords(z.name, Math.max(8, Math.floor((w-12)/7)), 3).map((ln,k)=>`<text x="${c}" y="${mid+16+k*15}" text-anchor="middle" font-size="12.5" font-weight="700">${e(ln)}</text>`).join('')
-      +`<text x="${c}" y="${mid+70}" text-anchor="middle" font-size="12">${z.boxes==null?'? boxes':`${z.boxes} box${z.boxes===1?'':'es'}`}</text>`
+      +wrapWords(z.name, Math.max(8, Math.floor((w-12)/8)), 3).map((ln,k)=>`<text x="${c}" y="${mid-14+k*17}" text-anchor="middle" font-size="14" font-weight="800">${e(ln)}</text>`).join('')
+      +`<text x="${c}" y="${mid+50}" text-anchor="middle" font-size="12.5">${z.boxes==null?'? boxes':`${z.boxes} box${z.boxes===1?'':'es'}`}</text>`
       +`</g>`;
   });
   s+=`<rect x="${cx-70}" y="${by}" width="140" height="20" fill="#cfcfcf" stroke="#444"/>`
@@ -15629,8 +15628,7 @@ function weekTopSVG(trailer, zones, total){
   // hitch and V-nose, tires by the wheel wells
   s+=`<path d="M${bx+bw/2} ${top-26} L${bx+bw/2-10} ${top-40} M${bx+bw/2} ${top-26} L${bx+bw/2+10} ${top-40}" stroke="#222" stroke-width="2.5"/>`
     +`<circle cx="${bx+bw/2}" cy="${top-46}" r="5" fill="#fff" stroke="#222" stroke-width="2"/>`
-    +`<path d="M${bx} ${top} L${bx+bw/2} ${top-26} L${bx+bw} ${top}" fill="#fff" stroke="#111" stroke-width="3"/>`
-    +[mid-34, mid+4].map(yy=>`<rect x="${bx-11}" y="${yy}" width="8" height="30" rx="2" fill="#555"/><rect x="${bx+bw+3}" y="${yy}" width="8" height="30" rx="2" fill="#555"/>`).join('');
+    +`<path d="M${bx} ${top} L${bx+bw/2} ${top-26} L${bx+bw} ${top}" fill="#fff" stroke="#111" stroke-width="3"/>`;
   s+=`<text x="${XE}" y="${top-10}" text-anchor="middle" font-size="12" font-weight="800">EXPECTED</text>`
     +`<text x="${(XL+XR)/2}" y="${top-10}" text-anchor="middle" font-size="12" font-weight="800">LOADED</text>`;
   zones.forEach((z,i)=>{
@@ -15641,9 +15639,12 @@ function weekTopSVG(trailer, zones, total){
         +`<text x="${X}" y="${c+5}" font-size="13" fill="#333">${e(wrapWords(z.name, 34, 1)[0])} · In the Late Trailer</text></g>`;
       return;
     }
+    // The block and its row are one band: same shading, a line under both.
+    const shade=z.night%2?'#fff':'#e6e6e6';
     s+=`<g class="wrow" data-night="${z.night}" data-stop="${z.inst}" data-row="${e(z.row)}">`
-      +`<rect x="${bx}" y="${y0}" width="${bw}" height="${h}" fill="${z.night%2?'#fff':'#e6e6e6'}" stroke="#777"/>`
-      +(z.late?'':`<text x="${bx+bw/2}" y="${c+11}" text-anchor="middle" font-size="30" font-weight="800">${z.inst}</text>`)
+      +`<rect x="${bx+bw}" y="${y0}" width="${XR-bx-bw}" height="${h}" fill="${shade}"/>`
+      +`<rect x="${bx}" y="${y0}" width="${bw}" height="${h}" fill="${shade}" stroke="#777"/>`
+      +`<line x1="${bx}" y1="${y0+h}" x2="${XR}" y2="${y0+h}" stroke="#999"/>`
       +(z.late
         ? `<text x="${X}" y="${c-3}" font-size="15" font-weight="800">${e(wrapWords(z.name, 40, 1)[0])}</text>`
           +`<text x="${X}" y="${c+14}" font-size="12" fill="#333">Night ${z.night} · ${e(z.crews.join(' + '))} · Stop ${z.inst}</text>`
@@ -15661,6 +15662,8 @@ function weekTopSVG(trailer, zones, total){
       +`<text x="${bx-36}" y="${m-2}" text-anchor="end" font-size="17" font-weight="800">Night ${r.night}</text>`
       +`<text x="${bx-36}" y="${m+17}" text-anchor="end" font-size="14" font-weight="700">${e(r.label.split(' · ')[1]||'')}</text>`;
   });
+  // tires by the wheel wells, drawn last so the row bands don't cover them
+  s+=[mid-34, mid+4].map(yy=>`<rect x="${bx-11}" y="${yy}" width="8" height="30" rx="2" fill="#555"/><rect x="${bx+bw+3}" y="${yy}" width="8" height="30" rx="2" fill="#555"/>`).join('');
   s+=`<rect x="${bx}" y="${top}" width="${bw}" height="${bottom-top}" fill="none" stroke="#111" stroke-width="3"/>`
     +`<rect x="${bx}" y="${bottom-2}" width="${bw}" height="8" fill="#222"/>`
     +`<text x="${bx+bw/2}" y="${bottom+28}" text-anchor="middle" font-size="15" font-weight="800">DOORS</text>`
@@ -15678,7 +15681,7 @@ function loadWeekHTML(w){
     <div class="phead"><div><h1>${e(trailerTitle(w.num, w.trailerId))}</h1>
       <p>${e(who)} · Nights ${first} to ${last}</p></div>
       <div class="tot"><b>${w.total}</b><span>boxes</span></div></div>
-    <p class="do">Load Night ${last} first, at the Nose. Night ${first} Stop 1 goes in last, at the Doors.</p>
+    <p class="do">Load Night ${last} first, at the Nose. Night ${first} goes in last, at the Doors.</p>
     ${weekTopSVG(t, w.zones, w.total)}
     <div class="sign"><span>Loaded by</span><span>Checked by</span></div></section>`;
 }
