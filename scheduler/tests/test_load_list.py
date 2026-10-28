@@ -24,7 +24,7 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 PURE = ["trailerById", "defaultTrailerId", "normTrailers", "withTrailer", "parseBoxes",
         "sumBoxes", "leadCrewStops", "nightTrailerLoads", "loadZones", "truckZones",
         "zoneSizes", "buildLoadPlan", "loadEsc", "wrapWords", "boxesTxt",
-        "trailerTitle", "spartanGeom", "trailerOutlineSVG", "trailerSideSVG", "truckSideSVG",
+        "trailerTitle", "nightTag", "truckBlocks", "spartanGeom", "trailerOutlineSVG", "trailerSideSVG", "truckSideSVG",
         "truckOutlineSVG", "loadSpartanHTML", "loadTruckHTML", "loadCoverHTML", "loadListHTML"]
 
 
@@ -198,7 +198,7 @@ def test_big_truck_side_view_nights_and_trailers():
       const blocks=[...s.matchAll(/class="tblock" data-night="(\\d)" data-trailer="(\\d)" data-row="(\\d+)" x="([\\d.]+)" y="\\d+" width="([\\d.]+)"/g)]
         .map(m=>({{n:+m[1], t:+m[2], r:+m[3], w:+m[5]}}));
       console.log(JSON.stringify({{order:blocks.map(b=>[b.n,b.t,b.r]), w20:blocks.find(b=>b.r===20).w, w32:blocks.find(b=>b.r===32).w,
-        brackets:[...s.matchAll(/>Night (\\d)</g)].map(m=>+m[1]), doors:s.includes('DOORS: unload this end first')}}));
+        brackets:[...s.matchAll(/>Night (\\d) · ([^<]+)</g)].map(m=>m[1]+' '+m[2]), doors:s.includes('DOORS: unload this end first')}}));
     """)
     # Nose (left) to Doors (right): Night 3 then Night 2; within a night
     # Trailer 3, 2, 1; Trailer 1 of Night 2 is last, its Stop 1 (row 20) in
@@ -206,7 +206,26 @@ def test_big_truck_side_view_nights_and_trailers():
     assert out["order"] == [[3, 3, 32], [3, 3, 33], [3, 2, 31], [3, 1, 30],
                             [2, 3, 23], [2, 3, 24], [2, 2, 22], [2, 1, 20], [2, 1, 21]]
     assert out["w20"] > out["w32"]          # 39 boxes vs 2
-    assert out["brackets"] == [3, 2] and out["doors"]
+    assert out["brackets"] == ["3 Wed 11/04", "2 Tue 11/03"] and out["doors"]
+
+
+@needs_node
+def test_big_truck_top_view_matches_the_side_view():
+    out = run(f"""
+      const p=buildLoadPlan({json.dumps(NIGHTS)}, {{dallas:true}});
+      const t=truckOutlineSVG(p.truck), sd=truckSideSVG(p.truck);
+      const blocks=svg=>[...svg.matchAll(/class="tblock" data-night="(\\d)" data-trailer="(\\d)"/g)].map(m=>m[1]+'/'+m[2]);
+      console.log(JSON.stringify({{brackets:[...t.matchAll(/>(Night \\d)<\/text><text[^>]*>([^<]+)</g)].map(m=>m[1]+' · '+m[2]),
+        sideBrackets:[...sd.matchAll(/>(Night \\d · [^<]+)</g)].map(m=>m[1]),
+        bars:(t.match(/class="nbar"/g)||[]).length, top:[...new Set(blocks(t))], side:[...new Set(blocks(sd))],
+        tag:t.includes('>Trailer 1 · Stop 1<'), noNightTag:!/Night \\d · Trailer/.test(t), noHeaderBar:!t.includes('NIGHT 2')}}));
+    """)
+    # One bracket per night, labelled the same in both views; two thin bars
+    # sandwich each night; the same trailer blocks in the same order.
+    assert out["brackets"] == out["sideBrackets"] == ["Night 3 · Wed 11/04", "Night 2 · Tue 11/03"]
+    assert out["bars"] == 4
+    assert out["top"] == out["side"] == ["3/3", "3/2", "3/1", "2/3", "2/2", "2/1"]
+    assert out["tag"] and out["noNightTag"] and out["noHeaderBar"]
 
 
 @needs_node
@@ -223,7 +242,7 @@ def test_printed_pages_cover_spartans_truck_and_transfers():
     assert "Trailer 3 · All Black (20 ft)" in h
     assert "Big Truck" in h and "from the Big Truck" in h
     assert "Load Stop 3 first, at the Nose. Stop 1 goes in last, at the Doors." in h
-    assert "Night 2 · Trailer 1 · Stop 1" in h
+    assert "Trailer 1 · Stop 1" in h
     assert "<th>Stop</th><th>Restaurant</th><th class=\"c\">Expected</th><th class=\"c\">Loaded</th>" in h
     assert "Loaded by" in h and "Checked by" in h
     # One vocabulary: none of the old or competing words.

@@ -15520,7 +15520,8 @@ function truckSideSVG(truck){
   });
   marks.forEach((m,i)=>{
     const nextM=marks[i+1], c=(m.x+m.end)/2;
-    s+=`<line x1="${m.end}" y1="${top}" x2="${m.end}" y2="${floor}" stroke="#111" stroke-width="${!nextM||nextM.night!==m.night?3:1.5}"/>`
+    s+=`<line x1="${m.end}" y1="${top}" x2="${m.end}" y2="${floor}" stroke="#111" stroke-width="${!nextM||nextM.night!==m.night?2.5:1.5}"/>`
+      +`<rect x="${c-(m.end-m.x>=26?11:7)}" y="${(top+floor)/2-(m.end-m.x>=26?14:9)}" width="${m.end-m.x>=26?22:14}" height="${m.end-m.x>=26?28:18}" fill="${m.t%2?'#fff':'#e6e6e6'}"/>`
       +`<text x="${c}" y="${(top+floor)/2+10}" text-anchor="middle" font-size="${m.end-m.x>=26?28:16}" font-weight="800">${m.t}</text>`;
   });
   // a bracket per night over the top
@@ -15528,7 +15529,7 @@ function truckSideSVG(truck){
   nights.forEach(n=>{
     const ms=marks.filter(m=>m.night===n), a=ms[0].x+3, b=ms[ms.length-1].end-3;
     s+=`<path d="M${a} ${top-6} L${a} ${top-16} L${b} ${top-16} L${b} ${top-6}" fill="none" stroke="#111" stroke-width="2"/>`
-      +`<text x="${(a+b)/2}" y="${top-22}" text-anchor="middle" font-size="14" font-weight="800">Night ${n}</text>`;
+      +`<text x="${(a+b)/2}" y="${top-22}" text-anchor="middle" font-size="14" font-weight="800">${e(nightTag(zones.find(z=>z.night===n)))}</text>`;
   });
   s+=`<rect x="${bx}" y="${top}" width="${W}" height="${floor-top}" fill="none" stroke="#111" stroke-width="3"/>`
     +`<rect x="${bx+W-6}" y="${top}" width="8" height="${floor-top}" fill="#222"/>`;
@@ -15537,42 +15538,69 @@ function truckSideSVG(truck){
   s+=`<text x="${bx+W+2}" y="${ground+20}" text-anchor="end" font-size="14" font-weight="800">DOORS: unload this end first &#9654;</text>`;
   return s+`</svg>`;
 }
-/** PURE. The Big Truck from above (Nose at the top, Doors at the bottom),
- *  one band per stop sized by boxes, and its checklist row beside it. */
+/** PURE. "Night 4 · Thu 11/05": the bracket label, the same in both views. */
+function nightTag(z){ return `Night ${z.night} · ${String(z.nightLabel||'').replace(/\/\d{4}$/,'')}`; }
+/** PURE. The Big Truck's zones grouped the way both views draw them:
+ *  [{night, tag, trailerNum, start, end, zones}] blocks, Nose to Doors. */
+function truckBlocks(zones){
+  const out=[];
+  (zones||[]).forEach((z,i)=>{
+    const b=out[out.length-1];
+    if(b && b.night===z.night && b.trailerNum===z.trailerNum){ b.zones.push(i); b.end=i; }
+    else out.push({night:z.night, tag:nightTag(z), trailerNum:z.trailerNum, start:i, end:i, zones:[i]});
+  });
+  return out;
+}
+/** PURE. The Big Truck from above (Nose at the top, Doors at the bottom):
+ *  the same truck as the side view turned 90 degrees. Same night brackets,
+ *  same thin black bars between nights, same trailer blocks (Trailer 2
+ *  shaded) split by dashed lines into stops, sized by boxes. Beside each
+ *  stop: its restaurant, "Trailer 1 · Stop 1", Expected and a Loaded blank. */
 function truckOutlineSVG(truck){
   const e=loadEsc, zones=(truck&&truck.zones)||[];
-  const bx=40, bw=70, top=40, DIV=22, AVAIL=500, X=128, XT=520, XE=566, XL=610;
-  const nNights=new Set(zones.map(z=>z.night)).size;
-  const sizes=zoneSizes(zones.map(z=>z.boxes), AVAIL-nNights*DIV, 19);
-  let y=top, s='', prev=null;
-  s+=`<text x="${XE}" y="${top-8}" text-anchor="middle" font-size="10" font-weight="800">EXPECTED</text>`
-    +`<text x="${XL+40}" y="${top-8}" text-anchor="middle" font-size="10" font-weight="800">LOADED</text>`;
-  zones.forEach((z,i)=>{
-    if(z.night!==prev){
-      s+=`<g class="tdiv" data-night="${z.night}"><rect x="${bx}" y="${y}" width="${bw}" height="${DIV}" fill="#222"/>`
-        +`<text x="${bx+bw/2}" y="${y+15}" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">NIGHT ${z.night}</text>`
-        +`<line x1="${bx+bw}" y1="${y+DIV/2}" x2="${X-6}" y2="${y+DIV/2}" stroke="#222"/>`
-        +`<text x="${X}" y="${y+15}" font-size="12.5" font-weight="800">Night ${z.night} · ${e(z.nightLabel)}</text></g>`;
-      y+=DIV; prev=z.night;
-    }
-    const h=sizes[i], c=y+h/2;
-    s+=`<g class="tzone" data-night="${z.night}" data-trailer="${z.trailerNum}" data-row="${e(z.row)}">`
-      +`<rect x="${bx}" y="${y}" width="${bw}" height="${h}" fill="${z.trailerNum%2?'#fff':'#e6e6e6'}" stroke="#777"/>`
-      +`<text x="${bx+bw/2}" y="${c+5}" text-anchor="middle" font-size="13" font-weight="800">${z.trailerNum}</text>`
-      +`<text x="${X}" y="${c+4}" font-size="12.5" font-weight="800">${e(wrapWords(z.name, 34, 1)[0])}</text>`
-      +`<text x="${XT}" y="${c+4}" text-anchor="end" font-size="9.5" fill="#333">Night ${z.night} · Trailer ${z.trailerNum} · Stop ${z.inst}</text>`
-      +`<text x="${XE}" y="${c+5}" text-anchor="middle" font-size="13" font-weight="800">${boxesTxt(z.boxes)}</text>`
-      +`<line x1="${XL}" y1="${c+6}" x2="${XL+80}" y2="${c+6}" stroke="#222"/>`
-      +`</g>`;
-    y+=h;
+  const bx=150, bw=70, top=40, AVAIL=496, X=236, XT=560, XE=592, XL=625, XR=705;
+  const sizes=zoneSizes(zones.map(z=>z.boxes), AVAIL, 22);
+  const ys=[]; let y=top; sizes.forEach(h=>{ ys.push(y); y+=h; });
+  const bottom=y, blocks=truckBlocks(zones);
+  let s=`<svg class="truck top" data-len="53" viewBox="0 0 720 ${bottom+34}" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">`;
+  s+=`<text x="${bx+bw/2}" y="${top-10}" text-anchor="middle" font-size="12" font-weight="800">NOSE</text>`
+    +`<text x="${XE}" y="${top-10}" text-anchor="middle" font-size="10" font-weight="800">EXPECTED</text>`
+    +`<text x="${(XL+XR)/2}" y="${top-10}" text-anchor="middle" font-size="10" font-weight="800">LOADED</text>`;
+  blocks.forEach(b=>{
+    const y0=ys[b.start], y1=ys[b.end]+sizes[b.end];
+    s+=`<rect class="tblock" data-night="${b.night}" data-trailer="${b.trailerNum}" x="${bx}" y="${y0}" width="${bw}" height="${y1-y0}" fill="${b.trailerNum%2?'#fff':'#e6e6e6'}"/>`;
+    b.zones.slice(0,-1).forEach(i=>{ const yy=ys[i]+sizes[i];
+      s+=`<line x1="${bx+6}" y1="${yy}" x2="${bx+bw-6}" y2="${yy}" stroke="#777" stroke-dasharray="3 3"/>`; });
+    const big=y1-y0>=30, fill=b.trailerNum%2?'#fff':'#e6e6e6', m=(y0+y1)/2;
+    s+=`<rect x="${bx+bw/2-(big?14:9)}" y="${m-(big?14:9)}" width="${big?28:18}" height="${big?28:18}" fill="${fill}"/>`
+      +`<text x="${bx+bw/2}" y="${m+(big?9:6)}" text-anchor="middle" font-size="${big?26:16}" font-weight="800">${b.trailerNum}</text>`;
   });
-  const bottom=y;
-  let o=`<svg class="truck top" data-len="53" viewBox="0 0 720 ${bottom+34}" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">`;
-  o+=`<text x="${bx+bw/2}" y="${top-8}" text-anchor="middle" font-size="12" font-weight="800">NOSE</text>`;
-  o+=s+`<rect x="${bx}" y="${top}" width="${bw}" height="${bottom-top}" fill="none" stroke="#111" stroke-width="3"/>`
-    +`<rect x="${bx}" y="${bottom-2}" width="${bw}" height="6" fill="#222"/>`
-    +`<text x="${bx+bw/2}" y="${bottom+24}" text-anchor="middle" font-size="12" font-weight="800">DOORS</text>`;
-  return o+`</svg>`;
+  zones.forEach((z,i)=>{
+    const c=ys[i]+sizes[i]/2;
+    s+=`<g class="tzone" data-night="${z.night}" data-trailer="${z.trailerNum}" data-row="${e(z.row)}">`
+      +`<text x="${X}" y="${c+4}" font-size="12" font-weight="800">${e(wrapWords(z.name, 32, 1)[0])}</text>`
+      +`<text x="${XT}" y="${c+4}" text-anchor="end" font-size="9.5" fill="#333">Trailer ${z.trailerNum} · Stop ${z.inst}</text>`
+      +`<text x="${XE}" y="${c+5}" text-anchor="middle" font-size="13" font-weight="800">${boxesTxt(z.boxes)}</text>`
+      +`<line x1="${XL}" y1="${c+6}" x2="${XR}" y2="${c+6}" stroke="#222"/></g>`;
+  });
+  // trailer edges thin, night edges black bars across the whole row
+  blocks.forEach((b,k)=>{
+    const yy=ys[b.end]+sizes[b.end], nxt=blocks[k+1];
+    if(nxt && nxt.night===b.night) s+=`<line x1="${bx}" y1="${yy}" x2="${bx+bw}" y2="${yy}" stroke="#111" stroke-width="1.5"/>`;
+  });
+  const nights=[...new Set(zones.map(z=>z.night))];
+  nights.forEach(n=>{
+    const bs=blocks.filter(b=>b.night===n), y0=ys[bs[0].start], y1=ys[bs[bs.length-1].end]+sizes[bs[bs.length-1].end];
+    [y0,y1].forEach(yy=>{ s+=`<line class="nbar" x1="${bx-14}" y1="${yy}" x2="${XR}" y2="${yy}" stroke="#111" stroke-width="2.5"/>`; });
+    const a=y0+4, z=y1-4, m=(y0+y1)/2;
+    s+=`<path class="nbracket" d="M${bx-20} ${a} L${bx-30} ${a} L${bx-30} ${z} L${bx-20} ${z}" fill="none" stroke="#111" stroke-width="2"/>`
+      +`<text x="${bx-36}" y="${m-2}" text-anchor="end" font-size="14" font-weight="800">Night ${n}</text>`
+      +`<text x="${bx-36}" y="${m+15}" text-anchor="end" font-size="12.5" font-weight="700">${e(bs[0].tag.split(' · ')[1]||'')}</text>`;
+  });
+  s+=`<rect x="${bx}" y="${top}" width="${bw}" height="${bottom-top}" fill="none" stroke="#111" stroke-width="3"/>`
+    +`<rect x="${bx}" y="${bottom-2}" width="${bw}" height="8" fill="#222"/>`
+    +`<text x="${bx+bw/2}" y="${bottom+26}" text-anchor="middle" font-size="12" font-weight="800">DOORS</text>`;
+  return s+`</svg>`;
 }
 function loadListCSS(){
   return `@page{size:letter portrait;margin:.45in}
