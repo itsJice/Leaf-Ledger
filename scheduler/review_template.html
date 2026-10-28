@@ -15349,8 +15349,10 @@ function trailerOutlineSVG(trailer, zones){
     s+=`<rect x="${x}" y="${y}" width="58" height="10" rx="3" fill="#555"/>`; });
   zones.forEach((z,i)=>{
     const w=g.sizes[i], x=g.xs[i], c=x+w/2;
+    const lbl=`<text class="loadn" x="${c}" y="${mid-46}" text-anchor="middle" font-size="${w>=100?22:18}" font-weight="800">Load ${ordinal(i+1)}</text>`;
     s+=`<g class="zone" data-stop="${z.inst}" data-row="${e(z.row)}">`
       +`<rect x="${x}" y="${by}" width="${w}" height="${BH}" fill="${i%2?'#eee':'#fff'}" stroke="#555" stroke-width="1.2"/>`
+      +lbl
       +wrapWords(z.name, Math.max(8, Math.floor((w-12)/8)), 3).map((ln,k)=>`<text x="${c}" y="${mid-14+k*17}" text-anchor="middle" font-size="14" font-weight="800">${e(ln)}</text>`).join('')
       +`<text x="${c}" y="${mid+50}" text-anchor="middle" font-size="12.5">${z.boxes==null?'? boxes':`${z.boxes} box${z.boxes===1?'':'es'}`}</text>`
       +`</g>`;
@@ -15399,9 +15401,9 @@ function loadListCSS(){
 function loadSpartanHTML(p){
   const e=loadEsc, t=trailerById(p.trailerId)||TRAILERS[0];
   const n=p.zones.length, last=Math.max(...p.zones.map(z=>z.inst));
-  const todo=p.kind==='takedown' ? 'Takedown: load as you go. Stop 1 at the Nose.'
+  const todo=p.kind==='takedown' ? 'Takedown: load as you go. Load 1st goes in at the Nose.'
     : n===1 ? 'One stop: load it all.'
-    : `Load Stop ${last} first, at the Nose. Stop 1 goes in last, at the Doors.`;
+    : 'Load in order: Load 1st goes in at the Nose, the last one at the Doors.';
   const rows=p.zones.map(z=>`<tr><td class="stop">Stop ${z.inst}</td><td><b>${e(loadStopName(z))}</b>`
       +`${z.sharedWith&&z.sharedWith.length?` <span class="sm">(shared with ${e(z.sharedWith.join(', '))})</span>`:''}`
       +`${z.notReady?` <span class="sm">(in production, not loaded)</span>`:''}</td>`
@@ -15596,6 +15598,11 @@ function lateZones(loads){
 /** PURE. A stop's name as the sheets print it: a split stop says how much
  *  of it is in this trailer ("... : 19 of 39"). */
 function loadStopName(z){ return z.shared && z.full!=null && z.boxes!==z.full ? `${z.name}: ${boxRange(z)}` : z.name; }
+/** PURE. 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st, 22nd, 23rd. */
+function ordinal(n){
+  const t=n%100, u=n%10;
+  return n+((t>=11 && t<=13) ? 'th' : u===1 ? 'st' : u===2 ? 'nd' : u===3 ? 'rd' : 'th');
+}
 /** PURE. A split stop's share as box numbers: the lower trailer gets 1 to N,
  *  the next N+1 to the total ("Boxes 1–19 of 39", "Boxes 20–39 of 39"). */
 function boxRange(z){ return `Boxes ${z.from}–${z.to} of ${z.full}`; }
@@ -15631,8 +15638,10 @@ function weekTopSVG(trailer, zones, total){
     +`<path d="M${bx} ${top} L${bx+bw/2} ${top-26} L${bx+bw} ${top}" fill="#fff" stroke="#111" stroke-width="3"/>`;
   s+=`<text x="${XE}" y="${top-10}" text-anchor="middle" font-size="12" font-weight="800">EXPECTED</text>`
     +`<text x="${(XL+XR)/2}" y="${top-10}" text-anchor="middle" font-size="12" font-weight="800">LOADED</text>`;
+  let k=0;   // loading order among the blocks actually loaded, from the Nose
   zones.forEach((z,i)=>{
     const y0=ys[i], h=z.notReady ? NR : H[z.load], c=y0+h/2;
+    if(!z.notReady) k++;
     if(z.notReady){
       s+=`<g class="wrow notready" data-night="${z.night}" data-row="${e(z.row)}">`
         +`<rect x="${X-6}" y="${y0+3}" width="${XR-X+6}" height="${h-6}" fill="none" stroke="#555" stroke-dasharray="4 3"/>`
@@ -15645,6 +15654,7 @@ function weekTopSVG(trailer, zones, total){
       +`<rect x="${bx+bw}" y="${y0}" width="${XR-bx-bw}" height="${h}" fill="${shade}"/>`
       +`<rect x="${bx}" y="${y0}" width="${bw}" height="${h}" fill="${shade}" stroke="#777"/>`
       +`<line x1="${bx}" y1="${y0+h}" x2="${XR}" y2="${y0+h}" stroke="#999"/>`
+      +`<text class="loadn" x="${bx+bw/2}" y="${c+6}" text-anchor="middle" font-size="${ordinal(k).length>3?15:17}" font-weight="800">Load ${ordinal(k)}</text>`
       +(z.late
         ? `<text x="${X}" y="${c-3}" font-size="15" font-weight="800">${e(wrapWords(z.name, 40, 1)[0])}</text>`
           +`<text x="${X}" y="${c+14}" font-size="12" fill="#333">Night ${z.night} · ${e(z.crews.join(' + '))} · Stop ${z.inst}</text>`
@@ -15681,7 +15691,7 @@ function loadWeekHTML(w){
     <div class="phead"><div><h1>${e(trailerTitle(w.num, w.trailerId))}</h1>
       <p>${e(who)} · Nights ${first} to ${last}</p></div>
       <div class="tot"><b>${w.total}</b><span>boxes</span></div></div>
-    <p class="do">Load Night ${last} first, at the Nose. Night ${first} goes in last, at the Doors.</p>
+    <p class="do">Load in order: Load 1st goes in at the Nose, the last one at the Doors.</p>
     ${weekTopSVG(t, w.zones, w.total)}
     <div class="sign"><span>Loaded by</span><span>Checked by</span></div></section>`;
 }
@@ -15692,7 +15702,7 @@ function loadLateHTML(l){
     <div class="phead"><div><h1>${LATE_TRAILER.name}</h1>
       <p>In production · drive up once the crews are in Dallas</p></div>
       <div class="tot"><b>${l.total}</b><span>boxes</span></div></div>
-    <p class="do">Load Night ${nights[nights.length-1]} first, at the Nose. Night ${nights[0]} goes in last, at the Doors.</p>
+    <p class="do">Load in order: Load 1st goes in at the Nose, the last one at the Doors.</p>
     ${weekTopSVG(LATE_TRAILER, l.zones, l.total)}
     <div class="sign"><span>Loaded by</span><span>Checked by</span></div></section>`;
 }

@@ -25,7 +25,7 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 PURE = ["trailerById", "defaultTrailerId", "normTrailers", "withTrailer", "parseBoxes",
         "sumBoxes", "normLoadStops", "withLoadStop", "stopShares", "nightTrailerLoads",
-        "loadZones", "weekZones", "lateZones", "zoneSizes", "buildLoadPlan", "loadStopName", "boxRange",
+        "loadZones", "weekZones", "lateZones", "zoneSizes", "buildLoadPlan", "loadStopName", "boxRange", "ordinal",
         "nightTag", "nightRuns", "loadEsc", "wrapWords", "boxesTxt", "trailerTitle",
         "spartanGeom", "trailerOutlineSVG", "weekTopSVG",
         "loadSpartanHTML", "loadWeekHTML", "loadLateHTML", "loadCoverHTML", "loadListHTML"]
@@ -198,6 +198,21 @@ def test_week_view_scales_by_boxes_and_the_20_ft_is_shorter():
 
 
 @needs_node
+def test_blocks_say_their_loading_order_from_the_nose():
+    out = run(plan_js(json.dumps({"2": {"notReady": True}})) + """
+      const w1=p.weeks[0], top=weekTopSVG(trailerById('bs24'), w1.zones, w1.total);
+      const td=trailerOutlineSVG(trailerById('bs24'), loadZones([{row:1,name:'A',boxes:3,inst:1},{row:2,name:'B',boxes:2,inst:2}],'takedown'));
+      console.log(JSON.stringify({week:[...top.matchAll(/class="loadn"[^>]*>Load ([^<]+)</g)].map(m=>m[1]),
+        td:[...td.matchAll(/class="loadn"[^>]*>Load ([^<]+)</g)].map(m=>m[1]),
+        ords:[1,2,3,4,11,12,13,21,22,23,101,111].map(ordinal)}));
+    """)
+    # Trailer 1 has 7 stops; row 2 is in production (no block, no number).
+    assert out["week"] == ["1st", "2nd", "3rd", "4th", "5th", "6th"]
+    assert out["td"] == ["1st", "2nd"]
+    assert out["ords"] == ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "101st", "111th"]
+
+
+@needs_node
 def test_box_ranges():
     out = run("""console.log(JSON.stringify([loadStopName({name:'A', shared:true, boxes:19, full:39, from:1, to:19}),
       loadStopName({name:'A', shared:true, boxes:20, full:39, from:20, to:39}), loadStopName({name:'B', shared:true, boxes:4, full:4, from:1, to:4})]));""")
@@ -212,7 +227,7 @@ def test_printed_words():
     h = out
     assert "Trailer 1 · Black &amp; Silver (24 ft)" in h and "Trailer 3 · All Black (20 ft)" in h
     assert "Late Trailer (drive-up)" in h
-    assert "Load Night 3 first, at the Nose. Night 1 goes in last, at the Doors." in h
+    assert "Load in order: Load 1st goes in at the Nose, the last one at the Doors." in h
     assert "EXPECTED" in h and "LOADED" in h and "Loaded by" in h and "Checked by" in h
     assert "Night 2 · Crew 2 · Stop 2" in h
     for word in ("Pull", "PULL", "load #", "LOAD #", "50 ft", "Big Truck", "ramp door", "RAMP",
