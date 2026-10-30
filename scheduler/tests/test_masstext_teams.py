@@ -108,7 +108,7 @@ def test_chooser_draws_and_wires_team_chips():
     wire = js_function("txtWirePick")
     assert "txtAllGroups().find(" in wire and "if(!g) return;" in wire
     # People rows show their team tag, as the staffing dialog does.
-    assert 'class="asgteam"' in js_function("txtRowHTML")
+    assert "teamBadgeHTML(p.id, txtTeamsOn(picked))" in js_function("txtRowHTML")
     assert "#txtdlg .txtgrp.team .ic{" in TEMPLATE
 
 
