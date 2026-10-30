@@ -1509,6 +1509,11 @@ body.tv .stfteams,body.viewonly .stfteams{display:none}
 .asgteamon{color:var(--mut);font-size:9.5px;font-weight:800;white-space:nowrap}
 .pill.teamcnt{background:var(--brand-soft);color:var(--brand);min-width:18px;text-align:center}
 .stftable .asgteam{display:inline-block;margin-left:6px;vertical-align:1px;max-width:150px}
+.trole{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.02em;border-radius:4px;padding:0 4px;
+  line-height:15px;margin-left:3px;flex:none;background:#f1efec;color:var(--mut);vertical-align:1px}
+.trole-lead{background:#fff7d6;color:#7a5a00;box-shadow:inset 0 0 0 1px #f4b400}
+.trole-kit{background:#fef3e2;color:var(--warn-ink)}
+.trole-van{background:#eef2ff;color:#3730a3}
 .stftable .asgteamx{margin-left:3px}
 .stfdmeta .asgteam{display:inline-flex;align-items:center;gap:3px;max-width:none}
 .stfdmeta .asgteam .ic{width:11px;height:11px}
@@ -1536,25 +1541,123 @@ body.readonly [data-remind],body.viewonly [data-remind],body.readonly #stfremind
 body.readonly .remnext,body.viewonly .remnext,body.readonly .remcardbtn,body.viewonly .remcardbtn,
 body.readonly .remhint,body.viewonly .remhint,body.readonly .remcard .txtsend,body.viewonly .remcard .txtsend{display:none!important}
 #stfremind .ic{width:14px;height:14px;vertical-align:-2px}
-#teamdlg{max-width:480px;width:calc(100vw - 32px);box-sizing:border-box}
-.teamsub{font-size:11.5px;color:var(--mut);margin:4px 0 10px;line-height:1.45}
-.teamlist{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;margin-top:8px}
-.teamrow{border:1px solid var(--line);border-radius:9px;padding:9px 11px}
-.teamhd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.teamnm{font-size:13.5px}
-.teammeta{font-size:11.5px;color:var(--mut);font-weight:600}
-body.tv .teamrat{display:none}
-.teamppl{font-size:11.5px;color:var(--ink);margin-top:4px;line-height:1.45}
-.teamlead{display:inline-block;font-weight:700;margin-right:6px}
-.teamacts{display:flex;gap:6px;margin-top:7px}
-dialog .teamacts button{padding:4px 11px;font-size:11.5px}
-dialog .teamacts .teamdel:hover{border-color:var(--danger);color:var(--danger)}
-.teamtwo{display:grid;grid-template-columns:110px 1fr;gap:10px}
-.teamcount{font-size:11.5px;color:var(--mut);font-weight:700;margin:4px 0 6px}
-.teampick{max-height:38vh}
-.teamon{color:var(--warn-ink);font-size:9.5px;font-weight:800;white-space:nowrap;max-width:40%;
-  overflow:hidden;text-overflow:ellipsis}
-.teamerr{color:var(--danger);font-size:11.5px;font-weight:600;min-height:14px;margin-top:6px}
+/* ---- Teams builder (the Teams button on every view) ---- */
+#tbteams{display:inline-flex;align-items:center;gap:6px;padding:0 11px;height:32px;
+  border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);
+  font:700 12.5px 'Montserrat',sans-serif;white-space:nowrap;cursor:pointer;flex:none}
+#tbteams .ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#tbteams:hover{border-color:var(--brand);color:var(--brand)}
+body.tv #tbteams{display:none!important}
+@container (max-width:900px){ body.apple #tbteams{width:34px;padding:0;justify-content:center} body.apple #tbteams span{display:none} }
+@media (max-width:640px){ #tbteams{width:34px;padding:0;justify-content:center} #tbteams span{display:none} }
+#teamdlg{width:calc(100vw - 32px);max-width:1360px;height:calc(100vh - 32px);height:calc(100dvh - 32px);
+  max-height:none;padding:0;box-sizing:border-box;overflow:hidden}
+#teamdlg[open]{display:flex;flex-direction:column}
+#teambody{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+#teamdlg .ic{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.tbhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 16px 6px}
+.tbhead #teamtitle{font-size:17px}
+.tbhead .sp{flex:1 1 auto}
+#teamdlg .tbhead select{width:auto;margin:0;padding:5px 8px}
+.tbyear1{font-size:12px;font-weight:700;color:var(--mut)}
+.tbro{font-size:11.5px;font-weight:700;color:var(--mut)}
+#teamdlg .tbhead button{display:inline-flex;align-items:center;gap:5px}
+.tbseg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+#teamdlg .tbseg button{border:none;border-radius:0;padding:6px 12px;background:#fff;font-weight:600}
+#teamdlg .tbseg button+button{border-left:1px solid var(--line)}
+#teamdlg .tbseg button[aria-pressed=true]{background:var(--brand-soft);color:var(--brand);font-weight:800}
+.tbhint{font-size:11.5px;color:var(--mut);padding:0 16px 10px;line-height:1.45}
+.tbbody{flex:1 1 auto;min-height:0;display:flex;border-top:1px solid var(--line)}
+.tbpool{flex:0 0 260px;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);
+  background:var(--page);transition:background-color .12s}
+.tbpool.tbover{background:var(--brand-soft)}
+.tbpoolhd{padding:10px 12px 6px}
+.tbpooltitle{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}
+.tbpooltitle .n{color:var(--faint);margin-left:3px}
+#teamdlg .tbpoolhd input,#teamdlg .tbpoolhd select{width:100%;margin:6px 0 0;padding:6px 8px;box-sizing:border-box;
+  border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;background:#fff}
+.tbpoollist{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 10px 14px;display:flex;flex-direction:column;gap:4px;
+  overscroll-behavior:contain}
+.tbpoollist .asghdr{margin:8px 2px 1px}
+.tbboard{flex:1 1 auto;min-width:0;display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding:12px;
+  align-items:stretch;overscroll-behavior:contain}
+.tbcol{flex:0 0 264px;display:flex;flex-direction:column;min-height:0;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);transition:border-color .12s ease,box-shadow .12s ease}
+.tbcol.tbover{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
+.tbcolhd{display:flex;align-items:center;gap:6px;padding:8px 6px 2px 10px}
+#teamdlg .tbname{flex:1 1 auto;min-width:0;text-align:left;background:none;border:1px solid transparent;padding:3px 4px;margin-left:-4px;
+  font:800 13px 'Montserrat',sans-serif;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;border-radius:5px}
+#teamdlg .tbname:hover:not(:disabled){border-color:var(--line)}
+#teamdlg .tbname:disabled{cursor:default;color:var(--ink)}
+#teamdlg .tbrename{flex:1 1 auto;min-width:0;margin:0;padding:3px 6px;font-weight:800;font-size:13px}
+.tbcolmeta{font-size:10.5px;color:var(--mut);padding:0 10px 8px;line-height:1.5;border-bottom:1px solid var(--line)}
+.tbcolmeta>div:first-child{color:var(--ink);font-weight:700}
+.tblist{position:relative;flex:1 1 auto;min-height:64px;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;
+  overscroll-behavior:contain}
+.tbempty{border:1.5px dashed var(--line);border-radius:8px;color:var(--faint);font-size:11.5px;text-align:center;padding:18px 8px}
+.tbnone{align-self:flex-start;padding:24px}
+.tbc{display:flex;align-items:center;gap:5px;min-height:34px;padding:4px 4px 4px 4px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface);font-size:12px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  transition:opacity .12s ease,background-color .5s ease,border-color .12s ease,transform .12s ease;flex:none}
+.tbc:hover{border-color:#d6d3d1}
+.tbc:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.tbc.lead{border-color:var(--brand)}
+.tbc.off{opacity:.6}
+.tbc.tbsrc{opacity:.35}
+.tbc.tbjust{background:var(--brand-soft)}
+.tbc.tbpress{transform:scale(.98);background:var(--brand-soft)}
+body.readonly .tbc,body.viewonly .tbc{cursor:default;padding-left:8px}
+.tbgrip{color:var(--faint);display:inline-flex}
+.tbgrip .ic{width:12px!important;height:12px!important}
+.tbnm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.tbc .pill,.tbc .trole{flex:none;margin-left:0}
+.tbn{flex:none;font-size:9.5px;font-weight:800;color:var(--brand);white-space:nowrap}
+#teamdlg .tbdots{flex:none;border:none;background:none;padding:4px;border-radius:5px;color:var(--mut);display:inline-flex;
+  min-height:0;cursor:pointer}
+#teamdlg .tbdots:hover,#teamdlg .tbdots:focus-visible{background:var(--brand-soft);color:var(--brand)}
+.tbnewcol{flex:0 0 190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:1.5px dashed var(--line)!important;border-radius:10px!important;background:none!important;color:var(--mut);
+  font:700 12.5px 'Montserrat',sans-serif;cursor:pointer;transition:border-color .12s,color .12s,background-color .12s}
+.tbnewcol small{font-weight:600;font-size:10.5px;color:var(--faint)}
+.tbnewcol:hover,.tbnewcol.tbover{border-color:var(--brand)!important;color:var(--brand);background:var(--brand-soft)!important}
+.tbnewcol .ic{width:18px!important;height:18px!important}
+.tbghost{position:fixed;left:0;top:0;z-index:20;pointer-events:none;margin:0;box-shadow:0 12px 28px rgba(0,0,0,.18);
+  cursor:grabbing;will-change:transform;background:var(--surface)}
+.tbgmode{flex:none;font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:999px;background:var(--ink);color:#fff}
+.tbghost.copy .tbgmode{background:var(--brand)}
+.tbmark{position:absolute;left:8px;right:8px;height:3px;border-radius:2px;background:var(--brand);pointer-events:none}
+#teamdlg.tbdragging,#teamdlg.tbdragging *{cursor:grabbing!important}
+.tbmenu{position:fixed;z-index:21;min-width:210px;max-width:300px;max-height:min(420px,70vh);overflow-y:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:9px;box-shadow:0 12px 32px rgba(0,0,0,.16);
+  padding:5px;display:flex;flex-direction:column}
+#teamdlg .tbmenu button{border:none;text-align:left;padding:8px 10px;border-radius:6px;background:none;font-size:12.5px;
+  display:flex;align-items:center;gap:6px}
+#teamdlg .tbmenu button:hover:not(:disabled),#teamdlg .tbmenu button:focus{background:var(--brand-soft);outline:none}
+#teamdlg .tbmenu button:disabled{color:var(--faint);cursor:default}
+#teamdlg .tbmenu .danger{color:var(--danger)}
+.tbmenuhd{font-size:11px;font-weight:700;color:var(--mut);padding:6px 10px 4px;line-height:1.4}
+.tblive{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* Phones: the people list on top, teams stacked under it, one scroll. */
+@media (max-width:700px){
+  #teamdlg{width:100vw;height:100vh;height:100dvh;max-width:none;border-radius:0}
+  .tbbody{flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .tbpool{flex:none;max-height:42vh;border-right:none;border-bottom:1px solid var(--line)}
+  .tbboard{flex:none;flex-direction:column;overflow:visible;min-width:0}
+  .tbcol{flex:none}
+  .tblist{overflow:visible;min-height:56px}
+  .tbnewcol{flex:none;min-height:72px}
+  #teamdlg .tbpoolhd input,#teamdlg .tbpoolhd select,#teamdlg .tbhead select,#teamdlg .tbrename{font-size:16px}
+  #teamdlg .tbhead button{min-height:40px}
+}
+/* Touch: bigger targets. */
+@media (pointer:coarse){
+  .tbc{min-height:44px;padding:5px 4px 5px 6px}
+  #teamdlg .tbdots{padding:10px}
+  #teamdlg .tbmenu button{min-height:44px}
+}
+@media (prefers-reduced-motion: reduce){
+  .tbc,.tbcol,.tbpool,.tbnewcol{transition:none}
+}
 @media (max-width:767px){
   #teamdlg input[type=text],#teamdlg input[type=number],#teamdlg select{font-size:16px}
   #teamdlg button,#stfdlg .stfbtns button{min-height:40px}
@@ -2742,6 +2845,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
         <button id="calsubcopy" type="button" role="menuitem">Copy link</button>
       </div>
     </div>
+    <button id="tbteams" class="tbteams" type="button" title="Teams: build your teams by drag and drop" aria-label="Teams" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Teams</span></button>
     <button id="tbprint" class="tbicon" type="button" title="Print the crew sheets for what's on screen" aria-label="Print crew sheets"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg></button>
     <div id="dlwrap">
       <button id="billexportbtn" class="tbicon" type="button" title="Export the schedule (Excel, CSV or PDF)" aria-label="Export the schedule"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></button>
@@ -2896,9 +3000,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   </div>
 </dialog>
 <dialog id="teamdlg" aria-labelledby="teamtitle">
-  <b id="teamtitle">Teams</b>
   <div id="teambody"></div>
-  <div class="btns" id="teambtns"></div>
 </dialog>
 <dialog id="txtdlg" aria-labelledby="txttitle">
   <div class="txthd"><b id="txttitle">Send mass text</b>
@@ -3102,6 +3204,7 @@ const IC={
  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
  chev:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
  print:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg>',
+ dots:'<svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg>',
  grip:'<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></svg>',
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
@@ -3948,6 +4051,8 @@ function normTeams(list, ids, season){
     const members=[...new Set(raw)].filter(x=>x && ok(x));
     if(!members.includes(leadId)) leadId='';
     const team={id, name, season:yearOf, leadId, members};
+    // Kit Manager / Van Manager (user, 2026-10-30): one person each, a member.
+    ['kitId','vanId'].forEach(k=>{ const v=t[k]==null ? '' : String(t[k]); if(v && members.includes(v)) team[k]=v; });
     if(typeof t.color==='string' && /^#[0-9a-f]{6}$/i.test(t.color)) team.color=t.color.toLowerCase();
     seen.add(id); out.push(team);
   });
@@ -3978,14 +4083,27 @@ function teamBadge(list, pid, season, prefer){
   if(!on.length) return null;
   const rank=t=>{ const i=(prefer||[]).indexOf(t.id); return i<0 ? 1e9 : i; };
   const first=on.slice().sort((a,b)=>rank(a)-rank(b))[0];
-  return {name:first.name, more:on.length-1, all:on.map(t=>t.name),
+  return {name:first.name, more:on.length-1, all:on.map(t=>t.name), roles:teamRolesOf(first, pid),
           title:(on.length>1 ? `On ${on.length} teams: ` : 'On ')+on.map(t=>t.name).join(', ')};
+}
+/** A team's Kit / Van chips, each naming its holder in the tooltip. */
+function teamRoleChipsFor(t){
+  return TEAM_ROLES.filter(r=>r.key!=='leadId' && t[r.key]).map(r=>{
+    const p=personById(t[r.key]);
+    return `<span class="trole trole-${r.short.toLowerCase()}" title="${esc(r.label)}: ${esc(p?p.name:'?')}">${esc(r.short)}</span>`;
+  }).join('');
+}
+/** A small role chip: "Lead", "Kit" or "Van". */
+function teamRoleChip(short){
+  const r=TEAM_ROLES.find(x=>x.short===short);
+  return `<span class="trole trole-${short.toLowerCase()}" title="${esc(r?r.label:short)}">${esc(short)}</span>`;
 }
 /** The badge as HTML ('' when on no team). */
 function teamBadgeHTML(pid, prefer){
   const b=teamBadge(teams, pid, teamSeasonDefault(), prefer);
   if(!b) return '';
   return `<span class="asgteam" title="${esc(b.title)}">${esc(b.name)}</span>`
+    + b.roles.map(teamRoleChip).join('')
     + (b.more ? `<span class="asgteamx" title="${esc(b.title)}">+${b.more}</span>` : '');
 }
 /** PURE. `list` with `team` saved (replaced by id, or added at the end).
@@ -3998,6 +4116,40 @@ function withTeam(list, team){
 }
 /** PURE. `list` without team `id`. */
 function withoutTeam(list, id){ return (list||[]).filter(t=>t.id!==id); }
+// ---- Team roles ----
+// "add the ability to assign roles to teams as kit manager, and van manager"
+// (user, 2026-10-30). Next to the lead, a team can have one Kit Manager (owns
+// the tool kit) and one Van Manager (owns the van), stored on the team as
+// kitId / vanId. A role is per team: someone can be Kit on one team and a
+// plain member of another. Leaving a team clears their roles on it.
+const TEAM_ROLES=[{key:'leadId', short:'Lead', label:'Lead'}, {key:'kitId', short:'Kit', label:'Kit Manager'}, {key:'vanId', short:'Van', label:'Van Manager'}];
+/** PURE. The roles `pid` holds on team `t`: ['Lead','Kit','Van'] (short names). */
+function teamRolesOf(t, pid){
+  return t ? TEAM_ROLES.filter(r=>t[r.key] && t[r.key]===pid).map(r=>r.short) : [];
+}
+/** PURE. Give team `id` a role holder: role is 'leadId', 'kitId' or 'vanId'.
+ *  The person is added to the team if they're not on it; '' or the current
+ *  holder clears the role. */
+function teamsWithRole(list, id, role, pid){
+  if(!TEAM_ROLES.some(r=>r.key===role)) return list;
+  return (list||[]).map(t=>{
+    if(t.id!==id) return t;
+    if(!pid || t[role]===pid){
+      const out={...t};
+      if(role==='leadId') out.leadId=''; else delete out[role];
+      return out;
+    }
+    const members=t.members.includes(pid) ? t.members.slice() : [...t.members, pid];
+    return teamLeadFirst({...t, members, [role]:pid});
+  });
+}
+/** PURE. Which team's Kit and Van Managers this shift carries: the first of
+ *  `list` (most relevant first) with both its Kit and Van Managers on the
+ *  shift (`on`: a Set of person ids). {teamId, kitId, vanId} or null. */
+function teamRolesOnShift(list, on){
+  const t=(list||[]).find(x=>x.kitId && x.vanId && on.has(x.kitId) && on.has(x.vanId));
+  return t ? {teamId:t.id, kitId:t.kitId, vanId:t.vanId} : null;
+}
 // ---- Teams builder moves, as pure functions (none changes its input) ----
 /** PURE. A team with its lead listed first ('' lead when not a member). */
 function teamLeadFirst(t){
@@ -4026,18 +4178,14 @@ function teamsAfterDrop(list, o){
   if(src && src!==dst && !o.copy){
     src.members=src.members.filter(x=>x!==pid);
     if(src.leadId===pid) src.leadId='';
+    if(src.kitId===pid) delete src.kitId;
+    if(src.vanId===pid) delete src.vanId;
   }
   return L.map(t=>(t===src||t===dst) ? teamLeadFirst(t) : t);
 }
 /** PURE. Make `pid` the lead of team `id` (adding them if they're not on
  *  it); '' or the current lead clears it. */
-function teamsWithLead(list, id, pid){
-  return (list||[]).map(t=>{
-    if(t.id!==id) return t;
-    if(!pid || t.leadId===pid) return {...t, leadId:''};
-    return teamLeadFirst({...t, leadId:pid, members:t.members.includes(pid) ? t.members.slice() : [pid, ...t.members]});
-  });
-}
+function teamsWithLead(list, id, pid){ return teamsWithRole(list, id, 'leadId', pid); }
 /** PURE. Team `id` renamed (a blank name is ignored). */
 function teamsRenamed(list, id, name){
   const n=normTeamName(name);
@@ -4059,13 +4207,17 @@ function teamCopyName(name, taken){
     if(!used.has(n.toLowerCase())) return n;
   }
 }
-/** PURE. `list` with a copy of team `id` (same people, lead and year) named
+/** PURE. `list` with a copy of team `id` (same people, roles and year) named
  *  `name`, right after it. */
 function teamsWithCopy(list, id, newId, name){
   const out=[];
   (list||[]).forEach(t=>{
     out.push(t);
-    if(t.id===id) out.push({id:newId, name:normTeamName(name), season:t.season, leadId:t.leadId, members:t.members.slice()});
+    if(t.id!==id) return;
+    const c={id:newId, name:normTeamName(name), season:t.season, leadId:t.leadId, members:t.members.slice()};
+    if(t.kitId) c.kitId=t.kitId;
+    if(t.vanId) c.vanId=t.vanId;
+    out.push(c);
   });
   return out;
 }
@@ -12869,6 +13021,15 @@ function applyTeamToShift(sh, team, plan){
       sh.training ? 'this training' : 'this crew')};
   return plan;
 }
+/** A shift's Kit and Van Managers, carried from the team that staffed it:
+ *  the most relevant team with both of them on this shift. {kit, van} people,
+ *  or null (then the crew sheet prints no Kit / Van line). */
+function shiftKitVan(sh){
+  const order=stfTeamsOn(sh).map(id=>teams.find(t=>t.id===id)).filter(Boolean);
+  const r=teamRolesOnShift(order, shiftAssigned(sh));
+  const kit=r && personById(r.kitId), van=r && personById(r.vanId);
+  return kit && van ? {kit, van, teamId:r.teamId} : null;
+}
 /** The season's teams with someone on this shift, fully ticked ones first:
  *  the ids a person's team badge prefers. */
 function stfTeamsOn(sh){
@@ -12904,6 +13065,7 @@ function stfTeamsHTML(sh){
           + `${partial?' data-partial="1"':''}${able||st.on?'':' disabled'}`
           + ` aria-label="${esc(t.name)}: ${esc(cnt)} people">`
           + `<span class="asgn">${esc(t.name)}</span>`
+          + teamRoleChipsFor(t)
           + (st.on && !st.selected ? `<span class="asgteamon">${st.on} on</span>` : '')
           + `<span class="pill teamcnt" title="${able<st.total?`${able} of ${st.total} can work this date`:`${st.total} people`}">${esc(cnt)}</span>`
           + `</label>`;
@@ -13385,7 +13547,8 @@ function personDetailHTML(){
       <span class="pill gen">${esc(p.gender)}</span>
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
       ${trained?`<span class="pill trained">${esc(trained)}</span>`:''}
-      ${teamsOfPerson(teams, p.id, teamSeasonDefault()).map(t=>`<span class="asgteam" title="On ${esc(t.name)}">${IC.users}${esc(t.name)}</span>`).join('')}
+      ${teamsOfPerson(teams, p.id, teamSeasonDefault()).map(t=>`<span class="asgteam" title="On ${esc(t.name)}">${IC.users}${esc(t.name)}`
+          + `${teamRolesOf(t, p.id).map(r=>` · ${esc(r)}`).join('')}</span>`).join('')}
     </div>
     <div class="stfcard">
       <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
@@ -14139,7 +14302,6 @@ function renderStaffing(){
         short?` (${short})`:''}</button>
       ${staffTab==='roster'?'<button class="stftxt" id="masstext"><span class="stflg">Send mass text</span><span class="stfsm">Mass text</span></button>'
         +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts"><span class="stflg">Download contacts</span><span class="stfsm">Contacts</span></button>'
-        +`<button class="stfvcf stfteams" id="teamsbtn" title="Saved teams you can add to a crew in one tap">${IC.users}<span>Teams${(n=>n?` (${n})`:'')(teamsForSeason(teams, teamSeasonDefault()).length)}</span></button>`
         :(nx=>nx&&!READONLY?`<button class="stfvcf remnext" data-remind="${nx}" title="Text everyone staffed ${esc(remDateLabel(nx))} a reminder of their shift">${IC.msg}<span>${nx===addDays(todayISO(),1)?"Text tomorrow's crews":`Text crews for ${esc(remDateLabel(nx))}`}</span></button>`:'')(nextReminderDate())}
       <button class="stfadd" id="addperson"><span class="stflg">+ Add installer</span><span class="stfsm">+ Add installer</span></button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
@@ -14161,8 +14323,6 @@ function renderStaffing(){
   wireRemButtons(wrap);
   const dl=document.getElementById('dlcontacts');
   if(dl) dl.onclick=downloadContacts;
-  const tb=document.getElementById('teamsbtn');
-  if(tb) tb.onclick=openTeamsDlg;
   wrap.querySelectorAll('select[data-f]').forEach(sl=>
     sl.onchange=()=>{ stfFilter[sl.dataset.f]=sl.value; renderStaffing(); });
   wrap.querySelectorAll('tr[data-pid]').forEach(tr=>{
@@ -14286,165 +14446,560 @@ function renderStaffing(){
   });
 }
 
-// ---- Teams (Roster > Teams) ----
-// List a season's teams; make, edit and delete them. See the Teams notes by
-// normTeams() for the data. Read-only pages can look but not change.
-let teamView = {mode:'list', season:null, draft:null};
+// ---- Teams builder (the Teams button on every view) ----
+// "i want to be able to make different teams and combinations and basically
+// want to be able to drag and drop the combinations of my choosing" (user,
+// 2026-10-30). One column per team for the year, and every active person in
+// a list on the left. Drag a person onto a team, between teams (a plain drag
+// moves; Option/Alt-drag or the Copy switch copies), back to the list to take
+// them off, or up and down a team to reorder. Touch: press and hold, then
+// drag. Every person and team also has a menu (keyboard and screen readers),
+// so nothing needs a drag. Each change is one shared, undoable save; the
+// stale-tab merge (mergeShared) combines it with anyone else's.
+const tb={season:null, q:'', show:'', mode:'move', undoN:0, drag:null, pend:null,
+          menu:null, renaming:null, just:null};
 function openTeamsDlg(){
-  teamView={mode:'list', season:teamSeasonDefault(), draft:null};
-  drawTeamsDlg();
+  tb.season=teamSeasonDefault(); tb.undoN=0; tb.just=null; tb.renaming=null;
+  tbCloseMenu();
+  drawTeamBuilder();
   if(!teamdlg.open) teamdlg.showModal();
+  const d=document.getElementById('tmdone'); if(d) d.focus();
 }
-function teamPersonName(id){ const p=personById(id); return p ? p.name : 'Someone no longer on the roster'; }
-function teamListHTML(){
-  const season=teamView.season;
+window.tbdgOpenTeams = openTeamsDlg;
+/** Busy: a redraw now would lose a drag, a menu or a half-typed name. */
+function tbBusy(){ return !!(tb.drag || tb.menu || tb.renaming || tb.selfDraw); }
+function tbSay(msg){ const l=document.getElementById('tmlive'); if(l && msg) l.textContent=msg; }
+const tbName=id=>{ const p=personById(id); return p ? p.name : 'Someone no longer on the roster'; };
+const tbTeam=id=>teams.find(t=>t.id===id) || null;
+/** Save a change to the teams (shared and undoable). False when nothing changed. */
+function tbCommit(next, msg, just){
+  if(roBlocked()) return false;
+  next=normTeams(next, roster.map(p=>p.id), teamSeasonDefault());
+  if(stableJSON(next)===stableJSON(teams)) return false;
+  pushUndo(); tb.undoN++;
+  teams=next; tb.just=just||null;
+  tb.selfDraw=true;
+  try{ persist(); render(); } finally{ tb.selfDraw=false; }
+  drawTeamBuilder();
+  tbSay(msg);
+  return true;
+}
+function tbUndo(){
+  if(roBlocked()) return;
+  tb.undoN=stfUndoLeft(tb.undoN, undoStack.length);
+  if(!tb.undoN) return;
+  tb.undoN--; tb.just=null;
+  undo(); drawTeamBuilder(); tbSay('Undone.');
+}
+/** PURE. A free "New team" name for `season` ("New team", "New team 2", ...). */
+function teamNewName(list, season){
+  const used=new Set(teamsForSeason(list, season).map(t=>t.name.toLowerCase()));
+  if(!used.has('new team')) return 'New team';
+  for(let i=2;;i++) if(!used.has('new team '+i)) return 'New team '+i;
+}
+/** The people list on the left: every active person (plus filter and search). */
+function tbPool(){
+  const q=tb.q.trim().toLowerCase(), season=tb.season;
+  return roster.filter(p=>p.active!==false)
+    .filter(p=>!q || p.name.toLowerCase().includes(q))
+    .filter(p=>{
+      const f=tb.show;
+      if(!f) return true;
+      if(f==='trained') return p.title==='Lead' || attendedTraining(p, staffing, trainingDays);
+      if(f==='none') return !teamsOfPerson(teams, p.id, season).length;
+      if(f.startsWith('t:')) return p.title===f.slice(2);
+      return true;
+    });
+}
+/** One person card. `team`: the team column it sits in (null in the list). */
+function tbCardHTML(p, team){
+  const from=team ? team.id : '';
+  const roles=team ? teamRolesOf(team, p.id) : [];
+  const on=team ? [] : teamsOfPerson(teams, p.id, tb.season);
+  const just=tb.just && tb.just.pid===p.id && tb.just.team===from;
+  const lbl=`${p.name}, ${p.title}, ${p.lang}`+(roles.length?`, ${roles.join(', ')}`:'')
+    + (team ? ` on ${team.name}` : on.length ? `, on ${on.length} team${on.length===1?'':'s'}` : '');
+  return `<div class="tbc${roles.includes('Lead')?' lead':''}${p.active===false?' off':''}${just?' tbjust':''}" role="listitem"`
+    + ` data-pid="${esc(p.id)}" data-from="${esc(from)}" tabindex="0" aria-label="${esc(lbl)}"`
+    + (READONLY ? '' : ` title="Drag onto a team${team?' (Option or Alt to copy)':''}, or press Enter for options"`) + `>`
+    + (READONLY ? '' : `<span class="tbgrip" aria-hidden="true">${IC.grip}</span>`)
+    + `<span class="tbnm">${esc(p.name)}</span>`
+    + roles.map(teamRoleChip).join('')
+    + (p.active===false ? `<span class="pill gen">Inactive</span>` : '')
+    + (on.length ? `<span class="tbn" title="On ${esc(on.map(t=>t.name).join(', '))}">${on.length} team${on.length===1?'':'s'}</span>` : '')
+    + `<span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>`
+    + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
+    + (READONLY ? '' : `<button type="button" class="tbdots" data-pmenu aria-haspopup="menu" aria-label="Options for ${esc(p.name)}">${IC.dots}</button>`)
+    + `</div>`;
+}
+/** PURE. "1 Lead · 2 Assist · 5 General" for a team's people. */
+function teamMixLine(ps){
+  const by=(k, vals, abbr)=>vals.map(v=>[abbr[v], ps.filter(p=>p[k]===v).length]).filter(x=>x[1]).map(x=>`${x[1]} ${x[0]}`);
+  return [by('title', TITLES, TITLE_ABBR).join(' · '), by('lang', ['English','Spanish','Both'], LANG_ABBR).join(' · ')].filter(Boolean);
+}
+function tbColHTML(t){
+  const ps=t.members.map(personById).filter(Boolean);
+  const st=teamStats(t, personById, overallRating);
+  const mix=teamMixLine(ps);
+  const roleLine=TEAM_ROLES.filter(r=>t[r.key]).map(r=>`${r.short}: ${esc(tbName(t[r.key]))}`).join(' · ');
+  const name = tb.renaming===t.id
+    ? `<input type="text" class="tbrename" id="tmrename" maxlength="${TEAM_NAME_MAX}" value="${esc(t.name)}" aria-label="Team name">`
+    : `<button type="button" class="tbname" data-rename${READONLY?' disabled':''} title="${READONLY?esc(t.name):'Rename'}">${esc(t.name)}</button>`;
+  return `<section class="tbcol" data-team="${esc(t.id)}" aria-label="${esc(t.name)}, ${ps.length} ${ps.length===1?'person':'people'}">`
+    + `<div class="tbcolhd">${name}<span class="pill teamcnt" title="${ps.length} ${ps.length===1?'person':'people'}">${ps.length}</span>`
+    + (READONLY ? '' : `<button type="button" class="tbdots" data-tmenu aria-haspopup="menu" aria-label="Options for ${esc(t.name)}">${IC.dots}</button>`)
+    + `</div><div class="tbcolmeta">${roleLine?`<div>${roleLine}</div>`:''}`
+    + mix.map(x=>`<div>${esc(x)}</div>`).join('')
+    + `<div class="teamrat">${st.rated?`Avg ${ratingScale(st.avg).toFixed(1)}★`:'Not rated'}</div></div>`
+    + `<div class="tblist" role="list">`
+    + (ps.length ? ps.map(p=>tbCardHTML(p, t)).join('') : `<div class="tbempty">${READONLY?'Nobody yet':'Drag people here'}</div>`)
+    + `</div></section>`;
+}
+function drawTeamBuilder(){
+  const body=document.getElementById('teambody'); if(!body) return;
+  const season=tb.season || teamSeasonDefault();
+  // keep scroll positions and the search box across the redraw
+  const keep={}, act=document.activeElement;
+  const board=body.querySelector('.tbboard'), pool=body.querySelector('.tbpoollist');
+  if(board){ keep.bx=board.scrollLeft; keep.by=board.scrollTop; }
+  if(pool) keep.py=pool.scrollTop;
+  keep.cols={}; body.querySelectorAll('.tbcol').forEach(c=>{ keep.cols[c.dataset.team]=c.querySelector('.tblist').scrollTop; });
+  const bodyTop=body.querySelector('.tbbody') ? body.querySelector('.tbbody').scrollTop : 0;
+  const focusQ=act && act.id==='tmq', focusCard=act && act.closest && act.closest('.tbc');
+  const focusKey=focusCard ? [focusCard.dataset.pid, focusCard.dataset.from] : null;
   const years=[...new Set([teamSeasonDefault(), ...teams.map(t=>t.season)])].sort((a,b)=>b-a);
   const list=teamsForSeason(teams, season);
-  let h=`<div class="teamsub">Saved groups of people. In <b>Staff this shift</b>, tap a team to add `
-    + `everyone on it who can work that day, then change anyone you need to.</div>`;
-  if(years.length>1)
-    h+=`<label class="nclabel" for="teamyear">Year</label><select id="teamyear">`
-      + years.map(y=>`<option value="${y}"${y===season?' selected':''}>${y}</option>`).join('')+`</select>`;
-  if(!list.length) h+=`<div class="stfnone">No teams for ${season} yet.`
-    + (READONLY ? '' : ` Tap <b>+ New team</b> to make one.`)+`</div>`;
-  h+=`<div class="teamlist">`+list.map(t=>{
-    const st=teamStats(t, personById, overallRating);
-    const lead=t.leadId ? personById(t.leadId) : null;
-    const names=t.members.filter(id=>id!==t.leadId).map(teamPersonName);
-    return `<div class="teamrow" data-teamrow="${esc(t.id)}">
-      <div class="teamhd"><b class="teamnm">${esc(t.name)}</b>
-        <span class="teammeta">${st.count} ${st.count===1?'person':'people'}`
-        + `<span class="teamrat"> · ${st.rated?`avg ${ratingScale(st.avg).toFixed(1)}★`:'not rated'}</span></span></div>
-      <div class="teamppl">${lead?`<span class="teamlead">Lead: ${esc(lead.name)}</span>`:''}`
-        + `${esc(names.join(', '))}</div>
-      ${READONLY?'':`<div class="teamacts">
-        <button type="button" data-teamedit="${esc(t.id)}">Edit</button>
-        <button type="button" class="teamdel" data-teamdel="${esc(t.id)}">Delete</button></div>`}
-    </div>`;
-  }).join('')+`</div>`;
-  return h;
-}
-function teamEditHTML(){
-  const dr=teamView.draft;
-  const sel=new Set(dr.members);
-  const pick={training:false, showAll:stfShowUntrained(), assigned:sel, staffing, trainingDays};
-  const people=roster.filter(p=>staffPickable(p, pick));
-  const hidden=roster.filter(p=>p.active && !staffPickable(p, {...pick, showAll:false})).length;
-  const leads=roster.filter(p=>p.active!==false || p.id===dr.leadId)
-    .sort((a,b)=>TITLES.indexOf(a.title)-TITLES.indexOf(b.title) || a.name.localeCompare(b.name));
-  let h=`<label class="nclabel" for="teamname">Team name</label>
-    <input type="text" id="teamname" maxlength="${TEAM_NAME_MAX}" value="${esc(dr.name)}" placeholder="e.g. Alberto's team">
-    <div class="teamtwo"><div><label class="nclabel" for="teamseason">Year</label>
-      <input type="number" id="teamseason" min="2000" max="2100" value="${dr.season}"></div>
-    <div><label class="nclabel" for="teamleadsel">Lead</label>
-      <select id="teamleadsel"><option value="">No lead</option>`
-    + leads.map(p=>`<option value="${esc(p.id)}"${p.id===dr.leadId?' selected':''}>${esc(p.name)} (${esc(p.title)})</option>`).join('')
-    + `</select></div></div>
-    <div class="teamcount">${sel.size} picked</div>
-    <label class="untrtog" title="Normally only people who attended training, plus Leads, are listed">`
-    + `<input type="checkbox" id="teamuntr"${pick.showAll?' checked':''}>`
-    + `<span>Show people who didn't attend training${hidden?` <span class="n">(${hidden})</span>`:''}</span></label>`
-    + `<div class="asglist teampick">`;
-  if(!people.length) h+=`<div class="stfnone">No one who attended training yet. Tick "Show people who didn't attend training" to pick from everyone.</div>`;
+  const people=tbPool();
+  const showOpts=[['','All active people'],['trained','Leads + attended training'],['none','Not on a team yet'],
+    ...TITLES.map(t=>['t:'+t, t==='Lead'?'Leads':t+'s'])];
+  let h=`<div class="tbhead"><b id="teamtitle">Teams</b>`
+    + (years.length>1 ? `<select id="tmyear" aria-label="Year">${years.map(y=>`<option value="${y}"${y===season?' selected':''}>${y}</option>`).join('')}</select>`
+                      : `<span class="tbyear1">${season}</span>`)
+    + `<span class="sp"></span>`
+    + (READONLY ? `<span class="tbro">View only</span>` :
+        `<div class="tbseg" role="group" aria-label="When you drag someone off a team">`
+        + `<button type="button" data-mode="move" aria-pressed="${tb.mode==='move'}" title="Dragging someone to another team moves them">Move</button>`
+        + `<button type="button" data-mode="copy" aria-pressed="${tb.mode==='copy'}" title="Dragging someone to another team copies them (they stay on both)">Copy</button></div>`
+        + `<button type="button" id="tmundo"${tb.undoN && undoStack.length?'':' disabled'} title="Undo the last change made here">${IC.undo} Undo</button>`
+        + `<button type="button" class="go" id="tmnew">+ New team</button>`)
+    + `<button type="button" id="tmdone">Done</button></div>`
+    + `<div class="tbhint">${READONLY ? 'Saved teams for the year.'
+        : `Drag people onto a team. Drag between teams to move them, or hold <b>Option</b> (<b>Alt</b>) while you drop to copy`
+        + ` (or switch to <b>Copy</b>). On an iPad, press and hold a name, then drag. A person can be on any number of teams. `
+        + `Each name has a menu too: lead, Kit Manager, Van Manager, add to a team.`}</div>`
+    + `<div class="tbbody">`
+    + `<section class="tbpool" aria-label="People">`
+    + `<div class="tbpoolhd"><div class="tbpooltitle">People <span class="n">${people.length}</span></div>`
+    + `<input type="search" id="tmq" placeholder="Find a person" value="${esc(tb.q)}" aria-label="Find a person" autocomplete="off">`
+    + `<select id="tmshow" aria-label="Show">${showOpts.map(([v,l])=>`<option value="${esc(v)}"${v===tb.show?' selected':''}>${esc(l)}</option>`).join('')}</select></div>`
+    + `<div class="tbpoollist" role="list" aria-label="People">`;
   TITLES.forEach(ttl=>{
     const grp=people.filter(p=>p.title===ttl).sort((a,b)=>a.name.localeCompare(b.name));
     if(!grp.length) return;
-    h+=`<div class="asghdr">${esc(ttl)}</div>`;
-    grp.forEach(p=>{
-      const other=teamOfPerson(teams, p.id, dr.season, dr.id);   // also on (no limit)
-      h+=`<label class="asgrow${sel.has(p.id)?' on':''}">`
-        + `<input type="checkbox" data-tpid="${esc(p.id)}"${sel.has(p.id)?' checked':''}>`
-        + `<span class="asgn">${esc(p.name)}</span>`
-        + (other?`<span class="teamon" title="Also on ${esc(teamsOfPerson(teams, p.id, dr.season).filter(t=>t.id!==dr.id).map(t=>t.name).join(', '))}">ALSO ${esc(other.name.toUpperCase())}</span>`:'')
-        + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></label>`;
-    });
+    h+=`<div class="asghdr">${esc(ttl)}</div>`+grp.map(p=>tbCardHTML(p, null)).join('');
   });
-  h+=`</div><div class="teamerr" id="teamerr"></div>`;
-  return h;
+  if(!people.length) h+=`<div class="tbempty">Nobody matches.</div>`;
+  h+=`</div></section><div class="tbboard">`
+    + list.map(tbColHTML).join('')
+    + (READONLY ? (list.length ? '' : `<div class="tbempty tbnone">No teams for ${season}.</div>`)
+        : `<button type="button" class="tbnewcol" data-newcol>${IC.users}<span>${list.length?'+ New team':'+ Make the first team'}</span>`
+        + `<small>or drop someone here</small></button>`)
+    + `</div></div><div id="tmlive" class="tblive" aria-live="polite"></div>`;
+  body.innerHTML=h;
+  // put things back
+  const b2=body.querySelector('.tbboard'), p2=body.querySelector('.tbpoollist');
+  if(b2 && keep.bx!=null){ b2.scrollLeft=keep.bx; b2.scrollTop=keep.by; }
+  if(p2 && keep.py!=null) p2.scrollTop=keep.py;
+  body.querySelectorAll('.tbcol').forEach(c=>{ const v=keep.cols[c.dataset.team]; if(v) c.querySelector('.tblist').scrollTop=v; });
+  const tbb=body.querySelector('.tbbody'); if(tbb) tbb.scrollTop=bodyTop;
+  if(focusQ){ const q=document.getElementById('tmq'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  else if(focusKey){
+    const c=[...body.querySelectorAll('.tbc')].find(x=>x.dataset.pid===focusKey[0] && x.dataset.from===focusKey[1])
+      || (tb.just && [...body.querySelectorAll('.tbc')].find(x=>x.dataset.pid===tb.just.pid && x.dataset.from===tb.just.team));
+    if(c) c.focus({preventScroll:true});
+  }
+  if(tb.just){
+    const c=[...body.querySelectorAll('.tbc')].find(x=>x.dataset.pid===tb.just.pid && x.dataset.from===tb.just.team);
+    if(c){ c.scrollIntoView({block:'nearest', inline:'nearest'}); setTimeout(()=>c.classList.remove('tbjust'), 900); }
+    tb.just=null;
+  }
+  tbWire(body);
 }
-function drawTeamsDlg(){
-  const body=document.getElementById('teambody'), btns=document.getElementById('teambtns');
-  const title=document.getElementById('teamtitle');
-  if(teamView.mode==='edit' && teamView.draft){
-    const dr=teamView.draft;
-    title.textContent = teams.some(t=>t.id===dr.id) ? `Edit ${dr.name||'team'}` : 'New team';
-    body.innerHTML=teamEditHTML();
-    btns.innerHTML=`<button type="button" id="teamcancel">Cancel</button><button type="button" class="go" id="teamsave">Save team</button>`;
-    // Keep what's typed when the list redraws.
-    const keep=()=>{
-      dr.name=document.getElementById('teamname').value;
-      const y=parseInt(document.getElementById('teamseason').value, 10);
-      if(y>=2000 && y<=2100) dr.season=y;
-      dr.leadId=document.getElementById('teamleadsel').value;
+function tbWire(body){
+  document.getElementById('tmdone').onclick=()=>teamdlg.close();
+  const ys=document.getElementById('tmyear');
+  if(ys) ys.onchange=()=>{ tb.season=+ys.value; drawTeamBuilder(); };
+  const q=document.getElementById('tmq');
+  q.oninput=()=>{ tb.q=q.value; drawTeamBuilder(); };
+  document.getElementById('tmshow').onchange=e=>{ tb.show=e.target.value; drawTeamBuilder(); };
+  if(READONLY) return;
+  body.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ tb.mode=b.dataset.mode; drawTeamBuilder(); });
+  document.getElementById('tmundo').onclick=tbUndo;
+  document.getElementById('tmnew').onclick=()=>tbNewTeam();
+  body.querySelector('[data-newcol]').onclick=()=>tbNewTeam();
+  body.querySelectorAll('[data-rename]').forEach(b=>b.onclick=()=>tbStartRename(b.closest('.tbcol').dataset.team));
+  body.querySelectorAll('[data-tmenu]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); tbTeamMenu(b); });
+  body.querySelectorAll('[data-pmenu]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); tbPersonMenu(b.closest('.tbc'), b); });
+  body.querySelectorAll('.tbc').forEach(c=>{
+    c.addEventListener('pointerdown', tbPointerDown);
+    c.addEventListener('contextmenu', e=>{ if(tb.pend || tb.drag) e.preventDefault(); });
+    c.addEventListener('keydown', e=>tbCardKey(e, c));
+  });
+  const ren=document.getElementById('tmrename');
+  if(ren){
+    ren.focus(); ren.select();
+    let done=false;
+    const fin=save=>{
+      if(done) return; done=true;
+      const id=tb.renaming; tb.renaming=null;
+      if(!save || !tbCommit(teamsRenamed(teams, id, ren.value), `Renamed to ${normTeamName(ren.value)}.`)) drawTeamBuilder();
+      const b=[...document.querySelectorAll('.tbcol')].find(x=>x.dataset.team===id);
+      if(b) b.querySelector('[data-rename]').focus();
     };
-    const redraw=()=>{ keep(); const sc=body.querySelector('.teampick'); const top=sc?sc.scrollTop:0;
-      drawTeamsDlg(); const sc2=body.querySelector('.teampick'); if(sc2) sc2.scrollTop=top; };
-    body.querySelectorAll('input[data-tpid]').forEach(cb=>{
-      cb.onchange=()=>{
-        const id=cb.dataset.tpid;
-        dr.members = cb.checked ? [...new Set([...dr.members, id])] : dr.members.filter(x=>x!==id);
-        if(!cb.checked && dr.leadId===id){ dr.leadId=''; document.getElementById('teamleadsel').value=''; }
-        redraw();
-      };
+    ren.onkeydown=e=>{ e.stopPropagation();
+      if(e.key==='Enter'){ e.preventDefault(); fin(true); } else if(e.key==='Escape'){ e.preventDefault(); fin(false); } };
+    ren.onblur=()=>fin(true);
+  }
+}
+function tbStartRename(id){
+  if(roBlocked()) return;
+  tbCloseMenu(); tb.renaming=id; drawTeamBuilder();
+}
+/** A new team for this year (with `pid` on it, from a drop or a menu). */
+function tbNewTeam(pid, from, copy){
+  if(roBlocked()) return;
+  const id=newTeamId(), name=teamNewName(teams, tb.season);
+  let next=[...teams, {id, name, season:tb.season, leadId:'', members:[]}];
+  if(pid) next=teamsAfterDrop(next, {pid, from:from||'', to:id, copy});
+  tb.renaming=id;      // straight into naming it
+  if(!tbCommit(next, pid ? `Made ${name} with ${tbName(pid)}.` : `Made ${name}.`, pid ? {pid, team:id} : null)){
+    tb.renaming=null; return;
+  }
+  const col=[...document.querySelectorAll('.tbcol')].find(x=>x.dataset.team===id);
+  if(col) col.scrollIntoView({block:'nearest', inline:'nearest'});
+}
+/** Move, copy, add or take off one person, with the words for the screen reader. */
+function tbMove(pid, from, to, index, copy){
+  const tf=tbTeam(from), tt=tbTeam(to), nm=tbName(pid);
+  if(to && !tt) return;
+  const next=teamsAfterDrop(teams, {pid, from, to, index, copy});
+  const msg = !to ? `Took ${nm} off ${tf.name}.`
+    : from===to ? `Moved ${nm} to place ${tt.members.filter(x=>x!==pid).length && Number.isInteger(index) ? index+1 : 'last'} on ${tt.name}.`
+    : !from ? `Added ${nm} to ${tt.name}.`
+    : copy ? `Copied ${nm} to ${tt.name}. Still on ${tf.name}.`
+    : `Moved ${nm} from ${tf.name} to ${tt.name}.`;
+  tbCommit(next, msg, to ? {pid, team:to} : null);
+}
+// ---- menus (each person and team has one) ----
+function tbCloseMenu(refocus){
+  const m=tb.menu; tb.menu=null;
+  if(!m) return;
+  m.el.remove();
+  document.removeEventListener('pointerdown', m.outside, true);
+  if(refocus && m.anchor && m.anchor.isConnected) m.anchor.focus();
+}
+/** Open a menu by `anchor`: items [{label, act, disabled, danger, sub:[...]}]
+ *  or a {head} line. A `sub` item opens its own list with a Back item. */
+function tbOpenMenu(anchor, items, title){
+  tbCloseMenu();
+  const el=document.createElement('div');
+  el.className='tbmenu'; el.setAttribute('role','menu');
+  if(title) el.setAttribute('aria-label', title);
+  teamdlg.appendChild(el);
+  const show=(list, back)=>{
+    el.innerHTML='';
+    if(back){ const b=document.createElement('button'); b.type='button'; b.setAttribute('role','menuitem');
+      b.className='tbback'; b.innerHTML=`${IC.back}<span>Back</span>`; b.onclick=()=>show(items); el.appendChild(b); }
+    list.forEach(it=>{
+      if(it.head){ const d=document.createElement('div'); d.className='tbmenuhd'; d.textContent=it.head; el.appendChild(d); return; }
+      const b=document.createElement('button');
+      b.type='button'; b.setAttribute('role','menuitem');
+      b.textContent=it.label + (it.sub ? '…' : '');
+      if(it.danger) b.classList.add('danger');
+      if(it.disabled){ b.disabled=true; b.setAttribute('aria-disabled','true'); }
+      b.onclick=()=>{ if(it.sub){ show(it.sub, true); return; } tbCloseMenu(); it.act(); };
+      el.appendChild(b);
     });
-    document.getElementById('teamleadsel').onchange=e=>{
-      const v=e.target.value;
-      if(v && !dr.members.includes(v)) dr.members=[v, ...dr.members];
-      redraw();
-    };
-    document.getElementById('teamseason').onchange=redraw;
-    document.getElementById('teamuntr').onchange=e=>{ setStfShowUntrained(e.target.checked); redraw(); };
-    document.getElementById('teamcancel').onclick=()=>{ teamView.mode='list'; teamView.draft=null; drawTeamsDlg(); };
-    document.getElementById('teamsave').onclick=()=>{ keep(); saveTeamDraft(); };
+    const first=el.querySelector('button:not(:disabled)'); if(first) first.focus();
+    tbPlaceMenu(el, anchor);
+  };
+  el.onkeydown=e=>{
+    const bs=[...el.querySelectorAll('button:not(:disabled)')], i=bs.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'){ e.preventDefault(); (bs[i+1]||bs[0]).focus(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); (bs[i-1]||bs[bs.length-1]).focus(); }
+    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); tbCloseMenu(true); }
+    else if(e.key==='Tab'){ e.preventDefault(); tbCloseMenu(true); }
+  };
+  const outside=e=>{ if(!el.contains(e.target)) tbCloseMenu(); };
+  tb.menu={el, anchor, outside};
+  setTimeout(()=>document.addEventListener('pointerdown', outside, true), 0);
+  show(items);
+}
+function tbPlaceMenu(el, anchor){
+  const r=anchor.getBoundingClientRect(), vw=window.innerWidth, vh=window.innerHeight;
+  el.style.left='0px'; el.style.top='0px';
+  const w=el.offsetWidth, hgt=el.offsetHeight;
+  let x=Math.min(r.right-w, vw-w-8); x=Math.max(8, x);
+  let y=r.bottom+4; if(y+hgt>vh-8) y=Math.max(8, r.top-hgt-4);
+  el.style.left=x+'px'; el.style.top=y+'px';
+}
+/** The teams a person could be copied/moved/added to, as menu items. */
+function tbTeamTargets(pid, except, act){
+  const list=teamsForSeason(teams, tb.season).filter(t=>t.id!==except);
+  return [...list.map(t=>({label:t.name+(t.members.includes(pid)?' (already on it)':''),
+                          disabled:t.members.includes(pid), act:()=>act(t.id)})),
+          {label:'A new team', act:()=>act('')}];
+}
+function tbPersonMenu(card, anchor){
+  if(READONLY) return;
+  const pid=card.dataset.pid, from=card.dataset.from, t=tbTeam(from), p=personById(pid);
+  if(!p) return;
+  if(!t){
+    const on=teamsOfPerson(teams, pid, tb.season);
+    tbOpenMenu(anchor||card, [
+      {head:p.name},
+      {label:'Add to team', sub:tbTeamTargets(pid, null, to=>to ? tbMove(pid, '', to) : tbNewTeam(pid))},
+      ...(on.length ? [{label:'Take off a team', sub:on.map(x=>({label:x.name, act:()=>tbMove(pid, x.id, '')}))}] : []),
+    ], `Options for ${p.name}`);
     return;
   }
-  title.textContent='Teams';
-  body.innerHTML=teamListHTML();
-  btns.innerHTML=(READONLY?'':`<button type="button" class="go" id="teamnew">+ New team</button>`)
-    + `<button type="button" id="teamdone">Done</button>`;
-  const ys=document.getElementById('teamyear');
-  if(ys) ys.onchange=()=>{ teamView.season=+ys.value; drawTeamsDlg(); };
-  document.getElementById('teamdone').onclick=()=>teamdlg.close();
-  const nb=document.getElementById('teamnew');
-  if(nb) nb.onclick=()=>{
-    if(roBlocked()) return;
-    teamView.mode='edit';
-    teamView.draft={id:newTeamId(), name:'', season:teamView.season, leadId:'', members:[]};
-    drawTeamsDlg();
-    const n=document.getElementById('teamname'); if(n) n.focus();
+  const i=t.members.indexOf(pid), lead=t.leadId===pid;
+  const firstMovable=t.leadId ? 1 : 0;
+  const role=(key, label)=>{
+    const has=t[key]===pid;
+    return {label:has ? `Remove as ${label}` : `Make ${label}`,
+      act:()=>tbCommit(teamsWithRole(teams, t.id, key, pid),
+        has ? `${p.name} is no longer ${label} of ${t.name}.` : `${p.name} is now ${label} of ${t.name}.`, {pid, team:t.id})};
   };
-  body.querySelectorAll('[data-teamedit]').forEach(b=>b.onclick=()=>{
-    if(roBlocked()) return;
-    const t=teams.find(x=>x.id===b.dataset.teamedit); if(!t) return;
-    teamView.mode='edit';
-    teamView.draft=JSON.parse(JSON.stringify(t));
-    drawTeamsDlg();
-  });
-  body.querySelectorAll('[data-teamdel]').forEach(b=>b.onclick=()=>{
-    if(roBlocked()) return;
-    const t=teams.find(x=>x.id===b.dataset.teamdel); if(!t) return;
-    if(!confirm(`Delete "${t.name}"?\n\nNobody is taken off any crew. Only the saved team goes away.`)) return;
-    pushUndo();
-    teams=withoutTeam(teams, t.id);
-    persist(); drawTeamsDlg(); render();
-  });
+  tbOpenMenu(anchor||card, [
+    {head:`${p.name} on ${t.name}`},
+    role('leadId', 'lead'), role('kitId', 'Kit Manager'), role('vanId', 'Van Manager'),
+    {label:'Move up', disabled:lead || i<=firstMovable, act:()=>tbMove(pid, t.id, t.id, i-1)},
+    {label:'Move down', disabled:lead || i>=t.members.length-1, act:()=>tbMove(pid, t.id, t.id, i+1)},
+    {label:'Copy to team', sub:tbTeamTargets(pid, t.id, to=>to ? tbMove(pid, t.id, to, undefined, true) : tbNewTeam(pid, t.id, true))},
+    {label:'Move to team', sub:tbTeamTargets(pid, t.id, to=>to ? tbMove(pid, t.id, to) : tbNewTeam(pid, t.id, false))},
+    {label:`Remove from ${t.name}`, danger:true, act:()=>tbMove(pid, t.id, '')},
+  ], `Options for ${p.name}`);
 }
-/** Save the team being edited (shared, undoable). */
-function saveTeamDraft(){
-  if(roBlocked()) return;
-  const dr=teamView.draft; if(!dr) return;
-  const err=document.getElementById('teamerr');
-  const name=normTeamName(dr.name);
-  if(!name){ err.textContent='Give the team a name.'; document.getElementById('teamname').focus(); return; }
-  const team=normTeams([{...dr, name}], roster.map(p=>p.id), teamSeasonDefault())[0];
-  if(!team){ err.textContent='That team could not be saved.'; return; }
-  // People may be on several teams: saving never asks or moves anyone.
-  pushUndo();
-  teams=withTeam(teams, team);
-  persist();
-  teamView={mode:'list', season:team.season, draft:null};
-  drawTeamsDlg(); render();
+function tbTeamMenu(anchor){
+  const id=anchor.closest('.tbcol').dataset.team, t=tbTeam(id); if(!t) return;
+  const copyName=teamCopyName(t.name, teams.map(x=>x.name));
+  const roleSub=(key, label)=>[
+    ...t.members.map(pid=>({label:tbName(pid)+(t[key]===pid?' (now)':''), act:()=>tbCommit(teamsWithRole(teams, id, key, pid),
+      `${tbName(pid)} is now ${label} of ${t.name}.`)})),
+    ...(t[key] ? [{label:`No ${label}`, act:()=>tbCommit(teamsWithRole(teams, id, key, ''), `${t.name} has no ${label} now.`)}] : []),
+  ];
+  tbOpenMenu(anchor, [
+    {head:t.name},
+    {label:'Rename', act:()=>tbStartRename(id)},
+    {label:`Duplicate as "${copyName}"`, act:()=>{
+      const nid=newTeamId(); tb.renaming=nid;
+      if(!tbCommit(teamsWithCopy(teams, id, nid, copyName), `Made ${copyName}, a copy of ${t.name}.`)) tb.renaming=null; }},
+    {label:'Set lead', disabled:!t.members.length, sub:roleSub('leadId', 'lead')},
+    {label:'Set Kit Manager', disabled:!t.members.length, sub:roleSub('kitId', 'Kit Manager')},
+    {label:'Set Van Manager', disabled:!t.members.length, sub:roleSub('vanId', 'Van Manager')},
+    {label:'Delete team', danger:true, sub:[
+      {head:'Nobody is taken off any crew. Only the saved team goes away.'},
+      {label:`Delete "${t.name}"`, danger:true, act:()=>tbCommit(withoutTeam(teams, id), `Deleted ${t.name}. Undo brings it back.`)},
+      {label:'Keep it', act:()=>{}},
+    ]},
+  ], `Options for ${t.name}`);
 }
+/** Keyboard on a card: Enter / Space / menu key open its menu; Alt+Up/Down
+ *  reorder it on its team; Delete takes it off the team. */
+function tbCardKey(e, c){
+  if(e.target!==c || READONLY) return;
+  const pid=c.dataset.pid, from=c.dataset.from, t=tbTeam(from);
+  if(e.key==='Enter' || e.key===' ' || e.key==='ContextMenu' || (e.shiftKey && e.key==='F10')){
+    e.preventDefault(); tbPersonMenu(c, c.querySelector('[data-pmenu]')); return;
+  }
+  if(t && e.altKey && (e.key==='ArrowUp' || e.key==='ArrowDown')){
+    e.preventDefault();
+    const i=t.members.indexOf(pid), lo=t.leadId ? 1 : 0;
+    if(t.leadId===pid) return;
+    const to=e.key==='ArrowUp' ? Math.max(lo, i-1) : Math.min(t.members.length-1, i+1);
+    if(to!==i) tbMove(pid, from, from, to);
+    return;
+  }
+  if(t && (e.key==='Delete' || e.key==='Backspace')){ e.preventDefault(); tbMove(pid, from, ''); }
+}
+// ---- dragging (mouse, pen and touch, all through pointer events) ----
+const TB_HOLD_MS=380;    // touch: press and hold this long, then drag
+function tbPointerDown(e){
+  if(READONLY || e.button>0 || tb.drag) return;
+  const card=e.currentTarget;
+  if(e.target.closest('button,input,select')) return;
+  const st={x:e.clientX, y:e.clientY, id:e.pointerId, card, type:e.pointerType||'mouse', timer:0};
+  tb.pend=st;
+  if(st.type!=='mouse'){
+    card.classList.add('tbpress');
+    st.timer=setTimeout(()=>{ if(tb.pend===st) tbBeginDrag(st, st.x, st.y); }, TB_HOLD_MS);
+  }
+  document.addEventListener('pointermove', tbPointerMove, true);
+  document.addEventListener('pointerup', tbPointerUp, true);
+  document.addEventListener('pointercancel', tbPointerCancel, true);
+}
+function tbStopListening(){
+  document.removeEventListener('pointermove', tbPointerMove, true);
+  document.removeEventListener('pointerup', tbPointerUp, true);
+  document.removeEventListener('pointercancel', tbPointerCancel, true);
+}
+function tbClearPending(){
+  const st=tb.pend; tb.pend=null;
+  if(st){ clearTimeout(st.timer); st.card.classList.remove('tbpress'); }
+}
+function tbPointerMove(e){
+  const st=tb.pend;
+  if(st && !tb.drag && e.pointerId===st.id){
+    st.lx=e.clientX; st.ly=e.clientY;
+    const d=Math.hypot(e.clientX-st.x, e.clientY-st.y);
+    if(st.type==='mouse'){ if(d>4) tbBeginDrag(st, e.clientX, e.clientY); }
+    else if(d>10){ tbClearPending(); tbStopListening(); }   // a scroll, not a drag
+    return;
+  }
+  const d=tb.drag;
+  if(d && e.pointerId===d.pointerId){
+    e.preventDefault();
+    d.x=e.clientX; d.y=e.clientY; d.alt=e.altKey;
+    tbDragUpdate();
+  }
+}
+function tbPointerUp(e){
+  if(tb.drag && e.pointerId===tb.drag.pointerId){ e.preventDefault(); tbDrop(); }
+  tbClearPending(); tbStopListening();
+}
+function tbPointerCancel(e){
+  if(tb.drag && e.pointerId===tb.drag.pointerId) tbEndDrag();
+  tbClearPending(); tbStopListening();
+}
+// Once a drag is on, a finger moving must not scroll the page.
+document.addEventListener('touchmove', e=>{ if(tb.drag) e.preventDefault(); }, {passive:false});
+document.addEventListener('keydown', e=>{
+  if(!tb.drag) return;
+  if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); tbEndDrag(); tbSay('Drag cancelled.'); return; }
+  if(e.key==='Alt'){ tb.drag.alt=true; tbDragUpdate(); }
+}, true);
+document.addEventListener('keyup', e=>{ if(tb.drag && e.key==='Alt'){ tb.drag.alt=false; tbDragUpdate(); } }, true);
+function tbBeginDrag(st, x, y){
+  clearTimeout(st.timer); tb.pend=null;
+  tbCloseMenu();
+  const card=st.card, r=card.getBoundingClientRect();
+  card.classList.remove('tbpress');
+  const ghost=card.cloneNode(true);
+  ghost.className='tbc tbghost'; ghost.removeAttribute('tabindex'); ghost.setAttribute('aria-hidden','true');
+  ghost.querySelectorAll('button').forEach(b=>b.remove());
+  ghost.style.width=r.width+'px';
+  ghost.insertAdjacentHTML('beforeend', '<span class="tbgmode" hidden></span>');
+  teamdlg.appendChild(ghost);
+  const mark=document.createElement('div'); mark.className='tbmark'; mark.hidden=true;
+  card.classList.add('tbsrc');
+  teamdlg.classList.add('tbdragging');
+  tb.drag={pid:card.dataset.pid, from:card.dataset.from||'', card, ghost, mark, dx:x-r.left, dy:y-r.top,
+           x, y, pointerId:st.id, alt:false, target:null, raf:0};
+  try{ card.setPointerCapture && card.setPointerCapture(st.id); }catch(err){}
+  if(st.type==='touch' && navigator.vibrate) try{ navigator.vibrate(8); }catch(err){}
+  tbDragUpdate();
+  tbAutoScroll();
+}
+/** PURE. Where a drop lands in a list of card rectangles ({top, bottom}),
+ *  the dragged card already left out: the number of cards above the pointer. */
+function tbDropIndex(rects, y){
+  let i=0;
+  while(i<rects.length && (rects[i].top+rects[i].bottom)/2 < y) i++;
+  return i;
+}
+function tbDragUpdate(){
+  const d=tb.drag; if(!d) return;
+  d.ghost.style.transform=`translate(${d.x-d.dx}px, ${d.y-d.dy}px)`;
+  const el=document.elementFromPoint(d.x, d.y);
+  const col=el && el.closest('.tbcol[data-team]'), nw=el && el.closest('[data-newcol]'), pool=el && el.closest('.tbpool');
+  teamdlg.querySelectorAll('.tbover').forEach(x=>x.classList.remove('tbover'));
+  d.mark.hidden=true;
+  d.target=null;
+  if(col){
+    const list=col.querySelector('.tblist');
+    const cards=[...list.querySelectorAll('.tbc')].filter(c=>c!==d.card);
+    const t=tbTeam(col.dataset.team);
+    const lo=t && t.leadId && t.leadId!==d.pid ? 1 : 0;    // nobody goes above the lead
+    const rects=cards.map(c=>c.getBoundingClientRect());
+    const idx=Math.max(lo, tbDropIndex(rects, d.y));
+    d.target={to:col.dataset.team, index:idx};
+    col.classList.add('tbover');
+    if(d.mark.parentNode!==list) list.appendChild(d.mark);
+    const lr=list.getBoundingClientRect();
+    const y = rects.length===0 ? 6 : idx<rects.length ? rects[idx].top-lr.top-3 : rects[rects.length-1].bottom-lr.top+2;
+    d.mark.style.top=(y+list.scrollTop)+'px'; d.mark.hidden=false;
+  } else if(nw){ d.target={to:'@new'}; nw.classList.add('tbover'); }
+  else if(pool && d.from){ d.target={to:''}; pool.classList.add('tbover'); }
+  // what the drop will do, on the ghost
+  const copy=tbDragCopies(d);
+  const tm=d.ghost.querySelector('.tbgmode');
+  const word=!d.target ? '' : d.target.to==='' ? 'Take off' : !d.from ? 'Add'
+    : d.target.to===d.from ? '' : copy ? 'Copy' : 'Move';
+  tm.textContent=word; tm.hidden=!word;
+  d.ghost.classList.toggle('copy', word==='Copy' || word==='Add');
+}
+const tbDragCopies=d=>!!d.from && (d.alt || tb.mode==='copy');
+function tbEndDrag(){
+  const d=tb.drag; if(!d) return;
+  cancelAnimationFrame(d.raf);
+  d.ghost.remove(); d.mark.remove();
+  d.card.classList.remove('tbsrc');
+  teamdlg.classList.remove('tbdragging');
+  teamdlg.querySelectorAll('.tbover').forEach(x=>x.classList.remove('tbover'));
+  tb.drag=null;
+}
+function tbDrop(){
+  const d=tb.drag; if(!d) return;
+  const t=d.target, copy=tbDragCopies(d);
+  tbEndDrag();
+  if(!t) return;
+  if(t.to==='@new') return tbNewTeam(d.pid, d.from, copy);
+  if(t.to==='' ){ if(d.from && !copy) tbMove(d.pid, d.from, ''); return; }
+  tbMove(d.pid, d.from, t.to, t.index, copy && t.to!==d.from);
+}
+/** While dragging near an edge, scroll whatever is there (a team's list, the
+ *  board sideways, the people list, or the whole body on a phone). */
+function tbAutoScroll(){
+  const d=tb.drag; if(!d) return;
+  const EDGE=44, MAX=16;
+  const step=(dist)=>Math.ceil(MAX*(1-dist/EDGE));
+  let el=document.elementFromPoint(d.x, d.y);
+  const done=new Set();
+  while(el && el!==teamdlg){
+    const cs=getComputedStyle(el), r=el.getBoundingClientRect();
+    if(!done.has('y') && /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight>el.clientHeight+1){
+      if(d.y<r.top+EDGE && el.scrollTop>0){ el.scrollTop-=step(d.y-r.top); done.add('y'); }
+      else if(d.y>r.bottom-EDGE && el.scrollTop<el.scrollHeight-el.clientHeight){ el.scrollTop+=step(r.bottom-d.y); done.add('y'); }
+    }
+    if(!done.has('x') && /(auto|scroll)/.test(cs.overflowX) && el.scrollWidth>el.clientWidth+1){
+      if(d.x<r.left+EDGE && el.scrollLeft>0){ el.scrollLeft-=step(d.x-r.left); done.add('x'); }
+      else if(d.x>r.right-EDGE){ el.scrollLeft+=step(r.right-d.x); done.add('x'); }
+    }
+    el=el.parentElement;
+  }
+  if(done.size) tbDragUpdate();
+  d.raf=requestAnimationFrame(tbAutoScroll);
+}
+// Esc closes a menu or ends a drag before it closes the builder; closing
+// tidies up; Cmd/Ctrl+Z inside the builder is its Undo.
+teamdlg.addEventListener('cancel', e=>{
+  if(tb.menu){ e.preventDefault(); tbCloseMenu(true); return; }
+  if(tb.drag){ e.preventDefault(); tbEndDrag(); return; }
+  if(tb.renaming){ e.preventDefault(); }
+});
+teamdlg.addEventListener('close', ()=>{ tbCloseMenu(); tbEndDrag(); tb.renaming=null; render(); });
+teamdlg.addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey) && !e.shiftKey && (e.key||'').toLowerCase()==='z' && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))){
+    e.preventDefault(); tbUndo();
+  }
+});
+// The app's Teams buttons on its React install pages open this, through
+// /install-roster?teams=1 (InstallSchedule.tsx posts tbdg-teams).
+window.addEventListener('message', e=>{
+  if(e.source!==window.parent || !e.data || e.data.type!=='tbdg-teams') return;
+  if(!TVMODE) openTeamsDlg();
+});
 
 // ---- Download contacts (Roster) ----
 // Everyone on the roster as contact cards in one .vcf file (user, 2026-10-02:
@@ -15445,8 +16000,10 @@ function manifestHTML(d){
           const tag=pn=>pn.title==='Lead'?'lead':pn.title==='Lead Assist'?'assist':pn.title==='Designer'?'designer':'';
           const list=cv.who.map(pn=>`<li><b>${esc(pn.name)}</b>${tag(pn)?` <span>${tag(pn)}</span>`:''}`
               +`${pn.phone?`<i>${esc(fmtPhone(pn.phone))}</i>`:''}</li>`).join('');
+          const kv=sh ? shiftKitVan(sh) : null;
           return `<div class="crewbox"><div class="crewh">Crew (${cv.who.length})`
                + `${cv.state==='ok'?'':` · ${esc(coverageLabel(cv).toUpperCase())}`}</div>`
+               + (kv ? `<div class="crewkv">Kit: ${esc(kv.kit.name)} · Van: ${esc(kv.van.name)}</div>` : '')
                + (list?`<ul>${list}</ul>`:'<p class="crew"><i>nobody assigned yet</i></p>')+`</div>`; })()}
         ${(()=>{ const sn=shiftNoteOf(d);
           return sn ? `<div class="shn"><b>Notes for the day:</b> ${esc(sn.text)}</div>` : ''; })()}</div>
@@ -15500,6 +16057,7 @@ function printManifests(list, title, opts={}){
     .shead p.crew{margin:3px 0 0;font-size:11px;color:#444}
     .shead > div:first-child{flex:1;min-width:0}
     .crewbox{margin-top:6px;break-inside:avoid}
+    .crewkv{font-size:9.5px;font-weight:700;color:#1f3d2b;margin:-1px 0 4px}
     .crewh{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#2d5a33;margin-bottom:3px}
     .crewbox ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:2px 10px}
     .crewbox li{font-size:11.5px;line-height:1.35;padding:2px 0;border-bottom:1px dotted #ccc;overflow-wrap:anywhere}
@@ -17354,6 +17912,7 @@ function render(){
   loadStops = normLoadStops(loadStops, new Set(Object.keys(C)));
   // A team member who was deleted from the roster comes off their team.
   teams = loadTeams(teams);
+  if(teamdlg.open && !tbBusy()) drawTeamBuilder();
   days.forEach(d=>{
     const mo = manualOrder[d.id];
     if(mo){
@@ -17463,6 +18022,7 @@ function syncToolbar(){
 }
 document.getElementById('tbundo').onclick=()=>undo();
 document.getElementById('tbredo').onclick=()=>redo();
+document.getElementById('tbteams').onclick=()=>openTeamsDlg();
 document.getElementById('tbprint').onclick=()=>{
   const v=curView();
   if(v==='roster') openRosterPrintDlg();

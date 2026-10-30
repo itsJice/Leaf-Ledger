@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { StaffAlert } from "components/StaffAlert";
+import { TeamsButton } from "components/TeamsButton";
 import { apiFetch } from "utils/apiFetch";
 import {
   addressLine,
@@ -114,6 +115,7 @@ export default function Shifts() {
             <h1 className="text-xl font-semibold text-stone-900">{title}</h1>
             {data && <p className="text-xs text-stone-500">{data.season} install season</p>}
           </div>
+          {allCrews && !data?.readOnly && <TeamsButton />}
           {allCrews && data && (
             <select
               value={leadFilter}

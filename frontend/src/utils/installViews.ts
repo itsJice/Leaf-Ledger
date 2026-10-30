@@ -93,3 +93,22 @@ export function dateFromSearch(search: string): string | null {
   const d = new URLSearchParams(search).get("date") || "";
   return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
 }
+
+/** Where the app's Teams buttons go: the Roster view with the Teams builder
+ *  open (user, 2026-10-30: "the teams edit button should be on all the install
+ *  related tabs"). The schedule's own views have a Teams button in their
+ *  toolbar; the React install pages link here. */
+export const TEAMS_PATH = "/install-roster?teams=1";
+
+/** `?teams=1` on a schedule route: open the Teams builder once it's loaded. */
+export function teamsFromSearch(search: string): boolean {
+  const v = new URLSearchParams(search).get("teams");
+  return v === "1" || v === "true";
+}
+
+/** Who gets a Teams button: people who can edit the schedule (staff and up,
+ *  not a view-only login). Leads and crew only ever see their own shifts. */
+export function canEditTeams(me: { role: string; viewOnly?: boolean } | null | undefined): boolean {
+  if (!me || me.viewOnly) return false;
+  return me.role === "staff" || me.role === "admin" || me.role === "super_admin";
+}

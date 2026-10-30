@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Layout from "components/Layout";
+import { TeamsButton } from "components/TeamsButton";
 import { apiClient } from "app";
 import { currentMe } from "utils/me";
 import { formatCurrency } from "utils/format";
@@ -195,6 +196,7 @@ export default function CrewDayProfit() {
             </p>
           </div>
           <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-xs text-stone-600 sm:w-auto">
+            <TeamsButton />
             {data && (
               <span>
                 Overhead <b className="text-stone-800">{data.overhead_pct ?? "—"}%</b> · Target profit <b className="text-stone-800">{target ?? "—"}%</b>

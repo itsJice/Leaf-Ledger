@@ -16,6 +16,7 @@ import {
   X,
 } from "components/icons";
 import Layout from "components/Layout";
+import { TeamsButton } from "components/TeamsButton";
 import { apiFetch } from "utils/apiFetch";
 import { currentMe } from "utils/me";
 import {
@@ -192,6 +193,7 @@ export default function InstallChanges() {
             <span className="truncate sm:hidden">Changes</span>
             <span className="hidden truncate sm:inline">Install Changes</span>
           </h1>
+          <TeamsButton />
           {canFollow && data && (
             data.following ? (
               <>
