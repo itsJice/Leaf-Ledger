@@ -15,6 +15,17 @@ like a password, with the office only.
 Every crew is in the one feed; each event's title leads with the crew's
 emoji (🔴 Crew 1, 🟢 Crew 2, ⚪️ Crew 3) since a subscribed Google calendar
 has a single colour.
+
+Narrower feeds are the same URL plus ``region`` and/or ``kind`` (same token):
+
+    ...&region=dallas|houston      the crew-days in that city (day_region)
+    ...&kind=install|takedown      only that kind of stop (stop_kind)
+
+The schedule page offers three links: ``&region=dallas`` ("TBDG Dallas"),
+``&region=houston`` ("TBDG Houston") and the plain feed. ``kind`` is not
+offered there, but works (``&region=dallas&kind=takedown`` is "TBDG Dallas
+Takedowns"). With neither, the feed is byte-for-byte the one everyone
+already subscribes to.
 """
 import hmac
 import logging
@@ -70,16 +81,28 @@ async def client_lookup(board: schedule_board.Board) -> tuple[set, dict]:
     return install_calendar.storing_rows(board, pairs), names
 
 
+def _choice(value: str, allowed: tuple, what: str):
+    v = (value or "").strip().lower()
+    if not v:
+        return None
+    if v not in allowed:
+        raise HTTPException(status_code=400, detail=f"{what} must be one of: {', '.join(allowed)}")
+    return v
+
+
 @router.get("/feed.ics", response_class=Response)
-async def calendar_feed(token: str = "") -> Response:
+async def calendar_feed(token: str = "", region: str = "", kind: str = "") -> Response:
     if not _authorized(token):
         raise HTTPException(status_code=404, detail="Not found")
+    # Checked only after the token, so a bad value tells a stranger nothing.
+    region = _choice(region, install_calendar.REGIONS, "region")
+    kind = _choice(kind, install_calendar.KINDS, "kind")
     board = await schedule_board.load_board()
     if board is None:
         raise HTTPException(status_code=404, detail="No published install schedule")
     storing, names = await client_lookup(board)
     return Response(
-        content=install_calendar.build_ics(board, storing=storing, names=names),
+        content=install_calendar.build_ics(board, storing=storing, names=names, region=region, kind=kind),
         media_type="text/calendar; charset=utf-8",
         headers={"Cache-Control": "private, max-age=300",
                  "Content-Disposition": 'inline; filename="ll-installs.ics"'},
