@@ -17,15 +17,16 @@ import shutil
 import pytest
 
 from test_client_name_editor import TEMPLATE, js_function, run_js
-from test_dallas_nights import MERGE, fns
+from test_dallas_nights import MERGE, const_line, fns
 
 NODE = shutil.which("node")
 pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
-HELPERS = "\nconst TEAM_NAME_MAX=40;\n" + fns(
+HELPERS = "\nconst TEAM_NAME_MAX=40;\n" + const_line("TEAM_ROLES") + "\n" + fns(
     "normTeamName", "normTeams", "teamsForSeason", "teamOfPerson", "withTeam", "withoutTeam",
     "teamsOfPerson", "teamBadge", "teamLeadFirst", "teamsAfterDrop", "teamsWithLead", "teamsRenamed",
-    "teamCopyName", "teamsWithCopy",
+    "teamCopyName", "teamsWithCopy", "teamRolesOf", "teamsWithRole", "teamRolesOnShift", "teamNewName",
+    "tbDropIndex", "teamMixLine",
     "teamStats", "teamApplyPlan", "staffingWith", "staffingCleared", "teamApplyNote", "stfUndoLeft",
     "stfClearMsg", "staffingWithout", "teamShiftState", "teamRemoveNote")
 
@@ -161,12 +162,15 @@ def test_every_save_and_load_path_carries_teams():
 
 
 def test_read_only_cannot_create_edit_delete_or_apply():
-    for fn in ("applyTeamToShift", "toggleTeamOnShift", "saveTeamDraft", "stfUndo", "stfClear"):
+    for fn in ("applyTeamToShift", "toggleTeamOnShift", "tbCommit", "tbUndo", "tbNewTeam", "tbStartRename",
+               "stfUndo", "stfClear"):
         assert "roBlocked()" in js_function(fn), fn
-    draw = js_function("drawTeamsDlg")
-    assert draw.count("roBlocked()") >= 3        # new, edit, delete
-    assert "READONLY?'':" in draw                # no "+ New team" button
-    assert "READONLY?'':" in js_function("teamListHTML")
+    # view-only builder: no New / Undo / Move-Copy, no menus, no dragging
+    draw = js_function("drawTeamBuilder")
+    assert "READONLY ? `<span class=\"tbro\">View only</span>`" in draw
+    assert "if(READONLY) return;" in js_function("tbWire")
+    assert "if(READONLY || e.button>0 || tb.drag) return;" in js_function("tbPointerDown")
+    assert "if(READONLY) return;" in js_function("tbPersonMenu")
     assert "undoBtn.disabled=READONLY" in js_function("drawStaffDlg")
     assert "clearBtn.disabled=READONLY" in js_function("drawStaffDlg")
 
@@ -220,7 +224,7 @@ def test_dialog_undo_steps_back_through_the_page_undo():
 
 
 def test_new_ui_text_has_no_em_dashes():
-    for fn in ("teamListHTML", "teamEditHTML", "drawTeamsDlg", "saveTeamDraft", "stfTeamsHTML",
+    for fn in ("drawTeamBuilder", "tbCardHTML", "tbColHTML", "tbPersonMenu", "tbTeamMenu", "tbMove", "stfTeamsHTML",
                "teamApplyNote", "stfClear", "stfClearMsg", "applyTeamToShift", "toggleTeamOnShift",
                "teamRemoveNote"):
         assert "—" not in js_function(fn), fn
@@ -387,8 +391,8 @@ def test_existing_teams_load_unchanged():
 def test_the_one_team_confirm_is_gone():
     from test_client_name_editor import TEMPLATE as T
     assert "one team per year" not in T
-    assert "already on another" not in js_function("saveTeamDraft")
-    assert "confirm(" not in js_function("saveTeamDraft")
+    for fn in ("tbCommit", "tbMove", "tbTeamMenu", "tbPersonMenu", "tbDrop", "tbNewTeam"):
+        assert "confirm(" not in js_function(fn), fn
     assert "moves them off" not in T
 
 
@@ -400,10 +404,10 @@ def test_badge_shows_the_most_relevant_team_plus_the_rest():
       console.log(JSON.stringify([teamBadge(L,'p1',2026), teamBadge(L,'p1',2026,['h']),
         teamBadge(L,'p2',2026,['d']), teamBadge(L,'p9',2026)]));
     """)
-    assert out[0] == {"name": "Dallas", "more": 2, "all": ["Dallas", "Houston", "Zed"],
+    assert out[0] == {"name": "Dallas", "more": 2, "all": ["Dallas", "Houston", "Zed"], "roles": [],
                       "title": "On 3 teams: Dallas, Houston, Zed"}
     assert out[1]["name"] == "Houston" and out[1]["more"] == 2      # the ticked team first
-    assert out[2] == {"name": "Houston", "more": 0, "all": ["Houston"], "title": "On Houston"}
+    assert out[2] == {"name": "Houston", "more": 0, "all": ["Houston"], "roles": [], "title": "On Houston"}
     assert out[3] is None
 
 
@@ -563,3 +567,135 @@ def test_no_scroll_change_on_team_tick_in_a_render():
       console.log(JSON.stringify({a, b:list.scrollTop, left:stfAnchor}));
     """)
     assert json.loads(out) == {"a": 160, "b": 160, "left": None}
+
+
+
+# Teams builder: Kit Manager / Van Manager (user, 2026-10-30: "add the ability
+# to assign roles to teams as kit manager, and van manager").
+
+def test_roles_set_clear_and_survive_load():
+    out = run("""
+      const L0=normTeams([{id:'h', name:'H', season:2026, leadId:'p1', members:['p1','p2','p3'], kitId:'p2', vanId:'p9'}], null, 2026);
+      const L1=teamsWithRole(L0, 'h', 'vanId', 'p3');
+      const L2=teamsWithRole(L1, 'h', 'kitId', 'p2');          // the holder again: clears it
+      const L3=teamsWithRole(L1, 'h', 'kitId', 'p7');          // someone new joins the team
+      const L4=teamsWithRole(L1, 'h', 'kitId', '');
+      console.log(JSON.stringify({L0:L0[0], L1:L1[0], L2:L2[0], L3:L3[0], L4:L4[0],
+        bad:teamsWithRole(L0, 'h', 'colorId', 'p1')===L0,
+        roles:[teamRolesOf(L1[0],'p1'), teamRolesOf(L1[0],'p2'), teamRolesOf(L1[0],'p3'), teamRolesOf(null,'p1')],
+        same:teamRolesOf(teamsWithRole(L1,'h','vanId','p2')[0],'p2')}));
+    """)
+    # a Van Manager who isn't on the team is dropped on load
+    assert out["L0"] == {"id": "h", "name": "H", "season": 2026, "leadId": "p1", "members": ["p1", "p2", "p3"], "kitId": "p2"}
+    assert out["L1"]["kitId"] == "p2" and out["L1"]["vanId"] == "p3"
+    assert "kitId" not in out["L2"] and out["L2"]["vanId"] == "p3"
+    assert out["L3"]["kitId"] == "p7" and out["L3"]["members"] == ["p1", "p2", "p3", "p7"]
+    assert "kitId" not in out["L4"]
+    assert out["bad"] is True
+    assert out["roles"] == [["Lead"], ["Kit"], ["Van"], []]
+    assert out["same"] == ["Kit", "Van"]          # one person may hold both
+
+
+def test_a_role_is_per_team_and_leaving_clears_it():
+    out = run("""
+      const L=[{id:'h', name:'Houston', season:2026, leadId:'p1', members:['p1','p2','p3'], kitId:'p2', vanId:'p3'},
+               {id:'d', name:'Dallas', season:2026, leadId:'', members:['p2']}];
+      const moved=teamsAfterDrop(L, {pid:'p2', from:'h', to:'d'});
+      const copied=teamsAfterDrop(L, {pid:'p3', from:'h', to:'d', copy:true});
+      const dup=teamsWithCopy(L, 'h', 'h2', 'Dallas 2');
+      console.log(JSON.stringify({moved:moved.map(t=>[t.id, t.kitId||'', t.vanId||'']),
+        copied:copied.map(t=>[t.id, t.kitId||'', t.vanId||'', t.members]),
+        dup:[dup[1].kitId, dup[1].vanId], badge:teamBadge(L, 'p2', 2026, ['h']).roles,
+        badge2:teamBadge(L, 'p2', 2026, ['d']).roles}));
+    """)
+    assert out["moved"] == [["h", "", "p3"], ["d", "", ""]]          # Kit on Houston, plain on Dallas: now off Houston
+    assert out["copied"] == [["h", "p2", "p3", ["p1", "p2", "p3"]], ["d", "", "", ["p2", "p3"]]]
+    assert out["dup"] == ["p2", "p3"]                                  # duplicate keeps the roles
+    assert out["badge"] == ["Kit"] and out["badge2"] == []             # Kit on one team, member on another
+
+
+def test_shift_carries_the_kit_and_van_of_the_team_that_staffed_it():
+    out = run("""
+      const H={id:'h', kitId:'p2', vanId:'p3', members:['p1','p2','p3']}, D={id:'d', kitId:'p4', vanId:'p5', members:['p4','p5']};
+      console.log(JSON.stringify([
+        teamRolesOnShift([H, D], new Set(['p1','p2','p3','p4','p5'])),
+        teamRolesOnShift([D, H], new Set(['p1','p2','p3','p4','p5'])),
+        teamRolesOnShift([H, D], new Set(['p1','p2'])),            // Van not on the shift
+        teamRolesOnShift([{id:'x', kitId:'p1', members:['p1']}], new Set(['p1'])), // only one role set
+      ]));
+    """)
+    assert out == [{"teamId": "h", "kitId": "p2", "vanId": "p3"}, {"teamId": "d", "kitId": "p4", "vanId": "p5"}, None, None]
+
+
+def test_crew_sheet_prints_kit_and_van_only_when_both_are_set():
+    man = js_function("manifestHTML")
+    assert "const kv=sh ? shiftKitVan(sh) : null;" in man
+    assert "Kit: ${esc(kv.kit.name)} · Van: ${esc(kv.van.name)}" in man
+    kv = js_function("shiftKitVan")
+    assert "teamRolesOnShift(order, shiftAssigned(sh))" in kv and "kit && van ?" in kv
+    from test_client_name_editor import TEMPLATE as T
+    assert ".crewkv{" in T
+
+
+def test_role_chips_show_in_staffing_and_roster():
+    assert "teamRoleChipsFor(t)" in js_function("stfTeamsHTML")
+    assert "b.roles.map(teamRoleChip)" in js_function("teamBadgeHTML")
+    assert "teamRolesOf(t, p.id)" in js_function("personDetailHTML")
+    menu = js_function("tbPersonMenu")
+    assert "role('kitId', 'Kit Manager')" in menu and "role('vanId', 'Van Manager')" in menu
+    assert "Make ${label}" in menu and "Remove as ${label}" in menu
+
+
+def test_roles_merge_on_a_stale_tab():
+    out = json.loads(run_js(MERGE + """
+      const T=(x)=>({id:'a', name:'A', season:2026, leadId:'', members:['p1','p2','p3'], ...x});
+      const r=mergeShared({teams:[T({})]}, {teams:[T({kitId:'p1'})]}, {teams:[T({vanId:'p2'})]});
+      console.log(JSON.stringify([r.state.teams[0].kitId, r.state.teams[0].vanId, r.conflicts]));
+    """))
+    assert out == ["p1", "p2", []]
+
+
+# The builder's other pure pieces.
+
+def test_builder_helpers():
+    out = run("""
+      console.log(JSON.stringify({
+        names:[teamNewName([], 2026), teamNewName([{name:'New team', season:2026}], 2026),
+               teamNewName([{name:'New team', season:2026},{name:'new team 2', season:2026}], 2026),
+               teamNewName([{name:'New team', season:2025}], 2026)],
+        idx:[tbDropIndex([], 50), tbDropIndex([{top:0,bottom:40},{top:44,bottom:84}], 10),
+             tbDropIndex([{top:0,bottom:40},{top:44,bottom:84}], 30), tbDropIndex([{top:0,bottom:40},{top:44,bottom:84}], 200)],
+      }));
+    """)
+    assert out["names"] == ["New team", "New team 2", "New team 3", "New team"]
+    assert out["idx"] == [0, 0, 1, 2]
+
+
+def test_builder_wiring():
+    from test_client_name_editor import TEMPLATE as T
+    # one Teams button in the toolbar, on every view (not just Roster)
+    assert T.count('id="tbteams"') == 1
+    assert "document.getElementById('tbteams').onclick=()=>openTeamsDlg();" in T
+    assert 'id="teamsbtn"' not in T
+    vt = js_function("syncViewToolbar")
+    assert "tbteams" not in vt                                   # never hidden per view
+    # the app's React install pages open it with ?teams=1
+    assert "e.data.type!=='tbdg-teams'" in T
+    # drag: pointer events for mouse, pen and touch; touch = press and hold
+    down = js_function("tbPointerDown")
+    assert "TB_HOLD_MS" in down and "st.type!=='mouse'" in down
+    assert "document.addEventListener('touchmove', e=>{ if(tb.drag) e.preventDefault(); }, {passive:false});" in T
+    assert "const tbDragCopies=d=>!!d.from && (d.alt || tb.mode==='copy');" in T
+    # every change is one shared, undoable save
+    commit = js_function("tbCommit")
+    assert "pushUndo()" in commit and "persist()" in commit and "normTeams(next" in commit
+    # a save from another tab redraws an open builder (unless mid-drag / menu / rename)
+    assert "if(teamdlg.open && !tbBusy()) drawTeamBuilder();" in js_function("render")
+    # keyboard: card menu, Alt+arrows reorder, Delete takes off
+    key = js_function("tbCardKey")
+    assert "ContextMenu" in key and "e.altKey" in key and "'Delete'" in key
+    # ids don't clash with the page toolbar (#tbundo is the page's Undo)
+    i = T.index("// ---- Teams builder (the Teams button on every view) ----")
+    sec = T[i:T.index("// ---- Download contacts (Roster) ----")]
+    for bad in ('id="tbundo"', 'id="tbnew"', 'id="tbdone"'):
+        assert bad not in sec

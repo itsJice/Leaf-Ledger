@@ -5,7 +5,15 @@ import Layout from "components/Layout";
 import { auth } from "app/auth/auth";
 import { apiFetch } from "utils/apiFetch";
 import { currentMe } from "utils/me";
-import { type InstallView, dateFromSearch, legacyView, pathForView, viewForPath, withHostFlags } from "utils/installViews";
+import {
+  type InstallView,
+  dateFromSearch,
+  legacyView,
+  pathForView,
+  teamsFromSearch,
+  viewForPath,
+  withHostFlags,
+} from "utils/installViews";
 import { copyFrameForPrint, isPrintShortcut, printWithoutFallback, setPrintFallback } from "utils/printPage";
 
 /**
@@ -178,6 +186,10 @@ export default function InstallSchedule() {
         // ?date=YYYY-MM-DD (the home page's install-notes link): open that day.
         const date = dateFromSearch(searchRef.current);
         if (date) frameRef.current?.contentWindow?.postMessage({ type: "tbdg-date", date }, window.location.origin);
+        // ?teams=1 (the Teams button on Crew Shifts, Install Changes, Profit):
+        // open the Teams builder.
+        if (teamsFromSearch(searchRef.current))
+          frameRef.current?.contentWindow?.postMessage({ type: "tbdg-teams" }, window.location.origin);
       }
       // The page got a 401: its token is older than Supabase's hour. Send
       // the current one (getSession refreshes it if it has to).
