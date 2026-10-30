@@ -24,6 +24,8 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 HELPERS = "\nconst TEAM_NAME_MAX=40;\n" + fns(
     "normTeamName", "normTeams", "teamsForSeason", "teamOfPerson", "withTeam", "withoutTeam",
+    "teamsOfPerson", "teamBadge", "teamLeadFirst", "teamsAfterDrop", "teamsWithLead", "teamsRenamed",
+    "teamCopyName", "teamsWithCopy",
     "teamStats", "teamApplyPlan", "staffingWith", "staffingCleared", "teamApplyNote", "stfUndoLeft",
     "stfClearMsg", "staffingWithout", "teamShiftState", "teamRemoveNote")
 
@@ -49,35 +51,6 @@ def test_teams_are_normalized_as_saved():
         # a bad year gets the default; a lead who is not on the roster is dropped
         {"id": "t3", "name": "Team B", "season": 2026, "leadId": "", "members": ["p3", "p4"]},
     ], [], []]
-
-
-def test_one_team_per_person_per_season_on_load():
-    out = run("""console.log(JSON.stringify(normTeams([
-        {id:'a', name:'A', season:2026, members:['p1','p2']},
-        {id:'b', name:'B', season:2026, leadId:'p2', members:['p2','p3']},
-        {id:'c', name:'C', season:2027, members:['p1']},
-      ], null, 2026).map(t=>[t.id, t.leadId, t.members])))""")
-    assert out == [["a", "", ["p1", "p2"]], ["b", "", ["p3"]], ["c", "", ["p1"]]]
-
-
-def test_saving_a_team_moves_people_off_their_other_team_that_season():
-    out = run("""
-      let L=[{id:'a', name:'A', season:2026, leadId:'p1', members:['p1','p2']},
-             {id:'z', name:'Z', season:2027, leadId:'', members:['p2']}];
-      L=withTeam(L, {id:'b', name:'B', season:2026, leadId:'', members:['p1','p3']});
-      const moved=L.map(t=>[t.id, t.leadId, t.members]);
-      const on=[teamOfPerson(L,'p1',2026)?.id, teamOfPerson(L,'p1',2026,'b'), teamOfPerson(L,'p2',2027)?.id];
-      L=withTeam(L, {id:'a', name:'A renamed', season:2026, leadId:'', members:['p2']});
-      const renamed=L.map(t=>[t.id, t.name]);
-      console.log(JSON.stringify({moved, on, renamed,
-        season:teamsForSeason(L, 2026).map(t=>t.name), gone:withoutTeam(L,'a').map(t=>t.id)}));
-    """)
-    # p1 leaves A (and A loses its lead); the 2027 team is untouched
-    assert out["moved"] == [["a", "", ["p2"]], ["z", "", ["p2"]], ["b", "", ["p1", "p3"]]]
-    assert out["on"] == ["b", None, "z"]
-    assert out["renamed"] == [["a", "A renamed"], ["z", "Z"], ["b", "B"]]
-    assert out["season"] == ["A renamed", "B"]
-    assert out["gone"] == ["z", "b"]
 
 
 def test_team_stats_count_and_average_rating():
@@ -214,7 +187,7 @@ def test_staff_dialog_has_teams_undo_and_clear():
     assert "confirm(stfClearMsg(sh, n))" in js_function("stfClear")
     # naming the crew after the team is offered, never done silently
     assert "setCrewName" not in js_function("applyTeamToShift")
-    assert "Name this crew" in js_function("stfTeamsHTML")
+    assert "Name this crew" in js_function("stfTeamNoteHTML")
 
 
 def test_dialog_undo_never_goes_past_the_page_stack():
@@ -347,20 +320,6 @@ def test_team_button_state_and_toggle_off():
     assert out["none"][0] == "Nobody from Ana's team was on this crew."
 
 
-def test_team_tap_wiring_ticks_scrolls_and_tags():
-    draw = js_function("drawStaffDlg")
-    assert "toggleTeamOnShift(sh, t)" in draw
-    assert "applyTeamToShift(sh, t)" not in draw
-    tog = js_function("toggleTeamOnShift")
-    assert "pushUndo()" in tog and "stfTrack(" in tog and "staffingWithout(" in tog
-    assert "applyTeamToShift(sh, team, plan)" in tog
-    assert "stfScrollToNew=plan.add.length>0" in js_function("applyTeamToShift")
-    # ticked rows flash, get scrolled into view, and every member shows a team tag
-    assert "juston" in draw and "stfScrollToNew" in draw and "scrollTo(" in draw
-    assert 'class="asgteam"' in draw and "teamOfPerson(teams, p.id, teamSeasonDefault())" in draw
-    assert "${st.selected?' checked':''}" in js_function("stfTeamsHTML")
-
-
 # "why cant i see the whole list and why cant i scroll" (user, 2026-10-24):
 # the dialog uses the available height and the people list is the scroller.
 
@@ -386,3 +345,221 @@ def test_staff_dialog_motion_respects_reduced_motion():
     assert "@keyframes stfin" in TEMPLATE and "@keyframes stfout" in TEMPLATE
     opener = js_function("openStaffDlg")
     assert "stfPrevOn=null" in opener and "classList.add('intro')" in opener
+
+
+
+# User, 2026-10-30: "i want to be able to make different teams and
+# combinations" -- the "A person can be on one team per year" confirm is gone.
+# A person can be on any number of teams (Alberto | Houston Team and
+# Alberto | Dallas Team built from the same people).
+
+def test_a_person_can_be_on_two_teams_in_one_season():
+    out = run("""
+      let L=normTeams([
+        {id:'h', name:'Alberto | Houston Team', season:2026, leadId:'p1', members:['p1','p2','p3']},
+        {id:'d', name:'Alberto | Dallas Team', season:2026, leadId:'p1', members:['p2','p1','p4']},
+      ], ['p1','p2','p3','p4'], 2026);
+      const loaded=L.map(t=>[t.id, t.leadId, t.members]);
+      L=withTeam(L, {id:'x', name:'Extra', season:2026, leadId:'', members:['p2']});
+      console.log(JSON.stringify({loaded, after:L.map(t=>[t.id, t.members]),
+        of:teamsOfPerson(L, 'p2', 2026).map(t=>t.name), first:teamOfPerson(L, 'p2', 2026).name,
+        none:teamsOfPerson(L, 'p9', 2026), other:teamsOfPerson(L, 'p2', 2027)}));
+    """)
+    # both keep the shared people; the lead is listed first
+    assert out["loaded"] == [["h", "p1", ["p1", "p2", "p3"]], ["d", "p1", ["p1", "p2", "p4"]]]
+    # saving a team takes nobody off any other team
+    assert out["after"] == [["h", ["p1", "p2", "p3"]], ["d", ["p1", "p2", "p4"]], ["x", ["p2"]]]
+    assert out["of"] == ["Alberto | Dallas Team", "Alberto | Houston Team", "Extra"]
+    assert out["first"] == "Alberto | Dallas Team"
+    assert out["none"] == [] and out["other"] == []
+
+
+def test_existing_teams_load_unchanged():
+    """Migration: saved teams were already one-per-person, so they load as is."""
+    out = run("""
+      const saved=[{id:'a', name:'A', season:2026, leadId:'p1', members:['p1','p2']},
+                   {id:'b', name:'B', season:2026, leadId:'', members:['p3']}];
+      console.log(JSON.stringify(normTeams(saved, ['p1','p2','p3'], 2026)))""")
+    assert out == [{"id": "a", "name": "A", "season": 2026, "leadId": "p1", "members": ["p1", "p2"]},
+                   {"id": "b", "name": "B", "season": 2026, "leadId": "", "members": ["p3"]}]
+
+
+def test_the_one_team_confirm_is_gone():
+    from test_client_name_editor import TEMPLATE as T
+    assert "one team per year" not in T
+    assert "already on another" not in js_function("saveTeamDraft")
+    assert "confirm(" not in js_function("saveTeamDraft")
+    assert "moves them off" not in T
+
+
+def test_badge_shows_the_most_relevant_team_plus_the_rest():
+    out = run("""
+      const L=[{id:'h', name:'Houston', season:2026, members:['p1','p2']},
+               {id:'d', name:'Dallas', season:2026, members:['p1']},
+               {id:'z', name:'Zed', season:2026, members:['p1']}];
+      console.log(JSON.stringify([teamBadge(L,'p1',2026), teamBadge(L,'p1',2026,['h']),
+        teamBadge(L,'p2',2026,['d']), teamBadge(L,'p9',2026)]));
+    """)
+    assert out[0] == {"name": "Dallas", "more": 2, "all": ["Dallas", "Houston", "Zed"],
+                      "title": "On 3 teams: Dallas, Houston, Zed"}
+    assert out[1]["name"] == "Houston" and out[1]["more"] == 2      # the ticked team first
+    assert out[2] == {"name": "Houston", "more": 0, "all": ["Houston"], "title": "On Houston"}
+    assert out[3] is None
+
+
+def test_badges_use_the_multi_team_helper_everywhere():
+    draw = js_function("drawStaffDlg")
+    assert "teamBadgeHTML(p.id, onTeams)" in draw and "const onTeams=stfTeamsOn(sh)" in draw
+    assert "teamOfPerson(" not in draw
+    assert "teamBadgeHTML(p.id)" in js_function("personRow")
+    assert "teamsOfPerson(teams, p.id, teamSeasonDefault())" in js_function("personDetailHTML")
+    assert "teamBadgeHTML(p.id, txtTeamsOn(picked))" in js_function("txtRowHTML")
+    assert "' some'" in js_function("txtPickHTML")     # a part-picked team chip
+    # the ALSO warning names every other crew that day
+    assert ".join(' + ')" in draw
+
+
+def test_team_staffing_auto_check_with_overlapping_teams():
+    """Houston (p1 p2 p3) and Dallas (p1 p2 p4) share two people. Ticking
+    Houston checks Houston and leaves Dallas part-ticked; then ticking Dallas
+    adds only p4 and both read checked. Unticking Dallas takes all of Dallas
+    off, which leaves Houston part-ticked (p3 still on)."""
+    out = run("""
+      const P={}; ['p1','p2','p3','p4'].forEach(id=>P[id]={id, name:id, active:true});
+      const H={id:'h', name:'Houston', members:['p1','p2','p3']}, D={id:'d', name:'Dallas', members:['p1','p2','p4']};
+      const days=['d1'];
+      const st=(team, map)=>teamShiftState(teamApplyPlan(team, {person:id=>P[id]||null,
+        onShift:new Set(map.d1||[]), avail:()=>({ok:true}), otherCrew:()=>''}));
+      const plan=(team, map)=>teamApplyPlan(team, {person:id=>P[id]||null,
+        onShift:new Set(map.d1||[]), avail:()=>({ok:true}), otherCrew:()=>''});
+      let m={};
+      m=staffingWith(m, days, plan(H, m).add);
+      const a=[st(H,m), st(D,m)];
+      const addD=plan(D, m).add;
+      m=staffingWith(m, days, addD);
+      const b=[st(H,m), st(D,m)];
+      m=staffingWithout(m, days, plan(D, m).already);
+      const c=[st(H,m), st(D,m), m];
+      console.log(JSON.stringify({a, addD, b, c}));
+    """)
+    assert out["a"] == [{"on": 3, "total": 3, "selected": True}, {"on": 2, "total": 3, "selected": False}]
+    assert out["addD"] == ["p4"]
+    assert out["b"] == [{"on": 3, "total": 3, "selected": True}, {"on": 3, "total": 3, "selected": True}]
+    assert out["c"][0] == {"on": 1, "total": 3, "selected": False}
+    assert out["c"][1] == {"on": 0, "total": 3, "selected": False}
+    assert out["c"][2] == {"d1": ["p3"]}
+
+
+def test_overlapping_teams_on_two_crews_the_same_day_skip_the_busy_person():
+    out = run("""
+      const P={p1:{id:'p1',name:'A',active:true}, p2:{id:'p2',name:'B',active:true}};
+      const D={id:'d', name:'Dallas', members:['p1','p2']};
+      const plan=teamApplyPlan(D, {person:id=>P[id], onShift:new Set(), avail:()=>({ok:true}),
+        otherCrew:id=>id==='p1' ? 'Crew 1' : ''});
+      console.log(JSON.stringify(plan));
+    """)
+    assert out["add"] == ["p2"] and out["busy"] == [{"id": "p1", "crew": "Crew 1"}]
+
+
+# Drag and drop moves, as pure functions (the builder calls these).
+
+DROP = """
+  const L0=[{id:'h', name:'Houston', season:2026, leadId:'p1', members:['p1','p2','p3']},
+            {id:'d', name:'Dallas', season:2026, leadId:'', members:['p4']}];
+  const ids=L=>L.map(t=>[t.id, t.leadId, t.members]);
+"""
+
+
+def test_drop_moves_copies_reorders_and_removes():
+    out = run(DROP + """
+      console.log(JSON.stringify({
+        move: ids(teamsAfterDrop(L0, {pid:'p2', from:'h', to:'d', index:0})),
+        copy: ids(teamsAfterDrop(L0, {pid:'p2', from:'h', to:'d', copy:true})),
+        add:  ids(teamsAfterDrop(L0, {pid:'p9', from:'', to:'h', index:1})),
+        off:  ids(teamsAfterDrop(L0, {pid:'p3', from:'h', to:''})),
+        lead: ids(teamsAfterDrop(L0, {pid:'p1', from:'h', to:'d'})),
+        reorder: ids(teamsAfterDrop(L0, {pid:'p3', from:'h', to:'h', index:1})),
+        above_lead: ids(teamsAfterDrop(L0, {pid:'p3', from:'h', to:'h', index:0})),
+        already: ids(teamsAfterDrop(teamsAfterDrop(L0, {pid:'p2', from:'h', to:'d', copy:true}), {pid:'p2', from:'h', to:'d'})),
+        noop: [teamsAfterDrop(L0, {pid:'p2', from:'', to:''})===L0, teamsAfterDrop(L0, {pid:'p2', from:'h', to:'gone'})===L0],
+        pure: ids(L0),
+      }));
+    """)
+    assert out["move"] == [["h", "p1", ["p1", "p3"]], ["d", "", ["p2", "p4"]]]
+    assert out["copy"] == [["h", "p1", ["p1", "p2", "p3"]], ["d", "", ["p4", "p2"]]]
+    assert out["add"] == [["h", "p1", ["p1", "p9", "p2", "p3"]], ["d", "", ["p4"]]]
+    assert out["off"] == [["h", "p1", ["p1", "p2"]], ["d", "", ["p4"]]]
+    assert out["lead"] == [["h", "", ["p2", "p3"]], ["d", "", ["p4", "p1"]]]   # leaves, stops leading
+    assert out["reorder"] == [["h", "p1", ["p1", "p3", "p2"]], ["d", "", ["p4"]]]
+    assert out["above_lead"] == [["h", "p1", ["p1", "p3", "p2"]], ["d", "", ["p4"]]]   # the lead stays first
+    assert out["already"] == [["h", "p1", ["p1", "p3"]], ["d", "", ["p4", "p2"]]]  # no duplicate
+    assert out["noop"] == [True, True]
+    assert out["pure"] == [["h", "p1", ["p1", "p2", "p3"]], ["d", "", ["p4"]]]
+
+
+def test_lead_rename_and_duplicate_as_dallas():
+    out = run(DROP + """
+      console.log(JSON.stringify({
+        lead: ids(teamsWithLead(L0, 'h', 'p3')), clear: ids(teamsWithLead(L0, 'h', 'p1')),
+        newcomer: ids(teamsWithLead(L0, 'd', 'p7')),
+        rename: teamsRenamed(L0, 'd', '  Dallas   Night ').map(t=>t.name), blank: teamsRenamed(L0, 'd', '  ')===L0,
+        names: [teamCopyName('Alberto | Houston Team', []), teamCopyName('Alberto | Dallas Team', []),
+                teamCopyName('Crew A', ['crew a (copy)']), teamCopyName('houston crew', ['dallas crew'])],
+        dup: ids(teamsWithCopy(L0, 'h', 'n', 'Alberto | Dallas Team')).concat([teamsWithCopy(L0,'h','n','X')[1].name]),
+      }));
+    """)
+    assert out["lead"][0] == ["h", "p3", ["p3", "p1", "p2"]]
+    assert out["clear"][0] == ["h", "", ["p1", "p2", "p3"]]
+    assert out["newcomer"][1] == ["d", "p7", ["p7", "p4"]]
+    assert out["rename"] == ["Houston", "Dallas Night"] and out["blank"] is True
+    assert out["names"] == ["Alberto | Dallas Team", "Alberto | Houston Team", "Crew A (copy) 2", "dallas crew 2"]
+    assert out["dup"][:3] == [["h", "p1", ["p1", "p2", "p3"]], ["n", "p1", ["p1", "p2", "p3"]], ["d", "", ["p4"]]]
+
+
+def test_a_reorder_on_a_stale_tab_keeps_my_order():
+    out = json.loads(run_js(MERGE + """
+      const T=(id,members)=>({id, name:id, season:2026, leadId:'', members});
+      const base={teams:[T('a',['p1','p2','p3'])]};
+      const r=mergeShared(base, {teams:[T('a',['p3','p1','p2'])]}, {teams:[T('a',['p1','p2','p3','p9'])]});
+      const both=mergeShared(base, {teams:[T('a',['p3','p1','p2'])]}, {teams:[T('a',['p2','p1','p3'])]});
+      console.log(JSON.stringify({r:r.state.teams[0].members, both:both.state.teams[0].members}));
+    """))
+    assert out["r"] == ["p3", "p1", "p2", "p9"]       # my order, their new person kept
+    assert out["both"] == ["p2", "p1", "p3"]          # both reordered: theirs wins, as before
+
+
+# User, 2026-10-30, Staff this shift: "take out the animation where it
+# scrolls. when i select. it should not move."
+
+def test_ticking_a_team_never_scrolls_the_list():
+    from test_client_name_editor import TEMPLATE as T
+    assert "stfScrollToNew" not in T
+    draw = js_function("drawStaffDlg")
+    assert "scrollTo(" not in draw and "scrollIntoView" not in draw
+    # the ticked row is put back exactly where it was after the redraw
+    assert "stfSetAnchor(cb)" in draw and "stfHoldAnchor(list)" in draw
+    assert draw.index("list.scrollTop=keepTop") < draw.index("stfHoldAnchor(list)")
+    # the "Added 4 from ..." note sits at the end, pinned to the bottom, so it
+    # never pushes the rows down
+    assert "list.innerHTML=stfTeamsHTML(sh)+h+stfTeamNoteHTML(sh)" in draw
+    assert "stfteamnote" not in js_function("stfTeamsHTML")
+    assert "#stfdlg .stfnotepin{position:sticky;bottom:0" in T
+
+
+def test_no_scroll_change_on_team_tick_in_a_render():
+    """Run drawStaffDlg's anchor pair against a fake list: a row that the
+    redraw pushed 40px down is scrolled back by 40px; nothing else moves."""
+    out = run_js(fns("stfSetAnchor", "stfHoldAnchor") + """
+      let stfAnchor=null; const CSS={escape:x=>x};
+      let rowTop=200;
+      const row={getBoundingClientRect:()=>({top:rowTop}), querySelector:()=>inp};
+      const inp={dataset:{teampick:'h'}, closest:()=>row};
+      const list={scrollTop:120, querySelector:sel=>sel==='input[data-teampick="h"]' ? inp : null};
+      stfSetAnchor(inp);
+      rowTop=240;                     // the redraw put the row 40px lower
+      stfHoldAnchor(list);
+      const a=list.scrollTop;
+      stfSetAnchor(inp); stfHoldAnchor(list);   // nothing moved: no scroll
+      console.log(JSON.stringify({a, b:list.scrollTop, left:stfAnchor}));
+    """)
+    assert json.loads(out) == {"a": 160, "b": 160, "left": None}
