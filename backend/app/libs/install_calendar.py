@@ -320,11 +320,68 @@ def current_names(board: Board, aliases: dict) -> dict:
     return out
 
 
+# ---------- Dallas / Houston, install / takedown feeds ----------
+
+REGIONS = ("dallas", "houston")
+KINDS = ("install", "takedown")
+
+
+def day_region(board: Board, day: dict) -> str:
+    """"dallas" or "houston" for a crew-day -- the tool's own split (export
+    scope, the DAL/HOU filters, cityOfDays()): a crew-day is Dallas when it
+    runs as an M Crowd day (``dayMeta.cat == 'M Crowd'``: the Mi Cocina
+    nights, nights staff marked as Dallas since, and the M Crowd office day)
+    or is a Dallas night; everything else is Houston."""
+    meta = board.day_meta.get(day["id"]) or {}
+    return "dallas" if meta.get("cat") == "M Crowd" or board.is_dallas_night(day) else "houston"
+
+
+def stop_kind(board: Board, day: dict, row: int) -> str:
+    """"install" or "takedown" for one stop -- the tool's visitKind(): after
+    Dec 25 a takedown unless the stop is marked Install / Reinstall, up to it
+    an install unless marked Takedown (``client_share.is_takedown``)."""
+    from app.libs.client_share import is_takedown  # client_share imports this module
+
+    return "takedown" if is_takedown(day["date"], (board.clients.get(row) or {}).get("visitType")) else "install"
+
+
+def feed_name(region: Optional[str] = None, kind: Optional[str] = None) -> str:
+    """What the subscribed calendar is called. The unfiltered feed keeps the
+    name every existing subscriber already has."""
+    if not region and not kind:
+        return "TBDG Xmas Schedule"
+    if not kind:
+        return f"TBDG {region.title()}"  # "TBDG Dallas", "TBDG Houston"
+    where = {"dallas": "Dallas ", "houston": "Houston ", None: ""}[region]
+    what = {"install": "Installs", "takedown": "Takedowns"}[kind]
+    return f"TBDG {where}{what}"
+
+
+def feed_events(board: Board, day: dict, storing: Optional[set] = None, names: Optional[dict] = None,
+                region: Optional[str] = None, kind: Optional[str] = None) -> list[dict]:
+    """``day_events`` narrowed to one region and/or one kind. The region is the
+    crew-day's; the kind is each stop's, so a day keeps its arrive / drive
+    events whenever at least one of its stops is in the feed, and only the
+    matching stops' install events."""
+    if region and day_region(board, day) != region:
+        return []
+    events = day_events(board, day, storing, names)
+    if not kind:
+        return events
+    keep = {r for r in day["stops"] if stop_kind(board, day, r) == kind}
+    if not keep:
+        return []
+    drop = {f"-stop-{r}@" for r in day["stops"] if r not in keep}
+    return [e for e in events if not any(d in e["uid"] for d in drop)]
+
+
 def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[set] = None,
-              names: Optional[dict] = None) -> str:
-    """The whole season's board, every crew, as one VCALENDAR."""
+              names: Optional[dict] = None, region: Optional[str] = None,
+              kind: Optional[str] = None) -> str:
+    """The whole season's board as one VCALENDAR: every crew, or only one
+    region's crew-days and/or one kind of stop (``feed_events``)."""
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
-    name = "TBDG Xmas Schedule"  # what the subscribed calendar is called
+    name = feed_name(region, kind)  # what the subscribed calendar is called
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Leaf & Ledger//Install Schedule//EN",
              "CALSCALE:GREGORIAN", "METHOD:PUBLISH", f"X-WR-CALNAME:{_esc(name)}",
              f"NAME:{_esc(name)}", f"X-WR-TIMEZONE:{TZID}",
@@ -333,7 +390,7 @@ def build_ics(board: Board, now: Optional[datetime] = None, storing: Optional[se
     lines += VTIMEZONE
 
     for day in sorted(board.days.values(), key=lambda d: (d["date"], board.crew_label(d))):
-        for ev in day_events(board, day, storing, names):
+        for ev in feed_events(board, day, storing, names, region, kind):
             lines += ["BEGIN:VEVENT", f"UID:{ev['uid']}", f"DTSTAMP:{stamp}",
                       f"DTSTART;TZID={TZID}:{_local(day['date'], ev['start'])}",
                       f"DTEND;TZID={TZID}:{_local(day['date'], ev['end'])}",
