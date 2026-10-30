@@ -1269,6 +1269,15 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .txtprog b{color:var(--ink)}
 /* assign dialog */
 #perdlg{max-width:600px}
+/* Mark inactive / Mark active in the edit-installer popup (user, 2026-10-30) */
+#perdlg .btns{align-items:center}
+#perdlg .btns .sp{flex:1}
+#perdlg #peractive.off{color:var(--danger);border-color:#f3d4d4}
+#perdlg .peractconfirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;
+  padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--brand-soft)}
+#perdlg .peractconfirm[hidden]{display:none}
+#perdlg .peractconfirm span{flex:1;min-width:180px}
+@media (max-width:767px){ #perdlg .btns button,#perdlg .peractconfirm button{min-height:40px} }
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .perrow3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
 #percontract input[type=text]{font-size:16px;min-height:40px}
@@ -2721,7 +2730,13 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <div class="bubrow" id="perdays"></div>
   <div id="peravailwarn" class="availwarn">No dates marked yet: this person
     shows as unavailable until at least one date is picked.</div>
-  <div class="btns"><button onclick="perdlg.close()">Cancel</button>
+  <div class="peractconfirm" id="peractconfirm" hidden>
+    <span id="peractmsg"></span>
+    <button type="button" id="peractyes"></button>
+    <button type="button" id="peractno">Cancel</button></div>
+  <div class="btns"><button type="button" id="peractive" hidden></button>
+  <span class="sp"></span>
+  <button onclick="perdlg.close()">Cancel</button>
   <button class="go" id="pergo">Save</button></div>
 </dialog>
 <dialog id="stfdlg">
@@ -12279,9 +12294,44 @@ function openPersonDlg(person){
   perDates = new Set(person ? person.dates : []);
   perUndo=[]; perRedo=[];
   drawPerAvail();
+  drawPerActive();
   perdlg.showModal();
   document.getElementById('perfirst').focus();
 }
+/** "Mark inactive" / "Mark active" in the edit popup (user, 2026-10-30:
+ *  "mark as inactive needs to be on the pop up window on the roster when you
+ *  double click someones name"). Same action as the roster panel's button,
+ *  behind an in-page confirm; the popup stays open so unsaved edits survive. */
+function perActiveLabels(p, shifts){
+  const off=p.active!==false;
+  return {btn: off?'Mark inactive':'Mark active',
+    msg: off ? `Mark ${p.name} inactive?`
+      + (shifts?` They are still on ${shifts} shift${shifts===1?'':'s'}.`:'')
+      : `Mark ${p.name} active again?`,
+    yes: off?'Yes, mark inactive':'Yes, mark active'};
+}
+function drawPerActive(){
+  const b=document.getElementById('peractive'), p=editingPerson;
+  document.getElementById('peractconfirm').hidden=true;
+  b.hidden=!p;
+  if(!p) return;
+  b.textContent=perActiveLabels(p, 0).btn;
+  b.classList.toggle('off', p.active!==false);
+}
+document.getElementById('peractive').onclick=()=>{
+  const p=editingPerson; if(!p) return;
+  const L=perActiveLabels(p, p.active!==false ? shiftsFor(p.id).length : 0);
+  document.getElementById('peractmsg').textContent=L.msg;
+  document.getElementById('peractyes').textContent=L.yes;
+  document.getElementById('peractconfirm').hidden=false;
+};
+document.getElementById('peractno').onclick=()=>{
+  document.getElementById('peractconfirm').hidden=true; };
+document.getElementById('peractyes').onclick=()=>{
+  const p=editingPerson; if(!p) return;
+  togglePersonActive(p);
+  drawPerActive();
+};
 document.getElementById('pergo').onclick=()=>{
   if(roBlocked()) return;
   const first=document.getElementById('perfirst').value.trim();
