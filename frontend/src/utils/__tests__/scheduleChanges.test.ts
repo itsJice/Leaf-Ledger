@@ -31,12 +31,14 @@ function ev(id: string, day: string, isNew = false): ChangeEvent {
 }
 
 describe("the Changes entry", () => {
-  it("sits in the Installs menu after the four schedule views", () => {
+  it("sits in the Installs menu after the schedule's views", () => {
     const installs = NAV_GROUPS.find((g) => g.id === "installs")!;
     expect(installs.items.map((i) => i.path)).toEqual([
-      "/install-schedule", "/install-calendar", "/install-staffing", "/install-roster", CHANGES_PATH,
+      "/install-schedule", "/install-calendar", "/install-staffing", "/install-roster",
+      "/install-trailer-loader", CHANGES_PATH,
     ]);
-    expect(installs.items[4].label).toBe("Install Changes");
+    expect(installs.items[4].label).toBe("Trailer Loader");
+    expect(installs.items[5].label).toBe("Install Changes");
   });
 
   it("is its own page, not a view of the schedule iframe", () => {

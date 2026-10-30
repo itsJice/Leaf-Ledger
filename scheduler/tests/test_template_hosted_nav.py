@@ -45,9 +45,9 @@ def test_view_names_match_the_app():
         pytest.skip("frontend not checked out")
     ts = open(VIEWS_TS, encoding="utf-8").read()
     app_views = re.findall(r'\{ view: "(\w+)", path: "(/install-[\w-]+)"', ts)
-    assert [v for v, _ in app_views] == ["days", "cal", "staff", "roster"]
-    accepted = re.search(r"\[('days','cal','staff','roster')\]\.includes\(v\)", TEMPLATE)
-    assert accepted, "applyHostView no longer accepts the app's four view names"
+    assert [v for v, _ in app_views] == ["days", "cal", "staff", "roster", "load"]
+    accepted = re.search(r"\[('days','cal','staff','roster','load')\]\.includes\(v\)", TEMPLATE)
+    assert accepted, "applyHostView no longer accepts the app's view names"
 
 
 def test_hosted_protocol_both_ways():

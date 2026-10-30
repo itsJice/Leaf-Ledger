@@ -26,7 +26,8 @@ def test_each_control_is_labelled_or_hidden_per_view():
     assert "'Print the roster: choose who, which columns and the layout'" in s
     assert "Print the staffing sheet" in s and "`Print ${calPrintTitle()}`" in s
     assert "'Download the roster (Excel or CSV)'" in s
-    assert "v!=='staff');" in s                      # no schedule export on Staffing
+    assert "v!=='staff' && v!=='load');" in s        # no schedule export on Staffing or the Trailer Loader
+    assert "'Print the load sheets for these nights'" in s and "set('newmenu', null, v!=='load')" in s
     assert "v==='cal');" in s                        # TV mode only on the Calendar
     assert "'Add an installer'" in s and "set('newclientbtn', null, v==='days'||v==='cal')" in s
     assert "syncViewToolbar();" in js_function("setView")
@@ -71,4 +72,6 @@ def test_cmd_p_prints_the_whole_schedule():
     assert "#datecol,header,#phonebar,#map" in css
     # inside the app, the shortcut prints this document, not the app around it
     assert "if(HOSTED) document.addEventListener('keydown'" in TEMPLATE
-    assert "window.tbdgPrint = ()=>window.print();" in TEMPLATE
+    # (on the Trailer Loader it prints the load sheets instead)
+    assert "window.tbdgPrint = ()=>{ if(typeof viewMode!=='undefined' && viewMode==='load') printLoader(); else window.print(); };" in TEMPLATE
+    assert "e.preventDefault(); e.stopPropagation(); window.tbdgPrint();" in TEMPLATE
