@@ -1,22 +1,24 @@
 /**
- * The Install Schedule's four screens, each its own entry in the main nav
+ * The Install Schedule's screens, each its own entry in the main nav
  * (user, 2026-10-08): Days, Calendar, Staffing and Roster used to be a tab row
- * inside the schedule page itself.
+ * inside the schedule page itself. The Trailer Loader (user, 2026-10-29)
+ * builds the trailer load sheets from the same page's data.
  *
- * All four routes render ONE <InstallSchedule> (a pathless parent route in
+ * All of these routes render ONE <InstallSchedule> (a pathless parent route in
  * user-routes.tsx), so switching between them never reloads or remounts the
  * schedule iframe: the host just tells the page which view to show
  * (postMessage `tbdg-view`). Pure helpers only, so tests can import this.
  */
 
 /** The page's own names for its views (scheduler/review_template.html). */
-export type InstallView = "days" | "cal" | "staff" | "roster";
+export type InstallView = "days" | "cal" | "staff" | "roster" | "load";
 
 export const INSTALL_VIEWS: ReadonlyArray<{ view: InstallView; path: string; label: string }> = [
   { view: "days", path: "/install-schedule", label: "Install Schedule" },
   { view: "cal", path: "/install-calendar", label: "Install Calendar" },
   { view: "staff", path: "/install-staffing", label: "Install Staffing" },
   { view: "roster", path: "/install-roster", label: "Install Roster" },
+  { view: "load", path: "/install-trailer-loader", label: "Trailer Loader" },
 ];
 
 export const INSTALL_PATHS: string[] = INSTALL_VIEWS.map((v) => v.path);
@@ -25,7 +27,7 @@ function trimSlash(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 }
 
-/** True on any of the four schedule routes. */
+/** True on any of the schedule's routes. */
 export function isInstallPath(pathname: string): boolean {
   return INSTALL_PATHS.includes(trimSlash(pathname));
 }
@@ -50,6 +52,10 @@ const LEGACY: Record<string, InstallView> = {
   staffing: "staff",
   shifts: "staff",
   roster: "roster",
+  load: "load",
+  loader: "load",
+  trailers: "load",
+  "trailer-loader": "load",
 };
 
 /**

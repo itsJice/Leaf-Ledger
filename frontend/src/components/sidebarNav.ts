@@ -16,6 +16,7 @@ import {
   HelpCircle,
   LayoutGrid,
   MessageSquare,
+  Package,
   Search,
   Settings,
   Shapes,
@@ -100,6 +101,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/install-calendar", label: "Install Calendar", icon: CalendarDays },
       { path: "/install-staffing", label: "Install Staffing", icon: Briefcase },
       { path: "/install-roster", label: "Install Roster", icon: Users },
+      // Trailer load sheets for a trip (user, 2026-10-29): a view of the same page.
+      { path: "/install-trailer-loader", label: "Trailer Loader", icon: Package },
       // What changed on the schedule, in words (Comment #19). Its own page.
       { path: "/install-changes", label: "Install Changes", icon: Clock },
     ],
