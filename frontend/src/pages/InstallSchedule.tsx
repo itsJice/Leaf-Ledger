@@ -44,6 +44,7 @@ const LEGACY_TAB_BUTTON: Record<InstallView, string> = {
   cal: "viewcal",
   staff: "viewstaff",
   roster: "viewroster",
+  load: "viewload",
 };
 
 export default function InstallSchedule() {
