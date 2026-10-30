@@ -1579,12 +1579,34 @@ body.tv #tbteams{display:none!important}
 .tbpoollist{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 10px 14px;display:flex;flex-direction:column;gap:4px;
   overscroll-behavior:contain}
 .tbpoollist .asghdr{margin:8px 2px 1px}
-.tbboard{flex:1 1 auto;min-width:0;display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding:12px;
+.tbpoolsec{font-size:11px;font-weight:800;color:var(--ink);margin:10px 2px 0;padding-top:8px;border-top:1px solid var(--line)}
+.tbpoolsec:first-child{border-top:none;padding-top:0;margin-top:4px}
+.tbpoolsec .n,.tbuntrtog .n{color:var(--faint);font-weight:700}
+.tbuntrtog{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--mut);margin:12px 2px 2px;padding-top:10px;
+  border-top:1px solid var(--line);cursor:pointer}
+.tbuntrtog input{margin:0;flex:none;accent-color:var(--brand);width:16px;height:16px}
+.tbboard{position:relative;flex:1 1 auto;min-width:0;display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding:12px;
   align-items:stretch;overscroll-behavior:contain}
 .tbcol{flex:0 0 264px;display:flex;flex-direction:column;min-height:0;border:1px solid var(--line);border-radius:10px;
   background:var(--surface);transition:border-color .12s ease,box-shadow .12s ease}
 .tbcol.tbover{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
-.tbcolhd{display:flex;align-items:center;gap:6px;padding:8px 6px 2px 10px}
+.tbcolhd{display:flex;align-items:center;gap:6px;padding:8px 6px 2px 10px;-webkit-touch-callout:none}
+/* Column order (this device's view): a grip left of the name, an insertion bar. */
+.tbcolhd:has(.tbcolgrip){padding-left:4px;gap:4px}
+.tbcolgrip{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:26px;border-radius:5px;
+  color:var(--faint);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.tbcolgrip:hover{color:var(--brand);background:var(--brand-soft)}
+.tbcolgrip .ic{width:13px!important;height:13px!important}
+.tbcolhd.tbpress{background:var(--brand-soft);border-radius:9px 9px 0 0}
+.tbcol.tbcolsrc{opacity:.4}
+.tbcol.tbcoljust{border-color:var(--brand)}
+.tbcolghost{position:fixed;left:0;top:0;z-index:20;pointer-events:none;display:flex;align-items:center;gap:6px;
+  padding:9px 10px 9px 6px;box-sizing:border-box;border:1px solid var(--brand);border-radius:10px;background:var(--surface);
+  box-shadow:0 12px 28px rgba(0,0,0,.18);will-change:transform;font:800 13px 'Montserrat',sans-serif;color:var(--ink)}
+.tbcolghost b{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbcolghost .tbcolgrip{color:var(--brand)}
+.tbcolmark{position:absolute;top:12px;bottom:12px;width:4px;border-radius:2px;background:var(--brand);pointer-events:none;z-index:2}
+.tbcolmark.flat{top:auto;bottom:auto;left:12px;right:12px;width:auto;height:4px}
 #teamdlg .tbname{flex:1 1 auto;min-width:0;text-align:left;background:none;border:1px solid transparent;padding:3px 4px;margin-left:-4px;
   font:800 13px 'Montserrat',sans-serif;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;border-radius:5px}
 #teamdlg .tbname:hover:not(:disabled){border-color:var(--line)}
@@ -1653,10 +1675,11 @@ body.readonly .tbc,body.viewonly .tbc{cursor:default;padding-left:8px}
 @media (pointer:coarse){
   .tbc{min-height:44px;padding:5px 4px 5px 6px}
   #teamdlg .tbdots{padding:10px}
+  .tbcolgrip{width:28px;height:36px}
   #teamdlg .tbmenu button{min-height:44px}
 }
 @media (prefers-reduced-motion: reduce){
-  .tbc,.tbcol,.tbpool,.tbnewcol{transition:none}
+  .tbc,.tbcol,.tbpool,.tbnewcol,.tbcolgrip{transition:none}
 }
 @media (max-width:767px){
   #teamdlg input[type=text],#teamdlg input[type=number],#teamdlg select{font-size:16px}
@@ -4228,6 +4251,56 @@ function teamsWithCopy(list, id, newId, name){
     out.push(c);
   });
   return out;
+}
+// ---- Teams builder column order (this device's view, not shared) ----
+// "give me the ability in the teams window to drag and reorder my view of the
+// vertical teams columns" (user, 2026-10-30). "My view": the order is a view
+// preference kept in this browser's localStorage, per season, like the other
+// view prefs on this page. It never goes in the shared state, so nobody
+// else's columns move. Teams not in the saved order (new ones) go at the end;
+// deleted teams simply drop out.
+const TEAM_COLS_KEY='tbdg-team-col-order';
+/** PURE. `list` (one season's teams, in their default order) put in the
+ *  saved order `saved` (team ids). Teams the saved order doesn't name keep
+ *  their default order, after the saved ones; ids no longer in `list` are
+ *  ignored. */
+function teamColOrder(list, saved){
+  const L=list||[], at=new Map();
+  (Array.isArray(saved)?saved:[]).forEach(id=>{ id=String(id); if(!at.has(id)) at.set(id, at.size); });
+  const known=L.filter(t=>at.has(t.id)).sort((a,b)=>at.get(a.id)-at.get(b.id));
+  return [...known, ...L.filter(t=>!at.has(t.id))];
+}
+/** PURE. Column ids with `id` moved to `index`, counted among the OTHER
+ *  columns (0 = first, past the end = last). Unknown id: unchanged copy. */
+function teamColMove(ids, id, index){
+  const L=(ids||[]).slice();
+  if(!L.includes(id)) return L;
+  const rest=L.filter(x=>x!==id);
+  const at=Number.isInteger(index) ? Math.max(0, Math.min(index, rest.length)) : rest.length;
+  rest.splice(at, 0, id);
+  return rest;
+}
+/** This device's saved column orders: {season: [team ids]} ({} when none). */
+function loadTeamColOrders(){
+  try{
+    const v=JSON.parse(localStorage.getItem(TEAM_COLS_KEY)||'{}');
+    return v && typeof v==='object' && !Array.isArray(v) ? v : {};
+  }catch(e){ return {}; }
+}
+/** Save one season's column order (the ids on screen, so deleted teams go). */
+function saveTeamColOrder(season, ids){
+  const all=loadTeamColOrders();
+  all[String(season)]=(ids||[]).map(String);
+  try{ localStorage.setItem(TEAM_COLS_KEY, JSON.stringify(all)); }catch(e){}
+}
+/** One season's teams as this device shows them in the builder. */
+function teamsInColOrder(list, season){
+  return teamColOrder(teamsForSeason(list, season), loadTeamColOrders()[String(season)]);
+}
+/** PURE. The team menu's two move items: "Move left"/"Move right", or
+ *  up/down when the columns are stacked (phones). */
+function teamColMoveLabels(stacked){
+  return stacked ? ['Move up', 'Move down'] : ['Move left', 'Move right'];
 }
 /** PURE. {count, rated, avg}: members still on the roster, how many have an
  *  overall rating, and their average (1-10 scale, 0 when nobody is rated).
@@ -14505,6 +14578,34 @@ function teamNewName(list, season){
   if(!used.has('new team')) return 'New team';
   for(let i=2;;i++) if(!used.has('new team '+i)) return 'New team '+i;
 }
+// The people list's training split (user, 2026-10-30: "the sorting came to
+// training / didn't come to training needs to be in the team builder"), the
+// same split as the Roster and the Staff dialog: "Attended training" first
+// (Leads too, as in the Staff picker: they run the training and are never
+// staffed on it), then "Didn't attend training" behind a toggle, like the Staff
+// dialog's. Each keeps the Lead / Lead Assist / Designer / General groups.
+const TB_UNTRAINED_KEY='tbdg-teams-show-untrained';
+/** PURE. People split for the list: {trained, untrained}, each
+ *  [{title, people}] in TITLES order, by name within a title. `isTrained(p)`
+ *  says which side a person is on. */
+function tbPoolSections(people, isTrained, titles){
+  const grp=list=>titles.map(t=>({title:t, people:list.filter(p=>p.title===t).sort((a,b)=>a.name.localeCompare(b.name))}))
+    .filter(g=>g.people.length);
+  const L=people||[];
+  return {trained:grp(L.filter(p=>isTrained(p))), untrained:grp(L.filter(p=>!isTrained(p)))};
+}
+/** In the people list, counts as trained: attended a training day, or a Lead. */
+function tbIsTrained(p){ return p.title==='Lead' || attendedTraining(p, staffing, trainingDays); }
+function tbShowUntrained(){
+  if(tb.showUntrained==null){
+    try{ tb.showUntrained = localStorage.getItem(TB_UNTRAINED_KEY)==='1'; }catch(e){ tb.showUntrained=false; }
+  }
+  return tb.showUntrained;
+}
+function setTbShowUntrained(on){
+  tb.showUntrained=!!on;
+  try{ on ? localStorage.setItem(TB_UNTRAINED_KEY,'1') : localStorage.removeItem(TB_UNTRAINED_KEY); }catch(e){}
+}
 /** The people list on the left: every active person (plus filter and search). */
 function tbPool(){
   const q=tb.q.trim().toLowerCase(), season=tb.season;
@@ -14513,7 +14614,8 @@ function tbPool(){
     .filter(p=>{
       const f=tb.show;
       if(!f) return true;
-      if(f==='trained') return p.title==='Lead' || attendedTraining(p, staffing, trainingDays);
+      if(f==='trained') return tbIsTrained(p);
+      if(f==='attended') return attendedTraining(p, staffing, trainingDays);
       if(f==='none') return !teamsOfPerson(teams, p.id, season).length;
       if(f.startsWith('t:')) return p.title===f.slice(2);
       return true;
@@ -14553,8 +14655,10 @@ function tbColHTML(t){
   const name = tb.renaming===t.id
     ? `<input type="text" class="tbrename" id="tmrename" maxlength="${TEAM_NAME_MAX}" value="${esc(t.name)}" aria-label="Team name">`
     : `<button type="button" class="tbname" data-rename${READONLY?' disabled':''} title="${READONLY?esc(t.name):'Rename'}">${esc(t.name)}</button>`;
-  return `<section class="tbcol" data-team="${esc(t.id)}" aria-label="${esc(t.name)}, ${ps.length} ${ps.length===1?'person':'people'}">`
-    + `<div class="tbcolhd">${name}<span class="pill teamcnt" title="${ps.length} ${ps.length===1?'person':'people'}">${ps.length}</span>`
+  return `<section class="tbcol${tb.colJust===t.id?' tbcoljust':''}" data-team="${esc(t.id)}" aria-label="${esc(t.name)}, ${ps.length} ${ps.length===1?'person':'people'}">`
+    + `<div class="tbcolhd">`
+    + (READONLY ? '' : `<span class="tbcolgrip" data-colgrip aria-hidden="true" title="Drag to move this column">${IC.grip}</span>`)
+    + `${name}<span class="pill teamcnt" title="${ps.length} ${ps.length===1?'person':'people'}">${ps.length}</span>`
     + (READONLY ? '' : `<button type="button" class="tbdots" data-tmenu aria-haspopup="menu" aria-label="Options for ${esc(t.name)}">${IC.dots}</button>`)
     + `</div><div class="tbcolmeta">${roleLine?`<div>${roleLine}</div>`:''}`
     + mix.map(x=>`<div>${esc(x)}</div>`).join('')
@@ -14576,9 +14680,9 @@ function drawTeamBuilder(){
   const focusQ=act && act.id==='tmq', focusCard=act && act.closest && act.closest('.tbc');
   const focusKey=focusCard ? [focusCard.dataset.pid, focusCard.dataset.from] : null;
   const years=[...new Set([teamSeasonDefault(), ...teams.map(t=>t.season)])].sort((a,b)=>b-a);
-  const list=teamsForSeason(teams, season);
+  const list=teamsInColOrder(teams, season);
   const people=tbPool();
-  const showOpts=[['','All active people'],['trained','Leads + attended training'],['none','Not on a team yet'],
+  const showOpts=[['','All active people'],['attended','Attended training'],['trained','Leads + attended training'],['none','Not on a team yet'],
     ...TITLES.map(t=>['t:'+t, t==='Lead'?'Leads':t+'s'])];
   let h=`<div class="tbhead"><b id="teamtitle">Teams</b>`
     + (years.length>1 ? `<select id="tmyear" aria-label="Year">${years.map(y=>`<option value="${y}"${y===season?' selected':''}>${y}</option>`).join('')}</select>`
@@ -14594,18 +14698,26 @@ function drawTeamBuilder(){
     + `<div class="tbhint">${READONLY ? 'Saved teams for the year.'
         : `Drag people onto a team. Drag between teams to move them, or hold <b>Option</b> (<b>Alt</b>) while you drop to copy`
         + ` (or switch to <b>Copy</b>). On an iPad, press and hold a name, then drag. A person can be on any number of teams. `
-        + `Each name has a menu too: lead, Kit Manager, Van Manager, add to a team.`}</div>`
+        + `Each name has a menu too: lead, Kit Manager, Van Manager, add to a team. `
+        + `To reorder the team columns, drag a team by the dots left of its name (iPad: press and hold the team name). That order is just for this device.`}</div>`
     + `<div class="tbbody">`
     + `<section class="tbpool" aria-label="People">`
     + `<div class="tbpoolhd"><div class="tbpooltitle">People <span class="n">${people.length}</span></div>`
     + `<input type="search" id="tmq" placeholder="Find a person" value="${esc(tb.q)}" aria-label="Find a person" autocomplete="off">`
     + `<select id="tmshow" aria-label="Show">${showOpts.map(([v,l])=>`<option value="${esc(v)}"${v===tb.show?' selected':''}>${esc(l)}</option>`).join('')}</select></div>`
     + `<div class="tbpoollist" role="list" aria-label="People">`;
-  TITLES.forEach(ttl=>{
-    const grp=people.filter(p=>p.title===ttl).sort((a,b)=>a.name.localeCompare(b.name));
-    if(!grp.length) return;
-    h+=`<div class="asghdr">${esc(ttl)}</div>`+grp.map(p=>tbCardHTML(p, null)).join('');
-  });
+  const secs=tbPoolSections(people, tbIsTrained, TITLES);
+  const nUn=secs.untrained.reduce((n,g)=>n+g.people.length, 0), nTr=people.length-nUn;
+  // a search shows everyone it finds, trained or not
+  const showUn=tbShowUntrained() || !!tb.q.trim();
+  const groups=gs=>gs.map(g=>`<div class="asghdr">${esc(g.title)}</div>`+g.people.map(p=>tbCardHTML(p, null)).join('')).join('');
+  if(nTr) h+=`<div class="tbpoolsec" title="Attended a training day, plus Leads (they run it)">${esc(TRAINED_LBL)} <span class="n">${nTr}</span></div>`
+    + groups(secs.trained);
+  if(nUn){
+    if(!tb.q.trim()) h+=`<label class="tbuntrtog"><input type="checkbox" id="tmuntrained"${showUn?' checked':''}>`
+      + `<span>Show people who didn't attend training <span class="n">(${nUn})</span></span></label>`;
+    if(showUn) h+=`<div class="tbpoolsec">Didn't attend training <span class="n">${nUn}</span></div>` + groups(secs.untrained);
+  }
   if(!people.length) h+=`<div class="tbempty">Nobody matches.</div>`;
   h+=`</div></section><div class="tbboard">`
     + list.map(tbColHTML).join('')
@@ -14631,6 +14743,11 @@ function drawTeamBuilder(){
     if(c){ c.scrollIntoView({block:'nearest', inline:'nearest'}); setTimeout(()=>c.classList.remove('tbjust'), 900); }
     tb.just=null;
   }
+  if(tb.colJust){
+    const c=[...body.querySelectorAll('.tbcol')].find(x=>x.dataset.team===tb.colJust);
+    if(c) setTimeout(()=>c.classList.remove('tbcoljust'), 900);
+    tb.colJust=null;
+  }
   tbWire(body);
 }
 function tbWire(body){
@@ -14640,6 +14757,8 @@ function tbWire(body){
   const q=document.getElementById('tmq');
   q.oninput=()=>{ tb.q=q.value; drawTeamBuilder(); };
   document.getElementById('tmshow').onchange=e=>{ tb.show=e.target.value; drawTeamBuilder(); };
+  const un=document.getElementById('tmuntrained');
+  if(un) un.onchange=()=>{ setTbShowUntrained(un.checked); drawTeamBuilder(); };
   if(READONLY) return;
   body.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ tb.mode=b.dataset.mode; drawTeamBuilder(); });
   document.getElementById('tmundo').onclick=tbUndo;
@@ -14647,6 +14766,10 @@ function tbWire(body){
   body.querySelector('[data-newcol]').onclick=()=>tbNewTeam();
   body.querySelectorAll('[data-rename]').forEach(b=>b.onclick=()=>tbStartRename(b.closest('.tbcol').dataset.team));
   body.querySelectorAll('[data-tmenu]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); tbTeamMenu(b); });
+  body.querySelectorAll('.tbcolhd').forEach(h=>{
+    h.addEventListener('pointerdown', tbColPointerDown);
+    h.addEventListener('contextmenu', e=>{ if(tb.pend || tb.drag) e.preventDefault(); });
+  });
   body.querySelectorAll('[data-pmenu]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); tbPersonMenu(b.closest('.tbc'), b); });
   body.querySelectorAll('.tbc').forEach(c=>{
     c.addEventListener('pointerdown', tbPointerDown);
@@ -14797,9 +14920,13 @@ function tbTeamMenu(anchor){
       `${tbName(pid)} is now ${label} of ${t.name}.`)})),
     ...(t[key] ? [{label:`No ${label}`, act:()=>tbCommit(teamsWithRole(teams, id, key, ''), `${t.name} has no ${label} now.`)}] : []),
   ];
+  const order=teamsInColOrder(teams, tb.season).map(x=>x.id), ci=order.indexOf(id);
+  const [mvBack, mvFwd]=teamColMoveLabels(tbColsStacked());
   tbOpenMenu(anchor, [
     {head:t.name},
     {label:'Rename', act:()=>tbStartRename(id)},
+    {label:mvBack, disabled:ci<=0, act:()=>tbMoveCol(id, ci-1, true)},
+    {label:mvFwd, disabled:ci<0 || ci>=order.length-1, act:()=>tbMoveCol(id, ci+1, true)},
     {label:`Duplicate as "${copyName}"`, act:()=>{
       const nid=newTeamId(); tb.renaming=nid;
       if(!tbCommit(teamsWithCopy(teams, id, nid, copyName), `Made ${copyName}, a copy of ${t.name}.`)) tb.renaming=null; }},
@@ -14889,6 +15016,7 @@ document.addEventListener('keydown', e=>{
 }, true);
 document.addEventListener('keyup', e=>{ if(tb.drag && e.key==='Alt'){ tb.drag.alt=false; tbDragUpdate(); } }, true);
 function tbBeginDrag(st, x, y){
+  if(st.kind==='col') return tbBeginColDrag(st, x, y);
   clearTimeout(st.timer); tb.pend=null;
   tbCloseMenu();
   const card=st.card, r=card.getBoundingClientRect();
@@ -14918,6 +15046,7 @@ function tbDropIndex(rects, y){
 }
 function tbDragUpdate(){
   const d=tb.drag; if(!d) return;
+  if(d.kind==='col') return tbColDragUpdate();
   d.ghost.style.transform=`translate(${d.x-d.dx}px, ${d.y-d.dy}px)`;
   const el=document.elementFromPoint(d.x, d.y);
   const col=el && el.closest('.tbcol[data-team]'), nw=el && el.closest('[data-newcol]'), pool=el && el.closest('.tbpool');
@@ -14953,12 +15082,18 @@ function tbEndDrag(){
   cancelAnimationFrame(d.raf);
   d.ghost.remove(); d.mark.remove();
   d.card.classList.remove('tbsrc');
+  if(d.kind==='col'){ d.col.classList.remove('tbcolsrc'); tb.colClickBlock=Date.now(); }
   teamdlg.classList.remove('tbdragging');
   teamdlg.querySelectorAll('.tbover').forEach(x=>x.classList.remove('tbover'));
   tb.drag=null;
 }
 function tbDrop(){
   const d=tb.drag; if(!d) return;
+  if(d.kind==='col'){
+    const at=d.target; tbEndDrag();
+    if(at!=null) tbMoveCol(d.team, at);
+    return;
+  }
   const t=d.target, copy=tbDragCopies(d);
   tbEndDrag();
   if(!t) return;
@@ -14989,6 +15124,102 @@ function tbAutoScroll(){
   if(done.size) tbDragUpdate();
   d.raf=requestAnimationFrame(tbAutoScroll);
 }
+// ---- moving whole team columns (this device's view only) ----
+// Mouse: drag the grip left of the team name. Touch: press and hold the
+// header, then drag. Either way an insertion bar shows where the column will
+// land. Person cards are untouched: their drag starts only on a card.
+/** True when the columns are stacked top to bottom (phones). */
+function tbColsStacked(){
+  const b=document.querySelector('#teambody .tbboard');
+  return !!b && getComputedStyle(b).flexDirection==='column';
+}
+/** Put team `id` at `index` (counted among the other columns) in this
+ *  device's order, save it, and redraw. `fromMenu`: keep keyboard focus on
+ *  the column's menu button. */
+function tbMoveCol(id, index, fromMenu){
+  const ids=teamsInColOrder(teams, tb.season).map(t=>t.id);
+  const next=teamColMove(ids, id, index), t=tbTeam(id);
+  if(next.join('\n')===ids.join('\n')) return;
+  saveTeamColOrder(tb.season, next);
+  tb.colJust=id;
+  drawTeamBuilder();
+  const n=next.indexOf(id);
+  tbSay(`Moved ${t ? t.name : 'the team'} to column ${n+1} of ${next.length}.`);
+  const col=[...document.querySelectorAll('#teambody .tbcol')].find(x=>x.dataset.team===id);
+  if(col && fromMenu){
+    const b=col.querySelector('[data-tmenu]'); if(b) b.focus({preventScroll:true});
+    col.scrollIntoView({block:'nearest', inline:'nearest'});
+  }
+}
+function tbColPointerDown(e){
+  if(READONLY || e.button>0 || tb.drag || tb.renaming) return;
+  const hd=e.currentTarget, col=hd.closest('.tbcol'), type=e.pointerType||'mouse';
+  if(!col) return;
+  // a mouse drags from the grip; a finger or pen may press and hold
+  // anywhere on the header except the menu button
+  if(type==='mouse' ? !e.target.closest('[data-colgrip]') : e.target.closest('[data-tmenu],input')) return;
+  if(type==='mouse') e.preventDefault();          // no text selection while dragging
+  const st={x:e.clientX, y:e.clientY, id:e.pointerId, card:hd, col, team:col.dataset.team, type, timer:0, kind:'col'};
+  tb.pend=st;
+  if(type!=='mouse'){
+    hd.classList.add('tbpress');
+    st.timer=setTimeout(()=>{ if(tb.pend===st) tbBeginDrag(st, st.lx!=null?st.lx:st.x, st.ly!=null?st.ly:st.y); }, TB_HOLD_MS);
+  }
+  document.addEventListener('pointermove', tbPointerMove, true);
+  document.addEventListener('pointerup', tbPointerUp, true);
+  document.addEventListener('pointercancel', tbPointerCancel, true);
+}
+function tbBeginColDrag(st, x, y){
+  clearTimeout(st.timer); tb.pend=null;
+  tbCloseMenu();
+  const hd=st.card, col=st.col, r=col.getBoundingClientRect(), hr=hd.getBoundingClientRect();
+  hd.classList.remove('tbpress');
+  const t=tbTeam(st.team);
+  const ghost=document.createElement('div');
+  ghost.className='tbcolghost'; ghost.setAttribute('aria-hidden','true');
+  ghost.style.width=r.width+'px';
+  ghost.innerHTML=`<span class="tbcolgrip">${IC.grip}</span><b>${esc(t ? t.name : '')}</b>`
+    + `<span class="pill teamcnt">${t ? t.members.filter(personById).length : 0}</span>`;
+  teamdlg.appendChild(ghost);
+  const mark=document.createElement('div'); mark.className='tbcolmark'; mark.hidden=true;
+  col.classList.add('tbcolsrc');
+  teamdlg.classList.add('tbdragging');
+  tb.drag={kind:'col', team:st.team, col, card:hd, ghost, mark, dx:x-hr.left, dy:y-hr.top,
+           x, y, pointerId:st.id, alt:false, target:null, raf:0};
+  try{ hd.setPointerCapture && hd.setPointerCapture(st.id); }catch(err){}
+  if(st.type==='touch' && navigator.vibrate) try{ navigator.vibrate(8); }catch(err){}
+  tbColDragUpdate();
+  tbAutoScroll();
+}
+function tbColDragUpdate(){
+  const d=tb.drag; if(!d || d.kind!=='col') return;
+  d.ghost.style.transform=`translate(${d.x-d.dx}px, ${d.y-d.dy}px)`;
+  const board=document.querySelector('#teambody .tbboard');
+  const cols=board ? [...board.querySelectorAll('.tbcol')].filter(c=>c!==d.col) : [];
+  d.target=null; d.mark.hidden=true;
+  if(!board || !cols.length) return;
+  const stacked=tbColsStacked(), br=board.getBoundingClientRect();
+  const rs=cols.map(c=>c.getBoundingClientRect());
+  // tbDropIndex works on {top, bottom}; sideways, left/right stand in
+  const idx=tbDropIndex(stacked ? rs : rs.map(r=>({top:r.left, bottom:r.right})), stacked ? d.y : d.x);
+  d.target=idx;
+  if(d.mark.parentNode!==board) board.appendChild(d.mark);
+  d.mark.classList.toggle('flat', stacked);
+  if(stacked){
+    const y = idx<rs.length ? rs[idx].top-6 : rs[rs.length-1].bottom+6;
+    d.mark.style.left=''; d.mark.style.top=(y-br.top-2)+'px';
+  } else {
+    const x = idx<rs.length ? rs[idx].left-6 : rs[rs.length-1].right+6;
+    d.mark.style.top=''; d.mark.style.left=(x-br.left+board.scrollLeft-2)+'px';
+  }
+  d.mark.hidden=false;
+}
+// A finger held on a team name must not also start renaming it on release.
+teamdlg.addEventListener('click', e=>{
+  if(tb.colClickBlock && Date.now()-tb.colClickBlock<400 && e.target.closest && e.target.closest('.tbcolhd')){
+    e.preventDefault(); e.stopPropagation();
+  }
+}, true);
 // Esc closes a menu or ends a drag before it closes the builder; closing
 // tidies up; Cmd/Ctrl+Z inside the builder is its Undo.
 teamdlg.addEventListener('cancel', e=>{
