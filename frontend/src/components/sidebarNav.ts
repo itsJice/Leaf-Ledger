@@ -19,6 +19,7 @@ import {
   Search,
   Settings,
   Shapes,
+  Shrub,
   ShoppingCart,
   Sparkles,
   TreePine,
@@ -78,6 +79,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/designs", label: "Designs", icon: Shapes },
       { path: "/mockups", label: "AI Mockups", icon: Sparkles },
       { path: "/ornament-calculator", label: "Ornament Calculator", icon: Calculator },
+      // The calculator's counts placed on a 3D tree you can spin (designer rules, 10/27/2026).
+      { path: "/tree-install", label: "Tree Install", icon: Shrub },
       { path: "/tree-counts", label: "Tree Counts", icon: ClipboardCheck },
       { path: "/search", label: "Catalog Search", icon: Search },
       { path: "/suppliers", label: "Suppliers", icon: Building2 },
