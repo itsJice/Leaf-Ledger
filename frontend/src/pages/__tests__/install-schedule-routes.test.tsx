@@ -64,7 +64,8 @@ describe("the four schedule routes share one mounted page", () => {
 
 describe("route <-> view", () => {
   it("maps each route to the page's own view names and back", () => {
-    expect(INSTALL_PATHS.map(viewForPath)).toEqual(["days", "cal", "staff", "roster"]);
+    expect(INSTALL_PATHS.map(viewForPath)).toEqual(["days", "cal", "staff", "roster", "load"]);
+    expect(viewForPath("/install-trailer-loader")).toBe("load");
     for (const path of INSTALL_PATHS) expect(pathForView(viewForPath(path))).toBe(path);
     expect(viewForPath("/install-calendar/")).toBe("cal");
     expect(isInstallPath("/install-roster")).toBe(true);

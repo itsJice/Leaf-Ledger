@@ -389,7 +389,8 @@ def test_production_me_lists_pages_and_home(fake_db, board):
     assert "/jobs" in out["pages"] and "/settings" not in out["pages"]
     assert not out["fieldOnly"] and not out["viewOnly"]
     # The schedule's four views are four nav entries; production keeps all four.
-    for p in ("/install-schedule", "/install-calendar", "/install-staffing", "/install-roster"):
+    for p in ("/install-schedule", "/install-calendar", "/install-staffing", "/install-roster",
+              "/install-trailer-loader"):
         assert p in out["pages"]
 
 

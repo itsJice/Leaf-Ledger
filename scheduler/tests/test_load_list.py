@@ -28,7 +28,8 @@ PURE = ["trailerById", "defaultTrailerId", "normTrailers", "withTrailer", "parse
         "loadZones", "weekZones", "lateZones", "zoneSizes", "buildLoadPlan", "loadStopName", "boxRange", "ordinal",
         "nightTag", "nightRuns", "loadEsc", "wrapWords", "boxesTxt", "trailerTitle",
         "spartanGeom", "trailerOutlineSVG", "weekTopSVG",
-        "loadSpartanHTML", "loadWeekHTML", "loadLateHTML", "loadCoverHTML", "loadListHTML"]
+        "loadSpartanHTML", "loadWeekHTML", "loadLateHTML", "loadCoverHTML", "loadListHTML",
+        "awayZone", "defaultCap", "normFleet", "fleetList", "curFleet"]
 
 
 def consts():
@@ -36,7 +37,8 @@ def consts():
     assert m
     late = re.search(r"^const LATE_TRAILER=.*$", TEMPLATE, re.M).group(0)
     words = re.search(r"^const LATE_WORDS=.*$", TEMPLATE, re.M).group(0)
-    return "\n".join([m.group(0), late, words]) + "\n"
+    none = re.search(r"^const TRAILER_NONE=.*$", TEMPLATE, re.M).group(0)
+    return "\n".join([m.group(0), late, words, none]) + "\n"
 
 
 def run(body):
@@ -252,8 +254,8 @@ def test_saved_settings_are_normalized():
 def test_load_settings_are_shared_state_like_the_other_shift_fields():
     keys = re.search(r"const SHARED_MAP_KEYS=.*", TEMPLATE).group(0)
     assert "'trailers'" in keys and "'loadStops'" in keys
-    assert "trailers, loadStops, shiftNotes, roster" in js_function("snapshot")
-    assert "trailers, loadStops, shiftNotes, roster" in js_function("stateBlob")
+    assert "trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster" in js_function("snapshot")
+    assert "trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster" in js_function("stateBlob")
     rb = js_function("restoreBlob")
     assert "trailers = normTrailers(s.trailers, trailerKeys())" in rb
     assert "loadStops = normLoadStops(s.loadStops" in rb

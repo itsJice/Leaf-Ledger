@@ -198,6 +198,9 @@ PRODUCTION_PAGES = (
     # The schedule's other views, each a nav entry since 2026-10-08 (they
     # were tabs inside /install-schedule, which production could already open).
     "/install-calendar", "/install-staffing", "/install-roster",
+    # The Trailer Loader (2026-10-29): another view of the same page, read-only
+    # for production like the rest of it.
+    "/install-trailer-loader",
     "/install-changes",
     # Help > How-to videos: static videos, open to every signed-in role.
     "/help",
