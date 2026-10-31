@@ -7685,7 +7685,7 @@ function drawDate(date){
         const isHalf=(d.half||[]).includes(r);
         const estH=isHalf?(c.h26/2).toFixed(1):c.h26;
         mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${esc(crewTitle(d))}`+
-          `<br>Est. time: ${estH}h · Box count: ${c.boxes||'—'}`,
+          `<br>Est. time: ${estH}h · Box count: ${stopBoxes(r)??'—'}`,
           {direction:'top',offset:[0,-8]});
       }
       layerGroup.addLayer(mk); markerByRow[r]=mk;
@@ -9547,7 +9547,7 @@ function buildDayCard(d){
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
       <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
-        c.boxes?`${c.boxes} boxes`:'boxes?'].filter(Boolean).join(' · ')}</div>
+        stopBoxesTxt(r, 'boxes?')].filter(Boolean).join(' · ')}</div>
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
@@ -9709,7 +9709,7 @@ function renderNotInstalling(){
         ${was?`<div class="sub">Was scheduled <b>${esc(fmtDate(was.date))}</b>${was.crew?` · ${esc(was.crew)}`:''}</div>`:''}
         <div class="sub">${esc(c.zone||'—')}</div>
         <div class="sub">Est install time: <b>${c.h26?(+c.h26).toFixed(2).replace(/\.?0+$/,''):'—'}h</b></div>
-        <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+        <div class="sub">Box count: <b>${stopBoxes(row)??'—'}</b></div>
         ${adviceLineHTML(row)}</div>
         <div class="stopbtns">
           <button class="mv find">find date</button>
@@ -9769,7 +9769,7 @@ function renderHold(){
       ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewTitle(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
       <div class="sub">${esc(c.zone||'—')}</div>
-      <div class="sub">Box count: <b>${c.boxes||'—'}</b></div>
+      <div class="sub">Box count: <b>${stopBoxes(row)??'—'}</b></div>
       ${adviceLineHTML(row)}</div>
       <div class="stopbtns">
         <button class="mv release">release hold</button>
@@ -11088,8 +11088,15 @@ function exportNotebook(){
 // rack. Clicking a day drops into the normal day view.
 const MONTHS=['January','February','March','April','May','June','July',
   'August','September','October','November','December'];
+/** The box count the schedule shows for a stop: a count typed in the
+ *  Trailer Loader, else the card's, else (a takedown visit added without
+ *  one) the install count of the same location -- the same number the load
+ *  lists use (loadBoxesFor). null only when nobody has a count. */
+function stopBoxes(r){ return loadBoxesFor(r).boxes; }
+/** stopBoxes as "12 boxes", or `none` when there's no count anywhere. */
+function stopBoxesTxt(r, none){ const b=stopBoxes(r); return b==null ? (none==null?'':none) : `${b} boxes`; }
 function dayBoxes(d){
-  return d.stops.reduce((a,r)=>a+(parseFloat(C[r].boxes)||0),0);
+  return d.stops.reduce((a,r)=>a+(stopBoxes(r)||0),0);
 }
 const DOW3=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function isoOf(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
@@ -11279,7 +11286,9 @@ function monthHTML(anchor){
             + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div>`;
     let stops=0,boxes=0,hrs=0;
     let appr=0;
-    ds.forEach(d=>{ const c=dayCalc(d); stops+=d.stops.length; boxes+=dayBoxes(d); hrs+=c.total/60;
+    // A stop two crews share comes off the rack once: count its boxes once.
+    boxes=[...new Set(ds.flatMap(d=>d.stops))].reduce((a,r)=>a+(stopBoxes(r)||0),0);
+    ds.forEach(d=>{ const c=dayCalc(d); stops+=d.stops.length; hrs+=c.total/60;
       if(approved.has(d.id)) appr++;
       const ts=stopTimes(d), night=d.win===K.NIGHT;
       const span=ts.length
@@ -11456,7 +11465,7 @@ function agendaHTML(){
          + `<span class="agt">${fmtClock(t.start)}${t.start>=1440?' <em>+1</em>':''}</span>`
          + `<i style="background:${CREW_COLORS[d.crew]||'#555'}"></i>`
          + `<span class="agn">${C[t.row].name}${alertIconHTML(t.row)}</span>`
-         + `<span class="agm">${esc(crewTitle(d))}${C[t.row].boxes?` · ${C[t.row].boxes} boxes`:''}</span></div>`;
+         + `<span class="agm">${esc(crewTitle(d))}${stopBoxes(t.row)!=null?` · ${stopBoxesTxt(t.row)}`:''}</span></div>`;
       });
     h+=`</div></div>`;
   });
@@ -11691,7 +11700,7 @@ function peekFactsHTML(row){
   const hrs = d ? (effH(d,row)/(d.stacked||1)) : (+(c.h26||0));
   const half = d && (d.half||[]).includes(row);
   const chips=[
-    c.boxes ? pkChip(IC.pkg, `${peekEsc(c.boxes)} boxes`) : pkChip(IC.pkg, 'boxes?', 'muted'),
+    stopBoxes(row)!=null ? pkChip(IC.pkg, peekEsc(stopBoxesTxt(row))) : pkChip(IC.pkg, 'boxes?', 'muted'),
     pkChip(IC.aclock, `${hrs.toFixed(2)}h`),
     c.people ? pkChip(IC.ausers, `${peekEsc(c.people)} people`) : '',
   ];
@@ -13691,7 +13700,7 @@ function jobLineHTML(d, r, n, whole){
   const where=c.zone||c.city||'';
   const hrs=whole ? (c.h26||0) : effH(d,r);   // a joint card shows the whole job
   const bits=[where, hrs?(+hrs.toFixed(2))+'h':'',
-              c.boxes?c.boxes+' box':''].filter(Boolean).join(' · ');
+              stopBoxes(r)!=null?stopBoxes(r)+' box':''].filter(Boolean).join(' · ');
   return `<div class="shcjob"><span class="jn">${n}</span><span class="jb">`
        + `${esc((c.name||'').split('|')[0].trim())}`
        + (bits?`<span class="jm"><br>${esc(bits)}</span>`:'')+`</span></div>`;
@@ -13991,7 +14000,7 @@ function sdTimelineHTML(d, info){
       + `<button type="button" class="sdstop" data-sdrow="${r.row}" title="Open ${esc(r.name)}">`
       + `<span class="num" style="background:${CREW_COLORS[d.crew]||'#555'}">${r.n}</span>`
       + `<span class="sdsb"><span class="sdsn">${esc(r.name)}${alertIconHTML(r.row,{static:true})}${hold.has(r.row)?' <span class="badge hold">on hold</span>':''}</span>`
-      + `<span class="sdsm">${esc([c.zone, `${r.hours.toFixed(2)}h`, c.boxes?`${c.boxes} boxes`:''].filter(Boolean).join(' · '))}</span>`
+      + `<span class="sdsm">${esc([c.zone, `${r.hours.toFixed(2)}h`, stopBoxesTxt(r.row)].filter(Boolean).join(' · '))}</span>`
       + (inst ? `<span class="sdsi">${esc(inst.text)}</span>` : '')
       + `</span><span class="sdchev">${IC.chev}</span></button></li>`;
   }).join('')+`</ol>`;
@@ -16215,7 +16224,7 @@ function manifestHTML(d){
       ${inst?`<div class="in"><b>Bring / install notes:</b> ${esc(inst.text)}</div>`:''}
       ${prod?`<div class="nt"><b>Production &amp; repair:</b> ${esc(prod.text)}</div>`:''}
     </td>
-    <td class="c">${c.boxes||'—'}</td>
+    <td class="c">${stopBoxes(r)??'—'}</td>
     <td class="c">${(mins/60).toFixed(2)}h</td>
     <td class="c">${fmtClock(clock)}</td></tr>`;
     clock+=mins;
@@ -16597,7 +16606,7 @@ function cardBoxesFor(r){
   const c=C[r]||{}, b=parseBoxes(c.boxes);
   if(b!=null) return {boxes:b, fromInstall:false, city:c.city||''};
   const nm=String(c.name||'').trim().toLowerCase();
-  const twin=Object.keys(C).map(k=>C[k]).find(x=>x && x!==c && String(x.name||'').trim().toLowerCase()===nm && parseBoxes(x.boxes)!=null);
+  const twin=nm && Object.keys(C).map(k=>C[k]).find(x=>x && x!==c && String(x.name||'').trim().toLowerCase()===nm && parseBoxes(x.boxes)!=null);
   return twin ? {boxes:parseBoxes(twin.boxes), fromInstall:true, city:c.city||twin.city||''} : {boxes:null, fromInstall:false, city:c.city||''};
 }
 /** The Late Trailer: restaurants still in production, driven up once the

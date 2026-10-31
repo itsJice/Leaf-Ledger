@@ -77,6 +77,7 @@ MANIFEST_STUBS = f"""
   const addrParts=()=>({{street:'1 Main', city:'Dallas', st:'TX', zip:'75201'}});
   const installNoteFor=()=>null, productionNoteFor=()=>null, staffAlertOf=()=>null, prefOf=()=>null;
   const fmtPhone=s=>s, fmtClock=m=>String(m), dayBoxes=()=>0;
+  const stopBoxes=r=>(C[r]&&C[r].boxes!=null)?C[r].boxes:null;
   const crewTitle=()=>'Crew 3', dowName=()=>'Sat', fmtMDYYYY=s=>s;
   const shiftOfDay=()=>null, dayCoverage=()=>({{who:[], state:'ok'}}), shiftCoverage=dayCoverage;
   const coverageLabel=()=>'', shiftNoteOf=()=>null;

@@ -123,10 +123,11 @@ def test_notes_fold_counts_and_leads_with_production_notes():
 
 @needs_node
 def test_unknown_boxes_are_a_muted_chip_not_a_dash():
-    out = run(["pkChip", "peekEsc", "peekFactsHTML"], """
+    out = run(["pkChip", "peekEsc", "peekFactsHTML", "parseBoxes", "cardBoxesFor", "loadBoxesFor",
+               "stopBoxes", "stopBoxesTxt"], """
       const IC={pkg:'B',aclock:'C',ausers:'U',sun:'S',box:'X'};
       const C={1:{boxes:'',people:4,h26:3}, 2:{boxes:5,people:0,h26:2}};
-      let pkDayId=null; const days=[];
+      let pkDayId=null, loadStops={}; const days=[];
       const prefOf=r=>r===1?'late':''; const PREF_LABEL={late:'late'}; const storingWithUs=r=>r===1?true:null;
       console.log(JSON.stringify([peekFactsHTML(1), peekFactsHTML(2)]));
     """)
@@ -203,4 +204,6 @@ def test_one_look_only():
 def test_stop_row_says_boxes_question_when_unknown():
     # Same wording as the card's fact chip, not an em dash.
     assert "`${c.boxes||'—'} boxes`" not in TEMPLATE
-    assert "c.boxes?`${c.boxes} boxes`:'boxes?'" in TEMPLATE
+    # The count itself comes from stopBoxes (Trailer Loader > card > install
+    # twin -- test_stop_boxes.py).
+    assert "stopBoxesTxt(r, 'boxes?')" in TEMPLATE
