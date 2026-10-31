@@ -9420,7 +9420,8 @@ function fmtH(m){ return (m/60).toFixed(1)+'h'; }
 // their own fixed shift windows instead.
 const ARRIVE_MIN = 8*60, DEPART_MIN = 8*60+30;
 function fmtClock(mins){
-  const h=Math.floor(mins/60)%24, m=Math.round(mins)%60;
+  // Round first, so 11:59.7 PM reads 12:00 AM, not 11:00 PM.
+  const t=Math.round(mins), h=Math.floor(t/60)%24, m=t%60;
   const ap=h>=12?'PM':'AM', h12=h%12===0?12:h%12;
   return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
 }
@@ -16202,7 +16203,11 @@ function manifestHTML(d){
   const anchored=d.anchored!==false;
   // A January day prints "Takedown", not "Install" (user, 2026-10-27).
   const kind=dayKindLabel(d);
-  let clock=DEPART_MIN, rows='';
+  // The shift's own start, from the same place the day cards, staffing and
+  // reminders get it: a Dallas night (the November run or a January
+  // takedown night) starts at 11 PM, not the Houston 8:30 roll-out.
+  const start=shiftStart(d);
+  let clock=start, rows='';
   if(anchored && order.length) clock+=leg(0,N[order[0]])/60;
   order.forEach((r,i)=>{
     const c=C[r], mins=effH(d,r)*60/(d.stacked||1);
@@ -16269,7 +16274,7 @@ function manifestHTML(d){
     ${packHTML}
     <table><thead><tr><th></th><th>Client</th><th class="c">Boxes</th>
       <th class="c">${kind}</th><th class="c">Arrive ≈</th></tr></thead>
-      <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(DEPART_MIN)}</td></tr>`:''}
+      <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(start)}</td></tr>`:''}
       ${rows}
       ${anchored&&order.length?`<tr class="depot"><td></td><td colspan="4">Return to depot ≈ ${fmtClock(clock+leg(N[order[order.length-1]],0)/60)}</td></tr>`:''}
       </tbody></table>
