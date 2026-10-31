@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 HELPERS = "\nconst TEAM_NAME_MAX=40;\n" + const_line("TEAM_ROLES") + "\n" + fns(
     "normTeamName", "normTeams", "teamsForSeason", "teamOfPerson", "withTeam", "withoutTeam",
     "teamsOfPerson", "teamBadge", "teamLeadFirst", "teamsAfterDrop", "teamsWithLead", "teamsRenamed",
-    "teamCopyName", "teamsWithCopy", "teamRolesOf", "teamsWithRole", "teamRolesOnShift", "teamNewName",
+    "teamCopyName", "teamsWithCopy", "teamRolesOf", "teamsWithRole", "teamNewName",
     "tbDropIndex", "teamMixLine",
     "teamStats", "teamApplyPlan", "staffingWith", "staffingCleared", "teamApplyNote", "stfUndoLeft",
     "stfClearMsg", "staffingWithout", "teamShiftState", "teamRemoveNote")
@@ -149,8 +149,8 @@ def test_teams_merge_three_ways_on_a_stale_tab():
 
 def test_every_save_and_load_path_carries_teams():
     assert "'teams'" in re.search(r"const SHARED_KEYS=.*", TEMPLATE).group(0)
-    assert "staffing, teams, crewNames, savedAt" in js_function("snapshot")
-    assert "staffing, teams, crewNames}" in js_function("stateBlob")
+    assert "staffing, teams, seasonRoles, crewNames, savedAt" in js_function("snapshot")
+    assert "staffing, teams, seasonRoles, crewNames}" in js_function("stateBlob")
     for fn in ("restoreBlob", "restoreHistoryEntry"):
         src = js_function(fn)
         # after the roster, so members are checked against the right people
@@ -571,7 +571,9 @@ def test_no_scroll_change_on_team_tick_in_a_render():
 
 
 # Teams builder: Kit Manager / Van Manager (user, 2026-10-30: "add the ability
-# to assign roles to teams as kit manager, and van manager").
+# to assign roles to teams as kit manager, and van manager"), renamed Kit
+# Captain / Van Cleanliness Captain with a Driver added on 10/31
+# (test_crew_responsibilities.py).
 
 def test_roles_set_clear_and_survive_load():
     out = run("""
@@ -614,35 +616,14 @@ def test_a_role_is_per_team_and_leaving_clears_it():
     assert out["badge"] == ["Kit"] and out["badge2"] == []             # Kit on one team, member on another
 
 
-def test_shift_carries_the_kit_and_van_of_the_team_that_staffed_it():
-    out = run("""
-      const H={id:'h', kitId:'p2', vanId:'p3', members:['p1','p2','p3']}, D={id:'d', kitId:'p4', vanId:'p5', members:['p4','p5']};
-      console.log(JSON.stringify([
-        teamRolesOnShift([H, D], new Set(['p1','p2','p3','p4','p5'])),
-        teamRolesOnShift([D, H], new Set(['p1','p2','p3','p4','p5'])),
-        teamRolesOnShift([H, D], new Set(['p1','p2'])),            // Van not on the shift
-        teamRolesOnShift([{id:'x', kitId:'p1', members:['p1']}], new Set(['p1'])), // only one role set
-      ]));
-    """)
-    assert out == [{"teamId": "h", "kitId": "p2", "vanId": "p3"}, {"teamId": "d", "kitId": "p4", "vanId": "p5"}, None, None]
-
-
-def test_crew_sheet_prints_kit_and_van_only_when_both_are_set():
-    man = js_function("manifestHTML")
-    assert "const kv=sh ? shiftKitVan(sh) : null;" in man
-    assert "Kit: ${esc(kv.kit.name)} · Van: ${esc(kv.van.name)}" in man
-    kv = js_function("shiftKitVan")
-    assert "teamRolesOnShift(order, shiftAssigned(sh))" in kv and "kit && van ?" in kv
-    from test_client_name_editor import TEMPLATE as T
-    assert ".crewkv{" in T
-
-
 def test_role_chips_show_in_staffing_and_roster():
     assert "teamRoleChipsFor(t)" in js_function("stfTeamsHTML")
-    assert "b.roles.map(teamRoleChip)" in js_function("teamBadgeHTML")
+    # the badge keeps the Lead chip; responsibilities are tags (dutyPillsHTML)
+    assert "b.roles.filter(r=>r==='Lead').map(teamRoleChip)" in js_function("teamBadgeHTML")
+    assert "dutyPillsHTML(pid)" in js_function("teamBadgeHTML")
     assert "teamRolesOf(t, p.id)" in js_function("personDetailHTML")
     menu = js_function("tbPersonMenu")
-    assert "role('kitId', 'Kit Manager')" in menu and "role('vanId', 'Van Manager')" in menu
+    assert "...TEAM_DUTIES.map(d=>role(d.key, d.label))" in menu
     assert "Make ${label}" in menu and "Remove as ${label}" in menu
 
 

@@ -26,3 +26,21 @@ def test_nothing_stored_means_nothing_added():
     assert sched.keep_stored_teams({"a": 1}, None) == {"a": 1}
     assert sched.keep_stored_teams({"a": 1}, {"teams": []}) == {"a": 1}
     assert sched.keep_stored_teams({"a": 1}, {"teams": "junk"}) == {"a": 1}
+
+
+# seasonRoles: the season's Box Truck Driver (2026-10-31), kept the same way.
+ROLES = {"2026": {"boxTruckId": "p1"}}
+
+
+def test_season_roles_carry_forward_and_survive_an_older_page():
+    assert "seasonRoles" in sched.CARRY_FORWARD_KEYS
+    out = sched.keep_stored_teams({"teams": TEAMS}, {"teams": TEAMS, "seasonRoles": ROLES})
+    assert out == {"teams": TEAMS, "seasonRoles": ROLES}
+    # an older page that knows neither key keeps both
+    assert sched.keep_stored_teams({}, {"teams": TEAMS, "seasonRoles": ROLES}) == {"teams": TEAMS, "seasonRoles": ROLES}
+
+
+def test_a_page_that_knows_season_roles_can_clear_them():
+    assert sched.keep_stored_teams({"seasonRoles": {}}, {"seasonRoles": ROLES}) == {"seasonRoles": {}}
+    assert sched.keep_stored_teams({"a": 1}, {"seasonRoles": "junk"}) == {"a": 1}
+    assert sched.keep_stored_teams({"a": 1}, {"seasonRoles": {}}) == {"a": 1}
