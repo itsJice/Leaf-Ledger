@@ -843,6 +843,22 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .pill.en{background:#eef2ff;color:#3730a3}
 .pill.es{background:#fff1e7;color:#9a3412}
 .pill.both{background:#ecfdf5;color:#065f46}
+/* Crew responsibilities (DUTIES): same pill, their own colors. */
+.pill.duty{cursor:help}
+.pill.duty-kit{background:#fef3c7;color:#92400e}
+.pill.duty-van{background:#ccfbf1;color:#115e59}
+.pill.duty-drv{background:#e0f2fe;color:#075985}
+.pill.duty-box{background:#fae8ff;color:#86198f}
+.stftable .pill.duty,.asgrow .pill.duty,.txtrow .pill.duty{margin-left:4px;vertical-align:1px}
+.stfduties{margin:0 0 10px;font-size:12px}
+.stfduties>b{display:block;margin-bottom:4px}
+.dutyrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;padding:4px 0;border-top:1px dotted var(--line)}
+.dutyrow:first-of-type{border-top:none}
+.dutywhere{font-size:10.5px;font-weight:700;color:var(--mut)}
+.dutydesc{flex-basis:100%;color:var(--ink);line-height:1.4}
+#perduties .stfduties{margin:4px 0 6px}
+.perdutynow{font-size:11px;color:var(--mut)}
+.perdutyhint{font-size:11.5px;color:var(--mut);line-height:1.4;margin:2px 0 6px}
 .stfnone{color:var(--mut);font-size:12.5px;padding:18px;text-align:center;
   background:var(--surface);border:1px dashed var(--line);border-radius:10px}
 .stfdetail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;
@@ -1514,6 +1530,7 @@ body.tv .stfteams,body.viewonly .stfteams{display:none}
 .trole-lead{background:#fff7d6;color:#7a5a00;box-shadow:inset 0 0 0 1px #f4b400}
 .trole-kit{background:#fef3e2;color:var(--warn-ink)}
 .trole-van{background:#eef2ff;color:#3730a3}
+.trole-driver{background:#e0f2fe;color:#075985}
 .stftable .asgteamx{margin-left:3px}
 .stfdmeta .asgteam{display:inline-flex;align-items:center;gap:3px;max-width:none}
 .stfdmeta .asgteam .ic{width:11px;height:11px}
@@ -1640,6 +1657,19 @@ body.readonly .tbc,body.viewonly .tbc{cursor:default;padding-left:8px}
 .tbgrip .ic{width:12px!important;height:12px!important}
 .tbnm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
 .tbc .pill,.tbc .trole{flex:none;margin-left:0}
+.tbc{flex-wrap:wrap}
+.tbc .tbnm{flex-basis:0}
+@media (max-width:767px){ #teamdlg .tbdutypick select{font-size:16px;padding:4px 6px} }
+.tbduties{flex-basis:100%;display:flex;flex-wrap:wrap;gap:3px;padding:0 2px 2px 18px}
+body.readonly .tbduties{padding-left:0}
+.tbdutypick{display:flex;flex-direction:column;gap:3px;margin:5px 0 3px}
+.tbdutypick>label,.tbdutypick>div{display:flex;align-items:center;gap:6px;margin:0;font-weight:600;color:var(--ink)}
+.tbdutypick .pill{flex:none;width:112px;text-align:center;box-sizing:border-box}
+#teamdlg .tbdutypick select{flex:1 1 auto;min-width:0;width:auto;margin:0;padding:2px 4px;font-size:11.5px}
+.tbdutyro{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbbox{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:0 16px 8px;margin:0;font-size:12px}
+#teamdlg .tbbox select{width:auto;max-width:220px;margin:0;padding:4px 8px}
+.tbboxnote{font-size:11px;color:var(--mut)}
 .tbn{flex:none;font-size:9.5px;font-weight:800;color:var(--brand);white-space:nowrap}
 #teamdlg .tbdots{flex:none;border:none;background:none;padding:4px;border-radius:5px;color:var(--mut);display:inline-flex;
   min-height:0;cursor:pointer}
@@ -2973,6 +3003,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com">
   <span class="nclabel">Notes</span>
   <input id="pernotes" type="text" autocomplete="off" placeholder="Anything worth remembering">
+  <div id="perduties"></div>
   <div id="percontract" hidden>
     <div class="availhd">Contractor info (admin only)</div>
     <span class="nclabel">Legal name (tax and payroll)</span>
@@ -4116,8 +4147,9 @@ function normTeams(list, ids, season){
     const members=[...new Set(raw)].filter(x=>x && ok(x));
     if(!members.includes(leadId)) leadId='';
     const team={id, name, season:yearOf, leadId, members};
-    // Kit Manager / Van Manager (user, 2026-10-30): one person each, a member.
-    ['kitId','vanId'].forEach(k=>{ const v=t[k]==null ? '' : String(t[k]); if(v && members.includes(v)) team[k]=v; });
+    // Kit Captain / Van Cleanliness Captain / Driver (user, 2026-10-30 and
+    // 10/31): one person each, a member. See DUTIES.
+    ['kitId','vanId','driverId'].forEach(k=>{ const v=t[k]==null ? '' : String(t[k]); if(v && members.includes(v)) team[k]=v; });
     if(typeof t.color==='string' && /^#[0-9a-f]{6}$/i.test(t.color)) team.color=t.color.toLowerCase();
     seen.add(id); out.push(team);
   });
@@ -4163,13 +4195,15 @@ function teamRoleChip(short){
   const r=TEAM_ROLES.find(x=>x.short===short);
   return `<span class="trole trole-${short.toLowerCase()}" title="${esc(r?r.label:short)}">${esc(short)}</span>`;
 }
-/** The badge as HTML ('' when on no team). */
+/** The badge as HTML, then the person's responsibility tags (dutyPillsHTML;
+ *  those show even when they're on no team, e.g. the Box Truck Driver). */
 function teamBadgeHTML(pid, prefer){
   const b=teamBadge(teams, pid, teamSeasonDefault(), prefer);
-  if(!b) return '';
+  if(!b) return dutyPillsHTML(pid);
   return `<span class="asgteam" title="${esc(b.title)}">${esc(b.name)}</span>`
-    + b.roles.map(teamRoleChip).join('')
-    + (b.more ? `<span class="asgteamx" title="${esc(b.title)}">+${b.more}</span>` : '');
+    + b.roles.filter(r=>r==='Lead').map(teamRoleChip).join('')
+    + (b.more ? `<span class="asgteamx" title="${esc(b.title)}">+${b.more}</span>` : '')
+    + dutyPillsHTML(pid);
 }
 /** PURE. `list` with `team` saved (replaced by id, or added at the end).
  *  Nobody comes off any other team: a person can be on several. */
@@ -4183,11 +4217,86 @@ function withTeam(list, team){
 function withoutTeam(list, id){ return (list||[]).filter(t=>t.id!==id); }
 // ---- Team roles ----
 // "add the ability to assign roles to teams as kit manager, and van manager"
-// (user, 2026-10-30). Next to the lead, a team can have one Kit Manager (owns
-// the tool kit) and one Van Manager (owns the van), stored on the team as
-// kitId / vanId. A role is per team: someone can be Kit on one team and a
-// plain member of another. Leaving a team clears their roles on it.
-const TEAM_ROLES=[{key:'leadId', short:'Lead', label:'Lead'}, {key:'kitId', short:'Kit', label:'Kit Manager'}, {key:'vanId', short:'Van', label:'Van Manager'}];
+// (user, 2026-10-30). Next to the lead, a team has one holder of each crew
+// responsibility (DUTIES below), stored on the team: kitId (Kit Captain, was
+// "Kit Manager"), vanId (Van Cleanliness Captain, was "Van Manager") and
+// driverId (Driver). A role is per team: someone can be Kit Captain on one
+// team and a plain member of another. Leaving a team clears their roles on it.
+const TEAM_ROLES=[{key:'leadId', short:'Lead', label:'Lead'}, {key:'kitId', short:'Kit', label:'Kit Captain'}, {key:'vanId', short:'Van', label:'Van Cleanliness Captain'}, {key:'driverId', short:'Driver', label:'Driver'}];
+// ---- Crew responsibilities ----
+// User, 2026-10-31: "add responsibility tags to the crew roster, similar to
+// the English/Spanish tags ... These are assigned responsibilities, not
+// additional management positions. Each person should know what they own."
+// The team ones live on the team (TEAM_ROLES keys). The Box Truck Driver
+// isn't tied to a team: one per season, in the shared `seasonRoles`
+// ({"2026": {boxTruckId: "p12"}}). One person can hold several.
+const DUTIES=[
+  {key:'kitId', tag:'KIT CAPTAIN', label:'Kit Captain', cls:'kit',
+   desc:'Account for the crew toolkit each morning, keep tools organized throughout the day, and make sure everything is returned at the end of the day.'},
+  {key:'vanId', tag:'VAN CLEANLINESS', label:'Van Cleanliness Captain', cls:'van',
+   desc:'Make sure trash is removed daily, personal belongings are organized, and the van is clean at the end of every workday.'},
+  {key:'driverId', tag:'DRIVER', label:'Driver', cls:'drv',
+   desc:'Responsible for assigned vehicle operation and coordinating vehicle readiness.'},
+  {key:'boxTruckId', tag:'BOX TRUCK DRIVER', label:'Box Truck Driver', cls:'box', season:true,
+   desc:'Responsible for box truck operation and coordinating box truck readiness.'},
+];
+const TEAM_DUTIES=DUTIES.filter(d=>!d.season), SEASON_DUTIES=DUTIES.filter(d=>d.season);
+let seasonRoles={};
+/** PURE. Saved seasonRoles as this page keeps them: {"YYYY": {key: personId}}
+ *  for the season duties only; people not in `ids` (when given) drop. */
+function normSeasonRoles(v, ids){
+  const known=ids ? (ids instanceof Set ? ids : new Set(ids)) : null, out={};
+  if(!v || typeof v!=='object' || Array.isArray(v)) return out;
+  Object.keys(v).forEach(y=>{
+    const yr=parseInt(y, 10), r=v[y];
+    if(!(yr>=2000 && yr<=2100) || !r || typeof r!=='object') return;
+    const o={};
+    SEASON_DUTIES.forEach(d=>{ const pid=r[d.key]==null ? '' : String(r[d.key]); if(pid && (!known || known.has(pid))) o[d.key]=pid; });
+    if(Object.keys(o).length) out[String(yr)]=o;
+  });
+  return out;
+}
+function loadSeasonRoles(v){ return normSeasonRoles(v, roster.map(p=>p.id)); }
+/** PURE. Who holds season duty `key` in `season` ('' when nobody). */
+function seasonRoleOf(roles, season, key){ const r=(roles||{})[String(season)]; return (r && r[key]) || ''; }
+/** PURE. `roles` with `pid` as the one holder of `key` in `season` (it
+ *  replaces whoever had it); '' clears it. */
+function seasonRolesWith(roles, season, key, pid){
+  const y=String(season), cur={...((roles||{})[y]||{})}, out={...(roles||{})};
+  if(pid) cur[key]=String(pid); else delete cur[key];
+  if(Object.keys(cur).length) out[y]=cur; else delete out[y];
+  return out;
+}
+/** PURE. What `pid` owns in `season`, in DUTIES order: each duty with the
+ *  names of the teams they hold it on ([] for a season duty). `onlyTeam`:
+ *  count that team only (a card in its column). */
+function personDuties(list, roles, pid, season, onlyTeam){
+  const ts=onlyTeam ? [onlyTeam] : teamsOfPerson(list, pid, season), out=[];
+  DUTIES.forEach(d=>{
+    if(d.season){ if(seasonRoleOf(roles, season, d.key)===pid) out.push({...d, teams:[]}); return; }
+    const on=ts.filter(t=>t[d.key]===pid);
+    if(on.length) out.push({...d, teams:on.map(t=>t.name)});
+  });
+  return out;
+}
+/** PURE. "Kit Captain: Account for ..." lines for a person's duties. */
+function dutyLines(ds){ return ds.map(d=>`${d.label}: ${d.desc}`); }
+/** One tag, like the EN / ES pills; the tooltip says what it means. */
+function dutyPill(d){
+  const where=d.teams.length ? ` (${d.teams.join(', ')})` : '';
+  return `<span class="pill duty duty-${d.cls}" title="${esc(d.label+where+': '+d.desc)}">${esc(d.tag)}</span>`;
+}
+function dutyPillsHTML(pid, season, onlyTeam){
+  return personDuties(teams, seasonRoles, pid, season==null ? teamSeasonDefault() : season, onlyTeam).map(dutyPill).join('');
+}
+/** Make `pid` the season's holder of `key` ('' = nobody). Shared, undoable. */
+function setSeasonRole(season, key, pid){
+  if(roBlocked()) return false;
+  const next=normSeasonRoles(seasonRolesWith(seasonRoles, season, key, pid), roster.map(p=>p.id));
+  if(stableJSON(next)===stableJSON(seasonRoles)) return false;
+  pushUndo(); seasonRoles=next; persist(); render();
+  return true;
+}
 /** PURE. The roles `pid` holds on team `t`: ['Lead','Kit','Van'] (short names). */
 function teamRolesOf(t, pid){
   return t ? TEAM_ROLES.filter(r=>t[r.key] && t[r.key]===pid).map(r=>r.short) : [];
@@ -4208,12 +4317,16 @@ function teamsWithRole(list, id, role, pid){
     return teamLeadFirst({...t, members, [role]:pid});
   });
 }
-/** PURE. Which team's Kit and Van Managers this shift carries: the first of
- *  `list` (most relevant first) with both its Kit and Van Managers on the
- *  shift (`on`: a Set of person ids). {teamId, kitId, vanId} or null. */
-function teamRolesOnShift(list, on){
-  const t=(list||[]).find(x=>x.kitId && x.vanId && on.has(x.kitId) && on.has(x.vanId));
-  return t ? {teamId:t.id, kitId:t.kitId, vanId:t.vanId} : null;
+/** PURE. Who owns what on a shift (`on`: a Set of person ids), as
+ *  {personId: [duty labels]}. The team duties come from the first of `list`
+ *  (most relevant first) with any duty holder on the shift, counting only
+ *  holders who are on it; the season duties (Box Truck Driver) from `roles`. */
+function teamDutiesOnShift(list, on, roles, season){
+  const out={}, add=(pid, l)=>{ (out[pid]=out[pid]||[]).push(l); };
+  const t=(list||[]).find(x=>TEAM_DUTIES.some(d=>x[d.key] && on.has(x[d.key])));
+  if(t) TEAM_DUTIES.forEach(d=>{ if(t[d.key] && on.has(t[d.key])) add(t[d.key], d.label); });
+  SEASON_DUTIES.forEach(d=>{ const pid=seasonRoleOf(roles, season, d.key); if(pid && on.has(pid)) add(pid, d.label); });
+  return out;
 }
 // ---- Teams builder moves, as pure functions (none changes its input) ----
 /** PURE. A team with its lead listed first ('' lead when not a member). */
@@ -4245,6 +4358,7 @@ function teamsAfterDrop(list, o){
     if(src.leadId===pid) src.leadId='';
     if(src.kitId===pid) delete src.kitId;
     if(src.vanId===pid) delete src.vanId;
+    if(src.driverId===pid) delete src.driverId;
   }
   return L.map(t=>(t===src||t===dst) ? teamLeadFirst(t) : t);
 }
@@ -4282,6 +4396,7 @@ function teamsWithCopy(list, id, newId, name){
     const c={id:newId, name:normTeamName(name), season:t.season, leadId:t.leadId, members:t.members.slice()};
     if(t.kitId) c.kitId=t.kitId;
     if(t.vanId) c.vanId=t.vanId;
+    if(t.driverId) c.driverId=t.driverId;
     out.push(c);
   });
   return out;
@@ -4654,7 +4769,7 @@ try{
     trailers = normTrailers(s.trailers, trailerKeys());
     loadStops = normLoadStops(s.loadStops, new Set(Object.keys(C)));
     shiftNotes = normShiftNotes(s.shiftNotes);
-    teams = loadTeams(s.teams);
+    teams = loadTeams(s.teams); seasonRoles = loadSeasonRoles(s.seasonRoles);
     if(missing) stateWarning = missing+' saved stop(s) pointed at days that no '
                              + 'longer exist and were left at their baseline.';
   } else if(s.moves && s.moves.length){
@@ -4760,7 +4875,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes','trailers','loadStops','trailerFleet','loadTrips'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','seasonRoles'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -4849,7 +4964,8 @@ function mergeShared(base, mine, theirs, label){
                   trailers:k=>`Trailer for ${label('shift',k)}`,
                   loadStops:r=>`${label('row',r)}: load list`,
                   trailerFleet:k=>`Trailer ${k}`,
-                  loadTrips:k=>`Load list for ${k.replace('|',' to ')}`};
+                  loadTrips:k=>`Load list for ${k.replace('|',' to ')}`,
+                  seasonRoles:k=>`${k} Box Truck Driver`};
   // A note is the same note when its text is: a stamp alone is no edit.
   const MAP_NORM={placement:sortedIds, shiftNotes:v=>(v && typeof v==='object') ? v.text : v};
   SHARED_MAP_KEYS.forEach(k=>{
@@ -5053,7 +5169,7 @@ function snapshot(){
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
           notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
-          trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, crewNames, savedAt:Date.now()};
+          trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames, savedAt:Date.now()};
 }
 // Shared save. Several staff work reschedule requests over the same
 // season, so state lives server-side keyed on the schedule build. The
@@ -5924,6 +6040,7 @@ async function pullSharedNow(){
       staffing = normStaffing(j.inherit.staffing);
       // Teams are about people too, so they carry over the same way.
       if(!teams.length) teams = loadTeams(j.inherit.teams);
+      if(!Object.keys(seasonRoles).length) seasonRoles = loadSeasonRoles(j.inherit.seasonRoles);
       if(roster.length){
         stateWarning = `Roster carried over from the previous build`
           + `${j.inherit.inheritedFrom ? ' ('+j.inherit.inheritedFrom+')' : ''}`
@@ -6287,7 +6404,7 @@ async function restoreHistoryEntry(entryId, btn){
     trailers = normTrailers(st.trailers, trailerKeys());
     loadStops = normLoadStops(st.loadStops, new Set(Object.keys(C)));
     shiftNotes = normShiftNotes(st.shiftNotes);
-    teams = loadTeams(st.teams);
+    teams = loadTeams(st.teams); seasonRoles = loadSeasonRoles(st.seasonRoles);
     undoStack=[]; redoStack=[];   // local undo history no longer matches reality
     const ok = await pushSharedNow();
     saveLocal();
@@ -6312,7 +6429,7 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, crewNames});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -6338,7 +6455,7 @@ function restoreBlob(blob){
   trailers = normTrailers(s.trailers, trailerKeys());
   loadStops = normLoadStops(s.loadStops, new Set(Object.keys(C)));
   shiftNotes = normShiftNotes(s.shiftNotes);
-  teams = loadTeams(s.teams);
+  teams = loadTeams(s.teams); seasonRoles = loadSeasonRoles(s.seasonRoles);
   return missing;
 }
 /** Call immediately BEFORE mutating, so the stack holds the prior state. */
@@ -12981,6 +13098,7 @@ function openPersonDlg(person){
   document.getElementById('perdd').checked  = !!(showCon && person && person.directDeposit);
   perRatings = person ? {...(person.ratings||{})} : {};
   drawPerRatings();
+  drawPerDuties(person);
   // Nothing is selected by default (user, 2026-08-18): availability is
   // something you mark, not something assumed. Until it is marked the
   // person is unavailable everywhere, which the assign list says out loud
@@ -12991,6 +13109,20 @@ function openPersonDlg(person){
   drawPerActive();
   perdlg.showModal();
   document.getElementById('perfirst').focus();
+}
+/** The popup's Responsibilities: what they own (team ones are set in the
+ *  Teams builder) and the season's Box Truck Driver tick, saved with Save. */
+function drawPerDuties(person){
+  const season=teamSeasonDefault(), pid=person ? person.id : '';
+  const all=pid ? personDuties(teams, seasonRoles, pid, season) : [];
+  const box=SEASON_DUTIES[0], cur=seasonRoleOf(seasonRoles, season, box.key);
+  const teamOnes=all.filter(d=>!d.season);
+  document.getElementById('perduties').innerHTML=`<div class="availhd">Responsibilities</div>`
+    + dutiesHTML(teamOnes, true)
+    + `<label class="perchk" title="${esc(box.desc)}"><input id="perboxtruck" type="checkbox"${cur && cur===pid?' checked':''}>`
+    + ` <span class="pill duty duty-${box.cls}">${esc(box.tag)}</span> for ${season}`
+    + `${cur && cur!==pid?` <span class="perdutynow">(now ${esc(personById(cur)?personById(cur).name:'someone else')})</span>`:''}</label>`
+    + `<div class="perdutyhint">${esc(box.desc)} Kit Captain, Van Cleanliness and Driver are set per team in Teams.</div>`;
 }
 /** "Mark inactive" / "Mark active" in the edit popup (user, 2026-10-30:
  *  "mark as inactive needs to be on the pop up window on the roster when you
@@ -13048,11 +13180,17 @@ document.getElementById('pergo').onclick=()=>{
     fields.directDeposit=document.getElementById('perdd').checked;
   }
   pushUndo();
-  if(editingPerson) Object.assign(editingPerson, fields);
+  let pid;
+  if(editingPerson){ Object.assign(editingPerson, fields); pid=editingPerson.id; }
   else {
     const p={id:'p'+(nextPersonId++), active:true, ...fields};
-    roster.push(p); selPerson=p.id;
+    roster.push(p); selPerson=p.id; pid=p.id;
   }
+  // Box Truck Driver tick: one holder a season, so ticking replaces whoever had it.
+  const season=teamSeasonDefault(), boxNow=seasonRoleOf(seasonRoles, season, 'boxTruckId');
+  const boxOn=document.getElementById('perboxtruck').checked;
+  if(boxOn && boxNow!==pid) seasonRoles=seasonRolesWith(seasonRoles, season, 'boxTruckId', pid);
+  else if(!boxOn && boxNow===pid) seasonRoles=seasonRolesWith(seasonRoles, season, 'boxTruckId', '');
   perdlg.close(); persist(); render();
 };
 function togglePersonActive(pn){
@@ -13288,14 +13426,12 @@ function applyTeamToShift(sh, team, plan){
       sh.training ? 'this training' : 'this crew')};
   return plan;
 }
-/** A shift's Kit and Van Managers, carried from the team that staffed it:
- *  the most relevant team with both of them on this shift. {kit, van} people,
- *  or null (then the crew sheet prints no Kit / Van line). */
-function shiftKitVan(sh){
+/** A shift's responsibilities, carried from the team that staffed it (the
+ *  most relevant team with a holder on this shift), plus the Box Truck
+ *  Driver: {personId: [labels]} for the crew sheet. */
+function shiftDuties(sh){
   const order=stfTeamsOn(sh).map(id=>teams.find(t=>t.id===id)).filter(Boolean);
-  const r=teamRolesOnShift(order, shiftAssigned(sh));
-  const kit=r && personById(r.kitId), van=r && personById(r.vanId);
-  return kit && van ? {kit, van, teamId:r.teamId} : null;
+  return teamDutiesOnShift(order, shiftAssigned(sh), seasonRoles, teamSeasonDefault());
 }
 /** The season's teams with someone on this shift, fully ticked ones first:
  *  the ids a person's team badge prefers. */
@@ -13799,6 +13935,14 @@ function contractorHTML(p){
     ${row('1099 tracking', p.tax1099?'Yes':'No')}
     ${row('Direct deposit', p.directDeposit?'On file':'Not on file')}</div>`;
 }
+/** "What they own": each responsibility with its full description ('' when none). */
+function dutiesHTML(duties, noHead){
+  if(!duties.length) return '';
+  return `<div class="stfduties">${noHead?'':'<b>Responsibilities</b>'}` + duties.map(d=>`<div class="dutyrow">`
+    + `<span class="pill duty duty-${d.cls}">${esc(d.tag)}</span>`
+    + `${d.teams.length?`<span class="dutywhere">${esc(d.teams.join(', '))}</span>`:''}`
+    + `<span class="dutydesc">${esc(d.desc)}</span></div>`).join('') + `</div>`;
+}
 function personDetailHTML(){
   const p=personById(selPerson);
   if(!p) return `<div class="stfnone">Pick someone to see their days, jobs and crews.</div>`;
@@ -13807,10 +13951,12 @@ function personDetailHTML(){
   const stops=sh.reduce((a,x)=>a+x.stops,0);
   const dayCount=sh.reduce((a,x)=>a+x.days.length,0);
   const trained=personTrainingLabel(p);
+  const duties=personDuties(teams, seasonRoles, p.id, teamSeasonDefault());
   let h=`<div class="stfdetail"><div class="stfdhead"><h3>${esc(p.name)}${trainingDotHTML(p)}</h3>
     <div class="stfdmeta">
       <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
+      ${duties.map(dutyPill).join('')}
       <span class="pill gen">${esc(p.gender)}</span>
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
       ${trained?`<span class="pill trained">${esc(trained)}</span>`:''}
@@ -13821,6 +13967,7 @@ function personDetailHTML(){
       <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div></div>
+    ${dutiesHTML(duties)}
     ${canSeeContractor()?contractorHTML(p):''}
     ${p.notes?`<div class="stfnotes"><b>Notes</b>${esc(p.notes)}</div>`:''}
     ${textLogHTML(p)}
@@ -14814,19 +14961,23 @@ function tbCardHTML(p, team){
   const roles=team ? teamRolesOf(team, p.id) : [];
   const on=team ? [] : teamsOfPerson(teams, p.id, tb.season);
   const just=tb.just && tb.just.pid===p.id && tb.just.team===from;
-  const lbl=`${p.name}, ${p.title}, ${p.lang}`+(roles.length?`, ${roles.join(', ')}`:'')
+  // In a team's column: what they own on that team; in the list: everything.
+  const duties=personDuties(teams, seasonRoles, p.id, tb.season, team);
+  const lbl=`${p.name}, ${p.title}, ${p.lang}`+(roles.includes('Lead')?', Lead':'')
+    + (duties.length?`, ${duties.map(d=>d.label).join(', ')}`:'')
     + (team ? ` on ${team.name}` : on.length ? `, on ${on.length} team${on.length===1?'':'s'}` : '');
   return `<div class="tbc${roles.includes('Lead')?' lead':''}${p.active===false?' off':''}${just?' tbjust':''}" role="listitem"`
     + ` data-pid="${esc(p.id)}" data-from="${esc(from)}" tabindex="0" aria-label="${esc(lbl)}"`
     + (READONLY ? '' : ` title="Drag onto a team${team?' (Option or Alt to copy)':''}, or press Enter for options"`) + `>`
     + (READONLY ? '' : `<span class="tbgrip" aria-hidden="true">${IC.grip}</span>`)
     + `<span class="tbnm">${esc(p.name)}</span>`
-    + roles.map(teamRoleChip).join('')
+    + roles.filter(r=>r==='Lead').map(teamRoleChip).join('')
     + (p.active===false ? `<span class="pill gen">Inactive</span>` : '')
     + (on.length ? `<span class="tbn" title="On ${esc(on.map(t=>t.name).join(', '))}">${on.length} team${on.length===1?'':'s'}</span>` : '')
     + `<span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>`
     + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
     + (READONLY ? '' : `<button type="button" class="tbdots" data-pmenu aria-haspopup="menu" aria-label="Options for ${esc(p.name)}">${IC.dots}</button>`)
+    + (duties.length ? `<span class="tbduties">${duties.map(dutyPill).join('')}</span>` : '')
     + `</div>`;
 }
 /** PURE. "1 Lead · 2 Assist · 5 General" for a team's people. */
@@ -14838,7 +14989,7 @@ function tbColHTML(t){
   const ps=t.members.map(personById).filter(Boolean);
   const st=teamStats(t, personById, overallRating);
   const mix=teamMixLine(ps);
-  const roleLine=TEAM_ROLES.filter(r=>t[r.key]).map(r=>`${r.short}: ${esc(tbName(t[r.key]))}`).join(' · ');
+  const roleLine=t.leadId ? `Lead: ${esc(tbName(t.leadId))}` : '';
   const name = tb.renaming===t.id
     ? `<input type="text" class="tbrename" id="tmrename" maxlength="${TEAM_NAME_MAX}" value="${esc(t.name)}" aria-label="Team name">`
     : `<button type="button" class="tbname" data-rename${READONLY?' disabled':''} title="${READONLY?esc(t.name):'Rename'}">${esc(t.name)}</button>`;
@@ -14849,10 +15000,35 @@ function tbColHTML(t){
     + (READONLY ? '' : `<button type="button" class="tbdots" data-tmenu aria-haspopup="menu" aria-label="Options for ${esc(t.name)}">${IC.dots}</button>`)
     + `</div><div class="tbcolmeta">${roleLine?`<div>${roleLine}</div>`:''}`
     + mix.map(x=>`<div>${esc(x)}</div>`).join('')
+    + tbDutyPickersHTML(t, ps)
     + `<div class="teamrat">${st.rated?`Avg ${ratingScale(st.avg).toFixed(1)}★`:'Not rated'}</div></div>`
     + `<div class="tblist" role="list">`
     + (ps.length ? ps.map(p=>tbCardHTML(p, t)).join('') : `<div class="tbempty">${READONLY?'Nobody yet':'Drag people here'}</div>`)
     + `</div></section>`;
+}
+/** A team's Kit Captain / Van Cleanliness / Driver pickers: one select each,
+ *  listing only the team's members. View only: the names as text. */
+function tbDutyPickersHTML(t, ps){
+  return `<div class="tbdutypick">` + TEAM_DUTIES.map(d=>{
+    const cur=t[d.key]||'';
+    const tag=`<span class="pill duty duty-${d.cls}" title="${esc(d.label+': '+d.desc)}">${esc(d.tag)}</span>`;
+    if(READONLY) return `<div>${tag}<span class="tbdutyro">${cur?esc(tbName(cur)):'Nobody'}</span></div>`;
+    return `<label>${tag}<select data-duty="${d.key}" aria-label="${esc(d.label)} for ${esc(t.name)}">`
+      + `<option value="">Nobody</option>`
+      + ps.map(p=>`<option value="${esc(p.id)}"${p.id===cur?' selected':''}>${esc(p.name)}</option>`).join('')
+      + `</select></label>`;
+  }).join('') + `</div>`;
+}
+/** The season's Box Truck Driver (not tied to a team), under the header. */
+function tbBoxTruckHTML(season){
+  const d=SEASON_DUTIES[0], cur=seasonRoleOf(seasonRoles, season, d.key);
+  const tag=`<span class="pill duty duty-${d.cls}" title="${esc(d.label+': '+d.desc)}">${esc(d.tag)}</span>`;
+  if(READONLY) return `<div class="tbbox">${tag}<span>${cur?esc(tbName(cur)):'Nobody yet'}</span></div>`;
+  const ppl=roster.filter(p=>p.active!==false || p.id===cur).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  return `<label class="tbbox">${tag}<select id="tmboxtruck" aria-label="${season} Box Truck Driver">`
+    + `<option value="">Nobody</option>`
+    + ppl.map(p=>`<option value="${esc(p.id)}"${p.id===cur?' selected':''}>${esc(p.name)}</option>`).join('')
+    + `</select><span class="tbboxnote">For the whole season, not tied to a team</span></label>`;
 }
 function drawTeamBuilder(){
   const body=document.getElementById('teambody'); if(!body) return;
@@ -14882,10 +15058,11 @@ function drawTeamBuilder(){
         + `<button type="button" id="tmundo"${tb.undoN && undoStack.length?'':' disabled'} title="Undo the last change made here">${IC.undo} Undo</button>`
         + `<button type="button" class="go" id="tmnew">+ New team</button>`)
     + `<button type="button" id="tmdone">Done</button></div>`
+    + tbBoxTruckHTML(season)
     + `<div class="tbhint">${READONLY ? 'Saved teams for the year.'
         : `Drag people onto a team. Drag between teams to move them, or hold <b>Option</b> (<b>Alt</b>) while you drop to copy`
         + ` (or switch to <b>Copy</b>). On an iPad, press and hold a name, then drag. A person can be on any number of teams. `
-        + `Each name has a menu too: lead, Kit Manager, Van Manager, add to a team. `
+        + `Each name has a menu too: lead, Kit Captain, Van Cleanliness Captain, Driver, add to a team. `
         + `To reorder the team columns, drag a team by the dots left of its name (iPad: press and hold the team name). That order is just for this device.`}</div>`
     + `<div class="tbbody">`
     + `<section class="tbpool" aria-label="People">`
@@ -14950,6 +15127,19 @@ function tbWire(body){
   if(board){ board.addEventListener('pointerdown', tbPanDown); tbPanCursor(); }
   if(READONLY) return;
   body.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ tb.mode=b.dataset.mode; drawTeamBuilder(); });
+  body.querySelectorAll('select[data-duty]').forEach(sel=>sel.onchange=()=>{
+    const id=sel.closest('.tbcol').dataset.team, t=tbTeam(id), d=TEAM_DUTIES.find(x=>x.key===sel.dataset.duty);
+    if(!t || !d) return;
+    tbCommit(teamsWithRole(teams, id, d.key, sel.value),
+      sel.value ? `${tbName(sel.value)} is now ${d.label} of ${t.name}.` : `${t.name} has no ${d.label} now.`);
+  });
+  const bx=document.getElementById('tmboxtruck');
+  if(bx) bx.onchange=()=>{
+    if(setSeasonRole(tb.season, 'boxTruckId', bx.value)){
+      tb.undoN++; drawTeamBuilder();
+      tbSay(bx.value ? `${tbName(bx.value)} is now the ${tb.season} Box Truck Driver.` : `No Box Truck Driver for ${tb.season} now.`);
+    }
+  };
   document.getElementById('tmundo').onclick=tbUndo;
   document.getElementById('tmnew').onclick=()=>tbNewTeam();
   body.querySelector('[data-newcol]').onclick=()=>tbNewTeam();
@@ -15074,12 +15264,20 @@ function tbPersonMenu(card, anchor){
   if(READONLY) return;
   const pid=card.dataset.pid, from=card.dataset.from, t=tbTeam(from), p=personById(pid);
   if(!p) return;
+  // Box Truck Driver: the season's one holder, from any card.
+  const isBox=seasonRoleOf(seasonRoles, tb.season, 'boxTruckId')===pid;
+  const box={label:isBox ? 'Remove as Box Truck Driver' : 'Make Box Truck Driver', act:()=>{
+    if(setSeasonRole(tb.season, 'boxTruckId', isBox ? '' : pid)){
+      tb.undoN++; tb.just={pid, team:from}; drawTeamBuilder();
+      tbSay(isBox ? `${p.name} is no longer the Box Truck Driver.` : `${p.name} is now the ${tb.season} Box Truck Driver.`);
+    } }};
   if(!t){
     const on=teamsOfPerson(teams, pid, tb.season);
     tbOpenMenu(anchor||card, [
       {head:p.name},
       {label:'Add to team', sub:tbTeamTargets(pid, null, to=>to ? tbMove(pid, '', to) : tbNewTeam(pid))},
       ...(on.length ? [{label:'Take off a team', sub:on.map(x=>({label:x.name, act:()=>tbMove(pid, x.id, '')}))}] : []),
+      box,
     ], `Options for ${p.name}`);
     return;
   }
@@ -15093,7 +15291,7 @@ function tbPersonMenu(card, anchor){
   };
   tbOpenMenu(anchor||card, [
     {head:`${p.name} on ${t.name}`},
-    role('leadId', 'lead'), role('kitId', 'Kit Manager'), role('vanId', 'Van Manager'),
+    role('leadId', 'lead'), ...TEAM_DUTIES.map(d=>role(d.key, d.label)), box,
     {label:'Move up', disabled:lead || i<=firstMovable, act:()=>tbMove(pid, t.id, t.id, i-1)},
     {label:'Move down', disabled:lead || i>=t.members.length-1, act:()=>tbMove(pid, t.id, t.id, i+1)},
     {label:'Copy to team', sub:tbTeamTargets(pid, t.id, to=>to ? tbMove(pid, t.id, to, undefined, true) : tbNewTeam(pid, t.id, true))},
@@ -15120,8 +15318,7 @@ function tbTeamMenu(anchor){
       const nid=newTeamId(); tb.renaming=nid;
       if(!tbCommit(teamsWithCopy(teams, id, nid, copyName), `Made ${copyName}, a copy of ${t.name}.`)) tb.renaming=null; }},
     {label:'Set lead', disabled:!t.members.length, sub:roleSub('leadId', 'lead')},
-    {label:'Set Kit Manager', disabled:!t.members.length, sub:roleSub('kitId', 'Kit Manager')},
-    {label:'Set Van Manager', disabled:!t.members.length, sub:roleSub('vanId', 'Van Manager')},
+    ...TEAM_DUTIES.map(d=>({label:`Set ${d.label}`, disabled:!t.members.length, sub:roleSub(d.key, d.label)})),
     {label:'Delete team', danger:true, sub:[
       {head:'Nobody is taken off any crew. Only the saved team goes away.'},
       {label:`Delete "${t.name}"`, danger:true, act:()=>tbCommit(withoutTeam(teams, id), `Deleted ${t.name}. Undo brings it back.`)},
@@ -15580,6 +15777,8 @@ const TXT_FIELDS=[
   {key:'first', label:'First name', val:p=>p.first||String(p.name||'').split(' ')[0]},
   {key:'name',  label:'Full name',  val:p=>p.name||''},
   {key:'last',  label:'Last name',  val:p=>p.last||''},
+  // What they own, spelled out ("Kit Captain: Account for ..."), one a line.
+  {key:'duties', label:'Responsibilities', val:p=>dutyLines(personDuties(teams, seasonRoles, p.id, teamSeasonDefault())).join('\n')},
 ];
 const TXT_LANGS=[{key:'en', label:'English', ph:'Hello {First name}! Write the English text here…'},
                  {key:'es', label:'Spanish', ph:'¡Hola {First name}! Escribe el texto en español aquí…'}];
@@ -16523,12 +16722,13 @@ function manifestHTML(d){
           // Everyone on the truck, one per box, so a long crew wraps onto
           // more lines instead of running off the page (user, 10/26/2026).
           const tag=pn=>pn.title==='Lead'?'lead':pn.title==='Lead Assist'?'assist':pn.title==='Designer'?'designer':'';
+          // Each person's responsibilities next to their name (Kit Captain, ...).
+          const own=sh ? shiftDuties(sh) : {};
           const list=cv.who.map(pn=>`<li><b>${esc(pn.name)}</b>${tag(pn)?` <span>${tag(pn)}</span>`:''}`
+              +(own[pn.id]||[]).map(l=>` <span class="duty">${esc(l)}</span>`).join('')
               +`${pn.phone?`<i>${esc(fmtPhone(pn.phone))}</i>`:''}</li>`).join('');
-          const kv=sh ? shiftKitVan(sh) : null;
           return `<div class="crewbox"><div class="crewh">Crew (${cv.who.length})`
                + `${cv.state==='ok'?'':` · ${esc(coverageLabel(cv).toUpperCase())}`}</div>`
-               + (kv ? `<div class="crewkv">Kit: ${esc(kv.kit.name)} · Van: ${esc(kv.van.name)}</div>` : '')
                + (list?`<ul>${list}</ul>`:'<p class="crew"><i>nobody assigned yet</i></p>')+`</div>`; })()}
         ${(()=>{ const sn=shiftNoteOf(d);
           return sn ? `<div class="shn"><b>Notes for the day:</b> ${esc(sn.text)}</div>` : ''; })()}</div>
@@ -16582,11 +16782,11 @@ function printManifests(list, title, opts={}){
     .shead p.crew{margin:3px 0 0;font-size:11px;color:#444}
     .shead > div:first-child{flex:1;min-width:0}
     .crewbox{margin-top:6px;break-inside:avoid}
-    .crewkv{font-size:9.5px;font-weight:700;color:#1f3d2b;margin:-1px 0 4px}
     .crewh{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#2d5a33;margin-bottom:3px}
     .crewbox ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:2px 10px}
     .crewbox li{font-size:11.5px;line-height:1.35;padding:2px 0;border-bottom:1px dotted #ccc;overflow-wrap:anywhere}
     .crewbox li span{font-size:9.5px;color:#2d5a33;font-weight:700;text-transform:uppercase}
+    .crewbox li span.duty{color:#92400e}
     .crewbox li i{display:block;font-style:normal;font-size:10px;color:#666}
     .shn{margin-top:5px;padding:4px 7px;border-left:3px solid #1e3a5f;background:#eef2f8;color:#1e2b3d;font-size:11.5px;
       white-space:pre-wrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -18436,7 +18636,7 @@ function render(){
   trailers = normTrailers(trailers, trailerKeys());
   loadStops = normLoadStops(loadStops, new Set(Object.keys(C)));
   // A team member who was deleted from the roster comes off their team.
-  teams = loadTeams(teams);
+  teams = loadTeams(teams); seasonRoles = loadSeasonRoles(seasonRoles);
   if(teamdlg.open && !tbBusy()) drawTeamBuilder();
   days.forEach(d=>{
     const mo = manualOrder[d.id];
