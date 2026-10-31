@@ -1614,8 +1614,15 @@ body.tv #tbteams{display:none!important}
 #teamdlg .tbrename{flex:1 1 auto;min-width:0;margin:0;padding:3px 6px;font-weight:800;font-size:13px}
 .tbcolmeta{font-size:10.5px;color:var(--mut);padding:0 10px 8px;line-height:1.5;border-bottom:1px solid var(--line)}
 .tbcolmeta>div:first-child{color:var(--ink);font-weight:700}
-.tblist{position:relative;flex:1 1 auto;min-height:64px;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;
-  overscroll-behavior:contain}
+/* A team's list scrolls up and down only. Sideways it must hand the scroll
+   to the board: overflow-y:auto alone makes overflow-x auto too, and
+   overscroll-behavior:contain on both axes swallowed every sideways swipe
+   that started over a list (cards, empty column space). */
+.tblist{position:relative;flex:1 1 auto;min-height:64px;overflow-x:hidden;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;
+  overscroll-behavior-y:contain;overscroll-behavior-x:auto}
+/* Grab to pan: the board's background and a column's empty space. */
+.tbboard.tbpannable,.tbboard.tbpannable .tbcol,.tbboard.tbpannable .tblist{cursor:grab}
+#teamdlg.tbpanning,#teamdlg.tbpanning *{cursor:grabbing!important;-webkit-user-select:none!important;user-select:none!important}
 .tbempty{border:1.5px dashed var(--line);border-radius:8px;color:var(--faint);font-size:11.5px;text-align:center;padding:18px 8px}
 .tbnone{align-self:flex-start;padding:24px}
 .tbc{display:flex;align-items:center;gap:5px;min-height:34px;padding:4px 4px 4px 4px;border:1px solid var(--line);border-radius:8px;
@@ -14556,12 +14563,13 @@ function renderStaffing(){
 // so nothing needs a drag. Each change is one shared, undoable save; the
 // stale-tab merge (mergeShared) combines it with anyone else's.
 const tb={season:null, q:'', show:'', mode:'move', undoN:0, drag:null, pend:null,
-          menu:null, renaming:null, just:null};
+          menu:null, renaming:null, just:null, pan:null, wheel:null};
 function openTeamsDlg(){
   tb.season=teamSeasonDefault(); tb.undoN=0; tb.just=null; tb.renaming=null;
   tbCloseMenu();
   drawTeamBuilder();
   if(!teamdlg.open) teamdlg.showModal();
+  tbPanCursor();                    // the board has a size only once the dialog shows
   const d=document.getElementById('tmdone'); if(d) d.focus();
 }
 window.tbdgOpenTeams = openTeamsDlg;
@@ -14777,6 +14785,8 @@ function tbWire(body){
   document.getElementById('tmshow').onchange=e=>{ tb.show=e.target.value; drawTeamBuilder(); };
   const un=document.getElementById('tmuntrained');
   if(un) un.onchange=()=>{ setTbShowUntrained(un.checked); drawTeamBuilder(); };
+  const board=body.querySelector('.tbboard');
+  if(board){ board.addEventListener('pointerdown', tbPanDown); tbPanCursor(); }
   if(READONLY) return;
   body.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ tb.mode=b.dataset.mode; drawTeamBuilder(); });
   document.getElementById('tmundo').onclick=tbUndo;
@@ -15238,6 +15248,99 @@ teamdlg.addEventListener('click', e=>{
     e.preventDefault(); e.stopPropagation();
   }
 }, true);
+// ---- panning the board sideways from anywhere over it ----
+// Trackpad: a sideways swipe pans, wherever it starts (a card, a header, an
+// empty column, the gaps, the People list). Mouse: Shift+wheel pans; a plain
+// wheel scrolls the team list under it when that list can go that way, and
+// pans otherwise. Mouse drag on the board's background or a column's empty
+// space pans too. Touch keeps the browser's own scrolling (see .tblist).
+function tbBoardEl(){ return document.querySelector('#teambody .tbboard'); }
+/** True when the board is side by side and wider than its window. */
+function tbBoardPans(b){
+  return !!b && !tbColsStacked() && b.scrollWidth>b.clientWidth+1;
+}
+function tbPanCursor(){
+  const b=tbBoardEl(); if(b) b.classList.toggle('tbpannable', tbBoardPans(b));
+}
+window.addEventListener('resize', ()=>{ if(teamdlg.open) tbPanCursor(); });
+/** PURE. A wheel delta in pixels (deltaMode 1 = lines, 2 = pages). */
+function tbWheelPx(v, mode, page){
+  return mode===1 ? v*16 : mode===2 ? v*(page||800) : v;
+}
+/** Can something from `el` up to (not including) `stop` scroll by `dy`? */
+function tbCanScrollY(el, stop, dy){
+  for(; el && el!==stop && el.nodeType===1; el=el.parentElement){
+    if(el.scrollHeight<=el.clientHeight+1 || !/(auto|scroll)/.test(getComputedStyle(el).overflowY)) continue;
+    if(dy<0 ? el.scrollTop>0 : el.scrollTop+el.clientHeight<el.scrollHeight-1) return true;
+  }
+  return false;
+}
+teamdlg.addEventListener('wheel', e=>{
+  if(e.ctrlKey) return;                         // pinch zoom
+  const board=tbBoardEl(), t=e.target;
+  if(!tbBoardPans(board) || !t || !t.closest || t.closest('.tbmenu,select')) return;
+  const inBoard=board.contains(t);
+  if(!inBoard && !t.closest('.tbpool')) return;
+  let dx=tbWheelPx(e.deltaX, e.deltaMode, board.clientWidth), dy=tbWheelPx(e.deltaY, e.deltaMode, board.clientWidth);
+  if(e.shiftKey && !dx){ dx=dy; dy=0; }         // Windows / Linux send Shift+wheel as deltaY
+  // One gesture (a trackpad flick and its momentum) decides once whether a
+  // mostly-vertical scroll goes to a list or to the board, so a list that
+  // reaches its bottom doesn't suddenly start sliding sideways.
+  const now=Date.now(), g=tb.wheel;
+  if(!g || now-g.t>160 || g.board!==board) tb.wheel={t:now, board, side:null}; else g.t=now;
+  const w=tb.wheel;
+  let pan=0;
+  if(e.shiftKey || Math.abs(dx)>Math.abs(dy)) pan=dx;
+  else if(inBoard && dy){
+    if(w.side==null) w.side=!tbCanScrollY(t, board, dy);
+    if(w.side) pan=dy;
+  }
+  if(!pan) return;
+  e.preventDefault();                           // also stops a swipe from going Back
+  board.scrollLeft=Math.max(0, Math.min(board.scrollWidth-board.clientWidth, board.scrollLeft+pan));
+  if(tb.drag) tbDragUpdate();
+}, {passive:false});
+/** Mouse drag on empty board / column space. Never on a card, a grip, a
+ *  button, a field or a menu, so drag and drop, column moves and typing are
+ *  untouched. */
+const TB_PAN_SKIP='.tbc,.tbcolgrip,[data-colgrip],button,input,select,textarea,label,a,.tbmenu,[contenteditable]';
+function tbPanDown(e){
+  if((e.pointerType||'mouse')!=='mouse' || e.button!==0 || tb.drag || tb.pend || tb.pan) return;
+  const board=e.currentTarget, t=e.target;
+  if(!tbBoardPans(board) || !t.closest || t.closest(TB_PAN_SKIP)) return;
+  // a press on a scrollbar (the board's, or a list's) is the browser's
+  const sc=t.closest('.tblist,.tbboard'), r=sc.getBoundingClientRect();
+  if(e.clientX>=r.left+sc.clientLeft+sc.clientWidth || e.clientY>=r.top+sc.clientTop+sc.clientHeight) return;
+  tb.pan={id:e.pointerId, x:e.clientX, left:board.scrollLeft, on:false};
+  document.addEventListener('pointermove', tbPanMove, true);
+  document.addEventListener('pointerup', tbPanEnd, true);
+  document.addEventListener('pointercancel', tbPanEnd, true);
+}
+function tbPanMove(e){
+  const p=tb.pan; if(!p || e.pointerId!==p.id) return;
+  const dx=e.clientX-p.x;
+  if(!p.on){
+    if(Math.abs(dx)<=4) return;
+    p.on=true; teamdlg.classList.add('tbpanning');
+    const sel=window.getSelection && window.getSelection(); if(sel && !sel.isCollapsed) sel.removeAllRanges();
+  }
+  e.preventDefault();
+  const b=tbBoardEl();                          // a rename finishing on blur redraws the board
+  if(b) b.scrollLeft=p.left-dx;
+}
+function tbPanEnd(e){
+  const p=tb.pan; if(!p || e.pointerId!==p.id) return;
+  tb.pan=null;
+  document.removeEventListener('pointermove', tbPanMove, true);
+  document.removeEventListener('pointerup', tbPanEnd, true);
+  document.removeEventListener('pointercancel', tbPanEnd, true);
+  if(!p.on) return;
+  teamdlg.classList.remove('tbpanning');
+  // the release after a pan is not a click on whatever it ended over
+  const stop=ev=>{ ev.preventDefault(); ev.stopPropagation(); };
+  window.addEventListener('click', stop, {capture:true, once:true});
+  setTimeout(()=>window.removeEventListener('click', stop, true), 0);
+}
 // Esc closes a menu or ends a drag before it closes the builder; closing
 // tidies up; Cmd/Ctrl+Z inside the builder is its Undo.
 teamdlg.addEventListener('cancel', e=>{
