@@ -84,7 +84,7 @@ def test_lake_highlands_night_drops_by_the_difference():
       applyHoursOverrideTo(C, SHEET, {'63':4}); const after=inst();
       d.half=[63]; const half=effH(d,63);
       console.log(JSON.stringify([before, after, half]));
-    """, extra=("effH",))
+    """, extra=("jointN", "effH"))
     assert out == [9.72, 6.43, 2]
 
 
