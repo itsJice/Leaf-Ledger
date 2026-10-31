@@ -35,6 +35,7 @@ import { ChristmasGridView } from "./ChristmasGrid";
 import { currentSeasonLabel } from "utils/season";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
 import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
+import { DriveLinks, type DriveLinksSaved } from "./clients/DriveLinks";
 import { isReadOnly } from "utils/me";
 import {
   ClientNameFields, composeClientName, duplicateNameMessage, initialNameParts, namePartsBody,
@@ -106,6 +107,9 @@ type ClientRecord = NamePartsIn & {
   staff_alert?: string | null;
   staff_alert_by?: string | null;
   staff_alert_at?: string | null;
+  /** Google Drive folder + photos folder (client-level, not per season). */
+  drive_folder_url?: string | null;
+  drive_photos_url?: string | null;
   project_count: number;
   bucket_count: number;
   selected_cost: number;
@@ -130,6 +134,8 @@ type ClientGroup = {
   formerNames: string[];
   secondaryContacts: SecondaryContact[];
   staffAlert: StaffAlertValue | null;
+  driveFolderUrl?: string | null;
+  drivePhotosUrl?: string | null;
   activity: ActivityEntry[];
   source: "saved" | "from_projects";
   projects: ProjectSummary[];
@@ -308,6 +314,8 @@ function buildClientGroups(clientRows: ClientRecord[], projects: ProjectSummary[
       formerNames: client.former_names || [],
       secondaryContacts: client.secondary_contacts || [],
       staffAlert: staffAlertOf(client),
+      driveFolderUrl: client.drive_folder_url ?? null,
+      drivePhotosUrl: client.drive_photos_url ?? null,
       activity: client.activity || [],
       source: client.source,
       projects: stats?.projects || [],
@@ -1128,6 +1136,17 @@ export default function Clients() {
     });
   };
 
+  // Drive links saved from the card: patch that client's row.
+  const patchDriveLinks = (saved: DriveLinksSaved) => {
+    setClientRows((rows) => {
+      const next = rows.map((row) => row.id === saved.id
+        ? { ...row, drive_folder_url: saved.drive_folder_url, drive_photos_url: saved.drive_photos_url }
+        : row);
+      writeClientsPageCache(next, projects);
+      return next;
+    });
+  };
+
   // A season saved from the history table comes back as the whole row --
   // replace the one with that id, or add it when the season was just started.
   const upsertSeasonEntry = (clientId: number | null | undefined, entry: ActivityEntry) =>
@@ -1368,6 +1387,13 @@ export default function Clients() {
 
                   {expanded && (
                     <div className="border-t border-stone-100 bg-stone-50/60 px-3 py-4 sm:px-6 sm:py-5">
+                      {client.id != null && (
+                        <DriveLinks
+                          clientId={client.id}
+                          links={{ drive_folder_url: client.driveFolderUrl, drive_photos_url: client.drivePhotosUrl }}
+                          onSaved={patchDriveLinks}
+                        />
+                      )}
                       {/* Phone: a 2 x 2 grid of full-size buttons; wider: one row. */}
                       <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                         <button

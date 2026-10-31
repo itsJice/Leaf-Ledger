@@ -124,7 +124,9 @@ def test_a_redraw_hiccup_after_saving_never_reads_as_a_failed_save():
     save = save[:save.index("\n  };\n}")]
     # The alert lives only in the catch around the two calls; the redraw has
     # its own try that logs.
-    assert save.count("alert(") == 2   # name-parts problem, and the save error
+    # name-parts problem, a bad Drive link (both before anything is sent),
+    # and the save error
+    assert save.count("alert(") == 3
     assert "console.error('card redraw after save', e)" in save
     assert "Saved. ${yr} install notes updated." in save
 

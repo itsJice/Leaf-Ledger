@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
-from app.libs import client_import, client_names, client_season, pricing
+from app.libs import client_import, client_names, client_season, drive_links, pricing
 from app.libs.db import ensure_schema_once, get_conn, has_item_status_column
 from app.libs.roles import require_role
 
@@ -30,7 +30,8 @@ CLIENT_COLUMNS = (
     "id, name, email, phone, notes, street, city, state, zip, time_preference, "
     "former_names, sheet_name, secondary_contacts, created_at, updated_at, "
     "staff_alert, staff_alert_by, staff_alert_at, "
-    "first_name, last_name, company, site, area, zone"
+    "first_name, last_name, company, site, area, zone, "
+    "drive_folder_url, drive_photos_url"
 )
 
 #: The staff alert (migrations/020): one short warning about a client that
@@ -73,8 +74,16 @@ AREA_ZONE_DDL = (
     "ADD COLUMN IF NOT EXISTS area text, "
     "ADD COLUMN IF NOT EXISTS zone text"
 )
+#: The client's Google Drive folder and photos folder (migrations/026). On
+#: the client, not a season: the folder is the same every year.
+DRIVE_LINK_COLUMNS = drive_links.DRIVE_LINK_COLUMNS
+DRIVE_LINKS_DDL = (
+    "ALTER TABLE clients "
+    "ADD COLUMN IF NOT EXISTS drive_folder_url text, "
+    "ADD COLUMN IF NOT EXISTS drive_photos_url text"
+)
 #: Every column this module adds itself, checked in one query.
-ENSURED_COLUMNS = STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS + AREA_ZONE_COLUMNS
+ENSURED_COLUMNS = STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS + AREA_ZONE_COLUMNS + DRIVE_LINK_COLUMNS
 
 
 async def ensure_schema(conn) -> None:
@@ -92,6 +101,7 @@ async def ensure_schema(conn) -> None:
             await conn.execute(STAFF_ALERT_DDL)
             await conn.execute(NAME_PARTS_DDL)
             await conn.execute(AREA_ZONE_DDL)
+            await conn.execute(DRIVE_LINKS_DDL)
 
     await ensure_schema_once("clients_columns", _ddl)
 
@@ -330,6 +340,10 @@ class ClientOut(BaseModel):
     #: The schedule's Area / Zone from the sheet or an import (migrations/024).
     area: Optional[str] = None
     zone: Optional[str] = None
+    #: Google Drive folder + photos folder links (migrations/026; see
+    #: PUT /{client_id}/drive-links).
+    drive_folder_url: Optional[str] = None
+    drive_photos_url: Optional[str] = None
     #: The staff alert, who set it and when (see PUT /{client_id}/staff-alert).
     staff_alert: Optional[str] = None
     staff_alert_by: Optional[str] = None
@@ -913,6 +927,77 @@ async def set_staff_alert(client_id: int, body: StaffAlertIn, user: AuthorizedUs
     conn = await get_conn()
     try:
         row = await write_staff_alert(conn, client_id, text, user.display_name if text else None)
+    finally:
+        await conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No client with that id")
+    return dict(row)
+
+
+# ─── Google Drive links (migrations/026) ────────────────────────────────────
+
+
+class DriveLinksIn(BaseModel):
+    """Only the keys sent are changed; "" or null clears that link."""
+    drive_folder_url: Optional[str] = None
+    drive_photos_url: Optional[str] = None
+
+
+class DriveLinksOut(BaseModel):
+    id: int
+    drive_folder_url: Optional[str] = None
+    drive_photos_url: Optional[str] = None
+
+
+def clean_drive_links(body: DriveLinksIn) -> dict:
+    """{column: cleaned value} for each key the request sent. 400 naming the
+    first link that isn't https://drive.google.com/, or when none was sent."""
+    sent = body.model_fields_set & set(DRIVE_LINK_COLUMNS)
+    if not sent:
+        raise HTTPException(status_code=400, detail="Send drive_folder_url and/or drive_photos_url")
+    out = {}
+    for col in DRIVE_LINK_COLUMNS:
+        if col in sent:
+            try:
+                out[col] = drive_links.clean_drive_url(getattr(body, col), drive_links.LABELS[col])
+            except drive_links.DriveLinkError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return out
+
+
+async def write_drive_links(conn, client_id: int, links: dict):
+    """Set the given links on one client (a key left out is kept). Shared
+    with scripts/import_drive_folders.py. The row, or None if no client."""
+    await ensure_schema(conn)
+    return await conn.fetchrow(
+        """
+        UPDATE clients SET
+            drive_folder_url = CASE WHEN $2::boolean THEN $3::text ELSE drive_folder_url END,
+            drive_photos_url = CASE WHEN $4::boolean THEN $5::text ELSE drive_photos_url END,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING id, drive_folder_url, drive_photos_url
+        """,
+        client_id,
+        "drive_folder_url" in links, links.get("drive_folder_url"),
+        "drive_photos_url" in links, links.get("drive_photos_url"),
+    )
+
+
+# Same people who edit the rest of the client card: office staff and up.
+# Production, leads, crew and the shop TV (viewer) open the links but can't
+# change them -- production's allowlist doesn't name this route.
+@router.put(
+    "/{client_id}/drive-links",
+    response_model=DriveLinksOut,
+    dependencies=[Depends(require_role("staff"))],
+)
+async def set_drive_links(client_id: int, body: DriveLinksIn):
+    """Set or clear a client's Google Drive folder / photos folder links."""
+    links = clean_drive_links(body)
+    conn = await get_conn()
+    try:
+        row = await write_drive_links(conn, client_id, links)
     finally:
         await conn.close()
     if row is None:

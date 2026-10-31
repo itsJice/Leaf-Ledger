@@ -1039,3 +1039,37 @@ async def calendar_link() -> dict:
     if not token:
         raise HTTPException(status_code=404, detail="Calendar feed is not set up")
     return {"path": f"/api/install-calendar/feed.ics?token={token}"}
+
+
+@router.get("/client-links")
+async def client_links() -> list[dict]:
+    """Every client's Google Drive folder / photos folder links
+    (clients.drive_folder_url / drive_photos_url, migrations/026), for the
+    stop popup's "Drive folder" and "Photos" buttons.
+
+    Read at runtime rather than baked into the page's DATA, so setting a link
+    never changes the build's version hash (which would wipe the board). It
+    lives on this router, not /api/clients/list, because the shop TV
+    (viewer) may read this router and should be able to open a client's
+    folder; it can't read the Clients tab. Only clients with a link are
+    listed, with the names the page matches on (name, the sheet's spelling,
+    former names). Changing a link is PUT /api/clients/{id}/drive-links,
+    staff and up.
+    """
+    from app.apis import clients as clients_api
+
+    conn = await get_conn()
+    try:
+        await clients_api.ensure_schema(conn)
+        rows = await conn.fetch(
+            "SELECT id, name, sheet_name, former_names, drive_folder_url, drive_photos_url "
+            "  FROM clients "
+            " WHERE drive_folder_url IS NOT NULL OR drive_photos_url IS NOT NULL "
+            " ORDER BY id"
+        )
+    finally:
+        await conn.close()
+    return [
+        {**dict(r), "former_names": list(r["former_names"] or [])}
+        for r in rows
+    ]
