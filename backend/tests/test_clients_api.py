@@ -525,7 +525,7 @@ def test_list_adds_the_staff_alert_columns_once(fake_db, fake_request):
     assert len(alters) == 1
     assert "staff_alert_at timestamptz" in alters[0][0]
     assert fake_db.seen("SET LOCAL lock_timeout")
-    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, first_name, last_name, company, site, area, zone FROM clients")
+    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, first_name, last_name, company, site, area, zone, drive_folder_url, drive_photos_url FROM clients")
     # the name-part columns (migrations/021) arrive in the same first-use pass
     parts = fake_db.calls("ADD COLUMN IF NOT EXISTS first_name")
     assert len(parts) == 1 and "ADD COLUMN IF NOT EXISTS site text" in parts[0][0]

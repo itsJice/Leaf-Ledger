@@ -1848,6 +1848,24 @@ body .calev .cevn .salert{width:14px;height:14px;vertical-align:-2px;margin:0 2p
   cursor:pointer}
 .pkalertadd:hover{color:var(--warn-ink);text-decoration:underline}
 #pkh3alert .salert{vertical-align:-2px}
+/* Google Drive folder / Photos buttons in the stop card (driveLinksFor). */
+#pkdrive:empty{display:none}
+.pkdrive{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 10px}
+.pkdrive a,.pkdrive button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;
+  border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);
+  font:600 12.5px 'Montserrat',sans-serif;text-decoration:none;cursor:pointer}
+.pkdrive .ic{width:15px;height:15px}
+.pkdrive a.pkdrive-main{background:var(--brand-soft);border-color:#bcd3bf;color:var(--brand-deep)}
+.pkdrive a.pkdrive-main:hover{border-color:var(--brand)}
+.pkdrive a.pkdrive-sm{min-height:32px;padding:0 10px;font-weight:500;font-size:12px;color:var(--mut)}
+.pkdrive a.pkdrive-sm .ic{width:13px;height:13px}
+.pkdrive a.pkdrive-sm:hover{color:var(--brand-deep);border-color:var(--brand)}
+.pkdrive button.pkdrive-add{border-style:dashed;color:var(--mut);background:transparent}
+.pkdrive button.pkdrive-add:hover{color:var(--brand-deep);border-color:var(--brand)}
+.pkdrive button.pkdrive-edit{min-height:32px;padding:0 8px;border-color:transparent;background:transparent;color:var(--faint)}
+.pkdrive button.pkdrive-edit:hover{color:var(--mut);background:var(--brand-soft)}
+@media (hover:none){ .pkdrive a,.pkdrive button{min-height:40px} }
+.pkce-drivebad{margin:2px 0 0;color:var(--danger);font-size:11.5px}
 .pknotes .pknote{white-space:pre-wrap;word-break:break-word}
 .pknotelbl{display:block;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
   margin-bottom:2px;opacity:.85}
@@ -3264,7 +3282,11 @@ const IC={
  ausers:'<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3Z"/><path d="M16 4a3 3 0 0 1 0 6M18 14c3 0 4 2 4 5v2h-3"/></svg>',
  aphone:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 3h3l2 5-3 3c1 3 3 5 6 6l3-3 5 2v3a2 2 0 0 1-2 2C10 21 3 14 3 5a2 2 0 0 1 2-2Z"/></svg>',
  amail:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="4"/><path d="m4 7 8 6 8-6"/></svg>',
- alert:'<svg class="ic" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'};
+ alert:'<svg class="ic" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+ // Google Drive buttons (FolderOpen / FolderPlus / Image from the app's icon set).
+ folder:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 18V6a3 3 0 0 1 3-3h4l3 3h5a3 3 0 0 1 3 3M3 20l3-9h16l-3 9a2 2 0 0 1-2 1H5a2 2 0 0 1-2-1Z"/></svg>',
+ folderplus:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 8V6a3 3 0 0 1 3-3h4l3 3h5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8Z"/><path d="M8 13h8M12 9v8"/></svg>',
+ image:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/><path d="M4 18l5-5 4 3 4-6 4 5"/></svg>'};
 const CREW_COLORS = {"Crew 1":"#c2410c","Crew 2":"#0369a1","Crew 3":"#2d5a33",
   "Crew 4":"#7c3aed","Crew 5":"#be185d","Crew 6":"#0f766e",
   "Crew 1 + Crew 2 (stacked)":"#7d3c98","Crew 1 + Crew 2 + Crew 3 (stacked)":"#b9770e"};
@@ -5593,6 +5615,89 @@ function loadClientDirectory(){
 }
 function appClientFor(row){
   return clientDirectory ? (clientDirectory.get(normName(C[row].name)) || null) : null;
+}
+// ---------- Google Drive folder links (from the client record) ----------
+// A client's Drive folder and photos folder live on the client record
+// (clients.drive_folder_url / drive_photos_url, migrations/026), never in
+// this build's DATA -- so setting one never changes the version hash or the
+// board. They're read at runtime from GET /api/install-schedule/client-links,
+// which the shop TV (viewer) and production may read too, unlike the
+// staff-only /api/clients/list. Staff change them in the card editor
+// (PUT /api/clients/{id}/drive-links). Offline / no backend: no buttons.
+let driveLinkMap=null;          // Map<normName, {id, drive_folder_url, drive_photos_url}>
+let driveLinksPromise=null;
+function loadDriveLinks(){
+  if(!AUTH || driveLinksPromise) return driveLinksPromise;
+  driveLinksPromise = authFetch('/api/install-schedule/client-links', {headers:{Authorization:AUTH}})
+    .then(r=>r.ok?r.json():[])
+    .then(rows=>{
+      driveLinkMap=new Map();
+      (Array.isArray(rows)?rows:[]).forEach(c=>{
+        [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
+          const k=normName(n); if(k && !driveLinkMap.has(k)) driveLinkMap.set(k, c);
+        });
+      });
+    })
+    .catch(()=>{ driveLinkMap=null; });
+  return driveLinksPromise;
+}
+/** Only https://drive.google.com/ links open (same rule as the server's
+ *  app.libs.drive_links) -- anything else is treated as no link at all. */
+function isDriveUrl(u){
+  const t=String(u||'').trim();
+  if(!t || /\s/.test(t)) return false;
+  try{
+    const x=new URL(t);
+    return x.protocol==='https:' && x.hostname.toLowerCase()==='drive.google.com'
+      && !x.username && !x.password && !x.port && x.pathname.length>1;
+  }catch(_){ return false; }
+}
+/** {folder, photos} for a stop's client: the Clients-tab record when it's
+ *  loaded (fresh after an edit here), else the client-links list. */
+function driveLinksFor(row){
+  const ac=appClientFor(row);
+  let src=null;
+  if(ac && Object.prototype.hasOwnProperty.call(ac,'drive_folder_url')) src=ac;
+  else if(driveLinkMap){
+    const c=C[row];
+    src=driveLinkMap.get(normName(c.name)) || (c.sheetName ? driveLinkMap.get(normName(c.sheetName)) : null) || null;
+  }
+  const folder=src && isDriveUrl(src.drive_folder_url) ? String(src.drive_folder_url).trim() : '';
+  const photos=src && isDriveUrl(src.drive_photos_url) ? String(src.drive_photos_url).trim() : '';
+  return {folder, photos, raw:{folder:(src && src.drive_folder_url)||'', photos:(src && src.drive_photos_url)||''}};
+}
+/** Learn a saved link pair everywhere this page keeps it. */
+function rememberDriveLinks(row, saved, ac){
+  if(ac){ ac.drive_folder_url=saved.drive_folder_url ?? null; ac.drive_photos_url=saved.drive_photos_url ?? null; }
+  if(!driveLinkMap) driveLinkMap=new Map();
+  const rec={id:saved.id, drive_folder_url:saved.drive_folder_url ?? null, drive_photos_url:saved.drive_photos_url ?? null};
+  [C[row].name, C[row].sheetName].forEach(n=>{ const k=normName(n); if(k) driveLinkMap.set(k, rec); });
+}
+/** The stop card's "Drive folder" (+ "Photos") buttons. With no folder,
+ *  staff get "Add folder", which opens the card editor at the link boxes;
+ *  view-only logins (TV, production, archived) just see nothing. */
+function peekDriveHTML(row){
+  const {folder, photos}=driveLinksFor(row);
+  const edit=!!AUTH && !READONLY && canEditClientCard() && !!clientDirectory;
+  if(!folder && !photos && !edit) return '';
+  const a=(href, cls, icon, text, title)=>`<a class="${cls}" href="${attrEsc(href)}" target="_blank" rel="noopener noreferrer" title="${title}">${icon}<span>${text}</span></a>`;
+  return `<div class="pkdrive">${
+    folder ? a(folder, 'pkdrive-main', IC.folder, 'Drive folder', 'Open the client\'s Google Drive folder in a new tab')
+      : edit ? `<button type="button" class="pkdrive-add" id="pkdriveadd" title="Paste the link to this client's Google Drive folder">${IC.folderplus}<span>Add folder</span></button>` : ''}${
+    photos ? a(photos, 'pkdrive-sm', IC.image, 'Photos', 'Open the client\'s photos folder in a new tab') : ''}${
+    edit && (folder||photos) ? `<button type="button" class="pkdrive-edit" id="pkdriveedit" aria-label="Edit Drive links" title="Edit Drive links">${IC.pencil}</button>` : ''}</div>`;
+}
+/** "Add folder" / the pencil open the client card editor at the link box. */
+function wirePeekDrive(row){
+  ['pkdriveadd','pkdriveedit'].forEach(id=>{
+    const b=document.getElementById(id); if(!b) return;
+    b.onclick=()=>{
+      const eb=document.getElementById('pkcontactedit');
+      if(eb) eb.click();
+      const f=document.getElementById('pkf-drive');
+      if(f){ f.scrollIntoView({block:'center', behavior:'smooth'}); f.focus({preventScroll:true}); }
+    };
+  });
 }
 // ---------- staff alert + live client notes (from the Clients tab) ----------
 // A staff alert is a short warning pinned to the CLIENT (like MindBody's):
@@ -11793,6 +11898,7 @@ function refreshPeekLive(row){
   const h=document.getElementById('pkh3alert'); if(h) h.innerHTML=alertIconHTML(row,{static:true});
   const ch=document.getElementById('pkalertchip'); if(ch) ch.innerHTML=alertChipHTML(row);
   const al=document.getElementById('pkalert'); if(al) al.innerHTML=peekAlertHTML(row);
+  const dr=document.getElementById('pkdrive'); if(dr){ dr.innerHTML=peekDriveHTML(row); wirePeekDrive(row); }
   const fa=document.getElementById('pkfactsbox'); if(fa) fa.innerHTML=peekFactsHTML(row);
   const ib=document.getElementById('pkinstbox'); if(ib) ib.innerHTML=peekInstallNoteHTML(row);
   const nt=document.getElementById('pknotes'); if(nt) nt.innerHTML=peekNotesHTML(row);
@@ -12007,10 +12113,30 @@ function contactFieldsFor(row){
   if(ac) return {street:ac.street||'', city:ac.city||'', state:ac.state||'',
     zip:ac.zip||'', phone:ac.phone||'', email:ac.email||'',
     notes:ac.notes||'', time_preference:(PREF_RANK[ac.time_preference]!==undefined ? ac.time_preference : ''),
-    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac)};
+    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac), ...driveFieldsFor(row)};
   const ap=addrParts(c);
   return {street:ap.street||'', city:ap.city||'', state:ap.st||'', zip:ap.zip||'',
-    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[]};
+    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], ...driveFieldsFor(row)};
+}
+/** The Drive link boxes' starting values, and what they were (to save only a change). */
+function driveFieldsFor(row){
+  const raw=driveLinksFor(row).raw;
+  return {drive:raw.folder, photos:raw.photos, drive_was:{drive:raw.folder, photos:raw.photos}};
+}
+/** {drive_folder_url, drive_photos_url} that changed ("" clears), or null. */
+function driveLinkChanges(f){
+  if(!f || !f.drive_was) return null;
+  const out={}, t=x=>String(x||'').trim();
+  if(t(f.drive)!==t(f.drive_was.drive)) out.drive_folder_url=t(f.drive);
+  if(t(f.photos)!==t(f.drive_was.photos)) out.drive_photos_url=t(f.photos);
+  return Object.keys(out).length ? out : null;
+}
+/** What's wrong with the typed Drive links, or '' (blank is fine: it clears). */
+function driveLinksProblem(f){
+  const t=x=>String(x||'').trim();
+  if(t(f.drive) && !isDriveUrl(f.drive)) return 'The Drive folder link must start with https://drive.google.com/';
+  if(t(f.photos) && !isDriveUrl(f.photos)) return 'The Photos folder link must start with https://drive.google.com/';
+  return '';
 }
 /** This season's install notes and production & repair notes, as saved on
  *  the client's season card (client_activity 'christmas_install' detail) --
@@ -12104,6 +12230,10 @@ function contactEditHTML(row){
       </div>
       ${pkField('pkf-notes','General notes',f.notes,{area:true, ph:'Designer, house, preferences...',
         hint:'about the client, any year. Install and production notes go on each season.'})}
+      ${pkField('pkf-drive','Google Drive folder',f.drive,{type:'url', mode:'url', ac:'off', ph:'https://drive.google.com/drive/folders/...',
+        hint:'the client\'s folder; same every year'})}
+      ${pkField('pkf-photos','Photos folder',f.photos,{type:'url', mode:'url', ac:'off', ph:'https://drive.google.com/drive/folders/...',
+        hint:'optional'})}
       ${appClientFor(row) ? (()=>{ const yr=String((SEASON[0]||'')).slice(0,4); return `
       <p class="pksec pkce-season">This season <span class="pkhint">· ${yr} season card</span></p>
       ${pkField('pkf-instnotes',`Install notes ${yr}`,f.inst_notes,{area:true, ph:'Gate codes, where to park, what changed this year...'})}
@@ -12132,7 +12262,8 @@ function syncContactBuffer(){
   const f=contactFieldsForEdit; if(!f) return;
   [['street','pkf-street'],['city','pkf-city'],['state','pkf-state'],['zip','pkf-zip'],
    ['phone','pkf-phone'],['email','pkf-email'],['notes','pkf-notes'],
-   ['inst_notes','pkf-instnotes'],['prod_notes','pkf-prodnotes']].forEach(([k,id])=>{
+   ['inst_notes','pkf-instnotes'],['prod_notes','pkf-prodnotes'],
+   ['drive','pkf-drive'],['photos','pkf-photos']].forEach(([k,id])=>{
     const el=document.getElementById(id); if(el) f[k]=el.value;
   });
   f.secondary=[...document.querySelectorAll('.pksecedit')].map(el=>({
@@ -12266,6 +12397,14 @@ function wireContactBlock(row){
       if(problem){ alert(problem); return; }
     }
     syncContactBuffer();
+    // Drive links are checked up front, so a typo never half-saves the card.
+    const driveProblem=driveLinksProblem(contactFieldsForEdit);
+    if(driveProblem){
+      alert(driveProblem);
+      const bad=document.getElementById(isDriveUrl(contactFieldsForEdit.drive)||!String(contactFieldsForEdit.drive||'').trim() ? 'pkf-photos' : 'pkf-drive');
+      if(bad) bad.focus();
+      return;
+    }
     saveBtn.disabled=true; saveBtn.textContent='Saving…';
     const body=clientCardBody(contactFieldsForEdit, nameBody);
     const oldName=C[row].name;
@@ -12283,7 +12422,7 @@ function wireContactBlock(row){
         return await authFetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
       }catch(e){ throw Object.assign(new Error('network'), {step, status:0, detail:''}); }
     };
-    let entry=null, seasonSaved=false;
+    let entry=null, seasonSaved=false, driveSaved=false;
     const yr=String((SEASON[0]||'')).slice(0,4);
     try{
       const ac=appClientFor(row);
@@ -12316,6 +12455,17 @@ function wireContactBlock(row){
         entry.activity=[...(entry.activity||[]).filter(a=>!(a.kind==='christmas_install' && String(a.season)===yr)), saved];
         seasonSaved=true;
       }
+      // The Drive links save through their own endpoint (staff and up), only
+      // when a box changed. They live on the client, not the season.
+      const driveFields=driveLinkChanges(contactFieldsForEdit);
+      if(driveFields && entry && entry.id!=null){
+        const r3=await send('drive', `/api/clients/${entry.id}/drive-links`, 'PUT', driveFields);
+        if(!r3.ok) throw await fail('drive', r3);
+        const saved=await r3.json();
+        entry.drive_folder_url=saved.drive_folder_url; entry.drive_photos_url=saved.drive_photos_url;
+        rememberDriveLinks(row, saved, appClientFor(row));
+        driveSaved=true;
+      }
     }catch(err){
       const step=err && err.step, status=err && err.status, detail=err && err.detail;
       if(status===403 && step==='client'){
@@ -12345,7 +12495,7 @@ function wireContactBlock(row){
     const done=document.createElement('p');
     done.className='pkce-saved';
     done.textContent=entry.renamed ? `Saved. Renamed to ${entry.name} everywhere.`
-      : seasonSaved ? `Saved. ${yr} install notes updated.` : 'Saved.';
+      : seasonSaved ? `Saved. ${yr} install notes updated.` : driveSaved ? 'Saved. Drive links updated.' : 'Saved.';
     const h2=document.getElementById('pkcontact') || holder;
     h2.appendChild(done); setTimeout(()=>done.remove(), 3500);
   };
@@ -12354,12 +12504,13 @@ function wireContactBlock(row){
  *  and why, in plain words. step is 'client' (the card's contact fields) or
  *  'season' (this season's notes); status 0 means no response at all. */
 function cardSaveErrorMessage(step, status, detail, nameBody, yr){
-  const part = step==='season' ? `the ${yr} install notes` : 'the client card';
-  const lead = step==='season' ? `The client card saved, but ${part} didn't. ` : `Nothing was saved. `;
+  const part = step==='season' ? `the ${yr} install notes` : step==='drive' ? 'the Drive links' : 'the client card';
+  const lead = step==='season' || step==='drive' ? `The client card saved, but ${part} didn't. ` : `Nothing was saved. `;
   const why = detail ? ` (${detail})` : '';
   if(status===0) return lead+`Couldn't reach the server to save ${part}. Check the connection and press Save again; what you typed is still here.`;
   if(status===401) return lead+`Your sign-in has expired. Reload the page (Cmd+Shift+R on a Mac, Ctrl+Shift+R on Windows), sign in if asked, and save ${part} again.`;
-  if(status===403) return step==='season' ? lead+`This login can't edit season notes.` : "This login can view clients but can't edit them.";
+  if(status===403) return step==='season' ? lead+`This login can't edit season notes.`
+    : step==='drive' ? lead+`This login can open the folder but can't change the link.` : "This login can view clients but can't edit them.";
   if(status===409 && step==='client') return duplicateNameMessage(nameBody);
   if(status===400 && step==='client' && nameBody) return 'That name is missing a part -- check the fields and try again.';
   if(status===404) return lead+`The server has no client with this id any more (it may have been merged). Reload the page and try again.`;
@@ -12401,6 +12552,7 @@ function openStopPeek(row,dayId){
       </div>
     </div>
     <div id="pkalert">${peekAlertHTML(row)}</div>
+    <div id="pkdrive">${peekDriveHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div><div id="pkinstbox">${peekInstallNoteHTML(row)}</div>`)}
     <div class="pkfolds">
@@ -12418,6 +12570,14 @@ function openStopPeek(row,dayId){
   wireContactBlock(row);
   wireProfileLink(row);
   wirePeekAlert(row);
+  wirePeekDrive(row);
+  if(AUTH && !driveLinkMap){
+    loadDriveLinks().then(()=>{
+      if(peekRow!==row || !peekdlg.open) return;
+      const dh=document.getElementById('pkdrive');
+      if(dh){ dh.innerHTML=peekDriveHTML(row); wirePeekDrive(row); }
+    });
+  }
   document.querySelectorAll('#peekbody .pkpos .pkseg-b').forEach(b=>{
     b.onclick=()=>{ peekdlg.close(); setStopPin(row, b.dataset.pos||null); };
   });

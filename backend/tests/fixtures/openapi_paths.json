@@ -108,6 +108,9 @@
   "/api/clients/{client_id}/comments/{activity_id}": [
     "DELETE"
   ],
+  "/api/clients/{client_id}/drive-links": [
+    "PUT"
+  ],
   "/api/clients/{client_id}/seasons/{season}": [
     "PUT"
   ],
@@ -188,6 +191,9 @@
     "GET"
   ],
   "/api/install-schedule/calendar-link": [
+    "GET"
+  ],
+  "/api/install-schedule/client-links": [
     "GET"
   ],
   "/api/install-schedule/history": [
