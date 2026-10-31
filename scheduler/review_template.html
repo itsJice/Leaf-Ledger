@@ -175,6 +175,20 @@ header h1 svg{color:var(--brand)}
 .badge.hold{background:#fef3c7;color:#92400e;font-weight:800}
 .stop.onhold{border-left:3px solid #d97706}
 .badge.pinpos{background:#ede9fe;color:#4c1d95;font-weight:800}
+.badge.joint{background:#e8f0e8;color:#1f3d2b;font-weight:800;white-space:nowrap}
+.badge.joint .ic{width:11px;height:11px;vertical-align:-1px}
+#peekbody .pkcrews{display:flex;flex-wrap:wrap;gap:6px 10px}
+#peekbody .pkcrew{display:inline-flex;align-items:center;gap:4px}
+.pkcrewrm{border:0;background:none;padding:4px 6px;min-height:28px;border-radius:7px;color:#b91c1c;
+  font:700 11.5px 'Montserrat',sans-serif;cursor:pointer}
+@media (hover:hover){ .pkcrewrm:hover{background:#fee2e2} }
+#peekbody .pkcrewadd{display:flex;gap:8px;align-items:center;margin:8px 0 0}
+#peekbody .pkcrewadd select{flex:1;min-width:0;max-width:300px;height:32px;padding:0 8px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);font:600 12.5px 'Montserrat',sans-serif}
+#peekbody .pkcrewadd .pkpencil:disabled{opacity:.5;cursor:default}
+#peekbody .pks-t .badge{text-transform:none;letter-spacing:0;margin-left:6px}
+body.apple .pkcrewrm{min-height:38px}
+body.apple #peekbody .pkcrewadd select{height:40px;font-size:16px}
 .pkpos{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 4px}
 .pkpos .pksec{margin:0 4px 0 0}
 .pkpos .mv.on{background:#4c1d95;border-color:#4c1d95;color:#fff}
@@ -3492,6 +3506,23 @@ function dynamicJoints(dayList, planned, label){
   }));
   return out;
 }
+/** PURE. How many crews share each joint stop, per crew-day:
+ *  {dayId: {row: n}} for every stop on two or more crews that date (n >= 2).
+ *  effH() and dayNeed() divide a joint stop by this, so three crews on one
+ *  job each carry a third of it, not half. */
+function jointShares(dayList){
+  const n = {};
+  (dayList||[]).forEach(d=>{ if(d && !d.training) (d.stops||[]).forEach(r=>{
+    const k = d.date+'|'+r; n[k] = (n[k]||0) + 1; }); });
+  const out = {};
+  (dayList||[]).forEach(d=>{
+    if(!d || d.training) return;
+    const m = {};
+    (d.stops||[]).forEach(r=>{ const c = n[d.date+'|'+r]; if(c>1) m[r] = c; });
+    out[d.id] = m;
+  });
+  return out;
+}
 /** Days the build has no meta for follow the board as it is now: a Dallas
  *  night added since the build runs like a Mi Cocina night, and a stop on two
  *  crews that date is a joint stop -- both crews open the night there, as the
@@ -3499,16 +3530,17 @@ function dynamicJoints(dayList, planned, label){
  *  and before the stop times are saved. */
 function refreshDerivedMeta(){
   const joints = dynamicJoints(days, id=>!!SPEC.dayMeta[id], crewLabel);
+  const shares = jointShares(days);
   days.forEach(d=>{
     if(d.training) return;
+    d.share = shares[d.id] || {};
     // A built day keeps its window and timing, but which stops it shares
     // follows the board: a joint stop moved onto a built night (e.g. the
     // Dallas week reshuffled) splits its hours there too, and a stop that
-    // left stops counting as half.
+    // left stops counting as half. A built joint stop whose other crew was
+    // taken off (Crews, on the stop's card) is one crew's whole job again.
     if(SPEC.dayMeta[d.id]){
-      const m = SPEC.dayMeta[d.id], dj = joints[d.id] || {half:[], joint:''};
-      const built = (m.half||[]).filter(r=>d.stops.includes(r));
-      const j = dj.half.length ? dj : {half:built, joint:built.length ? (m.joint||'') : ''};
+      const m = SPEC.dayMeta[d.id], j = joints[d.id] || {half:[], joint:''};
       const startRow = (m.startRow!=null && d.stops.includes(m.startRow)) ? m.startRow
                      : (j.half.length ? j.half[0] : null);
       Object.assign(d, {half:j.half, joint:j.joint, startRow});
@@ -6507,8 +6539,13 @@ function solveOrder(head, free, tail){
   order.reverse();
   return head.concat(order, tail);
 }
+/** PURE. How many crews split joint stop r on day d (2 unless the board
+ *  says more); 1 for a stop this crew works alone. */
+function jointN(d,r){
+  return (d.half||[]).includes(r) ? Math.max(2, (d.share && d.share[r]) || 2) : 1;
+}
 function effH(d,r){
-  return (d.half||[]).includes(r) ? (C[r].h26||0)/2 : (C[r].h26||0);
+  return (C[r].h26||0)/jointN(d,r);
 }
 // ---------- shifts ----------
 // A SHIFT is what a person actually signs up for, and it is not always one
@@ -6729,7 +6766,7 @@ function dayNeed(d){
   if(d.training) return {lead:0, assist:0, gen:0, total:0};
   let lead=0, assist=0, gen=0;
   (d.stops||[]).forEach(r=>{
-    const rn=(C[r]||{}).roleNeed||{}, share=(d.half||[]).includes(r)?2:1;
+    const rn=(C[r]||{}).roleNeed||{}, share=(d.half||[]).includes(r) ? Math.max(2, (d.share&&d.share[r])||2) : 1;
     const up=x=>Math.ceil((x||0)/share);
     lead   = Math.max(lead,   up(rn.leads));
     // Specialty labour and the designer/art director are the experienced
@@ -7161,8 +7198,8 @@ function checkPlan(ops){
       const alsoMoving = partners.every(p=>ops.some(o=>o.row===op.row && o.to!==p.id)
                                         && ops.filter(o=>o.row===op.row).length>1);
       if(partners.length && !alsoMoving)
-        blockers.push({code:'JOINT', msg:`${c.name} is a two-crew job shared with `
-          +`${src.joint||'another crew'} — move the whole day, not one card`});
+        blockers.push({code:'JOINT', msg:`${c.name} is a joint job shared with `
+          +`${src.joint||'another crew'} — move the whole day, or take the extra crew off first (Crews, on its card)`});
     }
     // same-day group pairing: advisory only. These are logistics pairings
     // (save a depot round-trip), not data-integrity constraints like JOINT
@@ -7269,6 +7306,147 @@ function checkPlan(ops){
  * along; checkPlan just flags it if the move splits the pairing. */
 function planFor(row, toId){
   return [{row, to:toId}];
+}
+
+// ---------- joint crews: a second (or third) crew on one stop ----------
+// "make a way to make a property or stop a dual crew thing" (user,
+// 2026-10-30). A joint stop is just a row on two or more crew-days the same
+// date (placement[row] lists them all); dynamicJoints/jointShares then split
+// its hours, staffing need and boxes across the crews. From the stop's card
+// (Crews) staff add another crew working that date, or a new crew, and take
+// one off again. The date never changes here, and at least one crew always
+// keeps the stop. Moving a joint stop to another date stays what it was: the
+// whole crew-day travels with its partner (rearrange); one card alone is
+// refused (JOINT in checkPlan), so take the extra crew off first.
+/** PURE. The crew-days working `row` on `date`, in crew order. */
+function crewDaysOf(row, date, dayList){
+  return (dayList||[]).filter(d=>d.date===date && !d.training && (d.stops||[]).includes(row)).sort(byCrew);
+}
+/** PURE. Who could join `row` on `date`: every other crew working that date
+ *  (not training), then one new crew (the next free number).
+ *  [{id, crew, day|null, isNew}] */
+function jointCrewChoices(row, date, dayList){
+  const list=dayList||[];
+  const out=list.filter(d=>d.date===date && !d.training && !(d.stops||[]).includes(row)).sort(byCrew)
+    .map(d=>({id:d.id, crew:d.crew, day:d, isNew:false}));
+  const spare=spareCrewOn(list, date);
+  if(spare) out.push({id:`${date}|${spare}|0`, crew:spare, day:null, isNew:true});
+  return out;
+}
+/** PURE. Can crew-day `dayId` come off `row`? Only while another crew on
+ *  that date keeps it. '' when it can, else the reason. */
+function jointRemoveBlock(row, dayId, dayList){
+  const d=(dayList||[]).find(x=>x.id===dayId);
+  if(!d || !(d.stops||[]).includes(row)) return 'That crew is not on this stop.';
+  if(crewDaysOf(row, d.date, dayList).length<2) return 'A stop always keeps at least one crew.';
+  return '';
+}
+/** The log line's ids: "CREWS:<id>+<id>" (renderLog's fmtId reads it). */
+function crewsLogId(row, date){ return 'CREWS:'+crewDaysOf(row, date, days).map(d=>d.id).join('+'); }
+/** A crew's joint share of the stop changed: the Trailer Loader's saved box
+ *  split was for the old crews, so it goes back to an even split. */
+function clearLoadSplit(row){
+  if((loadStops[row]||{}).split) loadStops=withLoadStop(loadStops, String(row), {split:null});
+}
+/** Add crew-day `toId` (an existing crew that date, or a new crew) to the
+ *  stop `row`, which stays on its own crew too. One undo step, saved and
+ *  logged like a move. */
+function addJointCrew(row, toId){
+  if(roBlocked()) return false;
+  const src=days.find(d=>!d.training && d.stops.includes(row));
+  const [date, crew]=String(toId||'').split('|');
+  if(!src || date!==src.date || !isCrewName(crew)) return false;
+  const ex=days.find(d=>d.id===toId);
+  if(ex && (ex.training || ex.stops.includes(row))) return false;
+  // Advisory, like every capacity rule: say it when the joining crew's day
+  // would run past its limit, and let staff decide.
+  const n=crewDaysOf(row, date, days).length+1;
+  const sim=ex ? {...ex} : hydrate({id:toId, date, crew, dow:(SPEC.calendar.find(x=>x.date===date)||{}).dow||'', stops:[], geom:null, mi:null, legMi:null});
+  const after=dayCalc({...sim, stops:[...sim.stops, row], half:[...(sim.half||[]), row],
+                       share:{...(sim.share||{}), [row]:n}, edited:true});
+  const label=ex ? crewTitle(ex) : 'a new crew';
+  if(after.total>sim.win && !confirm(`Heads up:\n\n  • ${label} on ${fmtMDYYYY(date)} would run `
+      +`${(after.total/60).toFixed(1)}h, past its ${(sim.win/60).toFixed(1)}h limit`
+      +`\n\nAdd the crew anyway?`)) return false;
+  const was=crewsLogId(row, date);
+  pushUndo();
+  const d=dayById(toId, true);
+  d.stops.push(row); d.edited=true;
+  approved.delete(d.id); approved.delete(src.id);
+  notInstalling.delete(row);
+  clearLoadSplit(row);
+  moves.push({row, name:C[row].name, from:was, to:crewsLogId(row, date)});
+  persist(); render();
+  return true;
+}
+/** Take crew-day `dayId` off the joint stop `row`; the other crews keep it
+ *  (and its full hours). A crew left with no stops comes off the board, as
+ *  after any move. */
+function removeJointCrew(row, dayId){
+  if(roBlocked()) return false;
+  const why=jointRemoveBlock(row, dayId, days);
+  if(why){ alert(why); return false; }
+  const d=days.find(x=>x.id===dayId), date=d.date;
+  const was=crewsLogId(row, date);
+  pushUndo();
+  d.stops=d.stops.filter(r=>r!==row); d.edited=true;
+  crewDaysOf(row, date, days).forEach(x=>approved.delete(x.id));
+  approved.delete(d.id);
+  clearLoadSplit(row);
+  moves.push({row, name:C[row].name, from:was, to:crewsLogId(row, date)});
+  days=days.filter(x=>x.stops.length>0 || x.training);
+  persist(); render();
+  return true;
+}
+/** The stop card's Crews panel: every crew on the stop (Remove on each while
+ *  there are two or more), and a picker to add another crew that date. */
+function peekCrewsHTML(row, d){
+  if(!d || d.training) return '';
+  const on=crewDaysOf(row, d.date, days), joint=on.length>1;
+  const hrs=+(C[row].h26||0);
+  const list=on.map(x=>`<div class="pkcrew"><span class="pkchip crew" style="--crew:${CREW_COLORS[x.crew]||'var(--brand)'}"><i></i><span>${peekEsc(crewTitle(x))}</span></span>`
+    +(joint && !READONLY ? `<button type="button" class="pkcrewrm" data-crewrm="${peekEsc(x.id)}" title="Take ${peekEsc(crewTitle(x))} off this stop; the other crew${on.length>2?'s keep':' keeps'} it">Remove</button>` : '')
+    +`</div>`).join('');
+  const choices=jointCrewChoices(row, d.date, days);
+  const add=READONLY || !choices.length ? '' : `<div class="pkcrewadd">
+      <select id="pkcrewpick" aria-label="Add a crew to this stop">
+        <option value="">${joint?'Add another crew…':'Add a second crew…'}</option>
+        ${choices.map(o=>`<option value="${peekEsc(o.id)}">${o.isNew ? '+ a new crew'
+          : peekEsc(crewTitle(o.day))+`: ${o.day.stops.length} stop${o.day.stops.length===1?'':'s'}`}</option>`).join('')}
+      </select>
+      <button type="button" class="pkpencil" id="pkcrewadd" disabled>Add</button></div>`;
+  const fine=joint ? `${on.length} crews work it together: ${(hrs/on.length).toFixed(1)}h each of ${hrs}h. Same date for every crew.`
+                   : `One crew. Add a crew to work it together; the hours split between them.`;
+  return pkSection('pks-crews', `Crews${joint?` <span class="badge joint">${IC.link} ${on.length} crews</span>`:''}`,
+    `<div class="pkcrews">${list}</div>${add}<p class="pkfine">${fine}</p>`);
+}
+function wirePeekCrews(row){
+  const box=document.querySelector('#peekbody .pks-crews'); if(!box) return;
+  const pick=box.querySelector('#pkcrewpick'), go=box.querySelector('#pkcrewadd');
+  if(pick && go){
+    pick.onchange=()=>{ go.disabled=!pick.value; };
+    go.onclick=()=>{
+      if(!pick.value) return;
+      // Close the card first, as the pin and hold buttons do: the list is
+      // redrawn, and the stop's row then shows its crews badge.
+      peekdlg.closeNow();
+      addJointCrew(row, pick.value);
+    };
+  }
+  box.querySelectorAll('[data-crewrm]').forEach(b=>{
+    b.onclick=()=>{
+      const id=b.dataset.crewrm, d=days.find(x=>x.id===id); if(!d) return;
+      const rest=crewDaysOf(row, d.date, days).filter(x=>x.id!==id);
+      const alone=d.stops.length===1;
+      if(!confirm(`Take ${crewTitle(d)} off ${jointStopName(row)}?\n\n`
+        +`${rest.map(crewTitle).join(' + ')} ${rest.length>1?'split':'does'} the whole job `
+        +`(${(+(C[row].h26||0)/rest.length).toFixed(1)}h${rest.length>1?' each':''}).`
+        +(alone ? `\n${crewTitle(d)} has no other stops that date, so its day comes off the board.` : '')
+        +`\n\nUndo takes it back.`)) return;
+      peekdlg.closeNow();
+      removeJointCrew(row, id);
+    };
+  });
 }
 
 // ---------- slot finder ----------
@@ -7683,7 +7861,7 @@ function drawDate(date){
           offset:[9,0],className:'name-label'});
       } else {
         const isHalf=(d.half||[]).includes(r);
-        const estH=isHalf?(c.h26/2).toFixed(1):c.h26;
+        const estH=isHalf?effH(d,r).toFixed(1):c.h26;
         mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${esc(crewTitle(d))}`+
           `<br>Est. time: ${estH}h · Box count: ${stopBoxes(r)??'—'}`,
           {direction:'top',offset:[0,-8]});
@@ -9537,7 +9715,7 @@ function buildDayCard(d){
         <button type="button" class="ordbtn down" ${i===d.stops.length-1?'disabled':''} title="Move down one stop">${IC.chev}</button>
       </div>
       <div class="body"><div class="nm">${c.name}${alertIconHTML(r)}
-        ${isHalf?`<span class="badge" style="background:#e8f0e8;color:#1f3d2b">${IC.link} joint w/ ${d.joint} — ${(c.h26/2).toFixed(1)}h each</span>`:''}
+        ${isHalf?`<span class="badge joint" title="Worked together with ${esc(d.joint)}: ${effH(d,r).toFixed(1)}h each">${IC.link} ${jointN(d,r)} crews · with ${esc(d.joint)} · ${effH(d,r).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
         ${pinBadgeHTML(r, d)}
@@ -9547,7 +9725,7 @@ function buildDayCard(d){
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
-      <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
+      <div class="sub hrs">${[`${isHalf?effH(d,r).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
         stopBoxesTxt(r, 'boxes?')].filter(Boolean).join(' · ')}</div>
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
@@ -9972,6 +10150,8 @@ function renderLog(){
   const log=document.createElement('div'); log.id='log';
   const fmtId=id=>{if(!id) return 'new'; if(id==='NOINSTALL') return 'not installing';
     if(id==='HOLD') return 'on hold'; if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
+    if(id.startsWith('CREWS:')){ const ids=id.slice(6).split('+').filter(Boolean);
+      return ids.length ? `${fmtMDY(ids[0].split('|')[0])} ${ids.map(x=>x.split('|')[1]).join(' + ')}` : 'no crew'; }
     const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
     moves.slice(-8).map(m=>`<div class="ent">→ ${esc(m.name)}: ${esc(fmtId(m.from))} → ${esc(fmtId(m.to))}</div>`).join('')+
@@ -10510,6 +10690,12 @@ function openSlotFinder(row){
       head=`<div class="sfnone"><b>No crew can take them on ${fmtDate(want)}.</b>`
          + ` Closest workable options:</div>`;
     }
+    // A joint stop moves with its whole crew-day (JOINT): say why there are
+    // no single-card options and how to get one.
+    const onJ = cur ? crewDaysOf(row, cur.date, days) : [];
+    if(onJ.length>1)
+      head += `<div class="sfsrc"><b>${esc(onJ.map(crewTitle).join(' + '))} work this stop together on ${fmtDate(cur.date)}.</b> `
+            + `To move it alone, take the extra crew off first (Crews, on its card). To move the whole day, drag the crew's header.</div>`;
     // Consequences for the day they're LEAVING are the same whichever
     // option is chosen -- state them once.
     const sw = res.length ? res[0].sourceWarnings : [];
@@ -11706,7 +11892,7 @@ function peekFactsHTML(row){
     c.people ? pkChip(IC.ausers, `${peekEsc(c.people)} people`) : '',
   ];
   return `<div class="pkfacts">${chips.join('')}</div>`
-    + (half ? `<p class="pkfine">Half of ${peekEsc(c.h26||0)}h, shared with ${peekEsc(d.joint||'another crew')}</p>` : '');
+    + (half ? `<p class="pkfine">${jointN(d,row)===2?'Half':'A '+(jointN(d,row)===3?'third':'share')} of ${peekEsc(c.h26||0)}h, shared with ${peekEsc(d.joint||'another crew')}</p>` : '');
 }
 /** Install notes, production & repair notes and the client's general notes:
  *  callouts with a thin left border. Live from the client record (Clients
@@ -12403,6 +12589,7 @@ function openStopPeek(row,dayId){
     <div id="pkalert">${peekAlertHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div><div id="pkinstbox">${peekInstallNoteHTML(row)}</div>`)}
+    ${peekCrewsHTML(row, d)}
     <div class="pkfolds">
       <div class="pknotes" id="pknotes">${peekNotesHTML(row)}</div>
       ${d?peekPositionHTML(row, d):''}
@@ -12459,6 +12646,7 @@ function openStopPeek(row,dayId){
   };
   document.getElementById('pkcommentadd').onclick=addComment;
   document.getElementById('pkcommenttext').onkeydown=e=>{ if(e.key==='Enter') addComment(); };
+  wirePeekCrews(row);
   if(AUTH && !clientDirectory){
     loadClientDirectory().then(()=>{
       if(peekRow!==row || !peekdlg.open) return;   // stale by the time it lands

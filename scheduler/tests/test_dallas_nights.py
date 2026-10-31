@@ -58,7 +58,7 @@ const DALLAS_CAL = new Set(SPEC.calendar.filter(c=>c.kind==='dallas_night').map(
 let dallasNights = new Set();
 let days = [];
 """ + fns("normDallasNights", "isDallasDate", "dallasNightMeta", "metaFor", "hydrate",
-          "dynamicJoints", "refreshDerivedMeta", "crewLabel", "isDallasNight", "dallasRunStart",
+          "dynamicJoints", "jointShares", "refreshDerivedMeta", "crewLabel", "isDallasNight", "dallasRunStart",
           "shiftKeyOf", "dallasWeekKeyOf", "addDays", "dateOf", "isoOf", "isCrewName") + """
 const day=(id, stops)=>{ const [date,crew]=id.split('|'); return hydrate({id, date, crew, stops}); };
 """
@@ -149,9 +149,10 @@ def test_built_night_keeps_its_meta_but_shared_stops_follow_the_board():
       refreshDerivedMeta();
       console.log(JSON.stringify(days.map(d=>[d.half, d.joint, d.note])));
     """)
-    # Built days keep their note/window and the build's joint rows that are
-    # still on them; Crew 2 no longer has 63, so it doesn't count it as half.
-    assert out == [[[63], "Crew 2", "JOINT"], [[], "", "built"]]
+    # Built days keep their note/window, but which stops are joint follows
+    # the board: Crew 2 no longer has 63 (its crew was taken off), so 63 is
+    # Crew 1's whole job again, not half of one with nobody (10/30/2026).
+    assert out == [[[], "", "JOINT"], [[], "", "built"]]
 
 
 def test_joint_stop_moved_onto_a_built_night_splits_there():
