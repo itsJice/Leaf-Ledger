@@ -8177,6 +8177,10 @@ function sxOpenItem(it){
 // see it open and immediately close it again) -- mousedown runs first,
 // so a stale dialog is already closed by the time a fresh one opens.
 document.addEventListener('mousedown', e=>{
+  // A handler that re-rendered the clicked element (picking a New client
+  // address suggestion empties its list) leaves the target detached; that
+  // is not a click outside -- the dialog used to close and lose the name.
+  if(!e.target.isConnected) return;
   document.querySelectorAll('dialog[open]').forEach(dlg=>{
     if(dlg.classList.contains('inline') && e.target.closest && e.target.closest('#map')) return;
     // The shift detail panel: a dialog opened over it (Edit crew, Reschedule)
