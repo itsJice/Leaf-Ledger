@@ -1999,6 +1999,15 @@ body.apple .pkln{padding:9px 0}
 body.apple .pkpencil{height:38px;min-width:38px}
 .pkfacts{display:flex;flex-wrap:wrap;gap:6px}
 .pkfine{margin:6px 0 0;font-size:11.5px;color:var(--mut)}
+.pkhrs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:13px}
+.pkhrs .pkfine{flex-basis:100%;margin:0}
+.pkhrsed{font-size:11.5px;color:var(--brand);background:var(--brand-soft);border-radius:4px;padding:1px 6px}
+.pkhrsbtn{font:inherit;font-size:12.5px;min-height:32px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit;cursor:pointer}
+.pkhrsbtn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+dialog .pkhrsform .pkhrslbl{display:inline-flex;align-items:center;gap:6px;margin:0}
+dialog .pkhrsform input[type="number"]{width:84px;margin:0;font-size:16px;padding:4px 6px}
+@media (max-width:600px){ .pkhrsbtn{min-height:40px} dialog .pkhrsform input[type="number"]{min-height:40px} }
+.stop .hrsed{color:var(--brand);font-weight:600}
 #peekbody .pknote{margin:0 0 9px;padding:1px 0 1px 10px;background:none;border-left:3px solid var(--line);border-radius:0;
   color:var(--ink);font-size:12.5px;line-height:1.45}
 #peekbody .pknote:last-child{margin-bottom:0}
@@ -4596,6 +4605,10 @@ function restoreSyntheticClients(list){
     if(C[def.row]){          // already present -- idempotent, but take the
       // shared document's spelling (a rename saved elsewhere) for the row.
       if(C[def.row].synthetic && def.name) syncSyntheticName(C[def.row], def.name);
+      // ...and its hours: an added stop's install time is edited in place
+      // (setStopHours), so the shared document's value is the current one.
+      const h=def.hours==null ? NaN : +def.hours;
+      if(C[def.row].synthetic && h>0 && h<=24) C[def.row].h26 = h;
       return;
     }
     addSyntheticClientSync(def);
@@ -4611,6 +4624,85 @@ function syncSyntheticName(c, name){
   try{ ac=clientDirectory ? clientDirectory.get(normName(name)) : null; }catch(e){}
   if(ac && ac.name && normName(ac.name)!==normName(name)){ c.sheetName=name; c.name=ac.name; }
   else { c.name=name; delete c.sheetName; }
+}
+// ---------- install hours: staff edits (shared state `hoursOverride`) ----------
+// A spreadsheet client's install hours (C[r].h26) are baked into DATA, and a
+// new DATA is a new version (the board would look wiped). So staff edits live
+// in shared state instead: hoursOverride {row: hours}, applied onto C at load
+// and on every restore, so every reader of h26 -- dayCalc, effH, joint halves,
+// the stop rows, the popup, crew sheets, the slot finder, staffing, exports --
+// sees the edited value without knowing about it. Takes "M Crowd Lake
+// Highlands" from the sheet's 7.29h to the 4h the user knows it takes
+// (2026-10-30). The spreadsheet value is kept (SHEET_HOURS) for "was 7.29h"
+// and the reset. An added (synthetic) stop has no spreadsheet value: its
+// own stored hours (newClients[].hours) are edited instead. Hours staff type
+// are staff-entered, not an estimate (basis 'staff entry') -- and nothing
+// here ever makes hours up: no override means the sheet's own number.
+let hoursOverride = {};
+const SHEET_HOURS = {};   // row -> {h, basis} as built, captured before any override
+/** PURE. A usable install time in hours (0 < h <= 24, to 2 decimals), else null. */
+function validHours(v){
+  if(v===null || v===undefined || v==='') return null;
+  const h=+v;
+  return Number.isFinite(h) && h>0 && h<=24 ? Math.round(h*100)/100 : null;
+}
+/** PURE. {row: hours} with string row keys and only usable hours. */
+function normHoursOverride(o){
+  const out={};
+  if(!o || typeof o!=='object' || Array.isArray(o)) return out;
+  Object.keys(o).forEach(r=>{
+    const h=validHours(o[r]);
+    if(/^\d+$/.test(r) && h!=null) out[r]=h;
+  });
+  return out;
+}
+/** PURE. Put `ov` onto the clients map: an overridden spreadsheet row takes
+ *  the staff value (basis 'staff entry'); every other spreadsheet row goes
+ *  back to its built value. `sheet` remembers the built values the first time
+ *  a row is seen. Synthetic rows keep their own hours. */
+function applyHoursOverrideTo(clients, sheet, ov){
+  Object.keys(clients).forEach(r=>{
+    const c=clients[r]; if(!c || c.synthetic) return;
+    if(!sheet[r]) sheet[r]={h:c.h26, basis:c.basis};
+    const h=ov[r]!=null ? validHours(ov[r]) : null;
+    if(h!=null){ c.h26=h; c.basis='staff entry'; c.hoursEdited=true; }
+    else { c.h26=sheet[r].h; c.basis=sheet[r].basis; delete c.hoursEdited; }
+  });
+}
+function applyHoursOverride(){ applyHoursOverrideTo(C, SHEET_HOURS, hoursOverride); }
+applyHoursOverride();
+/** The spreadsheet's hours for a row (null for an added stop). */
+function sheetHoursOf(r){
+  const c=C[r]; if(!c || c.synthetic) return null;
+  return SHEET_HOURS[r] ? SHEET_HOURS[r].h : c.h26;
+}
+/** PURE. Hours as staff read them: 7.29, 4, 2.5. */
+function fmtHrs(h){ return h==null || h==='' ? '—' : String(+(+h).toFixed(2)); }
+/** Staff and up, on a live season; viewers, TV, leads and production read. */
+function canEditHours(){
+  return !READONLY && !VIEWONLY && !TVMODE && (!ME_ROLE || ALERT_EDIT_ROLES.has(ME_ROLE));
+}
+/** Set (or, with null / the spreadsheet value, clear) a stop's install time.
+ *  One undo step and one History entry. Returns true if anything changed. */
+function setStopHours(row, hours){
+  if(roBlocked() || !canEditHours()) return false;
+  const c=C[row]; if(!c) return false;
+  const h=validHours(hours);
+  const was=c.h26;
+  if(c.synthetic){
+    if(h==null || h===validHours(c.h26)) return false;
+    pushUndo();
+    c.h26=h;
+  } else {
+    const next=(h==null || h===validHours(sheetHoursOf(row))) ? null : h;
+    if((hoursOverride[row]??null)===next) return false;
+    pushUndo();
+    if(next==null) delete hoursOverride[row]; else hoursOverride[row]=next;
+    applyHoursOverride();
+  }
+  moves.push({row, name:c.name, from:`HOURS:${fmtHrs(was)}`, to:`HOURS:${fmtHrs(c.h26)}`});
+  persist(); render();
+  return true;
 }
 // A brand-new deployment (or a save that predates staffing) has an empty
 // roster -- fall back to the real installer list baked in at build time
@@ -4632,6 +4724,7 @@ try{
                  + 'They have NOT been applied — re-check them before saving.';
   } else if(s.placement){
     restoreSyntheticClients(s.newClients);
+    hoursOverride = normHoursOverride(s.hoursOverride); applyHoursOverride();
     // Before applyPlacement: a stop saved onto an added date needs that
     // date on the board, or its placement silently drops as unknown.
     newDates = normDates(s.newDates);
@@ -4760,7 +4853,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes','trailers','loadStops','trailerFleet','loadTrips'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','hoursOverride'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -4849,7 +4942,8 @@ function mergeShared(base, mine, theirs, label){
                   trailers:k=>`Trailer for ${label('shift',k)}`,
                   loadStops:r=>`${label('row',r)}: load list`,
                   trailerFleet:k=>`Trailer ${k}`,
-                  loadTrips:k=>`Load list for ${k.replace('|',' to ')}`};
+                  loadTrips:k=>`Load list for ${k.replace('|',' to ')}`,
+                  hoursOverride:r=>`${label('row',r)}: install time`};
   // A note is the same note when its text is: a stamp alone is no edit.
   const MAP_NORM={placement:sortedIds, shiftNotes:v=>(v && typeof v==='object') ? v.text : v};
   SHARED_MAP_KEYS.forEach(k=>{
@@ -5051,7 +5145,7 @@ function snapshot(){
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
-          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
+          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, hoursOverride,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, crewNames, savedAt:Date.now()};
 }
@@ -6274,6 +6368,7 @@ async function restoreHistoryEntry(entryId, btn){
     hold = normNotInstalling(st.hold);
     stopPin = normStopPins(st.stopPin);
     lastScheduledFrom = normLastScheduledFrom(st.lastScheduledFrom);
+    hoursOverride = normHoursOverride(st.hoursOverride); applyHoursOverride();
     applyPlacement(st.placement);
     materializeTrainingDays();
     moves = st.moves || [];
@@ -6312,7 +6407,9 @@ function stateBlob(){
   return JSON.stringify({placement:currentPlacement(),
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
-                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, crewNames});
+                         dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
+                         hoursOverride, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, c.h26])),
+                         trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
@@ -6325,6 +6422,11 @@ function restoreBlob(blob){
   hold = normNotInstalling(s.hold);
   stopPin = normStopPins(s.stopPin);
   lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
+  hoursOverride = normHoursOverride(s.hoursOverride); applyHoursOverride();
+  // An undo step also carries the added stops' own hours (a shared document
+  // carries them in newClients, restored before this).
+  if(s.synHours) Object.entries(s.synHours).forEach(([r,h])=>{
+    if(C[r] && C[r].synthetic && validHours(h)!=null) C[r].h26=validHours(h); });
   const missing = applyPlacement(s.placement);
   materializeTrainingDays();
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -9660,6 +9762,7 @@ function buildDayCard(d){
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
       <div class="sub hrs">${[`${isHalf?(c.h26/2).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
+        c.hoursEdited?`<span class="hrsed" title="Install time edited by staff (spreadsheet: ${fmtHrs(sheetHoursOf(r))}h)">edited</span>`:'',
         stopBoxesTxt(r, 'boxes?')].filter(Boolean).join(' · ')}</div>
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
@@ -10084,6 +10187,7 @@ function renderLog(){
   const log=document.createElement('div'); log.id='log';
   const fmtId=id=>{if(!id) return 'new'; if(id==='NOINSTALL') return 'not installing';
     if(id==='HOLD') return 'on hold'; if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
+    if(id.startsWith('HOURS:')) return `${id.slice(6)}h install time`;
     const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
     moves.slice(-8).map(m=>`<div class="ent">→ ${esc(m.name)}: ${esc(fmtId(m.from))} → ${esc(fmtId(m.to))}</div>`).join('')+
@@ -11820,6 +11924,49 @@ function peekFactsHTML(row){
   return `<div class="pkfacts">${chips.join('')}</div>`
     + (half ? `<p class="pkfine">Half of ${peekEsc(c.h26||0)}h, shared with ${peekEsc(d.joint||'another crew')}</p>` : '');
 }
+let pkEditingHours=false;
+/** Est. install time for the whole job: the value, "edited (was 7.29h)" when
+ *  staff changed a spreadsheet client's, and Edit / Reset for staff. */
+function peekHoursHTML(row){
+  const c=C[row]; if(!c) return '';
+  const edit=canEditHours();
+  const sheet=sheetHoursOf(row);
+  if(pkEditingHours && edit) return `<div class="pkhrs pkhrsform">
+      <label class="pkhrslbl">Est. install time
+        <input id="pkhrsin" type="number" inputmode="decimal" step="0.25" min="0.25" max="24" value="${peekEsc(fmtHrs(c.h26))}"> h</label>
+      <button type="button" class="pkhrsbtn on" id="pkhrssave">Save</button>
+      <button type="button" class="pkhrsbtn" id="pkhrscancel">Cancel</button>
+      ${sheet!=null?`<p class="pkfine">Spreadsheet: ${peekEsc(fmtHrs(sheet))}h. The whole job, before any joint split.</p>`:''}
+    </div>`;
+  return `<div class="pkhrs"><span>Est. install time <b>${peekEsc(fmtHrs(c.h26))}h</b></span>`
+    + (c.hoursEdited ? ` <span class="pkhrsed" title="Changed by staff on the board">edited (was ${peekEsc(fmtHrs(sheet))}h)</span>` : '')
+    + (edit ? ` <button type="button" class="pkhrsbtn" id="pkhrsedit">Edit</button>` : '')
+    + (edit && c.hoursEdited ? ` <button type="button" class="pkhrsbtn" id="pkhrsreset" title="Back to the spreadsheet's ${peekEsc(fmtHrs(sheet))}h">Reset</button>` : '')
+    + `</div>`;
+}
+function wirePeekHours(row){
+  const box=document.getElementById('pkhrsbox'); if(!box) return;
+  const redraw=()=>{ box.innerHTML=peekHoursHTML(row); wirePeekHours(row); };
+  // A save re-routes the day, so the card's times change too: re-open it.
+  const reopen=()=>{ pkEditingHours=false; if(peekdlg.open) openStopPeek(row, pkDayId); };
+  const ed=document.getElementById('pkhrsedit');
+  if(ed) ed.onclick=e=>{ e.stopPropagation(); pkEditingHours=true; redraw();
+    const i=document.getElementById('pkhrsin'); if(i){ i.focus(); i.select(); } };
+  const rs=document.getElementById('pkhrsreset');
+  if(rs) rs.onclick=e=>{ e.stopPropagation(); if(setStopHours(row, null)) reopen(); };
+  const cancel=document.getElementById('pkhrscancel');
+  if(cancel) cancel.onclick=e=>{ e.stopPropagation(); pkEditingHours=false; redraw(); };
+  const save=document.getElementById('pkhrssave'), inp=document.getElementById('pkhrsin');
+  const doSave=()=>{
+    const h=validHours(inp.value);
+    if(h==null){ inp.setCustomValidity('Enter hours between 0.25 and 24'); inp.reportValidity(); return; }
+    if(setStopHours(row, h)) reopen(); else { pkEditingHours=false; redraw(); }
+  };
+  if(save) save.onclick=e=>{ e.stopPropagation(); doSave(); };
+  if(inp) inp.onkeydown=e=>{ inp.setCustomValidity('');
+    if(e.key==='Enter'){ e.preventDefault(); doSave(); }
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); pkEditingHours=false; redraw(); } };
+}
 /** Install notes, production & repair notes and the client's general notes:
  *  callouts with a thin left border. Live from the client record (Clients
  *  tab) when it has them; otherwise the spreadsheet notes baked into this
@@ -12540,7 +12687,7 @@ function openStopPeek(row,dayId){
   const d = dayId==null ? null : days.find(x=>x.id===dayId);
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row; pkDayId=dayId;
-  pkEditingContact=false; pkEditingAlert=false; pkNameEdit=null; pkOpen=new Set();
+  pkEditingContact=false; pkEditingAlert=false; pkEditingHours=false; pkNameEdit=null; pkOpen=new Set();
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   const crewCol=d ? (CREW_COLORS[d.crew]||'var(--brand)') : '';
@@ -12561,7 +12708,7 @@ function openStopPeek(row,dayId){
     <div id="pkalert">${peekAlertHTML(row)}</div>
     <div id="pkdrive">${peekDriveHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
-    ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div><div id="pkinstbox">${peekInstallNoteHTML(row)}</div>`)}
+    ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div><div id="pkhrsbox">${peekHoursHTML(row)}</div><div id="pkinstbox">${peekInstallNoteHTML(row)}</div>`)}
     <div class="pkfolds">
       <div class="pknotes" id="pknotes">${peekNotesHTML(row)}</div>
       ${d?peekPositionHTML(row, d):''}
@@ -12578,6 +12725,7 @@ function openStopPeek(row,dayId){
   wireProfileLink(row);
   wirePeekAlert(row);
   wirePeekDrive(row);
+  wirePeekHours(row);
   if(AUTH && !driveLinkMap){
     loadDriveLinks().then(()=>{
       if(peekRow!==row || !peekdlg.open) return;

@@ -321,11 +321,21 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
     clients: dict[int, dict] = {}
     for r, c in (payload.get("clients") or {}).items():
         clients[int(r)] = c
+    built = set(clients)  # added stops (newClients) keep their own hours
     for c in state.get("newClients") or []:
         try:
             clients.setdefault(int(c["row"]), {**c, "advice": c.get("notes", "")})
         except (KeyError, TypeError, ValueError):
             continue
+    # Install hours staff edited on the board (the tool's hoursOverride): the
+    # spreadsheet's h26 is baked into the build, so the edit rides in state.
+    for r, h in (state.get("hoursOverride") or {}).items():
+        try:
+            row, hours = int(r), float(h)
+        except (TypeError, ValueError):
+            continue
+        if row in built and 0 < hours <= 24:
+            clients[row] = {**clients[row], "h26": hours, "basis": "staff entry"}
 
     base = {d["id"]: d for d in payload.get("days") or []}
     if state.get("placement"):
