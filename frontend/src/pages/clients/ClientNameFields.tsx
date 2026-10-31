@@ -101,13 +101,26 @@ export function namePartsBody(p: NameParts) {
 const inputClass =
   "h-10 w-full rounded-lg border border-stone-200 bg-white px-3 text-base text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-300";
 
-function Field({ label, value, onChange, placeholder, autoFocus }: {
+/** Hints that keep Safari/iOS contact AutoFill and password managers out of
+ *  client fields: these are the client's details, not the signed-in user's.
+ *  WebKit ignores autocomplete="off" on contact-looking fields, but skips
+ *  inputs whose name attr says "search" (Cynthia, 2026-10-30). */
+export const noAutofill = {
+  autoComplete: "off",
+  autoCorrect: "off",
+  "data-form-type": "other",
+  "data-lpignore": "true",
+  "data-1p-ignore": "",
+} as const;
+
+function Field({ label, value, onChange, placeholder, autoFocus, fieldName }: {
   label: string; value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean;
+  fieldName: string;
 }) {
   return (
     <label className="block min-w-0">
       <span className="mb-1 block text-xs font-medium text-stone-600">{label}</span>
-      <input className={inputClass} value={value} autoFocus={autoFocus} autoComplete="off"
+      <input className={inputClass} value={value} autoFocus={autoFocus} name={fieldName} {...noAutofill}
         onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
     </label>
   );
@@ -128,12 +141,12 @@ export function ClientNameFields({ value, onChange, currentName, autoFocus }: {
     <div className="space-y-3" data-testid="client-name-fields">
       <p className="text-xs text-stone-500">Client name <span className="text-stone-400">— fill whichever apply</span></p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="First name" value={value.first_name} onChange={set("first_name")} placeholder="e.g. Kerri" autoFocus={autoFocus} />
-        <Field label="Last name" value={value.last_name} onChange={set("last_name")} placeholder="e.g. Byler" />
+        <Field label="First name" fieldName="cl_first_search" value={value.first_name} onChange={set("first_name")} placeholder="e.g. Kerri" autoFocus={autoFocus} />
+        <Field label="Last name" fieldName="cl_last_search" value={value.last_name} onChange={set("last_name")} placeholder="e.g. Byler" />
       </div>
       {/* Business names run long ("The Club at Carlton Woods"): full width. */}
-      <Field label="Business name" value={value.company} onChange={set("company")} placeholder="e.g. A Hug Away" />
-      <Field label="Location" value={value.site} onChange={set("site")} placeholder="e.g. House, Daycare, Nicklaus Clubhouse" />
+      <Field label="Business name" fieldName="cl_biz_search" value={value.company} onChange={set("company")} placeholder="e.g. A Hug Away" />
+      <Field label="Location" fieldName="cl_site_search" value={value.site} onChange={set("site")} placeholder="e.g. House, Daycare, Nicklaus Clubhouse" />
       <p className="text-xs text-stone-500" aria-live="polite">
         Shows as: <span className="font-semibold text-stone-800">{shown || "—"}</span>
         {contact && (

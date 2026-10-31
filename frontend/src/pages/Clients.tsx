@@ -38,7 +38,7 @@ import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } 
 import { isReadOnly } from "utils/me";
 import {
   ClientNameFields, composeClientName, duplicateNameMessage, initialNameParts, namePartsBody,
-  namePartsProblem, type NameParts, type NamePartsIn,
+  namePartsProblem, noAutofill, type NameParts, type NamePartsIn,
 } from "./clients/ClientNameFields";
 import { ClientImportDialog } from "./clients/ClientImportDialog";
 
@@ -566,11 +566,11 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-stone-600">Email</span>
-                <input ref={emailRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Optional" />
+                <input ref={emailRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Optional" name="cl_email_search" {...noAutofill} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-stone-600">Phone</span>
-                <input ref={phoneRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Optional" />
+                <input ref={phoneRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Optional" name="cl_phone_search" {...noAutofill} />
               </label>
             </div>
             <label className="relative block">
@@ -582,7 +582,8 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
                 onChange={(e) => onStreetTyped(e.target.value)}
                 onKeyDown={onStreetKey}
                 onBlur={() => window.setTimeout(() => setSuggestions([]), 150)}
-                autoComplete="off"
+                name="cl_street_search"
+                {...noAutofill}
                 placeholder="Start typing the street"
               />
               {suggestions.length > 0 && (
@@ -602,15 +603,15 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-[2fr_1fr_1fr]">
               <label className="col-span-2 block sm:col-span-1">
                 <span className="mb-1 block text-xs font-medium text-stone-600">City</span>
-                <input ref={cityRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Optional" />
+                <input ref={cityRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Optional" name="cl_city_search" {...noAutofill} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-stone-600">State</span>
-                <input ref={stateRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.state} onChange={(e) => set("state", e.target.value)} placeholder="TX" />
+                <input ref={stateRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.state} onChange={(e) => set("state", e.target.value)} placeholder="TX" name="cl_state_search" {...noAutofill} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-stone-600">ZIP</span>
-                <input ref={zipRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.zip} onChange={(e) => set("zip", e.target.value)} placeholder="Optional" />
+                <input ref={zipRef} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.zip} onChange={(e) => set("zip", e.target.value)} placeholder="Optional" name="cl_zip_search" {...noAutofill} />
               </label>
             </div>
             <div>
