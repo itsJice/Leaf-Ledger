@@ -3078,10 +3078,15 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 </dialog>
 <dialog id="ncdlg">
   <b>New client / job</b>
-  <label class="nclabel">Name</label>
-  <input id="ncname" type="text" placeholder="e.g. Client X - Reinstall, or Client Y - Callback">
+  <!-- Not a contact form: Safari/iOS AutoFill read the bare "Name" label and
+       blanked or overwrote the client name when the address took a contact
+       suggestion (Cynthia, 2026-10-30). No "name"/"address" in labels or name
+       attrs, "search" in the name attr (WebKit skips search fields), and the
+       password-manager ignore hints. -->
+  <label class="nclabel">Client or restaurant</label>
+  <input id="ncname" name="nc_client_search" type="text" placeholder="e.g. Client X - Reinstall, or Client Y - Callback" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore>
   <label class="nclabel">Address</label>
-  <input id="ncaddr" type="text" placeholder="Start typing the street — pick a match to fill city, state and ZIP" autocomplete="off">
+  <input id="ncaddr" name="nc_site_search" type="text" placeholder="Start typing the street, then pick a match to fill city, state and ZIP" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore>
   <div id="ncsuggest" class="ncsuggest" hidden></div>
   <label class="nclabel">Est. install time (hours)</label>
   <input id="nchours" type="number" step="0.25" min="0" value="1">
@@ -3096,7 +3101,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <option value="Callback">Callback (bought more / fix / unfinished)</option>
   </select>
   <label class="nclabel">Notes (optional)</label>
-  <input id="ncnotes" type="text" placeholder="Anything worth flagging">
+  <input id="ncnotes" name="nc_memo" type="text" placeholder="Anything worth flagging" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore>
   <div id="ncerr" class="ncerr"></div>
   <div class="btns"><button onclick="ncdlg.close()">Cancel</button>
   <button class="go" id="ncgo">Look up &amp; add</button></div>
