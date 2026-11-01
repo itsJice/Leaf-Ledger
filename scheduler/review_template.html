@@ -5009,6 +5009,44 @@ function sharedDocOf(st){
   SHARED_KEYS.forEach(k=>{ if(st && st[k]!==undefined) o[k]=st[k]; });
   return JSON.parse(JSON.stringify(o));
 }
+// What a save carries through without understanding it. A save replaces the
+// whole document, so anything this page doesn't know (a key or a team field
+// added by a newer publish) would be dropped by it: on 11/1 a tab from before
+// the 10/31 publish erased hoursOverride and every team's driverId that way.
+// The server now refuses saves from an old page (pageRev), and this is the
+// second line: the last server document's unknown top-level keys, and the
+// unknown fields of its teams, people and added clients, go back out as they
+// were. Fields this page DOES know are never copied back, so clearing one
+// (a team's Driver, say) still clears it.
+const KNOWN_FIELDS={
+  teams:['id','name','season','leadId','members','kitId','vanId','driverId','color'],
+  roster:['id','first','last','name','title','lang','gender','email','phone','notes','ratings','texts',
+          'times','dates','active',...CONTRACTOR_TEXT,'tax1099','directDeposit'],
+  newClients:['row','name','street','lat','lon','hours','visitType','notes','people','business','outRow','inCol'],
+};
+const KNOWN_ID={teams:'id', roster:'id', newClients:'row'};
+/** PURE. `out` (a snapshot about to be saved) plus whatever in `raw` (the
+ *  server document it was built on) this page doesn't know. */
+function keepUnknown(raw, out){
+  if(!raw || typeof raw!=='object' || Array.isArray(raw)) return out;
+  const res={...out};
+  Object.keys(raw).forEach(k=>{ if(!(k in res)) res[k]=raw[k]; });
+  Object.keys(KNOWN_FIELDS).forEach(k=>{
+    if(!Array.isArray(res[k]) || !Array.isArray(raw[k])) return;
+    const known=new Set(KNOWN_FIELDS[k]), id=KNOWN_ID[k];
+    const prior=new Map(raw[k].filter(x=>x && typeof x==='object').map(x=>[String(x[id]), x]));
+    res[k]=res[k].map(x=>{
+      const p=x && typeof x==='object' ? prior.get(String(x[id])) : null;
+      if(!p) return x;
+      const extra=Object.keys(p).filter(f=>!known.has(f) && !(f in x));
+      return extra.length ? {...x, ...Object.fromEntries(extra.map(f=>[f, p[f]]))} : x;
+    });
+  });
+  return res;
+}
+/** The server document this tab last loaded or saved, exactly as stored
+ *  (keepUnknown reads it). */
+let sharedRaw=null;
 /** PURE. JSON with sorted keys, so two equal values always compare equal. */
 function stableJSON(v){
   if(v===undefined) return '~';
@@ -6109,6 +6147,7 @@ async function pullSharedNow(){
                           {headers:{Authorization:AUTH}});
     if(!r.ok) throw new Error(r.status);
     const j = await r.json();
+    if(pageOutdated(j) && !syncBlocked) showPageOutdated();
     if(j.state && j.state.placement){
       // What this tab holds right now: the server document it last saw
       // (sharedBase, restored from this device at bootstrap) plus any change
@@ -6208,7 +6247,7 @@ function sharedSnapshot(){
   const dateMoves = syncedBoardDates ? boardDateMoves(cur, syncedBoardDates) : [];
   if(!syncedBoardDates) syncedBoardDates=cur;
   pendingBoardDates=cur;
-  return {...snapshot(), timeline, dateMoves};
+  return keepUnknown(sharedRaw, {...snapshot(), timeline, dateMoves});
 }
 function persist(){
   // The hard stop for an archived season. Every mutating path is also gated
@@ -6255,6 +6294,7 @@ function conflictLabel(kind, key){
  *  on). It becomes the new base. Returns mergeShared's result plus
  *  `pending` (this tab still has changes the server doesn't) and `missing`. */
 function rebaseOnto(j, base, mine){
+  sharedRaw=j.state;
   let missing=applySharedDoc(j.state);
   const theirs=sharedDocOf(snapshot());
   let res={state:theirs, conflicts:[], changed:0, hard:[]};
@@ -6282,6 +6322,30 @@ function rebaseOnto(j, base, mine){
  *  merged: stop saving and ask for a reload (this tab's copy stays on this
  *  device). */
 let syncBlocked=false;
+// ---------- an older publish of this page ----------
+// The server stamps this page with when it was published (a tbdg-page-rev
+// meta tag, added as it is served) and refuses saves from any page but the
+// current publish: an older page doesn't know every key the newer one saves
+// and would drop them (11/1). Both the state load and a refused save say
+// which publish is current; once they disagree with this page it stops
+// saving and asks for a reload. Changes stay on this device (saveLocal) and
+// the reloaded page merges them in. No stamp (a local preview) is never
+// out of date.
+const PAGE_REV=(()=>{
+  try{ const m=document.querySelector('meta[name="tbdg-page-rev"]'); return (m && m.content) || null; }
+  catch(e){ return null; }
+})();
+/** PURE-ish. Is the server's current publish (`j.pageRev`) a different one
+ *  from this page's? */
+function pageOutdated(j){
+  return !!(j && j.pageRev && PAGE_REV && String(j.pageRev)!==String(PAGE_REV));
+}
+function showPageOutdated(){
+  syncBlocked=true;
+  showSyncBanner({title:'This schedule was updated.',
+    sub:'Reload to get the new version and keep saving. Your changes are kept on this device.',
+    reload:true, sticky:true});
+}
 function syncBlockedBy(j){
   // Rows the server already had when this tab last synced are not this tab's
   // own adds, whatever they are called now. Before 10/15 this compared the
@@ -6341,11 +6405,13 @@ async function putShared(){
       const r = await authFetch('/api/install-schedule/state', {
         method:'PUT',
         headers:{'Content-Type':'application/json', Authorization:AUTH},
-        body: JSON.stringify({version:SPEC.version, state:st,
+        body: JSON.stringify({version:SPEC.version, state:st, pageRev:PAGE_REV,
                               baseUpdatedAt: sharedBase ? sharedBase.at : null}),
       });
       if(r.status===409){
         const j = await r.json();
+        // A newer publish of this page: nothing to merge, reload instead.
+        if(j && j.staleTemplate){ showPageOutdated(); break; }
         if(!j || !j.state || syncBlockedBy(j)) break;
         // No base at all (this tab never loaded the shared copy): treat
         // everything here as a change, so anything that differs is listed.
@@ -6357,6 +6423,7 @@ async function putShared(){
       if(r.ok){
         const j = await r.json().catch(()=>({}));
         sharedBase = {at:(j && j.updatedAt) || null, state:sharedDocOf(st)};
+        sharedRaw = st;
         // The cards now have these dates; a failed save re-sends them next time.
         if(sent) syncedBoardDates=sent;
         saveLocal();
@@ -6426,12 +6493,13 @@ function tbdgFlush(){
     authFetch('/api/install-schedule/state', {
       method:'PUT', keepalive:true,
       headers:{'Content-Type':'application/json', Authorization:AUTH},
-      body: JSON.stringify({version:SPEC.version, state:st,
+      body: JSON.stringify({version:SPEC.version, state:st, pageRev:PAGE_REV,
                             baseUpdatedAt: sharedBase ? sharedBase.at : null}),
     }).then(async r=>{
       if(r.ok){
         const j=await r.json().catch(()=>({}));
         sharedBase={at:(j && j.updatedAt) || null, state:sharedDocOf(st)};
+        sharedRaw=st;
         if(sent) syncedBoardDates=sent;
         saveLocal();
       } else if(r.status===409) pushSharedNow();
