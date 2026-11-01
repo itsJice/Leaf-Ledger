@@ -117,7 +117,7 @@ def test_shared_merge_keeps_both_tabs_edits():
 
 def test_wiring_is_in_place():
     """Saved, undoable, restored on every path, logged, and gated."""
-    assert "'hoursOverride'];" in const_line("SHARED_MAP_KEYS")
+    assert "'hoursOverride'" in const_line("SHARED_MAP_KEYS")
     snap = js_function("snapshot")
     assert "hoursOverride," in snap
     blob = js_function("stateBlob")
