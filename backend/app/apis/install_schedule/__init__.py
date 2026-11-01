@@ -279,8 +279,9 @@ def _clean_version(version: str) -> str:
 #: would look up again. The tool fell back to roster_seed.json -- which stores
 #: everyone with `dates: []`, meaning available never -- so the season's crew
 #: silently became unschedulable.
-#: Teams (saved groups of roster people, by year) are about people too.
-CARRY_FORWARD_KEYS = ("roster", "staffing", "teams")
+#: Teams (saved groups of roster people, by year) are about people too, and so
+#: are seasonRoles (the season's Box Truck Driver, {"2026": {"boxTruckId": id}}).
+CARRY_FORWARD_KEYS = ("roster", "staffing", "teams", "seasonRoles")
 
 
 async def _inheritable_people(conn, version: str, season: str | None) -> dict | None:
@@ -760,10 +761,14 @@ def keep_stored_teams(state: dict, stored: Any) -> dict:
     teams existed (a tab opened before the publish). Leaving the key out
     would erase every team, so the stored teams are kept. A page that knows
     teams always sends the key, even as [], so deleting teams still works."""
-    if "teams" in state or not isinstance(stored, dict):
+    if not isinstance(stored, dict):
         return state
-    if isinstance(stored.get("teams"), list) and stored["teams"]:
-        return {**state, "teams": stored["teams"]}
+    if "teams" not in state and isinstance(stored.get("teams"), list) and stored["teams"]:
+        state = {**state, "teams": stored["teams"]}
+    # Same for seasonRoles (the season's Box Truck Driver, 2026-10-31): a page
+    # from before it existed sends no key and must not erase it.
+    if "seasonRoles" not in state and isinstance(stored.get("seasonRoles"), dict) and stored["seasonRoles"]:
+        state = {**state, "seasonRoles": stored["seasonRoles"]}
     return state
 
 
