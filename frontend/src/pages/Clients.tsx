@@ -688,7 +688,7 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
               <textarea ref={notesRef} rows={3} className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Designer, house, preferences..." />
             </label>
           </div>
-          <div className="flex items-center justify-end gap-3 border-t border-stone-100 px-4 py-4 sm:px-6">
+          <div className="ll-modal-foot flex items-center justify-end gap-3 rounded-b-2xl border-t border-stone-100 bg-white px-4 py-4 sm:px-6">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700">Cancel</button>
             <button
               type="button"
@@ -755,7 +755,7 @@ function DeleteClientDialog({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-stone-100 px-5 py-4">
+        <div className="ll-modal-foot flex items-center justify-end gap-3 rounded-b-2xl border-t border-stone-100 bg-white px-5 py-4">
           <button type="button" onClick={onClose} className="px-3 py-2 text-sm text-stone-500 hover:text-stone-700">Cancel</button>
           {!confirming ? (
             <button

@@ -457,7 +457,7 @@ function Worksheet({ job, run, me }: { job: Job; run: Run; me?: string }) {
                 </label>
               ))}
             </div>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="ll-modal-foot -mx-5 -mb-5 mt-2 flex justify-end gap-2 rounded-b-xl bg-white px-5 pb-5 pt-3">
               <button onClick={() => setPlan(null)} className={btnGhost}>Cancel</button>
               <button onClick={() => doSend(Object.fromEntries(plan.filter((r) => r.choice).map((r) => [r.key, r.choice])))} className={btnPrimary}><PackageCheck size={14} /> Send</button>
             </div>
