@@ -173,7 +173,7 @@ export function AddToProjectModal({
             </>
           )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-stone-100 px-5 py-4">
+        <div className="ll-modal-foot flex justify-end gap-2 rounded-b-2xl border-t border-stone-100 bg-white px-5 py-4">
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-stone-500 hover:text-stone-800">
             Cancel
           </button>

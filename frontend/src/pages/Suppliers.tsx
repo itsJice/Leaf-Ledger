@@ -413,7 +413,7 @@ function SupplierModal({
             <textarea rows={2} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none" value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} placeholder="Any notes about this supplier..." />
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-stone-100">
+        <div className="ll-modal-foot flex items-center justify-end gap-3 rounded-b-2xl px-4 sm:px-6 py-4 border-t border-stone-100 bg-white">
           <button onClick={onClose} className="text-sm text-stone-500 hover:text-stone-700 px-4 py-2">Cancel</button>
           <button data-edit onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-60 hover:opacity-90" style={{ backgroundColor: "rgb(var(--ll-brand))" }}>
             {saving ? "Saving..." : form.id ? "Update Supplier" : "Add Supplier"}

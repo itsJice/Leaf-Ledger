@@ -273,6 +273,25 @@ dialog button{padding:7px 14px;border-radius:6px;border:1px solid var(--line);cu
 dialog .go{background:var(--brand);color:#fff;border:none}
 dialog .go:hover{background:var(--brand-hover)}
 dialog option:disabled{color:#b6b3ae}
+/* Every popup fits the screen it's on: the fields scroll and the Save /
+   Cancel row stays pinned to the bottom ("When in a pop-up that is longer
+   than the screen, there is no scroll feature. Have to shrink the screen to
+   get to either 'save' or cancel", Joy, comment #25, 2026-10-26). dvh, not
+   the browser's own 100% cap, so iPad / iPhone Safari's toolbars can't hide
+   the bottom. Popups that size themselves (#sddlg, #sxdlg, #teamdlg,
+   #txtdlg, #stfdlg, #peekdlg, #rpdlg) keep their own id rules, which win.
+   --dlgpad mirrors the popup's padding (content-box, so the cap subtracts
+   it) and lets the pinned row reach the popup's edges. */
+dialog{--dlgpad:18px}
+dialog:modal{max-height:calc(100vh - 26px - 2 * var(--dlgpad));max-height:calc(100dvh - 26px - 2 * var(--dlgpad));
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+dialog:modal:not([id=stfdlg])>.btns:last-child{position:sticky;bottom:calc(-1 * var(--dlgpad));z-index:2;
+  margin:2px calc(-1 * var(--dlgpad)) calc(-1 * var(--dlgpad));padding:10px var(--dlgpad) var(--dlgpad);
+  background:inherit;transition:box-shadow .15s ease}
+/* A soft edge above the pinned row only while more is hidden below it
+   (scrollFitDialogs() sets .dlgmore). */
+dialog:modal.dlgmore:not([id=stfdlg])>.btns:last-child{box-shadow:0 -1px 0 var(--line),0 -10px 14px -10px rgba(41,37,36,.22)}
+@media (prefers-reduced-motion: reduce){ dialog:modal>.btns:last-child{transition:none} }
 #mvnote{font-size:11.5px;color:var(--mut);margin-top:6px;min-height:14px}
 #mvnote .warn{color:var(--warn-ink)}
 #mvdlg{max-width:400px}
@@ -456,7 +475,7 @@ dialog option:disabled{color:#b6b3ae}
 #rpdlg .rpsec{margin-top:12px;padding-top:8px;border-top:1px solid var(--line)}
 #rpdlg .rpadm{font-size:10.5px;font-weight:700;color:var(--mut);margin-left:-2px}
 @media (max-width:767px){
-  #rpdlg{width:calc(100vw - 16px);max-width:none;padding:14px}
+  #rpdlg{width:calc(100vw - 16px);max-width:none;padding:14px;--dlgpad:14px}
   #rpdlg input[type=text],#rpdlg input[type=number],#rpdlg select{font-size:16px}
   #rpdlg .btns button,#rpdlg .billfmt button,#rpdlg .rpadd button{min-height:40px}
   #rpdlg .billcols label,#rpdlg .rpchk{min-height:36px}
@@ -2802,7 +2821,7 @@ body.apple header{container-type:inline-size}
   body.apple #peekdlg.inline::before{inset:4px 6px 8px 6px}
   body.apple #peekdlg.inline::after{left:28px}
   body.apple #peekdlg.inline .pkclose{top:12px;right:14px}
-  body.apple #sfdlg{width:calc(100vw - 16px);max-width:none;padding:14px}
+  body.apple #sfdlg{width:calc(100vw - 16px);max-width:none;padding:14px;--dlgpad:14px}
   body.apple header{padding:8px 10px;gap:6px}
   body.apple .viewtog{order:5;flex:1 1 100%}
   body.apple .viewtog button{flex:1;padding:0 6px}
@@ -19285,6 +19304,20 @@ if(HOSTED && !DISPLAY_LOGIN && window.TBDG_VIEW) applyHostView(String(window.TBD
 render();
 reportView();
 if(!VIEWONLY && tvPref()==='1') enterTV();
+// Popups taller than the screen scroll with Save / Cancel pinned at the bottom
+// (CSS by `dialog:modal`, comment #25). This only adds the soft edge above that
+// row (.dlgmore) while there is more below it, so it's clear the popup scrolls.
+(function scrollFitDialogs(){
+  const sync=d=>{ if(d && d.open) d.classList.toggle('dlgmore', d.scrollHeight - d.scrollTop - d.clientHeight > 2); };
+  const soon=d=>{ sync(d); requestAnimationFrame(()=>sync(d)); };
+  const mo=new MutationObserver(ms=>{ const seen=new Set();
+    ms.forEach(m=>{ const d=m.target.closest ? m.target.closest('dialog') : null; if(d && !seen.has(d)){ seen.add(d); soon(d); } }); });
+  document.querySelectorAll('dialog').forEach(d=>{
+    d.addEventListener('scroll', ()=>sync(d), {passive:true});
+    mo.observe(d, {childList:true, subtree:true, attributes:true, attributeFilter:['open','hidden']});
+  });
+  window.addEventListener('resize', ()=>document.querySelectorAll('dialog[open]').forEach(sync));
+})();
 // The host may have mounted us before it could hear the answer; say it again.
 window.addEventListener('message', e=>{
   if(e.source===window.parent && e.data && e.data.type==='tbdg-auth') tellHost(); });
