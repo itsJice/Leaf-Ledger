@@ -70,6 +70,8 @@ def test_norm_roster_keeps_stored_times():
         "function normTexts(t){ return t||[]; }",
         "function fmtPhone(v){ return String(v||''); }",
         "function contractorFields(){ return {}; }",
+        "function normShirt(v){ return String(v||''); }",
+        "const ROSTER_OWN_KEYS=[];",
         js_function("normRoster"),
         """console.log(JSON.stringify(normRoster([
           {id:'p1', first:'Ann', last:'A', times:['day'], dates:['2026-10-26']},

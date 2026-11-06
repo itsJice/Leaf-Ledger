@@ -49,20 +49,20 @@ def test_roster_rows_gate_contractor_fields(admin):
     src += f"function canSeeContractor(){{ return {str(admin).lower()}; }}\n"
     src += """
       const people=[{name:'Ana Test', phone:'7135550101', title:'Lead', lang:'Both', gender:'Female',
-        dates:['2026-11-02','2026-10-26','2026-11-03'], legalName:'Ana Q Test', street:'1 Main St', city:'Houston',
+        shirt:'M', dates:['2026-11-02','2026-10-26','2026-11-03'], legalName:'Ana Q Test', street:'1 Main St', city:'Houston',
         state:'TX', zip:'77002', tax1099:true, directDeposit:true},
         {name:'Luis Test', phone:'', title:'General Installer', lang:'Spanish', gender:'Male', dates:[]}];
       console.log(JSON.stringify(rosterRows([{people}])));
     """
     rows = json.loads(run_js(src))
-    assert rows[0][:7] == ["Name", "Phone", "Title", "Language", "M/F", "Free days", "Free dates"]
-    assert rows[1][:7] == ["Ana Test", "(713) 555-0101", "Lead", "Both", "F", 3, "Oct 26 · Nov 2, 3"]
-    assert rows[2][4:7] == ["M", 0, ""]
+    assert rows[0][:8] == ["Name", "Phone", "Title", "Language", "M/F", "Shirt", "Free days", "Free dates"]
+    assert rows[1][:8] == ["Ana Test", "(713) 555-0101", "Lead", "Both", "F", "M", 3, "Oct 26 · Nov 2, 3"]
+    assert rows[2][4:8] == ["M", "", 0, ""]
     if admin:
-        assert rows[0][7:] == ["Legal name", "Address", "1099", "Direct deposit"]
-        assert rows[1][7:] == ["Ana Q Test", "1 Main St, Houston, TX 77002", "Yes", "On file"]
+        assert rows[0][8:] == ["Legal name", "Address", "1099", "Direct deposit"]
+        assert rows[1][8:] == ["Ana Q Test", "1 Main St, Houston, TX 77002", "Yes", "On file"]
     else:
-        assert len(rows[0]) == 7 and "Ana Q Test" not in json.dumps(rows)
+        assert len(rows[0]) == 8 and "Ana Q Test" not in json.dumps(rows)
 
 
 def test_cmd_p_prints_the_whole_schedule():
