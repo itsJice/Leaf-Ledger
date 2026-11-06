@@ -2134,8 +2134,13 @@ body.apple .pkfold>summary{min-height:46px}
   font-size:12.5px;border-bottom:1px solid #f5f5f4}
 .srow:last-child{border-bottom:none}
 .srow:hover{background:var(--brand-soft)}
-.srname{color:var(--ink);font-weight:600}
-.srwhere{color:var(--mut);white-space:nowrap}
+/* Name over the matched address; the day wraps under them when the row is narrow. */
+.srow{flex-wrap:wrap;row-gap:2px}
+.srmain{flex:1 1 140px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.srname{color:var(--ink);font-weight:600;overflow-wrap:break-word}
+.sraddr{color:var(--mut);font-size:11.5px;overflow-wrap:break-word}
+#searchresults mark{background:#fde68a;color:inherit;border-radius:3px;padding:0 1px}
+.srwhere{color:var(--mut);white-space:nowrap;margin-left:auto}
 .srnone{padding:10px 12px;font-size:12px;color:var(--mut)}
 .srow.act{background:var(--brand-soft)}
 /* "See all search results": always the dropdown's last row, pinned to its
@@ -2186,6 +2191,9 @@ body.apple .viewtog button{height:30px;padding:0 16px;border:0;border-radius:8px
 body.apple .viewtog button.sel{background:#fff;color:var(--brand-deep);font-weight:800;
   box-shadow:0 1px 2px rgba(28,46,30,.16),0 0 0 .5px rgba(28,46,30,.08)}
 body.apple #searchwrap{position:relative;margin:0 4px 0 0;width:230px;flex:0 1 230px;min-width:96px}
+/* A crowded toolbar can squeeze the box to 96px: the dropdown keeps its full
+   width, growing leftward from the box's right edge. */
+body.apple #searchresults{left:auto;width:100%;min-width:min(230px, calc(100vw - 16px))}
 body.apple #searchbox{width:100%;height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;
   padding:0 12px 0 32px;font-size:13.5px;color:var(--ink);box-sizing:border-box;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%235b6558' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
@@ -2937,7 +2945,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   </div>
   <div id="tbright">
   <div id="searchwrap">
-    <input id="searchbox" type="text" placeholder="Find a client" title="Which day is a client on?" autocomplete="off">
+    <input id="searchbox" type="text" placeholder="Find a client" title="Which day is a client on? Search by name, street, city or ZIP" autocomplete="off">
     <div id="searchresults"></div>
   </div>
   <!-- Populated (and un-hidden) only if the backend can list published
@@ -8204,28 +8212,75 @@ function drawDate(date){
 }
 
 // ---------- search ----------
-// "Which day is this client on?" -- a plain substring match over C, ranked
-// by whether the match starts a word (so a first-name search surfaces the
-// matching "Lastname, Firstname" entry before a name that merely contains
-// those letters mid-string).
+// "Which day is this client on?" -- matches the client's name, and failing
+// that their street, city or ZIP (Comments #29, 11/6: "I can't remember the
+// name of the client but the address is Crawford"). Name matches rank first,
+// and a match at the start of a word before one mid-word, so a first-name
+// search still surfaces "Lastname, Firstname" before a name that merely
+// contains those letters.
 const searchBox = document.getElementById('searchbox');
 const searchResults = document.getElementById('searchresults');
 function searchClients(q){
-  q = q.trim().toLowerCase();
-  if(!q) return [];
-  const out = [];
-  for(const r in C){
-    const name = C[r].name, lc = name.toLowerCase();
-    const i = lc.indexOf(q);
-    if(i<0) continue;
-    const wordStart = i===0 || /[\s,.|"]/.test(lc[i-1]);
-    out.push({row:+r, name, rank:[wordStart?0:1, i, name.length]});
-  }
-  out.sort((a,b)=>{
-    for(let k=0;k<3;k++) if(a.rank[k]!==b.rank[k]) return a.rank[k]-b.rank[k];
-    return 0;
+  if(!String(q||'').trim()) return [];
+  return searchClientRows(q, Object.keys(C).map(r=>({row:+r, name:C[r].name, ...searchAddrFor(+r)})), 10);
+}
+/** A client's street / city / ZIP for the search: the client record's when
+ *  the Clients list is loaded, else this build's (synthetic new clients carry
+ *  theirs on C). */
+function searchAddrFor(row){
+  const ac=appClientFor(row);
+  if(ac && (ac.street || ac.city || ac.zip)) return {street:ac.street||'', city:ac.city||'', zip:ac.zip||''};
+  const ap=addrParts(C[row]);
+  return {street:ap.street||'', city:ap.city||'', zip:ap.zip||''};
+}
+/** PURE. The search dropdown's matches, best first.
+ *  list: [{row, name, street, city, zip}] -> up to `limit` of
+ *  [{row, name, nameRanges:[[s,e]], addr, addrRanges:[[s,e]], by:'name'|'address'}]
+ *  `addr` is "street, city zip"; the ranges say what matched, for <mark>.
+ *  Order: the whole query in the name, every word in the name, the whole
+ *  query in the address, then words split between name and address. */
+function searchClientRows(q, list, limit){
+  const clean=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+  const phrase=clean(q).toLowerCase();
+  if(!phrase) return [];
+  const words=phrase.split(' ');
+  const wordStart=(lc,i)=>i===0 || !/[a-z0-9]/.test(lc[i-1]);
+  // One-letter words only count at the start of a word ("q" not in "Smith").
+  const find=(lc,w)=>{
+    let i=lc.indexOf(w);
+    if(w.length===1) while(i>=0 && !wordStart(lc,i)) i=lc.indexOf(w, i+1);
+    return i;
+  };
+  const out=[];
+  (list||[]).forEach(c=>{
+    if(!c) return;
+    const name=clean(c.name), ln=name.toLowerCase();
+    const addr=[clean(c.street), [clean(c.city), clean(c.zip)].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const la=addr.toLowerCase();
+    const hit=(by, tier, nr, ar, i, lc)=>out.push({row:c.row, name, nameRanges:nr, addr, addrRanges:ar, by,
+      rank:[tier, wordStart(lc,i)?0:1, i, name.length]});
+    let i=find(ln, phrase);
+    if(i>=0) return hit('name', 0, [[i, i+phrase.length]], [], i, ln);
+    if(words.length>1){
+      const at=words.map(w=>find(ln, w));
+      if(at.every(x=>x>=0)) return hit('name', 1, at.map((x,k)=>[x, x+words[k].length]), [], at[0], ln);
+    }
+    i=find(la, phrase);
+    if(i>=0) return hit('address', 2, [], [[i, i+phrase.length]], i, la);
+    if(words.length>1){
+      const nr=[], ar=[];
+      for(const w of words){
+        const a=find(ln, w), b=a<0 ? find(la, w) : -1;
+        if(a>=0) nr.push([a, a+w.length]); else if(b>=0) ar.push([b, b+w.length]); else return;
+      }
+      hit('address', 3, nr, ar, nr.length?nr[0][0]:ar[0][0], nr.length?ln:la);
+    }
   });
-  return out.slice(0,10);
+  out.sort((a,b)=>{
+    for(let k=0;k<4;k++) if(a.rank[k]!==b.rank[k]) return a.rank[k]-b.rank[k];
+    return a.name.localeCompare(b.name);
+  });
+  return out.slice(0, limit||10).map(r=>{ delete r.rank; return r; });
 }
 /** PURE. Every match for the toolbar search, grouped for the "See all search
  *  results" panel (user, 2026-10-25: "I want an option at the very end to say
@@ -8436,7 +8491,7 @@ function syncSearchMode(){
   const ph = on ? 'Search roster' : 'Find a client';
   if(searchBox.placeholder!==ph){
     searchBox.placeholder=ph; searchBox.setAttribute('aria-label', ph);
-    searchBox.title = on ? 'Filter installers by name, phone, email, notes, title or language' : 'Which day is a client on?';
+    searchBox.title = on ? 'Filter installers by name, phone, email, notes, title or language' : 'Which day is a client on? Search by name, street, city or ZIP';
     // Switching screens starts each search fresh.
     searchBox.value=''; rosterQ=''; searchResults.style.display='none';
   }
@@ -8477,10 +8532,14 @@ function renderSearch(q){
     const d = days.find(x=>x.stops.includes(r.row));
     const where = (d ? `${fmtDate(d.date)} · ${esc(crewTitle(d))}` : 'not scheduled')
       + (C[r.row].visitType && C[r.row].visitType!=='Standard' ? ` · ${esc(C[r.row].visitType)}` : '');
+    // An address match shows the address under the name, so it's clear why
+    // the row is there (Comments #29).
+    const addr = r.by==='address' && r.addr
+      ? `<span class="sraddr">${markRanges(r.addr, r.addrRanges, esc)}</span>` : '';
     return `<div class="srow" id="sr-${i}" role="option" aria-selected="false" data-row="${r.row}">
-      <span class="srname">${esc(r.name)}</span>
+      <span class="srmain"><span class="srname">${markRanges(r.name, r.nameRanges, esc)}</span>${addr}</span>
       <span class="srwhere">${where}</span></div>`;
-  }).join('') : `<div class="srnone">No client name matches "${esc(q.trim())}"</div>`) + searchAllRowHTML(q);
+  }).join('') : `<div class="srnone">No client name or address matches "${esc(q.trim())}"</div>`) + searchAllRowHTML(q);
   searchResults.style.display='block';
   wireSearchRows();
 }
