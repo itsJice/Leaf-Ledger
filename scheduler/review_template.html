@@ -1444,6 +1444,8 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 @media (max-width:767px){ #perdlg .btns button,#perdlg .peractconfirm button{min-height:40px} }
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .perrow3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.perrow21{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.perrow21 > div{min-width:0}
 #percontract input[type=text]{font-size:16px;min-height:40px}
 .perchk{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14px;font-weight:600;
   color:var(--ink);cursor:pointer}
@@ -3049,8 +3051,12 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <div><span class="nclabel">Phone</span>
       <input id="perphone" type="text" autocomplete="off" placeholder="(555) 555-5555"></div>
   </div>
-  <span class="nclabel">Email</span>
-  <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com">
+  <div class="perrow21">
+    <div><span class="nclabel">Email</span>
+      <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com"></div>
+    <div><span class="nclabel">T-shirt size</span>
+      <select id="pershirt" aria-label="T-shirt size"></select></div>
+  </div>
   <span class="nclabel">Notes</span>
   <input id="pernotes" type="text" autocomplete="off" placeholder="Anything worth remembering">
   <div id="perduties"></div>
@@ -3807,6 +3813,8 @@ function normManualOrder(obj){
 // Assist coverage -- dayNeed() already maps the stops' designer need there.
 const TITLES = ['Lead','Lead Assist','Designer','General Installer'];
 const LANGS  = ['English','Spanish','Both'];
+// T-shirt sizes, as on the Installer Form (Comments #26, Joy 2026-10-26).
+const SHIRT_SIZES = ['S','M','L','XL','2XL','3XL'];
 // Alberto rating (user, 2026-09-04): NOT year-over-year -- that got
 // scrapped the same day it shipped. "People are who they are": one
 // current rating per installer per trait, updated whenever, with no
@@ -4633,6 +4641,25 @@ function contractorFields(p){
   if(p.directDeposit===true) o.directDeposit=true;
   return o;
 }
+/** PURE. A stored T-shirt size as one of SHIRT_SIZES ('' when not set).
+ *  Self-contained (no SHIRT_SIZES) because normRoster runs during bootstrap.
+ *  Spellings like "med", "XXL" or "Large" map to the form's sizes; anything
+ *  else is kept as typed (trimmed), so nothing someone entered is lost. */
+function normShirt(v){
+  const raw=String(v==null?'':v).trim();
+  const k=raw.toUpperCase().replace(/[\s.\-]/g,'');
+  const map={S:'S',SM:'S',SMALL:'S', M:'M',MD:'M',MED:'M',MEDIUM:'M',
+    L:'L',LG:'L',LARGE:'L', XL:'XL',XLARGE:'XL',EXTRALARGE:'XL',
+    '2XL':'2XL',XXL:'2XL','2X':'2XL',XXLARGE:'2XL',
+    '3XL':'3XL',XXXL:'3XL','3X':'3XL',XXXLARGE:'3XL'};
+  return map[k] || raw.slice(0,12);
+}
+/** Every person key normRoster writes itself. Anything else on a stored
+ *  person (a field added by a newer page or a script) rides along untouched,
+ *  so this page saving never strips what it doesn't know about. */
+const ROSTER_OWN_KEYS=['id','first','last','name','title','lang','gender','email','phone','notes',
+  'shirt','ratings','texts','times','dates','active',
+  'legalName','street','city','state','zip','tax1099','directDeposit'];
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
   // restored history entry. Anything unrecognised gets a sane default rather
@@ -4646,7 +4673,10 @@ function normRoster(list){
       const parts = String(p.name||'').trim().split(/\s+/);
       first = parts.shift()||''; last = parts.join(' ');
     }
+    const extra={};
+    Object.keys(p).forEach(k=>{ if(!ROSTER_OWN_KEYS.includes(k)) extra[k]=p[k]; });
     return {
+      ...extra,
       id: String(p.id||''),
       first, last,
       name: [first,last].filter(Boolean).join(' '),
@@ -4656,6 +4686,10 @@ function normRoster(list){
       email: String(p.email||'').trim(),
       phone: fmtPhone(p.phone),
       notes: String(p.notes||'').trim(),
+      // Always present, even when blank: the server keeps a stored size when
+      // a save has no `shirt` key at all (a page from before this field), so
+      // clearing it here has to be said out loud.
+      shirt: normShirt(p.shirt),
       ratings: normRatings(p.ratings),
       texts: normTexts(p.texts),
       // `times` (day/night) is no longer read or shown anywhere: availability
@@ -13490,6 +13524,13 @@ document.getElementById('perredo').onclick=()=>{
   perDates = new Set(perRedo.pop());
   drawPerAvail();
 };
+/** PURE. The T-shirt size picker's options: blank, the form's sizes, and a
+ *  stored size the form doesn't have (kept, never silently changed). */
+function shirtOptionsHTML(cur){
+  cur=normShirt(cur);
+  const list=['', ...SHIRT_SIZES, ...(cur && !SHIRT_SIZES.includes(cur) ? [cur] : [])];
+  return list.map(v=>`<option value="${esc(v)}"${v===cur?' selected':''}>${v?esc(v):'Not set'}</option>`).join('');
+}
 const CONTRACTOR_INPUTS=[['perlegal','legalName'],['perstreet','street'],
   ['percity','city'],['perstate','state'],['perzip','zip']];
 function openPersonDlg(person){
@@ -13504,6 +13545,7 @@ function openPersonDlg(person){
   document.getElementById('peremail').value   = person ? person.email : '';
   document.getElementById('perphone').value   = person ? person.phone : '';
   document.getElementById('pernotes').value   = person ? person.notes : '';
+  document.getElementById('pershirt').innerHTML = shirtOptionsHTML(person ? person.shirt : '');
   const showCon = canSeeContractor();
   document.getElementById('percontract').hidden = !showCon;
   CONTRACTOR_INPUTS.forEach(([id,k])=>{
@@ -13584,6 +13626,7 @@ document.getElementById('pergo').onclick=()=>{
     email:document.getElementById('peremail').value.trim(),
     phone:fmtPhone(document.getElementById('perphone').value),
     notes:document.getElementById('pernotes').value.trim(),
+    shirt:normShirt(document.getElementById('pershirt').value),
     ratings:normRatings(perRatings),
     dates:[...perDates]};   // `times` deliberately not written: an edit keeps whatever is stored
   // Only an admin's dialog shows (and so saves) contractor info; anyone
@@ -14372,6 +14415,7 @@ function personDetailHTML(){
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
       ${duties.map(dutyPill).join('')}
       <span class="pill gen">${esc(p.gender)}</span>
+      ${p.shirt?`<span class="pill gen" title="T-shirt size">Shirt ${esc(p.shirt)}</span>`:''}
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
       ${trained?`<span class="pill trained">${esc(trained)}</span>`:''}
       ${teamsOfPerson(teams, p.id, teamSeasonDefault()).map(t=>`<span class="asgteam" title="On ${esc(t.name)}">${IC.users}${esc(t.name)}`
@@ -18504,12 +18548,12 @@ function fmtFreeDays(dates){
  *  Contractor fields only for admins (canSeeContractor), as on screen. */
 function rosterRows(sections){
   const admin=canSeeContractor();
-  const head=['Name','Phone','Title','Language','M/F','Free days','Free dates'];
+  const head=['Name','Phone','Title','Language','M/F','Shirt','Free days','Free dates'];
   if(admin) head.push('Legal name','Address','1099','Direct deposit');
   const rows=[head];
   sections.forEach(sec=>sec.people.forEach(p=>{
     const r=[p.name, p.phone?fmtPhone(p.phone):'', p.title, p.lang, p.gender==='Male'?'M':'F',
-             (p.dates||[]).length, fmtFreeDays(p.dates)];
+             p.shirt||'', (p.dates||[]).length, fmtFreeDays(p.dates)];
     if(admin) r.push(p.legalName||'',
       [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', '),
       p.tax1099?'Yes':'No', p.directDeposit?'On file':'');
@@ -18534,6 +18578,7 @@ function rosterPrintColumns(){
     {key:'title',   label:'Title',       w:11},
     {key:'lang',    label:'Language',    w:8},
     {key:'gender',  label:'Gender',      w:6},
+    {key:'shirt',   label:'Shirt',       w:6},
     {key:'address', label:'Address',     w:22, admin:true},
     {key:'legal',   label:'Legal name',  w:16, admin:true},
     {key:'avail',   label:'Days marked', w:34, sm:true},
@@ -18627,6 +18672,7 @@ function rosterPrintCell(p, key){
     case 'title': return p.title||'';
     case 'lang': return p.lang||'';
     case 'gender': return p.gender==='Male' ? 'M' : 'F';
+    case 'shirt': return p.shirt||'';
     case 'address': return [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')]
       .filter(Boolean).join(', ');
     case 'legal': return p.legalName||'';
@@ -18788,7 +18834,7 @@ function drawRosterPrintDlg(){
       <div class="rpcustom">${o.custom.map((x,i)=>`<span>${esc(x)}<button type="button" data-rmcustom="${i}"
         title="Remove ${esc(x)}" aria-label="Remove ${esc(x)}">${IC.close}</button></span>`).join('')}</div>
       <div class="rpadd"><input id="rpcustomin" type="text" autocomplete="off" maxlength="40"
-        placeholder="Add a blank column, e.g. Shirt size"${o.custom.length>=6?' disabled':''}>
+        placeholder="Add a blank column, e.g. Gloves"${o.custom.length>=6?' disabled':''}>
         <button type="button" id="rpcustomadd"${o.custom.length>=6?' disabled':''}>Add</button></div></div>
     <div class="rpsec"><span class="nclabel">Sheet</span>
       <span class="nclabel">Title</span>
@@ -18863,7 +18909,7 @@ function downloadRoster(fmt){
   if(rows.length<2){ alert('Nobody on the roster matches what is on screen.'); return; }
   const file=`tbdg-__SEASON__-roster`;
   if(fmt==='csv'){ dl(`${file}.csv`, rows.map(r=>r.map(csvCell).join(',')).join('\r\n')); return; }
-  const widths=rows[0].map(h=>({Name:24,Phone:15,Title:17,Language:10,'M/F':5,'Free days':9,'Free dates':48,
+  const widths=rows[0].map(h=>({Name:24,Phone:15,Title:17,Language:10,'M/F':5,Shirt:6,'Free days':9,'Free dates':48,
     'Legal name':24,Address:40,'1099':6,'Direct deposit':13})[h]||14);
   const blob=rowsToXlsx(rows, [], 'Roster', widths);
   const a=document.createElement('a');
