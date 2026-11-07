@@ -4809,6 +4809,7 @@ function applyPlacement(place){
  * lat/lon are already known, so this is synchronous, no re-geocoding.
  * Must run BEFORE applyPlacement(), which references these rows. */
 function restoreSyntheticClients(list){
+  let added=false;
   (list||[]).forEach(def=>{
     if(C[def.row]){          // already present -- idempotent, but take the
       // shared document's spelling (a rename saved elsewhere) for the row.
@@ -4820,8 +4821,13 @@ function restoreSyntheticClients(list){
       return;
     }
     addSyntheticClientSync(def);
+    added=true;
     if(def.row >= nextSyntheticRow) nextSyntheticRow = def.row + 1;
   });
+  // An added stop arrives with the shared state, often after the client
+  // records did: give it its card's city and area now (Comment #27). The
+  // records are declared further down; before they exist this is a no-op.
+  if(added){ try{ applyLiveClientFields(); }catch(e){} }
 }
 /** A synthetic client's stored name (what newClients saves) is `def.name`;
  *  what is shown follows the Clients tab, as loadClientDirectory does. A
@@ -5433,6 +5439,9 @@ window.addEventListener('message', e=>{
     loadSeasons();
     loadCalSub();
     pullShared();
+    // The card's name, city and area for logins that can't read the Clients
+    // list (TV, production); for staff the directory below wins.
+    loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
       // read-only (no Edit button, no full profile) with nothing to
@@ -5903,6 +5912,7 @@ function loadClientDirectory(){
       // into this page at build time still resolves after a rename on the
       // Clients tab.
       clientDirectory = new Map();
+      clientDirectoryAmbig = ambiguousSpellings(rows);
       (Array.isArray(rows)?rows:[]).forEach(c=>{
         [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
           const k=normName(n); if(k && !clientDirectory.has(k)) clientDirectory.set(k, c);
@@ -5919,6 +5929,8 @@ function loadClientDirectory(){
           c.name = ac.name;
         }
       });
+      // ...and its city and area too (Comments #24, #27).
+      applyLiveClientFields();
     })
     .catch(()=>{ clientDirectory = null; });
   return clientDirectoryPromise;
@@ -5942,6 +5954,7 @@ function loadDriveLinks(){
     .then(r=>r.ok?r.json():[])
     .then(rows=>{
       driveLinkMap=new Map();
+      driveLinkAmbig=ambiguousSpellings(rows);
       (Array.isArray(rows)?rows:[]).forEach(c=>{
         [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
           const k=normName(n); if(k && !driveLinkMap.has(k)) driveLinkMap.set(k, c);
@@ -5983,6 +5996,87 @@ function rememberDriveLinks(row, saved, ac){
   const rec={id:saved.id, drive_folder_url:saved.drive_folder_url ?? null, drive_photos_url:saved.drive_photos_url ?? null};
   [C[row].name, C[row].sheetName].forEach(n=>{ const k=normName(n); if(k) driveLinkMap.set(k, rec); });
 }
+// ---------- live client fields: name, city and area (Comments #24, #27) ----------
+// A stop's name, city and area line ("West University/Rice") were baked into
+// this build's DATA, so fixing them on the client card never reached the
+// board -- Merlene's Chappell Hill stop kept the sheet's "Chapel Hill", and a
+// stop added later (Hanover Rice Village) had no area line at all. DATA can't
+// change (its hash keys every saved board), so the card's values are laid
+// over the build's at runtime instead, the way the name already was: from the
+// Clients list for staff, else from /api/install-schedule/client-links (which
+// the TV and production can read too). A blank on the card keeps the build's
+// value; logins that can read neither (crew, lead, offline) see the build's.
+let clientDirectoryAmbig=new Set(); // spellings two different client records share
+let driveLinkAmbig=new Set();
+/** PURE. The normalized spellings (name, sheet name, former names) that
+ *  belong to more than one client record -- matching on one of those could
+ *  pick the wrong client, so the live fields never come through them. */
+function ambiguousSpellings(rows){
+  const owner=new Map(), out=new Set();
+  (Array.isArray(rows)?rows:[]).forEach(c=>{
+    if(!c) return;
+    [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
+      const k=normName(n); if(!k) return;
+      if(owner.has(k) && owner.get(k)!==c.id) out.add(k); else owner.set(k, c.id);
+    });
+  });
+  return out;
+}
+/** PURE. The record for a stop's client in a name-keyed map: by the name
+ *  shown, then the build's spelling; a spelling shared by two records is
+ *  skipped. */
+function liveRecordIn(map, ambig, c){
+  if(!map || !c) return null;
+  for(const n of [c.name, c.sheetName]){
+    const k=normName(n);
+    if(!k || (ambig && ambig.has(k))) continue;
+    const rec=map.get(k);
+    if(rec) return rec;
+  }
+  return null;
+}
+/** A stop's live client record: the Clients list (staff) first, else the
+ *  client-links list, else null (the build's values stand). */
+function liveClientRecord(row){
+  const c=C[row];
+  return liveRecordIn(clientDirectory, clientDirectoryAmbig, c) || liveRecordIn(driveLinkMap, driveLinkAmbig, c);
+}
+/** PURE. Lay a client record's name, city, area and zone over a stop. The
+ *  build's own values are kept (c.built) so a field cleared on the card goes
+ *  back to them. A build city with digits in it is the sheet's street-in-the-
+ *  city-cell quirk (addrParts untangles it), so that one is left alone.
+ *  True when anything shown changed. */
+function overlayClientFields(c, rec){
+  if(!c || !rec) return false;
+  const t=x=>typeof x==='string' ? x.replace(/\s+/g,' ').trim() : '';
+  if(!c.built) c.built={city:c.city||'', zone:c.zone||'', area:c.area||''};
+  const was=[c.name, c.city, c.zone, c.area].join('\u0001');
+  const nm=t(rec.name);
+  if(nm && normName(nm)!==normName(c.name)){ c.sheetName=c.sheetName||c.name; c.name=nm; }
+  c.city=(t(rec.city) && !/\d/.test(c.built.city)) ? t(rec.city) : c.built.city;
+  c.zone=t(rec.zone) || c.built.zone;
+  c.area=t(rec.area) || c.built.area;
+  return was!==[c.name, c.city, c.zone, c.area].join('\u0001');
+}
+/** Overlay every stop; true when the board needs a redraw. */
+function applyLiveClientFields(){
+  let changed=false;
+  Object.keys(C).forEach(r=>{
+    try{ if(overlayClientFields(C[r], liveClientRecord(+r))) changed=true; }catch(e){}
+  });
+  return changed;
+}
+/** The area names this business already uses (zone -> broad area), from
+ *  this build's stops: the card editor's Area suggestions, and the broad
+ *  area saved alongside a picked one. */
+const ZONE_AREA=(()=>{
+  const out={};
+  Object.values(DATA.clients||{}).forEach(c=>{
+    const z=String((c && c.zone)||'').trim(), a=String((c && c.area)||'').trim();
+    if(z && z!=='UNKNOWN' && a && a!=='UNKNOWN' && !out[z]) out[z]=a;
+  });
+  return out;
+})();
 /** The stop card's "Drive folder" (+ "Photos") buttons. With no folder,
  *  staff get "Add folder", which opens the card editor at the link boxes;
  *  view-only logins (TV, production, archived) just see nothing. */
@@ -12682,10 +12776,27 @@ function contactFieldsFor(row){
   if(ac) return {street:ac.street||'', city:ac.city||'', state:ac.state||'',
     zip:ac.zip||'', phone:ac.phone||'', email:ac.email||'',
     notes:ac.notes||'', time_preference:(PREF_RANK[ac.time_preference]!==undefined ? ac.time_preference : ''),
-    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac), ...driveFieldsFor(row)};
+    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac), ...driveFieldsFor(row), ...zoneFieldsFor(row)};
   const ap=addrParts(c);
   return {street:ap.street||'', city:ap.city||'', state:ap.st||'', zip:ap.zip||'',
-    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], ...driveFieldsFor(row)};
+    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], ...driveFieldsFor(row), ...zoneFieldsFor(row)};
+}
+/** The Area box (the line under the name on a stop): what the stop shows
+ *  now, and that value again to save only a change (Comment #27). */
+function zoneFieldsFor(row){
+  const z=String((C[row] && C[row].zone)||'').trim();
+  return {zone:z==='UNKNOWN'?'':z, zone_was:z==='UNKNOWN'?'':z};
+}
+/** PURE. {zone, area} to save when the Area box changed, else {}. A known
+ *  area name brings its broad area ("Central") along; clearing clears both. */
+function zoneChanges(f, zoneArea){
+  if(!f || f.zone_was===undefined) return {};
+  const t=x=>String(x||'').replace(/\s+/g,' ').trim();
+  const z=t(f.zone);
+  if(z===t(f.zone_was)) return {};
+  if(!z) return {zone:'', area:''};
+  const known=Object.keys(zoneArea||{}).find(k=>k.toLowerCase()===z.toLowerCase());
+  return known ? {zone:known, area:zoneArea[known]} : {zone:z};
 }
 /** The Drive link boxes' starting values, and what they were (to save only a change). */
 function driveFieldsFor(row){
@@ -12764,7 +12875,8 @@ function pkField(id, label, value, opts={}){
   const input = opts.area
     ? `<textarea id="${id}" rows="3" placeholder="${attrEsc(opts.ph||'')}">${peekEsc(value||'')}</textarea>`
     : `<input id="${id}" type="${opts.type||'text'}" placeholder="${attrEsc(opts.ph||'')}" value="${attrEsc(value||'')}"`
-      +`${opts.max?` maxlength="${opts.max}"`:''}${opts.mode?` inputmode="${opts.mode}"`:''}${opts.ac?` autocomplete="${opts.ac}"`:''}>`;
+      +`${opts.max?` maxlength="${opts.max}"`:''}${opts.mode?` inputmode="${opts.mode}"`:''}${opts.ac?` autocomplete="${opts.ac}"`:''}`
+      +`${opts.list?` list="${opts.list}"`:''}>`;
   return `<label class="pkce-f${opts.cls?' '+opts.cls:''}"><span>${label}${hint}</span>${input}</label>`;
 }
 function prefButtonsHTML(cur){
@@ -12790,6 +12902,9 @@ function contactEditHTML(row){
         ${pkField('pkf-state','State',f.state,{ph:'TX', max:2, cls:'st'})}
         ${pkField('pkf-zip','ZIP',f.zip,{ph:'Optional', mode:'numeric', max:10, cls:'zip'})}
       </div>
+      ${pkField('pkf-zone','Area',f.zone,{ph:'e.g. West University/Rice', ac:'off', list:'pkf-zones',
+        hint:'shows under the name on the schedule'})}
+      <datalist id="pkf-zones">${Object.keys(ZONE_AREA).sort().map(z=>`<option value="${attrEsc(z)}"></option>`).join('')}</datalist>
       <div class="pkce-f"><span>Install time preference <em>the scheduler orders each crew's day by this</em></span>
         <div class="pkpref" id="pkf-pref" role="group" aria-label="Install time preference">${prefButtonsHTML(f.time_preference)}</div>
       </div>
@@ -12832,7 +12947,7 @@ function syncContactBuffer(){
   [['street','pkf-street'],['city','pkf-city'],['state','pkf-state'],['zip','pkf-zip'],
    ['phone','pkf-phone'],['email','pkf-email'],['notes','pkf-notes'],
    ['inst_notes','pkf-instnotes'],['prod_notes','pkf-prodnotes'],
-   ['drive','pkf-drive'],['photos','pkf-photos']].forEach(([k,id])=>{
+   ['drive','pkf-drive'],['photos','pkf-photos'],['zone','pkf-zone']].forEach(([k,id])=>{
     const el=document.getElementById(id); if(el) f[k]=el.value;
   });
   f.secondary=[...document.querySelectorAll('.pksecedit')].map(el=>({
@@ -12861,6 +12976,7 @@ function clientCardBody(f, nameBody){
     time_preference:f.time_preference||'',
     secondary_contacts:(f.secondary||[]).map(x=>({label:t(x.label), phone:t(x.phone), email:t(x.email)}))
       .filter(x=>x.label||x.phone||x.email),
+    ...zoneChanges(f, ZONE_AREA),
     ...(nameBody||{}),
   };
 }
@@ -12991,7 +13107,7 @@ function wireContactBlock(row){
         return await authFetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
       }catch(e){ throw Object.assign(new Error('network'), {step, status:0, detail:''}); }
     };
-    let entry=null, seasonSaved=false, driveSaved=false;
+    let entry=null, seasonSaved=false, driveSaved=false, fieldsChanged=false;
     const yr=String((SEASON[0]||'')).slice(0,4);
     try{
       const ac=appClientFor(row);
@@ -13012,6 +13128,9 @@ function wireContactBlock(row){
       // below still leaves the board showing what the server has.
       replaceDirectoryEntry(ac, entry);
       if(entry.name && entry.name!==oldName){ applyClientRename(oldName, entry.name); renamedNow=true; }
+      // City and area show on the stop, the map and the crew sheet: lay the
+      // saved card over the build's values now (Comments #24, #27).
+      if(applyLiveClientFields()) fieldsChanged=true;
       // The season card's notes save through the season endpoint, the same
       // one the Clients tab's season card uses (PUT .../seasons/{season}),
       // and only the fields that changed. It creates the season's row when
@@ -13056,7 +13175,7 @@ function wireContactBlock(row){
       wireContactBlock(row);
       // The time preference orders the crew's day and shows as a tag on the
       // stop's row; install notes show as a chip on it: redraw the board.
-      if(!renamedNow && (prefOf(row)!==oldPref || seasonSaved)) render();
+      if(!renamedNow && (prefOf(row)!==oldPref || seasonSaved || fieldsChanged)) render();
       // Notes, facts (time preference), history and the profile row all read
       // the same cached record -- redraw them so the change shows at once.
       if(peekRow===row) refreshPeekLive(row);

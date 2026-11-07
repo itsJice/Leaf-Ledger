@@ -188,10 +188,29 @@ def test_update_client(fake_db, fake_request):
     # -> no rename flag, nothing mirrored.
     assert args_of(fake_db, "UPDATE clients SET") == [
         (5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith",
-         "keep", None, None, None, None)]
+         "keep", None, None, None, None, None, None)]
     assert not fake_db.seen("UPDATE arrangements")
     # Only this client's activity is read back, not every client's.
     assert args_of(fake_db, "FROM client_activity") == [(5,)]
+
+
+def test_update_client_area_and_zone(fake_db, fake_request):
+    """The Install Schedule's card editor sets the stop's area line (zone) and
+    its broad area; "" clears, left out keeps (Comment #27)."""
+    returned = client_row(id=5, name="Smith", secondary_contacts=[], created_at=T0, updated_at=T1)
+    fake_db.on_fetchval("SELECT name FROM clients WHERE id = $1", "Smith")
+    fake_db.on_fetchrow("UPDATE clients SET", returned)
+    fake_db.on_fetch("FROM client_activity", [])
+
+    run(clients.update_client(5, ClientUpdate(zone="West University/Rice", area="Central"), fake_request()))
+    run(clients.update_client(5, ClientUpdate(zone="", area=""), fake_request()))
+    run(clients.update_client(5, ClientUpdate(phone="1"), fake_request()))
+
+    args = args_of(fake_db, "UPDATE clients SET")
+    assert [a[18:] for a in args] == [("Central", "West University/Rice"), ("", ""), (None, None)]
+    ((sql, _), *_) = fake_db.calls("UPDATE clients SET")
+    assert "area = CASE WHEN $19::text IS NOT NULL THEN NULLIF(TRIM($19), '') ELSE area END" in sql
+    assert "zone = CASE WHEN $20::text IS NOT NULL THEN NULLIF(TRIM($20), '') ELSE zone END" in sql
 
 
 def test_update_client_404(fake_db, fake_request):
