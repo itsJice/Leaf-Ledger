@@ -372,7 +372,7 @@ def test_contact_only_save_keeps_name_and_parts(fake_db, fake_request):
     _rename_db(fake_db, "Scheib, Nataliya")
     run(clients.update_client(196, ClientUpdate(phone="555"), fake_request()))
     (args,) = [a for _, a in fake_db.calls("UPDATE clients SET")]
-    assert args[1] is None and args[11:] == (False, "Scheib, Nataliya", "keep", None, None, None, None)
+    assert args[1] is None and args[11:] == (False, "Scheib, Nataliya", "keep", None, None, None, None, None, None)
     assert not fake_db.seen("UPDATE arrangements")
 
 

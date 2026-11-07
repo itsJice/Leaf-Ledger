@@ -140,16 +140,24 @@ def test_route_declares_the_staff_dependency():
 # ─── GET /install-schedule/client-links ──────────────────────────────────────
 
 
-def test_schedule_reads_only_clients_with_a_link(fake_db):
+def test_schedule_reads_schedule_clients_links_and_area(fake_db):
     fake_db.on_fetch("FROM clients", [
         {"id": 3, "name": "Smith, Ann", "sheet_name": "Smith Ann", "former_names": None,
-         "drive_folder_url": FOLDER, "drive_photos_url": None},
+         "drive_folder_url": FOLDER, "drive_photos_url": None,
+         "city": "Houston", "area": "Central", "zone": "West University/Rice"},
     ])
     out = run(install_schedule.client_links())
     assert out == [{"id": 3, "name": "Smith, Ann", "sheet_name": "Smith Ann", "former_names": [],
-                    "drive_folder_url": FOLDER, "drive_photos_url": None}]
+                    "drive_folder_url": FOLDER, "drive_photos_url": None,
+                    "city": "Houston", "area": "Central", "zone": "West University/Rice"}]
     ((sql, _),) = fake_db.calls("FROM clients")
     assert "WHERE drive_folder_url IS NOT NULL OR drive_photos_url IS NOT NULL" in sql
+    # Schedule clients (a sheet spelling) and anyone with an area/zone, so the
+    # page can show the card's name, city and area to the TV too (#24, #27)...
+    assert "OR sheet_name IS NOT NULL OR area IS NOT NULL OR zone IS NOT NULL" in sql
+    # ...but never contact details: this router is readable by the TV/production.
+    for col in ("email", "phone", "street", "notes", "secondary_contacts"):
+        assert col not in sql.split("FROM")[0]
 
 
 @pytest.mark.parametrize("role, ok", [
