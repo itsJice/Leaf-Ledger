@@ -111,8 +111,14 @@
   "/api/clients/{client_id}/drive-links": [
     "PUT"
   ],
+  "/api/clients/{client_id}/install-summary": [
+    "GET"
+  ],
   "/api/clients/{client_id}/seasons/{season}": [
     "PUT"
+  ],
+  "/api/clients/{client_id}/seasons/{season}/contacts": [
+    "POST"
   ],
   "/api/clients/{client_id}/staff-alert": [
     "PUT"

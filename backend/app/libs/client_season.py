@@ -45,6 +45,15 @@ APP_EDITS_KEY = "app_edits"
 #: Flags only the app sets. Carried across a re-sync even when unstamped.
 APP_FLAGS = ("not_installing", "hold", "was_scheduled")
 
+#: The season's contact log (Comments #23): every call, voicemail, text,
+#: email or visit with the client about this season's install, appended one
+#: entry at a time through POST /clients/{id}/seasons/{season}/contacts.
+#: Only the app writes it, so like the flags above it survives every sync
+#: whether or not it is stamped. Deliberately NOT in SEASON_FIELDS: the
+#: per-season PUT replaces values, and a log must only ever grow.
+CONTACT_LOG_KEY = "contact_log"
+APP_ONLY_KEYS = APP_FLAGS + (CONTACT_LOG_KEY,)
+
 #: ``clients.time_preference`` values (migrations/015). Per client, not per
 #: season: a daycare that needs mornings needs them every year.
 TIME_PREFERENCES = ("morning", "afternoon", "late")
@@ -177,7 +186,7 @@ def app_owned_keys(detail: dict | None) -> set[str]:
     d = detail or {}
     edits = d.get(APP_EDITS_KEY)
     owned = set(edits.keys()) if isinstance(edits, dict) else set()
-    owned.update(k for k in APP_FLAGS if d.get(k) not in (None, False, ""))
+    owned.update(k for k in APP_ONLY_KEYS if d.get(k) not in (None, False, "", []))
     return owned
 
 
@@ -379,4 +388,80 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None) -> d
         clear_keys.append("not_installing")
     stamp(d, set_keys, when)
     unstamp(d, clear_keys)
+    return d
+
+
+# ─── the contact log (Comments #23) ──────────────────────────────────────────
+
+#: How staff reached the client. "in_person" reads "In person".
+CONTACT_METHODS = ("call", "voicemail", "text", "email", "in_person")
+CONTACT_METHOD_LABEL = {"call": "Call", "voicemail": "Voicemail", "text": "Text",
+                        "email": "Email", "in_person": "In person"}
+CONTACT_NOTE_MAX = 1000
+#: A season with more entries than this keeps the newest. Nobody calls one
+#: client 200 times about one install; the cap only bounds the row.
+CONTACT_LOG_MAX = 200
+
+
+def central_today() -> _dt.date:
+    """Today in Central time (module-level so a test can pin it)."""
+    try:
+        from zoneinfo import ZoneInfo
+
+        return _dt.datetime.now(ZoneInfo("America/Chicago")).date()
+    except Exception:  # pragma: no cover - tzdata missing
+        return (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)).date()
+
+
+def clean_contact_method(v: Any) -> str:
+    s = str(v or "").strip().lower().replace("-", " ").replace("_", " ")
+    s = "_".join(s.split())
+    if s not in CONTACT_METHODS:
+        raise FieldError("method must be one of: call, voicemail, text, email, in person")
+    return s
+
+
+def clean_contact_entry(raw: Any, *, by: str | None, when: str | None = None) -> dict:
+    """One contact-log entry, validated: {date, method, note, by, at}.
+
+    ``date`` is the day the contact happened (YYYY-MM-DD, default today in
+    Central time; never in the future). ``note`` is optional free text.
+    ``by`` and ``at`` come from the server, never the request."""
+    if not isinstance(raw, dict):
+        raise FieldError("a contact entry must be an object")
+    today = central_today().isoformat()
+    day = _as_date(raw.get("date")) or today
+    if day > today:
+        raise FieldError("the contact date can't be in the future")
+    note = _as_text(raw.get("note")) or ""
+    if len(note) > CONTACT_NOTE_MAX:
+        raise FieldError(f"the note can be at most {CONTACT_NOTE_MAX} characters")
+    return {
+        "date": day,
+        "method": clean_contact_method(raw.get("method")),
+        "note": note,
+        "by": (by or "").strip()[:120] or None,
+        "at": when or now_iso(),
+    }
+
+
+def contact_log_of(detail: dict | None) -> list[dict]:
+    """The season's contact log, newest first (by contact date, then when it
+    was logged). Entries that aren't objects are skipped, not fatal."""
+    log = (detail or {}).get(CONTACT_LOG_KEY)
+    if not isinstance(log, list):
+        return []
+    rows = [e for e in log if isinstance(e, dict)]
+    return sorted(rows, key=lambda e: (str(e.get("date") or ""), str(e.get("at") or "")), reverse=True)
+
+
+def append_contact(detail: dict | None, entry: dict) -> dict:
+    """Add one cleaned entry to the season's log and stamp the log as an app
+    edit (so the sheet sync keeps it). Returns a new detail dict."""
+    d = dict(detail or {})
+    log = d.get(CONTACT_LOG_KEY)
+    log = list(log) if isinstance(log, list) else []
+    log.append(entry)
+    d[CONTACT_LOG_KEY] = log[-CONTACT_LOG_MAX:]
+    stamp(d, [CONTACT_LOG_KEY], entry.get("at"))
     return d

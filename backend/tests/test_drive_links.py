@@ -65,7 +65,7 @@ def test_list_adds_the_drive_columns_once_and_reads_them(fake_db, fake_request):
     run(clients.list_clients(fake_request()))
     alters = fake_db.calls("ADD COLUMN IF NOT EXISTS drive_folder_url")
     assert len(alters) == 1 and "ADD COLUMN IF NOT EXISTS drive_photos_url text" in alters[0][0]
-    assert fake_db.seen("drive_folder_url, drive_photos_url FROM clients")
+    assert fake_db.seen("drive_folder_url, drive_photos_url, schedule_restrictions FROM clients")
     assert set(drive_links.DRIVE_LINK_COLUMNS) <= set(clients.ENSURED_COLUMNS)
 
 

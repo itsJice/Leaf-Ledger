@@ -1098,7 +1098,9 @@ async def client_links() -> list[dict]:
     spelling) or clients with a link, area or zone are listed, with the names
     the page matches on (name, the sheet's spelling, former names) and no
     contact details. Changing a link is PUT /api/clients/{id}/drive-links,
-    the rest PUT /api/clients/update/{id}, staff and up.
+    the rest PUT /api/clients/update/{id}, staff and up. Scheduling
+    restrictions (Comments #23) ride along so the TV and production see the
+    stop's restrictions badge too.
     """
     from app.apis import clients as clients_api
 
@@ -1107,10 +1109,11 @@ async def client_links() -> list[dict]:
         await clients_api.ensure_schema(conn)
         rows = await conn.fetch(
             "SELECT id, name, sheet_name, former_names, drive_folder_url, drive_photos_url, "
-            "       city, area, zone "
+            "       city, area, zone, schedule_restrictions "
             "  FROM clients "
             " WHERE drive_folder_url IS NOT NULL OR drive_photos_url IS NOT NULL "
             "    OR sheet_name IS NOT NULL OR area IS NOT NULL OR zone IS NOT NULL "
+            "    OR schedule_restrictions IS NOT NULL "
             " ORDER BY id"
         )
     finally:
