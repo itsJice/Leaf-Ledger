@@ -47,6 +47,13 @@ def test_only_app_edited_facts_are_listed():
         # stamped but cleared: nothing to show
         {"id": 4, "name": "Cleared", "sheet_name": None, "former_names": [],
          "detail": {"app_edits": {"boxes": "t"}}},
+        # the workbook import's copy of the sheet ("import:<date>") is not a
+        # person's edit: the raw 1h would replace the build's calibrated 0.81h
+        {"id": 7, "name": "Woodlands CC Tournament", "sheet_name": None, "former_names": [],
+         "detail": {"boxes": 12, "est_hours": 1.0,
+                    "role_need": {"leads": 1, "general": 5, "designer": 0, "specialty": 0},
+                    "app_edits": {"boxes": "import:2026-09-28", "est_hours": "import:2026-09-28",
+                                  "role_need": "import:2026-09-28"}}},
         # junk detail never breaks the list
         {"id": 5, "name": "Junk", "sheet_name": None, "former_names": [], "detail": "not json"},
         {"id": 6, "name": "List", "sheet_name": None, "former_names": [], "detail": "[1]"},
@@ -125,6 +132,17 @@ def test_first_edit_keeps_the_sheet_value_and_reset_puts_it_back():
     d = cs.apply_edits(d, {}, reset=["role_need"])
     assert d["role_need"] == {"leads": 2, "general": 10}
     assert "sheet_values" not in d and "app_edits" not in d
+
+
+def test_first_edit_over_an_import_stamp_keeps_the_sheet_value():
+    # Gitu's card: the workbook import copied the sheet's 2.15h and stamped it.
+    imported = {"est_hours": 2.15, "app_edits": {"est_hours": "import:2026-09-28"}}
+    d = cs.apply_edits(imported, {"est_hours": 3}, when="T1")
+    assert d["app_edits"] == {"est_hours": "T1"}
+    assert d["sheet_values"] == {"est_hours": 2.15}
+    d = cs.apply_edits(d, {}, reset=["est_hours"])
+    assert d["est_hours"] == 2.15 and "app_edits" not in d
+    assert cs.is_person_edit("2026-11-04T18:50:40+00:00") and not cs.is_person_edit("import:2026-09-28")
 
 
 def test_reset_without_a_known_sheet_value():

@@ -1132,7 +1132,9 @@ def card_facts_from(rows) -> list[dict]:
     the names the page matches stops on. A value the sheet sync wrote is left
     out on purpose: the schedule's own hours are calibrated from it (est x
     0.81, or last year's real hours), so showing the raw sheet number would
-    move every stop. Only a person's edit on the card wins over the build."""
+    move every stop. Only a person's edit on the card wins over the build,
+    so a key stamped by the workbook import ("import:<date>", the sheet's
+    raw value copied onto the card) is left out too."""
     out = []
     for r in rows:
         detail = _loads(r["detail"]) or {}
@@ -1142,7 +1144,8 @@ def card_facts_from(rows) -> list[dict]:
         if not isinstance(edits, dict):
             continue
         facts = {k: detail[k] for k in CARD_FACT_KEYS
-                 if k in edits and detail.get(k) is not None}
+                 if k in edits and client_season.is_person_edit(edits[k])
+                 and detail.get(k) is not None}
         if not facts:
             continue
         out.append({

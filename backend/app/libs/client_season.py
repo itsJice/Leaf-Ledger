@@ -162,6 +162,19 @@ def stamp(detail: dict, keys, when: str | None = None) -> dict:
     return detail
 
 
+#: The stamp the workbook import (scheduler/import_workbook.py) and the
+#: calendar-history import write: "import:<date>". Those keys are app-owned
+#: so the sync can't blank them, but the value is the sheet's own, not a
+#: person's edit.
+IMPORT_STAMP_PREFIX = "import:"
+
+
+def is_person_edit(stamp_value) -> bool:
+    """True for a stamp a person's edit wrote (an ISO time), False for an
+    import's copy of the sheet ("import:<date>")."""
+    return not str(stamp_value or "").startswith(IMPORT_STAMP_PREFIX)
+
+
 def unstamp(detail: dict, keys) -> dict:
     """Forget an app edit -- the next sync may refresh the key again."""
     edits = detail.get(APP_EDITS_KEY)
@@ -391,6 +404,9 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None,
     cleaned = {k: coerce_field(k, v) for k, v in fields.items()}
     fallback = {k: cleaned.pop(k) for k in reset if k in cleaned}
     prior_edits = d.get(APP_EDITS_KEY) if isinstance(d.get(APP_EDITS_KEY), dict) else {}
+    # An import's stamp holds the sheet's own value: the first person's edit
+    # over it still keeps that value for a Reset.
+    prior_edits = {k: v for k, v in prior_edits.items() if is_person_edit(v)}
     sheet = dict(d.get(SHEET_VALUES_KEY)) if isinstance(d.get(SHEET_VALUES_KEY), dict) else {}
     set_keys, clear_keys = [], []
     for k, v in cleaned.items():

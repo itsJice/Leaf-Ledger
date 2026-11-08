@@ -12691,7 +12691,12 @@ function cardFactFromDetail(ac, detail){
   const ed=d.app_edits && typeof d.app_edits==='object' ? d.app_edits : {};
   const out={id:ac.id, name:ac.name, sheet_name:ac.sheet_name||null, former_names:ac.former_names||[]};
   const edited={};
-  ['boxes','est_hours','role_need'].forEach(k=>{ if(k in ed && d[k]!=null){ out[k]=d[k]; edited[k]=ed[k]; } });
+  // An "import:<date>" stamp is the workbook import's copy of the sheet,
+  // not a person's edit: the build's calibrated numbers stand (as the server's
+  // card_facts_from).
+  ['boxes','est_hours','role_need'].forEach(k=>{
+    if(k in ed && d[k]!=null && !String(ed[k]||'').startsWith('import:')){ out[k]=d[k]; edited[k]=ed[k]; }
+  });
   return Object.keys(edited).length ? {...out, edited} : null;
 }
 /** Send a season edit for this stop's client card, learn the saved row and

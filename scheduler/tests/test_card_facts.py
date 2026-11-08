@@ -246,6 +246,9 @@ def test_editor_sends_only_changes_and_reset_hands_back_to_the_sheet():
         cardFactFromDetail({id:175, name:'Bourque, Stacey', sheet_name:'Bourque, Stacey'},
           {boxes:29, est_hours:4.5, role_need:rn9, notes:'x', app_edits:{est_hours:'T', notes:'T'}}),
         cardFactFromDetail({id:175, name:'Bourque, Stacey'}, {boxes:29, app_edits:{notes:'T'}}),
+        // the workbook import's stamp is the sheet's value, not a person's edit
+        cardFactFromDetail({id:259, name:'Gitu, Patrick'},
+          {est_hours:2.15, boxes:7, app_edits:{est_hours:'import:2026-09-28', boxes:'T'}}),
       ];
       console.log(JSON.stringify(a));
     """, extra=("cardFactChanges", "cardResetBody", "cardFactFromDetail"))
@@ -260,6 +263,8 @@ def test_editor_sends_only_changes_and_reset_hands_back_to_the_sheet():
     assert out[5] == {"id": 175, "name": "Bourque, Stacey", "sheet_name": "Bourque, Stacey", "former_names": [],
                       "est_hours": 4.5, "edited": {"est_hours": "T"}}
     assert out[6] is None
+    assert out[7] == {"id": 259, "name": "Gitu, Patrick", "sheet_name": None, "former_names": [],
+                      "boxes": 7, "edited": {"boxes": "T"}}
 
 
 def test_wiring():
