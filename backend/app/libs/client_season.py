@@ -45,15 +45,6 @@ APP_EDITS_KEY = "app_edits"
 #: Flags only the app sets. Carried across a re-sync even when unstamped.
 APP_FLAGS = ("not_installing", "hold", "was_scheduled")
 
-#: Where the sheet's own value of an app-edited job fact is kept
-#: ({key: value}), so the Install Schedule's Reset can put the sheet's number
-#: back on the card (Comment #28). Recorded when a person first edits the
-#: key and refreshed by every sheet sync while the edit stands.
-SHEET_VALUES_KEY = "sheet_values"
-#: The job facts the schedule shows from the card: box count, est. install
-#: hours and the four headcounts.
-SHEET_KEPT = ("boxes", "est_hours", "role_need")
-
 #: ``clients.time_preference`` values (migrations/015). Per client, not per
 #: season: a daycare that needs mornings needs them every year.
 TIME_PREFERENCES = ("morning", "afternoon", "late")
@@ -289,6 +280,15 @@ INVENTORY_MAX_LINES = 200
 
 #: The four headcounts the spreadsheet has always carried per client.
 ROLE_KEYS = ("leads", "specialty", "designer", "general")
+
+#: Where the sheet's own value of an app-edited job fact is kept
+#: ({key: value}), so the Install Schedule's Reset can put the sheet's number
+#: back on the card (Comment #28). Recorded when a person first edits the
+#: key and refreshed by every sheet sync while the edit stands.
+SHEET_VALUES_KEY = "sheet_values"
+#: The job facts the schedule shows from the card: box count, est. install
+#: hours and the four headcounts.
+SHEET_KEPT = ("boxes", "est_hours", "role_need")
 
 
 def _as_inventory(v: Any) -> list | None:

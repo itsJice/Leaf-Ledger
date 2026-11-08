@@ -5544,8 +5544,6 @@ window.addEventListener('message', e=>{
     // The card's name, city and area for logins that can't read the Clients
     // list (TV, production); for staff the directory below wins.
     loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });
-    // The client cards' boxes, hours and people (Comment #28).
-    refreshCardFacts(true);
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
       // read-only (no Edit button, no full profile) with nothing to

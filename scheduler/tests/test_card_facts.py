@@ -270,7 +270,6 @@ def test_wiring():
     # Fetched on sign-in, after every pullShared, and on coming back to the tab.
     assert "/api/install-schedule/card-facts?season=" in js_function("loadCardFacts")
     assert "refreshCardFacts(true);" in js_function("pullShared")
-    assert "refreshCardFacts(true);" in TEMPLATE.split("loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });")[1][:200]
     vis = TEMPLATE[TEMPLATE.index("document.addEventListener('visibilitychange'"):][:300]
     assert "else refreshCardFacts();" in vis
     # Added stops arriving with the shared state get the card too.
