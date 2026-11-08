@@ -256,6 +256,12 @@ class ClientUpdate(NameParts):
     #: "" clears it (same NULLIF convention as the other fields).
     time_preference: Optional[str] = None
     secondary_contacts: Optional[List[SecondaryContact]] = None
+    #: The schedule's Area ("Central") and Zone ("West University/Rice", the
+    #: line under the name on a stop) -- migrations/024. The Install
+    #: Schedule's card editor sets them; the page shows the record's values
+    #: over its build's (Comment #27). "" clears.
+    area: Optional[str] = None
+    zone: Optional[str] = None
 
 
 def clean_time_preference(value: Optional[str]) -> Optional[str]:
@@ -712,6 +718,8 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                         last_name = CASE $14::text WHEN 'set' THEN $16::text WHEN 'clear' THEN NULL ELSE last_name END,
                         company = CASE $14::text WHEN 'set' THEN $17::text WHEN 'clear' THEN NULL ELSE company END,
                         site = CASE $14::text WHEN 'set' THEN $18::text WHEN 'clear' THEN NULL ELSE site END,
+                        area = CASE WHEN $19::text IS NOT NULL THEN NULLIF(TRIM($19), '') ELSE area END,
+                        zone = CASE WHEN $20::text IS NOT NULL THEN NULLIF(TRIM($20), '') ELSE zone END,
                         updated_at = NOW()
                     WHERE id = $1
                     RETURNING {CLIENT_COLUMNS}
@@ -719,6 +727,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                     client_id, new_name or None, body.email, body.phone, body.notes,
                     body.street, body.city, body.state, body.zip, sc_json, time_preference,
                     renaming, old_name, parts_mode, *part_values,
+                    body.area, body.zone,
                 )
                 if row is not None and renaming:
                     renamed = await _rename_everywhere(conn, client_id, old_name, row["name"])

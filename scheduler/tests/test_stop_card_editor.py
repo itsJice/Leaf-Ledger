@@ -25,7 +25,8 @@ def run(names, body):
 
 @needs_node
 def test_save_body_matches_the_app_edit_dialog():
-    out = run(["clientCardBody"], """
+    out = run(["zoneChanges", "clientCardBody"], """
+      const ZONE_AREA={};
       const f={street:' 1 Elm St ', city:'Houston', state:'tx', zip:'77010', phone:' 713 ',
         email:'a@example.test', notes:'  gate code  ', time_preference:'late',
         secondary:[{label:'Wife',phone:'',email:''},{label:'',phone:'',email:''}]};

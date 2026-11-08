@@ -1084,18 +1084,21 @@ async def calendar_link() -> dict:
 
 @router.get("/client-links")
 async def client_links() -> list[dict]:
-    """Every client's Google Drive folder / photos folder links
+    """Every schedule client's Google Drive folder / photos folder links
     (clients.drive_folder_url / drive_photos_url, migrations/026), for the
-    stop popup's "Drive folder" and "Photos" buttons.
+    stop popup's "Drive folder" and "Photos" buttons -- and the record's
+    name, city, area and zone, which the page shows over its build's values
+    (Comments #24, #27: fix the card, the schedule follows).
 
     Read at runtime rather than baked into the page's DATA, so setting a link
     never changes the build's version hash (which would wipe the board). It
     lives on this router, not /api/clients/list, because the shop TV
     (viewer) may read this router and should be able to open a client's
-    folder; it can't read the Clients tab. Only clients with a link are
-    listed, with the names the page matches on (name, the sheet's spelling,
-    former names). Changing a link is PUT /api/clients/{id}/drive-links,
-    staff and up.
+    folder; it can't read the Clients tab. Only schedule clients (a sheet
+    spelling) or clients with a link, area or zone are listed, with the names
+    the page matches on (name, the sheet's spelling, former names) and no
+    contact details. Changing a link is PUT /api/clients/{id}/drive-links,
+    the rest PUT /api/clients/update/{id}, staff and up.
     """
     from app.apis import clients as clients_api
 
@@ -1103,9 +1106,11 @@ async def client_links() -> list[dict]:
     try:
         await clients_api.ensure_schema(conn)
         rows = await conn.fetch(
-            "SELECT id, name, sheet_name, former_names, drive_folder_url, drive_photos_url "
+            "SELECT id, name, sheet_name, former_names, drive_folder_url, drive_photos_url, "
+            "       city, area, zone "
             "  FROM clients "
             " WHERE drive_folder_url IS NOT NULL OR drive_photos_url IS NOT NULL "
+            "    OR sheet_name IS NOT NULL OR area IS NOT NULL OR zone IS NOT NULL "
             " ORDER BY id"
         )
     finally:
