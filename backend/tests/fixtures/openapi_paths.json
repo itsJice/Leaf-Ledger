@@ -184,6 +184,13 @@
   "/api/install-costs/people/{person_id}": [
     "PUT"
   ],
+  "/api/install-estimate/client/{client_id}": [
+    "GET"
+  ],
+  "/api/install-estimate/rates": [
+    "GET",
+    "PUT"
+  ],
   "/api/install-quote/calc": [
     "POST"
   ],
