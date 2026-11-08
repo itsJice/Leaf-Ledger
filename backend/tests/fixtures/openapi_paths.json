@@ -193,6 +193,9 @@
   "/api/install-schedule/calendar-link": [
     "GET"
   ],
+  "/api/install-schedule/card-facts": [
+    "GET"
+  ],
   "/api/install-schedule/client-links": [
     "GET"
   ],

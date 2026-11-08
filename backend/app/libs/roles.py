@@ -185,6 +185,8 @@ PRODUCTION_DENY = (
     "/api/jobs/order-items", "/api/jobs/needs",
     # The office calendar feed's link carries its secret; office staff only.
     "/api/install-schedule/calendar-link",
+    # The client cards' hours and headcounts: the inputs to a client's price.
+    "/api/install-schedule/card-facts",
 )
 
 

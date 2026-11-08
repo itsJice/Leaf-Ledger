@@ -125,7 +125,9 @@ def test_notes_fold_counts_and_leads_with_production_notes():
 @needs_node
 def test_unknown_boxes_are_a_muted_chip_not_a_dash():
     out = run(["pkChip", "peekEsc", "peekFactsHTML", "parseBoxes", "cardBoxesFor", "loadBoxesFor",
-               "stopBoxes", "stopBoxesTxt"], """
+               "stopBoxes", "stopBoxesTxt", "peopleChipText", "perCrewPeople", "normRoleNeed", "roleSum",
+               "cardFactsNote", "cardBoxes", "fmtHrs"], """
+      const CARD_ROLE_KEYS=['leads','specialty','designer','general'];
       const IC={pkg:'B',aclock:'C',ausers:'U',sun:'S',box:'X'};
       const C={1:{boxes:'',people:4,h26:3}, 2:{boxes:5,people:0,h26:2}};
       let pkDayId=null, loadStops={}; const days=[];

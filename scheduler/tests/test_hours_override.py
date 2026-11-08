@@ -146,7 +146,7 @@ def test_popup_shows_edited_and_hides_buttons_from_viewers():
       const C={63:{row:63,h26:4,hoursEdited:true}, 900015:{row:900015,h26:3.65,synthetic:true}};
       const sheetHoursOf=r=>C[r].synthetic?null:7.29;
       let pkEditingHours=false, canEdit=true;
-      const canEditHours=()=>canEdit;
+      const canEditHours=()=>canEdit, canEditCardFacts=()=>false, ownHours=c=>c.h26;
       const staff=peekHoursHTML(63), syn=peekHoursHTML(900015);
       pkEditingHours=true; const form=peekHoursHTML(63);
       canEdit=false; const viewer=peekHoursHTML(63);

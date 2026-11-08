@@ -2072,6 +2072,10 @@ body.apple .pkpencil{height:38px;min-width:38px}
 dialog .pkhrsform .pkhrslbl{display:inline-flex;align-items:center;gap:6px;margin:0}
 dialog .pkhrsform input[type="number"]{width:84px;margin:0;font-size:16px;padding:4px 6px}
 @media (max-width:600px){ .pkhrsbtn{min-height:40px} dialog .pkhrsform input[type="number"]{min-height:40px} }
+.pkfroles{display:flex;flex-wrap:wrap;gap:6px 12px;flex-basis:100%}
+dialog .pkfactform > .pkhrslbl{margin-right:10px}
+dialog .pkfactform .pkfroles input[type="number"]{width:64px}
+.pkcardnote{color:var(--brand)}
 .stop .hrsed{color:var(--brand);font-weight:600}
 #peekbody .pknote{margin:0 0 9px;padding:1px 0 1px 10px;background:none;border-left:3px solid var(--line);border-radius:0;
   color:var(--ink);font-size:12.5px;line-height:1.45}
@@ -4817,7 +4821,9 @@ function restoreSyntheticClients(list){
       // ...and its hours: an added stop's install time is edited in place
       // (setStopHours), so the shared document's value is the current one.
       const h=def.hours==null ? NaN : +def.hours;
-      if(C[def.row].synthetic && h>0 && h<=24) C[def.row].h26 = h;
+      if(C[def.row].synthetic && h>0 && h<=24){
+        if(C[def.row].cardH) C[def.row].cardH.h26 = h; else C[def.row].h26 = h;
+      }
       return;
     }
     addSyntheticClientSync(def);
@@ -4827,7 +4833,7 @@ function restoreSyntheticClients(list){
   // An added stop arrives with the shared state, often after the client
   // records did: give it its card's city and area now (Comment #27). The
   // records are declared further down; before they exist this is a no-op.
-  if(added){ try{ applyLiveClientFields(); }catch(e){} }
+  if(added){ try{ applyLiveClientFields(); }catch(e){} try{ applyCardFactsTo(C, cardFacts); }catch(e){} }
 }
 /** A synthetic client's stored name (what newClients saves) is `def.name`;
  *  what is shown follows the Clients tab, as loadClientDirectory does. A
@@ -4881,9 +4887,105 @@ function applyHoursOverrideTo(clients, sheet, ov){
     const h=ov[r]!=null ? validHours(ov[r]) : null;
     if(h!=null){ c.h26=h; c.basis='staff entry'; c.hoursEdited=true; }
     else { c.h26=sheet[r].h; c.basis=sheet[r].basis; delete c.hoursEdited; }
+    delete c.cardH;   // h26 is this row's own value again (see applyCardFactsTo)
   });
 }
-function applyHoursOverride(){ applyHoursOverrideTo(C, SHEET_HOURS, hoursOverride); }
+// ---------- the client card's job facts (Comment #28) ----------
+// A stop's boxes, hours and people were baked into DATA, so changing them on
+// the client's season card (Joy, 11/04: Stacey Bourque down to 9 people and
+// 5h) never reached the board, and "This job" could only edit hours. DATA
+// can't change, so the card's values are laid over it at runtime, from GET
+// /api/install-schedule/card-facts: only values a person edited on the card
+// (stamped app edits), never the sheet's raw hours, which the build has
+// already calibrated. Precedence: card edit > the board's hoursOverride >
+// the build. Takedown visits never take the install card's numbers, and a
+// card two stops match (two visits) is left to the build. The overlay is
+// never saved into shared state: an added stop saves its own hours and
+// people (ownHours / ownPeople), so a stale tab can't write a card value
+// anywhere, and the card itself is the record.
+let cardFacts = [];
+const CARD_ROLE_KEYS=['leads','specialty','designer','general'];
+/** PURE. {leads, specialty, designer, general} as whole numbers (a missing
+ *  key reads 0), or null when there are no headcounts at all. */
+function normRoleNeed(v){
+  if(!v || typeof v!=='object' || Array.isArray(v)) return null;
+  if(!CARD_ROLE_KEYS.some(k=>v[k]!=null && v[k]!=='')) return null;
+  const out={};
+  CARD_ROLE_KEYS.forEach(k=>{ const n=Math.floor(+v[k]); out[k]=Number.isFinite(n) && n>0 ? n : 0; });
+  return out;
+}
+/** PURE. Total people in a headcount object. */
+function roleSum(rn){ return rn ? CARD_ROLE_KEYS.reduce((a,k)=>a+(+rn[k]||0),0) : 0; }
+/** PURE. A takedown (or teardown) visit: the install card's numbers don't fit it. */
+function isTakedownVisit(c){ return /takedown|teardown/i.test((c && c.visitType) || ''); }
+/** PURE. A card box count: a whole number 0-999, else null. */
+function cardBoxes(v){
+  if(v==null || v==='') return null;
+  const n=+v;
+  return Number.isFinite(n) && n>=0 && n<=999 ? Math.round(n) : null;
+}
+/** PURE. Lay the card facts over the clients map. Undoes the last overlay
+ *  first (so a fact cleared on the card goes back to the build or the
+ *  board's hours edit), then sets h26 (basis 'client card'), roleNeed,
+ *  people (their sum) and boxes on the one stop each card matches by name
+ *  (name shown, then the build's spelling). Run after applyHoursOverrideTo,
+ *  which leaves h26 as the row's own value. c.card says what came from the
+ *  card and what the stop had before. */
+function applyCardFactsTo(clients, facts){
+  const idx=new Map(), owner=new Map(), ambig=new Set();
+  (Array.isArray(facts)?facts:[]).forEach(f=>{
+    if(!f) return;
+    [f.name, f.sheet_name, ...(f.former_names||[])].forEach(n=>{
+      const k=normName(n); if(!k) return;
+      if(owner.has(k) && owner.get(k)!==f.id) ambig.add(k);
+      else { owner.set(k, f.id); if(!idx.has(k)) idx.set(k, f); }
+    });
+  });
+  const hits=new Map();
+  Object.keys(clients).forEach(r=>{
+    const c=clients[r]; if(!c) return;
+    if(c.cardH){
+      c.h26=c.cardH.h26; c.basis=c.cardH.basis;
+      if(c.cardH.edited) c.hoursEdited=true; else delete c.hoursEdited;
+      delete c.cardH;
+    }
+    if(c.cardBase){ c.roleNeed=c.cardBase.roleNeed; c.people=c.cardBase.people; c.boxes=c.cardBase.boxes; delete c.cardBase; }
+    delete c.card;
+    if(isTakedownVisit(c)) return;
+    for(const n of [c.name, c.sheetName]){
+      const k=normName(n);
+      if(!k || ambig.has(k)) continue;
+      const f=idx.get(k);
+      if(f){ if(!hits.has(f.id)) hits.set(f.id, []); hits.get(f.id).push([r, f]); break; }
+    }
+  });
+  hits.forEach(list=>{
+    if(list.length!==1) return;
+    const [r, f]=list[0], c=clients[r];
+    const card={source:'client card', id:f.id, fields:[], was:{}};
+    const h=validHours(f.est_hours);
+    if(h!=null){
+      c.cardH={h26:c.h26, basis:c.basis, edited:!!c.hoursEdited};
+      card.was.h26=c.h26;
+      c.h26=h; c.basis='client card'; delete c.hoursEdited;
+      card.fields.push('est_hours');
+    }
+    const rn=normRoleNeed(f.role_need), b=cardBoxes(f.boxes);
+    if(rn || b!=null){
+      c.cardBase={roleNeed:c.roleNeed, people:c.people, boxes:c.boxes};
+      if(rn){ card.was.people=c.people; card.was.roleNeed=c.roleNeed; c.roleNeed=rn; c.people=roleSum(rn); card.fields.push('role_need'); }
+      if(b!=null){ card.was.boxes=c.boxes; c.boxes=b; card.fields.push('boxes'); }
+    }
+    if(card.fields.length) c.card=card;
+  });
+}
+/** A stop's own hours and people, without the card's overlay: what an added
+ *  stop saves (newClients), undoes and exports. */
+function ownHours(c){ return c.cardH ? c.cardH.h26 : c.h26; }
+function ownPeople(c){ return c.cardBase ? c.cardBase.people : c.people; }
+/** Set an added stop's own hours, under any card overlay. */
+function setOwnHours(c, h){ if(c.cardH) c.cardH.h26=h; else c.h26=h; }
+function applyHoursOverride(){ applyHoursOverrideTo(C, SHEET_HOURS, hoursOverride); applyCardFactsTo(C, cardFacts); }
 applyHoursOverride();
 /** The spreadsheet's hours for a row (null for an added stop). */
 function sheetHoursOf(r){
@@ -4904,9 +5006,9 @@ function setStopHours(row, hours){
   const h=validHours(hours);
   const was=c.h26;
   if(c.synthetic){
-    if(h==null || h===validHours(c.h26)) return false;
+    if(h==null || h===validHours(ownHours(c))) return false;
     pushUndo();
-    c.h26=h;
+    setOwnHours(c, h);
   } else {
     const next=(h==null || h===validHours(sheetHoursOf(row))) ? null : h;
     if((hoursOverride[row]??null)===next) return false;
@@ -5327,8 +5429,8 @@ function snapshot(){
   // and sending it made every other tab's copy of the row look different.
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
     {row:c.row, name:c.sheetName||c.name, street:c.street, lat:c.lat, lon:c.lon,
-     hours:c.h26, visitType:c.visitType, notes:c.advice,
-     people:c.people, business:c.bus,
+     hours:ownHours(c), visitType:c.visitType, notes:c.advice,
+     people:ownPeople(c), business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   // notInstalling holds scheduler row ids, which mean nothing outside this
   // page. The backend needs client identities to write the decision through to
@@ -5442,6 +5544,8 @@ window.addEventListener('message', e=>{
     // The card's name, city and area for logins that can't read the Clients
     // list (TV, production); for staff the directory below wins.
     loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });
+    // The client cards' boxes, hours and people (Comment #28).
+    refreshCardFacts(true);
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
       // read-only (no Edit button, no full profile) with nothing to
@@ -5964,6 +6068,43 @@ function loadDriveLinks(){
     .catch(()=>{ driveLinkMap=null; });
   return driveLinksPromise;
 }
+// ---------- the client cards' job facts (Comment #28) ----------
+// GET /api/install-schedule/card-facts: the boxes, hours and headcounts a
+// person edited on each client's season card. Read on sign-in, after every
+// pullShared and when the tab comes back into view; applyHoursOverride lays
+// them over the board. Logins that can't read it (crew, lead, production:
+// 403) and offline keep the build's numbers.
+let cardFactsAt=0, cardFactsBusy=null;
+/** The season the card rows are filed under: this page's install season. */
+function cardSeason(){ return String((SEASON[0]||'')).slice(0,4) || PAGE_SEASON; }
+/** Fetch the card facts. Resolves true when they changed (and were applied). */
+function loadCardFacts(force){
+  if(!AUTH) return Promise.resolve(false);
+  if(cardFactsBusy) return cardFactsBusy;
+  if(!force && Date.now()-cardFactsAt<15000) return Promise.resolve(false);
+  cardFactsBusy=authFetch(`/api/install-schedule/card-facts?season=${encodeURIComponent(cardSeason())}`,
+                          {headers:{Authorization:AUTH}})
+    .then(r=>r.ok ? r.json() : null)
+    .then(rows=>{
+      cardFactsAt=Date.now();
+      if(!Array.isArray(rows) || stableJSON(rows)===stableJSON(cardFacts)) return false;
+      cardFacts=rows;
+      applyHoursOverride();
+      return true;
+    })
+    .catch(()=>false)
+    .finally(()=>{ cardFactsBusy=null; });
+  return cardFactsBusy;
+}
+/** Fetch, and redraw the board (and an open stop card) when anything moved. */
+function refreshCardFacts(force){
+  return loadCardFacts(force).then(changed=>{
+    if(!changed) return false;
+    render();
+    if(peekdlg.open && peekRow!=null && !pkEditingHours) refreshPeekJob(peekRow);
+    return true;
+  });
+}
 /** Only https://drive.google.com/ links open (same rule as the server's
  *  app.libs.drive_links) -- anything else is treated as no link at all. */
 function isDriveUrl(u){
@@ -6253,7 +6394,12 @@ function storingWithUs(row){
   const v=en && en.detail && en.detail.storing;
   return v===true ? true : (v===false ? false : null);
 }
-async function pullShared(){ return syncQueued(pullSharedNow); }
+async function pullShared(){
+  const out=await syncQueued(pullSharedNow);
+  // A card edited elsewhere since: same moment the board itself catches up.
+  refreshCardFacts(true);
+  return out;
+}
 async function pullSharedNow(){
   // A draft is built on the board as it was; loading someone else's save
   // under it would scramble it. Apply merges onto newer saves instead.
@@ -6595,7 +6741,11 @@ function tbdgFlush(){
 }
 window.tbdgFlush = tbdgFlush;
 window.addEventListener('pagehide', tbdgFlush);
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') tbdgFlush(); });
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='hidden') tbdgFlush();
+  // Back on the tab: a card may have changed on the Clients tab (Comment #28).
+  else refreshCardFacts();
+});
 
 // ---------- change history ----------
 // Shared save history, so several staff working the same schedule can see
@@ -6712,7 +6862,7 @@ function stateBlob(){
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
                          dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
-                         hoursOverride, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, c.h26])),
+                         hoursOverride, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, ownHours(c)])),
                          trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames});
 }
 function restoreBlob(blob){
@@ -6730,7 +6880,7 @@ function restoreBlob(blob){
   // An undo step also carries the added stops' own hours (a shared document
   // carries them in newClients, restored before this).
   if(s.synHours) Object.entries(s.synHours).forEach(([r,h])=>{
-    if(C[r] && C[r].synthetic && validHours(h)!=null) C[r].h26=validHours(h); });
+    if(C[r] && C[r].synthetic && validHours(h)!=null) setOwnHours(C[r], validHours(h)); });
   const missing = applyPlacement(s.placement);
   materializeTrainingDays();
   approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -7927,14 +8077,30 @@ function wirePeekCrews(row){
       if(!confirm(`Take ${crewTitle(d)} off ${jointStopName(row)}?\n\n`
         +`${rest.map(crewTitle).join(' + ')} ${rest.length>1?'split':'does'} the whole job `
         +`(${(+(C[row].h26||0)/rest.length).toFixed(1)}h${rest.length>1?' each':''}).`
+        +removeCrewNeedLine(C[row], rest.map(crewTitle), rest.length+1)
         +(alone ? `\n${crewTitle(d)} has no other stops that date, so its day comes off the board.` : '')
         +`\n\nUndo takes it back.`)) return;
       peekdlg.closeNow();
-      removeJointCrew(row, id);
+      if(!removeJointCrew(row, id)) return;
+      // The people stay the whole job's (no recount): if fewer can do it
+      // now, the place to say so is This job (Comment #28).
+      const keep=days.find(x=>x.id===rest[0].id);
+      if(keep && canEditHours() && confirm(`Open This job for ${jointStopName(row)} to change its people or hours?`))
+        openJobEditor(row, keep.id);
     };
   });
 }
 
+/** PURE. The remove-crew confirm's line on people: what the crews left
+ *  need for this job, against what each needed before (Comment #28: taking
+ *  a crew off Stacey Bourque's 12/01 stop left Crew 1 needing all 14). */
+function removeCrewNeedLine(c, restTitles, before){
+  const p=+(c && c.people) || 0, n=restTitles.length;
+  if(!p || !n) return '';
+  const now=perCrewPeople(c, n), was=perCrewPeople(c, before);
+  const who = n>1 ? `each crew needs ${now}` : `${restTitles[0]} needs all ${p}`;
+  return `\nThis job needs ${p} people, so ${who} (it was ${was} per crew).`;
+}
 // ---------- slot finder ----------
 // "This client wants Nov 18" -> ranked legal (date, crew) options.
 function candidateSlots(){
@@ -11781,8 +11947,8 @@ function exportNotebook(){
   // not just a name, to recreate them on a full rebuild.
   const newClients = Object.values(C).filter(c=>c.synthetic).map(c=>(
     {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
-     hours:c.h26, visitType:c.visitType, notes:c.advice,
-     people:c.people, business:c.bus,
+     hours:ownHours(c), visitType:c.visitType, notes:c.advice,
+     people:ownPeople(c), business:c.bus,
      outRow:c.outRow, inCol:c.inCol}));
   const out = {
     kind: 'tbdg-install-overrides',
@@ -12419,62 +12585,255 @@ function wireProfileLink(row){
   const btn=document.getElementById('pkfullprofile');
   if(btn) btn.onclick=()=>openClientsTab(row);
 }
+/** PURE. People per crew when n crews split a job: each role split and
+ *  rounded up, the way dayNeed() counts a joint stop; the whole job for one
+ *  crew. */
+function perCrewPeople(c, n){
+  const p=+(c && c.people) || 0;
+  if(!(n>1)) return p;
+  const rn=normRoleNeed(c && c.roleNeed);
+  if(rn && roleSum(rn)) return CARD_ROLE_KEYS.reduce((a,k)=>a+Math.ceil(rn[k]/n),0);
+  return Math.ceil(p/n);
+}
+/** PURE. The people chip: "9 people", or "14 people (7 per crew)" on a stop
+ *  n crews share (Comment #28: a joint stop showed the whole job's count). */
+function peopleChipText(c, n){
+  const p=+(c && c.people) || 0;
+  if(!p) return '';
+  return n>1 ? `${p} people (${perCrewPeople(c, n)} per crew)` : `${p} people`;
+}
+/** PURE. "From the client card: 5h (was 4.86h), 9 people (was 14)", or ''. */
+function cardFactsNote(c){
+  const card=c && c.card; if(!card || !card.fields.length) return '';
+  const was=card.was||{}, bits=[];
+  // "(was ...)" only when the card actually changed what the stop shows.
+  const wasTxt=(now, before)=>String(now)===String(before) ? '' : ` (was ${before})`;
+  if(card.fields.includes('est_hours')) bits.push(`${fmtHrs(c.h26)}h${wasTxt(fmtHrs(c.h26)+'h', fmtHrs(was.h26)+'h')}`);
+  if(card.fields.includes('role_need')) bits.push(`${c.people} people${wasTxt(c.people, was.people ? was.people : 'not set')}`);
+  if(card.fields.includes('boxes')) bits.push(`${c.boxes} boxes${wasTxt(c.boxes, cardBoxes(was.boxes)==null ? 'not set' : cardBoxes(was.boxes))}`);
+  return `From the client card: ${bits.join(', ')}`;
+}
 /** The job's facts as one row of small chips: boxes, hours, people, plus the
  *  client's install-time preference and storage when the record has them. */
 function peekFactsHTML(row){
   const c=C[row], d=pkDayId==null ? null : days.find(x=>x.id===pkDayId);
   const hrs = d ? (effH(d,row)/(d.stacked||1)) : (+(c.h26||0));
   const half = d && (d.half||[]).includes(row);
+  const ppl = peopleChipText(c, d ? jointN(d,row) : 1);
   const chips=[
     stopBoxes(row)!=null ? pkChip(IC.pkg, peekEsc(stopBoxesTxt(row))) : pkChip(IC.pkg, 'boxes?', 'muted'),
     pkChip(IC.aclock, `${hrs.toFixed(2)}h`),
-    c.people ? pkChip(IC.ausers, `${peekEsc(c.people)} people`) : '',
+    ppl ? pkChip(IC.ausers, peekEsc(ppl)) : '',
   ];
+  const note=cardFactsNote(c);
   return `<div class="pkfacts">${chips.join('')}</div>`
-    + (half ? `<p class="pkfine">${jointN(d,row)===2?'Half':'A '+(jointN(d,row)===3?'third':'share')} of ${peekEsc(c.h26||0)}h, shared with ${peekEsc(d.joint||'another crew')}</p>` : '');
+    + (half ? `<p class="pkfine">${jointN(d,row)===2?'Half':'A '+(jointN(d,row)===3?'third':'share')} of ${peekEsc(c.h26||0)}h, shared with ${peekEsc(d.joint||'another crew')}</p>` : '')
+    + (note ? `<p class="pkfine pkcardnote">${peekEsc(note)}</p>` : '');
 }
 let pkEditingHours=false;
-/** Est. install time for the whole job: the value, "edited (was 7.29h)" when
- *  staff changed a spreadsheet client's, and Edit / Reset for staff. */
+/** The stops on the board that read this stop's client card: install
+ *  visits matched to the same client record (a takedown visit never is). */
+function cardTwinRows(row){
+  const ac=appClientFor(row); if(!ac) return [];
+  return Object.keys(C).filter(r=>C[r] && !isTakedownVisit(C[r]) && appClientFor(+r)===ac).map(Number);
+}
+/** Staff, signed in, on an install stop that is its client card's only
+ *  stop: "This job" edits the card's hours, boxes and people (Comment #28).
+ *  Everywhere else it edits the hours on the board only, as before. */
+function canEditCardFacts(row){
+  const c=C[row];
+  return !!(c && AUTH && canEditHours() && !isTakedownVisit(c) && cardTwinRows(row).length===1);
+}
+const CARD_ROLE_LABELS=[['leads','Leads'],['specialty','Specialty'],['designer','Designers'],['general','General']];
+/** The This job editor for a stop with a client card: hours, boxes and the
+ *  four headcounts, saved to the card. */
+function cardFactsFormHTML(row){
+  const c=C[row];
+  const rn=normRoleNeed(c.roleNeed) || {leads:0, specialty:0, designer:0, general:0};
+  const b=cardBoxes(c.boxes);
+  return `<div class="pkhrs pkhrsform pkfactform">
+      <label class="pkhrslbl">Est. install time
+        <input id="pkhrsin" type="number" inputmode="decimal" step="0.25" min="0.25" max="24" value="${peekEsc(fmtHrs(c.h26))}"> h</label>
+      <label class="pkhrslbl">Boxes
+        <input id="pkfbox" type="number" inputmode="numeric" step="1" min="0" max="999" value="${b==null?'':b}"></label>
+      <div class="pkfroles" role="group" aria-label="People on the job">${CARD_ROLE_LABELS.map(([k,l])=>
+        `<label class="pkhrslbl">${l}<input id="pkfr-${k}" data-role="${k}" type="number" inputmode="numeric" step="1" min="0" max="99" value="${rn[k]}"></label>`).join('')}</div>
+      <p class="pkfine" id="pkftotal">${roleSum(rn)} people for the whole job, before any joint split.</p>
+      <button type="button" class="pkhrsbtn on" id="pkhrssave">Save</button>
+      <button type="button" class="pkhrsbtn" id="pkhrscancel">Cancel</button>
+      <p class="pkfine">Saves to the client card. The hours also set the card's ideal price.</p>
+    </div>`;
+}
+/** PURE. The card fields to send: only what changed from what the stop
+ *  shows. A blank box count changes nothing. */
+function cardFactChanges(c, vals){
+  const out={};
+  if(vals.h!=null && vals.h!==validHours(c.h26)) out.est_hours=vals.h;
+  if(vals.boxes!=null && vals.boxes!==cardBoxes(c.boxes)) out.boxes=vals.boxes;
+  const was=normRoleNeed(c.roleNeed) || {leads:0, specialty:0, designer:0, general:0};
+  const rn=normRoleNeed(vals.rn);
+  if(rn && CARD_ROLE_KEYS.some(k=>rn[k]!==was[k])) out.role_need=rn;
+  return out;
+}
+/** PURE. What a Reset sends: every fact the card set goes back to the
+ *  sheet. The build's boxes and headcounts are the fallback for a card
+ *  edited before the server kept the sheet's values; never its hours
+ *  (calibrated, not the sheet's own number). */
+function cardResetBody(card){
+  const fields={}, reset=[...((card && card.fields)||[])];
+  const was=(card && card.was) || {};
+  if(reset.includes('boxes') && cardBoxes(was.boxes)!=null) fields.boxes=cardBoxes(was.boxes);
+  if(reset.includes('role_need') && normRoleNeed(was.roleNeed)) fields.role_need=normRoleNeed(was.roleNeed);
+  return {fields, reset};
+}
+/** PURE. The card-facts row a saved season row stands for (the shape GET
+ *  /api/install-schedule/card-facts lists), or null with no edited fact. */
+function cardFactFromDetail(ac, detail){
+  const d=detail && typeof detail==='object' ? detail : {};
+  const ed=d.app_edits && typeof d.app_edits==='object' ? d.app_edits : {};
+  const out={id:ac.id, name:ac.name, sheet_name:ac.sheet_name||null, former_names:ac.former_names||[]};
+  const edited={};
+  ['boxes','est_hours','role_need'].forEach(k=>{ if(k in ed && d[k]!=null){ out[k]=d[k]; edited[k]=ed[k]; } });
+  return Object.keys(edited).length ? {...out, edited} : null;
+}
+/** Send a season edit for this stop's client card, learn the saved row and
+ *  lay it over the board. Resolves true; throws {status, detail} on failure. */
+async function putCardFacts(row, body){
+  const ac=appClientFor(row);
+  if(!ac) throw {status:0, detail:'no client card'};
+  let r;
+  try{
+    r=await authFetch(`/api/clients/${ac.id}/seasons/${encodeURIComponent(cardSeason())}`,
+      {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  }catch(e){ throw {status:0, detail:''}; }
+  if(!r.ok){
+    let detail=''; try{ const j=await r.json(); detail=(j && typeof j.detail==='string') ? j.detail : ''; }catch(e){}
+    throw {status:r.status, detail};
+  }
+  const saved=await r.json();
+  ac.activity=[...(ac.activity||[]).filter(a=>!(a.kind==='christmas_install' && String(a.season)===String(saved.season))), saved];
+  const fact=cardFactFromDetail(ac, saved.detail);
+  cardFacts=[...cardFacts.filter(f=>f.id!==ac.id), ...(fact?[fact]:[])];
+  applyHoursOverride();
+  return true;
+}
+/** What a failed card save says, in plain words. */
+function cardFactsErrorMessage(err){
+  const status=err && err.status, why=err && err.detail ? ` (${err.detail})` : '';
+  if(status===0) return `Couldn't reach the server, so the client card didn't change. Check the connection and press Save again.`;
+  if(status===401) return `Your sign-in has expired. Reload the page, sign in if asked, and save again.`;
+  if(status===403) return `This login can't change the client card.`;
+  if(status===400 || status===422) return `The server turned that down${why}. Check the numbers and press Save again.`;
+  return `The client card didn't save (error ${status||'unknown'})${why}. Press Save again in a moment.`;
+}
+/** Est. install time for the whole job: the value, where it came from
+ *  ("client card (was 4.86h)", or "edited (was 7.29h)" for an edit made on
+ *  the board), and Edit / Reset for staff. */
 function peekHoursHTML(row){
   const c=C[row]; if(!c) return '';
   const edit=canEditHours();
+  const cardEdit=edit && canEditCardFacts(row);
   const sheet=sheetHoursOf(row);
-  if(pkEditingHours && edit) return `<div class="pkhrs pkhrsform">
+  if(pkEditingHours && edit){
+    if(cardEdit) return cardFactsFormHTML(row);
+    return `<div class="pkhrs pkhrsform">
       <label class="pkhrslbl">Est. install time
-        <input id="pkhrsin" type="number" inputmode="decimal" step="0.25" min="0.25" max="24" value="${peekEsc(fmtHrs(c.h26))}"> h</label>
+        <input id="pkhrsin" type="number" inputmode="decimal" step="0.25" min="0.25" max="24" value="${peekEsc(fmtHrs(ownHours(c)))}"> h</label>
       <button type="button" class="pkhrsbtn on" id="pkhrssave">Save</button>
       <button type="button" class="pkhrsbtn" id="pkhrscancel">Cancel</button>
       ${sheet!=null?`<p class="pkfine">Spreadsheet: ${peekEsc(fmtHrs(sheet))}h. The whole job, before any joint split.</p>`:''}
     </div>`;
+  }
+  const card=c.card, cardHrs=!!(card && card.fields.includes('est_hours'));
+  const canReset = edit && ((cardEdit && card) || (!cardHrs && c.hoursEdited));
+  const resetTitle = cardEdit && card ? 'Back to the spreadsheet: clears the client card edit' : `Back to the spreadsheet's ${fmtHrs(sheet)}h`;
   return `<div class="pkhrs"><span>Est. install time <b>${peekEsc(fmtHrs(c.h26))}h</b></span>`
-    + (c.hoursEdited ? ` <span class="pkhrsed" title="Changed by staff on the board">edited (was ${peekEsc(fmtHrs(sheet))}h)</span>` : '')
+    + (cardHrs ? ` <span class="pkhrsed" title="Set on the client card">client card${fmtHrs(card.was.h26)===fmtHrs(c.h26) ? '' : ` (was ${peekEsc(fmtHrs(card.was.h26))}h)`}</span>`
+       : c.hoursEdited ? ` <span class="pkhrsed" title="Changed by staff on the board">edited (was ${peekEsc(fmtHrs(sheet))}h)</span>` : '')
     + (edit ? ` <button type="button" class="pkhrsbtn" id="pkhrsedit">Edit</button>` : '')
-    + (edit && c.hoursEdited ? ` <button type="button" class="pkhrsbtn" id="pkhrsreset" title="Back to the spreadsheet's ${peekEsc(fmtHrs(sheet))}h">Reset</button>` : '')
+    + (canReset ? ` <button type="button" class="pkhrsbtn" id="pkhrsreset" title="${peekEsc(resetTitle)}">Reset</button>` : '')
     + `</div>`;
+}
+/** Re-draw an open card's "This job" facts and hours (card facts changed). */
+function refreshPeekJob(row){
+  const f=document.getElementById('pkfactsbox'); if(f) f.innerHTML=peekFactsHTML(row);
+  const h=document.getElementById('pkhrsbox'); if(h){ h.innerHTML=peekHoursHTML(row); wirePeekHours(row); }
+}
+/** Open a stop's card with "This job" already in edit mode. */
+function openJobEditor(row, dayId){
+  openStopPeek(row, dayId);
+  if(peekRow!==row || !canEditHours()) return;
+  pkEditingHours=true;
+  const box=document.getElementById('pkhrsbox');
+  if(box){ box.innerHTML=peekHoursHTML(row); wirePeekHours(row); try{ box.scrollIntoView({block:'center'}); }catch(e){} }
 }
 function wirePeekHours(row){
   const box=document.getElementById('pkhrsbox'); if(!box) return;
   const redraw=()=>{ box.innerHTML=peekHoursHTML(row); wirePeekHours(row); };
   // A save re-routes the day, so the card's times change too: re-open it.
   const reopen=()=>{ pkEditingHours=false; if(peekdlg.open) openStopPeek(row, pkDayId); };
+  const cardEdit=canEditCardFacts(row);
   const ed=document.getElementById('pkhrsedit');
   if(ed) ed.onclick=e=>{ e.stopPropagation(); pkEditingHours=true; redraw();
     const i=document.getElementById('pkhrsin'); if(i){ i.focus(); i.select(); } };
   const rs=document.getElementById('pkhrsreset');
-  if(rs) rs.onclick=e=>{ e.stopPropagation(); if(setStopHours(row, null)) reopen(); };
+  if(rs) rs.onclick=async e=>{
+    e.stopPropagation();
+    const c=C[row];
+    if(!(cardEdit && c.card)){ if(setStopHours(row, null)) reopen(); return; }
+    const was=c.card.was||{}, bits=[];
+    // A board edit of the hours is cleared too, so a spreadsheet stop goes
+    // all the way back to the sheet's hours; an added stop to its own.
+    if(c.card.fields.includes('est_hours')) bits.push(`${fmtHrs(c.synthetic ? was.h26 : sheetHoursOf(row))}h`);
+    if(c.card.fields.includes('role_need')) bits.push(`${was.people ? was.people : 'no'} people`);
+    if(c.card.fields.includes('boxes')) bits.push(`${cardBoxes(was.boxes)==null ? 'no' : cardBoxes(was.boxes)} boxes`);
+    if(!confirm(`Put ${c.name} back to the spreadsheet's numbers?\n\nThe schedule goes back to ${bits.join(', ')}, `
+      +`and the client card's edit is cleared.`)) return;
+    rs.disabled=true;
+    try{ await putCardFacts(row, cardResetBody(c.card)); }
+    catch(err){ rs.disabled=false; alert(cardFactsErrorMessage(err)); return; }
+    // An edit made on the board earlier goes too: back to the sheet means the sheet.
+    if(hoursOverride[row]!=null) setStopHours(row, null); else render();
+    reopen();
+  };
   const cancel=document.getElementById('pkhrscancel');
   if(cancel) cancel.onclick=e=>{ e.stopPropagation(); pkEditingHours=false; redraw(); };
   const save=document.getElementById('pkhrssave'), inp=document.getElementById('pkhrsin');
-  const doSave=()=>{
+  const roles=[...box.querySelectorAll('[data-role]')], bx=document.getElementById('pkfbox');
+  const total=document.getElementById('pkftotal');
+  roles.forEach(el=>{ el.oninput=()=>{
+    const rn={}; roles.forEach(x=>{ rn[x.dataset.role]=Math.max(0, Math.floor(+x.value)||0); });
+    if(total) total.textContent=`${roleSum(rn)} people for the whole job, before any joint split.`;
+  }; });
+  const doSave=async()=>{
     const h=validHours(inp.value);
     if(h==null){ inp.setCustomValidity('Enter hours between 0.25 and 24'); inp.reportValidity(); return; }
-    if(setStopHours(row, h)) reopen(); else { pkEditingHours=false; redraw(); }
+    if(!cardEdit){ if(setStopHours(row, h)) reopen(); else { pkEditingHours=false; redraw(); } return; }
+    const rn={};
+    for(const x of roles){
+      const n=x.value==='' ? 0 : +x.value;
+      if(!Number.isInteger(n) || n<0 || n>99){ x.setCustomValidity('A whole number, 0 to 99'); x.reportValidity(); return; }
+      rn[x.dataset.role]=n;
+    }
+    let boxes=null;
+    if(bx && bx.value!==''){
+      boxes=+bx.value;
+      if(!Number.isInteger(boxes) || boxes<0 || boxes>999){ bx.setCustomValidity('A whole number, 0 to 999'); bx.reportValidity(); return; }
+    }
+    const fields=cardFactChanges(C[row], {h, boxes, rn});
+    if(!Object.keys(fields).length){ pkEditingHours=false; redraw(); return; }
+    if(save){ save.disabled=true; save.textContent='Saving…'; }
+    try{ await putCardFacts(row, {fields}); }
+    catch(err){ if(save){ save.disabled=false; save.textContent='Save'; } alert(cardFactsErrorMessage(err)); return; }
+    render();
+    reopen();
   };
   if(save) save.onclick=e=>{ e.stopPropagation(); doSave(); };
-  if(inp) inp.onkeydown=e=>{ inp.setCustomValidity('');
-    if(e.key==='Enter'){ e.preventDefault(); doSave(); }
-    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); pkEditingHours=false; redraw(); } };
+  [inp, bx, ...roles].filter(Boolean).forEach(el=>{
+    el.onkeydown=e=>{ el.setCustomValidity('');
+      if(e.key==='Enter'){ e.preventDefault(); doSave(); }
+      if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); pkEditingHours=false; redraw(); } };
+  });
 }
 /** Install notes, production & repair notes and the client's general notes:
  *  callouts with a thin left border. Live from the client record (Clients
