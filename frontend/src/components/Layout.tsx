@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
+  ClipboardCheck,
   HelpCircle,
+  MapPinned,
   Package,
   LogOut,
   Menu,
@@ -162,21 +164,35 @@ function FieldLayout({ children }: Props) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const me = currentMe();
+  const onTimes = useLocation().pathname === "/install-times";
+  // A lead's header has a third button; on a narrow phone Help and Sign out
+  // drop to icons so the name still shows.
+  const isLead = me?.role === "lead";
+  const narrowText = isLead ? "hidden min-[420px]:inline" : "";
   return (
-    <div className="min-h-screen bg-[#f7f6f2]">
+    <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-[#1f3d2b] px-4 py-3 text-white">
         <div className="min-w-0">
           <p className="text-sm font-semibold">Leaf &amp; Ledger</p>
           <p className="truncate text-xs text-white/70">{me?.person?.name || me?.email}</p>
         </div>
         <div className="flex flex-none items-center gap-2">
+          {/* Leads switch between their shifts and Install Times (crew can't open it). */}
+          {isLead && (
+            <Link
+              to={onTimes ? "/shifts" : "/install-times"}
+              className="flex min-h-10 items-center gap-1.5 rounded-lg border border-white/30 px-3 text-xs font-semibold"
+            >
+              {onTimes ? <><MapPinned size={14} /> Shifts</> : <><ClipboardCheck size={14} /> Times</>}
+            </Link>
+          )}
           {/* How-to videos: the one other page a field login may open. */}
           <Link
             to="/help"
             aria-label="Help: how-to videos"
             className="flex min-h-10 items-center gap-1.5 rounded-lg border border-white/30 px-3 text-xs font-semibold"
           >
-            <HelpCircle size={14} /> Help
+            <HelpCircle size={14} /> <span className={narrowText}>Help</span>
           </Link>
           <button
             type="button"
@@ -184,9 +200,10 @@ function FieldLayout({ children }: Props) {
               await signOut();
               navigate("/login", { replace: true });
             }}
+            aria-label="Sign out"
             className="flex min-h-10 items-center gap-1.5 rounded-lg border border-white/30 px-3 text-xs font-semibold"
           >
-            <LogOut size={14} /> Sign out
+            <LogOut size={14} /> <span className={narrowText}>Sign out</span>
           </button>
         </div>
       </header>
