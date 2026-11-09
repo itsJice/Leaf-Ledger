@@ -1225,3 +1225,72 @@ async def client_links() -> list[dict]:
         {**dict(r), "former_names": list(r["former_names"] or [])}
         for r in rows
     ]
+
+
+#: The client card's job facts the schedule lays over its build (Comment #28):
+#: box count, est. install hours and the four headcounts.
+CARD_FACT_KEYS = ("boxes", "est_hours", "role_need")
+
+
+def card_facts_from(rows) -> list[dict]:
+    """PURE. One entry per client whose season card has an app-edited box
+    count, hours or headcounts: those values only (plus the edit times), and
+    the names the page matches stops on. A value the sheet sync wrote is left
+    out on purpose: the schedule's own hours are calibrated from it (est x
+    0.81, or last year's real hours), so showing the raw sheet number would
+    move every stop. Only a person's edit on the card wins over the build,
+    so a key stamped by the workbook import ("import:<date>", the sheet's
+    raw value copied onto the card) is left out too."""
+    out = []
+    for r in rows:
+        detail = _loads(r["detail"]) or {}
+        if not isinstance(detail, dict):
+            continue
+        edits = detail.get(client_season.APP_EDITS_KEY)
+        if not isinstance(edits, dict):
+            continue
+        facts = {k: detail[k] for k in CARD_FACT_KEYS
+                 if k in edits and client_season.is_person_edit(edits[k])
+                 and detail.get(k) is not None}
+        if not facts:
+            continue
+        out.append({
+            "id": r["id"], "name": r["name"], "sheet_name": r["sheet_name"],
+            "former_names": list(r["former_names"] or []),
+            **facts,
+            "edited": {k: edits[k] for k in facts},
+        })
+    return out
+
+
+@router.get("/card-facts")
+async def card_facts(season: str | None = None) -> list[dict]:
+    """The client cards' app-edited boxes, est. install hours and headcounts
+    for a season (Comment #28), so a change on the card reaches the schedule.
+
+    The page's DATA bakes in each stop's boxes, hours and people at build
+    time and can't change (its hash keys every saved board), so the page
+    reads these at runtime and lays them over the build: card edit, then the
+    board's own hours edit (hoursOverride), then the build. Read here rather
+    than from /api/clients/list so the shop TV (viewer) shows the same
+    numbers as the office. Production is refused (roles.PRODUCTION_DENY):
+    hours and headcounts are the inputs to a client's price. Changing them
+    is PUT /api/clients/{id}/seasons/{season}, staff and up.
+    """
+    from app.apis import clients as clients_api
+
+    want = _clean_season(season) if season is not None else str(season_for())
+    conn = await get_conn()
+    try:
+        await clients_api.ensure_schema(conn)
+        rows = await conn.fetch(
+            "SELECT c.id, c.name, c.sheet_name, c.former_names, a.detail "
+            "  FROM client_activity a JOIN clients c ON c.id = a.client_id "
+            " WHERE a.kind = 'christmas_install' AND a.season = $1 "
+            "   AND a.detail ? 'app_edits' "
+            " ORDER BY c.id",
+            want,
+        )
+    finally:
+        await conn.close()
+    return card_facts_from(rows)

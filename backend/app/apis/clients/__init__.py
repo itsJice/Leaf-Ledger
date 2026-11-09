@@ -796,8 +796,14 @@ async def delete_client(client_name: str, request: Request, delete_projects: boo
 class SeasonFieldsIn(BaseModel):
     """Per-season edits from the Clients tab. ``fields`` is {key: value} over
     the whitelist in app.libs.client_season.SEASON_FIELDS; a null or ""
-    value clears that key so the spreadsheet may fill it again."""
-    fields: dict
+    value clears that key so the spreadsheet may fill it again.
+
+    ``reset`` hands keys back to the sheet (the Install Schedule's Reset,
+    Comment #28): the sheet's value goes back on the card and the app-edit
+    stamp is dropped. A value sent in ``fields`` for a reset key is only the
+    fallback for when the sheet's value isn't known."""
+    fields: dict = {}
+    reset: List[str] = []
 
 
 def _clean_season_label(season: str) -> str:
@@ -807,7 +813,7 @@ def _clean_season_label(season: str) -> str:
     return s
 
 
-async def save_season_fields(conn, client_id: int, season: str, fields: dict):
+async def save_season_fields(conn, client_id: int, season: str, fields: dict, reset=()):
     """Apply app-side edits to one client's season row (creating it if there
     is none) and return the saved row. Every edited key is stamped in
     detail.app_edits so the sheet sync keeps it. Raises
@@ -822,7 +828,7 @@ async def save_season_fields(conn, client_id: int, season: str, fields: dict):
         prior = row["detail"] if row else None
         if isinstance(prior, str):
             prior = json.loads(prior)
-        detail = client_season.apply_edits(prior if isinstance(prior, dict) else {}, fields)
+        detail = client_season.apply_edits(prior if isinstance(prior, dict) else {}, fields, reset=reset)
         summary = client_season.summarize(detail)
         occurred = detail.get("install_date")
         try:
@@ -854,7 +860,7 @@ async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn
     sheet has not been synced for.
     """
     season = _clean_season_label(season)
-    if not isinstance(body.fields, dict) or not body.fields:
+    if not isinstance(body.fields, dict) or not (body.fields or body.reset):
         raise HTTPException(status_code=400, detail="fields must be a non-empty object")
     conn = await get_conn()
     try:
@@ -862,7 +868,7 @@ async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn
         if not exists:
             raise HTTPException(status_code=404, detail="No client with that id")
         try:
-            saved = await save_season_fields(conn, client_id, season, body.fields)
+            saved = await save_season_fields(conn, client_id, season, body.fields, body.reset)
         except client_season.FieldError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         out = dict(saved)

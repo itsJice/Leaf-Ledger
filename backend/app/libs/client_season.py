@@ -162,6 +162,19 @@ def stamp(detail: dict, keys, when: str | None = None) -> dict:
     return detail
 
 
+#: The stamp the workbook import (scheduler/import_workbook.py) and the
+#: calendar-history import write: "import:<date>". Those keys are app-owned
+#: so the sync can't blank them, but the value is the sheet's own, not a
+#: person's edit.
+IMPORT_STAMP_PREFIX = "import:"
+
+
+def is_person_edit(stamp_value) -> bool:
+    """True for a stamp a person's edit wrote (an ISO time), False for an
+    import's copy of the sheet ("import:<date>")."""
+    return not str(stamp_value or "").startswith(IMPORT_STAMP_PREFIX)
+
+
 def unstamp(detail: dict, keys) -> dict:
     """Forget an app edit -- the next sync may refresh the key again."""
     edits = detail.get(APP_EDITS_KEY)
@@ -193,6 +206,17 @@ def merge_sheet_detail(prior: dict | None, fresh: dict) -> dict:
     edits = prior.get(APP_EDITS_KEY)
     if isinstance(edits, dict) and edits:
         out[APP_EDITS_KEY] = dict(edits)
+    # While a person's job fact stands, remember what the sheet says now, so
+    # a Reset can put the sheet's number back (Comment #28).
+    kept = prior.get(SHEET_VALUES_KEY)
+    sheet = {k: v for k, v in (kept.items() if isinstance(kept, dict) else ())
+             if k in SHEET_KEPT and isinstance(edits, dict) and k in edits}
+    for k in SHEET_KEPT:
+        if isinstance(edits, dict) and k in edits and fresh.get(k) is not None:
+            sheet[k] = fresh[k]
+    out.pop(SHEET_VALUES_KEY, None)
+    if sheet:
+        out[SHEET_VALUES_KEY] = sheet
     return out
 
 
@@ -269,6 +293,15 @@ INVENTORY_MAX_LINES = 200
 
 #: The four headcounts the spreadsheet has always carried per client.
 ROLE_KEYS = ("leads", "specialty", "designer", "general")
+
+#: Where the sheet's own value of an app-edited job fact is kept
+#: ({key: value}), so the Install Schedule's Reset can put the sheet's number
+#: back on the card (Comment #28). Recorded when a person first edits the
+#: key and refreshed by every sheet sync while the edit stands.
+SHEET_VALUES_KEY = "sheet_values"
+#: The job facts the schedule shows from the card: box count, est. install
+#: hours and the four headcounts.
+SHEET_KEPT = ("boxes", "est_hours", "role_need")
 
 
 def _as_inventory(v: Any) -> list | None:
@@ -347,7 +380,8 @@ def coerce_field(key: str, value: Any):
     return _as_text(value)
 
 
-def apply_edits(detail: dict | None, fields: dict, when: str | None = None) -> dict:
+def apply_edits(detail: dict | None, fields: dict, when: str | None = None,
+                reset=()) -> dict:
     """Apply a person's per-season edits to a detail dict and stamp them.
 
     A ``None`` (or "") value clears the key and drops its stamp, so the sheet
@@ -355,17 +389,49 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None) -> d
     either true clears the other, and marking not-installing remembers the
     date the client was pulled off of (``was_scheduled``) so the summary can
     say so.
+
+    ``reset`` lists keys to hand back to the sheet (the Install Schedule's
+    Reset, Comment #28): the sheet's value goes back on the card when it is
+    known (``sheet_values``), else the value sent in ``fields`` for that key,
+    else the card keeps its number until the next sheet sync refreshes it.
+    Either way the stamp is dropped, so the sync owns the key again.
     """
     d = dict(detail or {})
+    reset = list(dict.fromkeys(reset or ()))
+    for k in reset:
+        if k not in SEASON_FIELDS:
+            raise FieldError(f"unknown season field {k!r}")
     cleaned = {k: coerce_field(k, v) for k, v in fields.items()}
+    fallback = {k: cleaned.pop(k) for k in reset if k in cleaned}
+    prior_edits = d.get(APP_EDITS_KEY) if isinstance(d.get(APP_EDITS_KEY), dict) else {}
+    # An import's stamp holds the sheet's own value: the first person's edit
+    # over it still keeps that value for a Reset.
+    prior_edits = {k: v for k, v in prior_edits.items() if is_person_edit(v)}
+    sheet = dict(d.get(SHEET_VALUES_KEY)) if isinstance(d.get(SHEET_VALUES_KEY), dict) else {}
     set_keys, clear_keys = [], []
     for k, v in cleaned.items():
         if v is None or v is False and k in ("hold", "not_installing"):
             d.pop(k, None)
+            sheet.pop(k, None)
             clear_keys.append(k)
         else:
+            # A person's first edit of a job fact: keep the sheet's number.
+            if (k in SHEET_KEPT and k not in prior_edits and k not in sheet
+                    and d.get(k) is not None and d.get(k) != v):
+                sheet[k] = d[k]
             d[k] = v
             set_keys.append(k)
+    for k in reset:
+        back = sheet.pop(k, None)
+        if back is None:
+            back = fallback.get(k)
+        if back is not None:
+            d[k] = back
+        clear_keys.append(k)
+    if sheet:
+        d[SHEET_VALUES_KEY] = sheet
+    else:
+        d.pop(SHEET_VALUES_KEY, None)
     if cleaned.get("not_installing"):
         d.pop("hold", None)
         clear_keys.append("hold")

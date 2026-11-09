@@ -128,7 +128,7 @@ def test_wiring():
     assert "applyLiveClientFields();" in js_function("loadClientDirectory")
     assert "driveLinkAmbig=ambiguousSpellings(rows);" in js_function("loadDriveLinks")
     # Added stops come with the shared state, often after the records landed.
-    assert "if(added){ try{ applyLiveClientFields(); }catch(e){} }" in js_function("restoreSyntheticClients")
+    assert "if(added){ try{ applyLiveClientFields(); }catch(e){}" in js_function("restoreSyntheticClients")
     assert "clientDirectoryAmbig = ambiguousSpellings(rows);" in js_function("loadClientDirectory")
     # The editor has the Area box, saves it with the card and redraws the board.
     assert "pkField('pkf-zone','Area'" in js_function("contactEditHTML")
