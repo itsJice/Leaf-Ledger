@@ -167,3 +167,27 @@ def test_entry_timestamps_are_central():
     e = T.build_entry("2026-11-19", "8a", "9a", night=False)
     assert e.arrive_at.utcoffset().total_seconds() == -6 * 3600
     assert isinstance(e.arrive_at, datetime)
+
+
+@pytest.mark.parametrize("arrive, leave, night, want", [
+    # The 11/9 Byler store stop: typed with no am/pm at all.
+    ("10:59", "2:05", False, "2:05 PM"),
+    ("2p", "7", False, "7:00 PM"),        # day rule alone would say 7 AM
+    ("8", "12:30", False, "12:30 PM"),
+    ("11", "11:30", False, "11:30 AM"),
+    ("10:15", "1:30", True, "1:30 AM"),   # a Dallas night
+    ("9", "11", True, "11:00 PM"),
+    ("10:59", "2:05a", False, "2:05 AM"), # explicit am/pm wins
+    ("10:59", "14:05", False, "2:05 PM"), # 24-hour taken as written
+    ("", "2:05", False, "2:05 PM"),       # no Arrive: the shift rule
+])
+def test_leave_is_the_soonest_time_after_arrive(arrive, leave, night, want):
+    a = T.parse_clock(arrive, night=night)
+    assert T.fmt_clock(T.parse_leave(leave, a, night=night)) == want
+
+
+def test_build_entry_uses_the_smart_leave():
+    e = T.build_entry("2026-11-09", "10:59", "2:05", night=False)
+    assert (_hm(e.arrive_at), _hm(e.depart_at), e.hours) == ("11/09 10:59", "11/09 14:05", 3.1)
+    e = T.build_entry("2026-11-09", "2p", "7", night=False)
+    assert (_hm(e.depart_at), e.hours) == ("11/09 19:00", 5.0)

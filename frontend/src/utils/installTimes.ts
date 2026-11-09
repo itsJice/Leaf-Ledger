@@ -7,6 +7,8 @@
 // * No am/pm: a DAY shift reads 7..11 as morning and 12..6 as afternoon; a
 //   NIGHT shift (Dallas) reads 6..11 as evening, 12 as midnight, 1..5 as early
 //   morning. 24-hour times ("22:15", "0015", "09:30") are taken as written.
+// * A Leave with no am/pm is the soonest such time after the Arrive
+//   (10:59 AM to "2:05" is 2:05 PM; 10:15 PM to "1:30" is 1:30 AM).
 // * A Leave earlier than (or equal to) the Arrive is the next day; on a night
 //   shift an arrival before noon is the next morning.
 
@@ -83,10 +85,26 @@ const SUFFIX = /(a\.?m?\.?|p\.?m?\.?)$/;
 /** Minutes after midnight (0..1439), or null for blank. Throws
  *  TimeParseError with a message safe to show. */
 export function parseClock(text: string | null | undefined, night = false): number | null {
+  return parse(text, night)[0];
+}
+
+/** A typed Leave time. With no am/pm ("2:05", "1:30") it is the soonest such
+ *  time after the Arrive: 10:59 AM then "2:05" is 2:05 PM, 10:15 PM then
+ *  "1:30" is 1:30 AM. Explicit am/pm and 24-hour times are taken as written. */
+export function parseLeave(text: string | null | undefined, arriveMin: number | null, night = false): number | null {
+  const [minutes, guessed] = parse(text, night);
+  if (minutes == null || arriveMin == null || !guessed) return minutes;
+  const after = (m: number) => ((((m - arriveMin) % 1440) + 1440) % 1440) || 1440;
+  const other = (minutes + 720) % 1440;
+  return after(other) < after(minutes) ? other : minutes;
+}
+
+/** [minutes, guessed]: guessed when am/pm came from the shift (1..12, no am/pm). */
+function parse(text: string | null | undefined, night: boolean): [number | null, boolean] {
   let s = String(text ?? "").toLowerCase().replace(/\s+/g, "");
-  if (!s) return null;
-  if (s === "noon" || s === "12n") return 12 * 60;
-  if (s === "midnight" || s === "12m") return 0;
+  if (!s) return [null, false];
+  if (s === "noon" || s === "12n") return [12 * 60, false];
+  if (s === "midnight" || s === "12m") return [0, false];
   const shown = String(text).trim();
   const bad = () => new TimeParseError(`Can't read "${shown}" as a time. Try 10:15p or 1:30a.`);
   let ap = "";
@@ -115,17 +133,34 @@ export function parseClock(text: string | null | undefined, night = false): numb
   if (mi > 59) throw new TimeParseError(`"${shown}": minutes must be 00 to 59.`);
   if (ap) {
     if (h < 1 || h > 12) throw new TimeParseError(`"${shown}": with am/pm the hour must be 1 to 12.`);
-    return ((h % 12) + (ap === "p" ? 12 : 0)) * 60 + mi;
+    return [((h % 12) + (ap === "p" ? 12 : 0)) * 60 + mi, false];
   }
   if (h > 23) throw new TimeParseError(`"${shown}": the hour must be 0 to 23.`);
-  if (h === 0 || h >= 13 || (hs.length === 2 && hs.startsWith("0"))) return h * 60 + mi;
+  if (h === 0 || h >= 13 || (hs.length === 2 && hs.startsWith("0"))) return [h * 60 + mi, false];
   if (night) {
     if (h >= 6 && h <= 11) h += 12;
     else if (h === 12) h = 0;
   } else if (h >= 1 && h <= 6) {
     h += 12;
   }
-  return h * 60 + mi;
+  return [h * 60 + mi, true];
+}
+
+/** Central wall-clock minutes now, for the Now buttons. */
+export function nowClockCT(at: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(at);
+  const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return (n("hour") % 24) * 60 + n("minute");
+}
+
+/** Whether a crew-day is happening now (so Now buttons make sense): its own
+ *  date, or the morning after for a night shift. */
+export function isLiveDay(crewDate: string, today: string, night: boolean): boolean {
+  if (crewDate === today) return true;
+  if (!night) return false;
+  const [y, m, d] = crewDate.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return next === today;
 }
 
 /** 1335 -> "10:15 PM". */

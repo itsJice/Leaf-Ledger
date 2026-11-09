@@ -1,6 +1,6 @@
 // Pinned to the same values as backend tests/test_install_times.py.
 import { describe, expect, it } from "vitest";
-import { diffLabel, fmtClock, fmtDuration, onSiteMinutes, parseClock, TimeParseError } from "../installTimes";
+import { diffLabel, fmtClock, fmtDuration, isLiveDay, nowClockCT, onSiteMinutes, parseClock, parseLeave, TimeParseError } from "../installTimes";
 
 const cases: [string, boolean, string][] = [
   ["10:15p", false, "10:15 PM"],
@@ -64,5 +64,36 @@ describe("rollover and labels", () => {
     expect(diffLabel(4, 3)).toEqual({ text: "1 h under (-25%)", tone: "under" });
     expect(diffLabel(2, 2.05)).toEqual({ text: "on estimate", tone: "even" });
     expect(diffLabel(null, 2)).toBeNull();
+  });
+});
+
+describe("parseLeave (same values as the backend test)", () => {
+  const leaves: [string, string, boolean, string][] = [
+    ["10:59", "2:05", false, "2:05 PM"],
+    ["2p", "7", false, "7:00 PM"],
+    ["8", "12:30", false, "12:30 PM"],
+    ["11", "11:30", false, "11:30 AM"],
+    ["10:15", "1:30", true, "1:30 AM"],
+    ["9", "11", true, "11:00 PM"],
+    ["10:59", "2:05a", false, "2:05 AM"],
+    ["10:59", "14:05", false, "2:05 PM"],
+    ["", "2:05", false, "2:05 PM"],
+  ];
+  it.each(leaves)("arrive %s, leave %s (night %s) -> %s", (arrive, leave, night, want) => {
+    expect(fmtClock(parseLeave(leave, parseClock(arrive, night), night))).toBe(want);
+  });
+});
+
+describe("Now buttons", () => {
+  it("reads the Central clock", () => {
+    expect(nowClockCT(new Date("2026-11-09T16:59:00Z"))).toBe(10 * 60 + 59);
+    expect(nowClockCT(new Date("2026-11-05T07:30:00Z"))).toBe(90);
+  });
+  it("shows on the crew-day, and the morning after a night", () => {
+    expect(isLiveDay("2026-11-09", "2026-11-09", false)).toBe(true);
+    expect(isLiveDay("2026-11-04", "2026-11-05", false)).toBe(false);
+    expect(isLiveDay("2026-11-04", "2026-11-05", true)).toBe(true);
+    expect(isLiveDay("2026-11-30", "2026-12-01", true)).toBe(true);
+    expect(isLiveDay("2026-11-04", "2026-11-09", true)).toBe(false);
   });
 });

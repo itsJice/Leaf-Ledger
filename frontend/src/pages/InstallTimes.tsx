@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -24,9 +24,12 @@ import {
   fmtClock,
   fmtDuration,
   fmtHours,
+  isLiveDay,
   longDate,
+  nowClockCT,
   onSiteMinutes,
   parseClock,
+  parseLeave,
   shortDate,
   stampCT,
   who,
@@ -136,6 +139,17 @@ function EnterTimes({ onRole }: { onRole: (office: boolean) => void }) {
     const stops = (data?.crews ?? []).flatMap((c) => c.stops);
     return { all: stops.length, done: stops.filter((s) => s.actual?.actualHours != null).length };
   }, [data]);
+  // Keep the day's counts in step with what each stop saves.
+  const onSaved = useCallback((dayId: string, row: number, actual: Actual | null) => {
+    setData((d) =>
+      d && {
+        ...d,
+        crews: d.crews.map((c) =>
+          c.dayId !== dayId ? c : { ...c, stops: c.stops.map((s) => (s.row === row ? { ...s, actual } : s)) },
+        ),
+      },
+    );
+  }, []);
 
   return (
     <>
@@ -180,11 +194,7 @@ function EnterTimes({ onRole }: { onRole: (office: boolean) => void }) {
         <p className="mb-3 flex flex-wrap items-center gap-x-2 text-sm text-stone-600">
           <CalendarDays size={15} className="text-emerald-700" />
           <span className="font-semibold text-stone-800">{longDate(date)}</span>
-          {totals.all > 0 && (
-            <span className="text-stone-500">
-              · {totals.done} of {totals.all} stop{totals.all === 1 ? "" : "s"} entered
-            </span>
-          )}
+          {totals.all > 0 && <MissingCount done={totals.done} all={totals.all} />}
           {loading && <Loader2 size={14} className="animate-spin text-stone-400" />}
         </p>
       )}
@@ -203,16 +213,34 @@ function EnterTimes({ onRole }: { onRole: (office: boolean) => void }) {
 
       <div className="space-y-4">
         {data?.crews.map((c) => (
-          <CrewCard key={c.dayId} crew={c} today={data.today} />
+          <CrewCard key={`${data.date}|${c.dayId}`} crew={c} today={data.today} onSaved={onSaved} />
         ))}
       </div>
     </>
   );
 }
 
-function CrewCard({ crew, today }: { crew: CrewGroup; today: string }) {
+/** "2 of 9 missing" in amber until every stop has both times, then a check. */
+function MissingCount({ done, all, pill = false }: { done: number; all: number; pill?: boolean }) {
+  const missing = all - done;
+  const base = pill ? "rounded-full px-2.5 py-1 text-xs font-semibold" : "text-sm";
+  if (!missing)
+    return (
+      <span className={`inline-flex items-center gap-1 ${base} ${pill ? "bg-emerald-50 text-emerald-800" : "font-semibold text-emerald-700"}`}>
+        <Check size={13} strokeWidth={3} /> All {all} entered
+      </span>
+    );
+  return (
+    <span className={`${base} ${pill ? "bg-amber-50 text-amber-900" : "font-semibold text-amber-800"}`}>
+      {missing} of {all} missing
+    </span>
+  );
+}
+
+function CrewCard({ crew, today, onSaved }: { crew: CrewGroup; today: string; onSaved: (dayId: string, row: number, a: Actual | null) => void }) {
   const done = crew.stops.filter((s) => s.actual?.actualHours != null).length;
   const future = crew.date > today;
+  const live = !future && isLiveDay(crew.date, today, crew.night);
   return (
     <section className="overflow-hidden rounded-xl border border-stone-200 bg-white">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-4 py-3">
@@ -233,9 +261,7 @@ function CrewCard({ crew, today }: { crew: CrewGroup; today: string }) {
             {crew.kind === "takedown" && <span>· Takedown</span>}
           </p>
         </div>
-        <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600">
-          {done}/{crew.stops.length} entered
-        </span>
+        <MissingCount done={done} all={crew.stops.length} pill />
       </header>
       {future && (
         <p className="mx-4 mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -244,7 +270,7 @@ function CrewCard({ crew, today }: { crew: CrewGroup; today: string }) {
       )}
       <ol className="divide-y divide-stone-100">
         {crew.stops.map((s, i) => (
-          <StopRow key={s.row} index={i + 1} stop={s} crew={crew} disabled={future} />
+          <StopRow key={s.row} index={i + 1} stop={s} crew={crew} disabled={future} live={live} onSaved={onSaved} />
         ))}
       </ol>
     </section>
@@ -271,25 +297,39 @@ function draftOf(a: Actual | null, headcount: number | null): Draft {
   };
 }
 
+/** Both typed times as minutes (Leave read against the Arrive). Throws on junk. */
+function readTimes(d: Draft, night: boolean): [number | null, number | null] {
+  const arrive = parseClock(d.arrive, night);
+  return [arrive, parseLeave(d.depart, arrive, night)];
+}
+
 function sameAsSaved(d: Draft, a: Actual | null, night: boolean): boolean {
   if (!a) return !d.arrive.trim() && !d.depart.trim() && !d.note.trim() && !d.photos;
-  const t = (s: string) => {
-    try {
-      return fmtClock(parseClock(s, night));
-    } catch {
-      return s;
-    }
-  };
+  let times: [string, string];
+  try {
+    const [am, dm] = readTimes(d, night);
+    times = [fmtClock(am), fmtClock(dm)];
+  } catch {
+    times = [d.arrive, d.depart];
+  }
   return (
-    t(d.arrive) === a.arrive &&
-    t(d.depart) === a.depart &&
+    times[0] === a.arrive &&
+    times[1] === a.depart &&
     (d.people.trim() === "" ? null : Number(d.people)) === a.peopleCount &&
     d.photos === Boolean(a.photosDone) &&
     d.note.trim() === (a.scopeNote || "")
   );
 }
 
-function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; crew: CrewGroup; disabled: boolean }) {
+function StopRow(props: {
+  index: number;
+  stop: Stop;
+  crew: CrewGroup;
+  disabled: boolean;
+  live: boolean;
+  onSaved: (dayId: string, row: number, a: Actual | null) => void;
+}) {
+  const { index, stop, crew, disabled, live, onSaved } = props;
   const [actual, setActual] = useState<Actual | null>(stop.actual);
   const [draft, setDraft] = useState<Draft>(() => draftOf(stop.actual, crew.headcount));
   const [save, setSave] = useState<SaveState>({ status: "idle" });
@@ -310,7 +350,12 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
     }
   };
   const a = parsed(draft.arrive);
-  const d = parsed(draft.depart);
+  let d: { min: number | null; err: string | null };
+  try {
+    d = { min: parseLeave(draft.depart, a.min, crew.night), err: null };
+  } catch (e) {
+    d = { min: null, err: (e as Error).message };
+  }
   const mins = onSiteMinutes(a.min, d.min);
   const hours = mins == null ? null : mins / 60;
   // The server counts real hours (the DST night); prefer its number once saved.
@@ -321,8 +366,7 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
     const cur = draftRef.current;
     if (sameAsSaved(cur, actualRef.current, crew.night)) return;
     try {
-      parseClock(cur.arrive, crew.night);
-      parseClock(cur.depart, crew.night);
+      readTimes(cur, crew.night);
     } catch (e) {
       setSave({ status: "error", message: (e as Error).message });
       return;
@@ -351,6 +395,7 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
       });
       setActual(out.actual);
       actualRef.current = out.actual;
+      onSaved(crew.dayId, stop.row, out.actual);
       // Show the times as the server read them ("10:15p" -> "10:15 PM").
       setDraft((dr) => ({ ...dr, arrive: out.actual.arrive, depart: out.actual.depart }));
       setSave({ status: "saved", message: out.warnings[0] });
@@ -360,7 +405,9 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
         const current = err.detail.current ?? null;
         setActual(current);
         actualRef.current = current;
+        onSaved(crew.dayId, stop.row, current);
         setDraft(draftOf(current, crew.headcount));
+        draftRef.current = draftOf(current, crew.headcount);
         toast.warning(`${stop.name}: someone else just saved this stop. Their times are shown now.`);
         setSave({ status: "idle" });
       } else {
@@ -373,9 +420,17 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
         void doSave();
       }
     }
-  }, [crew.dayId, crew.headcount, crew.kind, crew.night, stop.name, stop.row]);
+  }, [crew.dayId, crew.headcount, crew.kind, crew.night, stop.name, stop.row, onSaved]);
 
   const set = (patch: Partial<Draft>) => setDraft((x) => ({ ...x, ...patch }));
+  // Buttons and checkboxes save right away: on iPhone a tap doesn't focus
+  // them, so the "save when you leave the stop" rule would never fire.
+  const setAndSave = (patch: Partial<Draft>) => {
+    draftRef.current = { ...draftRef.current, ...patch };
+    setDraft(draftRef.current);
+    void doSave();
+  };
+  const stampNow = (field: "arrive" | "depart") => setAndSave({ [field]: fmtClock(nowClockCT()) });
   // Save when focus leaves the whole stop (not each box), so typing Arrive
   // then Leave is one saved version, not two.
   const rowBlur = (e: React.FocusEvent<HTMLLIElement>) => {
@@ -404,19 +459,21 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
         <TimeField
           label="Arrive"
           value={draft.arrive}
-          placeholder={crew.night ? "10:15p" : "8:30a"}
+          placeholder={crew.night ? "10:15" : "8:30"}
           error={a.err}
           preview={a.min != null ? fmtClock(a.min) : ""}
           disabled={disabled}
+          onNow={live ? () => stampNow("arrive") : undefined}
           onChange={(v) => set({ arrive: v })}
         />
         <TimeField
           label="Leave"
           value={draft.depart}
-          placeholder={crew.night ? "1:30a" : "11:45a"}
+          placeholder={crew.night ? "1:30" : "2:15"}
           error={d.err}
           preview={d.min != null ? fmtClock(d.min) + (a.min != null && d.min <= a.min ? " next day" : "") : ""}
           disabled={disabled}
+          onNow={live ? () => stampNow("depart") : undefined}
           onChange={(v) => set({ depart: v })}
         />
         <label className="block">
@@ -434,9 +491,7 @@ function StopRow({ index, stop, crew, disabled }: { index: number; stop: Stop; c
             type="checkbox"
             checked={draft.photos}
             disabled={disabled}
-            onChange={(e) => {
-              set({ photos: e.target.checked });
-            }}
+            onChange={(e) => setAndSave({ photos: e.target.checked })}
             className="h-5 w-5 rounded border-stone-300 accent-emerald-700"
           />
           <Camera size={15} className="text-stone-400" /> Photos done
@@ -509,34 +564,60 @@ function TimeField(props: {
   error: string | null;
   preview: string;
   disabled: boolean;
+  onNow?: () => void;
   onChange: (v: string) => void;
 }) {
-  const { label, value, placeholder, error, preview, disabled, onChange } = props;
-  const showPreview = preview && value.trim() && value.trim().toUpperCase() !== preview.replace(" next day", "");
+  const { label, value, placeholder, error, preview, disabled, onNow, onChange } = props;
+  const nextDay = preview.endsWith(" next day");
+  const typedSame = value.trim().toUpperCase() === preview.replace(" next day", "");
+  // Show how the time was read ("2:05 PM") while it differs from what's typed;
+  // "next day" stays up even once the box reads "1:30 AM".
+  const hint = !value.trim() || !preview ? "" : !typedSame ? preview : nextDay ? "next day" : "";
+  const id = useId();
   return (
-    <label className="block">
-      <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-stone-500">{label}</span>
-      <input
-        value={value}
-        placeholder={placeholder}
-        disabled={disabled}
-        autoComplete="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        enterKeyHint="next"
-        aria-invalid={Boolean(error)}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
-        className={`${inputBase} ${error ? "border-red-400" : ""}`}
-      />
+    // With a Now button each time gets the full phone width, so "10:59 AM" fits.
+    <div className={onNow ? "col-span-2 sm:col-span-1" : ""}>
+      <label htmlFor={id} className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+        {label}
+      </label>
+      <div className="flex gap-1.5">
+        <input
+          id={id}
+          value={value}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="done"
+          aria-invalid={Boolean(error)}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          className={`${inputBase} min-w-0 ${error ? "border-red-400" : ""}`}
+        />
+        {onNow && (
+          <button
+            type="button"
+            onClick={onNow}
+            disabled={disabled}
+            // Out of the Tab order: typing Arrive, Tab, Leave stays one motion.
+            tabIndex={-1}
+            aria-label={`${label} now`}
+            title={`Set ${label} to the time right now`}
+            className="flex min-h-10 w-14 flex-none items-center justify-center rounded-lg border border-emerald-600 bg-emerald-50 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40"
+          >
+            Now
+          </button>
+        )}
+      </div>
       {error ? (
         <span className="mt-0.5 block text-[11px] text-red-700">{error}</span>
-      ) : showPreview ? (
-        <span className="mt-0.5 block text-[11px] text-stone-500">{preview}</span>
+      ) : hint ? (
+        <span className="mt-0.5 block text-[11px] text-stone-500">{hint}</span>
       ) : null}
-    </label>
+    </div>
   );
 }
 

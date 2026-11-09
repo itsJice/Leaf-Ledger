@@ -11,8 +11,9 @@ function so the rules are pinned by value tests
   ``"22:15"``, ``"10p"``, ``"noon"`` and ``"midnight"`` all parse. A time with
   no am/pm is read the way the shift runs: on a **day** shift 7 to 11 is
   morning and 12 to 6 is afternoon; on a **night** shift (Dallas) 6 to 11 is
-  evening, 12 is midnight and 1 to 5 is early morning. 24-hour times
-  (``"22:15"``, ``"0015"``) are taken as written.
+  evening, 12 is midnight and 1 to 5 is early morning. A Leave with no am/pm
+  is the soonest such time after the Arrive (10:59 AM to "2:05" is 2:05 PM).
+  24-hour times (``"22:15"``, ``"0015"``) are taken as written.
 * **Dates.** A crew-day's date is the date the shift STARTS (a night shift
   that runs 11/2 to 11/3 is the 11/2 crew-day). On a night shift an arrival
   before noon is the next calendar morning. A Leave time earlier than the
@@ -51,13 +52,35 @@ class TimeParseError(ValueError):
 def parse_clock(text: str, *, night: bool = False) -> Optional[int]:
     """Minutes after midnight (0..1439) for a typed clock time, or None for
     blank. Raises TimeParseError for anything unreadable."""
+    return _parse(text, night)[0]
+
+
+def parse_leave(text: str, arrive_min: Optional[int], *, night: bool = False) -> Optional[int]:
+    """A typed Leave time. With no am/pm ("2:05", "1:30") it is the soonest
+    such time after the Arrive: 10:59 AM then "2:05" is 2:05 PM, 10:15 PM
+    then "1:30" is 1:30 AM, 2 PM then "7" is 7 PM. Explicit am/pm and
+    24-hour times are taken as written."""
+    minutes, guessed = _parse(text, night)
+    if minutes is None or arrive_min is None or not guessed:
+        return minutes
+
+    def after(m: int) -> int:
+        return (m - arrive_min) % (24 * 60) or 24 * 60
+
+    other = (minutes + 12 * 60) % (24 * 60)
+    return other if after(other) < after(minutes) else minutes
+
+
+def _parse(text: str, night: bool) -> tuple[Optional[int], bool]:
+    """(minutes, guessed): guessed is True when am/pm was read from the
+    shift because the text left it open (1..12 with no am/pm)."""
     s = re.sub(r"\s+", "", str(text or "").lower())
     if not s:
-        return None
+        return None, False
     if s in ("noon", "12n"):
-        return 12 * 60
+        return 12 * 60, False
     if s in ("midnight", "12m"):
-        return 0
+        return 0, False
     bad = TimeParseError(f'Can\'t read "{str(text).strip()}" as a time. Try 10:15p or 1:30a.')
     ap = ""
     m = _SUFFIX.search(s)
@@ -75,12 +98,12 @@ def parse_clock(text: str, *, night: bool = False) -> Optional[int]:
     if ap:
         if not 1 <= h <= 12:
             raise TimeParseError(f'"{str(text).strip()}": with am/pm the hour must be 1 to 12.')
-        return ((h % 12) + (12 if ap == "p" else 0)) * 60 + mi
+        return ((h % 12) + (12 if ap == "p" else 0)) * 60 + mi, False
     if h > 23:
         raise TimeParseError(f'"{str(text).strip()}": the hour must be 0 to 23.')
     # Written as 24-hour ("22:15", "0015", "09:30") -- take it as written.
     if h == 0 or h >= 13 or (len(hs) == 2 and hs.startswith("0")):
-        return h * 60 + mi
+        return h * 60 + mi, False
     # 1..12 with no am/pm: read it the way the shift runs.
     if night:
         if 6 <= h <= 11:
@@ -90,7 +113,7 @@ def parse_clock(text: str, *, night: bool = False) -> Optional[int]:
         # 1..5 stay early morning
     elif 1 <= h <= 6:
         h += 12  # afternoon; 7..11 morning, 12 noon
-    return h * 60 + mi
+    return h * 60 + mi, True
 
 
 def fmt_clock(minutes: Optional[int]) -> str:
@@ -189,7 +212,7 @@ def build_entry(day: str, arrive_text: str, depart_text: str, *, night: bool) ->
     Raises TimeParseError for unreadable text; soft problems (a very long
     visit, past the 8 AM Dallas stop) come back as warnings, never blocks."""
     a = parse_clock(arrive_text, night=night)
-    d = parse_clock(depart_text, night=night)
+    d = parse_leave(depart_text, a, night=night)
     arrive, depart = visit_times(day, a, d, night=night)
     hours = on_site_hours(arrive, depart)
     warnings = []
