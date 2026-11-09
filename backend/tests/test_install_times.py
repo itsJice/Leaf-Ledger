@@ -85,10 +85,16 @@ def test_day_shift_same_day_and_rollover():
     assert (_hm(e.depart_at), e.hours) == ("11/20 01:00", 5.0)
 
 
-def test_equal_times_mean_a_full_day_not_zero():
-    e = T.build_entry("2026-11-19", "9a", "9a", night=False)
-    assert e.hours == 24.0
-    assert e.warnings and "am/pm" in e.warnings[0]
+@pytest.mark.parametrize("arrive, leave, night", [
+    ("9a", "9a", False),
+    ("10:59 AM", "10:59", False),   # a double tap on Now, then a retype
+    ("1:30a", "1:30", True),
+])
+def test_the_same_minute_is_zero_not_a_day(arrive, leave, night):
+    e = T.build_entry("2026-11-04", arrive, leave, night=night)
+    assert e.hours == 0.0 and e.depart_at == e.arrive_at
+    assert e.warnings == [T.SAME_TIME_WARNING]
+    assert "Check the time" in T.SAME_TIME_WARNING
 
 
 def test_only_one_time_is_kept_without_hours():
@@ -180,6 +186,8 @@ def test_entry_timestamps_are_central():
     ("10:59", "2:05a", False, "2:05 AM"), # explicit am/pm wins
     ("10:59", "14:05", False, "2:05 PM"), # 24-hour taken as written
     ("", "2:05", False, "2:05 PM"),       # no Arrive: the shift rule
+    ("10:59", "10:59", False, "10:59 AM"),  # the same minute, not 12 h later
+    ("10:15", "10:15", True, "10:15 PM"),
 ])
 def test_leave_is_the_soonest_time_after_arrive(arrive, leave, night, want):
     a = T.parse_clock(arrive, night=night)

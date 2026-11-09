@@ -9,7 +9,8 @@
 //   morning. 24-hour times ("22:15", "0015", "09:30") are taken as written.
 // * A Leave with no am/pm is the soonest such time after the Arrive
 //   (10:59 AM to "2:05" is 2:05 PM; 10:15 PM to "1:30" is 1:30 AM).
-// * A Leave earlier than (or equal to) the Arrive is the next day; on a night
+// * A Leave earlier than the Arrive is the next day (the same minute is 0 min,
+//   flagged, never 24 h); on a night
 //   shift an arrival before noon is the next morning.
 
 export type Kind = "install" | "takedown";
@@ -112,7 +113,7 @@ export function parseClock(text: string | null | undefined, night = false): numb
 export function parseLeave(text: string | null | undefined, arriveMin: number | null, night = false): number | null {
   const [minutes, guessed] = parse(text, night);
   if (minutes == null || arriveMin == null || !guessed) return minutes;
-  const after = (m: number) => ((((m - arriveMin) % 1440) + 1440) % 1440) || 1440;
+  const after = (m: number) => (((m - arriveMin) % 1440) + 1440) % 1440; // the same minute is 0, not a day
   const other = (minutes + 720) % 1440;
   return after(other) < after(minutes) ? other : minutes;
 }
@@ -181,6 +182,9 @@ export function isLiveDay(crewDate: string, today: string, night: boolean): bool
   return next === today;
 }
 
+/** Shown when Arrive and Leave are the same minute (server: SAME_TIME_WARNING). */
+export const SAME_TIME_WARNING = "Arrive and Leave are the same time. Check the time.";
+
 /** 1335 -> "10:15 PM". */
 export function fmtClock(minutes: number | null | undefined): string {
   if (minutes == null) return "";
@@ -197,13 +201,13 @@ export function normalizeClock(text: string, night = false): string | null {
 }
 
 /** On-site minutes between two clock times, by the rollover rules:
- *  Leave at or before Arrive is the next day. Null if either is missing.
+ *  Leave before Arrive is the next day; the same minute is 0. Null if either is missing.
  *  (Wall-clock math: the DST night is fixed on the server, which counts
  *  real hours.) */
 export function onSiteMinutes(arriveMin: number | null, departMin: number | null): number | null {
   if (arriveMin == null || departMin == null) return null;
   let d = departMin - arriveMin;
-  if (d <= 0) d += 1440;
+  if (d < 0) d += 1440;
   return d;
 }
 

@@ -41,6 +41,8 @@ PEOPLE_MAX = 40
 NOTE_MAX = 2000
 #: A visit longer than this is almost surely a typo (wrong am/pm).
 LONG_VISIT_H = 16.0
+#: Arrive and Leave the same minute (a double tap on Now): 0 min, flagged.
+SAME_TIME_WARNING = "Arrive and Leave are the same time. Check the time."
 
 _SUFFIX = re.compile(r"(a\.?m?\.?|p\.?m?\.?)$")
 
@@ -65,7 +67,7 @@ def parse_leave(text: str, arrive_min: Optional[int], *, night: bool = False) ->
         return minutes
 
     def after(m: int) -> int:
-        return (m - arrive_min) % (24 * 60) or 24 * 60
+        return (m - arrive_min) % (24 * 60)  # the same minute is 0, not a day
 
     other = (minutes + 12 * 60) % (24 * 60)
     return other if after(other) < after(minutes) else minutes
@@ -130,7 +132,7 @@ def visit_times(day: str, arrive_min: Optional[int], depart_min: Optional[int], 
     """Central timestamps for a visit on crew-day ``day`` (ISO date).
 
     Night shift: an arrival before noon is the next morning. A Leave earlier
-    than (or equal to) the Arrive is the next day. With no Arrive, a Leave is
+    than the Arrive is the next day (the same minute is 0). With no Arrive, a Leave is
     placed like an arrival would be."""
     d = date.fromisoformat(day)
 
@@ -148,7 +150,7 @@ def visit_times(day: str, arrive_min: Optional[int], depart_min: Optional[int], 
             depart = first_on(depart_min)
         else:
             depart = at(depart_min, arrive.date())
-            if depart <= arrive:
+            if depart < arrive:
                 depart += timedelta(days=1)
     return arrive, depart
 
@@ -218,6 +220,8 @@ def build_entry(day: str, arrive_text: str, depart_text: str, *, night: bool) ->
     warnings = []
     if hours is not None and hours > LONG_VISIT_H:
         warnings.append(f"{hours:g} h on site looks too long. Check am/pm.")
+    if hours == 0:
+        warnings.append(SAME_TIME_WARNING)
     if night and depart is not None and depart.date() > date.fromisoformat(day) and clock_of(depart) > 8 * 60:
         warnings.append("Left after 8 AM, past the Dallas hard stop.")
     return Entry(arrive, depart, hours, warnings)

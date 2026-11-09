@@ -1,6 +1,6 @@
 // Pinned to the same values as backend tests/test_install_times.py.
 import { describe, expect, it } from "vitest";
-import { diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, onSiteMinutes, parseClock, parseLeave, TimeParseError } from "../installTimes";
+import { diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, SAME_TIME_WARNING, onSiteMinutes, parseClock, parseLeave, TimeParseError } from "../installTimes";
 
 const cases: [string, boolean, string][] = [
   ["10:15p", false, "10:15 PM"],
@@ -52,7 +52,7 @@ describe("rollover and labels", () => {
   it("treats a Leave before the Arrive as the next day", () => {
     expect(onSiteMinutes(parseClock("10:15p", true), parseClock("12:30a", true))).toBe(135);
     expect(onSiteMinutes(parseClock("8:30"), parseClock("1:15"))).toBe(285);
-    expect(onSiteMinutes(9 * 60, 9 * 60)).toBe(1440);
+    expect(onSiteMinutes(9 * 60, 9 * 60)).toBe(0); // the same minute is 0, never 24 h
     expect(onSiteMinutes(null, 60)).toBeNull();
   });
 
@@ -78,6 +78,8 @@ describe("parseLeave (same values as the backend test)", () => {
     ["10:59", "2:05a", false, "2:05 AM"],
     ["10:59", "14:05", false, "2:05 PM"],
     ["", "2:05", false, "2:05 PM"],
+    ["10:59", "10:59", false, "10:59 AM"],
+    ["10:15", "10:15", true, "10:15 PM"],
   ];
   it.each(leaves)("arrive %s, leave %s (night %s) -> %s", (arrive, leave, night, want) => {
     expect(fmtClock(parseLeave(leave, parseClock(arrive, night), night))).toBe(want);
@@ -116,4 +118,15 @@ describe("liveMissingDays", () => {
     expect(liveMissingDays(days, "2026-11-09", "2026-11-09", 0, 2).map((d) => d.date)).toEqual(["2026-11-02", "2026-11-04", "2026-11-09"]);
     expect(liveMissingDays(days, "2026-11-12", "2026-11-09", 0, 2)).toBe(days);
   });
+});
+
+describe("the same minute", () => {
+  it.each([["9a", "9a", false], ["10:59 AM", "10:59", false], ["1:30a", "1:30", true]] as [string, string, boolean][])(
+    "%s to %s is 0 min, flagged",
+    (arrive, leave, night) => {
+      const a = parseClock(arrive, night);
+      expect(onSiteMinutes(a, parseLeave(leave, a, night))).toBe(0);
+      expect(SAME_TIME_WARNING).toContain("Check the time");
+    },
+  );
 });

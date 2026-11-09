@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import {
+  SAME_TIME_WARNING,
   SOURCE_LABEL,
   TYPE_LABEL,
   diffLabel,
@@ -410,7 +411,7 @@ function StopRow(props: {
   const hours = mins == null ? null : mins / 60;
   // The server counts real hours (the DST night); prefer its number once saved.
   const shownHours = actual && sameAsSaved(draft, actual, crew.night) ? actual.actualHours : hours;
-  const diff = diffLabel(stop.estHours, shownHours);
+  const diff = mins === 0 ? null : diffLabel(stop.estHours, shownHours);
 
   const doSave = useCallback(async () => {
     const cur = draftRef.current;
@@ -521,7 +522,7 @@ function StopRow(props: {
           value={draft.depart}
           placeholder={crew.night ? "1:30" : "2:15"}
           error={d.err}
-          preview={d.min != null ? fmtClock(d.min) + (a.min != null && d.min <= a.min ? " next day" : "") : ""}
+          preview={d.min != null ? fmtClock(d.min) + (a.min != null && d.min < a.min ? " next day" : "") : ""}
           disabled={disabled}
           onNow={live ? () => stampNow("depart") : undefined}
           onChange={(v) => set({ depart: v })}
@@ -584,6 +585,11 @@ function StopRow(props: {
             }
           >
             {diff.text}
+          </span>
+        )}
+        {mins === 0 && (
+          <span className="inline-flex items-center gap-1 font-semibold text-amber-800">
+            <AlertTriangle size={12} /> {SAME_TIME_WARNING}
           </span>
         )}
       </div>

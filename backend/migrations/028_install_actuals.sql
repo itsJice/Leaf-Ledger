@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS ll_app.install_actuals (
     entered_by        text,
     created_at        timestamptz NOT NULL DEFAULT now(),
     supersedes_id     bigint REFERENCES ll_app.install_actuals (id),
-    CHECK (arrive_at IS NULL OR depart_at IS NULL OR depart_at > arrive_at)
+    CHECK (arrive_at IS NULL OR depart_at IS NULL OR depart_at >= arrive_at)
 );
 
 -- A row is corrected at most once: the chain never forks, so a visit has
