@@ -79,6 +79,7 @@ OPTIONAL_FIELDS: tuple[tuple[str, str], ...] = (
     ("company", "Business name"),
     ("site", "Location"),
     ("time_preference", "Install time preference"),
+    ("schedule_restrictions", "Scheduling restrictions"),
     ("contact_label", "Additional contact label"),
     ("contact_phone", "Additional contact phone"),
     ("contact_email", "Additional contact email"),
@@ -119,6 +120,7 @@ HEADER_ALIASES: dict[str, tuple[str, ...]] = {
     "zone": ("schedule zone",),
     "zip": ("zip", "zip code", "zipcode", "postal code", "postcode", "post code"),
     "time_preference": ("time preference", "install time", "preferred time"),
+    "schedule_restrictions": ("restrictions", "schedule restrictions", "scheduling restriction"),
     "contact_label": ("additional contact", "additional contact name"),
     "contact_phone": (),
     "contact_email": (),
@@ -146,6 +148,9 @@ ODOO_ALIAS_DOC: tuple[tuple[str, str], ...] = (
 )
 
 MAX_ROWS = 2000
+#: clients.schedule_restrictions (migrations/027) is free text; same cap as
+#: the API's (app.apis.clients.SCHEDULE_RESTRICTIONS_MAX).
+RESTRICTIONS_MAX = 500
 MAX_BYTES = 3 * 1024 * 1024
 
 STATUS_CREATE = "create"
@@ -438,6 +443,8 @@ def build_row(cells: dict) -> tuple[dict, list[str], list[str]]:
         "notes": c.get("notes") or None,
         "area": c.get("area") or None,
         "zone": c.get("zone") or None,
+        # Free text, the same cap as the client card (clients.schedule_restrictions).
+        "schedule_restrictions": (c.get("schedule_restrictions") or "")[:RESTRICTIONS_MAX] or None,
     }
     if parts and parts.get("company") and (parts.get("first_name") or parts.get("last_name")):
         person = " ".join(p for p in (parts["first_name"], parts["last_name"]) if p)
@@ -544,6 +551,7 @@ def public_row(r: dict) -> dict:
         "street": f["street"], "city": f["city"], "state": f["state"], "zip": f["zip"],
         "time_preference": f["time_preference"],
         "area": f["area"], "zone": f["zone"],
+        "schedule_restrictions": f.get("schedule_restrictions"),
         "secondary_contacts": f["secondary_contacts"],
         "notes_text": f["notes"],
     }

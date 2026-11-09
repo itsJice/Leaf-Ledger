@@ -42,6 +42,8 @@ export interface Stop {
   installNote?: string;
   /** The client's staff alert, read-only here. */
   staffAlert?: { text: string; by: string | null; at: string | null } | null;
+  /** The client's scheduling restrictions ("no Fridays"), read-only here. */
+  scheduleRestrictions?: string;
   hours: number | null;
   timeEntries: TimeEntry[];
   notes: Note[];
