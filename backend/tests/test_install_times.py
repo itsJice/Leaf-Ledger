@@ -191,3 +191,39 @@ def test_build_entry_uses_the_smart_leave():
     assert (_hm(e.arrive_at), _hm(e.depart_at), e.hours) == ("11/09 10:59", "11/09 14:05", 3.1)
     e = T.build_entry("2026-11-09", "2p", "7", night=False)
     assert (_hm(e.depart_at), e.hours) == ("11/09 19:00", 5.0)
+
+
+def _open(**kw):
+    e = T.build_entry("2026-11-09", "10:59", "", night=False)
+    row = {"arrive_at": e.arrive_at, "depart_at": None, "people_count": 5, "photos_done": False,
+           "scope_note": None, "entered_by": "chris@x.com",
+           "created_at": datetime(2026, 11, 9, 11, 0, tzinfo=T.TZ)}
+    return {**row, **kw}
+
+
+NOW_1109 = datetime(2026, 11, 9, 14, 10, tzinfo=T.TZ)
+
+
+def _fills(current, arrive="10:59", depart="2:05", people=5, photos=False, note="", email="chris@x.com", now=NOW_1109):
+    e = T.build_entry("2026-11-09", arrive, depart, night=False)
+    return T.fills_in_only(current, e, people=people, photos=photos, note=note, email=email, now=now)
+
+
+def test_filling_in_your_own_open_entry_completes_it():
+    assert _fills(_open())                                  # Leave after Arrive
+    assert _fills(_open(), depart="", photos=True)          # ticking photos
+    assert _fills(_open(), note="added a tree")             # a first note
+    done = T.build_entry("2026-11-09", "10:59", "2:05", night=False)
+    assert _fills(_open(depart_at=done.depart_at), photos=True)  # photos after Leave
+
+
+def test_changing_anything_saved_is_a_correction():
+    assert not _fills(_open(), arrive="10:45")              # Arrive retyped
+    done = T.build_entry("2026-11-09", "10:59", "2:05", night=False)
+    assert not _fills(_open(depart_at=done.depart_at), depart="2:35")
+    assert not _fills(_open(), people=4)
+    assert not _fills(_open(photos_done=True), photos=False)
+    assert not _fills(_open(scope_note="front only"), note="front and back")
+    assert not _fills(_open(), email="office@x.com")        # someone else
+    assert not _fills(_open(), now=datetime(2026, 11, 10, 9, 0, tzinfo=T.TZ))  # > 16 h later
+    assert not _fills(None)

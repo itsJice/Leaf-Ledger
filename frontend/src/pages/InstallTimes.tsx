@@ -25,6 +25,7 @@ import {
   fmtDuration,
   fmtHours,
   isLiveDay,
+  liveMissingDays,
   longDate,
   nowClockCT,
   onSiteMinutes,
@@ -34,7 +35,7 @@ import {
   stampCT,
   who,
 } from "utils/installTimes";
-import type { Actual, CrewGroup, DayResponse, Stop } from "utils/installTimes";
+import type { Actual, CrewGroup, DayResponse, MissingDay, Stop } from "utils/installTimes";
 
 // Install Times: how long each stop really took, so next year's estimates
 // are right. Pick a date, see that day's stops by crew in board order, type
@@ -151,8 +152,13 @@ function EnterTimes({ onRole }: { onRole: (office: boolean) => void }) {
     );
   }, []);
 
+  const missingDays = data?.missingDays ? liveMissingDays(data.missingDays, date, data.today, totals.done, totals.all) : null;
+
   return (
     <>
+      {missingDays && missingDays.length > 0 && (
+        <MissingDays days={missingDays} current={date} onPick={(d) => void load(d)} />
+      )}
       <div className="mb-3 flex items-center gap-2">
         <button
           type="button"
@@ -213,7 +219,7 @@ function EnterTimes({ onRole }: { onRole: (office: boolean) => void }) {
 
       <div className="space-y-4">
         {data?.crews.map((c) => (
-          <CrewCard key={`${data.date}|${c.dayId}`} crew={c} today={data.today} onSaved={onSaved} />
+          <CrewCard key={`${data.date}|${c.dayId}`} crew={c} today={data.today} office={data.office} onSaved={onSaved} />
         ))}
       </div>
     </>
@@ -237,10 +243,54 @@ function MissingCount({ done, all, pill = false }: { done: number; all: number; 
   );
 }
 
-function CrewCard({ crew, today, onSaved }: { crew: CrewGroup; today: string; onSaved: (dayId: string, row: number, a: Actual | null) => void }) {
+/** Office only: install days so far that still have stops without both times. */
+function MissingDays({ days, current, onPick }: { days: MissingDay[]; current: string | null; onPick: (date: string) => void }) {
+  const [all, setAll] = useState(false);
+  const MAX = 8;
+  const shown = all ? days : days.slice(0, MAX);
+  const total = days.reduce((n, d) => n + d.missing, 0);
+  return (
+    <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+        <AlertTriangle size={13} /> Still missing times: {total} stop{total === 1 ? "" : "s"} on {days.length} day{days.length === 1 ? "" : "s"}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {shown.map((d) => (
+          <button
+            key={d.date}
+            type="button"
+            onClick={() => onPick(d.date)}
+            aria-current={d.date === current ? "date" : undefined}
+            className={`min-h-9 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+              d.date === current
+                ? "border-amber-700 bg-amber-700 text-white"
+                : "border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+            }`}
+          >
+            {shortDate(d.date)}: {d.missing} missing
+          </button>
+        ))}
+        {days.length > MAX && (
+          <button type="button" onClick={() => setAll((v) => !v)} className="min-h-9 px-1.5 text-xs font-semibold text-amber-900 hover:underline">
+            {all ? "Show fewer" : `+${days.length - MAX} more`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CrewCard(props: {
+  crew: CrewGroup;
+  today: string;
+  office: boolean;
+  onSaved: (dayId: string, row: number, a: Actual | null) => void;
+}) {
+  const { crew, today, office, onSaved } = props;
   const done = crew.stops.filter((s) => s.actual?.actualHours != null).length;
   const future = crew.date > today;
-  const live = !future && isLiveDay(crew.date, today, crew.night);
+  // Now buttons are for leads on site; the office types times in afterwards.
+  const live = !office && !future && isLiveDay(crew.date, today, crew.night);
   return (
     <section className="overflow-hidden rounded-xl border border-stone-200 bg-white">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-4 py-3">

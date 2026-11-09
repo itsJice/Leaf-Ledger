@@ -76,6 +76,24 @@ export interface DayResponse {
   office: boolean;
   me: { id: string; name: string } | null;
   crews: CrewGroup[];
+  /** Office only (null for leads): install days up to today with stops
+   *  still missing Arrive or Leave, oldest first. */
+  missingDays?: MissingDay[] | null;
+}
+
+export interface MissingDay {
+  date: string;
+  missing: number;
+  stops: number;
+}
+
+/** The server's missing-days list with the open day's count kept live as
+ *  its stops save (a day that's now complete drops off). */
+export function liveMissingDays(days: MissingDay[], date: string | null, today: string, done: number, all: number): MissingDay[] {
+  if (!date || date > today) return days;
+  const rest = days.filter((d) => d.date !== date);
+  const missing = all - done;
+  return missing > 0 ? [...rest, { date, missing, stops: all }].sort((a, b) => a.date.localeCompare(b.date)) : rest;
 }
 
 export class TimeParseError extends Error {}

@@ -3,7 +3,8 @@
 One row per stop visit in ``ll_app.install_actuals`` (migrations/028), with
 history: a correction inserts a new row pointing at the one it replaces
 (``supersedes_id``), and ``ll_app.install_actuals_latest`` is the newest row
-of each visit. The rules (typed-time parsing, the midnight rollover, report
+of each visit. Filling in blanks on your own open entry (the Leave after
+the Arrive) completes that row in place: it changes nothing already saved. The rules (typed-time parsing, the midnight rollover, report
 rollups) are pure functions in ``app.libs.install_times``.
 
 Stops come from the live board (``app.libs.schedule_board.load_board``), so
@@ -325,6 +326,7 @@ async def day_view(user: AuthorizedUser, on: Optional[str] = Query(None, alias="
     for c in crews:
         for s in c["stops"]:
             s["actual"] = latest.get((c["dayId"], s["row"], c["kind"]))
+    missing_days = await _missing_days(board, viewer) if viewer.office else None
     return {
         "season": board.season,
         "date": pick,
@@ -334,7 +336,36 @@ async def day_view(user: AuthorizedUser, on: Optional[str] = Query(None, alias="
         "office": viewer.office,
         "me": viewer.person,
         "crews": crews,
+        "missingDays": missing_days,
     }
+
+
+def missing_by_day(board: schedule_board.Board, viewer: Viewer, done: set, today: str) -> list[dict]:
+    """Install days up to today with stops still missing Arrive or Leave,
+    oldest first: ``[{"date", "missing", "stops"}]``. ``done`` holds the
+    (dayId, row, kind) visits that have both times."""
+    out = []
+    for on in visible_dates(board, viewer):
+        if on > today:
+            break
+        stops = [(c["dayId"], s["row"], c["kind"]) for c in crew_groups(board, on, viewer) for s in c["stops"]]
+        missing = sum(1 for k in stops if k not in done)
+        if missing:
+            out.append({"date": on, "missing": missing, "stops": len(stops)})
+    return out
+
+
+async def _missing_days(board: schedule_board.Board, viewer: Viewer) -> list[dict]:
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        rows = await conn.fetch(
+            "SELECT day_id, client_row, kind FROM ll_app.install_actuals_latest WHERE season = $1 "
+            "AND arrive_at IS NOT NULL AND depart_at IS NOT NULL", board.season)
+    finally:
+        await conn.close()
+    done = {(r["day_id"], r["client_row"], r["kind"]) for r in rows}
+    return missing_by_day(board, viewer, done, now_ct().date().isoformat())
 
 
 @router.get("/visit")
@@ -379,8 +410,10 @@ class ActualIn(BaseModel):
 
 @router.post("/actuals")
 async def save_actual(body: ActualIn, user: AuthorizedUser) -> dict:
-    """Enter or correct one visit. Always inserts; a correction points at
-    the row it replaces, so nothing typed is ever lost."""
+    """Enter or correct one visit. A correction inserts a new row pointing
+    at the one it replaces, so nothing typed is ever lost. Filling in the
+    blanks of your own open entry (Leave after Arrive, ticking photos)
+    completes that row instead (``install_times.fills_in_only``)."""
     board = await _board()
     viewer = await _viewer(user, board)
     if not may_enter(viewer, board, body.dayId):
@@ -420,18 +453,29 @@ async def save_actual(body: ActualIn, user: AuthorizedUser) -> dict:
                     "message": "Someone else just saved this stop. Here is what they entered.",
                     "current": actual_out(current) if current else None,
                 })
-            row = await conn.fetchrow(
-                "INSERT INTO ll_app.install_actuals (client_id, client_name, client_row, season, kind, date, "
-                "day_id, crew_label, crew_lead, arrive_at, depart_at, people_count, photos_done, scope_note, "
-                "est_hours_at_time, job_type, night, source, entered_by, supersedes_id) "
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *",
-                cid, name, body.row, board.season, kind, date.fromisoformat(day["date"]), vid,
-                group["label"] if group else board.crew_title(day),
-                group["lead"] if group else None,
-                entry.arrive_at, entry.depart_at, body.peopleCount, body.photosDone,
-                body.scopeNote.strip() or None,
-                _est_for(board, body.dayId, body.row),
-                T.job_type_of(client), night, source, viewer.email, body.supersedesId)
+            if T.fills_in_only(dict(current) if current else None, entry, people=body.peopleCount,
+                               photos=body.photosDone, note=body.scopeNote, email=viewer.email,
+                               now=now_ct()):
+                # Filling in the blanks of one's own open entry (Leave after
+                # Arrive, ticking photos): the same version, completed in place.
+                row = await conn.fetchrow(
+                    "UPDATE ll_app.install_actuals SET arrive_at = $2, depart_at = $3, people_count = $4, "
+                    "photos_done = $5, scope_note = $6 WHERE id = $1 RETURNING *",
+                    current["id"], entry.arrive_at, entry.depart_at, body.peopleCount, body.photosDone,
+                    body.scopeNote.strip() or None)
+            else:
+                row = await conn.fetchrow(
+                    "INSERT INTO ll_app.install_actuals (client_id, client_name, client_row, season, kind, date, "
+                    "day_id, crew_label, crew_lead, arrive_at, depart_at, people_count, photos_done, scope_note, "
+                    "est_hours_at_time, job_type, night, source, entered_by, supersedes_id) "
+                    "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *",
+                    cid, name, body.row, board.season, kind, date.fromisoformat(day["date"]), vid,
+                    group["label"] if group else board.crew_title(day),
+                    group["lead"] if group else None,
+                    entry.arrive_at, entry.depart_at, body.peopleCount, body.photosDone,
+                    body.scopeNote.strip() or None,
+                    _est_for(board, body.dayId, body.row),
+                    T.job_type_of(client), night, source, viewer.email, body.supersedesId)
             corrections = 0
             if body.supersedesId:
                 corrections = int(await conn.fetchval(

@@ -1,6 +1,6 @@
 // Pinned to the same values as backend tests/test_install_times.py.
 import { describe, expect, it } from "vitest";
-import { diffLabel, fmtClock, fmtDuration, isLiveDay, nowClockCT, onSiteMinutes, parseClock, parseLeave, TimeParseError } from "../installTimes";
+import { diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, onSiteMinutes, parseClock, parseLeave, TimeParseError } from "../installTimes";
 
 const cases: [string, boolean, string][] = [
   ["10:15p", false, "10:15 PM"],
@@ -95,5 +95,25 @@ describe("Now buttons", () => {
     expect(isLiveDay("2026-11-04", "2026-11-05", true)).toBe(true);
     expect(isLiveDay("2026-11-30", "2026-12-01", true)).toBe(true);
     expect(isLiveDay("2026-11-04", "2026-11-09", true)).toBe(false);
+  });
+});
+
+describe("liveMissingDays", () => {
+  const days = [
+    { date: "2026-11-02", missing: 3, stops: 5 },
+    { date: "2026-11-04", missing: 9, stops: 9 },
+  ];
+  it("keeps the open day's count in step with saves", () => {
+    expect(liveMissingDays(days, "2026-11-04", "2026-11-09", 7, 9)).toEqual([
+      { date: "2026-11-02", missing: 3, stops: 5 },
+      { date: "2026-11-04", missing: 2, stops: 9 },
+    ]);
+  });
+  it("drops a day once every stop has both times", () => {
+    expect(liveMissingDays(days, "2026-11-02", "2026-11-09", 5, 5).map((d) => d.date)).toEqual(["2026-11-04"]);
+  });
+  it("adds today when it has stops left and ignores future days", () => {
+    expect(liveMissingDays(days, "2026-11-09", "2026-11-09", 0, 2).map((d) => d.date)).toEqual(["2026-11-02", "2026-11-04", "2026-11-09"]);
+    expect(liveMissingDays(days, "2026-11-12", "2026-11-09", 0, 2)).toBe(days);
   });
 });

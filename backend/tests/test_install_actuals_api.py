@@ -330,3 +330,80 @@ def test_migration_file_matches_the_router_ddl():
         return re.sub(r"\s+", " ", no_comments).strip()
 
     assert norm(IA.DDL) == norm(mig)
+
+
+def _open_row(entered_by):
+    """Smith, Ann on 11/19: Arrive 8:30 AM saved an hour ago, no Leave yet."""
+    return {**_saved_row("", None, "Smith, Ann", 10, "2026", "install", None, "2026-11-19|Crew 1|0", "Crew 1",
+                         "Lesly Lead", datetime(2026, 11, 19, 8, 30, tzinfo=T.TZ), None, 2, False, None, 2.4,
+                         "residential", False, "lead", entered_by, None),
+            "id": 410, "created_at": datetime(2026, 11, 20, 8, 30, tzinfo=T.TZ)}
+
+
+def test_leave_after_your_own_arrive_completes_the_row_not_a_correction(fake_db, board):
+    as_role(fake_db, None)  # Lesly: a Lead on the roster
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _open_row("lesly@example.com"))
+
+    def updated(sql, rid, arrive, depart, people, photos, note):
+        return {**_open_row("lesly@example.com"), "arrive_at": arrive, "depart_at": depart,
+                "people_count": people, "photos_done": photos, "scope_note": note}
+
+    fake_db.on("UPDATE ll_app.install_actuals SET", updated, method="fetchrow")
+    fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 1)
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="8:30 AM", depart="11",
+                                         peopleCount=2, photosDone=True, supersedesId=410),
+                             user("lesly@example.com")))
+    a = out["actual"]
+    assert (a["id"], a["arrive"], a["depart"], a["actualHours"], a["corrections"]) == (410, "8:30 AM", "11:00 AM", 2.5, 0)
+    assert a["photosDone"] is True
+    assert not fake_db.seen("INSERT INTO ll_app.install_actuals")
+    assert fake_db.calls("UPDATE ll_app.install_actuals SET")[0][1][0] == 410
+
+
+@pytest.mark.parametrize("who, arrive", [
+    ("lesly@example.com", "8:45"),        # her own entry, but the Arrive changed
+    ("office@example.com", "8:30 AM"),    # someone else filling it in
+])
+def test_changing_a_saved_time_or_someone_elses_entry_is_still_a_new_row(fake_db, board, who, arrive):
+    as_role(fake_db, "staff" if who.startswith("office") else None)
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _open_row("lesly@example.com"))
+    fake_db.on("INSERT INTO ll_app.install_actuals", _saved_row, method="fetchrow")
+    fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 2)
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive=arrive, depart="11",
+                                         peopleCount=2, photosDone=False, supersedesId=410), user(who)))
+    assert (out["actual"]["supersedesId"], out["actual"]["corrections"]) == (410, 1)
+    assert not fake_db.seen("UPDATE ll_app.install_actuals")
+
+
+def test_completing_still_refuses_a_stale_page(fake_db, board):
+    as_role(fake_db, None)
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _open_row("lesly@example.com"))
+    with pytest.raises(HTTPException) as exc:
+        run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="8:30 AM", depart="11",
+                                       supersedesId=None), user("lesly@example.com")))
+    assert exc.value.status_code == 409
+    assert not fake_db.seen("UPDATE ll_app.install_actuals") and not fake_db.seen("INSERT INTO ll_app.install_actuals")
+
+
+def test_office_gets_days_still_missing_times_leads_do_not(fake_db, board):
+    as_role(fake_db, "staff")
+    # Crew 1's 11/4 stop and one of 11/19's two stops have both times.
+    fake_db.on_fetch("SELECT day_id, client_row, kind FROM ll_app.install_actuals_latest", [
+        {"day_id": "2026-11-04|Crew 1|0", "client_row": 63, "kind": "install"},
+        {"day_id": "2026-11-19|Crew 1|0", "client_row": 10, "kind": "install"},
+    ])
+    out = run(IA.day_view(user("office@example.com"), on="2026-11-19"))
+    assert out["missingDays"] == [
+        {"date": "2026-11-04", "missing": 2, "stops": 3},
+        {"date": "2026-11-19", "missing": 1, "stops": 2},
+    ]
+    assert fake_db.calls("SELECT day_id, client_row, kind FROM ll_app.install_actuals_latest")[0][1] == ("2026",)
+    roles.clear_cache()
+    as_role(fake_db, None)
+    lead = run(IA.day_view(user("lesly@example.com"), on="2026-11-19"))
+    assert lead["missingDays"] is None
+
+
+def test_missing_days_stop_at_today(board):
+    office = IA.Viewer(email="o@x", role="staff")
+    assert [d["date"] for d in IA.missing_by_day(board, office, set(), "2026-11-10")] == ["2026-11-04"]

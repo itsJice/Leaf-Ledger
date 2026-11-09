@@ -223,6 +223,35 @@ def build_entry(day: str, arrive_text: str, depart_text: str, *, night: bool) ->
     return Entry(arrive, depart, hours, warnings)
 
 
+def fills_in_only(current: Optional[dict], entry: "Entry", *, people: Optional[int],
+                  photos: Optional[bool], note: str, email: str, now: datetime) -> bool:
+    """Whether a save only fills in blanks on the person's own open entry, so
+    it completes that row instead of becoming a correction. True when the
+    latest row was saved by the same person within ``LONG_VISIT_H`` hours
+    and no value saved on it changes: Arrive and Leave stay or go from empty
+    to a time, people stays or goes from empty, Photos done stays or goes
+    from unticked to ticked, the note stays or goes from empty. The usual
+    lead flow (Now on arrival, Now on leaving, tick photos) is one version;
+    retyping a saved time is still a new row with ``supersedes_id``."""
+    if not current or not email or (current.get("entered_by") or "") != email:
+        return False
+    created = current.get("created_at")
+    if created is None or not 0 <= (now - created).total_seconds() <= LONG_VISIT_H * 3600:
+        return False
+
+    def kept(old, new) -> bool:
+        return old is None or old == new
+
+    note = (note or "").strip() or None
+    return (
+        kept(current.get("arrive_at"), entry.arrive_at)
+        and kept(current.get("depart_at"), entry.depart_at)
+        and kept(current.get("people_count"), people)
+        and (not current.get("photos_done") or bool(photos))
+        and kept(current.get("scope_note") or None, note)
+    )
+
+
 # ─── reports ─────────────────────────────────────────────────────────────────
 
 
