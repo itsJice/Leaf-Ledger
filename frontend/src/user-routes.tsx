@@ -36,6 +36,7 @@ const CatalogSearch = lazyWithReload(() => import("./pages/CatalogSearch.tsx"));
 const InstallSchedule = lazyWithReload(() => import("./pages/InstallSchedule.tsx"));
 const InstallChanges = lazyWithReload(() => import("./pages/InstallChanges.tsx"));
 const Shifts = lazyWithReload(() => import("./pages/Shifts.tsx"));
+const InstallTimes = lazyWithReload(() => import("./pages/InstallTimes.tsx"));
 const Settings = lazyWithReload(() => import("./pages/Settings.tsx"));
 const Suppliers = lazyWithReload(() => import("./pages/Suppliers.tsx"));
 const Help = lazyWithReload(() => import("./pages/Help.tsx"));
@@ -90,6 +91,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/settings", element: <Settings /> },
 	// Leads land here and can open nothing else (app/auth/RoleGate.tsx).
 	{ path: "/shifts", element: <Shifts /> },
+	{ path: "/install-times", element: <InstallTimes /> },
 	{ path: "/suppliers", element: <Suppliers /> },
 	// Help > How-to videos (data/howtoVideos.ts). Every signed-in role, field
 	// logins and the display too (app/auth/RoleGate.tsx).

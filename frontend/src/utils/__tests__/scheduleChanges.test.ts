@@ -35,7 +35,7 @@ describe("the Changes entry", () => {
     const installs = NAV_GROUPS.find((g) => g.id === "installs")!;
     expect(installs.items.map((i) => i.path)).toEqual([
       "/install-schedule", "/install-calendar", "/install-staffing", "/install-roster",
-      "/install-trailer-loader", CHANGES_PATH,
+      "/install-trailer-loader", CHANGES_PATH, "/install-times",
     ]);
     expect(installs.items[4].label).toBe("Trailer Loader");
     expect(installs.items[5].label).toBe("Install Changes");

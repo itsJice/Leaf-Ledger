@@ -4,6 +4,10 @@ import { isInstallPath } from "utils/installViews";
 import { CHANGES_PATH } from "utils/scheduleChanges";
 import { isHelpPath } from "utils/howto";
 
+/** Install Times (pages/InstallTimes.tsx): office staff, and crew leads for
+ *  their own crew-days (the server narrows what a lead sees). */
+export const INSTALL_TIMES_PATH = "/install-times";
+
 /**
  * Where RoleGate sends an account that may not open `path`, or null when it
  * may. Pure, so the rules are tested (app/auth/__tests__/gate.test.ts).
@@ -11,7 +15,7 @@ import { isHelpPath } from "utils/howto";
  * page that would fail for it.
  */
 export function gateRedirect(
-  me: Pick<Me, "pages" | "home" | "viewOnly" | "fieldOnly">,
+  me: Pick<Me, "pages" | "home" | "viewOnly" | "fieldOnly"> & { role?: Me["role"] },
   path: string,
 ): string | null {
   // Restricted logins (production): only their pages; anything else -- the
@@ -29,7 +33,9 @@ export function gateRedirect(
   }
   // Installers and leads: their shifts, a form (the product request form is
   // filled in the field, on a phone -- the form page only, never responses)
-  // and the how-to videos.
+  // and the how-to videos. Leads (not crew) also enter their crews' install
+  // times.
+  if (me.fieldOnly && me.role === "lead" && path === INSTALL_TIMES_PATH) return null;
   const onFormPage = /^\/forms\/[^/]+\/?$/.test(path);
   if (me.fieldOnly && path !== FIELD_HOME && !onFormPage && !isHelpPath(path)) {
     return FIELD_HOME;

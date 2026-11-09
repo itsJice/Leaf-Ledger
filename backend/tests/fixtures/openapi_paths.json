@@ -212,6 +212,21 @@
     "GET",
     "PUT"
   ],
+  "/api/install-times/actuals": [
+    "POST"
+  ],
+  "/api/install-times/client/{client_id}": [
+    "GET"
+  ],
+  "/api/install-times/day": [
+    "GET"
+  ],
+  "/api/install-times/reports": [
+    "GET"
+  ],
+  "/api/install-times/visit": [
+    "GET"
+  ],
   "/api/job-budgets": [
     "GET"
   ],
