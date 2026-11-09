@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Calculator,
+  Clock,
   Check,
   CheckCircle2,
   Database,
@@ -23,6 +24,7 @@ import {
 import Layout from "components/Layout";
 import ChristmasRatesEditor from "components/ChristmasRatesEditor";
 import InstallCostCardEditor from "components/InstallCostCardEditor";
+import EstimateRatesEditor from "components/EstimateRatesEditor";
 import SidebarTabsEditor from "components/SidebarTabsEditor";
 import UserRolesEditor from "components/UserRolesEditor";
 import { currentMe } from "utils/me";
@@ -71,6 +73,7 @@ type BuildTemplateListKey = "slots" | "usedFor" | "regularMaterials" | "premiumM
 const TABS = [
   { id: "markup", label: "Markup", icon: DollarSign },
   { id: "christmas", label: "Christmas Rates", icon: TreePine },
+  { id: "estimates", label: "Install Estimates", icon: Clock },
   { id: "costs", label: "Install Costs", icon: Calculator },
   { id: "pricing", label: "Pricing Rules", icon: SettingsIcon },
   { id: "sku", label: "SKU Standards", icon: Tags },
@@ -602,6 +605,8 @@ export default function Settings() {
           <UserRolesEditor />
         ) : activeTab === "christmas" ? (
           <ChristmasRatesEditor />
+        ) : activeTab === "estimates" ? (
+          <EstimateRatesEditor />
         ) : activeTab === "costs" ? (
           <InstallCostCardEditor />
         ) : loading && activeTab !== "appearance" ? (

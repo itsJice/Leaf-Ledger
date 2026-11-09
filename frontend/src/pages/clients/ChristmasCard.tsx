@@ -6,6 +6,7 @@ import { ContentType } from "../../apiclient/http-client";
 import { formatCurrency } from "utils/format";
 import type { ActivityEntry } from "./SeasonHistory";
 import { InstallTimesStrip } from "./InstallTimesStrip";
+import { SuggestedHours } from "./SuggestedHours";
 import {
   INVENTORY_TYPES, ROLE_LABELS, discountAmount, discountLabel, isDonation, missingLabel, nextSeasonPrice, storageLabel,
   type InventoryLine, type InventoryType, type PricingView, type RoleNeed,
@@ -295,6 +296,7 @@ export function ChristmasCard({ clientId, season, detail, previousDetail, pricin
         <>
           <Summary d={seeded && previousDetail ? previousDetail : detail} pricing={pricing} season={season} />
           <InstallTimesStrip clientId={clientId} />
+          <SuggestedHours clientId={clientId} season={String(Number(season) + 1)} onSaved={onSaved} />
         </>
       ) : (
         <div className="space-y-3">
