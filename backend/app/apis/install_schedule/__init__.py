@@ -862,6 +862,41 @@ def is_stale_page(body: dict, published: tuple[datetime, bool] | None) -> bool:
         return True
 
 
+#: Person fields added after pages were already out there. A page published
+#: before a field existed drops it (normRoster used to keep only the keys it
+#: knew), so its save would erase the field for everyone. A save whose person
+#: has no such key at all keeps the stored value; pages that know the field
+#: always send the key (blank when cleared), so clearing still works.
+#: T-shirt size: Comments #26, 2026-11-05.
+LATER_PERSON_FIELDS = ("shirt",)
+
+
+def keep_stored_person_fields(state: dict, stored: Any) -> dict:
+    """Keep each LATER_PERSON_FIELDS value from the stored person (by id)
+    when the saved person leaves the key out entirely."""
+    roster = state.get("roster")
+    if not isinstance(roster, list) or not isinstance(stored, dict) \
+            or not isinstance(stored.get("roster"), list):
+        return state
+    prior: dict[str, dict] = {}
+    for p in stored["roster"]:
+        if isinstance(p, dict) and p.get("id") not in (None, ""):
+            keep = {k: p[k] for k in LATER_PERSON_FIELDS if k in p}
+            if keep:
+                prior[str(p["id"])] = keep
+    if not prior:
+        return state
+    out = []
+    for p in roster:
+        if isinstance(p, dict):
+            keep = prior.get(str(p.get("id") or ""), {})
+            missing = {k: v for k, v in keep.items() if k not in p}
+            if missing:
+                p = {**p, **missing}
+        out.append(p)
+    return {**state, "roster": out}
+
+
 @router.put("/state")
 async def put_state(
     request: Request, body: Any = Body(default=None), role: str = Depends(caller_role)
@@ -980,6 +1015,7 @@ async def put_state(
                 if not full:
                     state = keep_stored_contractor_info(state, stored)
                 state = keep_stored_teams(state, stored)
+                state = keep_stored_person_fields(state, stored)
             if conflict is not None:
                 # Nothing written: no state, no history row, no card dates.
                 return JSONResponse(status_code=409, content=conflict)
@@ -1154,18 +1190,21 @@ async def calendar_link() -> dict:
 
 @router.get("/client-links")
 async def client_links() -> list[dict]:
-    """Every client's Google Drive folder / photos folder links
+    """Every schedule client's Google Drive folder / photos folder links
     (clients.drive_folder_url / drive_photos_url, migrations/026), for the
-    stop popup's "Drive folder" and "Photos" buttons.
+    stop popup's "Drive folder" and "Photos" buttons -- and the record's
+    name, city, area and zone, which the page shows over its build's values
+    (Comments #24, #27: fix the card, the schedule follows).
 
     Read at runtime rather than baked into the page's DATA, so setting a link
     never changes the build's version hash (which would wipe the board). It
     lives on this router, not /api/clients/list, because the shop TV
     (viewer) may read this router and should be able to open a client's
-    folder; it can't read the Clients tab. Only clients with a link are
-    listed, with the names the page matches on (name, the sheet's spelling,
-    former names). Changing a link is PUT /api/clients/{id}/drive-links,
-    staff and up.
+    folder; it can't read the Clients tab. Only schedule clients (a sheet
+    spelling) or clients with a link, area or zone are listed, with the names
+    the page matches on (name, the sheet's spelling, former names) and no
+    contact details. Changing a link is PUT /api/clients/{id}/drive-links,
+    the rest PUT /api/clients/update/{id}, staff and up.
     """
     from app.apis import clients as clients_api
 
@@ -1173,9 +1212,11 @@ async def client_links() -> list[dict]:
     try:
         await clients_api.ensure_schema(conn)
         rows = await conn.fetch(
-            "SELECT id, name, sheet_name, former_names, drive_folder_url, drive_photos_url "
+            "SELECT id, name, sheet_name, former_names, drive_folder_url, drive_photos_url, "
+            "       city, area, zone "
             "  FROM clients "
             " WHERE drive_folder_url IS NOT NULL OR drive_photos_url IS NOT NULL "
+            "    OR sheet_name IS NOT NULL OR area IS NOT NULL OR zone IS NOT NULL "
             " ORDER BY id"
         )
     finally:

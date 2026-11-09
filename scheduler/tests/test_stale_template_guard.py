@@ -25,16 +25,13 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 
 def const_block(name):
-    """A top-level const, one line or a block that ends in `};`."""
-    m = re.search(rf"^const {name}=.*$", TEMPLATE, re.M)
+    """A top-level const, to the first line that ends in `;`."""
+    m = re.search(rf"^const {name}=.*?;$", TEMPLATE, re.M | re.S)
     assert m, name
-    if m.group(0).endswith(";"):
-        return m.group(0)
-    end = TEMPLATE.index("\n};\n", m.start())
-    return TEMPLATE[m.start():end + 3]
+    return m.group(0)
 
 
-KEEP = "\n".join(const_block(n) for n in ("CONTRACTOR_TEXT", "KNOWN_FIELDS", "KNOWN_ID")) \
+KEEP = "\n".join(const_block(n) for n in ("ROSTER_OWN_KEYS", "KNOWN_FIELDS", "KNOWN_ID")) \
     + "\n" + js_function("keepUnknown")
 
 

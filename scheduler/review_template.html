@@ -273,6 +273,25 @@ dialog button{padding:7px 14px;border-radius:6px;border:1px solid var(--line);cu
 dialog .go{background:var(--brand);color:#fff;border:none}
 dialog .go:hover{background:var(--brand-hover)}
 dialog option:disabled{color:#b6b3ae}
+/* Every popup fits the screen it's on: the fields scroll and the Save /
+   Cancel row stays pinned to the bottom ("When in a pop-up that is longer
+   than the screen, there is no scroll feature. Have to shrink the screen to
+   get to either 'save' or cancel", Joy, comment #25, 2026-10-26). dvh, not
+   the browser's own 100% cap, so iPad / iPhone Safari's toolbars can't hide
+   the bottom. Popups that size themselves (#sddlg, #sxdlg, #teamdlg,
+   #txtdlg, #stfdlg, #peekdlg, #rpdlg) keep their own id rules, which win.
+   --dlgpad mirrors the popup's padding (content-box, so the cap subtracts
+   it) and lets the pinned row reach the popup's edges. */
+dialog{--dlgpad:18px}
+dialog:modal{max-height:calc(100vh - 26px - 2 * var(--dlgpad));max-height:calc(100dvh - 26px - 2 * var(--dlgpad));
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+dialog:modal:not([id=stfdlg])>.btns:last-child{position:sticky;bottom:calc(-1 * var(--dlgpad));z-index:2;
+  margin:2px calc(-1 * var(--dlgpad)) calc(-1 * var(--dlgpad));padding:10px var(--dlgpad) var(--dlgpad);
+  background:inherit;transition:box-shadow .15s ease}
+/* A soft edge above the pinned row only while more is hidden below it
+   (scrollFitDialogs() sets .dlgmore). */
+dialog:modal.dlgmore:not([id=stfdlg])>.btns:last-child{box-shadow:0 -1px 0 var(--line),0 -10px 14px -10px rgba(41,37,36,.22)}
+@media (prefers-reduced-motion: reduce){ dialog:modal>.btns:last-child{transition:none} }
 #mvnote{font-size:11.5px;color:var(--mut);margin-top:6px;min-height:14px}
 #mvnote .warn{color:var(--warn-ink)}
 #mvdlg{max-width:400px}
@@ -456,7 +475,7 @@ dialog option:disabled{color:#b6b3ae}
 #rpdlg .rpsec{margin-top:12px;padding-top:8px;border-top:1px solid var(--line)}
 #rpdlg .rpadm{font-size:10.5px;font-weight:700;color:var(--mut);margin-left:-2px}
 @media (max-width:767px){
-  #rpdlg{width:calc(100vw - 16px);max-width:none;padding:14px}
+  #rpdlg{width:calc(100vw - 16px);max-width:none;padding:14px;--dlgpad:14px}
   #rpdlg input[type=text],#rpdlg input[type=number],#rpdlg select{font-size:16px}
   #rpdlg .btns button,#rpdlg .billfmt button,#rpdlg .rpadd button{min-height:40px}
   #rpdlg .billcols label,#rpdlg .rpchk{min-height:36px}
@@ -1425,6 +1444,8 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 @media (max-width:767px){ #perdlg .btns button,#perdlg .peractconfirm button{min-height:40px} }
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .perrow3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.perrow21{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.perrow21 > div{min-width:0}
 #percontract input[type=text]{font-size:16px;min-height:40px}
 .perchk{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14px;font-weight:600;
   color:var(--ink);cursor:pointer}
@@ -2134,8 +2155,13 @@ body.apple .pkfold>summary{min-height:46px}
   font-size:12.5px;border-bottom:1px solid #f5f5f4}
 .srow:last-child{border-bottom:none}
 .srow:hover{background:var(--brand-soft)}
-.srname{color:var(--ink);font-weight:600}
-.srwhere{color:var(--mut);white-space:nowrap}
+/* Name over the matched address; the day wraps under them when the row is narrow. */
+.srow{flex-wrap:wrap;row-gap:2px}
+.srmain{flex:1 1 140px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.srname{color:var(--ink);font-weight:600;overflow-wrap:break-word}
+.sraddr{color:var(--mut);font-size:11.5px;overflow-wrap:break-word}
+#searchresults mark{background:#fde68a;color:inherit;border-radius:3px;padding:0 1px}
+.srwhere{color:var(--mut);white-space:nowrap;margin-left:auto}
 .srnone{padding:10px 12px;font-size:12px;color:var(--mut)}
 .srow.act{background:var(--brand-soft)}
 /* "See all search results": always the dropdown's last row, pinned to its
@@ -2186,6 +2212,9 @@ body.apple .viewtog button{height:30px;padding:0 16px;border:0;border-radius:8px
 body.apple .viewtog button.sel{background:#fff;color:var(--brand-deep);font-weight:800;
   box-shadow:0 1px 2px rgba(28,46,30,.16),0 0 0 .5px rgba(28,46,30,.08)}
 body.apple #searchwrap{position:relative;margin:0 4px 0 0;width:230px;flex:0 1 230px;min-width:96px}
+/* A crowded toolbar can squeeze the box to 96px: the dropdown keeps its full
+   width, growing leftward from the box's right edge. */
+body.apple #searchresults{left:auto;width:100%;min-width:min(230px, calc(100vw - 16px))}
 body.apple #searchbox{width:100%;height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;
   padding:0 12px 0 32px;font-size:13.5px;color:var(--ink);box-sizing:border-box;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%235b6558' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
@@ -2794,7 +2823,7 @@ body.apple header{container-type:inline-size}
   body.apple #peekdlg.inline::before{inset:4px 6px 8px 6px}
   body.apple #peekdlg.inline::after{left:28px}
   body.apple #peekdlg.inline .pkclose{top:12px;right:14px}
-  body.apple #sfdlg{width:calc(100vw - 16px);max-width:none;padding:14px}
+  body.apple #sfdlg{width:calc(100vw - 16px);max-width:none;padding:14px;--dlgpad:14px}
   body.apple header{padding:8px 10px;gap:6px}
   body.apple .viewtog{order:5;flex:1 1 100%}
   body.apple .viewtog button{flex:1;padding:0 6px}
@@ -2937,7 +2966,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   </div>
   <div id="tbright">
   <div id="searchwrap">
-    <input id="searchbox" type="text" placeholder="Find a client" title="Which day is a client on?" autocomplete="off">
+    <input id="searchbox" type="text" placeholder="Find a client" title="Which day is a client on? Search by name, street, city or ZIP" autocomplete="off">
     <div id="searchresults"></div>
   </div>
   <!-- Populated (and un-hidden) only if the backend can list published
@@ -3022,8 +3051,12 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <div><span class="nclabel">Phone</span>
       <input id="perphone" type="text" autocomplete="off" placeholder="(555) 555-5555"></div>
   </div>
-  <span class="nclabel">Email</span>
-  <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com">
+  <div class="perrow21">
+    <div><span class="nclabel">Email</span>
+      <input id="peremail" type="text" autocomplete="off" placeholder="name@example.com"></div>
+    <div><span class="nclabel">T-shirt size</span>
+      <select id="pershirt" aria-label="T-shirt size"></select></div>
+  </div>
   <span class="nclabel">Notes</span>
   <input id="pernotes" type="text" autocomplete="off" placeholder="Anything worth remembering">
   <div id="perduties"></div>
@@ -3780,6 +3813,8 @@ function normManualOrder(obj){
 // Assist coverage -- dayNeed() already maps the stops' designer need there.
 const TITLES = ['Lead','Lead Assist','Designer','General Installer'];
 const LANGS  = ['English','Spanish','Both'];
+// T-shirt sizes, as on the Installer Form (Comments #26, Joy 2026-10-26).
+const SHIRT_SIZES = ['S','M','L','XL','2XL','3XL'];
 // Alberto rating (user, 2026-09-04): NOT year-over-year -- that got
 // scrapped the same day it shipped. "People are who they are": one
 // current rating per installer per trait, updated whenever, with no
@@ -4606,6 +4641,25 @@ function contractorFields(p){
   if(p.directDeposit===true) o.directDeposit=true;
   return o;
 }
+/** PURE. A stored T-shirt size as one of SHIRT_SIZES ('' when not set).
+ *  Self-contained (no SHIRT_SIZES) because normRoster runs during bootstrap.
+ *  Spellings like "med", "XXL" or "Large" map to the form's sizes; anything
+ *  else is kept as typed (trimmed), so nothing someone entered is lost. */
+function normShirt(v){
+  const raw=String(v==null?'':v).trim();
+  const k=raw.toUpperCase().replace(/[\s.\-]/g,'');
+  const map={S:'S',SM:'S',SMALL:'S', M:'M',MD:'M',MED:'M',MEDIUM:'M',
+    L:'L',LG:'L',LARGE:'L', XL:'XL',XLARGE:'XL',EXTRALARGE:'XL',
+    '2XL':'2XL',XXL:'2XL','2X':'2XL',XXLARGE:'2XL',
+    '3XL':'3XL',XXXL:'3XL','3X':'3XL',XXXLARGE:'3XL'};
+  return map[k] || raw.slice(0,12);
+}
+/** Every person key normRoster writes itself. Anything else on a stored
+ *  person (a field added by a newer page or a script) rides along untouched,
+ *  so this page saving never strips what it doesn't know about. */
+const ROSTER_OWN_KEYS=['id','first','last','name','title','lang','gender','email','phone','notes',
+  'shirt','ratings','texts','times','dates','active',
+  'legalName','street','city','state','zip','tax1099','directDeposit'];
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
   // restored history entry. Anything unrecognised gets a sane default rather
@@ -4619,7 +4673,10 @@ function normRoster(list){
       const parts = String(p.name||'').trim().split(/\s+/);
       first = parts.shift()||''; last = parts.join(' ');
     }
+    const extra={};
+    Object.keys(p).forEach(k=>{ if(!ROSTER_OWN_KEYS.includes(k)) extra[k]=p[k]; });
     return {
+      ...extra,
       id: String(p.id||''),
       first, last,
       name: [first,last].filter(Boolean).join(' '),
@@ -4629,6 +4686,10 @@ function normRoster(list){
       email: String(p.email||'').trim(),
       phone: fmtPhone(p.phone),
       notes: String(p.notes||'').trim(),
+      // Always present, even when blank: the server keeps a stored size when
+      // a save has no `shirt` key at all (a page from before this field), so
+      // clearing it here has to be said out loud.
+      shirt: normShirt(p.shirt),
       ratings: normRatings(p.ratings),
       texts: normTexts(p.texts),
       // `times` (day/night) is no longer read or shown anywhere: availability
@@ -4748,6 +4809,7 @@ function applyPlacement(place){
  * lat/lon are already known, so this is synchronous, no re-geocoding.
  * Must run BEFORE applyPlacement(), which references these rows. */
 function restoreSyntheticClients(list){
+  let added=false;
   (list||[]).forEach(def=>{
     if(C[def.row]){          // already present -- idempotent, but take the
       // shared document's spelling (a rename saved elsewhere) for the row.
@@ -4759,8 +4821,13 @@ function restoreSyntheticClients(list){
       return;
     }
     addSyntheticClientSync(def);
+    added=true;
     if(def.row >= nextSyntheticRow) nextSyntheticRow = def.row + 1;
   });
+  // An added stop arrives with the shared state, often after the client
+  // records did: give it its card's city and area now (Comment #27). The
+  // records are declared further down; before they exist this is a no-op.
+  if(added){ try{ applyLiveClientFields(); }catch(e){} }
 }
 /** A synthetic client's stored name (what newClients saves) is `def.name`;
  *  what is shown follows the Clients tab, as loadClientDirectory does. A
@@ -5020,8 +5087,7 @@ function sharedDocOf(st){
 // (a team's Driver, say) still clears it.
 const KNOWN_FIELDS={
   teams:['id','name','season','leadId','members','kitId','vanId','driverId','color'],
-  roster:['id','first','last','name','title','lang','gender','email','phone','notes','ratings','texts',
-          'times','dates','active',...CONTRACTOR_TEXT,'tax1099','directDeposit'],
+  roster:ROSTER_OWN_KEYS,
   newClients:['row','name','street','lat','lon','hours','visitType','notes','people','business','outRow','inCol'],
 };
 const KNOWN_ID={teams:'id', roster:'id', newClients:'row'};
@@ -5410,6 +5476,9 @@ window.addEventListener('message', e=>{
     loadSeasons();
     loadCalSub();
     pullShared();
+    // The card's name, city and area for logins that can't read the Clients
+    // list (TV, production); for staff the directory below wins.
+    loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
       // read-only (no Edit button, no full profile) with nothing to
@@ -5880,6 +5949,7 @@ function loadClientDirectory(){
       // into this page at build time still resolves after a rename on the
       // Clients tab.
       clientDirectory = new Map();
+      clientDirectoryAmbig = ambiguousSpellings(rows);
       (Array.isArray(rows)?rows:[]).forEach(c=>{
         [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
           const k=normName(n); if(k && !clientDirectory.has(k)) clientDirectory.set(k, c);
@@ -5896,6 +5966,8 @@ function loadClientDirectory(){
           c.name = ac.name;
         }
       });
+      // ...and its city and area too (Comments #24, #27).
+      applyLiveClientFields();
     })
     .catch(()=>{ clientDirectory = null; });
   return clientDirectoryPromise;
@@ -5919,6 +5991,7 @@ function loadDriveLinks(){
     .then(r=>r.ok?r.json():[])
     .then(rows=>{
       driveLinkMap=new Map();
+      driveLinkAmbig=ambiguousSpellings(rows);
       (Array.isArray(rows)?rows:[]).forEach(c=>{
         [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
           const k=normName(n); if(k && !driveLinkMap.has(k)) driveLinkMap.set(k, c);
@@ -5960,6 +6033,87 @@ function rememberDriveLinks(row, saved, ac){
   const rec={id:saved.id, drive_folder_url:saved.drive_folder_url ?? null, drive_photos_url:saved.drive_photos_url ?? null};
   [C[row].name, C[row].sheetName].forEach(n=>{ const k=normName(n); if(k) driveLinkMap.set(k, rec); });
 }
+// ---------- live client fields: name, city and area (Comments #24, #27) ----------
+// A stop's name, city and area line ("West University/Rice") were baked into
+// this build's DATA, so fixing them on the client card never reached the
+// board -- Merlene's Chappell Hill stop kept the sheet's "Chapel Hill", and a
+// stop added later (Hanover Rice Village) had no area line at all. DATA can't
+// change (its hash keys every saved board), so the card's values are laid
+// over the build's at runtime instead, the way the name already was: from the
+// Clients list for staff, else from /api/install-schedule/client-links (which
+// the TV and production can read too). A blank on the card keeps the build's
+// value; logins that can read neither (crew, lead, offline) see the build's.
+let clientDirectoryAmbig=new Set(); // spellings two different client records share
+let driveLinkAmbig=new Set();
+/** PURE. The normalized spellings (name, sheet name, former names) that
+ *  belong to more than one client record -- matching on one of those could
+ *  pick the wrong client, so the live fields never come through them. */
+function ambiguousSpellings(rows){
+  const owner=new Map(), out=new Set();
+  (Array.isArray(rows)?rows:[]).forEach(c=>{
+    if(!c) return;
+    [c.name, c.sheet_name, ...(c.former_names||[])].forEach(n=>{
+      const k=normName(n); if(!k) return;
+      if(owner.has(k) && owner.get(k)!==c.id) out.add(k); else owner.set(k, c.id);
+    });
+  });
+  return out;
+}
+/** PURE. The record for a stop's client in a name-keyed map: by the name
+ *  shown, then the build's spelling; a spelling shared by two records is
+ *  skipped. */
+function liveRecordIn(map, ambig, c){
+  if(!map || !c) return null;
+  for(const n of [c.name, c.sheetName]){
+    const k=normName(n);
+    if(!k || (ambig && ambig.has(k))) continue;
+    const rec=map.get(k);
+    if(rec) return rec;
+  }
+  return null;
+}
+/** A stop's live client record: the Clients list (staff) first, else the
+ *  client-links list, else null (the build's values stand). */
+function liveClientRecord(row){
+  const c=C[row];
+  return liveRecordIn(clientDirectory, clientDirectoryAmbig, c) || liveRecordIn(driveLinkMap, driveLinkAmbig, c);
+}
+/** PURE. Lay a client record's name, city, area and zone over a stop. The
+ *  build's own values are kept (c.built) so a field cleared on the card goes
+ *  back to them. A build city with digits in it is the sheet's street-in-the-
+ *  city-cell quirk (addrParts untangles it), so that one is left alone.
+ *  True when anything shown changed. */
+function overlayClientFields(c, rec){
+  if(!c || !rec) return false;
+  const t=x=>typeof x==='string' ? x.replace(/\s+/g,' ').trim() : '';
+  if(!c.built) c.built={city:c.city||'', zone:c.zone||'', area:c.area||''};
+  const was=[c.name, c.city, c.zone, c.area].join('\u0001');
+  const nm=t(rec.name);
+  if(nm && normName(nm)!==normName(c.name)){ c.sheetName=c.sheetName||c.name; c.name=nm; }
+  c.city=(t(rec.city) && !/\d/.test(c.built.city)) ? t(rec.city) : c.built.city;
+  c.zone=t(rec.zone) || c.built.zone;
+  c.area=t(rec.area) || c.built.area;
+  return was!==[c.name, c.city, c.zone, c.area].join('\u0001');
+}
+/** Overlay every stop; true when the board needs a redraw. */
+function applyLiveClientFields(){
+  let changed=false;
+  Object.keys(C).forEach(r=>{
+    try{ if(overlayClientFields(C[r], liveClientRecord(+r))) changed=true; }catch(e){}
+  });
+  return changed;
+}
+/** The area names this business already uses (zone -> broad area), from
+ *  this build's stops: the card editor's Area suggestions, and the broad
+ *  area saved alongside a picked one. */
+const ZONE_AREA=(()=>{
+  const out={};
+  Object.values(DATA.clients||{}).forEach(c=>{
+    const z=String((c && c.zone)||'').trim(), a=String((c && c.area)||'').trim();
+    if(z && z!=='UNKNOWN' && a && a!=='UNKNOWN' && !out[z]) out[z]=a;
+  });
+  return out;
+})();
 /** The stop card's "Drive folder" (+ "Photos") buttons. With no folder,
  *  staff get "Add folder", which opens the card editor at the link boxes;
  *  view-only logins (TV, production, archived) just see nothing. */
@@ -8272,28 +8426,75 @@ function drawDate(date){
 }
 
 // ---------- search ----------
-// "Which day is this client on?" -- a plain substring match over C, ranked
-// by whether the match starts a word (so a first-name search surfaces the
-// matching "Lastname, Firstname" entry before a name that merely contains
-// those letters mid-string).
+// "Which day is this client on?" -- matches the client's name, and failing
+// that their street, city or ZIP (Comments #29, 11/6: "I can't remember the
+// name of the client but the address is Crawford"). Name matches rank first,
+// and a match at the start of a word before one mid-word, so a first-name
+// search still surfaces "Lastname, Firstname" before a name that merely
+// contains those letters.
 const searchBox = document.getElementById('searchbox');
 const searchResults = document.getElementById('searchresults');
 function searchClients(q){
-  q = q.trim().toLowerCase();
-  if(!q) return [];
-  const out = [];
-  for(const r in C){
-    const name = C[r].name, lc = name.toLowerCase();
-    const i = lc.indexOf(q);
-    if(i<0) continue;
-    const wordStart = i===0 || /[\s,.|"]/.test(lc[i-1]);
-    out.push({row:+r, name, rank:[wordStart?0:1, i, name.length]});
-  }
-  out.sort((a,b)=>{
-    for(let k=0;k<3;k++) if(a.rank[k]!==b.rank[k]) return a.rank[k]-b.rank[k];
-    return 0;
+  if(!String(q||'').trim()) return [];
+  return searchClientRows(q, Object.keys(C).map(r=>({row:+r, name:C[r].name, ...searchAddrFor(+r)})), 10);
+}
+/** A client's street / city / ZIP for the search: the client record's when
+ *  the Clients list is loaded, else this build's (synthetic new clients carry
+ *  theirs on C). */
+function searchAddrFor(row){
+  const ac=appClientFor(row);
+  if(ac && (ac.street || ac.city || ac.zip)) return {street:ac.street||'', city:ac.city||'', zip:ac.zip||''};
+  const ap=addrParts(C[row]);
+  return {street:ap.street||'', city:ap.city||'', zip:ap.zip||''};
+}
+/** PURE. The search dropdown's matches, best first.
+ *  list: [{row, name, street, city, zip}] -> up to `limit` of
+ *  [{row, name, nameRanges:[[s,e]], addr, addrRanges:[[s,e]], by:'name'|'address'}]
+ *  `addr` is "street, city zip"; the ranges say what matched, for <mark>.
+ *  Order: the whole query in the name, every word in the name, the whole
+ *  query in the address, then words split between name and address. */
+function searchClientRows(q, list, limit){
+  const clean=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+  const phrase=clean(q).toLowerCase();
+  if(!phrase) return [];
+  const words=phrase.split(' ');
+  const wordStart=(lc,i)=>i===0 || !/[a-z0-9]/.test(lc[i-1]);
+  // One-letter words only count at the start of a word ("q" not in "Smith").
+  const find=(lc,w)=>{
+    let i=lc.indexOf(w);
+    if(w.length===1) while(i>=0 && !wordStart(lc,i)) i=lc.indexOf(w, i+1);
+    return i;
+  };
+  const out=[];
+  (list||[]).forEach(c=>{
+    if(!c) return;
+    const name=clean(c.name), ln=name.toLowerCase();
+    const addr=[clean(c.street), [clean(c.city), clean(c.zip)].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const la=addr.toLowerCase();
+    const hit=(by, tier, nr, ar, i, lc)=>out.push({row:c.row, name, nameRanges:nr, addr, addrRanges:ar, by,
+      rank:[tier, wordStart(lc,i)?0:1, i, name.length]});
+    let i=find(ln, phrase);
+    if(i>=0) return hit('name', 0, [[i, i+phrase.length]], [], i, ln);
+    if(words.length>1){
+      const at=words.map(w=>find(ln, w));
+      if(at.every(x=>x>=0)) return hit('name', 1, at.map((x,k)=>[x, x+words[k].length]), [], at[0], ln);
+    }
+    i=find(la, phrase);
+    if(i>=0) return hit('address', 2, [], [[i, i+phrase.length]], i, la);
+    if(words.length>1){
+      const nr=[], ar=[];
+      for(const w of words){
+        const a=find(ln, w), b=a<0 ? find(la, w) : -1;
+        if(a>=0) nr.push([a, a+w.length]); else if(b>=0) ar.push([b, b+w.length]); else return;
+      }
+      hit('address', 3, nr, ar, nr.length?nr[0][0]:ar[0][0], nr.length?ln:la);
+    }
   });
-  return out.slice(0,10);
+  out.sort((a,b)=>{
+    for(let k=0;k<4;k++) if(a.rank[k]!==b.rank[k]) return a.rank[k]-b.rank[k];
+    return a.name.localeCompare(b.name);
+  });
+  return out.slice(0, limit||10).map(r=>{ delete r.rank; return r; });
 }
 /** PURE. Every match for the toolbar search, grouped for the "See all search
  *  results" panel (user, 2026-10-25: "I want an option at the very end to say
@@ -8504,7 +8705,7 @@ function syncSearchMode(){
   const ph = on ? 'Search roster' : 'Find a client';
   if(searchBox.placeholder!==ph){
     searchBox.placeholder=ph; searchBox.setAttribute('aria-label', ph);
-    searchBox.title = on ? 'Filter installers by name, phone, email, notes, title or language' : 'Which day is a client on?';
+    searchBox.title = on ? 'Filter installers by name, phone, email, notes, title or language' : 'Which day is a client on? Search by name, street, city or ZIP';
     // Switching screens starts each search fresh.
     searchBox.value=''; rosterQ=''; searchResults.style.display='none';
   }
@@ -8545,10 +8746,14 @@ function renderSearch(q){
     const d = days.find(x=>x.stops.includes(r.row));
     const where = (d ? `${fmtDate(d.date)} · ${esc(crewTitle(d))}` : 'not scheduled')
       + (C[r.row].visitType && C[r.row].visitType!=='Standard' ? ` · ${esc(C[r.row].visitType)}` : '');
+    // An address match shows the address under the name, so it's clear why
+    // the row is there (Comments #29).
+    const addr = r.by==='address' && r.addr
+      ? `<span class="sraddr">${markRanges(r.addr, r.addrRanges, esc)}</span>` : '';
     return `<div class="srow" id="sr-${i}" role="option" aria-selected="false" data-row="${r.row}">
-      <span class="srname">${esc(r.name)}</span>
+      <span class="srmain"><span class="srname">${markRanges(r.name, r.nameRanges, esc)}</span>${addr}</span>
       <span class="srwhere">${where}</span></div>`;
-  }).join('') : `<div class="srnone">No client name matches "${esc(q.trim())}"</div>`) + searchAllRowHTML(q);
+  }).join('') : `<div class="srnone">No client name or address matches "${esc(q.trim())}"</div>`) + searchAllRowHTML(q);
   searchResults.style.display='block';
   wireSearchRows();
 }
@@ -12638,10 +12843,27 @@ function contactFieldsFor(row){
   if(ac) return {street:ac.street||'', city:ac.city||'', state:ac.state||'',
     zip:ac.zip||'', phone:ac.phone||'', email:ac.email||'',
     notes:ac.notes||'', time_preference:(PREF_RANK[ac.time_preference]!==undefined ? ac.time_preference : ''),
-    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac), ...driveFieldsFor(row)};
+    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac), ...driveFieldsFor(row), ...zoneFieldsFor(row)};
   const ap=addrParts(c);
   return {street:ap.street||'', city:ap.city||'', state:ap.st||'', zip:ap.zip||'',
-    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], ...driveFieldsFor(row)};
+    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], ...driveFieldsFor(row), ...zoneFieldsFor(row)};
+}
+/** The Area box (the line under the name on a stop): what the stop shows
+ *  now, and that value again to save only a change (Comment #27). */
+function zoneFieldsFor(row){
+  const z=String((C[row] && C[row].zone)||'').trim();
+  return {zone:z==='UNKNOWN'?'':z, zone_was:z==='UNKNOWN'?'':z};
+}
+/** PURE. {zone, area} to save when the Area box changed, else {}. A known
+ *  area name brings its broad area ("Central") along; clearing clears both. */
+function zoneChanges(f, zoneArea){
+  if(!f || f.zone_was===undefined) return {};
+  const t=x=>String(x||'').replace(/\s+/g,' ').trim();
+  const z=t(f.zone);
+  if(z===t(f.zone_was)) return {};
+  if(!z) return {zone:'', area:''};
+  const known=Object.keys(zoneArea||{}).find(k=>k.toLowerCase()===z.toLowerCase());
+  return known ? {zone:known, area:zoneArea[known]} : {zone:z};
 }
 /** The Drive link boxes' starting values, and what they were (to save only a change). */
 function driveFieldsFor(row){
@@ -12720,7 +12942,8 @@ function pkField(id, label, value, opts={}){
   const input = opts.area
     ? `<textarea id="${id}" rows="3" placeholder="${attrEsc(opts.ph||'')}">${peekEsc(value||'')}</textarea>`
     : `<input id="${id}" type="${opts.type||'text'}" placeholder="${attrEsc(opts.ph||'')}" value="${attrEsc(value||'')}"`
-      +`${opts.max?` maxlength="${opts.max}"`:''}${opts.mode?` inputmode="${opts.mode}"`:''}${opts.ac?` autocomplete="${opts.ac}"`:''}>`;
+      +`${opts.max?` maxlength="${opts.max}"`:''}${opts.mode?` inputmode="${opts.mode}"`:''}${opts.ac?` autocomplete="${opts.ac}"`:''}`
+      +`${opts.list?` list="${opts.list}"`:''}>`;
   return `<label class="pkce-f${opts.cls?' '+opts.cls:''}"><span>${label}${hint}</span>${input}</label>`;
 }
 function prefButtonsHTML(cur){
@@ -12746,6 +12969,9 @@ function contactEditHTML(row){
         ${pkField('pkf-state','State',f.state,{ph:'TX', max:2, cls:'st'})}
         ${pkField('pkf-zip','ZIP',f.zip,{ph:'Optional', mode:'numeric', max:10, cls:'zip'})}
       </div>
+      ${pkField('pkf-zone','Area',f.zone,{ph:'e.g. West University/Rice', ac:'off', list:'pkf-zones',
+        hint:'shows under the name on the schedule'})}
+      <datalist id="pkf-zones">${Object.keys(ZONE_AREA).sort().map(z=>`<option value="${attrEsc(z)}"></option>`).join('')}</datalist>
       <div class="pkce-f"><span>Install time preference <em>the scheduler orders each crew's day by this</em></span>
         <div class="pkpref" id="pkf-pref" role="group" aria-label="Install time preference">${prefButtonsHTML(f.time_preference)}</div>
       </div>
@@ -12788,7 +13014,7 @@ function syncContactBuffer(){
   [['street','pkf-street'],['city','pkf-city'],['state','pkf-state'],['zip','pkf-zip'],
    ['phone','pkf-phone'],['email','pkf-email'],['notes','pkf-notes'],
    ['inst_notes','pkf-instnotes'],['prod_notes','pkf-prodnotes'],
-   ['drive','pkf-drive'],['photos','pkf-photos']].forEach(([k,id])=>{
+   ['drive','pkf-drive'],['photos','pkf-photos'],['zone','pkf-zone']].forEach(([k,id])=>{
     const el=document.getElementById(id); if(el) f[k]=el.value;
   });
   f.secondary=[...document.querySelectorAll('.pksecedit')].map(el=>({
@@ -12817,6 +13043,7 @@ function clientCardBody(f, nameBody){
     time_preference:f.time_preference||'',
     secondary_contacts:(f.secondary||[]).map(x=>({label:t(x.label), phone:t(x.phone), email:t(x.email)}))
       .filter(x=>x.label||x.phone||x.email),
+    ...zoneChanges(f, ZONE_AREA),
     ...(nameBody||{}),
   };
 }
@@ -12947,7 +13174,7 @@ function wireContactBlock(row){
         return await authFetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
       }catch(e){ throw Object.assign(new Error('network'), {step, status:0, detail:''}); }
     };
-    let entry=null, seasonSaved=false, driveSaved=false;
+    let entry=null, seasonSaved=false, driveSaved=false, fieldsChanged=false;
     const yr=String((SEASON[0]||'')).slice(0,4);
     try{
       const ac=appClientFor(row);
@@ -12968,6 +13195,9 @@ function wireContactBlock(row){
       // below still leaves the board showing what the server has.
       replaceDirectoryEntry(ac, entry);
       if(entry.name && entry.name!==oldName){ applyClientRename(oldName, entry.name); renamedNow=true; }
+      // City and area show on the stop, the map and the crew sheet: lay the
+      // saved card over the build's values now (Comments #24, #27).
+      if(applyLiveClientFields()) fieldsChanged=true;
       // The season card's notes save through the season endpoint, the same
       // one the Clients tab's season card uses (PUT .../seasons/{season}),
       // and only the fields that changed. It creates the season's row when
@@ -13012,7 +13242,7 @@ function wireContactBlock(row){
       wireContactBlock(row);
       // The time preference orders the crew's day and shows as a tag on the
       // stop's row; install notes show as a chip on it: redraw the board.
-      if(!renamedNow && (prefOf(row)!==oldPref || seasonSaved)) render();
+      if(!renamedNow && (prefOf(row)!==oldPref || seasonSaved || fieldsChanged)) render();
       // Notes, facts (time preference), history and the profile row all read
       // the same cached record -- redraw them so the change shows at once.
       if(peekRow===row) refreshPeekLive(row);
@@ -13480,6 +13710,13 @@ document.getElementById('perredo').onclick=()=>{
   perDates = new Set(perRedo.pop());
   drawPerAvail();
 };
+/** PURE. The T-shirt size picker's options: blank, the form's sizes, and a
+ *  stored size the form doesn't have (kept, never silently changed). */
+function shirtOptionsHTML(cur){
+  cur=normShirt(cur);
+  const list=['', ...SHIRT_SIZES, ...(cur && !SHIRT_SIZES.includes(cur) ? [cur] : [])];
+  return list.map(v=>`<option value="${esc(v)}"${v===cur?' selected':''}>${v?esc(v):'Not set'}</option>`).join('');
+}
 const CONTRACTOR_INPUTS=[['perlegal','legalName'],['perstreet','street'],
   ['percity','city'],['perstate','state'],['perzip','zip']];
 function openPersonDlg(person){
@@ -13494,6 +13731,7 @@ function openPersonDlg(person){
   document.getElementById('peremail').value   = person ? person.email : '';
   document.getElementById('perphone').value   = person ? person.phone : '';
   document.getElementById('pernotes').value   = person ? person.notes : '';
+  document.getElementById('pershirt').innerHTML = shirtOptionsHTML(person ? person.shirt : '');
   const showCon = canSeeContractor();
   document.getElementById('percontract').hidden = !showCon;
   CONTRACTOR_INPUTS.forEach(([id,k])=>{
@@ -13574,6 +13812,7 @@ document.getElementById('pergo').onclick=()=>{
     email:document.getElementById('peremail').value.trim(),
     phone:fmtPhone(document.getElementById('perphone').value),
     notes:document.getElementById('pernotes').value.trim(),
+    shirt:normShirt(document.getElementById('pershirt').value),
     ratings:normRatings(perRatings),
     dates:[...perDates]};   // `times` deliberately not written: an edit keeps whatever is stored
   // Only an admin's dialog shows (and so saves) contractor info; anyone
@@ -14362,6 +14601,7 @@ function personDetailHTML(){
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
       ${duties.map(dutyPill).join('')}
       <span class="pill gen">${esc(p.gender)}</span>
+      ${p.shirt?`<span class="pill gen" title="T-shirt size">Shirt ${esc(p.shirt)}</span>`:''}
       ${p.active?'':'<span class="pill gen">INACTIVE</span>'}
       ${trained?`<span class="pill trained">${esc(trained)}</span>`:''}
       ${teamsOfPerson(teams, p.id, teamSeasonDefault()).map(t=>`<span class="asgteam" title="On ${esc(t.name)}">${IC.users}${esc(t.name)}`
@@ -18494,12 +18734,12 @@ function fmtFreeDays(dates){
  *  Contractor fields only for admins (canSeeContractor), as on screen. */
 function rosterRows(sections){
   const admin=canSeeContractor();
-  const head=['Name','Phone','Title','Language','M/F','Free days','Free dates'];
+  const head=['Name','Phone','Title','Language','M/F','Shirt','Free days','Free dates'];
   if(admin) head.push('Legal name','Address','1099','Direct deposit');
   const rows=[head];
   sections.forEach(sec=>sec.people.forEach(p=>{
     const r=[p.name, p.phone?fmtPhone(p.phone):'', p.title, p.lang, p.gender==='Male'?'M':'F',
-             (p.dates||[]).length, fmtFreeDays(p.dates)];
+             p.shirt||'', (p.dates||[]).length, fmtFreeDays(p.dates)];
     if(admin) r.push(p.legalName||'',
       [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', '),
       p.tax1099?'Yes':'No', p.directDeposit?'On file':'');
@@ -18524,6 +18764,7 @@ function rosterPrintColumns(){
     {key:'title',   label:'Title',       w:11},
     {key:'lang',    label:'Language',    w:8},
     {key:'gender',  label:'Gender',      w:6},
+    {key:'shirt',   label:'Shirt',       w:6},
     {key:'address', label:'Address',     w:22, admin:true},
     {key:'legal',   label:'Legal name',  w:16, admin:true},
     {key:'avail',   label:'Days marked', w:34, sm:true},
@@ -18617,6 +18858,7 @@ function rosterPrintCell(p, key){
     case 'title': return p.title||'';
     case 'lang': return p.lang||'';
     case 'gender': return p.gender==='Male' ? 'M' : 'F';
+    case 'shirt': return p.shirt||'';
     case 'address': return [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')]
       .filter(Boolean).join(', ');
     case 'legal': return p.legalName||'';
@@ -18778,7 +19020,7 @@ function drawRosterPrintDlg(){
       <div class="rpcustom">${o.custom.map((x,i)=>`<span>${esc(x)}<button type="button" data-rmcustom="${i}"
         title="Remove ${esc(x)}" aria-label="Remove ${esc(x)}">${IC.close}</button></span>`).join('')}</div>
       <div class="rpadd"><input id="rpcustomin" type="text" autocomplete="off" maxlength="40"
-        placeholder="Add a blank column, e.g. Shirt size"${o.custom.length>=6?' disabled':''}>
+        placeholder="Add a blank column, e.g. Gloves"${o.custom.length>=6?' disabled':''}>
         <button type="button" id="rpcustomadd"${o.custom.length>=6?' disabled':''}>Add</button></div></div>
     <div class="rpsec"><span class="nclabel">Sheet</span>
       <span class="nclabel">Title</span>
@@ -18853,7 +19095,7 @@ function downloadRoster(fmt){
   if(rows.length<2){ alert('Nobody on the roster matches what is on screen.'); return; }
   const file=`tbdg-__SEASON__-roster`;
   if(fmt==='csv'){ dl(`${file}.csv`, rows.map(r=>r.map(csvCell).join(',')).join('\r\n')); return; }
-  const widths=rows[0].map(h=>({Name:24,Phone:15,Title:17,Language:10,'M/F':5,'Free days':9,'Free dates':48,
+  const widths=rows[0].map(h=>({Name:24,Phone:15,Title:17,Language:10,'M/F':5,Shirt:6,'Free days':9,'Free dates':48,
     'Legal name':24,Address:40,'1099':6,'Direct deposit':13})[h]||14);
   const blob=rowsToXlsx(rows, [], 'Roster', widths);
   const a=document.createElement('a');
@@ -19294,6 +19536,20 @@ if(HOSTED && !DISPLAY_LOGIN && window.TBDG_VIEW) applyHostView(String(window.TBD
 render();
 reportView();
 if(!VIEWONLY && tvPref()==='1') enterTV();
+// Popups taller than the screen scroll with Save / Cancel pinned at the bottom
+// (CSS by `dialog:modal`, comment #25). This only adds the soft edge above that
+// row (.dlgmore) while there is more below it, so it's clear the popup scrolls.
+(function scrollFitDialogs(){
+  const sync=d=>{ if(d && d.open) d.classList.toggle('dlgmore', d.scrollHeight - d.scrollTop - d.clientHeight > 2); };
+  const soon=d=>{ sync(d); requestAnimationFrame(()=>sync(d)); };
+  const mo=new MutationObserver(ms=>{ const seen=new Set();
+    ms.forEach(m=>{ const d=m.target.closest ? m.target.closest('dialog') : null; if(d && !seen.has(d)){ seen.add(d); soon(d); } }); });
+  document.querySelectorAll('dialog').forEach(d=>{
+    d.addEventListener('scroll', ()=>sync(d), {passive:true});
+    mo.observe(d, {childList:true, subtree:true, attributes:true, attributeFilter:['open','hidden']});
+  });
+  window.addEventListener('resize', ()=>document.querySelectorAll('dialog[open]').forEach(sync));
+})();
 // The host may have mounted us before it could hear the answer; say it again.
 window.addEventListener('message', e=>{
   if(e.source===window.parent && e.data && e.data.type==='tbdg-auth') tellHost(); });

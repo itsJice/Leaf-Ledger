@@ -1094,14 +1094,25 @@ html.dark {
     transform-origin: center;
     animation: ll-pop-in var(--dur-modal) var(--ease-out-strong) both;
   }
-  /* On a phone a tall form can outgrow the screen (more so with the keyboard
-     up). Cap it to the viewport and let the panel itself scroll. Desktop is
-     left alone so modals that manage their own scrolling body keep doing so. */
-  @media (max-width: 767px) {
-    .ll-modal {
-      max-height: calc(100dvh - 2rem);
-      overflow-y: auto;
-    }
+  /* A tall form can outgrow the screen on any device: a phone (more so with
+     the keyboard up), an iPad, or a short laptop window ("there is no scroll
+     feature. Have to shrink the screen to get to save", Joy, comment #25,
+     2026-10-26). Cap the panel to the viewport and let it scroll. Modals that
+     manage their own scrolling body set their own max-h / overflow utilities,
+     which outrank this components-layer rule. */
+  .ll-modal {
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* The Save / Cancel row of an ll-modal: stays pinned to the bottom of the
+     panel while the fields scroll under it. Pair with bg-white (dark mode
+     remaps it) so scrolled fields don't show through. */
+  .ll-modal-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
   }
   /* An anchored popover / menu: scales from the edge it hangs off. */
   .ll-popover {

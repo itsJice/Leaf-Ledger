@@ -75,7 +75,7 @@ export function ProductModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ll-overlay">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden ll-modal">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 ll-modal">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
           <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
             {form.id ? "Edit Product" : "Add Product"}
@@ -177,7 +177,7 @@ export function ProductModal({
             />
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-100">
+        <div className="ll-modal-foot flex items-center justify-end gap-3 rounded-b-2xl px-6 py-4 border-t border-stone-100 bg-white">
           <button onClick={onClose} className="text-sm text-stone-500 hover:text-stone-700 px-4 py-2">Cancel</button>
           <button
             onClick={handleSave}
