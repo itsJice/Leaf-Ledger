@@ -991,14 +991,11 @@ async def install_summary(client_id: int, season: Optional[str] = None) -> dict:
             board = None
         season = season or (board.season if board else None) or _current_season()
         detail = await _season_detail(conn, client_id, season)
+        # Who confirmed and when used to come from schedule_changes.load_events,
+        # which rebuilds the whole season's save history in memory. Opening
+        # client pages back to back ran the 512 MB server out of memory
+        # (11/15/2026), so the panel shows "Confirmed" without the who/when.
         events: list = []
-        if board is not None and board.confirmed:
-            try:
-                from app.apis import schedule_changes as changes_api
-
-                events = await changes_api.load_events(conn, board)
-            except Exception as exc:  # noqa: BLE001 - who/when is a nice-to-have
-                print(f"install-summary: change feed not readable: {exc}")
     finally:
         await conn.close()
     out = summary_lib.summarize(board, client, detail, events, season=season)

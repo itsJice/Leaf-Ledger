@@ -221,9 +221,8 @@ def test_install_summary_route(fake_db, monkeypatch):
     async def fake_load(season=None, fresh=False):
         return board()
 
-    async def fake_events(conn, b):
-        return [{"kind": "confirmed", "clients": ["Allums, Jennifer"], "at": "2026-11-03T16:02:00+00:00",
-                 "by": "Cynthia"}]
+    async def fake_events(conn, b):  # must not be called: it ran the server out of memory (11/15/2026)
+        raise AssertionError("install-summary must not rebuild the change feed")
 
     from app.apis import schedule_changes
     monkeypatch.setattr(schedule_board, "load_board", fake_load)
@@ -231,7 +230,7 @@ def test_install_summary_route(fake_db, monkeypatch):
     out = run(clients.install_summary(1))
     assert out["client_id"] == 1 and out["season"] == "2026"
     assert out["time_preference"] == "morning" and out["schedule_restrictions"] == "No Fridays"
-    assert out["confirmed"] and out["confirmed_by"] == "Cynthia"
+    assert out["confirmed"] and out["confirmed_by"] is None
     ((_, args),) = fake_db.calls("SELECT detail FROM client_activity")
     assert args == (1, "2026")
 
