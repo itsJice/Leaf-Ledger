@@ -45,6 +45,15 @@ APP_EDITS_KEY = "app_edits"
 #: Flags only the app sets. Carried across a re-sync even when unstamped.
 APP_FLAGS = ("not_installing", "hold", "was_scheduled")
 
+#: The season's contact log (Comments #23): every call, voicemail, text,
+#: email or visit with the client about this season's install, appended one
+#: entry at a time through POST /clients/{id}/seasons/{season}/contacts.
+#: Only the app writes it, so like the flags above it survives every sync
+#: whether or not it is stamped. Deliberately NOT in SEASON_FIELDS: the
+#: per-season PUT replaces values, and a log must only ever grow.
+CONTACT_LOG_KEY = "contact_log"
+APP_ONLY_KEYS = APP_FLAGS + (CONTACT_LOG_KEY,)
+
 #: ``clients.time_preference`` values (migrations/015). Per client, not per
 #: season: a daycare that needs mornings needs them every year.
 TIME_PREFERENCES = ("morning", "afternoon", "late")
@@ -162,6 +171,19 @@ def stamp(detail: dict, keys, when: str | None = None) -> dict:
     return detail
 
 
+#: The stamp the workbook import (scheduler/import_workbook.py) and the
+#: calendar-history import write: "import:<date>". Those keys are app-owned
+#: so the sync can't blank them, but the value is the sheet's own, not a
+#: person's edit.
+IMPORT_STAMP_PREFIX = "import:"
+
+
+def is_person_edit(stamp_value) -> bool:
+    """True for a stamp a person's edit wrote (an ISO time), False for an
+    import's copy of the sheet ("import:<date>")."""
+    return not str(stamp_value or "").startswith(IMPORT_STAMP_PREFIX)
+
+
 def unstamp(detail: dict, keys) -> dict:
     """Forget an app edit -- the next sync may refresh the key again."""
     edits = detail.get(APP_EDITS_KEY)
@@ -177,7 +199,7 @@ def app_owned_keys(detail: dict | None) -> set[str]:
     d = detail or {}
     edits = d.get(APP_EDITS_KEY)
     owned = set(edits.keys()) if isinstance(edits, dict) else set()
-    owned.update(k for k in APP_FLAGS if d.get(k) not in (None, False, ""))
+    owned.update(k for k in APP_ONLY_KEYS if d.get(k) not in (None, False, "", []))
     return owned
 
 
@@ -193,6 +215,17 @@ def merge_sheet_detail(prior: dict | None, fresh: dict) -> dict:
     edits = prior.get(APP_EDITS_KEY)
     if isinstance(edits, dict) and edits:
         out[APP_EDITS_KEY] = dict(edits)
+    # While a person's job fact stands, remember what the sheet says now, so
+    # a Reset can put the sheet's number back (Comment #28).
+    kept = prior.get(SHEET_VALUES_KEY)
+    sheet = {k: v for k, v in (kept.items() if isinstance(kept, dict) else ())
+             if k in SHEET_KEPT and isinstance(edits, dict) and k in edits}
+    for k in SHEET_KEPT:
+        if isinstance(edits, dict) and k in edits and fresh.get(k) is not None:
+            sheet[k] = fresh[k]
+    out.pop(SHEET_VALUES_KEY, None)
+    if sheet:
+        out[SHEET_VALUES_KEY] = sheet
     return out
 
 
@@ -269,6 +302,15 @@ INVENTORY_MAX_LINES = 200
 
 #: The four headcounts the spreadsheet has always carried per client.
 ROLE_KEYS = ("leads", "specialty", "designer", "general")
+
+#: Where the sheet's own value of an app-edited job fact is kept
+#: ({key: value}), so the Install Schedule's Reset can put the sheet's number
+#: back on the card (Comment #28). Recorded when a person first edits the
+#: key and refreshed by every sheet sync while the edit stands.
+SHEET_VALUES_KEY = "sheet_values"
+#: The job facts the schedule shows from the card: box count, est. install
+#: hours and the four headcounts.
+SHEET_KEPT = ("boxes", "est_hours", "role_need")
 
 
 def _as_inventory(v: Any) -> list | None:
@@ -347,7 +389,8 @@ def coerce_field(key: str, value: Any):
     return _as_text(value)
 
 
-def apply_edits(detail: dict | None, fields: dict, when: str | None = None) -> dict:
+def apply_edits(detail: dict | None, fields: dict, when: str | None = None,
+                reset=()) -> dict:
     """Apply a person's per-season edits to a detail dict and stamp them.
 
     A ``None`` (or "") value clears the key and drops its stamp, so the sheet
@@ -355,17 +398,49 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None) -> d
     either true clears the other, and marking not-installing remembers the
     date the client was pulled off of (``was_scheduled``) so the summary can
     say so.
+
+    ``reset`` lists keys to hand back to the sheet (the Install Schedule's
+    Reset, Comment #28): the sheet's value goes back on the card when it is
+    known (``sheet_values``), else the value sent in ``fields`` for that key,
+    else the card keeps its number until the next sheet sync refreshes it.
+    Either way the stamp is dropped, so the sync owns the key again.
     """
     d = dict(detail or {})
+    reset = list(dict.fromkeys(reset or ()))
+    for k in reset:
+        if k not in SEASON_FIELDS:
+            raise FieldError(f"unknown season field {k!r}")
     cleaned = {k: coerce_field(k, v) for k, v in fields.items()}
+    fallback = {k: cleaned.pop(k) for k in reset if k in cleaned}
+    prior_edits = d.get(APP_EDITS_KEY) if isinstance(d.get(APP_EDITS_KEY), dict) else {}
+    # An import's stamp holds the sheet's own value: the first person's edit
+    # over it still keeps that value for a Reset.
+    prior_edits = {k: v for k, v in prior_edits.items() if is_person_edit(v)}
+    sheet = dict(d.get(SHEET_VALUES_KEY)) if isinstance(d.get(SHEET_VALUES_KEY), dict) else {}
     set_keys, clear_keys = [], []
     for k, v in cleaned.items():
         if v is None or v is False and k in ("hold", "not_installing"):
             d.pop(k, None)
+            sheet.pop(k, None)
             clear_keys.append(k)
         else:
+            # A person's first edit of a job fact: keep the sheet's number.
+            if (k in SHEET_KEPT and k not in prior_edits and k not in sheet
+                    and d.get(k) is not None and d.get(k) != v):
+                sheet[k] = d[k]
             d[k] = v
             set_keys.append(k)
+    for k in reset:
+        back = sheet.pop(k, None)
+        if back is None:
+            back = fallback.get(k)
+        if back is not None:
+            d[k] = back
+        clear_keys.append(k)
+    if sheet:
+        d[SHEET_VALUES_KEY] = sheet
+    else:
+        d.pop(SHEET_VALUES_KEY, None)
     if cleaned.get("not_installing"):
         d.pop("hold", None)
         clear_keys.append("hold")
@@ -379,4 +454,80 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None) -> d
         clear_keys.append("not_installing")
     stamp(d, set_keys, when)
     unstamp(d, clear_keys)
+    return d
+
+
+# ─── the contact log (Comments #23) ──────────────────────────────────────────
+
+#: How staff reached the client. "in_person" reads "In person".
+CONTACT_METHODS = ("call", "voicemail", "text", "email", "in_person")
+CONTACT_METHOD_LABEL = {"call": "Call", "voicemail": "Voicemail", "text": "Text",
+                        "email": "Email", "in_person": "In person"}
+CONTACT_NOTE_MAX = 1000
+#: A season with more entries than this keeps the newest. Nobody calls one
+#: client 200 times about one install; the cap only bounds the row.
+CONTACT_LOG_MAX = 200
+
+
+def central_today() -> _dt.date:
+    """Today in Central time (module-level so a test can pin it)."""
+    try:
+        from zoneinfo import ZoneInfo
+
+        return _dt.datetime.now(ZoneInfo("America/Chicago")).date()
+    except Exception:  # pragma: no cover - tzdata missing
+        return (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)).date()
+
+
+def clean_contact_method(v: Any) -> str:
+    s = str(v or "").strip().lower().replace("-", " ").replace("_", " ")
+    s = "_".join(s.split())
+    if s not in CONTACT_METHODS:
+        raise FieldError("method must be one of: call, voicemail, text, email, in person")
+    return s
+
+
+def clean_contact_entry(raw: Any, *, by: str | None, when: str | None = None) -> dict:
+    """One contact-log entry, validated: {date, method, note, by, at}.
+
+    ``date`` is the day the contact happened (YYYY-MM-DD, default today in
+    Central time; never in the future). ``note`` is optional free text.
+    ``by`` and ``at`` come from the server, never the request."""
+    if not isinstance(raw, dict):
+        raise FieldError("a contact entry must be an object")
+    today = central_today().isoformat()
+    day = _as_date(raw.get("date")) or today
+    if day > today:
+        raise FieldError("the contact date can't be in the future")
+    note = _as_text(raw.get("note")) or ""
+    if len(note) > CONTACT_NOTE_MAX:
+        raise FieldError(f"the note can be at most {CONTACT_NOTE_MAX} characters")
+    return {
+        "date": day,
+        "method": clean_contact_method(raw.get("method")),
+        "note": note,
+        "by": (by or "").strip()[:120] or None,
+        "at": when or now_iso(),
+    }
+
+
+def contact_log_of(detail: dict | None) -> list[dict]:
+    """The season's contact log, newest first (by contact date, then when it
+    was logged). Entries that aren't objects are skipped, not fatal."""
+    log = (detail or {}).get(CONTACT_LOG_KEY)
+    if not isinstance(log, list):
+        return []
+    rows = [e for e in log if isinstance(e, dict)]
+    return sorted(rows, key=lambda e: (str(e.get("date") or ""), str(e.get("at") or "")), reverse=True)
+
+
+def append_contact(detail: dict | None, entry: dict) -> dict:
+    """Add one cleaned entry to the season's log and stamp the log as an app
+    edit (so the sheet sync keeps it). Returns a new detail dict."""
+    d = dict(detail or {})
+    log = d.get(CONTACT_LOG_KEY)
+    log = list(log) if isinstance(log, list) else []
+    log.append(entry)
+    d[CONTACT_LOG_KEY] = log[-CONTACT_LOG_MAX:]
+    stamp(d, [CONTACT_LOG_KEY], entry.get("at"))
     return d

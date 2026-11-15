@@ -38,10 +38,10 @@ def test_page_validates_before_connecting(fake_db):
 
 def test_page_defaults_to_newest_published_season(fake_db):
     fake_db.on_fetchval("SELECT season FROM ll_app.install_schedule_pages", "2025")
-    fake_db.on_fetchrow("SELECT html FROM ll_app.install_schedule_pages", {"html": "<html>2025</html>"})
+    fake_db.on_fetchrow("SELECT html, updated_at FROM ll_app.install_schedule_pages", {"html": "<html>2025</html>"})
     assert run(sched.get_install_schedule_page(file="map.html")) == "<html>2025</html>"
     assert [a for _, a in fake_db.calls("SELECT season FROM")] == [("map.html",)]
-    assert [a for _, a in fake_db.calls("SELECT html FROM")] == [("2025", "map.html")]
+    assert [a for _, a in fake_db.calls("SELECT html, updated_at FROM")] == [("2025", "map.html")]
 
 
 def test_page_404_messages(fake_db):
@@ -52,7 +52,7 @@ def test_page_404_messages(fake_db):
     with pytest.raises(HTTPException) as exc:
         run(sched.get_install_schedule_page(season=" 2024 "))
     assert exc.value.detail == "No 2024 schedule published — run scheduler/publish_pages.py"
-    assert [a for _, a in fake_db.calls("SELECT html FROM")] == [("2024", "index.html")]
+    assert [a for _, a in fake_db.calls("SELECT html, updated_at FROM")] == [("2024", "index.html")]
 
 
 # ─── /seasons ────────────────────────────────────────────────────────────────
@@ -123,6 +123,9 @@ def test_put_state_statement_sequence_and_history_is_never_trimmed(fake_db, fake
     encoded = json.dumps(state)
     assert sched.MAX_HISTORY_PER_VERSION == 200
     assert fake_db.executed[1:] == [
+        # The stale-template guard: which page the season has published.
+        ("SELECT updated_at FROM ll_app.install_schedule_pages  WHERE season = $1 AND name = 'index.html'",
+         ("2026",)),
         ("INSERT INTO ll_app.install_schedule_state (version, season, state, updated_by) "
          "VALUES ($1, $2, '{}'::jsonb, $3) ON CONFLICT (version) DO NOTHING", ("build-1", "2026", "user-7")),
         ("SELECT state, updated_by, updated_at FROM ll_app.install_schedule_state "

@@ -179,12 +179,19 @@ PRODUCTION_WRITES = frozenset({
 PRODUCTION_DENY = (
     "/api/pricing", "/api/settings", "/api/pricing-rules", "/api/sku-standards",
     "/api/recipe-intelligence/pricing-rules",
+    # The client cards' hours and headcounts on the schedule (Comment #28):
+    # the inputs to a client's price.
+    "/api/install-schedule/card-facts",
     # Purchasing lives under the jobs router but isn't production's: purchase
     # orders, the sourcing worksheet, open orders and vendor POs.
     "/api/jobs/po", "/api/jobs/sourcing", "/api/jobs/open-orders", "/api/jobs/vendors",
     "/api/jobs/order-items", "/api/jobs/needs",
     # The office calendar feed's link carries its secret; office staff only.
     "/api/install-schedule/calendar-link",
+    # The client page's install panel and contact log (Comments #23): office
+    # only. Production reads /api/clients by prefix, so this has to be named.
+    "/api/clients/{client_id}/install-summary",
+    "/api/clients/{client_id}/seasons/{season}/contacts",
 )
 
 
