@@ -232,7 +232,7 @@ def test_create_by_parts_composes_the_name_and_saves_the_parts(fake_db, fake_req
     (args,) = [a for _, a in fake_db.calls("INSERT INTO clients")]
     assert args[0] == "Byler, Kerri - House"
     assert args[11:15] == ("Kerri", "Byler", None, "House")
-    assert args[15:] == (None, None)  # area, zone: the form leaves them unset
+    assert args[15:] == (None, None, None)  # area, zone, restrictions: the form leaves them unset
     assert (out["name"], out["site"], out["name_parts_saved"]) == ("Byler, Kerri - House", "House", True)
 
 
@@ -372,7 +372,7 @@ def test_contact_only_save_keeps_name_and_parts(fake_db, fake_request):
     _rename_db(fake_db, "Scheib, Nataliya")
     run(clients.update_client(196, ClientUpdate(phone="555"), fake_request()))
     (args,) = [a for _, a in fake_db.calls("UPDATE clients SET")]
-    assert args[1] is None and args[11:] == (False, "Scheib, Nataliya", "keep", None, None, None, None, None, None)
+    assert args[1] is None and args[11:] == (False, "Scheib, Nataliya", "keep", None, None, None, None, None, None, None)
     assert not fake_db.seen("UPDATE arrangements")
 
 

@@ -172,6 +172,12 @@ header h1 svg{color:var(--brand)}
 .badge.approx{background:var(--warn-soft);color:var(--warn-ink)}
 .badge.confirm{background:#dcfce7;color:#15803d;font-weight:800}
 .badge.pref{background:#e0ecf8;color:#1e3a5f}
+/* Scheduling restrictions from the client record (Comments #23): the full
+   text is in the title; the badge is capped so a long note can't push the
+   stop's buttons off a phone screen. */
+.badge.restrict{background:#fdeedd;color:#8a3a0c;font-weight:700;max-width:240px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+.badge.restrict .ic{width:11px;height:11px;vertical-align:-1px}
 .badge.hold{background:#fef3c7;color:#92400e;font-weight:800}
 .stop.onhold{border-left:3px solid #d97706}
 .badge.pinpos{background:#ede9fe;color:#4c1d95;font-weight:800}
@@ -2047,6 +2053,13 @@ body.apple #peekdlg #pkcontact .pkce-btns > button:first-child{display:block}
 body.apple .pkchip-btn{min-height:32px;padding:0 12px}
 #pkalertchip:empty,#pkalert:empty,#pknotes:empty,#pkprofilelink:empty{display:none}
 #pkalert .pkalert{margin:10px 0 0}
+#pksched:empty{display:none}
+.pksched{margin:10px 0 0;display:grid;gap:6px}
+.pksched p{margin:0;display:flex;gap:6px;align-items:flex-start;font-size:12.5px;line-height:1.35;color:var(--ink)}
+.pksched .ic{width:14px;height:14px;flex:none;margin-top:1px}
+.pksched .pkrestrict{padding:7px 9px;background:#fdeedd;border:1px solid #f3c79c;border-radius:8px;color:#6b2d09}
+.pksched .pklastc{color:var(--mut)}
+.pksched .pklastc b,.pksched .pkrestrict b{font-weight:700}
 #peekbody .pks{position:relative;margin:0;padding:12px 0 10px;border-top:1px solid var(--line)}
 #peekbody .pks-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px}
 #peekbody .pks-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-deep)}
@@ -5478,7 +5491,9 @@ window.addEventListener('message', e=>{
     pullShared();
     // The card's name, city and area for logins that can't read the Clients
     // list (TV, production); for staff the directory below wins.
-    loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });
+    // Scheduling restrictions ride on the same list (Comments #23): repaint for
+    // their badges too.
+    loadDriveLinks().then(()=>{ if(applyLiveClientFields() || anyRestrictions()) render(); });
     loadClientDirectory().then(()=>{
       // A stop popup opened BEFORE this token landed rendered itself
       // read-only (no Edit button, no full profile) with nothing to
@@ -6281,6 +6296,57 @@ function prefRank(row){ return PREF_RANK[prefOf(row)]; }
 function prefBadge(row){
   const p=prefOf(row);
   return p ? `<span class="badge pref" title="Install-time preference from the Clients tab — an edited day runs morning → no preference → afternoon → late">${IC.clock} ${PREF_LABEL[p]}</span>` : '';
+}
+// ---------- scheduling restrictions + last contact (Comments #23) ----------
+// clients.schedule_restrictions: free text on the client record ("no
+// Fridays", "gate closes at 3"), never in this build's DATA, so editing it
+// never changes the version hash. Read from the Clients list for staff, else
+// from /api/install-schedule/client-links (the TV and production). A badge on
+// the stop next to the time preference, a line in the popup.
+function restrictionsOf(row){
+  const ac=appClientFor(row);
+  if(ac && Object.prototype.hasOwnProperty.call(ac,'schedule_restrictions'))
+    return String(ac.schedule_restrictions||'').replace(/\s+/g,' ').trim();
+  const rec=liveRecordIn(driveLinkMap, driveLinkAmbig, C[row]);
+  return rec ? String(rec.schedule_restrictions||'').replace(/\s+/g,' ').trim() : '';
+}
+/** True when the client-links list carries any restrictions (worth a repaint). */
+function anyRestrictions(){
+  if(!driveLinkMap) return false;
+  for(const rec of driveLinkMap.values()) if(rec && String(rec.schedule_restrictions||'').trim()) return true;
+  return false;
+}
+function restrictBadge(row){
+  const t=restrictionsOf(row);
+  return t ? `<span class="badge restrict" title="Scheduling restrictions: ${attrEsc(t)}">${IC.alert} ${peekEsc(t)}</span>` : '';
+}
+const CONTACT_METHOD_LABEL={call:'Call', voicemail:'Voicemail', text:'Text', email:'Email', in_person:'In person'};
+/** PURE. The newest entry of a season detail's contact_log (by contact date,
+ *  then when it was logged), or null. */
+function newestContact(detail){
+  const log=detail && Array.isArray(detail.contact_log) ? detail.contact_log.filter(e=>e && typeof e==='object') : [];
+  if(!log.length) return null;
+  return log.slice().sort((a,b)=>(String(b.date||'')+'|'+String(b.at||'')).localeCompare(String(a.date||'')+'|'+String(a.at||'')))[0];
+}
+/** This season's last logged contact with the client, for office staff only
+ *  (the contact log is the Clients tab's; leads, the TV and production never
+ *  see it, and the server strips it from production's client list). */
+function lastContactOf(row){
+  if(!(ME_ROLE && ALERT_EDIT_ROLES.has(ME_ROLE))) return null;
+  const ac=appClientFor(row); if(!ac) return null;
+  const yr=String((SEASON[0]||'')).slice(0,4);
+  const en=(ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
+  return newestContact(en && en.detail);
+}
+/** The popup's restrictions line and last-contact line, or ''. */
+function peekSchedHTML(row){
+  const t=restrictionsOf(row), last=lastContactOf(row);
+  if(!t && !last) return '';
+  const lastTxt=last ? [CONTACT_METHOD_LABEL[last.method]||String(last.method||''),
+    last.date ? fmtMDYYYY(String(last.date)) : '', last.by||''].filter(Boolean).join(', ')
+    + (last.note ? ': '+String(last.note) : '') : '';
+  return `<div class="pksched">${t?`<p class="pkrestrict">${IC.alert}<span><b>Scheduling restrictions:</b> ${peekEsc(t)}</span></p>`:''}${
+    last?`<p class="pklastc">${IC.aphone}<span><b>Last contact:</b> ${peekEsc(lastTxt)}</span></p>`:''}</div>`;
 }
 /** This season's "storing with us" from the Clients tab, or null if unknown. */
 function storingWithUs(row){
@@ -10324,7 +10390,7 @@ function buildDayCard(d){
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
         ${pinBadgeHTML(r, d)}
         ${installNoteChipHTML(r)}
-        ${prefBadge(r)}
+        ${prefBadge(r)}${restrictBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
@@ -10486,7 +10552,7 @@ function renderNotInstalling(){
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
       const was=lastScheduledFrom[row];
       el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
-          <span class="badge niout">${esc(entry.badge)}</span>${installNoteChipHTML(row)}${prefBadge(row)}
+          <span class="badge niout">${esc(entry.badge)}</span>${installNoteChipHTML(row)}${prefBadge(row)}${restrictBadge(row)}
           ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
                  :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
@@ -10549,7 +10615,7 @@ function renderHold(){
     const el=document.createElement('div');
     el.className='stop nistop onhold'; el.dataset.row=row;
     el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
-        <span class="badge hold">on hold</span>${installNoteChipHTML(row)}${prefBadge(row)}</div>
+        <span class="badge hold">on hold</span>${installNoteChipHTML(row)}${prefBadge(row)}${restrictBadge(row)}</div>
       ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewTitle(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
       <div class="sub">${esc(c.zone||'—')}</div>
@@ -12628,6 +12694,7 @@ function refreshPeekLive(row){
   const h=document.getElementById('pkh3alert'); if(h) h.innerHTML=alertIconHTML(row,{static:true});
   const ch=document.getElementById('pkalertchip'); if(ch) ch.innerHTML=alertChipHTML(row);
   const al=document.getElementById('pkalert'); if(al) al.innerHTML=peekAlertHTML(row);
+  const sc=document.getElementById('pksched'); if(sc) sc.innerHTML=peekSchedHTML(row);
   const dr=document.getElementById('pkdrive'); if(dr){ dr.innerHTML=peekDriveHTML(row); wirePeekDrive(row); }
   const fa=document.getElementById('pkfactsbox'); if(fa) fa.innerHTML=peekFactsHTML(row);
   const ib=document.getElementById('pkinstbox'); if(ib) ib.innerHTML=peekInstallNoteHTML(row);
@@ -12843,10 +12910,12 @@ function contactFieldsFor(row){
   if(ac) return {street:ac.street||'', city:ac.city||'', state:ac.state||'',
     zip:ac.zip||'', phone:ac.phone||'', email:ac.email||'',
     notes:ac.notes||'', time_preference:(PREF_RANK[ac.time_preference]!==undefined ? ac.time_preference : ''),
-    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), ...seasonNotesFor(ac), ...driveFieldsFor(row), ...zoneFieldsFor(row)};
+    secondary:(ac.secondary_contacts||[]).map(x=>({...x})), restrictions:ac.schedule_restrictions||'',
+    ...seasonNotesFor(ac), ...driveFieldsFor(row), ...zoneFieldsFor(row)};
   const ap=addrParts(c);
   return {street:ap.street||'', city:ap.city||'', state:ap.st||'', zip:ap.zip||'',
-    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], ...driveFieldsFor(row), ...zoneFieldsFor(row)};
+    phone:c.phone||'', email:c.email||'', notes:'', time_preference:'', secondary:[], restrictions:'',
+    ...driveFieldsFor(row), ...zoneFieldsFor(row)};
 }
 /** The Area box (the line under the name on a stop): what the stop shows
  *  now, and that value again to save only a change (Comment #27). */
@@ -12975,6 +13044,8 @@ function contactEditHTML(row){
       <div class="pkce-f"><span>Install time preference <em>the scheduler orders each crew's day by this</em></span>
         <div class="pkpref" id="pkf-pref" role="group" aria-label="Install time preference">${prefButtonsHTML(f.time_preference)}</div>
       </div>
+      ${pkField('pkf-restrict','Scheduling restrictions',f.restrictions,{ph:'e.g. No Fridays. Gate closes at 3 PM.', max:500, ac:'off',
+        hint:'shows as a badge on the stop'})}
       <div class="pkce-f"><span>Additional contacts <em>spouse, assistant, another number</em></span>
         <div id="pksecondary">${secondaryRowsHTML(f.secondary)}</div>
         <button type="button" class="pkce-add" id="pkaddsecondary">+ add another contact</button>
@@ -13014,7 +13085,7 @@ function syncContactBuffer(){
   [['street','pkf-street'],['city','pkf-city'],['state','pkf-state'],['zip','pkf-zip'],
    ['phone','pkf-phone'],['email','pkf-email'],['notes','pkf-notes'],
    ['inst_notes','pkf-instnotes'],['prod_notes','pkf-prodnotes'],
-   ['drive','pkf-drive'],['photos','pkf-photos'],['zone','pkf-zone']].forEach(([k,id])=>{
+   ['drive','pkf-drive'],['photos','pkf-photos'],['zone','pkf-zone'],['restrictions','pkf-restrict']].forEach(([k,id])=>{
     const el=document.getElementById(id); if(el) f[k]=el.value;
   });
   f.secondary=[...document.querySelectorAll('.pksecedit')].map(el=>({
@@ -13041,6 +13112,7 @@ function clientCardBody(f, nameBody){
     street:t(f.street), city:t(f.city), state:t(f.state).toUpperCase(), zip:t(f.zip),
     phone:t(f.phone), email:t(f.email), notes:t(f.notes),
     time_preference:f.time_preference||'',
+    ...(f.restrictions!==undefined ? {schedule_restrictions:t(f.restrictions)} : {}),
     secondary_contacts:(f.secondary||[]).map(x=>({label:t(x.label), phone:t(x.phone), email:t(x.email)}))
       .filter(x=>x.label||x.phone||x.email),
     ...zoneChanges(f, ZONE_AREA),
@@ -13307,6 +13379,7 @@ function openStopPeek(row,dayId){
       </div>
     </div>
     <div id="pkalert">${peekAlertHTML(row)}</div>
+    <div id="pksched">${peekSchedHTML(row)}</div>
     <div id="pkdrive">${peekDriveHTML(row)}</div>
     <div id="pkcontact">${contactBlockHTML(row)}</div>
     ${pkSection('pks-job', 'This job', `<div id="pkfactsbox">${peekFactsHTML(row)}</div><div id="pkhrsbox">${peekHoursHTML(row)}</div><div id="pkinstbox">${peekInstallNoteHTML(row)}</div>`)}

@@ -371,9 +371,9 @@ def test_commit_creates_only_new_valid_rows_through_the_form_insert(fake_db, fak
     assert [args for _, args in inserts] == [
         ("Diaz, Ana", "ana@example.com", "2815550100", None, None, None, None, None,
          '[{"label": "Wife", "phone": "2815550101", "email": null}]', None, "late",
-         "Ana", "Diaz", None, None, "North", "The Woodlands"),
+         "Ana", "Diaz", None, None, "North", "The Woodlands", None),
         ("Lakeside Country Club | North Clubhouse", None, None, None, None, None, None, None,
-         "[]", None, None, None, None, "Lakeside Country Club", "North Clubhouse", None, None),
+         "[]", None, None, None, None, "Lakeside Country Club", "North Clubhouse", None, None, None),
     ]
     assert not fake_db.seen("UPDATE clients")
     assert out["dry_run"] is False

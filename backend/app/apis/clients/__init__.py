@@ -31,7 +31,7 @@ CLIENT_COLUMNS = (
     "former_names, sheet_name, secondary_contacts, created_at, updated_at, "
     "staff_alert, staff_alert_by, staff_alert_at, "
     "first_name, last_name, company, site, area, zone, "
-    "drive_folder_url, drive_photos_url"
+    "drive_folder_url, drive_photos_url, schedule_restrictions"
 )
 
 #: The staff alert (migrations/020): one short warning about a client that
@@ -82,8 +82,16 @@ DRIVE_LINKS_DDL = (
     "ADD COLUMN IF NOT EXISTS drive_folder_url text, "
     "ADD COLUMN IF NOT EXISTS drive_photos_url text"
 )
+#: Scheduling restrictions (migrations/027, Comments #23): free text about
+#: when the client can and can't take an install ("no Fridays", "gate
+#: closes at 3"), shown on the client page's install panel and as a badge on
+#: the schedule's stop. On the client, not a season: it rarely changes.
+RESTRICTION_COLUMNS = ("schedule_restrictions",)
+RESTRICTIONS_DDL = "ALTER TABLE clients ADD COLUMN IF NOT EXISTS schedule_restrictions text"
+SCHEDULE_RESTRICTIONS_MAX = client_import.RESTRICTIONS_MAX
 #: Every column this module adds itself, checked in one query.
-ENSURED_COLUMNS = STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS + AREA_ZONE_COLUMNS + DRIVE_LINK_COLUMNS
+ENSURED_COLUMNS = (STAFF_ALERT_COLUMNS + NAME_PART_COLUMNS + AREA_ZONE_COLUMNS + DRIVE_LINK_COLUMNS
+                   + RESTRICTION_COLUMNS)
 
 
 async def ensure_schema(conn) -> None:
@@ -102,6 +110,7 @@ async def ensure_schema(conn) -> None:
             await conn.execute(NAME_PARTS_DDL)
             await conn.execute(AREA_ZONE_DDL)
             await conn.execute(DRIVE_LINKS_DDL)
+            await conn.execute(RESTRICTIONS_DDL)
 
     await ensure_schema_once("clients_columns", _ddl)
 
@@ -225,6 +234,8 @@ class ClientCreate(NameParts):
     #: "morning" | "afternoon" | "late" | None -- see migrations/015.
     time_preference: Optional[str] = None
     secondary_contacts: Optional[List[SecondaryContact]] = None
+    #: Free text, at most SCHEDULE_RESTRICTIONS_MAX characters (migrations/027).
+    schedule_restrictions: Optional[str] = None
 
 
 class ClientUpdate(NameParts):
@@ -262,6 +273,22 @@ class ClientUpdate(NameParts):
     #: over its build's (Comment #27). "" clears.
     area: Optional[str] = None
     zone: Optional[str] = None
+    #: Scheduling restrictions (migrations/027, Comments #23). "" clears.
+    schedule_restrictions: Optional[str] = None
+
+
+def clean_schedule_restrictions(value: Optional[str]) -> Optional[str]:
+    """None -> leave alone; blank -> "" (clear); else trimmed text, 400 when
+    it is longer than SCHEDULE_RESTRICTIONS_MAX."""
+    if value is None:
+        return None
+    v = value.strip()
+    if len(v) > SCHEDULE_RESTRICTIONS_MAX:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Scheduling restrictions can be at most {SCHEDULE_RESTRICTIONS_MAX} characters",
+        )
+    return v
 
 
 def clean_time_preference(value: Optional[str]) -> Optional[str]:
@@ -350,6 +377,8 @@ class ClientOut(BaseModel):
     #: PUT /{client_id}/drive-links).
     drive_folder_url: Optional[str] = None
     drive_photos_url: Optional[str] = None
+    #: Scheduling restrictions (migrations/027): free text, client-level.
+    schedule_restrictions: Optional[str] = None
     #: The staff alert, who set it and when (see PUT /{client_id}/staff-alert).
     staff_alert: Optional[str] = None
     staff_alert_by: Optional[str] = None
@@ -432,6 +461,7 @@ async def build_client_list(conn) -> List[dict]:
             "notes": None,
             "street": None, "city": None, "state": None, "zip": None,
             "time_preference": None,
+            "schedule_restrictions": None,
             "former_names": [], "sheet_name": None,
             "secondary_contacts": [],
             "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None,
@@ -452,9 +482,17 @@ async def build_client_list(conn) -> List[dict]:
 async def list_clients(request: Request):
     conn = await get_conn()
     try:
-        return await build_client_list(conn)
+        rows = await build_client_list(conn)
     finally:
         await conn.close()
+    # The contact log is office-only (Comments #23): production may read
+    # this list, but not who called which client when.
+    if getattr(getattr(request, "state", None), "ll_role", None) == "production":
+        for c in rows:
+            for a in c.get("activity") or []:
+                if isinstance(a.get("detail"), dict) and client_season.CONTACT_LOG_KEY in a["detail"]:
+                    a["detail"] = {k: v for k, v in a["detail"].items() if k != client_season.CONTACT_LOG_KEY}
+    return rows
 
 
 #: The one INSERT behind New Client and the spreadsheet import, guarded by
@@ -463,8 +501,8 @@ async def list_clients(request: Request):
 #: overwriting the other.
 INSERT_CLIENT_SQL = f"""
     INSERT INTO clients (name, email, phone, notes, street, city, state, zip, secondary_contacts, created_by, time_preference,
-                         first_name, last_name, company, site, area, zone)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17)
+                         first_name, last_name, company, site, area, zone, schedule_restrictions)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     ON CONFLICT (LOWER(TRIM(name))) DO NOTHING
     RETURNING {CLIENT_COLUMNS}
 """
@@ -474,7 +512,8 @@ async def insert_client(conn, *, name: str, parts: Optional[dict], email=None, p
                         street=None, city=None, state=None, zip=None,
                         secondary_contacts: Optional[list] = None, created_by: Optional[str] = None,
                         time_preference: Optional[str] = None,
-                        area: Optional[str] = None, zone: Optional[str] = None):
+                        area: Optional[str] = None, zone: Optional[str] = None,
+                        schedule_restrictions: Optional[str] = None):
     """Insert one client; the new row, or None when the name is taken."""
     return await conn.fetchrow(
         INSERT_CLIENT_SQL,
@@ -492,6 +531,7 @@ async def insert_client(conn, *, name: str, parts: Optional[dict], email=None, p
         *((parts or {}).get(k) for k in NAME_PART_COLUMNS),
         clean_name(area) or None,
         clean_name(zone) or None,
+        clean_name(schedule_restrictions)[:SCHEDULE_RESTRICTIONS_MAX] or None,
     )
 
 
@@ -520,6 +560,7 @@ async def create_client(body: ClientCreate, request: Request):
         raise HTTPException(status_code=400, detail="Client name is required")
 
     time_preference = clean_time_preference(body.time_preference) or None
+    restrictions = clean_schedule_restrictions(body.schedule_restrictions) or None
     signed_in = get_optional_user(request)
     conn = await get_conn()
     try:
@@ -531,6 +572,7 @@ async def create_client(body: ClientCreate, request: Request):
                                 if body.secondary_contacts is not None else None),
             created_by=signed_in.email if signed_in else None,
             time_preference=time_preference,
+            schedule_restrictions=restrictions,
         )
         if row is None:
             raise HTTPException(status_code=409, detail=client_names.duplicate_name_message(
@@ -639,6 +681,7 @@ async def commit_client_import(body: ClientImportIn, request: Request):
                     zip=f["zip"], secondary_contacts=f["secondary_contacts"],
                     created_by=created_by, time_preference=f["time_preference"],
                     area=f["area"], zone=f["zone"],
+                    schedule_restrictions=f.get("schedule_restrictions"),
                 )
                 if row is None:  # someone saved that name a moment ago
                     r.update(status=client_import.STATUS_DUPLICATE, message="Already a client")
@@ -666,6 +709,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
     everything else. There was no way to edit a saved client at all before
     this -- create and delete were the only two operations."""
     time_preference = clean_time_preference(body.time_preference)
+    restrictions = clean_schedule_restrictions(body.schedule_restrictions)
     parts = parts_from_body(body)
     # Parts win over a plain name: the name is what they compose to.
     new_name = client_names.compose_name(**parts) if parts else clean_name(body.name)
@@ -720,6 +764,8 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                         site = CASE $14::text WHEN 'set' THEN $18::text WHEN 'clear' THEN NULL ELSE site END,
                         area = CASE WHEN $19::text IS NOT NULL THEN NULLIF(TRIM($19), '') ELSE area END,
                         zone = CASE WHEN $20::text IS NOT NULL THEN NULLIF(TRIM($20), '') ELSE zone END,
+                        schedule_restrictions = CASE WHEN $21::text IS NOT NULL
+                                                     THEN NULLIF(TRIM($21), '') ELSE schedule_restrictions END,
                         updated_at = NOW()
                     WHERE id = $1
                     RETURNING {CLIENT_COLUMNS}
@@ -727,7 +773,7 @@ async def update_client(client_id: int, body: ClientUpdate, request: Request):
                     client_id, new_name or None, body.email, body.phone, body.notes,
                     body.street, body.city, body.state, body.zip, sc_json, time_preference,
                     renaming, old_name, parts_mode, *part_values,
-                    body.area, body.zone,
+                    body.area, body.zone, restrictions,
                 )
                 if row is not None and renaming:
                     renamed = await _rename_everywhere(conn, client_id, old_name, row["name"])
@@ -875,6 +921,141 @@ async def update_client_season(client_id: int, season: str, body: SeasonFieldsIn
         return with_pricing(out, await load_rate_rows(conn))
     finally:
         await conn.close()
+
+
+# ─── the install panel (Comments #23) ───────────────────────────────────────
+# Office staff and up only. Production may read /api/clients/* by prefix, so
+# GET install-summary is in roles.PRODUCTION_DENY too; the contacts POST isn't
+# in PRODUCTION_WRITES. Viewer, leads and crew never reach this router.
+
+
+class ContactIn(BaseModel):
+    #: call | voicemail | text | email | in_person ("in person" is fine too).
+    method: str
+    #: The day it happened, YYYY-MM-DD. Default today (Central time).
+    date: Optional[str] = None
+    note: Optional[str] = None
+
+
+async def _season_detail(conn, client_id: int, season: str) -> dict:
+    row = await conn.fetchrow(
+        "SELECT detail FROM client_activity "
+        " WHERE client_id = $1 AND kind = 'christmas_install' AND season = $2",
+        client_id, season,
+    )
+    detail = row["detail"] if row else None
+    if isinstance(detail, str):
+        detail = json.loads(detail)
+    return detail if isinstance(detail, dict) else {}
+
+
+@router.get("/{client_id}/install-summary", dependencies=[Depends(require_role("staff"))])
+async def install_summary(client_id: int, season: Optional[str] = None) -> dict:
+    """The client page's "2026 Install" panel: the board date and crew, the
+    confirmation (who and when, from the schedule's history), time
+    preference, scheduling restrictions, business or residence, the job's
+    size, and the season's contact log. Read-only; nothing here is money.
+
+    The board is the published schedule (app.libs.schedule_board, cached
+    30 s), matched on every spelling the app has for the client -- the same
+    match _sync_board_dates uses. ``season`` defaults to the newest
+    published schedule's.
+    """
+    from app.libs import install_summary as summary_lib
+    from app.libs import schedule_board
+
+    if season is not None:
+        season = _clean_season_label(season)
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        client = await conn.fetchrow(
+            "SELECT id, name, sheet_name, former_names, time_preference, schedule_restrictions "
+            "  FROM clients WHERE id = $1",
+            client_id,
+        )
+        if client is None:
+            raise HTTPException(status_code=404, detail="No client with that id")
+        client = dict(client)
+        client["former_names"] = list(client.get("former_names") or [])
+        try:
+            board = await schedule_board.load_board(season)
+        except Exception as exc:  # noqa: BLE001 - no board still shows the card side
+            print(f"install-summary: board not readable: {exc}")
+            board = None
+        season = season or (board.season if board else None) or _current_season()
+        detail = await _season_detail(conn, client_id, season)
+        events: list = []
+        if board is not None and board.confirmed:
+            try:
+                from app.apis import schedule_changes as changes_api
+
+                events = await changes_api.load_events(conn, board)
+            except Exception as exc:  # noqa: BLE001 - who/when is a nice-to-have
+                print(f"install-summary: change feed not readable: {exc}")
+    finally:
+        await conn.close()
+    out = summary_lib.summarize(board, client, detail, events, season=season)
+    out.update(
+        client_id=client_id,
+        time_preference=client.get("time_preference"),
+        schedule_restrictions=client.get("schedule_restrictions"),
+    )
+    return out
+
+
+def _current_season() -> str:
+    from app.libs.season import season_for
+
+    return str(season_for())
+
+
+@router.post("/{client_id}/seasons/{season}/contacts", dependencies=[Depends(require_role("staff"))])
+async def add_client_contact(client_id: int, season: str, body: ContactIn, user: AuthorizedUser) -> dict:
+    """Log one contact with the client about this season's install (a call,
+    voicemail, text, email or visit). Appended under a row lock, so two
+    people logging at once both land; stamped as an app edit, so the
+    spreadsheet sync never drops it. Creates the season's row if there is
+    none yet. Returns the whole log, newest first."""
+    season = _clean_season_label(season)
+    by = await comment_author_name(user.email) or user.display_name
+    try:
+        entry = client_season.clean_contact_entry(body.dict(), by=by)
+    except client_season.FieldError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    conn = await get_conn()
+    try:
+        exists = await conn.fetchval("SELECT 1 FROM clients WHERE id = $1", client_id)
+        if not exists:
+            raise HTTPException(status_code=404, detail="No client with that id")
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id, detail FROM client_activity "
+                " WHERE client_id = $1 AND kind = 'christmas_install' AND season = $2 FOR UPDATE",
+                client_id, season,
+            )
+            prior = row["detail"] if row else None
+            if isinstance(prior, str):
+                prior = json.loads(prior)
+            detail = client_season.append_contact(prior if isinstance(prior, dict) else {}, entry)
+            occurred = detail.get("install_date")
+            try:
+                occurred_at = date.fromisoformat(str(occurred)[:10]) if occurred else None
+            except ValueError:
+                occurred_at = None
+            await conn.execute(
+                """
+                INSERT INTO client_activity (client_id, kind, season, summary, detail, occurred_at)
+                VALUES ($1, 'christmas_install', $2, $3, $4::jsonb, $5::date)
+                ON CONFLICT (client_id, kind, season) WHERE kind <> 'comment' DO UPDATE SET
+                    detail = EXCLUDED.detail, updated_at = now()
+                """,
+                client_id, season, client_season.summarize(detail), json.dumps(detail, default=str),
+                occurred_at,
+            )
+    finally:
+        await conn.close()
+    return {"season": season, "entry": entry, "contacts": client_season.contact_log_of(detail)}
 
 
 class StaffAlertIn(BaseModel):
