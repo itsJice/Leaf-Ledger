@@ -119,7 +119,7 @@ async def get_install_schedule_page(
             want = await _latest_published_season(conn, file)
         row = (
             await conn.fetchrow(
-                "SELECT html FROM ll_app.install_schedule_pages "
+                "SELECT html, updated_at FROM ll_app.install_schedule_pages "
                 " WHERE season = $1 AND name = $2",
                 want,
                 file,
@@ -138,6 +138,8 @@ async def get_install_schedule_page(
                 else "Schedule not published yet — run scheduler/publish_pages.py"
             ),
         )
+    if file == "index.html":
+        return stamp_page_rev(row["html"], row.get("updated_at"))
     return row["html"]
 
 
@@ -423,18 +425,24 @@ async def get_state(
             v,
         )
         inherit = None if row else await _inheritable_people(conn, v, season)
+        published = await _published_page(conn, season)
     finally:
         await conn.close()
+    # The current publish's stamp, so a page opened before it can tell it is
+    # out of date on its next load of the state, not only when a save fails
+    # (see the stale-template guard).
+    rev = {"pageRev": published[0].isoformat()} if published and published[1] else {}
     full = sees_contractor_info(role)
     if not row:
         return {"version": v, "state": None,
-                "inherit": inherit if full else strip_roster(inherit)}
+                "inherit": inherit if full else strip_roster(inherit), **rev}
     state = _loads(row["state"])
     return {
         "version": v,
         "state": state if full else strip_roster(state),
         "updatedBy": row["updated_by"],
         "updatedAt": row["updated_at"].isoformat() if row["updated_at"] else None,
+        **rev,
     }
 
 
@@ -772,6 +780,88 @@ def keep_stored_teams(state: dict, stored: Any) -> dict:
     return state
 
 
+# ─── Stale-template guard ────────────────────────────────────────────────────
+#
+# The stale-tab guard above compares documents, and a tab that keeps loading
+# the state passes it: on 11/1/2026 at 4:09 PM CT a tab opened before the
+# 10/31 10:31 PM publish saved with an up-to-date base, but its older page
+# didn't know the newer keys, so its whole-document save dropped
+# hoursOverride, every team's driverId, and put back a takedown's old hours.
+# (A stale tab also wiped 36 of 37 added dates on 10/1.)
+#
+# So the page itself is versioned too. GET /page stamps index.html with when
+# it was published (install_schedule_pages.updated_at, which every publish
+# bumps) in a <meta name="tbdg-page-rev">; the page sends that back on every
+# save as `pageRev`, and a save from any page but the current publish is
+# refused with 409 + `staleTemplate`, nothing written. The page shows "This
+# schedule was updated" with a Reload button; its changes stay on the device
+# and are merged in by the reloaded page. The 409 carries no `state`, so a
+# page from before this guard doesn't try to merge and retry either: it stops
+# and offers a reload.
+#
+# Only enforced once the published page is one that sends `pageRev` (it
+# mentions tbdg-page-rev): until then every open tab is from before the guard
+# and refusing them all would stop every save. A page that sends
+# `pageRev: null` has no stamp (a local preview, served from a file) and is
+# not checked.
+PAGE_REV_META = "tbdg-page-rev"
+
+#: (season, published updated_at) -> whether that page sends pageRev. A
+#: publish changes updated_at, so an entry is never wrong, only unused.
+_PAGE_SENDS_REV: dict[tuple[str, datetime], bool] = {}
+
+
+def stamp_page_rev(html: str, published_at: Any) -> str:
+    """index.html as served: with the stamp of the publish it came from."""
+    if not isinstance(published_at, datetime):
+        return html
+    meta = f'<meta name="{PAGE_REV_META}" content="{published_at.isoformat()}">'
+    i = html.find("<head>")
+    if i < 0:
+        return meta + html
+    i += len("<head>")
+    return html[:i] + meta + html[i:]
+
+
+async def _published_page(conn, season: Any) -> tuple[datetime, bool] | None:
+    """(published at, sends pageRev) for a season's index.html, or None."""
+    s = str(season or "").strip()
+    if len(s) != 4 or not s.isdigit():
+        return None
+    row = await conn.fetchrow(
+        "SELECT updated_at FROM ll_app.install_schedule_pages "
+        " WHERE season = $1 AND name = 'index.html'",
+        s,
+    )
+    at = row["updated_at"] if row else None
+    if not isinstance(at, datetime):
+        return None
+    key = (s, at)
+    if key not in _PAGE_SENDS_REV:
+        _PAGE_SENDS_REV[key] = bool(await conn.fetchval(
+            "SELECT strpos(html, $2) > 0 FROM ll_app.install_schedule_pages "
+            " WHERE season = $1 AND name = 'index.html'",
+            s,
+            PAGE_REV_META,
+        ))
+    return at, _PAGE_SENDS_REV[key]
+
+
+def is_stale_page(body: dict, published: tuple[datetime, bool] | None) -> bool:
+    """Was this save sent by a page older (or other) than the current publish?"""
+    if not published or not published[1]:
+        return False
+    if "pageRev" not in body:
+        return True          # a page from before the guard
+    raw = body.get("pageRev")
+    if raw is None:
+        return False         # no stamp to compare (local preview)
+    try:
+        return _parse_ts(raw) != published[0]
+    except ValueError:
+        return True
+
+
 #: Person fields added after pages were already out there. A page published
 #: before a field existed drops it (normRoster used to keep only the keys it
 #: knew), so its save would erase the field for everyone. A save whose person
@@ -863,6 +953,22 @@ async def put_state(
         ) from exc
     try:
         await ensure_schema(conn)
+        # Before anything else: a page from an older publish doesn't know
+        # every key and field the current one saves, so its whole-document
+        # save would drop them (see the stale-template guard).
+        published = await _published_page(conn, payload_season)
+        if is_stale_page(body, published):
+            print(
+                f"install-schedule: refused a save of {v} by {user_id} from an old page "
+                f"(page {body.get('pageRev')!r}, published {published[0].isoformat()})"
+            )
+            return JSONResponse(status_code=409, content={
+                "conflict": True,
+                "staleTemplate": True,
+                "detail": "This schedule was updated. Reload to keep saving.",
+                "version": v,
+                "pageRev": published[0].isoformat(),
+            })
         async with conn.transaction():
             await conn.execute(
                 "INSERT INTO ll_app.install_schedule_state "
