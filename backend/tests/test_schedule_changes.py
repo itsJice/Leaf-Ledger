@@ -374,6 +374,8 @@ def wired(fake_db, monkeypatch):
     fake_db.on("SELECT max(id) FROM ll_app.install_schedule_history_archive", store.arch_max, method="fetchval")
     fake_db.on("FROM ll_app.install_schedule_history", store.history, method="fetch")
     fake_db.on("FROM ll_app.install_schedule_history_archive", store.archive, method="fetch")
+    fake_db.on("SELECT id, version, updated_by, created_at FROM ll_app.install_schedule_history", store.meta, method="fetch")
+    fake_db.on("FROM ll_app.install_schedule_history WHERE id = ANY", store.states, method="fetch")
     fake_db.on_fetch("FROM auth.users", [
         {"id": "uid-a", "email": "office@example.com", "full_name": None},
         {"id": "uid-b", "email": "pat.smith@example.com", "full_name": None},
@@ -394,6 +396,7 @@ class Store:
 
     def __init__(self, hist, arch=()):
         self.hist, self.arch = list(hist), list(arch)
+        self.state_reads: list[int] = []
 
     def hist_max(self, _sql):
         return max((r["id"] for r in self.hist), default=0)
@@ -404,6 +407,13 @@ class Store:
     def history(self, _sql, season, after_id):
         rows = [r for r in self.hist if r["id"] > after_id]
         return [{**r, "state": json.dumps(r["state"])} for r in sorted(rows, key=lambda r: (r["created_at"], r["id"]))]
+
+    def meta(self, _sql, season, after_id):
+        return [{k: v for k, v in r.items() if k != "state"} for r in self.history(_sql, season, after_id)]
+
+    def states(self, _sql, ids):
+        self.state_reads.append(len(ids))
+        return [{"id": r["id"], "state": json.dumps(r["state"])} for r in self.hist if r["id"] in set(ids)]
 
     def archive(self, _sql, season):
         return [{**r, "state": json.dumps(r["state"])} for r in sorted(self.arch, key=lambda r: r["created_at"])]
@@ -682,3 +692,15 @@ def test_who_may_use_it(role, method, path, ok):
 
 def test_production_may_open_the_page():
     assert "/install-changes" in roles.PRODUCTION_PAGES
+
+
+def test_feed_is_the_same_built_in_chunks(wired, monkeypatch):
+    """The feed reads states CHUNK saves at a time (the whole season at once
+    ran the server out of memory, 11/15/2026); chunk edges change nothing."""
+    whole = lc(FakeRequest("uid-z"))["events"]
+    for size in (1, 2):
+        api.clear_cache()
+        wired_store["store"].state_reads.clear()
+        monkeypatch.setattr(api, "CHUNK", size)
+        assert lc(FakeRequest("uid-z"))["events"] == whole
+        assert max(wired_store["store"].state_reads) <= size

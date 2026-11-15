@@ -31,6 +31,7 @@ Saves made by a local dev server against the live database (writer
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -129,6 +130,28 @@ SELECT id, version, updated_by, created_at, {LIGHT_STATE}
  ORDER BY created_at ASC, id ASC
 """
 
+#: The same saves as HISTORY_SQL without their states: the order and who/when
+#: only. States are then read CHUNK rows at a time (STATES_SQL), because the
+#: whole season's states at once ran the 512 MB server out of memory
+#: (11/15/2026: 1,540 saves, 53 MB of light state, several times that parsed).
+META_SQL = """
+SELECT id, version, updated_by, created_at
+  FROM ll_app.install_schedule_history
+ WHERE id > $2
+   AND (season = $1 OR (season IS NULL AND version IN (
+         SELECT version FROM ll_app.install_schedule_history WHERE season = $1)))
+ ORDER BY created_at ASC, id ASC
+"""
+
+STATES_SQL = f"""
+SELECT id, {LIGHT_STATE}
+  FROM ll_app.install_schedule_history
+ WHERE id = ANY($1::bigint[])
+"""
+
+#: Saves parsed at once while building the feed.
+CHUNK = 100
+
 ARCHIVE_SQL = f"""
 SELECT id, kind, version, updated_by, created_at, source, {LIGHT_STATE}
   FROM ll_app.install_schedule_history_archive
@@ -140,6 +163,8 @@ SELECT id, kind, version, updated_by, created_at, source, {LIGHT_STATE}
 #: computed from them. A new save only diffs itself against the one before it;
 #: the archive changing (a backfill) or a new build rebuilds everything.
 _cache: dict[str, dict] = {}
+#: One full rebuild at a time: two at once doubled the memory it needs.
+_lock = asyncio.Lock()
 
 
 def clear_cache() -> None:
@@ -232,20 +257,52 @@ async def load_events(conn, board: schedule_board.Board) -> list[dict]:
                 conn, {r["updated_by"] or "" for r in new} - set(hit["names"]), board))
             _add_names(hit["ctx"], new)
             fresh = sc.build_feed([last, *new], hit["ctx"], hit["names"], current_version=board.version)
-            hit.update(rows=hit["rows"] + new, events=fresh + hit["events"], hist_max=hist_max)
+            hit.update(rows=new[-1:], events=fresh + hit["events"], hist_max=hist_max)
             return hit["events"]
-    history = [_row_of(r) for r in await conn.fetch(HISTORY_SQL, season, 0)]
+    async with _lock:
+        hit = _cache.get(season)
+        if hit and hit["arch_max"] == arch_max and hit["version"] == board.version and hit["hist_max"] >= hist_max:
+            return hit["events"]  # someone else rebuilt it while this request waited
+        return await _rebuild(conn, board, season, hist_max, arch_max)
+
+
+async def _with_states(conn, chunk: list[dict]) -> list[dict]:
+    """``chunk`` (merged rows) with the history rows' states read in."""
+    ids = [r["id"] for r in chunk if r.get("state") is None]
+    got = {}
+    if ids:
+        got = {r["id"]: loads_json(r["state"]) or {} for r in await conn.fetch(STATES_SQL, ids)}
+    return [r if r.get("state") is not None else {**r, "state": got.get(r["id"], {})} for r in chunk]
+
+
+async def _rebuild(conn, board: schedule_board.Board, season: str, hist_max: int, arch_max: int) -> list[dict]:
+    """The whole season's feed, CHUNK saves at a time: one pass for the names
+    every save carries, one to diff each save against the one before it
+    (carried across chunk edges)."""
+    meta = [dict(r, state=None) for r in await conn.fetch(META_SQL, season, 0)]
     try:
         archive = [_row_of(r) for r in await conn.fetch(ARCHIVE_SQL, season)]
     except Exception as exc:  # noqa: BLE001 - archive not created yet
         print(f"schedule-changes: archive not readable: {exc}")
         archive = []
-    rows = merge_snapshots(history, archive)
+    rows = merge_snapshots(meta, archive)
     names = await writer_names(conn, {r["updated_by"] or "" for r in rows}, board)
     ctx = context_for(board)
-    _add_names(ctx, rows)
-    events = sc.build_feed(rows, ctx, names, current_version=board.version)
-    _cache[season] = {"rows": rows, "events": events, "names": names, "ctx": ctx,
+    chunks = [rows[i:i + CHUNK] for i in range(0, len(rows), CHUNK)]
+    for chunk in chunks:
+        _add_names(ctx, await _with_states(conn, chunk))
+    parts: list[list[dict]] = []
+    prev = None
+    for chunk in chunks:
+        full = await _with_states(conn, chunk)
+        evs = sc.build_feed(([prev] if prev else []) + full, ctx, names, current_version=board.version)
+        if prev is not None:
+            # The carried-over save is only the baseline; its events are in the last part.
+            evs = [e for e in evs if not e["id"].startswith(f"{prev['key']}-")]
+        parts.append(evs)
+        prev = full[-1]
+    events = [e for part in reversed(parts) for e in part]
+    _cache[season] = {"rows": [prev] if prev else [], "events": events, "names": names, "ctx": ctx,
                       "hist_max": hist_max, "arch_max": arch_max, "version": board.version}
     return events
 
