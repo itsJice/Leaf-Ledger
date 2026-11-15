@@ -106,7 +106,8 @@ def test_list_clients(fake_db, fake_request):
         # saved client does, instead of omitting the key entirely.
         {"id": None, "name": "Unassigned", "email": None, "phone": None, "notes": None,
          "street": None, "city": None, "state": None, "zip": None,
-         "time_preference": None, "former_names": [], "sheet_name": None, "secondary_contacts": [],
+         "time_preference": None, "schedule_restrictions": None,
+         "former_names": [], "sheet_name": None, "secondary_contacts": [],
          "staff_alert": None, "staff_alert_by": None, "staff_alert_at": None, "created_at": None,
          "updated_at": T0, "project_count": 1, "bucket_count": 0, "selected_cost": 0.0,
          "last_project_at": T0, "source": "from_projects", "activity": [], **derived("Unassigned")},
@@ -140,6 +141,7 @@ def test_create_client(fake_db, fake_request):
         '[{"label": "Wife", "phone": "555", "email": null}]', None, None,
         None, None, None, None,  # no parts sent -> none saved (derived on read)
         None, None,  # area, zone (migrations/024): only an import sets them
+        None,  # schedule_restrictions (migrations/027): none sent
     )]
     assert fake_db.seen("ON CONFLICT (LOWER(TRIM(name))) DO NOTHING")
 
@@ -156,7 +158,8 @@ def test_create_client_conflict_and_blank(fake_db, fake_request):
     assert (exc.value.status_code, exc.value.detail) == (409, "Client already exists")
     # secondary_contacts omitted -> literal "[]"
     assert args_of(fake_db, "INSERT INTO clients") == [
-        ("Smith", None, None, None, None, None, None, None, "[]", None, None, None, None, None, None, None, None)]
+        ("Smith", None, None, None, None, None, None, None, "[]", None, None, None, None, None, None, None, None,
+         None)]
 
 
 # ─── update ──────────────────────────────────────────────────────────────────
@@ -188,7 +191,7 @@ def test_update_client(fake_db, fake_request):
     # -> no rename flag, nothing mirrored.
     assert args_of(fake_db, "UPDATE clients SET") == [
         (5, None, None, "", None, None, None, None, None, "[]", None, False, "Smith",
-         "keep", None, None, None, None, None, None)]
+         "keep", None, None, None, None, None, None, None)]
     assert not fake_db.seen("UPDATE arrangements")
     # Only this client's activity is read back, not every client's.
     assert args_of(fake_db, "FROM client_activity") == [(5,)]
@@ -207,7 +210,7 @@ def test_update_client_area_and_zone(fake_db, fake_request):
     run(clients.update_client(5, ClientUpdate(phone="1"), fake_request()))
 
     args = args_of(fake_db, "UPDATE clients SET")
-    assert [a[18:] for a in args] == [("Central", "West University/Rice"), ("", ""), (None, None)]
+    assert [a[18:20] for a in args] == [("Central", "West University/Rice"), ("", ""), (None, None)]
     ((sql, _), *_) = fake_db.calls("UPDATE clients SET")
     assert "area = CASE WHEN $19::text IS NOT NULL THEN NULLIF(TRIM($19), '') ELSE area END" in sql
     assert "zone = CASE WHEN $20::text IS NOT NULL THEN NULLIF(TRIM($20), '') ELSE zone END" in sql
@@ -544,7 +547,7 @@ def test_list_adds_the_staff_alert_columns_once(fake_db, fake_request):
     assert len(alters) == 1
     assert "staff_alert_at timestamptz" in alters[0][0]
     assert fake_db.seen("SET LOCAL lock_timeout")
-    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, first_name, last_name, company, site, area, zone, drive_folder_url, drive_photos_url FROM clients")
+    assert fake_db.seen("staff_alert, staff_alert_by, staff_alert_at, first_name, last_name, company, site, area, zone, drive_folder_url, drive_photos_url, schedule_restrictions FROM clients")
     # the name-part columns (migrations/021) arrive in the same first-use pass
     parts = fake_db.calls("ADD COLUMN IF NOT EXISTS first_name")
     assert len(parts) == 1 and "ADD COLUMN IF NOT EXISTS site text" in parts[0][0]

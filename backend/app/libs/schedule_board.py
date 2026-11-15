@@ -62,6 +62,11 @@ class Board:
     # {shift key: {text, by, at}}; see shiftNotes in the tool), keyed like
     # crew_names. Not a client's install notes, not the build's day note.
     shift_notes: dict[str, dict] = field(default_factory=dict)
+    # Stops staff confirmed with the client (the tool's `confirmed` set, the
+    # CONFIRMED lock: keyed by client row, not crew-day) and stops on hold
+    # (`hold`). Read by the client page's install summary (Comments #23).
+    confirmed: set[int] = field(default_factory=set)
+    hold: set[int] = field(default_factory=set)
 
     def person(self, pid: str) -> Optional[dict]:
         return next((p for p in self.roster if p["id"] == pid), None)
@@ -396,7 +401,23 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         crew_names=norm_crew_names(state.get("crewNames")),
         shift_notes=norm_shift_notes(state.get("shiftNotes")),
         dallas=dallas_dates(spec, state),
+        confirmed=_row_set(state.get("confirmed"), clients),
+        hold=_row_set(state.get("hold"), clients),
     )
+
+
+def _row_set(raw: Any, clients: dict[int, dict]) -> set[int]:
+    """A state list of client rows (``confirmed``, ``hold``) as ints, keeping
+    only rows this build knows -- the tool's ``.filter(row=>C[row])``."""
+    out: set[int] = set()
+    for x in raw if isinstance(raw, list) else []:
+        try:
+            r = int(x)
+        except (TypeError, ValueError):
+            continue
+        if r in clients:
+            out.add(r)
+    return out
 
 
 async def load_board(season: Optional[str] = None, *, fresh: bool = False) -> Optional[Board]:

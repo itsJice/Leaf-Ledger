@@ -375,6 +375,13 @@ function StopCard({ index, stop, day, isNext, canRecord, supervisor, now, reload
             <span className="min-w-0">{stop.name}</span>
             {stop.staffAlert && <StaffAlert alert={stop.staffAlert} editable={false} size={14} />}
           </p>
+          {/* Scheduling restrictions from the client record (Comments #23): a badge only. */}
+          {stop.scheduleRestrictions && (
+            <p className="mt-1 inline-flex max-w-full items-start gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800" title="Scheduling restrictions">
+              <Clock size={11} className="mt-0.5 shrink-0" />
+              <span className="min-w-0 break-words">{stop.scheduleRestrictions}</span>
+            </p>
+          )}
           {stop.mapsUrl ? (
             <a href={stop.mapsUrl} target="_blank" rel="noreferrer" className="mt-0.5 flex items-start gap-1 text-sm text-emerald-800 underline decoration-emerald-300 underline-offset-2">
               <MapPin size={14} className="mt-0.5 shrink-0" /> {addressLine(stop)}

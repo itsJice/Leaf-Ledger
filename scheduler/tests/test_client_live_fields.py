@@ -124,7 +124,7 @@ def test_area_box_saves_only_a_change_with_its_broad_area():
 
 def test_wiring():
     # Loaded for everyone with a token, not just when a stop popup opens.
-    assert "loadDriveLinks().then(()=>{ if(applyLiveClientFields()) render(); });" in TEMPLATE
+    assert "loadDriveLinks().then(()=>{ if(applyLiveClientFields() || anyRestrictions()) render(); });" in TEMPLATE
     assert "applyLiveClientFields();" in js_function("loadClientDirectory")
     assert "driveLinkAmbig=ambiguousSpellings(rows);" in js_function("loadDriveLinks")
     # Added stops come with the shared state, often after the records landed.

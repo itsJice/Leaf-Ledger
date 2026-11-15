@@ -88,6 +88,7 @@ SAVE_LOOP = """
 // document, DOC; applying a document replaces it (as applySharedDoc does).
 let DOC, sharedBase=null, syncedBoardDates=null, pendingBoardDates=null, syncState='local';
 let undoStack=['old step'], redoStack=[], lastPushOk=null, syncBlocked=false, DRAFT=null;
+let sharedRaw=null, PAGE_REV=null;   // no stamp: not checked (see test_stale_template_guard)
 const AUTH='token', READONLY=false, SPEC={version:'build-1'}, C={};
 const CUT='2026-12-25';
 const NAMES={1:'Jinks, Amy', 2:'Crane Worldwide'};
@@ -123,7 +124,7 @@ async function fetch(url, init){
 }
 // The page sends through authFetch (fresh token, one retry on a 401).
 async function authFetch(url, init){ return fetch(url, init); }
-""" + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy")) + "\nasync " + js_function("putShared") + """
+""" + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy", "pageOutdated", "showPageOutdated")) + "\nasync " + js_function("putShared") + """
 function load(){        // what pullSharedNow does with GET /state
   DOC={}; rebaseOnto({state:clone(server.doc), updatedAt:server.at, updatedBy:server.by}, null, {});
 }

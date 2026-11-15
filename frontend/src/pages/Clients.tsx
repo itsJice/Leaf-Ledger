@@ -36,6 +36,7 @@ import { currentSeasonLabel } from "utils/season";
 import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from "utils/addressSuggest";
 import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
 import { DriveLinks, type DriveLinksSaved } from "./clients/DriveLinks";
+import { InstallPanel } from "./clients/InstallPanel";
 import { isReadOnly } from "utils/me";
 import {
   ClientNameFields, composeClientName, duplicateNameMessage, initialNameParts, namePartsBody,
@@ -110,6 +111,8 @@ type ClientRecord = NamePartsIn & {
   /** Google Drive folder + photos folder (client-level, not per season). */
   drive_folder_url?: string | null;
   drive_photos_url?: string | null;
+  /** Scheduling restrictions (free text, client-level; migrations/027). */
+  schedule_restrictions?: string | null;
   project_count: number;
   bucket_count: number;
   selected_cost: number;
@@ -1387,6 +1390,10 @@ export default function Clients() {
 
                   {expanded && (
                     <div className="border-t border-stone-100 bg-stone-50/60 px-3 py-4 sm:px-6 sm:py-5">
+                      {/* This season's install at a glance (Comments #23); office staff only. */}
+                      {client.id != null && (
+                        <InstallPanel clientId={client.id} onClientSaved={(saved) => upsertClientRow(saved as ClientRecord)} />
+                      )}
                       {client.id != null && (
                         <DriveLinks
                           clientId={client.id}

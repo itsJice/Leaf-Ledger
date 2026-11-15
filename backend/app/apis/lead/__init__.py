@@ -190,29 +190,33 @@ def index_client_extras(rows) -> dict:
 
 def stop_extras(row: Optional[dict]) -> dict:
     """What the Shifts page shows from the client record: the staff alert
-    (read-only here) and this season's install notes."""
+    (read-only here), this season's install notes and the client's
+    scheduling restrictions (Comments #23: leads see them as a badge only)."""
     if not row:
-        return {"staffAlert": None, "installNotes": ""}
+        return {"staffAlert": None, "installNotes": "", "scheduleRestrictions": ""}
     alert = None
     if row.get("staff_alert"):
         alert = {"text": row["staff_alert"], "by": row.get("staff_alert_by"),
                  "at": _iso(row.get("staff_alert_at"))}
-    return {"staffAlert": alert, "installNotes": row.get("install_notes") or ""}
+    return {"staffAlert": alert, "installNotes": row.get("install_notes") or "",
+            "scheduleRestrictions": (row.get("schedule_restrictions") or "").strip()}
 
 
 async def load_client_extras(conn, season: str) -> dict:
-    """Every client with a staff alert or install notes this season, indexed
-    for matching against stop names. One query."""
+    """Every client with a staff alert, install notes this season or
+    scheduling restrictions, indexed for matching against stop names. One
+    query."""
     from app.apis import clients as clients_api
 
     await clients_api.ensure_schema(conn)
     rows = await conn.fetch(
         "SELECT c.id, c.name, c.sheet_name, c.former_names, c.staff_alert, c.staff_alert_by, "
-        "       c.staff_alert_at, ca.detail->>'notes' AS install_notes "
+        "       c.staff_alert_at, ca.detail->>'notes' AS install_notes, c.schedule_restrictions "
         "  FROM clients c "
         "  LEFT JOIN client_activity ca ON ca.client_id = c.id "
         "       AND ca.kind = 'christmas_install' AND ca.season = $1 "
-        " WHERE c.staff_alert IS NOT NULL OR (ca.detail->>'notes') IS NOT NULL",
+        " WHERE c.staff_alert IS NOT NULL OR (ca.detail->>'notes') IS NOT NULL "
+        "    OR c.schedule_restrictions IS NOT NULL",
         season,
     )
     return index_client_extras([dict(r) for r in rows])
