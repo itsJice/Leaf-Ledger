@@ -105,6 +105,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/install-trailer-loader", label: "Trailer Loader", icon: Package },
       // What changed on the schedule, in words (Comment #19). Its own page.
       { path: "/install-changes", label: "Install Changes", icon: Clock },
+      // How long each stop really took (2026-11-08): office staff and leads
+      // type Arrive and Leave; leads only see their own crew-days.
+      { path: "/install-times", label: "Install Times", icon: ClipboardCheck },
     ],
   },
   {

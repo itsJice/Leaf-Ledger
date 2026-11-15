@@ -30,6 +30,14 @@ describe("gateRedirect", () => {
     expect(gateRedirect(field, "/help/other")).toBe("/shifts");
   });
 
+  it("lets leads, not crew, open Install Times", () => {
+    expect(gateRedirect({ ...field, role: "lead" }, "/install-times")).toBeNull();
+    expect(gateRedirect({ ...field, role: "crew" }, "/install-times")).toBe("/shifts");
+    expect(gateRedirect({ ...staff, role: "staff" }, "/install-times")).toBeNull();
+    expect(gateRedirect(display, "/install-times")).toBe("/install-schedule");
+    expect(gateRedirect(production, "/install-times")).toBe("/search");
+  });
+
   it("keeps the display on the schedule, its Changes list and Help", () => {
     expect(gateRedirect(display, "/install-calendar")).toBeNull();
     expect(gateRedirect(display, "/install-changes")).toBeNull();
