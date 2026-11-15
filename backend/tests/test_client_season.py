@@ -32,6 +32,7 @@ def test_merge_sheet_detail_keeps_app_edits_and_flags():
         "install_fee": 450, "crew": "B",       # sheet's to refresh
         "hold": True,                          # flag carried even unstamped
         "app_edits": {"storing": "t1", "boxes": "t1"},
+        "sheet_values": {"boxes": 4},          # the sheet's number, for a Reset (#28)
     }
     assert cs.merge_sheet_detail(None, fresh) == fresh
     assert cs.merge_sheet_detail({"not_installing": True}, fresh) == {**fresh, "not_installing": True}
