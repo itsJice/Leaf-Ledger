@@ -1437,6 +1437,18 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 #side .ovdate .dhrem{flex-basis:100%;margin-top:0}
 .txtprog{font-size:12.5px;color:var(--mut);margin-bottom:10px}
 .txtprog b{color:var(--ink)}
+/* Email week schedules: the Send mass text window's look, a week picker in the header */
+#wkdlg{max-width:780px;width:calc(100vw - 32px);padding:0}
+#wkdlg[open]{display:flex;flex-direction:column;max-height:88vh}
+.wkpick{display:flex;align-items:center;gap:8px;margin-top:10px}
+.wkpick span{font-size:13px;font-weight:700;flex:1 1 auto;text-align:center}
+.wkpick button{min-width:40px;min-height:36px;padding:0 10px;border-radius:9px;font-size:16px;line-height:1}
+.wkcard .remother{margin-top:8px}
+.wkcard .acts.wkalt{border-top:0;padding-top:0;margin-top:6px}
+.wkcard.noemail .acts>.ph{white-space:normal}
+.wkmail{display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+.remnext~.wkmail,.wkmail~.stfadd{margin-left:0}
+.wkmail .ic{width:14px;height:14px}
 /* assign dialog */
 #perdlg{max-width:600px}
 /* Mark inactive / Mark active in the edit-installer popup (user, 2026-10-30) */
@@ -3171,6 +3183,17 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <span class="sp" id="txtfootnote"></span>
     <button type="button" onclick="txtdlg.close()">Close</button>
     <button type="button" class="go" id="txtnext">Next</button>
+  </div>
+</dialog>
+<dialog id="wkdlg" aria-labelledby="wktitle">
+  <div class="txthd"><b id="wktitle">Email week schedules</b>
+    <div class="wkpick"><button type="button" id="wkprev" aria-label="Previous week">&lsaquo;</button>
+      <span id="wkweek"></span>
+      <button type="button" id="wknext" aria-label="Next week">&rsaquo;</button></div></div>
+  <div class="txtbody" id="wkbody"></div>
+  <div class="txtfoot">
+    <span class="sp" id="wkfootnote"></span>
+    <button type="button" onclick="wkdlg.close()">Close</button>
   </div>
 </dialog>
 <dialog id="mvdlg">
@@ -15796,6 +15819,7 @@ function renderStaffing(){
       ${staffTab==='roster'?'<button class="stftxt" id="masstext"><span class="stflg">Send mass text</span><span class="stfsm">Mass text</span></button>'
         +'<button class="stfvcf" id="dlcontacts" title="One .vcf file with everyone on the roster — open it on a Mac to add them to Contacts"><span class="stflg">Download contacts</span><span class="stfsm">Contacts</span></button>'
         :(nx=>nx&&!READONLY?`<button class="stfvcf remnext" data-remind="${nx}" title="Text everyone staffed ${esc(remDateLabel(nx))} a reminder of their shift">${IC.msg}<span>${nx===addDays(todayISO(),1)?"Text tomorrow's crews":`Text crews for ${esc(remDateLabel(nx))}`}</span></button>`:'')(nextReminderDate())}
+        ${staffTab!=='roster'&&!READONLY?`<button class="stfvcf wkmail" id="wkmailbtn" title="Email each installer their whole week of shifts, one email per person">${IC.mail}<span class="stflg">Email week schedules</span><span class="stfsm">Email week</span></button>`:''}
       <button class="stfadd" id="addperson"><span class="stflg">+ Add installer</span><span class="stfsm">+ Add installer</span></button>
     </div>${staffTab==='roster'?rosterHTML():shiftsHTML()}`;
   // Months fold like the date list's; opening one mounts its maps.
@@ -15814,6 +15838,8 @@ function renderStaffing(){
   const mt=document.getElementById('masstext');
   if(mt) mt.onclick=openTextDlg;
   wireRemButtons(wrap);
+  const wkb=document.getElementById('wkmailbtn');
+  if(wkb) wkb.onclick=()=>openWeekDlg();
   const dl=document.getElementById('dlcontacts');
   if(dl) dl.onclick=downloadContacts;
   wrap.querySelectorAll('select[data-f]').forEach(sl=>
@@ -17705,6 +17731,213 @@ function remDrawFoot(back, next, note){
 document.getElementById('txtdlg').addEventListener('close', ()=>{
   if(txt.mode==='remind'){ txt.mode='mass'; render(); }
 });
+
+// ---- Email week schedules (Staffing) ----
+// "Cynthia requested to be able to email installers their entire schedule
+// for the week rather than having to email for each individual install"
+// (Comments #37, 2026-11-16). Built on the shift reminders above: the same
+// shifts, crews, leads and meet times (remShiftInfos / remPeople / remMeet /
+// remLead), one message per person for the whole week (Sunday to Saturday,
+// the board's weeks), English or Spanish by their usual language. Every
+// Email is a mailto: link and every Text an sms: link, so the person's own
+// Mail or Messages opens with it filled in and THEY press Send; nothing is
+// ever sent from here. One message per installer, never a group email.
+// Checkmarks live in this browser only (not the shared schedule).
+const WK_KEY='tbdg-weekmail';
+const WK_TXT={
+  en:{hi:f=>`Hi ${f}!`,
+      intro:(a,b)=>`This is The Branch Design Group (TBDG). Here is your schedule for the week of ${a} to ${b}:`,
+      crew:'Crew', lead:'lead', meet:'Meet', stops:'Stops', hold:'on hold',
+      back:t=>`Back at the branch about ${t}`, done:t=>`Last stop done about ${t}`, nextAM:' (next morning)',
+      close:"If anything has changed or you can't make a day, please let me know. Thank you!",
+      subject:a=>`Your TBDG schedule for the week of ${a}`},
+  es:{hi:f=>`¡Hola ${f}!`,
+      intro:(a,b)=>`Te escribe The Branch Design Group (TBDG). Este es tu horario para la semana del ${a} al ${b}:`,
+      crew:'Equipo', lead:'líder', meet:'Hora y lugar', stops:'Paradas', hold:'en espera',
+      back:t=>`Regreso a la bodega aprox. ${t}`, done:t=>`Última parada termina aprox. ${t}`, nextAM:' (a la mañana siguiente)',
+      close:'Si algo cambió o no puedes venir algún día, avísame por favor. ¡Gracias!',
+      subject:a=>`Tu horario de TBDG para la semana del ${a}`},
+};
+/** PURE. The seven dates of the week that starts on Sunday `sun`. */
+function wkDates(sun){ return [0,1,2,3,4,5,6].map(i=>addDays(sun, i)); }
+/** PURE. "Mon 11/16/2026" (Spanish: "lunes 11/16/2026"). */
+function wkDay(iso, lang){
+  const dow=dateOf(iso).getDay();
+  return (lang==='es' ? DOW_ES[dow] : DOW3[dow])+' '+fmtMDYYYY(iso);
+}
+/** PURE. Everyone staffed in the week, one entry per person in name order:
+ *  {p, shifts:[{row, info, extra}]} with their shifts in date and crew
+ *  order. `infosByDate` is {iso: remShiftInfos(...)}; `extraOf(info)` gives
+ *  the shift's {stops:[{name, zone, hold}], end} (end in minutes after
+ *  midnight, past 1440 is the next morning). Someone on two crews the same
+ *  day gets both. */
+function wkPeople(dates, infosByDate, map, people, extraOf){
+  const by=new Map();
+  dates.forEach(iso=>(infosByDate[iso]||[]).forEach(info=>{
+    const extra=extraOf ? extraOf(info) : {stops:[], end:null};
+    remPeople([info], map, people).forEach(row=>{
+      if(!by.has(row.p.id)) by.set(row.p.id, {p:row.p, shifts:[]});
+      by.get(row.p.id).shifts.push({row, info, extra});
+    });
+  }));
+  return [...by.values()].sort((a,b)=>a.p.name.localeCompare(b.p.name));
+}
+/** PURE. One shift's lines in a week message. */
+function wkShiftLines(s, lang){
+  const T=WK_TXT[lang], i=s.info, x=s.extra||{};
+  const crew=i.training ? (lang==='es'?'entrenamiento':'training day') : i.crew;
+  const out=[`${wkDay(i.date, lang)}, ${remJob(i.kind, lang)}`,
+    `${T.crew}: ${crew} (${T.lead}: ${remLead(s.row, lang)})`,
+    `${T.meet}: ${remMeet(i, lang)}`];
+  if(x.end!=null && (x.stops||[]).length){
+    const t=fmtClock(x.end)+(x.end>=1440?T.nextAM:'');
+    out.push(i.anchored ? T.back(t) : T.done(t));
+  }
+  if((x.stops||[]).length){
+    out.push(`${T.stops}:`);
+    x.stops.forEach(st=>out.push(`- ${st.name}${st.zone?` (${st.zone})`:''}${st.hold?` [${T.hold}]`:''}`));
+  }
+  return out;
+}
+/** PURE. A person's whole week as {subject, body} in `lang`. */
+function wkMessage(entry, sun, lang){
+  const T=WK_TXT[lang], p=entry.p;
+  const first=p.first || String(p.name||'').split(' ')[0];
+  const a=fmtMDYYYY(sun), b=fmtMDYYYY(addDays(sun, 6));
+  const parts=[T.hi(first), T.intro(a, b), ...entry.shifts.map(s=>wkShiftLines(s, lang).join('\n')), T.close];
+  return {subject:T.subject(a), body:parts.join('\n\n')};
+}
+/** PURE. A plain email address, or '' when there isn't a usable one. */
+function wkEmail(v){
+  const e=String(v==null?'':v).trim();
+  return /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(e) ? e : '';
+}
+/** PURE. The mailto: link for one person (CRLF line breaks, which every
+ *  mail app reads as new lines). */
+function wkMailto(email, msg){
+  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(msg.subject)}`
+    + `&body=${encodeURIComponent(msg.body.replace(/\r?\n/g,'\r\n'))}`;
+}
+/** PURE. The Sunday the window opens on: the week of the next date (today
+ *  or later) with anyone staffed, else this week. `staffed` is the sorted
+ *  list of dates with someone staffed. */
+function wkDefault(staffed, today){
+  const nx=(staffed||[]).find(d=>d>=today);
+  return weekOf(nx || today);
+}
+/** The shift's stops (client and area) and when it ends, from the same
+ *  numbers as the shift panel's timeline (dayTimeline). A joint shift's
+ *  crews work the same stops; its day ends with the longest one. */
+function wkExtra(info){
+  const ds=(info.dayIds||[]).map(id=>days.find(d=>d.id===id)).filter(Boolean);
+  if(!ds.length) return {stops:[], end:null};
+  const ts=stopTimes(ds[0]);
+  const stops=ts.map(x=>{
+    const c=C[x.row]||{}, z=String(c.zone||'').trim();
+    return {name:String(c.name||'').split('|')[0].trim(), zone:z==='UNKNOWN'?'':z, hold:hold.has(x.row)};
+  });
+  const end=Math.max(...ds.map(d=>{
+    if(d.anchored!==false && d.win!==K.NIGHT) return shiftStart(d)+dayCalc(d).total;
+    const t=stopTimes(d); return t.length ? t[t.length-1].end : shiftStart(d);
+  }));
+  return {stops, end};
+}
+const WK_SENT_LBL={email:'emailed', text:'texted', copy:'copied', hand:'marked sent'};
+let wk={sun:null, sent:{}};
+function wkLoad(){
+  try{ const s=JSON.parse(localStorage.getItem(WK_KEY)||'{}'); wk.sent=s&&typeof s==='object'?s:{}; }
+  catch(e){ wk.sent={}; }
+}
+function wkSave(){
+  // Only the last few weeks are kept.
+  const keep=Object.keys(wk.sent).sort().slice(-8), o={};
+  keep.forEach(k=>{ o[k]=wk.sent[k]; });
+  wk.sent=o;
+  try{ localStorage.setItem(WK_KEY, JSON.stringify(o)); }catch(e){}
+}
+function wkStaffedDates(shifts){
+  return [...new Set(shifts.filter(sh=>sh.days.some(x=>(staffing[x.id]||[]).length)).map(sh=>sh.date))].sort();
+}
+function wkList(){
+  const shifts=buildShifts(), dates=wkDates(wk.sun), byDate={};
+  dates.forEach(iso=>{ byDate[iso]=remShiftInfos(iso, null, shifts); });
+  return wkPeople(dates, byDate, staffing, roster, wkExtra);
+}
+function wkCardHTML(e){
+  const p=e.p, email=wkEmail(p.email), num=smsNumber(p.phone), mine=txtLangFor(p);
+  const sent=(wk.sent[wk.sun]||{})[p.id];
+  const msgs=TXT_LANGS.map(l=>({l, m:wkMessage(e, wk.sun, l.key)}));
+  const main=msgs.find(x=>x.l.key===mine), other=msgs.filter(x=>x!==main);
+  const nDays=new Set(e.shifts.map(s=>s.info.date)).size;
+  const acts=x=>{
+    const txtBody=x.m.body;
+    return (email ? `<a class="txtsend${x===main?' primary':''}" data-wksend="email" href="${esc(wkMailto(email, x.m))}">Email ${x.l.label}</a>` : '')
+      + (num ? `<a class="txtsend${x===main&&!email?' primary':''}" data-wksend="text" href="${esc(`sms:${num}&body=${encodeURIComponent(txtBody)}`)}">Text ${x.l.label}</a>` : '')
+      + `<button type="button" class="txtcopy" data-copy="${esc(txtBody)}">Copy ${x.l.label}</button>`;
+  };
+  const why=!email ? (num ? 'No email on file: send it as a text or copy it' : 'No email or phone on file: copy it') : '';
+  return `<div class="txtcard remcard wkcard${sent?' sent':''}${email?'':' noemail'}" data-pid="${esc(p.id)}">
+    <div class="top"><label><input type="checkbox" data-sent${sent?' checked':''}>${esc(p.name)}</label>
+      <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+      <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
+      <span class="txtchip all">${nDays} day${nDays===1?'':'s'}</span>
+      ${sent?`<span class="txtlast">${esc(WK_SENT_LBL[sent]||'sent')}</span>`:''}</div>
+    <details class="remother"><summary>${main.l.label} message</summary><div class="remprev">${esc(main.m.body)}</div></details>
+    ${other.map(x=>`<details class="remother"><summary>${x.l.label} version</summary><div class="remprev">${esc(x.m.body)}</div>
+      <div class="acts wkalt">${acts(x)}</div></details>`).join('')}
+    <div class="acts"><span class="ph${email?'':' remwhy'}">${esc(email || why)}</span>${acts(main)}</div></div>`;
+}
+function wkDraw(){
+  const body=document.getElementById('wkbody'), y=body.scrollTop;
+  const a=wk.sun, b=addDays(a, 6);
+  document.getElementById('wkweek').textContent=`${wkDay(a,'en')} to ${wkDay(b,'en')}`;
+  const list=wkList(), sent=wk.sent[a]||{};
+  const n=list.filter(e=>sent[e.p.id]).length, noMail=list.filter(e=>!wkEmail(e.p.email)).length;
+  body.innerHTML = !list.length
+    ? `<p class="txthint">Nobody is staffed the week of ${esc(fmtMDYYYY(a))}. Use the arrows to pick another week.</p>`
+    : `<div class="txtprog"><b>${n} of ${list.length}</b> sent for this week.
+        Each person gets their own email with every day they are staffed. Click <b>Email</b>, check it, and press
+        Send in your mail app. The solid button is their usual language.${noMail?` ${noMail} without an email can get it as a text.`:''}
+        <a href="#" data-wkclear>Clear checkmarks</a></div>`
+      + list.map(wkCardHTML).join('');
+  body.scrollTop=y;
+  document.getElementById('wkfootnote').textContent = list.length
+    ? `${list.length} ${list.length===1?'person':'people'} staffed this week` : '';
+  const mark=(card, how)=>{
+    const s=wk.sent[a]=wk.sent[a]||{};
+    if(how) s[card.dataset.pid]=how; else delete s[card.dataset.pid];
+    wkSave();
+  };
+  body.querySelectorAll('.wkcard').forEach(card=>{
+    card.querySelector('[data-sent]').onchange=ev=>{ mark(card, ev.target.checked?'hand':null); wkDraw(); };
+    // Opening Mail or Messages counts as sent; untick it if it never went.
+    card.querySelectorAll('[data-wksend]').forEach(el=>el.addEventListener('click', ()=>{
+      mark(card, el.dataset.wksend); setTimeout(wkDraw, 400);
+    }));
+    card.querySelectorAll('[data-copy]').forEach(btn=>{
+      const lbl=btn.textContent;
+      btn.onclick=async()=>{
+        try{ await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent='Copied'; mark(card, 'copy'); }
+        catch(err){ btn.textContent='Copy failed'; }
+        setTimeout(wkDraw, 900);
+        setTimeout(()=>{ btn.textContent=lbl; }, 1500);
+      };
+    });
+  });
+  const clr=body.querySelector('[data-wkclear]');
+  if(clr) clr.onclick=ev=>{ ev.preventDefault(); delete wk.sent[a]; wkSave(); wkDraw(); };
+}
+function openWeekDlg(sun){
+  if(roBlocked()) return;
+  wkLoad();
+  wk.sun=sun || wkDefault(wkStaffedDates(buildShifts()), todayISO());
+  const go=n=>{ wk.sun=addDays(wk.sun, 7*n); document.getElementById('wkbody').scrollTop=0; wkDraw(); };
+  document.getElementById('wkprev').onclick=()=>go(-1);
+  document.getElementById('wknext').onclick=()=>go(1);
+  wkDraw();
+  const dlg=document.getElementById('wkdlg');
+  if(!dlg.open) dlg.showModal();
+}
 
 let daysScrollKeep=null;
 function setView(v){
