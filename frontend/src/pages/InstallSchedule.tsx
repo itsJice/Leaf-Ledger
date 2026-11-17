@@ -8,6 +8,7 @@ import { currentMe } from "utils/me";
 import {
   type InstallView,
   dateFromSearch,
+  stopFromSearch,
   legacyView,
   pathForView,
   teamsFromSearch,
@@ -185,8 +186,14 @@ export default function InstallSchedule() {
         const want = viewForPath(pathRef.current);
         if (want !== pageView.current) showView(want);
         // ?date=YYYY-MM-DD (the home page's install-notes link): open that day.
+        // ?stop=<row>&day=<id> too (Install Times' "Open on the schedule"): that stop's card.
         const date = dateFromSearch(searchRef.current);
-        if (date) frameRef.current?.contentWindow?.postMessage({ type: "tbdg-date", date }, window.location.origin);
+        const stop = date ? stopFromSearch(searchRef.current) : null;
+        if (date)
+          frameRef.current?.contentWindow?.postMessage(
+            { type: "tbdg-date", date, ...(stop ? { row: stop.row, dayId: stop.dayId } : {}) },
+            window.location.origin,
+          );
         // ?teams=1 (the Teams button on Crew Shifts, Install Changes, Profit):
         // open the Teams builder.
         if (teamsFromSearch(searchRef.current))

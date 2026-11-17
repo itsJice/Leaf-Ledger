@@ -26,6 +26,7 @@ import {
   isInstallPath,
   legacyView,
   pathForView,
+  stopFromSearch,
   viewForPath,
   withHostFlags,
 } from "utils/installViews";
@@ -100,5 +101,16 @@ describe("?date= opens a day (the home page's install-notes link)", () => {
     expect(dateFromSearch("?view=calendar&date=2026-12-01")).toBe("2026-12-01");
     expect(dateFromSearch("?date=11/10/2026")).toBeNull();
     expect(dateFromSearch("")).toBeNull();
+  });
+});
+
+describe("?stop=&day= opens a stop's card (Install Times' Open on the schedule)", () => {
+  it("reads the row and crew-day id, and ignores junk", () => {
+    expect(stopFromSearch("?date=2026-11-09&stop=105&day=2026-11-09%7CCrew+2%7C0")).toEqual({
+      row: 105,
+      dayId: "2026-11-09|Crew 2|0",
+    });
+    expect(stopFromSearch("?date=2026-11-09&stop=abc")).toBeNull();
+    expect(stopFromSearch("?date=2026-11-09")).toBeNull();
   });
 });
