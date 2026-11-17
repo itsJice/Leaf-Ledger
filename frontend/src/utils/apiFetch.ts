@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { auth } from "app/auth/auth";
 import { isReadOnly } from "utils/me";
+import { trackRequest } from "utils/eventLog";
 
 /**
  * fetch() for our own /api routes, with the signed-in user's token attached.
@@ -19,11 +20,15 @@ export async function apiFetch(
   if (authHeader && !headers.has("Authorization")) {
     headers.set("Authorization", authHeader);
   }
-  const res = await fetch(input, {
-    ...init,
-    headers,
-    credentials: init.credentials ?? "include",
-  });
+  // Every call goes in the "last minute" trail; failures that matter go to
+  // the error log (utils/eventLog.ts). Never changes the response.
+  const res = await trackRequest(input, init.method || "GET", () =>
+    fetch(input, {
+      ...init,
+      headers,
+      credentials: init.credentials ?? "include",
+    }),
+  );
   // A view-only login that reaches a change the server refuses gets one
   // plain explanation rather than a page-specific error.
   const method = (init.method || "GET").toUpperCase();

@@ -1,4 +1,5 @@
 import { lazy, type ComponentType } from "react";
+import { noteReloadAfterDeploy } from "./eventLog";
 
 /**
  * Session-scoped flag that records "we already tried reloading the page to
@@ -118,6 +119,8 @@ export function lazyWithReload<T extends ComponentType<unknown>>(
       .catch((error: unknown) => {
         const decision = decideChunkErrorAction(error, getSessionStorage());
         if (decision === "reload") {
+          // Queued in sessionStorage; sent by the reloaded page.
+          noteReloadAfterDeploy();
           window.location.reload();
           // Keep React.lazy pending forever: the reload is about to tear
           // down this JS context, so there is nothing useful to render.
