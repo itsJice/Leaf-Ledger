@@ -101,6 +101,26 @@ class Board:
         leads = self.crew_leads(day_id)
         return leads[0] if leads else None
 
+    def can_lead_page(self, pid: str, day_id: str) -> bool:
+        """May this person open the day on their lead pages (Shifts, time,
+        notes)? The crew's lead(s) can, and so can whoever could before
+        several titles existed -- the first primary Lead in staffing order
+        -- so giving a Lead an extra General Installer title (Comments
+        #32/#33/#36) never takes a day away from them; it only adds the Lead
+        who now runs that crew."""
+        if any(p["id"] == pid for p in self.crew_leads(day_id)):
+            return True
+        for x in self.staffing.get(day_id, []):
+            p = self.person(x)
+            if p and p.get("title") == "Lead":
+                return p["id"] == pid
+        return False
+
+    def days_visible_to_lead(self, pid: str) -> list[dict]:
+        """The days can_lead_page() lets this person open, by date."""
+        return sorted((d for d in self.days.values() if self.can_lead_page(pid, d["id"])),
+                      key=lambda d: (d["date"], d["id"]))
+
     def days_led_by(self, pid: str) -> list[dict]:
         return sorted(
             (d for d in self.days.values()

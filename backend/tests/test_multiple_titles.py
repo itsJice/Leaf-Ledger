@@ -106,3 +106,15 @@ def test_lead_shift_payload_lists_lead_ids():
     out = lead._day_out(b, b.days["2026-11-14|Crew 1|0"], [], [])
     assert out["leadIds"] == ["p2"]
     assert out["lead"]["id"] == "p2"
+
+
+def test_lead_pages_never_lose_a_day_when_a_lead_gets_a_general_title():
+    """Al (Lead + General) is first on D1, so before several titles existed he
+    was its lead_of and could open it; he still can, and Les, who now leads
+    it, can too."""
+    b = board()
+    d1 = "2026-11-14|Crew 1|0"
+    assert b.can_lead_page("p1", d1) and b.can_lead_page("p2", d1)
+    assert not b.can_lead_page("p3", d1)
+    assert d1 in [d["id"] for d in b.days_visible_to_lead("p1")]
+    assert [d["id"] for d in b.days_visible_to_lead("p2")] == [d1]
