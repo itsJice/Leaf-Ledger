@@ -70,6 +70,9 @@ CLIENT_KINDS = {
     "blank",           # loaded but showed nothing it should (the schedule's checks)
     "reload_after_deploy",  # an old tab reloaded itself to pick up a new version
     "previous_visit",  # the last visit in this tab ended badly before it could report
+    # From inside the Install Schedule (scheduler/review_template.html):
+    "save_blocked",    # a save refused or held back (older page, clashing client, kept changing)
+    "save_conflict",   # merged with a newer save; some of this tab's changes were dropped
 }
 SERVER_KINDS = {"server_error", "slow_request"}
 SOURCES = {"app", "schedule", "server"}

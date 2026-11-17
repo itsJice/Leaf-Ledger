@@ -137,3 +137,24 @@ describe("withFrameWatch", () => {
     expect(out).not.toMatch(/\.body\b|headers|Authorization/);
   });
 });
+
+describe("schedule reports (part 2)", () => {
+  it("accepts only the schedule's own kinds", async () => {
+    const { FRAME_KINDS } = await import("utils/scheduleFrameWatch");
+    expect([...FRAME_KINDS].sort()).toEqual(["blank", "error", "save_blocked", "save_conflict"]);
+  });
+
+  it("keeps the schedule's detail flat, small and scrubbed", async () => {
+    const { frameDetail } = await import("utils/scheduleFrameWatch");
+    const out = frameDetail({
+      daysInData: 40,
+      booted: true,
+      lastSaveOk: null,
+      banner: `token=${JWT}`,
+      nested: { name: "Allums" },
+      list: ["Allums"],
+    });
+    expect(out).toEqual({ daysInData: 40, booted: true, lastSaveOk: null, banner: "token=[hidden]" });
+    expect(frameDetail("junk")).toEqual({});
+  });
+});

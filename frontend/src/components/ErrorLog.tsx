@@ -64,6 +64,8 @@ export const KIND_LABEL: Record<string, string> = {
   blank: "Showed nothing",
   reload_after_deploy: "Reloaded for new version",
   previous_visit: "Tab ended suddenly",
+  save_blocked: "Save blocked",
+  save_conflict: "Change dropped in merge",
   server_error: "Server error",
   slow_request: "Slow request",
 };
@@ -72,6 +74,8 @@ const KIND_TONE: Record<string, string> = {
   crash: "bg-rose-50 text-rose-700",
   server_error: "bg-rose-50 text-rose-700",
   previous_visit: "bg-rose-50 text-rose-700",
+  save_conflict: "bg-rose-50 text-rose-700",
+  save_blocked: "bg-amber-50 text-amber-700",
   error: "bg-amber-50 text-amber-700",
   request_failed: "bg-amber-50 text-amber-700",
   stuck: "bg-amber-50 text-amber-700",

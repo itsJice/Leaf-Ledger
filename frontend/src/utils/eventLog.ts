@@ -52,7 +52,9 @@ export type EventKind =
   | "freeze"
   | "blank"
   | "reload_after_deploy"
-  | "previous_visit";
+  | "previous_visit"
+  | "save_blocked"
+  | "save_conflict";
 
 export interface AppEvent {
   kind: EventKind;

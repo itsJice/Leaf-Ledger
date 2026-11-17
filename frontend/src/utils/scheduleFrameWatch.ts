@@ -16,7 +16,7 @@
  * posts to the parent, which checks the message came from one of its own
  * frames (`handleFrameMessage`), scrubs it again and logs it.
  */
-import { addStep, isIgnorableError, isLoggableStatus, pathOnly, reportEvent, scrubText } from "utils/eventLog";
+import { addStep, isIgnorableError, isLoggableStatus, pathOnly, reportEvent, scrubText, type EventKind } from "utils/eventLog";
 
 export const FRAME_STEP = "ll-frame-step";
 export const FRAME_EVENT = "ll-frame-event";
@@ -65,6 +65,27 @@ interface FrameEvent {
   stack?: string;
   line?: number;
   col?: number;
+  /** Counts and reasons from the schedule's own reports (llReport). */
+  detail?: Record<string, unknown>;
+}
+
+/** Kinds the schedule may report itself (review_template.html llReport);
+ *  anything else from the frame is a plain script error. */
+export const FRAME_KINDS: ReadonlySet<EventKind> = new Set<EventKind>(["error", "blank", "save_blocked", "save_conflict"]);
+
+/** The schedule's own detail, kept small and flat. */
+export function frameDetail(detail: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  try {
+    if (!detail || typeof detail !== "object") return out;
+    for (const [k, v] of Object.entries(detail as Record<string, unknown>).slice(0, 30)) {
+      if (v === null || typeof v === "number" || typeof v === "boolean") out[k.slice(0, 40)] = v;
+      else if (typeof v === "string") out[k.slice(0, 40)] = scrubText(v, 200);
+    }
+  } catch {
+    /* ignore */
+  }
+  return out;
 }
 
 /**
@@ -93,12 +114,13 @@ export function handleFrameMessage(e: MessageEvent): boolean {
 
     if (data.type === FRAME_EVENT) {
       const message = scrubText(data.message || "", 1000);
-      if (isIgnorableError(message)) return true;
+      const kind = FRAME_KINDS.has(data.kind as EventKind) ? (data.kind as EventKind) : "error";
+      if (kind === "error" && isIgnorableError(message)) return true;
       reportEvent({
-        kind: "error",
+        kind,
         source: "schedule",
         message,
-        detail: { stack: scrubText(data.stack || "", 4000), line: data.line, col: data.col },
+        detail: { ...frameDetail(data.detail), stack: data.stack ? scrubText(data.stack, 4000) : undefined, line: data.line, col: data.col },
       });
       return true;
     }
