@@ -2,6 +2,7 @@ import { auth } from "app/auth";
 import { API_HOST, API_PATH } from "../constants";
 import { Apiclient } from "./Apiclient";
 import type { RequestParams } from "./http-client";
+import { trackRequest } from "utils/eventLog";
 
 const constructBaseUrl = (): string => {
   // If running locally, use the origin instead of the API_HOST
@@ -31,7 +32,8 @@ const constructClient = () => {
       // Remove /routes/ segment from path
       const rawUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
       const normalizedUrl = rawUrl.replace(API_PATH + "/routes", API_PATH);
-      return fetch(normalizedUrl, options);
+      // Trail step + error log on failure, like apiFetch (utils/eventLog.ts).
+      return trackRequest(normalizedUrl, options?.method || "GET", () => fetch(normalizedUrl, options));
     },
     securityWorker: async () => {
       return {
