@@ -382,6 +382,13 @@ dialog:modal.dlgmore:not([id=stfdlg])>.btns:last-child{box-shadow:0 -1px 0 var(-
 .pkinst .pkinstlbl .ic{width:13px;height:13px}
 .pkinst p{margin:0;font-size:13px;line-height:1.45;color:var(--ink);white-space:pre-wrap;word-break:break-word}
 .pkinst .pknotesrc{font-weight:600;color:var(--mut)}
+/* Comment #38: install notes are added and edited right on the stop card. */
+.pkinst .pkinstlbl .pkinsted{margin-left:auto;font:inherit;font-size:11.5px;font-weight:700;color:var(--brand);background:none;border:0;padding:2px 4px;cursor:pointer}
+.pkinst.pkinstform textarea{display:block;width:100%;box-sizing:border-box;margin:4px 0 6px;font:inherit;font-size:16px;line-height:1.4;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
+.pkinst.pkinstform .pkfine{margin:6px 0 0}
+.pkinstadd{display:inline-flex;align-items:center;gap:5px;margin-top:8px}
+.pkinstadd .ic{width:13px;height:13px}
+@media (max-width:600px){ .pkinst .pkinstlbl .pkinsted{min-height:32px;padding:4px 8px} }
 #summarybar{font-size:12px;color:var(--mut);white-space:nowrap;font-weight:500;margin-top:3px}
 #newclientbtn{align-self:center;padding:8px 14px;border-radius:8px;border:1.5px solid var(--brand);
   background:#fff;color:var(--brand);font-family:'Montserrat',sans-serif;font-weight:700;
@@ -4897,6 +4904,8 @@ function restoreSyntheticClients(list){
       if(C[def.row].synthetic && h>0 && h<=24){
         if(C[def.row].cardH) C[def.row].cardH.h26 = h; else C[def.row].h26 = h;
       }
+      // ...and its install note, edited in place on the stop card (Comment #38).
+      if(C[def.row].synthetic && typeof def.notes==='string') C[def.row].advice = def.notes;
       return;
     }
     addSyntheticClientSync(def);
@@ -6461,6 +6470,11 @@ function wireInstallNoteCounts(root){
 }
 function installNoteFor(row){
   const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
+  // An added stop (a callback, "Part B") keeps its own note first: it says
+  // something about that visit, and the card's note is for the client's
+  // main install (Comment #38). Same rule as the server's install_note().
+  const own=+row>=900000 && C[row] && C[row].advice ? String(C[row].advice).trim() : '';
+  if(own) return {text:own, season:yr, live:false, own:true};
   const en=ac && (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
   const live=en && en.detail && typeof en.detail.notes==='string' ? en.detail.notes.trim() : '';
   if(live) return {text:live, season:yr, live:true};
@@ -13054,11 +13068,98 @@ function peekNotesHTML(row){
   return pkFold('notes', 'Notes', peekEsc(lead.n.text), body,
     `<span class="pkcount${list.some(x=>x.cls==='prod')?' warn':''}">${list.length}</span>`);
 }
-/** This season's install notes, open in the card's quick reference. */
-function peekInstallNoteHTML(row){
+let pkEditingInst=false;
+/** Where a stop's install note is edited (Comment #38), always the same
+ *  place it is read from (installNoteFor): 'card' is the client's season
+ *  card (client_activity detail.notes, every stop of the client shows it),
+ *  'stop' is an added stop's own note (newClients[].notes, the "add a
+ *  client" dialog's box). null when there is nowhere to save it. */
+function installNoteTarget(row){
+  const c=C[row]; if(!c) return null;
   const n=installNoteFor(row);
-  if(!n) return '';
-  return `<div class="pkinst"><span class="pkinstlbl">${IC.clip}Install notes ${peekEsc(n.season)}${n.live?'':' <span class="pknotesrc">· from the spreadsheet</span>'}</span><p>${peekEsc(n.text)}</p></div>`;
+  if(n && n.own) return c.synthetic ? 'stop' : null;
+  if(n && n.live) return 'card';
+  if(c.synthetic) return 'stop';
+  return appClientFor(row) ? 'card' : null;
+}
+function canEditInstallNote(row){
+  const t=installNoteTarget(row);
+  return t==='card' ? canEditClientCard() : t==='stop' ? canEditHours() : false;
+}
+/** This season's install notes, open in the card's quick reference, with
+ *  Edit (or "Add install note" when there is none) for staff. */
+function peekInstallNoteHTML(row){
+  const n=installNoteFor(row), edit=canEditInstallNote(row);
+  const yr=String((SEASON[0]||'')).slice(0,4);
+  if(pkEditingInst && edit){
+    const card=installNoteTarget(row)==='card';
+    return `<div class="pkinst pkinstform"><label class="pkinstlbl" for="pkinstin">${IC.clip}Install notes ${peekEsc(yr)}</label>
+      <textarea id="pkinstin" rows="3" maxlength="2000" placeholder="What to bring or know on the day, e.g. Bring (8) longer extension cords.">${peekEsc(n?n.text:'')}</textarea>
+      <button type="button" class="pkhrsbtn on" id="pkinstsave">Save</button>
+      <button type="button" class="pkhrsbtn" id="pkinstcancel">Cancel</button>
+      <p class="pkfine">${card?`Saves to the client's ${peekEsc(yr)} season card. Leave it empty to clear it.`:'Saves to this stop only. Leave it empty to clear it.'}</p>
+    </div>`;
+  }
+  const btn=edit?`<button type="button" class="pkinsted" id="pkinstedit">Edit</button>`:'';
+  if(!n) return edit?`<button type="button" class="pkhrsbtn pkinstadd" id="pkinstedit">${IC.clip}Add install note</button>`:'';
+  const src=n.live?'':n.own?' <span class="pknotesrc">· this stop</span>':' <span class="pknotesrc">· from the spreadsheet</span>';
+  return `<div class="pkinst"><span class="pkinstlbl">${IC.clip}Install notes ${peekEsc(n.season)}${src}${btn}</span><p>${peekEsc(n.text)}</p></div>`;
+}
+/** PURE. The season-card field to send for an edited note: the trimmed
+ *  text, null to clear it, or undefined when nothing changed. */
+function installNoteChange(was, typed){
+  const now=String(typed||'').trim();
+  if(now===String(was||'').trim()) return undefined;
+  return now==='' ? null : now;
+}
+function wirePeekInstallNote(row){
+  const box=document.getElementById('pkinstbox'); if(!box) return;
+  const redraw=()=>{ box.innerHTML=peekInstallNoteHTML(row); wirePeekInstallNote(row); };
+  const ed=document.getElementById('pkinstedit');
+  if(ed) ed.onclick=e=>{ e.stopPropagation(); pkEditingInst=true; redraw();
+    const i=document.getElementById('pkinstin'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } };
+  const cancel=document.getElementById('pkinstcancel');
+  if(cancel) cancel.onclick=e=>{ e.stopPropagation(); pkEditingInst=false; redraw(); };
+  const save=document.getElementById('pkinstsave'), inp=document.getElementById('pkinstin');
+  if(!save || !inp) return;
+  const doSave=async()=>{
+    if(roBlocked() || !canEditInstallNote(row)) return;
+    const target=installNoteTarget(row), n=installNoteFor(row);
+    const was=target==='card' ? (n && n.live ? n.text : '') : String(C[row].advice||'');
+    // A spreadsheet note shown on a card stop counts as unchanged when kept
+    // as is: saving it untouched shouldn't copy it onto the card.
+    const shown=n ? n.text : '';
+    const change=installNoteChange(was, inp.value);
+    if(change===undefined || (target==='card' && !(n && n.live) && String(inp.value).trim()===shown.trim())){
+      pkEditingInst=false; redraw(); return;
+    }
+    if(target==='stop'){
+      C[row].advice=change||'';
+      persist();
+    } else {
+      save.disabled=true; save.textContent='Saving…';
+      try{ await putCardFacts(row, {fields:{notes:change}}); }
+      catch(err){ save.disabled=false; save.textContent='Save'; alert(installNoteErrorMessage(err)); return; }
+    }
+    pkEditingInst=false;
+    // The chip on the stop row, the date's "stops have install notes" count
+    // and the crew sheet's pack list all read installNoteFor: redraw.
+    render();
+    if(peekRow===row) refreshPeekLive(row);
+  };
+  save.onclick=e=>{ e.stopPropagation(); doSave(); };
+  inp.onkeydown=e=>{
+    if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); doSave(); }
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); pkEditingInst=false; redraw(); }
+  };
+}
+/** What a failed install-note save says, in plain words. */
+function installNoteErrorMessage(err){
+  const status=err && err.status, why=err && err.detail ? ` (${err.detail})` : '';
+  if(status===0) return `Couldn't reach the server, so the install note didn't save. Check the connection and press Save again; what you typed is still here.`;
+  if(status===401) return `Your sign-in has expired. Reload the page, sign in if asked, and save the note again.`;
+  if(status===403) return `This login can't edit install notes.`;
+  return `The install note didn't save (error ${status||'unknown'})${why}. Press Save again in a moment; what you typed is still here.`;
 }
 /** "Position on the day" as one compact segmented control. */
 function peekPositionHTML(row, d){
@@ -13119,7 +13220,7 @@ function refreshPeekLive(row){
   const sc=document.getElementById('pksched'); if(sc) sc.innerHTML=peekSchedHTML(row);
   const dr=document.getElementById('pkdrive'); if(dr){ dr.innerHTML=peekDriveHTML(row); wirePeekDrive(row); }
   const fa=document.getElementById('pkfactsbox'); if(fa) fa.innerHTML=peekFactsHTML(row);
-  const ib=document.getElementById('pkinstbox'); if(ib) ib.innerHTML=peekInstallNoteHTML(row);
+  const ib=document.getElementById('pkinstbox'); if(ib && !pkEditingInst){ ib.innerHTML=peekInstallNoteHTML(row); wirePeekInstallNote(row); }
   const nt=document.getElementById('pknotes'); if(nt) nt.innerHTML=peekNotesHTML(row);
   const pr=document.querySelector('#peekbody .pkprofile, #peekbody .pkloading');
   if(pr){ const tmp=document.createElement('div'); tmp.innerHTML=profileSectionHTML(row)||'<div class="pkprofile"></div>'; pr.replaceWith(...tmp.childNodes); }
@@ -13782,7 +13883,7 @@ function openStopPeek(row,dayId){
   const d = dayId==null ? null : days.find(x=>x.id===dayId);
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row; pkDayId=dayId;
-  pkEditingContact=false; pkEditingAlert=false; pkEditingHours=false; pkNameEdit=null; pkOpen=new Set();
+  pkEditingContact=false; pkEditingAlert=false; pkEditingHours=false; pkEditingInst=false; pkNameEdit=null; pkOpen=new Set();
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   const crewCol=d ? (CREW_COLORS[d.crew]||'var(--brand)') : '';
@@ -13823,6 +13924,7 @@ function openStopPeek(row,dayId){
   wirePeekAlert(row);
   wirePeekDrive(row);
   wirePeekHours(row);
+  wirePeekInstallNote(row);
   if(AUTH && !driveLinkMap){
     loadDriveLinks().then(()=>{
       if(peekRow!==row || !peekdlg.open) return;
