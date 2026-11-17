@@ -285,3 +285,11 @@ def test_middleware_skips_the_log_itself(monkeypatch, recorded):
         return {}
     TestClient(app).post("/api/app-events")
     assert recorded == []
+
+
+def test_schedule_kinds_are_accepted(fake_db, fake_request, fake_user, as_role):
+    body = app_events.EventsIn(events=[app_events.EventIn(kind="save_blocked", source="schedule", message="m"),
+                                       app_events.EventIn(kind="save_conflict", source="schedule", message="m"),
+                                       app_events.EventIn(kind="blank", source="schedule", message="m")])
+    out = run(app_events.report_events(body, fake_request(), fake_user))
+    assert out.saved == 3 and out.dropped == 0

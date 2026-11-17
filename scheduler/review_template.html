@@ -3425,6 +3425,80 @@ window.addEventListener('error', e=>{
   if(pageBooted) return;
   if(recoverFromDeviceCopy(e && (e.error||e.message), 'start-up')) { try{ e.preventDefault(); }catch(_){} }
 });
+// ---------- telling the app's error log what happened ----------
+// Inside the app, this page reports what went wrong to the error log
+// (backend/app/apis/app_events), so a problem someone flags can be traced
+// instead of guessed at. The app's own watcher (frontend
+// utils/scheduleFrameWatch.ts) already sends script errors and each /api
+// call's status; these add what only this page knows:
+//   * a board that loaded but shows nothing (Comments #39's blank schedule),
+//     or that never finished starting up
+//   * why a save was refused or held back: an older publish of the page, a
+//     clashing new client, a schedule that kept changing, a dropped change
+//     after a merge, a broken copy on this device
+// Reports only. Nothing here changes what the page does, and a failure here
+// is swallowed. Standalone (not inside the app) it does nothing. No client
+// details: counts, views and reasons only.
+const LL_EVENT='ll-frame-event';
+function llReport(kind, message, detail){
+  try{
+    if(window.parent===window) return;
+    let d=detail||{};
+    try{ if(JSON.stringify(d).length>3000) d={trimmed:true}; }catch(_){ d={}; }
+    window.parent.postMessage({type:LL_EVENT, kind:String(kind), message:String(message).slice(0,500), detail:d}, '*');
+  }catch(_){}
+}
+/** PURE. Why the board looks empty when it shouldn't, or null. `f` is
+ *  llScreenFacts(): what's on screen and what the page holds. */
+function llBlankReason(f){
+  if(!f) return null;
+  if(!f.booted) return 'The schedule never finished starting up';
+  if(f.hostingSeason || f.tv) return null;          // another season or the wall display owns the screen
+  if(!f.daysInData) return 'The schedule loaded with no days in it';
+  if(f.visibleChars < 5 && f.visibleChildren < 2) return 'The schedule loaded but the screen is empty ('+f.view+' view)';
+  return null;
+}
+/** What the screen shows right now, in counts only. */
+function llScreenFacts(){
+  const f={booted:false, view:'', daysInData:0, stopsInData:0, visibleChars:0, visibleChildren:0,
+           hostingSeason:false, tv:false, signedIn:false, syncBlocked:false, lastSaveOk:null,
+           deviceCopyKb:0, banner:''};
+  try{ f.booted=!!pageBooted; }catch(_){}
+  try{ f.view=String(viewMode||''); }catch(_){}
+  try{ f.daysInData=Array.isArray(days)?days.length:0; }catch(_){}
+  try{ f.stopsInData=Object.keys(C||{}).length; }catch(_){}
+  try{ f.hostingSeason=!!hostingSeason; }catch(_){}
+  try{ f.tv=document.body.classList.contains('tv'); }catch(_){}
+  try{ f.signedIn=!!AUTH; }catch(_){}
+  try{ f.syncBlocked=!!syncBlocked; }catch(_){}
+  try{ f.lastSaveOk=lastPushOk; }catch(_){}
+  try{ f.deviceCopyKb=Math.round((localStorage.getItem(DEVICE_COPY_KEY)||'').length/1024); }catch(_){}
+  try{
+    const b=document.getElementById('syncbanner');
+    if(b && !b.hidden){ const t=b.querySelector('b'); f.banner=t?t.textContent.slice(0,120):''; }
+  }catch(_){}
+  try{
+    // The view on screen: the first of these that is showing.
+    const shown=['calwrap','staffwrap','loadwrap','side'].map(id=>document.getElementById(id))
+      .find(el=>el && el.offsetParent!==null && getComputedStyle(el).display!=='none');
+    if(shown){ f.visibleChars=(shown.innerText||'').trim().length; f.visibleChildren=shown.children.length; }
+  }catch(_){}
+  return f;
+}
+/** Look at the screen a while after start-up, once early and once after the
+ *  live schedule has had time to load. One report per page load at most. */
+let llHealthReported=false;
+function llCheckHealth(when){
+  try{
+    if(llHealthReported || document.visibilityState!=='visible') return;
+    const f=llScreenFacts(), why=llBlankReason(f);
+    if(!why) return;
+    llHealthReported=true;
+    llReport('blank', why, Object.assign({checked:when}, f));
+  }catch(_){}
+}
+setTimeout(()=>llCheckHealth('10s'), 10000);
+setTimeout(()=>llCheckHealth('30s'), 30000);
 // ---------- which season this page IS ----------
 // Baked in at build time, because the page cannot look it up: it runs inside
 // a srcDoc iframe and so has no URL, no query string and no location of its
@@ -6879,6 +6953,7 @@ function pageOutdated(j){
   return !!(j && j.pageRev && PAGE_REV && String(j.pageRev)!==String(PAGE_REV));
 }
 function showPageOutdated(){
+  if(!syncBlocked && typeof llReport==='function') llReport('save_blocked', 'Save refused: this tab is from an older version of the schedule page', {pageRev:String(PAGE_REV||'')});
   syncBlocked=true;
   showSyncBanner({title:'This schedule was updated.',
     sub:'Reload to get the new version and keep saving. Your changes are kept on this device.',
@@ -7018,6 +7093,7 @@ function settleLocalAdds(j, mine, keepMine){
 function syncBlockedBy(j){
   const rows=collidingNewClients(j);
   if(!rows.length) return false;
+  if(typeof llReport==='function') llReport('save_blocked', 'Save held back: another tab added a client at the same time', {clashingClients:rows.length});
   syncBlocked=true;
   showSyncBanner({title:'This tab is out of date and needs a reload.',
     sub:'Someone else added a new client at the same time as you, so your changes could not be combined with theirs. '
@@ -7097,12 +7173,17 @@ async function putShared(){
       lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
       return r.ok;
     }
-    if(!syncBlocked)
+    if(!syncBlocked){
+      if(typeof llReport==='function') llReport('save_blocked', 'Save gave up: the schedule kept changing while this tab saved', {attempts:4});
       showSyncBanner({title:'This schedule keeps changing while this tab saves.',
         sub:'Your changes are kept on this device. Reload to see the latest, then check them.', reload:true});
+    }
     lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar();
     return false;
-  }catch(e){ lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false; }
+  }catch(e){
+    if(typeof llReport==='function') llReport('save_blocked', 'Save failed: '+String(e && e.message || e), {error:String(e && e.name || 'Error')});
+    lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false;
+  }
 }
 var lastPushOk = null;   // null: nothing pushed yet this session
 // ---------- the out-of-date banner ----------
@@ -7115,6 +7196,8 @@ function syncWho(j){
 }
 function showMergedBanner(j, res){
   if(res.conflicts.length){
+    if(typeof llReport==='function') llReport('save_conflict', 'Merged with a newer save: '+res.conflicts.length+' of this tab\'s changes were dropped because someone else changed the same thing',
+      {conflicts:res.conflicts.length});
     showSyncBanner({title:'This tab was out of date.',
       sub:'We loaded the latest'+syncWho(j)+' and re-applied your changes, except these, which someone else '
          +'changed too. Their version was kept:',
@@ -20462,6 +20545,7 @@ try{
   const t=+sessionStorage.getItem(DEVICE_COPY_DROPPED)||0;
   if(t && !deviceCopyRecovering){   // (not on the page that is reloading now)
     sessionStorage.removeItem(DEVICE_COPY_DROPPED);
+    if(typeof llReport==='function') llReport('error', 'The copy of the schedule on this device could not be opened, so the live schedule was loaded', {secondsAgo:Math.round((Date.now()-t)/1000)});
     if(Date.now()-t < 10*60000)
       showSyncBanner({title:'The copy of the schedule on this computer couldn\'t be opened, so the live schedule is shown.',
         sub:'Check your last few changes.'});
