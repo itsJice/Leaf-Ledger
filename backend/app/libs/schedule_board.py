@@ -77,12 +77,29 @@ class Board:
             return None
         return next((p for p in self.roster if roles.norm_email(p.get("email")) == e), None)
 
+    def crew_leads(self, day_id: str) -> list[dict]:
+        """Who leads a crew-day, in staffing order. Mirrors crewLeads() in
+        scheduler/review_template.html (Comments #32/#33/#36): of the people
+        with a Lead title, a primary Lead who doesn't also work as a General
+        Installer, then any primary Lead, then someone whose Lead title is an
+        extra. So a Lead who also works as a General Installer is working as
+        a general when another Lead is on the crew."""
+        people = [p for pid in self.staffing.get(day_id, []) if (p := self.person(pid))]
+        can = [p for p in people if "Lead" in p.get("titles", [p.get("title")])]
+        if len(can) < 2:
+            return can
+
+        def rank(p: dict) -> int:
+            if p.get("title") != "Lead":
+                return 2
+            return 1 if "General Installer" in p.get("titles", []) else 0
+
+        best = min(rank(p) for p in can)
+        return [p for p in can if rank(p) == best]
+
     def lead_of(self, day_id: str) -> Optional[dict]:
-        for pid in self.staffing.get(day_id, []):
-            p = self.person(pid)
-            if p and p.get("title") == "Lead":
-                return p
-        return None
+        leads = self.crew_leads(day_id)
+        return leads[0] if leads else None
 
     def days_led_by(self, pid: str) -> list[dict]:
         return sorted(
@@ -169,6 +186,10 @@ def extract_payload(html: str) -> dict:
     return obj
 
 
+#: The roster titles, in the tool's order (TITLES in review_template.html).
+TITLES = ("Lead", "Lead Assist", "Designer", "General Installer")
+
+
 def _norm_person(p: dict) -> Optional[dict]:
     """The fields the lead pages need, normalised like normRoster() does."""
     if not isinstance(p, dict):
@@ -180,8 +201,12 @@ def _norm_person(p: dict) -> Optional[dict]:
     pid, name = str(p.get("id") or ""), " ".join(x for x in (first, last) if x)
     if not pid or not name:
         return None
-    title = p.get("title") if p.get("title") in ("Lead", "Lead Assist", "Designer", "General Installer") else "General Installer"
-    return {"id": pid, "name": name, "title": title,
+    title = p.get("title") if p.get("title") in TITLES else "General Installer"
+    # Every title they work, primary first (Comments #36), as normRoster()
+    # keeps it; `title` stays the primary, which roles and pay read.
+    raw = p.get("titles") if isinstance(p.get("titles"), list) else []
+    titles = [title] + [t for t in TITLES if t != title and t in raw]
+    return {"id": pid, "name": name, "title": title, "titles": titles,
             "email": str(p.get("email") or "").strip(), "phone": str(p.get("phone") or "").strip()}
 
 

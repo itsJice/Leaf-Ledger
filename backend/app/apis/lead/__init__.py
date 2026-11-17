@@ -295,6 +295,9 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
         # build's day note above.
         "shiftNote": board.shift_note(day),
         "lead": lead,
+        # Everyone leading this crew-day (usually one), for the "(Lead)" tag:
+        # a Lead working as a general on another Lead's crew isn't one.
+        "leadIds": [p["id"] for p in board.crew_leads(day["id"])],
         "crew": [p for p in crew if p],
         "stops": stops,
         "packList": pack_list(stops),

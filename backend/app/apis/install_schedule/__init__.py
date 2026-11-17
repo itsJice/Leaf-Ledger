@@ -871,6 +871,23 @@ def is_stale_page(body: dict, published: tuple[datetime, bool] | None) -> bool:
 LATER_PERSON_FIELDS = ("shirt",)
 
 
+def _kept_titles(sent: dict, prior: dict) -> list | None:
+    """A person's `titles` (every title they work, primary first; Comments
+    #36, 2026-11-16) for a save that left the key out: the stored list, with
+    the saved `title` as the primary. If that save changed the primary title,
+    the old primary is dropped rather than kept as an extra. None when there
+    is nothing stored to keep."""
+    stored = prior.get("titles")
+    if not isinstance(stored, list) or not stored:
+        return None
+    title = sent.get("title")
+    if not isinstance(title, str) or not title:
+        return stored
+    if title == prior.get("title"):
+        return [title] + [t for t in stored if t != title]
+    return [title] + [t for t in stored[1:] if t != title]
+
+
 def keep_stored_person_fields(state: dict, stored: Any) -> dict:
     """Keep each LATER_PERSON_FIELDS value from the stored person (by id)
     when the saved person leaves the key out entirely."""
@@ -882,6 +899,9 @@ def keep_stored_person_fields(state: dict, stored: Any) -> dict:
     for p in stored["roster"]:
         if isinstance(p, dict) and p.get("id") not in (None, ""):
             keep = {k: p[k] for k in LATER_PERSON_FIELDS if k in p}
+            if isinstance(p.get("titles"), list) and len(p["titles"]) > 1:
+                keep["titles"] = p["titles"]
+                keep["title"] = p.get("title")
             if keep:
                 prior[str(p["id"])] = keep
     if not prior:
@@ -890,7 +910,12 @@ def keep_stored_person_fields(state: dict, stored: Any) -> dict:
     for p in roster:
         if isinstance(p, dict):
             keep = prior.get(str(p.get("id") or ""), {})
-            missing = {k: v for k, v in keep.items() if k not in p}
+            missing = {k: v for k, v in keep.items()
+                       if k in LATER_PERSON_FIELDS and k not in p}
+            if "titles" not in p:
+                titles = _kept_titles(p, keep)
+                if titles is not None:
+                    missing["titles"] = titles
             if missing:
                 p = {**p, **missing}
         out.append(p)

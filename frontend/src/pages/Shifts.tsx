@@ -280,7 +280,7 @@ function DayCard({ day, data, open, onToggle, now, reload }: {
             {day.crew.map((p) => (
               <span key={p.id} className="rounded-full bg-stone-100 px-2 py-0.5">
                 {p.name}
-                {p.title === "Lead" ? " (Lead)" : ""}
+                {(day.leadIds ? day.leadIds.includes(p.id) : p.title === "Lead") ? " (Lead)" : ""}
               </span>
             ))}
           </p>

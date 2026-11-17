@@ -41,7 +41,8 @@ const crewName = d => crewNames[d.id] || '';
 const crewNameKey = d => d.id;
 """ + fns(
     "isReminderText", "capTexts", "normTexts", "fmtReminderLog", "smsNumber", "fmtClock",
-    "txtFill", "remMD", "remDateLabel", "remDaysAway", "remWhen", "remMeet", "remPeople",
+    "txtFill", "remMD", "remDateLabel", "remDaysAway", "remWhen", "remMeet",
+    "personTitles", "hasTitle", "crewLeads", "remPeople",
     "remLead", "remVals", "remReason", "remSentFor", "remStatus", "withReminderLog",
     "withoutReminderLog", "remShiftInfos", "remRows", "shiftStart", "jointShiftGroups",
     "visitKind", "dayKind", "remJob", "remTplFor", "remBody",
