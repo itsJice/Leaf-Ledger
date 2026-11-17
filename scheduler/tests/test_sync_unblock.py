@@ -230,7 +230,23 @@ def test_a_placement_row_with_no_client_is_left_off_the_board():
     # The blank board's throw: a device copy's placement held a row with no
     # client (no map point), and routing it threw in the first render.
     fn = js_function("applyPlacement")
-    assert "if(!C[+r] || N[+r]===undefined || !Array.isArray(ids)){ missing++; return; }" in fn
+    assert "if(!C[+r] || N[+r]===undefined || !Array.isArray(ids)){ missing++; placementGhosts.push(String(r)); return; }" in fn
     assert "const c=C[r]; if(!c) return 0;" in js_function("effH")
     assert "const row=D[a]; return (row && row[b])||0;" in js_function("leg")
     assert "try{ render(); }catch(e){ if(!recoverFromDeviceCopy(e, 'first draw')) throw e; }" in TEMPLATE
+
+
+def test_a_ghost_row_from_a_broken_copy_is_not_saved_as_a_removal():
+    # A device copy with the client's placement but not the client: the row is
+    # left off the board, and the save must not unschedule it on the server.
+    out = json.loads(run_js(js_function("keepGhostRows") + """
+      const base={placement:{'900037':['2026-11-20|Crew 1|0'], '1':['d1']}, newClients:[{row:900037, name:'Smith, Jo'}]};
+      const mine={placement:{'1':['d2']}, newClients:[]};
+      const out=keepGhostRows(mine, base, ['900037', '900099']);
+      console.log(JSON.stringify(out));
+    """))
+    assert out == {"placement": {"1": ["d2"], "900037": ["2026-11-20|Crew 1|0"]},
+                   "newClients": [{"row": 900037, "name": "Smith, Jo"}]}
+    pull = js_function("pullSharedNow")
+    assert pull.index("keepGhostRows(mine, base.state, deviceGhostRows)") < pull.index("settleLocalAdds(j,")
+    assert "deviceGhostRows = placementGhosts.slice();" in TEMPLATE

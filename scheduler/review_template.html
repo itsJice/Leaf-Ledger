@@ -4887,14 +4887,17 @@ function currentPlacement(){
   days.forEach(d=>d.stops.forEach(r=>{ (m[r] = m[r] || []).push(d.id); }));
   return m;
 }
+// Rows the last applyPlacement left out for having no client (see below).
+let placementGhosts = [];
 function applyPlacement(place){
   const want = {};
+  placementGhosts = [];
   // A row with no client here (a device copy whose added client went
   // missing) has no map point, and routing it threw while drawing: the
   // board stayed blank (Comments #39). Leave it out, like a lost day.
   let missing = 0;
   Object.entries(place).forEach(([r,ids])=>{
-    if(!C[+r] || N[+r]===undefined || !Array.isArray(ids)){ missing++; return; }
+    if(!C[+r] || N[+r]===undefined || !Array.isArray(ids)){ missing++; placementGhosts.push(String(r)); return; }
     want[+r] = ids;
   });
   const byId = new Map(days.map(d=>[d.id,d]));
@@ -5167,6 +5170,8 @@ function applyRosterSeedFallback(){
   roster = normRoster(SPEC.rosterSeed || []);
   return roster.length > 0;
 }
+// Placed rows the device copy had no client for (keepGhostRows).
+let deviceGhostRows = [];
 try{
   const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
   if(s.version && SPEC.version && s.version !== SPEC.version){
@@ -5185,6 +5190,7 @@ try{
     stopPin = normStopPins(s.stopPin);
     lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
+    deviceGhostRows = placementGhosts.slice();
     materializeTrainingDays();
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -5213,6 +5219,23 @@ try{
   }
 }catch(e){ recoverFromDeviceCopy(e, 'restore'); }
 applyRosterSeedFallback();
+/** PURE. A row the device copy placed but had no client for was left off the
+ *  board at start-up. That is a broken copy, not this tab removing the stop:
+ *  give `mine` the base's placement and client for those rows, so the merge
+ *  sees no change there and the server's copy stands. */
+function keepGhostRows(mine, base, rows){
+  if(!rows || !rows.length || !base) return mine;
+  const out=JSON.parse(JSON.stringify(mine||{}));
+  rows.forEach(r=>{
+    r=String(r);
+    out.placement=out.placement||{};
+    if(base.placement && base.placement[r]!==undefined) out.placement[r]=base.placement[r];
+    else delete out.placement[r];
+    const bd=(base.newClients||[]).find(d=>d && String(d.row)===r);
+    if(bd && !(out.newClients||[]).some(d=>d && String(d.row)===r)) out.newClients=[...(out.newClients||[]), bd];
+  });
+  return out;
+}
 // The server document this tab last loaded or saved: {at: its updatedAt,
 // state: sharedDocOf(...)}. Every save sends `at` (the stale-tab guard, see
 // mergeShared). Starts as this device's own record of it, so changes saved
@@ -6664,7 +6687,10 @@ async function pullSharedNow(){
       // A new client this device added at a row the server has since used
       // for another one is merged or moved to a fresh row, not a lock
       // (Comments #39).
-      const mine = settleLocalAdds(j, sharedDocOf(snapshot()), !!base).mine;
+      let mine = sharedDocOf(snapshot());
+      if(base && deviceGhostRows.length) mine = keepGhostRows(mine, base.state, deviceGhostRows);
+      deviceGhostRows = [];
+      mine = settleLocalAdds(j, mine, !!base).mine;
       if(syncBlockedBy(j)) return;
       const res = rebaseOnto(j, base, mine);
       stateWarning = res.missing
