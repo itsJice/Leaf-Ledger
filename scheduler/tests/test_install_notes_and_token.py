@@ -139,6 +139,8 @@ function peekEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/
 function attrEsc(s){ return peekEsc(s).replace(/"/g,'&quot;'); }
 const NOTES={1:'Bring (8) longer extension cords. Pack in kit', 3:'Gate code 1234'};
 const installNoteFor=r=>NOTES[r] ? {text:NOTES[r], season:'2026', live:true} : null;
+// A viewer's card: no Edit / "Add install note" (Comment #38 covers staff).
+const SEASON=['2026-10-01'], C={}; let pkEditingInst=false; const canEditInstallNote=()=>false;
 """
 
 

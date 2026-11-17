@@ -248,9 +248,17 @@ def install_note(c: dict, extras: Optional[dict]) -> str:
     """This season's install notes for a stop: the client card's season
     "Install notes" (client_activity detail.notes -- what the Clients tab and
     the schedule's stop card edit) when it has any, else the note baked into
-    the published schedule from the spreadsheet. The same rule as the
-    schedule page's installNoteFor(), so the Shifts page, the crew sheet and
-    the board always show the same text."""
+    the published schedule from the spreadsheet. An added stop (row 900000+,
+    a callback or "Part B") shows its own note first: it is about that visit
+    (Comment #38). The same rule as the schedule page's installNoteFor(), so
+    the Shifts page, the crew sheet and the board always show the same text."""
+    try:
+        added = int(c.get("row") or 0) >= 900000
+    except (TypeError, ValueError):
+        added = False
+    own = str(c.get("advice") or "").strip()
+    if added and own:
+        return own
     live = (stop_extras((extras or {}).get(norm_name(c.get("name")))).get("installNotes") or "").strip()
     return live or str(c.get("advice") or "").strip()
 

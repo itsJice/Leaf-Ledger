@@ -618,3 +618,21 @@ def test_production_allowlist_matches_routes_without_the_api_prefix():
     assert roles.allowed("production", "crew", "GET", False, roles.api_path("/me"))
     assert roles.allowed("production", "staff", "POST", False, roles.api_path("/forms/{slug}/responses"))
     assert not roles.allowed("production", "staff", "GET", False, roles.api_path("/pricing/rates"))
+
+
+def test_an_added_stop_keeps_its_own_install_note_first():
+    """Comment #38: a callback stop ("Part B", row 900000+) shows its own
+    note even when the client card has one for the main install."""
+    from app.apis.lead import install_note, index_client_extras
+    extras = index_client_extras([{"id": 266, "name": "M Crowd District 121", "sheet_name": None,
+                                    "former_names": [], "staff_alert": None, "staff_alert_by": None,
+                                    "staff_alert_at": None, "install_notes": "Part A note",
+                                    "schedule_restrictions": None}])
+    main = {"row": 60, "name": "M Crowd District 121", "advice": ""}
+    callback = {"row": 900042, "name": "M Crowd District 121", "advice": "INSTALL PART B - CREW 3"}
+    empty_callback = {"row": 900043, "name": "M Crowd District 121", "advice": ""}
+    assert install_note(main, extras) == "Part A note"
+    assert install_note(callback, extras) == "INSTALL PART B - CREW 3"
+    assert install_note(empty_callback, extras) == "Part A note"
+    # A spreadsheet row's baked note still gives way to the card's.
+    assert install_note({"row": 61, "name": "M Crowd District 121", "advice": "sheet"}, extras) == "Part A note"
