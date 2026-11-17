@@ -27,6 +27,8 @@ const DATA={days:[{id:'2026-11-04|Crew 3|0', date:'2026-11-04', crew:'Crew 3', s
 function hydrate(d){ return {...d, stops:[...d.stops]}; }
 function refreshDerivedMeta(){}
 let days=DATA.days.map(hydrate);
+// Every row has a client and a map point (applyPlacement leaves out rows that don't).
+const C={}, N={}; [62,74,79,80].forEach(r=>{ C[r]={row:r}; N[r]=r; });
 """ + TEMPLATE[TEMPLATE.index("const BASELINE_STOPS = {};"):TEMPLATE.index("let approved = new Set()")] \
     + js_function("applyPlacement") + js_function("currentPlacement")
 
