@@ -233,6 +233,9 @@
   "/api/install-times/reports": [
     "GET"
   ],
+  "/api/install-times/schedule": [
+    "GET"
+  ],
   "/api/install-times/visit": [
     "GET"
   ],
