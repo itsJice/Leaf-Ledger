@@ -886,6 +886,8 @@ body.tv #tvhint:not([hidden]){display:block;position:fixed;right:14px;bottom:14p
 .pill.assist{background:var(--brand-soft);color:var(--brand-deep)}
 .pill.designer{background:#f5effb;color:#6b21a8}
 .pill.gen{background:#f1efec;color:var(--mut)}
+/* An extra title ("+General", Comments #36): same colours, quieter. */
+.pill.ttx{margin-left:3px;padding:0 6px;font-weight:700;opacity:.85;box-shadow:inset 0 0 0 1px currentColor}
 .pill.en{background:#eef2ff;color:#3730a3}
 .pill.es{background:#fff1e7;color:#9a3412}
 .pill.both{background:#ecfdf5;color:#065f46}
@@ -1456,6 +1458,9 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 #perdlg .peractconfirm span{flex:1;min-width:180px}
 @media (max-width:767px){ #perdlg .btns button,#perdlg .peractconfirm button{min-height:40px} }
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.peralso{margin-top:2px}
+.peralsoopts{display:flex;flex-wrap:wrap;gap:0 18px}
+.peralsoopts .perchk{min-height:40px}
 .perrow3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
 .perrow21{display:grid;grid-template-columns:2fr 1fr;gap:10px}
 .perrow21 > div{min-width:0}
@@ -1555,6 +1560,7 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .asgrow.on{background:var(--brand-soft);border-color:var(--brand)}
 .asgrow input{margin:0;flex:none;accent-color:var(--brand)}
 .asgrow .asgn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asgrow .pill.ttx{flex:none}
 .asgclash{color:var(--danger);font-size:10px;font-weight:800}
 /* Staff this shift, person rows (user, 2026-11-16, staffing on her phone:
    names were cut to "Albert..." by the badges). The full name always shows:
@@ -3158,6 +3164,11 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
       <select id="perlang">
         <option>English</option><option>Spanish</option><option selected>Both</option>
       </select></div>
+  </div>
+  <div class="peralso" role="group" aria-labelledby="peralsolbl">
+    <span class="nclabel" id="peralsolbl">Also works as</span>
+    <div class="peralsoopts" id="peralsoopts"></div>
+    <div class="perdutyhint">Title is their main one: it sets their pay class and app access.</div>
   </div>
   <div class="perrow">
     <div><span class="nclabel">Gender</span>
@@ -4899,7 +4910,7 @@ function normShirt(v){
 /** Every person key normRoster writes itself. Anything else on a stored
  *  person (a field added by a newer page or a script) rides along untouched,
  *  so this page saving never strips what it doesn't know about. */
-const ROSTER_OWN_KEYS=['id','first','last','name','title','lang','gender','email','phone','notes',
+const ROSTER_OWN_KEYS=['id','first','last','name','title','titles','lang','gender','email','phone','notes',
   'shirt','ratings','texts','times','dates','active',
   'legalName','street','city','state','zip','tax1099','directDeposit'];
 function normRoster(list){
@@ -4917,12 +4928,20 @@ function normRoster(list){
     }
     const extra={};
     Object.keys(p).forEach(k=>{ if(!ROSTER_OWN_KEYS.includes(k)) extra[k]=p[k]; });
+    // Several titles per person (Comments #36): `titles` is every title they
+    // can work, primary first; `title` stays the primary so every reader that
+    // only knows one title (older pages, pay class, logins) keeps working.
+    // `title` wins if the two disagree (a save from a page that only edits
+    // `title`), and a record with no `titles` is just its one title.
+    const title = TITLES.includes(p.title) ? p.title : 'General Installer';
+    const titles = [title, ...TITLES.filter(t=>t!==title
+      && Array.isArray(p.titles) && p.titles.includes(t))];
     return {
       ...extra,
       id: String(p.id||''),
       first, last,
       name: [first,last].filter(Boolean).join(' '),
-      title: TITLES.includes(p.title) ? p.title : 'General Installer',
+      title, titles,
       lang: LANGS.includes(p.lang) ? p.lang : 'Both',
       gender: p.gender==='Male' ? 'Male' : 'Female',
       email: String(p.email||'').trim(),
@@ -4951,6 +4970,17 @@ function normRoster(list){
   nextPersonId = out.reduce((m,p)=>Math.max(m, (+String(p.id).replace(/\D/g,'')||0)+1), 1);
   return out;
 }
+/** Every title a person can work, primary first (Comments #36). A record
+ *  without `titles` (not normalised yet) is just its one `title`. */
+function personTitles(p){
+  if(!p) return [];
+  return Array.isArray(p.titles) && p.titles.length ? p.titles : (p.title ? [p.title] : []);
+}
+function hasTitle(p, t){ return personTitles(p).includes(t); }
+/** The titles after the primary one ("also works as"). */
+function extraTitles(p){ return personTitles(p).filter(t=>t!==(p&&p.title)); }
+/** "Lead, General Installer" -- for exports, contact cards and search. */
+function titlesText(p){ return personTitles(p).join(', '); }
 /** Can this person work this shift? Dates only (user, 2026-10-24: "take out
  *  the day and night options... just select the dates"): a date in their
  *  `dates` means they can work that day, and for a Dallas date that means
@@ -7945,9 +7975,7 @@ function shiftCoverage(sh){
   const fake={id:sh.key, stops:[], half:[]};
   // reuse dayCoverage's fill-down logic against the block's own need
   const who=ids.map(personById).filter(p=>p&&p.active);
-  const lead=who.filter(p=>p.title==='Lead').length;
-  const assist=who.filter(p=>p.title==='Lead Assist'||p.title==='Designer').length;
-  const gen=who.filter(p=>p.title==='General Installer').length;
+  const {lead, assist, gen}=coverageCounts(who);
   const shortLead=Math.max(0,need.lead-lead);
   let spareLead=Math.max(0,lead-need.lead);
   let shortAssist=Math.max(0,need.assist-assist);
@@ -7960,6 +7988,24 @@ function shiftCoverage(sh){
           state: !who.length ? 'none' : shortLead ? 'bad' : short ? 'short' : 'ok'};
 }
 // ---------- staffing need & coverage ----------
+/** How many on a crew can fill each need (Comments #36, option 1 chosen by
+ *  the user 2026-11-17). Each person counts once. Only a PRIMARY Lead counts
+ *  as a lead -- the same people who are named the crew's lead and get its lead
+ *  pages, so who leads never changes with extra titles. Anyone else counts as
+ *  an assist if any of their titles is Lead Assist or Designer (an extra one
+ *  included), else as a general. Fill-down (dayCoverage) then lets a spare
+ *  lead or assist cover a general seat, so a Lead who also works as a General
+ *  Installer fills a general seat whenever the crew already has its lead. For
+ *  one-title people this is exactly the old count by title. */
+function coverageCounts(who){
+  let lead=0, assist=0, gen=0;
+  (who||[]).forEach(p=>{
+    if(p.title==='Lead') lead++;
+    else if(hasTitle(p,'Lead Assist')||hasTitle(p,'Designer')) assist++;
+    else gen++;
+  });
+  return {lead, assist, gen};
+}
 /** What this crew-day needs, by title.
  *  The binding number is the MAX over the day's stops, not the sum: a crew
  *  does not re-staff between jobs, so it must be big enough for its biggest
@@ -7991,9 +8037,7 @@ function dayNeed(d){
 function dayCoverage(d){
   const need=dayNeed(d);
   const who=(staffing[d.id]||[]).map(personById).filter(p=>p&&p.active);
-  let lead=who.filter(p=>p.title==='Lead').length;
-  let assist=who.filter(p=>p.title==='Lead Assist'||p.title==='Designer').length;
-  let gen=who.filter(p=>p.title==='General Installer').length;
+  let {lead, assist, gen}=coverageCounts(who);
   const shortLead=Math.max(0,need.lead-lead);
   let spareLead=Math.max(0,lead-need.lead);
   let shortAssist=Math.max(0,need.assist-assist);
@@ -9249,13 +9293,13 @@ function searchAllResults(q, src){
     src.people.forEach(p=>{
       if(!p) return;
       const f=[{label:'Name', text:p.name}, {label:'Phone', text:p.phoneText||p.phone, phone:true},
-        {label:'Email', text:p.email}, {label:'Title', text:p.title}, {label:'Language', text:p.lang},
+        {label:'Email', text:p.email}, {label:'Title', text:(p.titles&&p.titles.length?p.titles:[p.title]).join(', ')}, {label:'Language', text:p.lang},
         {label:'Notes', text:p.notes}];
       if(src.contractor) f.push({label:'Legal name', text:p.legalName}, {label:'Address', text:p.street},
         {label:'City', text:p.city}, {label:'ZIP', text:p.zip});
       const hits=why(f); if(!hits) return;
       people.push({kind:'person', id:p.id, name:p.name,
-        note:[p.title, p.active===false ? 'Inactive' : ''].filter(Boolean).join(' · '),
+        note:[(p.titles&&p.titles.length?p.titles:[p.title]).join(', '), p.active===false ? 'Inactive' : ''].filter(Boolean).join(' · '),
         hits, rank:rankOf(hits)});
     });
     add('people', 'People', people, byRank);
@@ -9390,6 +9434,7 @@ function rosterMatchesQuery(p){
     if(typeof v==='string' || typeof v==='number') vals.push(String(v));
   });
   if(p.phone) vals.push(fmtPhone(p.phone));
+  if(Array.isArray(p.titles)) vals.push(p.titles.join(' '));
   const hay=vals.join(' \u2022 ').toLowerCase().replace(/\s+/g,' ');
   const digits=q.replace(/\D/g,'');
   return hay.includes(q.replace(/\s+/g,' '))
@@ -14862,6 +14907,22 @@ let staffTab='shifts', selPerson=null;
 let stfFilter={title:'',lang:'',gender:'',active:'',sort:''};
 const TITLE_CLS={'Lead':'lead','Lead Assist':'assist','Designer':'designer','General Installer':'gen'};
 const TITLE_ABBR={'Lead':'Lead','Lead Assist':'Assist','Designer':'Designer','General Installer':'General'};
+/** The primary title's pill, then a small "+General" chip for each extra
+ *  title (Comments #36). `full` spells the primary title out. */
+function titlePillHTML(p, full){
+  return `<span class="pill ${TITLE_CLS[p.title]}">${esc(full ? p.title : TITLE_ABBR[p.title])}</span>`
+    + extraTitlePillsHTML(p);
+}
+/** Under one of their extra titles in the picker: a quiet pill with their
+ *  main title ("Lead"), so it's clear it's the same person. */
+function mainTitlePillHTML(p){
+  return `<span class="pill ttx ${TITLE_CLS[p.title]}" title="Main title: ${esc(p.title)}"`
+    + ` aria-label="Main title: ${esc(p.title)}">${esc(TITLE_ABBR[p.title])}</span>`;
+}
+function extraTitlePillsHTML(p){
+  return extraTitles(p).map(t=>`<span class="pill ttx ${TITLE_CLS[t]}" title="Also works as ${esc(t)}"`
+    + ` aria-label="Also works as ${esc(t)}">+${esc(TITLE_ABBR[t])}</span>`).join('');
+}
 const LANG_CLS={'English':'en','Spanish':'es','Both':'both'};
 const LANG_ABBR={'English':'EN','Spanish':'ES','Both':'EN/ES'};
 function esc(x){ return String(x==null?'':x)
@@ -15023,6 +15084,27 @@ function shirtOptionsHTML(cur){
 }
 const CONTRACTOR_INPUTS=[['perlegal','legalName'],['perstreet','street'],
   ['percity','city'],['perstate','state'],['perzip','zip']];
+/** The popup's "Also works as" ticks (Comments #36): every title but the
+ *  main one picked in Title. */
+function perAlsoHTML(primary, extras){
+  return TITLES.filter(t=>t!==primary).map(t=>`<label class="perchk">`
+    + `<input type="checkbox" data-also="${esc(t)}"${(extras||[]).includes(t)?' checked':''}> <span>${esc(t)}</span></label>`).join('');
+}
+function perAlsoPicked(){
+  return [...document.querySelectorAll('#peralsoopts input[data-also]:checked')].map(i=>i.dataset.also);
+}
+function drawPerAlso(extras){
+  document.getElementById('peralsoopts').innerHTML=perAlsoHTML(document.getElementById('pertitle2').value, extras);
+}
+/** PURE. The saved titles: the main one first, then the ticked extras in
+ *  TITLES order (a tick on the main title itself is ignored). */
+function perTitles(primary, extras){
+  const title=TITLES.includes(primary) ? primary : 'General Installer';
+  return [title, ...TITLES.filter(t=>t!==title && (extras||[]).includes(t))];
+}
+// Changing the main title keeps the other ticks; the new main title just
+// stops being offered as an extra.
+document.getElementById('pertitle2').onchange=()=>drawPerAlso(perAlsoPicked());
 function openPersonDlg(person){
   if(roBlocked()) return;
   editingPerson = person || null;
@@ -15030,6 +15112,7 @@ function openPersonDlg(person){
   document.getElementById('perfirst').value   = person ? person.first : '';
   document.getElementById('perlast').value    = person ? person.last : '';
   document.getElementById('pertitle2').value  = person ? person.title : 'General Installer';
+  drawPerAlso(person ? extraTitles(person) : []);
   document.getElementById('perlang').value    = person ? person.lang : 'Both';
   document.getElementById('pergender').value  = person ? person.gender : 'Female';
   document.getElementById('peremail').value   = person ? person.email : '';
@@ -15109,8 +15192,9 @@ document.getElementById('pergo').onclick=()=>{
   const first=document.getElementById('perfirst').value.trim();
   const last =document.getElementById('perlast').value.trim();
   if(!first && !last){ document.getElementById('perfirst').focus(); return; }
+  const titles=perTitles(document.getElementById('pertitle2').value, perAlsoPicked());
   const fields={first, last, name:[first,last].filter(Boolean).join(' '),
-    title:document.getElementById('pertitle2').value,
+    title:titles[0], titles,
     lang:document.getElementById('perlang').value,
     gender:document.getElementById('pergender').value,
     email:document.getElementById('peremail').value.trim(),
@@ -15653,7 +15737,11 @@ function drawStaffDlg(){
     : '<div class="stfnone">No installers on the roster yet. '
       + 'Add them from the Staffing tab.</div>';
   TITLES.forEach(t=>{
-    const grp=avail.filter(p=>p.title===t);
+    // Someone with several titles (Comments #36) is listed under each one:
+    // Chris (Lead, also General Installer) shows under Lead and under General
+    // Installer, so whoever is filling the general seats finds him there.
+    // Both rows are the same person and tick together.
+    const grp=avail.filter(p=>hasTitle(p,t));
     if(!grp.length) return;
     h+=`<div class="asghdr">${esc(t)}</div>`;
     // Available first, then by name -- someone who cannot work this shift
@@ -15679,6 +15767,7 @@ function drawStaffDlg(){
        + ` style="--i:${Math.min(rowI,16)}">`
        + `<input type="checkbox" data-pid="${p.id}"${on.has(p.id)?' checked':''}>`
        + `<span class="asgbody"><span class="asgn">${esc(p.name)}</span><span class="asgtags">`
+       + (p.title===t ? extraTitlePillsHTML(p) : mainTitlePillHTML(p))
        + (clash?`<span class="asgclash">ALSO ${esc([...new Set(days.filter(x=>!mine.has(x.id)&&myDates.has(x.date)
               &&(staffing[x.id]||[]).includes(p.id)).map(x=>x.crew))].join(' + '))}</span>`:'')
        + (av.ok?'':`<span class="asgunavail">${esc(av.why.toUpperCase())}</span>`)
@@ -15817,7 +15906,7 @@ function personRow(p){
     <td><b>${esc(p.name)}</b>${trainingDotHTML(p)}${teamBadgeHTML(p.id)}${p.phone||p.email
         ? `<br><span style="color:var(--mut);font-size:10.5px">${
             esc(p.phone?fmtPhone(p.phone):p.email)}</span>`:''}</td>
-    <td><span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span></td>
+    <td>${titlePillHTML(p)}</td>
     <td><span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span></td>
     <td>${p.gender==='Male'?'M':'F'}</td>
     <td>${(p.dates||[]).length}d</td>
@@ -15869,7 +15958,7 @@ function rosterSection(label, people, open, key){
 function rosterLists(){
   const f=stfFilter;
   const matches=p=>
-    (!f.title||p.title===f.title) && (!f.lang||p.lang===f.lang)
+    (!f.title||hasTitle(p,f.title)) && (!f.lang||p.lang===f.lang)
     && (!f.gender||p.gender===f.gender) && rosterMatchesQuery(p);
   // Ordered by how complete the record is, then by title, then by name. The
   // old order was title-then-name alone, which buried the people who still
@@ -15987,7 +16076,7 @@ function personDetailHTML(){
   const duties=personDuties(teams, seasonRoles, p.id, teamSeasonDefault());
   let h=`<div class="stfdetail"><div class="stfdhead"><h3>${esc(p.name)}${trainingDotHTML(p)}</h3>
     <div class="stfdmeta">
-      <span class="pill ${TITLE_CLS[p.title]}">${esc(p.title)}</span>
+      ${titlePillHTML(p, true)}
       <span class="pill ${LANG_CLS[p.lang]}">${esc(p.lang)}</span>
       ${duties.map(dutyPill).join('')}
       <span class="pill gen">${esc(p.gender)}</span>
@@ -16985,7 +17074,7 @@ function tbPool(){
       if(f==='trained') return tbIsTrained(p);
       if(f==='attended') return attendedTraining(p, staffing, trainingDays);
       if(f==='none') return !teamsOfPerson(teams, p.id, season).length;
-      if(f.startsWith('t:')) return p.title===f.slice(2);
+      if(f.startsWith('t:')) return hasTitle(p, f.slice(2));
       return true;
     });
 }
@@ -16997,7 +17086,7 @@ function tbCardHTML(p, team){
   const just=tb.just && tb.just.pid===p.id && tb.just.team===from;
   // In a team's column: what they own on that team; in the list: everything.
   const duties=personDuties(teams, seasonRoles, p.id, tb.season, team);
-  const lbl=`${p.name}, ${p.title}, ${p.lang}`+(roles.includes('Lead')?', Lead':'')
+  const lbl=`${p.name}, ${titlesText(p)}, ${p.lang}`+(roles.includes('Lead')?', Lead':'')
     + (duties.length?`, ${duties.map(d=>d.label).join(', ')}`:'')
     + (team ? ` on ${team.name}` : on.length ? `, on ${on.length} team${on.length===1?'':'s'}` : '');
   return `<div class="tbc${roles.includes('Lead')?' lead':''}${p.active===false?' off':''}${just?' tbjust':''}" role="listitem"`
@@ -17008,7 +17097,7 @@ function tbCardHTML(p, team){
     + roles.filter(r=>r==='Lead').map(teamRoleChip).join('')
     + (p.active===false ? `<span class="pill gen">Inactive</span>` : '')
     + (on.length ? `<span class="tbn" title="On ${esc(on.map(t=>t.name).join(', '))}">${on.length} team${on.length===1?'':'s'}</span>` : '')
-    + `<span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>`
+    + titlePillHTML(p)
     + `<span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>`
     + (READONLY ? '' : `<button type="button" class="tbdots" data-pmenu aria-haspopup="menu" aria-label="Options for ${esc(p.name)}">${IC.dots}</button>`)
     + (duties.length ? `<span class="tbduties">${duties.map(dutyPill).join('')}</span>` : '')
@@ -17766,7 +17855,7 @@ function vcfEsc(v){
 function vcardFor(p){
   const ov=overallRating(p);
   const note=[
-    `TBDG · ${p.title}`,
+    `TBDG · ${(p.titles&&p.titles.length?p.titles:[p.title]).join(', ')}`,
     `Language: ${p.lang==='Both'?'English + Spanish':p.lang}`,
     `Gender: ${p.gender}`,
     p.active===false?'Not working this season':'',
@@ -17779,7 +17868,7 @@ function vcardFor(p){
     `N:${vcfEsc(p.last)};${vcfEsc(p.first)};;;`,
     `FN:${vcfEsc(p.name)}`,
     'ORG:TBDG',
-    `TITLE:${vcfEsc(p.title)}`];
+    `TITLE:${vcfEsc((p.titles&&p.titles.length?p.titles:[p.title]).join(', '))}`];
   if(String(p.phone||'').trim()) lines.push(`TEL;type=CELL;type=VOICE;type=pref:${vcfEsc(fmtPhone(p.phone))}`);
   if(String(p.email||'').trim()) lines.push(`EMAIL;type=INTERNET;type=pref:${vcfEsc(String(p.email).trim())}`);
   // Home address is contractor info: admins only.
@@ -18005,7 +18094,7 @@ const TXT_GROUPS=[
   {key:'trained', label:TRAINED_LBL,       test:p=>txtActive(p)&&attendedTraining(p, staffing, trainingDays)},
   {key:'r0',  label:RANK_LBL[0],           test:p=>txtActive(p)&&rosterRank(p)===0},
   {key:'r2',  label:RANK_LBL[2],           test:p=>txtActive(p)&&rosterRank(p)===2},
-  ...TITLES.map(t=>({key:'t:'+t, label:t==='Lead'?'Leads':t+'s', test:p=>txtActive(p)&&p.title===t})),
+  ...TITLES.map(t=>({key:'t:'+t, label:t==='Lead'?'Leads':t+'s', test:p=>txtActive(p)&&hasTitle(p,t)})),
   {key:'en',  label:'English speakers',    test:p=>txtActive(p)&&p.lang==='English'},
   {key:'es',  label:'Spanish + bilingual', test:p=>txtActive(p)&&p.lang!=='English'},
 ];
@@ -18044,7 +18133,7 @@ function txtRowHTML(p, picked){
     <input type="checkbox" data-pid="${esc(p.id)}"${ok&&picked.has(p.id)?' checked':''}${ok?'':' disabled'}>
     <span class="nm">${esc(p.name)}</span>
     ${teamBadgeHTML(p.id, txtTeamsOn(picked))}
-    <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+    ${titlePillHTML(p)}
     <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
     ${txtStatus(p)}${txtLastHTML(p)}
     <span class="ph">${ok?esc(fmtPhone(p.phone)):'no phone'}</span></label>`;
@@ -18119,7 +18208,7 @@ function txtSendHTML(){
       });
       return `<div class="txtcard${txt.sent[p.id]?' sent':''}" data-pid="${esc(p.id)}">
         <div class="top"><label><input type="checkbox" data-sent${txt.sent[p.id]?' checked':''}>${esc(p.name)}</label>
-          <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+          ${titlePillHTML(p)}
           <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
           ${txtLastHTML(p)}${txtStatus(p)}</div>
         ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
@@ -20128,7 +20217,7 @@ function rosterRows(sections){
   if(admin) head.push('Legal name','Address','1099','Direct deposit');
   const rows=[head];
   sections.forEach(sec=>sec.people.forEach(p=>{
-    const r=[p.name, p.phone?fmtPhone(p.phone):'', p.title, p.lang, p.gender==='Male'?'M':'F',
+    const r=[p.name, p.phone?fmtPhone(p.phone):'', (p.titles&&p.titles.length?p.titles:[p.title]).join(', '), p.lang, p.gender==='Male'?'M':'F',
              p.shirt||'', (p.dates||[]).length, fmtFreeDays(p.dates)];
     if(admin) r.push(p.legalName||'',
       [p.street, [p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', '),
@@ -20233,7 +20322,7 @@ function rosterPrintPeople(all, screen, o){
   const keep = {
     active:()=>true, filters:()=>true,
     ready, needs:p=>!ready(p),
-    title:p=>p.title===o.whoTitle, lang:p=>p.lang===o.whoLang,
+    title:p=>(p.titles&&p.titles.length?p.titles:[p.title]).includes(o.whoTitle), lang:p=>p.lang===o.whoLang,
   }[o.who] || (()=>true);
   const list=(o.who==='filters' ? screen : all)
     .filter(p=>(o.inactive || p.active!==false) && keep(p));
@@ -20245,7 +20334,7 @@ function rosterPrintCell(p, key){
     case 'name': return p.name||'';
     case 'phone': return p.phone ? fmtPhone(p.phone) : '';
     case 'email': return p.email||'';
-    case 'title': return p.title||'';
+    case 'title': return p.title ? (p.titles&&p.titles.length?p.titles:[p.title]).join(', ') : '';
     case 'lang': return p.lang||'';
     case 'gender': return p.gender==='Male' ? 'M' : 'F';
     case 'shirt': return p.shirt||'';

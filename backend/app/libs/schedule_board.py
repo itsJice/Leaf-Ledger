@@ -169,6 +169,10 @@ def extract_payload(html: str) -> dict:
     return obj
 
 
+#: The roster titles, in the tool's order (TITLES in review_template.html).
+TITLES = ("Lead", "Lead Assist", "Designer", "General Installer")
+
+
 def _norm_person(p: dict) -> Optional[dict]:
     """The fields the lead pages need, normalised like normRoster() does."""
     if not isinstance(p, dict):
@@ -180,8 +184,12 @@ def _norm_person(p: dict) -> Optional[dict]:
     pid, name = str(p.get("id") or ""), " ".join(x for x in (first, last) if x)
     if not pid or not name:
         return None
-    title = p.get("title") if p.get("title") in ("Lead", "Lead Assist", "Designer", "General Installer") else "General Installer"
-    return {"id": pid, "name": name, "title": title,
+    title = p.get("title") if p.get("title") in TITLES else "General Installer"
+    # Every title they work, primary first (Comments #36), as normRoster()
+    # keeps it; `title` stays the primary, which roles and pay read.
+    raw = p.get("titles") if isinstance(p.get("titles"), list) else []
+    titles = [title] + [t for t in TITLES if t != title and t in raw]
+    return {"id": pid, "name": name, "title": title, "titles": titles,
             "email": str(p.get("email") or "").strip(), "phone": str(p.get("phone") or "").strip()}
 
 

@@ -24,7 +24,7 @@ FNS = ("jointShiftGroups", "jointStaffingState", "sharedStopsOutside", "staffing
        "unifyJointStaffing", "jointPartnersOf", "shiftShareNotes", "jointStopName",
        "staffingWith", "staffingWithout", "staffingCleared", "buildShifts", "shiftLabelOf",
        "shiftKeyOf", "isDallasNight", "dallasRunStart", "crewLabel", "byCrew", "crewNameKey",
-       "crewName", "crewTitle", "shiftFor", "shiftOfDay", "shiftNeed", "shiftCoverage",
+       "crewName", "crewTitle", "shiftFor", "shiftOfDay", "shiftNeed", "personTitles", "hasTitle", "coverageCounts", "shiftCoverage",
        "dayNeed", "coverageLabel", "clashesFor", "dallasWeekKeyOf", "dallasRunNights",
        "staffingCopiedTo", "stfWeekTargets", "stfSyncWeek", "stfWeekDays")
 
