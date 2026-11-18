@@ -18,7 +18,7 @@ NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 FNS = ["peekEsc", "attrEsc", "actualsMap", "actualFor", "dayHasHappened", "actualMinutes", "fmtSpan",
-       "onSiteText", "onSiteSubHTML", "canEditActuals", "peekTimesHTML"]
+       "onSiteText", "doneTimesText", "canEditActuals", "peekTimesHTML"]
 STUBS = """
   const IC={clock:'@', alert:'!'};
   let AUTH='t', READONLY=false, VIEWONLY=false, TVMODE=false, ME_ROLE='staff';
@@ -44,12 +44,12 @@ def test_serenity_reads_like_the_stop_note():
     out = run("""
       ACTUALS=actualsMap([SERENITY, JOINT, null, {row:null}]);
       const past={id:'2026-11-09|Crew 2|0', date:'2026-11-09'};
-      console.log(JSON.stringify([onSiteText(actualFor(105, past.id)), onSiteSubHTML(past, 105),
+      console.log(JSON.stringify([onSiteText(actualFor(105, past.id)), doneTimesText(actualFor(105, past.id)),
         onSiteText(actualFor(69, '2026-11-04|Crew 3|0')), actualFor(69, '2026-11-04|Crew 1|0'), ACTUALS.size]));
     """)
     text, sub, joint, other, size = out
     assert text == "On site 3:44 PM to 6:27 PM (2h 43m)"
-    assert "on site 2h 43m" in sub and 'title="On site 3:44 PM to 6:27 PM (2h 43m) (Install Times)"' in sub
+    assert sub == "3:44 PM to 6:27 PM · 2h 43m"
     # A joint shift's visit shows on both crew-days, never on another crew's.
     assert joint == "Arrived 11:00 PM, no leave time yet"
     assert other is None and size == 3
