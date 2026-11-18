@@ -83,6 +83,10 @@ def test_nothing_changed_here_means_nothing_overwritten():
     assert out == [0, True, []]
 
 
+# Comments #39: the load and the save settle this tab's colliding new clients
+# (settleLocalAdds) before syncBlockedBy decides anything.
+SETTLE = "\n".join([const_line("ROW_MAP_KEYS"), const_line("ROW_SET_KEYS")] + [js_function(n) for n in (
+    "sameLocalClient", "collidingNewClients", "remapLocalRows", "settleLocalAdds")]) + "\n"
 SAVE_LOOP = """
 // The real save loop, with the page's DOM/board stubbed: the board is one
 // document, DOC; applying a document replaces it (as applySharedDoc does).
@@ -124,7 +128,7 @@ async function fetch(url, init){
 }
 // The page sends through authFetch (fresh token, one retry on a 401).
 async function authFetch(url, init){ return fetch(url, init); }
-""" + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy", "pageOutdated", "showPageOutdated")) + "\nasync " + js_function("putShared") + """
+""" + SETTLE + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy", "pageOutdated", "showPageOutdated")) + "\nasync " + js_function("putShared") + """
 function load(){        // what pullSharedNow does with GET /state
   DOC={}; rebaseOnto({state:clone(server.doc), updatedAt:server.at, updatedBy:server.by}, null, {});
 }
@@ -302,7 +306,7 @@ DIRECTORY = [
     {"name": "Byrd, Grace - (Lucas/Eilers Design Associates L.L.P)", "sheet_name": "Grace Byrd",
      "former_names": ["Grace Byrd", "Byrd, Grace"]},
 ]
-BLOCK = "\n".join(js_function(n) for n in (
+BLOCK = SETTLE + "\n".join(js_function(n) for n in (
     "normName", "sameNewClient", "syncSyntheticName", "restoreSyntheticClients", "syncBlockedBy")) + """
 const C={}; let nextSyntheticRow=900001, syncBlocked=false, clientDirectory=null, sharedBase=null;
 const banners=[];

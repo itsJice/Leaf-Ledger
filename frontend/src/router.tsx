@@ -7,6 +7,9 @@ import Layout from "components/Layout";
 import { UserGuard } from "app/auth/UserGuard";
 import { RoleGate } from "app/auth/RoleGate";
 import { preloadPagesWhenIdle } from "./utils/preloadPages";
+import { useStuckCheck } from "./utils/useStuckCheck";
+// Not lazy: it has to show even when page chunks can't load.
+import RouteCrash from "./prod-components/RouteCrash";
 
 export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
   return <Suspense>{children}</Suspense>;
@@ -23,6 +26,7 @@ export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
  */
 function PageLoading() {
   const [slow, setSlow] = useState(false);
+  useStuckCheck(true, "Page");
   useEffect(() => {
     const t = window.setTimeout(() => setSlow(true), 200);
     return () => window.clearTimeout(t);
@@ -63,6 +67,7 @@ export const router = createBrowserRouter([
   // Where invite and password-reset emails land -- also reachable signed out.
   {
     path: "/set-password",
+    errorElement: <RouteCrash />,
     element: (
       <SuspenseWrapper>
         <SetPassword />
@@ -72,6 +77,7 @@ export const router = createBrowserRouter([
   // Where magic-link, confirm-signup and change-email emails land.
   {
     path: "/auth/confirm",
+    errorElement: <RouteCrash />,
     element: (
       <SuspenseWrapper>
         <AuthConfirm />
@@ -80,6 +86,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/login",
+    errorElement: <RouteCrash />,
     element: (
       <SuspenseWrapper>
         <Login />
@@ -101,6 +108,7 @@ export const router = createBrowserRouter([
       </AppProvider>
     ),
     children: userRoutes,
+    errorElement: <RouteCrash />,
   },
   {
     path: "*",

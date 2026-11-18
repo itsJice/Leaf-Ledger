@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { withFrameWatch } from "utils/scheduleFrameWatch";
+import { useStuckCheck } from "utils/useStuckCheck";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2, TreePine } from "components/icons";
 import Layout from "components/Layout";
@@ -66,6 +68,7 @@ export default function InstallSchedule() {
   const [tv, setTv] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  useStuckCheck(html === null && error === null, "Install Schedule");
   // The view the page is showing, as far as we know: what it was opened on,
   // then whatever it last reported or we last asked for. Route changes that
   // already match it send nothing, so the page and the URL never ping-pong.
@@ -99,7 +102,9 @@ export default function InstallSchedule() {
         // Opens on the view of the route we're on by the time it arrived.
         const view = viewForPath(pathRef.current);
         pageView.current = view;
-        if (!cancelled) setHtml(withHostFlags(text, view, viewOnly, Boolean(me?.viewOnly)));
+        // withFrameWatch: errors and saves inside the schedule go to the error
+        // log and trail (utils/scheduleFrameWatch.ts).
+        if (!cancelled) setHtml(withFrameWatch(withHostFlags(text, view, viewOnly, Boolean(me?.viewOnly))));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }

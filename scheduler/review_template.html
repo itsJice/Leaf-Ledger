@@ -512,7 +512,7 @@ dialog:modal.dlgmore:not([id=stfdlg])>.btns:last-child{box-shadow:0 -1px 0 var(-
 #syncbanner b{font-weight:700}
 #syncbanner .sbsub{display:block;margin-top:2px}
 #syncbanner ul{margin:4px 0 0;padding-left:18px}
-#syncbanner .sbbtns{display:flex;gap:6px;flex:0 0 auto}
+#syncbanner .sbbtns{display:flex;flex-wrap:wrap;gap:6px;flex:0 0 auto}
 #syncbanner button{border:1px solid var(--warn-ink);background:transparent;color:var(--warn-ink);
   border-radius:6px;padding:6px 12px;min-height:32px;font-weight:700;font-size:12px;cursor:pointer}
 #syncbanner button.sbreload{background:var(--warn-ink);color:#fff}
@@ -3395,6 +3395,126 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 </dialog>
 <script>
 const DATA = __DATA__;
+// ---------- a device copy that can't be opened (Comments #39) ----------
+// This computer's copy of the schedule (localStorage, LS_KEY below) is
+// restored before the board draws. If it is broken in a way nothing else
+// catches, the page used to stop part-way and show a blank board, and a
+// reload restored the same copy again. Now: put the copy aside under
+// '<key>-broken-<time>' (nothing is truly lost), drop it, and reload once,
+// so the live schedule loads and saving resumes on a plain refresh.
+const DEVICE_COPY_KEY='tbdg__SEASON__review';
+const DEVICE_COPY_DROPPED='tbdg-device-copy-dropped';
+let pageBooted=false;
+/** Put the device copy aside and remove it. True if there was one. */
+function dropBrokenDeviceCopy(err, where){
+  try{ console.warn('Install Schedule: the copy of the schedule on this computer could not be opened ('+where+'). Loading the live schedule.', err); }catch(_){}
+  let raw=null;
+  try{ raw=localStorage.getItem(DEVICE_COPY_KEY); }catch(_){ return false; }
+  if(raw==null) return false;
+  try{
+    // Keep only the newest set-aside copy, so repeats can't fill storage.
+    Object.keys(localStorage).filter(k=>k.indexOf(DEVICE_COPY_KEY+'-broken-')===0)
+      .forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){} });
+    localStorage.setItem(DEVICE_COPY_KEY+'-broken-'+Date.now(), raw);
+  }catch(_){}
+  try{ localStorage.removeItem(DEVICE_COPY_KEY); }catch(_){ return false; }
+  try{ sessionStorage.setItem(DEVICE_COPY_DROPPED, String(Date.now())); }catch(_){}
+  return true;
+}
+/** Drop the device copy and reload once (never twice in a row). */
+let deviceCopyRecovering=false;
+function recoverFromDeviceCopy(err, where){
+  if(deviceCopyRecovering) return true;
+  // Never a reload loop: one automatic reload a minute at most. (Its own
+  // key: the banner clears DEVICE_COPY_DROPPED.)
+  let recent=false;
+  try{ recent=Date.now()-(+sessionStorage.getItem('tbdg-device-copy-reloaded')||0) < 60000; }catch(_){}
+  if(!dropBrokenDeviceCopy(err, where) || recent) return false;
+  deviceCopyRecovering=true;
+  try{ sessionStorage.setItem('tbdg-device-copy-reloaded', String(Date.now())); }catch(_){}
+  try{ (window.top||window).location.reload(); }catch(_){ try{ location.reload(); }catch(__){} }
+  return true;
+}
+// Anything thrown while the page is still starting up, with a device copy
+// in place, is treated as that copy's fault.
+window.addEventListener('error', e=>{
+  if(pageBooted) return;
+  if(recoverFromDeviceCopy(e && (e.error||e.message), 'start-up')) { try{ e.preventDefault(); }catch(_){} }
+});
+// ---------- telling the app's error log what happened ----------
+// Inside the app, this page reports what went wrong to the error log
+// (backend/app/apis/app_events), so a problem someone flags can be traced
+// instead of guessed at. The app's own watcher (frontend
+// utils/scheduleFrameWatch.ts) already sends script errors and each /api
+// call's status; these add what only this page knows:
+//   * a board that loaded but shows nothing (Comments #39's blank schedule),
+//     or that never finished starting up
+//   * why a save was refused or held back: an older publish of the page, a
+//     clashing new client, a schedule that kept changing, a dropped change
+//     after a merge, a broken copy on this device
+// Reports only. Nothing here changes what the page does, and a failure here
+// is swallowed. Standalone (not inside the app) it does nothing. No client
+// details: counts, views and reasons only.
+const LL_EVENT='ll-frame-event';
+function llReport(kind, message, detail){
+  try{
+    if(window.parent===window) return;
+    let d=detail||{};
+    try{ if(JSON.stringify(d).length>3000) d={trimmed:true}; }catch(_){ d={}; }
+    window.parent.postMessage({type:LL_EVENT, kind:String(kind), message:String(message).slice(0,500), detail:d}, '*');
+  }catch(_){}
+}
+/** PURE. Why the board looks empty when it shouldn't, or null. `f` is
+ *  llScreenFacts(): what's on screen and what the page holds. */
+function llBlankReason(f){
+  if(!f) return null;
+  if(!f.booted) return 'The schedule never finished starting up';
+  if(f.hostingSeason || f.tv) return null;          // another season or the wall display owns the screen
+  if(!f.daysInData) return 'The schedule loaded with no days in it';
+  if(f.visibleChars < 5 && f.visibleChildren < 2) return 'The schedule loaded but the screen is empty ('+f.view+' view)';
+  return null;
+}
+/** What the screen shows right now, in counts only. */
+function llScreenFacts(){
+  const f={booted:false, view:'', daysInData:0, stopsInData:0, visibleChars:0, visibleChildren:0,
+           hostingSeason:false, tv:false, signedIn:false, syncBlocked:false, lastSaveOk:null,
+           deviceCopyKb:0, banner:''};
+  try{ f.booted=!!pageBooted; }catch(_){}
+  try{ f.view=String(viewMode||''); }catch(_){}
+  try{ f.daysInData=Array.isArray(days)?days.length:0; }catch(_){}
+  try{ f.stopsInData=Object.keys(C||{}).length; }catch(_){}
+  try{ f.hostingSeason=!!hostingSeason; }catch(_){}
+  try{ f.tv=document.body.classList.contains('tv'); }catch(_){}
+  try{ f.signedIn=!!AUTH; }catch(_){}
+  try{ f.syncBlocked=!!syncBlocked; }catch(_){}
+  try{ f.lastSaveOk=lastPushOk; }catch(_){}
+  try{ f.deviceCopyKb=Math.round((localStorage.getItem(DEVICE_COPY_KEY)||'').length/1024); }catch(_){}
+  try{
+    const b=document.getElementById('syncbanner');
+    if(b && !b.hidden){ const t=b.querySelector('b'); f.banner=t?t.textContent.slice(0,120):''; }
+  }catch(_){}
+  try{
+    // The view on screen: the first of these that is showing.
+    const shown=['calwrap','staffwrap','loadwrap','side'].map(id=>document.getElementById(id))
+      .find(el=>el && el.offsetParent!==null && getComputedStyle(el).display!=='none');
+    if(shown){ f.visibleChars=(shown.innerText||'').trim().length; f.visibleChildren=shown.children.length; }
+  }catch(_){}
+  return f;
+}
+/** Look at the screen a while after start-up, once early and once after the
+ *  live schedule has had time to load. One report per page load at most. */
+let llHealthReported=false;
+function llCheckHealth(when){
+  try{
+    if(llHealthReported || document.visibilityState!=='visible') return;
+    const f=llScreenFacts(), why=llBlankReason(f);
+    if(!why) return;
+    llHealthReported=true;
+    llReport('blank', why, Object.assign({checked:when}, f));
+  }catch(_){}
+}
+setTimeout(()=>llCheckHealth('10s'), 10000);
+setTimeout(()=>llCheckHealth('30s'), 30000);
 // ---------- which season this page IS ----------
 // Baked in at build time, because the page cannot look it up: it runs inside
 // a srcDoc iframe and so has no URL, no query string and no location of its
@@ -4846,7 +4966,7 @@ let stateWarning = null;
 // Season-scoped: two seasons open in the same browser are two separate
 // schedules, and a shared slot would let an archived season's snapshot be
 // restored over the live one on the next page load.
-const LS_KEY = 'tbdg__SEASON__review';
+const LS_KEY = DEVICE_COPY_KEY;   // 'tbdg__SEASON__review'
 function baselinePlacement(){
   const m = {};
   DATA.days.forEach(d=>d.stops.forEach(r=>{ (m[r] = m[r] || []).push(d.id); }));
@@ -4857,12 +4977,21 @@ function currentPlacement(){
   days.forEach(d=>d.stops.forEach(r=>{ (m[r] = m[r] || []).push(d.id); }));
   return m;
 }
+// Rows the last applyPlacement left out for having no client (see below).
+let placementGhosts = [];
 function applyPlacement(place){
   const want = {};
-  Object.entries(place).forEach(([r,ids])=>{ want[+r] = ids; });
+  placementGhosts = [];
+  // A row with no client here (a device copy whose added client went
+  // missing) has no map point, and routing it threw while drawing: the
+  // board stayed blank (Comments #39). Leave it out, like a lost day.
+  let missing = 0;
+  Object.entries(place).forEach(([r,ids])=>{
+    if(!C[+r] || N[+r]===undefined || !Array.isArray(ids)){ missing++; placementGhosts.push(String(r)); return; }
+    want[+r] = ids;
+  });
   const byId = new Map(days.map(d=>[d.id,d]));
   days.forEach(d=>{ d.stops = []; });
-  let missing = 0;
   Object.entries(want).forEach(([r,ids])=>{
     ids.forEach(id=>{
       let d = byId.get(id);
@@ -5131,6 +5260,8 @@ function applyRosterSeedFallback(){
   roster = normRoster(SPEC.rosterSeed || []);
   return roster.length > 0;
 }
+// Placed rows the device copy had no client for (keepGhostRows).
+let deviceGhostRows = [];
 try{
   const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
   if(s.version && SPEC.version && s.version !== SPEC.version){
@@ -5149,6 +5280,7 @@ try{
     stopPin = normStopPins(s.stopPin);
     lastScheduledFrom = normLastScheduledFrom(s.lastScheduledFrom);
     const missing = applyPlacement(s.placement);
+    deviceGhostRows = placementGhosts.slice();
     materializeTrainingDays();
     moves = s.moves || [];
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
@@ -5175,8 +5307,25 @@ try{
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     stateWarning = 'Migrated saved changes to the new format — please review.';
   }
-}catch(e){}
+}catch(e){ recoverFromDeviceCopy(e, 'restore'); }
 applyRosterSeedFallback();
+/** PURE. A row the device copy placed but had no client for was left off the
+ *  board at start-up. That is a broken copy, not this tab removing the stop:
+ *  give `mine` the base's placement and client for those rows, so the merge
+ *  sees no change there and the server's copy stands. */
+function keepGhostRows(mine, base, rows){
+  if(!rows || !rows.length || !base) return mine;
+  const out=JSON.parse(JSON.stringify(mine||{}));
+  rows.forEach(r=>{
+    r=String(r);
+    out.placement=out.placement||{};
+    if(base.placement && base.placement[r]!==undefined) out.placement[r]=base.placement[r];
+    else delete out.placement[r];
+    const bd=(base.newClients||[]).find(d=>d && String(d.row)===r);
+    if(bd && !(out.newClients||[]).some(d=>d && String(d.row)===r)) out.newClients=[...(out.newClients||[]), bd];
+  });
+  return out;
+}
 // The server document this tab last loaded or saved: {at: its updatedAt,
 // state: sharedDocOf(...)}. Every save sends `at` (the stale-tab guard, see
 // mergeShared). Starts as this device's own record of it, so changes saved
@@ -5428,8 +5577,20 @@ function mergeShared(base, mine, theirs, label){
     else if(nb[r]) conflicts.push(`${nt[r].name||'New client'}: details`);
     else if(!sameNewClient(nt[r], nm[r])) hard.push(`New client ${nm[r].name||''}`.trim());
   });
-  Object.keys(nb).forEach(r=>{ if(!nm[r]){ changed++; if(same(nt[r], nb[r])) delete nc[r]; } });
+  const dropped=[];
+  Object.keys(nb).forEach(r=>{ if(!nm[r]){ changed++; if(same(nt[r], nb[r])){ delete nc[r]; dropped.push(r); } } });
   if(any('newClients')) out.newClients=Object.values(nc);
+  // A removed added client takes its row-keyed values with it, or they
+  // point at a row with no client (Comments #39: a blank board).
+  dropped.forEach(r=>{
+    ['placement','stopPin','lastScheduledFrom','hoursOverride'].forEach(k=>{
+      if(out[k] && typeof out[k]==='object' && out[k][r]!==undefined){ out[k]={...out[k]}; delete out[k][r]; } });
+    if(out.manualOrder && typeof out.manualOrder==='object'){
+      const mo={}; Object.keys(out.manualOrder).forEach(d=>{
+        const l=out.manualOrder[d]; mo[d]=Array.isArray(l) ? l.filter(x=>String(x)!==r) : l; });
+      out.manualOrder=mo;
+    }
+  });
 
   // Roster: per person, per field. Field-level, so a text logged here and a
   // legal name added by an import both survive.
@@ -6604,12 +6765,14 @@ async function pullSharedNow(){
   // A draft is built on the board as it was; loading someone else's save
   // under it would scramble it. Apply merges onto newer saves instead.
   if(!AUTH || DRAFT) return;
+  let loaded = false;
   try{
     const r = await authFetch(`/api/install-schedule/state?version=${encodeURIComponent(SPEC.version)}`
                           + `&season=${encodeURIComponent(PAGE_SEASON)}`,
                           {headers:{Authorization:AUTH}});
     if(!r.ok) throw new Error(r.status);
     const j = await r.json();
+    loaded = true;
     if(pageOutdated(j) && !syncBlocked) showPageOutdated();
     if(j.state && j.state.placement){
       // What this tab holds right now: the server document it last saw
@@ -6620,7 +6783,13 @@ async function pullSharedNow(){
       // rule here was "newest timestamp wins the whole document", which is
       // how a stale copy could replace a newer save).
       const base = (sharedBase && sharedBase.state) ? sharedBase : null;
-      const mine = sharedDocOf(snapshot());
+      // A new client this device added at a row the server has since used
+      // for another one is merged or moved to a fresh row, not a lock
+      // (Comments #39).
+      let mine = sharedDocOf(snapshot());
+      if(base && deviceGhostRows.length) mine = keepGhostRows(mine, base.state, deviceGhostRows);
+      deviceGhostRows = [];
+      mine = settleLocalAdds(j, mine, !!base).mine;
       if(syncBlockedBy(j)) return;
       const res = rebaseOnto(j, base, mine);
       stateWarning = res.missing
@@ -6679,7 +6848,12 @@ async function pullSharedNow(){
     // Still nothing (no earlier build at all -- a genuinely first deployment):
     // the seed file is the last resort, so the Staffing tab isn't blank.
     if(applyRosterSeedFallback()) render();
-  }catch(e){ syncState = 'local'; }
+  }catch(e){
+    syncState = 'local';
+    // The live state arrived but merging this computer's copy into it threw:
+    // that copy is the problem. Put it aside and load the live one.
+    if(loaded) recoverFromDeviceCopy(e, 'merge');
+  }
 }
 let pushTimer = null;
 // Short debounce -- just enough to coalesce a fast drag/edit burst into
@@ -6804,12 +6978,26 @@ function pageOutdated(j){
   return !!(j && j.pageRev && PAGE_REV && String(j.pageRev)!==String(PAGE_REV));
 }
 function showPageOutdated(){
+  if(!syncBlocked && typeof llReport==='function') llReport('save_blocked', 'Save refused: this tab is from an older version of the schedule page', {pageRev:String(PAGE_REV||'')});
   syncBlocked=true;
   showSyncBanner({title:'This schedule was updated.',
     sub:'Reload to get the new version and keep saving. Your changes are kept on this device.',
     reload:true, sticky:true});
 }
-function syncBlockedBy(j){
+/** A server new client (`def`) is the same client visit as this tab's row
+ *  `c`: same visit type (a takedown row shares its location's name), and the
+ *  same saved name, address, shown name or Clients tab entry. */
+function sameLocalClient(def, c){
+  if(!def || !c) return false;
+  const dirOf=n=>(typeof clientDirectory!=='undefined' && clientDirectory && n) ? clientDirectory.get(normName(n)) : null;
+  return (def.visitType||'Standard')===(c.visitType||'Standard')
+    && (sameNewClient(def, {name:c.sheetName||c.name, street:c.street, visitType:c.visitType})
+      || normName(c.name)===normName(def.name)
+      || (!!dirOf(def.name) && dirOf(def.name)===dirOf(c.name)));
+}
+/** Server new clients whose row this tab holds as a different client it
+ *  added itself (not in the base it last synced). */
+function collidingNewClients(j){
   // Rows the server already had when this tab last synced are not this tab's
   // own adds, whatever they are called now. Before 10/15 this compared the
   // name shown here (the Clients tab's spelling, e.g. "Byrd, Grace - (Lucas/
@@ -6817,21 +7005,135 @@ function syncBlockedBy(j){
   // clients that were already saved.
   const known=new Set(((sharedBase && sharedBase.state && sharedBase.state.newClients)||[])
     .map(d=>String(d && d.row)));
-  const dirOf=n=>(clientDirectory && n) ? clientDirectory.get(normName(n)) : null;
-  // The visit type has to match too: a takedown row shares its location's name.
-  const sameHere=(def,c)=>(def.visitType||'Standard')===(c.visitType||'Standard')
-    && (sameNewClient(def, {name:c.sheetName||c.name, street:c.street, visitType:c.visitType})
-      || normName(c.name)===normName(def.name)
-      || (!!dirOf(def.name) && dirOf(def.name)===dirOf(c.name)));
-  const rows=((j.state && j.state.newClients)||[])
+  return ((j && j.state && j.state.newClients)||[])
     .filter(def=>def && C[def.row] && C[def.row].synthetic
-      && !known.has(String(def.row)) && !sameHere(def, C[def.row]));
+      && !known.has(String(def.row)) && !sameLocalClient(def, C[def.row]));
+}
+/** PURE. `doc` (a shared document of this tab's) with every row-keyed value
+ *  moved from row `from` to `rowMap[from]` (a row of the server's, or a fresh
+ *  one). Where `doc` or the server (`theirs`) already has a value for the
+ *  new row, that one is kept: the server wins. A row mapped to null is
+ *  dropped. Returns a new document. */
+const ROW_MAP_KEYS=['placement','stopPin','lastScheduledFrom','loadStops','hoursOverride'];
+const ROW_SET_KEYS=['confirmed','notInstalling','hold'];
+function remapLocalRows(doc, rowMap, theirs){
+  const out=JSON.parse(JSON.stringify(doc||{})); theirs=theirs||{};
+  const froms=Object.keys(rowMap||{});
+  if(!froms.length) return out;
+  const to=r=>Object.prototype.hasOwnProperty.call(rowMap, String(r)) ? rowMap[String(r)] : r;
+  ROW_MAP_KEYS.forEach(k=>{
+    const m=out[k]; if(!m || typeof m!=='object' || Array.isArray(m)) return;
+    const moved={};
+    froms.forEach(f=>{ if(Object.prototype.hasOwnProperty.call(m, f)){ moved[f]=m[f]; delete m[f]; } });
+    Object.keys(moved).forEach(f=>{
+      const t=rowMap[f]; if(t==null) return;
+      const key=String(t);
+      if(Object.prototype.hasOwnProperty.call(m, key)) return;
+      const th=theirs[k];
+      m[key]=(th && typeof th==='object' && Object.prototype.hasOwnProperty.call(th, key)) ? th[key] : moved[f];
+    });
+  });
+  ROW_SET_KEYS.forEach(k=>{
+    if(!Array.isArray(out[k])) return;
+    const seen=new Set(), res=[];
+    out[k].forEach(r=>{
+      const t=to(r); if(t==null) return;
+      const v=typeof r==='number' ? +t : String(t);
+      if(!seen.has(String(v))){ seen.add(String(v)); res.push(v); }
+    });
+    out[k]=res;
+  });
+  if(out.manualOrder && typeof out.manualOrder==='object'){
+    Object.keys(out.manualOrder).forEach(d=>{
+      const l=out.manualOrder[d]; if(!Array.isArray(l)) return;
+      const seen=new Set(), res=[];
+      l.forEach(r=>{
+        const t=to(r); if(t==null) return;
+        const v=typeof r==='number' ? +t : String(t);
+        if(!seen.has(String(v))){ seen.add(String(v)); res.push(v); }
+      });
+      out.manualOrder[d]=res;
+    });
+  }
+  if(out.comments && typeof out.comments==='object'){
+    const moved={};
+    froms.forEach(f=>{ if(out.comments[f]){ moved[f]=out.comments[f]; delete out.comments[f]; } });
+    Object.keys(moved).forEach(f=>{
+      const t=rowMap[f]; if(t==null) return;
+      const key=String(t), have=out.comments[key]||[];
+      const seen=new Set(have.map(stableJSON));
+      out.comments[key]=[...have, ...moved[f].filter(x=>!seen.has(stableJSON(x)))];
+    });
+  }
+  if(Array.isArray(out.moves))
+    out.moves=out.moves.map(m=>(m && m.row!=null && to(m.row)!=null && String(to(m.row))!==String(m.row))
+      ? {...m, row:+to(m.row)} : m);
+  if(Array.isArray(out.newClients))
+    out.newClients=out.newClients.filter(d=>!(d && to(d.row)==null))
+      .map(d=>(d && String(to(d.row))!==String(d.row)) ? {...d, row:+to(d.row)} : d);
+  return out;
+}
+/** Instead of locking the tab when the server saved a different new client
+ *  at a row this tab used for one of its own (Comments #39): if the server
+ *  already has this tab's client at another row, it was added twice, so
+ *  this tab's copy is dropped and its changes move to the server's row; if
+ *  not, it is a different client added at the same time, so this tab's one
+ *  moves to a fresh row and is saved with the rest. `mine` is this tab's
+ *  shared document; returns it with the rows moved, and updates the board's
+ *  clients (C) to match. Without a base (`keepMine` false) this tab's
+ *  changes are not merged anyway, so its colliding rows are just dropped. */
+function settleLocalAdds(j, mine, keepMine){
+  const rows=collidingNewClients(j);
+  if(!rows.length) return {mine, merged:[], renumbered:[]};
+  const server=(j.state.newClients||[]).filter(Boolean);
+  const serverRows=new Set(server.map(d=>String(d.row)));
+  let next=Math.max(typeof nextSyntheticRow==='number' ? nextSyntheticRow : 900001,
+    ...server.map(d=>+d.row+1), ...Object.keys(C).map(r=>+r+1).filter(r=>r>900000));
+  const rowMap={}, merged=[], renumbered=[], moveC={};
+  rows.forEach(def=>{
+    const r=String(def.row), c=C[def.row];
+    const dup=server.find(d=>String(d.row)!==r && sameLocalClient(d, c)
+      && !(C[d.row] && C[d.row].synthetic && !sameLocalClient(d, C[d.row]) && !rows.some(x=>String(x.row)===String(d.row))));
+    if(dup){ rowMap[r]=+dup.row; merged.push(c.name); moveC[r]=null; }
+    else if(!keepMine){ rowMap[r]=null; moveC[r]=null; }
+    else {
+      while(serverRows.has(String(next)) || (C[next] && !rows.some(x=>+x.row===next))) next++;
+      rowMap[r]=next; renumbered.push(c.name); moveC[r]=next; next++;
+    }
+  });
+  const out=remapLocalRows(mine, rowMap, sharedDocOf(j.state));
+  // The board's clients: take this tab's rows off the server's row numbers
+  // (applySharedDoc then puts the server's clients there), and re-add a
+  // renumbered one at its new row.
+  const old={};
+  Object.keys(moveC).forEach(r=>{ old[r]=C[r]; delete C[r]; });
+  Object.keys(moveC).forEach(r=>{
+    const t=moveC[r]; if(t==null) return;
+    C[t]={...old[r], row:t};
+    if(typeof N!=='undefined' && N && N[r]!==undefined) N[t]=N[r];
+  });
+  if(typeof nextSyntheticRow==='number' && next>nextSyntheticRow) nextSyntheticRow=next;
+  return {mine:out, merged, renumbered};
+}
+function syncBlockedBy(j){
+  const rows=collidingNewClients(j);
   if(!rows.length) return false;
+  if(typeof llReport==='function') llReport('save_blocked', 'Save held back: another tab added a client at the same time', {clashingClients:rows.length});
   syncBlocked=true;
   showSyncBanner({title:'This tab is out of date and needs a reload.',
     sub:'Someone else added a new client at the same time as you, so your changes could not be combined with theirs. '
-       +'Reload, then add '+rows.map(d=>C[d.row].name).join(', ')+' again.',
-    reload:true, sticky:true});
+       +'Reload, then add '+rows.map(d=>C[d.row].name).join(', ')+' again. '
+       +'If it keeps coming back, use the live schedule.',
+    reload:true, useLive:true, sticky:true});
+  return true;
+}
+/** Throw away this computer's copy of the schedule and load the live one
+ *  (the "Use the live schedule" button). Like resetAll, without the moves &
+ *  approvals wording. */
+function useLiveSchedule(){
+  if(!confirm('Throw away the copy on this computer and load the live schedule?')) return false;
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  try{ (window.top||window).location.reload(); }catch(e){ location.reload(); }
   return true;
 }
 // One save or load at a time: a load landing between a save's send and its
@@ -6875,10 +7177,12 @@ async function putShared(){
         const j = await r.json();
         // A newer publish of this page: nothing to merge, reload instead.
         if(j && j.staleTemplate){ showPageOutdated(); break; }
-        if(!j || !j.state || syncBlockedBy(j)) break;
+        if(!j || !j.state) break;
+        const mine = settleLocalAdds(j, sharedDocOf(snapshot()), true).mine;
+        if(syncBlockedBy(j)) break;
         // No base at all (this tab never loaded the shared copy): treat
         // everything here as a change, so anything that differs is listed.
-        const res = rebaseOnto(j, sharedBase || {at:null, state:{}}, sharedDocOf(snapshot()));
+        const res = rebaseOnto(j, sharedBase || {at:null, state:{}}, mine);
         render(); saveLocal();
         if(!res.pending){ lastPushOk = true; if(typeof syncToolbar==='function') syncToolbar(); return true; }
         continue;
@@ -6894,12 +7198,17 @@ async function putShared(){
       lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
       return r.ok;
     }
-    if(!syncBlocked)
+    if(!syncBlocked){
+      if(typeof llReport==='function') llReport('save_blocked', 'Save gave up: the schedule kept changing while this tab saved', {attempts:4});
       showSyncBanner({title:'This schedule keeps changing while this tab saves.',
         sub:'Your changes are kept on this device. Reload to see the latest, then check them.', reload:true});
+    }
     lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar();
     return false;
-  }catch(e){ lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false; }
+  }catch(e){
+    if(typeof llReport==='function') llReport('save_blocked', 'Save failed: '+String(e && e.message || e), {error:String(e && e.name || 'Error')});
+    lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false;
+  }
 }
 var lastPushOk = null;   // null: nothing pushed yet this session
 // ---------- the out-of-date banner ----------
@@ -6912,6 +7221,8 @@ function syncWho(j){
 }
 function showMergedBanner(j, res){
   if(res.conflicts.length){
+    if(typeof llReport==='function') llReport('save_conflict', 'Merged with a newer save: '+res.conflicts.length+' of this tab\'s changes were dropped because someone else changed the same thing',
+      {conflicts:res.conflicts.length});
     showSyncBanner({title:'This tab was out of date.',
       sub:'We loaded the latest'+syncWho(j)+' and re-applied your changes, except these, which someone else '
          +'changed too. Their version was kept:',
@@ -6930,12 +7241,15 @@ function showSyncBanner(o){
         + (list.length>8 ? `<li>and ${list.length-8} more</li>` : '') + '</ul>' : '')
     + `</div><div class="sbbtns">`
     + (o.reload ? '<button type="button" class="sbreload">Reload</button>' : '')
+    + (o.useLive ? '<button type="button" class="sblive">Use the live schedule</button>' : '')
     + (o.sticky ? '' : '<button type="button" class="sbok">OK</button>')
     + '</div>';
   b.hidden=false;
   const ok=b.querySelector('.sbok'), rl=b.querySelector('.sbreload');
   if(ok) ok.onclick=()=>{ b.hidden=true; };
   if(rl) rl.onclick=()=>{ try{ (window.top||window).location.reload(); }catch(e){ location.reload(); } };
+  const lv=b.querySelector('.sblive');
+  if(lv) lv.onclick=()=>{ useLiveSchedule(); };
 }
 // Flush a pending debounced push when the page is going away. Without
 // this, an edit made in the last 200ms before the tab is closed, the phone
@@ -7158,7 +7472,7 @@ document.addEventListener('keydown', e=>{
 });
 
 // ---------- routing (embedded OSRM matrix) ----------
-function leg(a,b){ return D[a][b]||0; }
+function leg(a,b){ const row=D[a]; return (row && row[b])||0; }
 // ---------- stop order: position locks ----------
 // A stop's effective lock on a given day. The client's own lock (set from
 // their card) wins; otherwise a planner "goes first" stop (SPEC.forceFirst,
@@ -7411,7 +7725,8 @@ function jointN(d,r){
   return (d.half||[]).includes(r) ? Math.max(2, (d.share && d.share[r]) || 2) : 1;
 }
 function effH(d,r){
-  return (C[r].h26||0)/jointN(d,r);
+  const c=C[r]; if(!c) return 0;   // a row with no client (Comments #39)
+  return (c.h26||0)/jointN(d,r);
 }
 // ---------- shifts ----------
 // A SHIFT is what a person actually signs up for, and it is not always one
@@ -11581,6 +11896,9 @@ document.getElementById('ncgo').onclick=async()=>{
   const go=document.getElementById('ncgo');
   err.textContent='';
   if(!name){ err.textContent='Name is required.'; return; }
+  // A tab that can't save would keep the client on this computer only, at a
+  // row number someone else may take (how Comments #39's duplicate began).
+  if(syncBlocked){ err.textContent='This tab can\'t save right now. Reload or use the live schedule first, then add the client.'; return; }
   if(!addr){ err.textContent='Address is required -- needed to place it on the map and check drive time.'; return; }
   go.disabled=true; go.textContent='Looking up address…';
   try{
@@ -20434,8 +20752,23 @@ else if(+PAGE_SEASON < +seasonForToday()) enterReadOnly(seasonForToday());
 // Not for the warehouse display, which opens on the wall calendar.
 const DISPLAY_LOGIN = VIEWONLY && (window.TBDG_DISPLAY===undefined || !!window.TBDG_DISPLAY);
 if(HOSTED && !DISPLAY_LOGIN && window.TBDG_VIEW) applyHostView(String(window.TBDG_VIEW));
-render();
+// The first draw: if this computer's copy breaks it, put the copy aside and
+// load the live schedule (see recoverFromDeviceCopy) instead of a blank page.
+try{ render(); }catch(e){ if(!recoverFromDeviceCopy(e, 'first draw')) throw e; }
 reportView();
+pageBooted = true;
+// The copy on this computer was put aside on the last load (see
+// dropBrokenDeviceCopy): say so once.
+try{
+  const t=+sessionStorage.getItem(DEVICE_COPY_DROPPED)||0;
+  if(t && !deviceCopyRecovering){   // (not on the page that is reloading now)
+    sessionStorage.removeItem(DEVICE_COPY_DROPPED);
+    if(typeof llReport==='function') llReport('error', 'The copy of the schedule on this device could not be opened, so the live schedule was loaded', {secondsAgo:Math.round((Date.now()-t)/1000)});
+    if(Date.now()-t < 10*60000)
+      showSyncBanner({title:'The copy of the schedule on this computer couldn\'t be opened, so the live schedule is shown.',
+        sub:'Check your last few changes.'});
+  }
+}catch(e){}
 if(!VIEWONLY && tvPref()==='1') enterTV();
 // Popups taller than the screen scroll with Save / Cancel pinned at the bottom
 // (CSS by `dialog:modal`, comment #25). This only adds the soft edge above that

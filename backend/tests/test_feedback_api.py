@@ -57,7 +57,7 @@ def test_submit_inserts_trimmed_fields(fake_db, fake_request, fake_user):
     assert out == feedback.FeedbackOut(id=42, ok=True)
     (_, args), = fake_db.calls("INSERT INTO ll_app.feature_requests")
     assert args == ("Add a dark mode", "data:image/png;base64,AAA", ("/jobs" + "x" * 600)[:500],
-                    "Mozilla/Test", "user-1", "crew")
+                    "Mozilla/Test", "user-1", "crew", None)
 
 
 @pytest.mark.parametrize(
@@ -184,7 +184,8 @@ def test_list_shows_claude_review_to_owner_only(fake_db, fake_user, as_role):
 def test_changes_are_owner_only():
     guarded = {(r.path, m) for r in feedback.router.routes for m in r.methods
                if [d.dependency for d in r.dependencies] == [feedback.owner_only[0].dependency]}
-    assert guarded == {("/feedback/{feedback_id}", "PUT"), ("/feedback/{feedback_id}/reply", "PUT")}
+    assert guarded == {("/feedback/{feedback_id}", "PUT"), ("/feedback/{feedback_id}/reply", "PUT"),
+                       ("/feedback/{feedback_id}/context", "GET")}
 
 
 def test_owner_is_super_admin(fake_user, as_role):
@@ -229,3 +230,45 @@ def test_production_cannot_open_someone_elses_screenshot(fake_db, fake_user):
         run(feedback.get_feedback_screenshot(42, fake_user))
     assert exc.value.status_code == 404
     roles.clear_cache()
+
+
+JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJlLXZhbHVl"
+
+
+def test_submit_saves_scrubbed_context(fake_db, fake_request, fake_user):
+    import json
+    fake_db.on_fetchrow("INSERT INTO ll_app.feature_requests", {"id": 43})
+    trail = [{"type": "page", "page": "/clients?client=Allums"}] + \
+            [{"type": "click", "label": f"Button {i}"} for i in range(60)]
+    body = feedback.FeedbackIn(message="It didn't save", context={
+        "trail": trail,
+        "device": {"screen": "390x844", "token": JWT, "build": "index-abc.js"},
+        "error_ids": [5, 6, "x"],
+        "extra": "ignored",
+    })
+    run(feedback.submit_feedback(body, fake_request(), fake_user))
+    (_, args), = fake_db.calls("INSERT INTO ll_app.feature_requests")
+    ctx = json.loads(args[-1])
+    assert set(ctx) == {"trail", "device", "error_ids"}
+    assert len(ctx["trail"]) == 50 and ctx["trail"][-1]["label"] == "Button 59"
+    assert ctx["device"] == {"screen": "390x844", "token": "[hidden]", "build": "index-abc.js"}
+    assert ctx["error_ids"] == [5, 6]
+
+
+def test_context_is_capped():
+    big = [{"type": "click", "label": "x " * 140} for _ in range(50)]
+    out = feedback.clean_context({"trail": big})
+    assert len(out) <= feedback.MAX_CONTEXT_BYTES
+
+
+def test_context_route_reads_row(fake_db, fake_user, as_role):
+    fake_db.on_fetchrow("SELECT context FROM ll_app.feature_requests", {"context": '{"trail": []}'})
+    assert run(feedback.get_feedback_context(7, fake_user)) == {"trail": []}
+
+
+def test_list_says_whether_context_exists(fake_db, fake_user, as_role):
+    as_role("super_admin")
+    fake_db.on_fetch("FROM ll_app.feature_requests ORDER BY created_at DESC",
+                     [feedback_row(has_context=True)])
+    out = run(feedback.list_feedback(fake_user))
+    assert out[0].has_context is True
