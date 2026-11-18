@@ -124,6 +124,13 @@ header h1 svg{color:var(--brand)}
 .stop{display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f5f5f4;cursor:grab;background:var(--surface)}
 @media (hover:hover){ .stop:hover{background:#fafaf9} }
 .stop:active{cursor:grabbing}
+/* A stop row is a button, not text to select (Comments #34). A stop that can
+   be dragged gets this from WebKit already; a locked (date confirmed) or
+   read-only one is draggable=false, so its text stayed selectable, and iOS
+   Safari read every tap on it as the start of a text selection and dropped
+   the click: the card never opened, so the address could not be seen or
+   tapped until the stop was unlocked. */
+.stop,.calev,.agrow{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .numwrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
 .stop .num{width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
   font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:none;font-weight:700}
