@@ -37,7 +37,7 @@ const C={1:{name:'Lake Spot'}, 2:{name:'Lakewood Spot'}, 3:{name:'Uptown Spot'},
          5:{name:'Allen Spot'}, 6:{name:'District Spot'}, 7:{name:'Rockwall Spot'}, 8:{name:'Galleria Spot'},
          9:{name:'Colinas Spot'}, 10:{name:'Forest Spot'}, 11:{name:'Mercury Spot'},
          20:{name:'Houston A'}, 21:{name:'Houston B'}, 22:{name:'Houston C'}, 23:{name:'Houston D'}};
-let days=[], staffing={}, crewNames={}, shiftNotes={}, manualOrder={}, approved=new Set(), moves=[];
+let days=[], staffing={}, crewNames={}, crewStart={}, shiftNotes={}, manualOrder={}, approved=new Set(), moves=[];
 const mk=(id, stops, extra)=>{ const [date,crew]=id.split('|'); return {id, date, crew, stops, half:[], win:450, ...(extra||{})}; };
 function dayById(id, create){
   let d=days.find(x=>x.id===id); if(d || !create) return d;
