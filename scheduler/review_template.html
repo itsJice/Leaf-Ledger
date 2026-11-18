@@ -14299,6 +14299,9 @@ function notInstallReason(row){
 let ACTUALS=null;            // Map "dayId|row" -> latest actual; null until loaded
 let actualsAt=0;             // when it last loaded (ms)
 let actualsBusy=null;
+let actualsNext=null;        // a forced fetch queued behind the one in flight
+let actualsGen=0;            // bumped by every save: an older fetch is stale
+let actualsDenied=false;     // 403 once: this login has no Install Times
 let actualsToday='';         // the server's today (Central), else the browser's
 let actualsReady=false;      // the times really loaded (not a 403 / offline)
 let actualsOffice=false;     // office login: sees every crew-day's times
@@ -14313,15 +14316,31 @@ function actualsMap(list){
   });
   return m;
 }
+/** Install Times is for leads and up (the server's MIN_ROLE): crew, viewer
+ *  and production logins never ask. An unknown role ('' / null) still asks. */
+const ACTUALS_ROLES=new Set(['lead','staff','admin','super_admin']);
+function actualsAllowed(){ return !actualsDenied && (!ME_ROLE || ACTUALS_ROLES.has(ME_ROLE)); }
 function loadActuals(force){
-  if(!AUTH || TVMODE) return Promise.resolve(false);
-  if(actualsBusy) return actualsBusy;
+  if(!AUTH || TVMODE || !actualsAllowed()) return Promise.resolve(false);
+  if(actualsBusy){
+    if(!force) return actualsBusy;
+    // Forced (just saved): the fetch in flight may predate the save, so run
+    // a fresh one after it (one queued fetch, however many ask).
+    return actualsNext || (actualsNext=actualsBusy.then(()=>{ actualsNext=null; return loadActuals(true); }));
+  }
   if(!force && ACTUALS && Date.now()-actualsAt<60000) return Promise.resolve(false);
+  const gen=actualsGen;
   actualsBusy=authFetch('/api/install-times/schedule', {headers:{Authorization:AUTH}})
-    .then(r=>r.ok?r.json():null)
+    .then(r=>{
+      // 403 (viewer, production, crew): remember it, never ask again.
+      if(r.status===403) actualsDenied=true;
+      return r.ok?r.json():null;
+    })
     .then(j=>{
-      // 403 (TV, production, crew) or an older backend: nothing to show.
-      if(!j){ if(!ACTUALS) ACTUALS=new Map(); return false; }
+      // A save landed while this was in flight: its answer is out of date.
+      if(gen!==actualsGen) return false;
+      // 403 or an older backend: nothing to show, and wait before asking again.
+      if(!j){ if(!ACTUALS) ACTUALS=new Map(); actualsAt=Date.now(); return false; }
       ACTUALS=actualsMap(j.actuals); actualsAt=Date.now(); actualsReady=true;
       actualsOffice=j.office===true;
       if(typeof j.today==='string') actualsToday=j.today;
@@ -14333,7 +14352,7 @@ function loadActuals(force){
 }
 function actualFor(row, dayId){ return (ACTUALS && dayId!=null && ACTUALS.get(`${dayId}|${row}`)) || null; }
 /** True once the crew-day's date has come (times can be entered). */
-function dayHasHappened(d){ return !!d && d.date <= (actualsToday || todayISO()); }
+function dayHasHappened(d){ return !!d && d.date <= timesToday(); }
 /** PURE. Minutes on site from the saved instants (the DST night counts real
  *  time), else the server's hours. null without both times. */
 function actualMinutes(a){
@@ -14509,9 +14528,17 @@ function dateTimesMarkHTML(mark){
 function canEditActuals(){
   return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && ALERT_EDIT_ROLES.has(ME_ROLE);
 }
+/** PURE. Where the card's times came from: "Install Times · entered by
+ *  Claude", plus "· saved under Crew 2" for times saved on the crew-day the
+ *  stop was on before it moved (the server's savedUnder). */
+function timesByText(a){
+  if(!a) return '';
+  return ['Install Times', a.source==='claude' ? 'entered by Claude' : '',
+    a.savedUnder ? `saved under ${a.savedUnder}` : ''].filter(Boolean).join(' · ');
+}
 /** The card's "Times" line for a crew-day that has happened, or ''. */
 function peekTimesHTML(row, d){
-  if(!AUTH || !d || !dayHasHappened(d) || ACTUALS==null) return '';
+  if(!d || d.training || !timesShown() || !dayHasHappened(d)) return '';
   const a=actualFor(row, d.id), edit=canEditActuals();
   const night=isDallasNight(d);
   const msg=pkTimesMsg ? `<p class="pktimesmsg">${IC.alert}<span>${peekEsc(pkTimesMsg)}</span></p>` : '';
@@ -14526,7 +14553,7 @@ function peekTimesHTML(row, d){
         <button type="button" class="pkhrsbtn" id="pktimescancel">Cancel</button></div>${msg}</div>`;
   }
   const t=onSiteText(a);
-  const by=a && a.enteredBy ? `<span class="pkfine pktimesby">Install Times${a.source==='claude'?', from the stop note':''}</span>` : '';
+  const by=a && a.enteredBy ? `<span class="pkfine pktimesby">${peekEsc(timesByText(a))}</span>` : '';
   return `<div class="pktimes">${IC.clock}<span class="pktimest">${t?`<b>${peekEsc(t)}</b>`:'<span class="pktimesnone">No times entered yet</span>'}${by}</span>`
     + (edit ? `<button type="button" class="pkhrsbtn" id="pktimesedit">${t?'Fix times':'Enter times'}</button>` : '')
     + `</div>${msg}`;
@@ -14564,12 +14591,14 @@ function wirePeekTimes(row, d){
     if(peekRow!==row || pkDayId!==d.id) return;      // the card moved on
     const detail=j && j.detail;
     if(r && r.ok && j && j.actual){
+      actualsGen++;        // a fetch begun before this save must not undo it
       const a={...j.actual, dayIds:(cur && cur.dayIds) || [d.id]};
       ACTUALS=ACTUALS||new Map();
       (a.dayIds.includes(d.id)?a.dayIds:[...a.dayIds, d.id]).forEach(id=>ACTUALS.set(`${id}|${row}`, a));
       pkTimesEdit=false; pkTimesMsg=(j.warnings||[])[0]||'';
       redraw(); render();
-      loadActuals(true);   // joint crew-days and anything else saved meanwhile
+      // Joint crew-days (the partner crew's card) and anything saved meanwhile.
+      loadActuals(true).then(ch=>{ if(ch) render(); });
       return;
     }
     save.disabled=false; save.textContent='Save';
