@@ -67,6 +67,9 @@ class Board:
     # Already folded into day_meta (``startMin``, and a night start's window,
     # anchoring and lunch), so the calendar feed's timeline follows it.
     crew_start: dict[str, int] = field(default_factory=dict)
+    # A time a stop won't start before on its crew-day (``state.stopStart``,
+    # {"<crew-day id>#<row>": clock minutes}; see stopStart in the tool).
+    stop_start: dict[str, int] = field(default_factory=dict)
     # Stops staff confirmed with the client (the tool's `confirmed` set, the
     # CONFIRMED lock: keyed by client row, not crew-day) and stops on hold
     # (`hold`). Read by the client page's install summary (Comments #23).
@@ -224,6 +227,23 @@ def norm_crew_start(raw: Any) -> dict[str, int]:
             except (TypeError, ValueError):
                 continue
             if CREW_START_MIN <= m <= CREW_START_MAX:
+                out[k] = m
+    return out
+
+
+def norm_stop_start(raw: Any) -> dict[str, int]:
+    """``state.stopStart`` as the tool keeps it (normStopStart): keys
+    "<crew-day id>#<row>", whole clock minutes 0 to 1439."""
+    out: dict[str, int] = {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            if not isinstance(k, str) or "#" not in k or isinstance(v, bool):
+                continue
+            try:
+                m = round(float(v))
+            except (TypeError, ValueError):
+                continue
+            if 0 <= m < 1440:
                 out[k] = m
     return out
 
@@ -443,6 +463,9 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
         crew_names=norm_crew_names(state.get("crewNames")),
         shift_notes=norm_shift_notes(state.get("shiftNotes")),
         crew_start=crew_start,
+        stop_start={k: m for k, m in norm_stop_start(state.get("stopStart")).items()
+                    if k.rsplit("#", 1)[0] in days
+                    and str(k.rsplit("#", 1)[1]) in {str(r) for r in days[k.rsplit("#", 1)[0]]["stops"]}},
         dallas=dallas_dates(spec, state),
         confirmed=_row_set(state.get("confirmed"), clients),
         hold=_row_set(state.get("hold"), clients),
