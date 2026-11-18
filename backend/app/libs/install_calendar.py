@@ -87,7 +87,11 @@ def leg_seconds(board: Board, a: Optional[int], b: Optional[int]) -> float:
 # ---------- one crew-day's timeline ----------
 
 def shift_start(meta: dict, const: dict) -> int:
-    """Minutes after midnight the crew rolls out -- the tool's shiftStart()."""
+    """Minutes after midnight the crew rolls out -- the tool's shiftStart().
+    A start staff set by hand (``startMin``, from ``state.crewStart``) wins."""
+    own = meta.get("startMin")
+    if isinstance(own, int) and not isinstance(own, bool):
+        return own
     win = meta.get("win")
     if const.get("NIGHT") is not None and win == const["NIGHT"]:
         return 23 * 60

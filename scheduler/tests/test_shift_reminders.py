@@ -43,7 +43,7 @@ const crewNameKey = d => d.id;
     "isReminderText", "capTexts", "normTexts", "fmtReminderLog", "smsNumber", "fmtClock",
     "txtFill", "remMD", "remDateLabel", "remDaysAway", "remWhen", "remMeet", "remPeople",
     "remLead", "remVals", "remReason", "remSentFor", "remStatus", "withReminderLog",
-    "withoutReminderLog", "remShiftInfos", "remRows", "shiftStart", "jointShiftGroups",
+    "withoutReminderLog", "remShiftInfos", "remRows", "shiftStart", "arriveFor", "jointShiftGroups",
     "visitKind", "dayKind", "remJob", "remTplFor", "remBody",
 ) + """
 // The page's buildShifts, cut down to what reminders read: joint pairs
