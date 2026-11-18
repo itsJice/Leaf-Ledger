@@ -62,6 +62,11 @@ class Board:
     # {shift key: {text, by, at}}; see shiftNotes in the tool), keyed like
     # crew_names. Not a client's install notes, not the build's day note.
     shift_notes: dict[str, dict] = field(default_factory=dict)
+    # Start times staff set by hand for a crew-day (``state.crewStart``,
+    # {crew-day id: minutes after midnight}; see crewStart in the tool).
+    # Already folded into day_meta (``startMin``, and a night start's window,
+    # anchoring and lunch), so the calendar feed's timeline follows it.
+    crew_start: dict[str, int] = field(default_factory=dict)
     # Stops staff confirmed with the client (the tool's `confirmed` set, the
     # CONFIRMED lock: keyed by client row, not crew-day) and stops on hold
     # (`hold`). Read by the client page's install summary (Comments #23).
@@ -207,6 +212,39 @@ def norm_crew_names(raw: Any) -> dict[str, str]:
                 n = " ".join(v.split())[:CREW_NAME_MAX].strip()
                 if n:
                     out[k] = n
+    return out
+
+
+CREW_START_MIN, CREW_START_MAX = 5 * 60, 24 * 60 - 15
+NIGHT_START_FROM = 18 * 60
+
+
+def norm_crew_start(raw: Any) -> dict[str, int]:
+    """``state.crewStart`` as the tool keeps it (normCrewStart): whole
+    minutes after midnight from 5:00 AM to 11:45 PM; anything else dropped."""
+    out: dict[str, int] = {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            if not isinstance(k, str) or isinstance(v, bool):
+                continue
+            try:
+                m = round(float(v))
+            except (TypeError, ValueError):
+                continue
+            if CREW_START_MIN <= m <= CREW_START_MAX:
+                out[k] = m
+    return out
+
+
+def crew_start_meta(meta: dict, start: Optional[int], night: Any) -> dict:
+    """The tool's crewStartShape(): a crew-day's meta with a start set by
+    hand on top. A start at 6:00 PM or later runs like a Dallas night (the
+    night window, no depot legs, no lunch); a daytime one only moves the
+    clock."""
+    out = {**(meta or {}), "startMin": start}
+    if start is not None and start >= NIGHT_START_FROM and night is not None and out.get("win") != night:
+        out.update({"win": night, "anchored": False, "lunchMin": 0,
+                    "winReason": "Night shift, start set by hand"})
     return out
 
 
@@ -367,6 +405,10 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
     manual = state.get("manualOrder") or {}
     built_meta = {k: v for k, v in (spec.get("dayMeta") or {}).items() if isinstance(v, dict)}
     meta = {**built_meta, **derived_day_meta(spec, state, by_day)}
+    crew_start = {k: m for k, m in norm_crew_start(state.get("crewStart")).items() if k in by_day}
+    night = (spec.get("const") or {}).get("NIGHT")
+    for did, m in crew_start.items():
+        meta[did] = crew_start_meta(meta.get(did) or {}, m, night)
     days: dict[str, dict] = {}
     for did, rows in by_day.items():
         try:
@@ -408,6 +450,7 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
                    for did, d in base.items()},
         crew_names=norm_crew_names(state.get("crewNames")),
         shift_notes=norm_shift_notes(state.get("shiftNotes")),
+        crew_start=crew_start,
         dallas=dallas_dates(spec, state),
         confirmed=_row_set(state.get("confirmed"), clients),
         hold=_row_set(state.get("hold"), clients),

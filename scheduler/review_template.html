@@ -124,6 +124,13 @@ header h1 svg{color:var(--brand)}
 .stop{display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f5f5f4;cursor:grab;background:var(--surface)}
 @media (hover:hover){ .stop:hover{background:#fafaf9} }
 .stop:active{cursor:grabbing}
+/* A stop row is a button, not text to select (Comments #34). A stop that can
+   be dragged gets this from WebKit already; a locked (date confirmed) or
+   read-only one is draggable=false, so its text stayed selectable, and iOS
+   Safari read every tap on it as the start of a text selection and dropped
+   the click: the card never opened, so the address could not be seen or
+   tapped until the stop was unlocked. */
+.stop,.calev,.agrow{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .numwrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
 .stop .num{width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
   font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:none;font-weight:700}
@@ -1080,6 +1087,25 @@ body.readonly .crewnmbtn,body.viewonly .crewnmbtn{display:none}
 .stftrl select{font-size:16px;min-height:40px;border:1px solid var(--line);border-radius:7px;padding:4px 8px;background:var(--card,#fff);color:inherit}
 .stfnotelbl{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
   font-weight:800;margin-bottom:4px}
+/* Start time (crewStart): the card's tappable time and the field in Edit crew. */
+.cstartbtn{display:inline-flex;align-items:center;gap:3px;border:0;background:transparent;padding:2px 5px;margin:-3px -2px;
+  border-radius:5px;font:inherit;color:inherit;cursor:pointer;min-height:24px}
+.cstartbtn .ic{width:11px;height:11px;opacity:.55;margin:0}
+@media (hover:hover){ .cstartbtn:hover{background:var(--surface);box-shadow:0 0 0 1px var(--brand)} .cstartbtn:hover .ic{opacity:1} }
+.cstartbtn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.cstartbtn.own b{color:var(--warn-ink)}
+.sched .cnext{font-size:10px;color:var(--mut)}
+@media (hover:none){ .cstartbtn{min-height:32px;padding:4px 7px;margin:-7px -2px} }
+.cstrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+dialog .cstrow select.cstsel{width:auto;flex:1 1 130px;min-width:120px;margin:0;font-size:16px;min-height:40px}
+dialog .cstq{padding:6px 10px;min-height:40px;border-radius:7px;font-size:13px;font-weight:600;background:var(--surface);color:var(--ink)}
+dialog .cstq span{font-weight:500;color:var(--mut);font-size:11px}
+dialog .cstq.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-deep)}
+.cstnote{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
+.cstnote b{font-family:inherit;color:var(--warn-ink)}
+dialog .cstreset{padding:3px 9px;font-size:11.5px;font-weight:700;color:var(--warn-ink);border-color:var(--warn-ink);background:transparent;margin-left:2px}
+.cststatic{font-size:13px}
+#startdlg{max-width:400px}
 #stfdlg .stfnote .shnin{border-color:var(--line)}
 #stfdlg .stfnote .shnin:focus{border-color:var(--brand)}
 .cshnote{display:flex;gap:6px;align-items:flex-start;padding:6px 14px;border-bottom:1px solid var(--line);
@@ -3238,6 +3264,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <b id="stftitle">Staff this crew-day</b>
   <div class="asgneed" id="stfneed"></div>
   <div class="stfnote" id="stfnote"></div>
+  <div class="stfnote" id="stfstart"></div>
   <div class="stfnote" id="stftrailer"></div>
   <button class="asgready" id="stfready" type="button">+ Add everyone ready to schedule</button>
   <div id="stfweek"></div>
@@ -3256,6 +3283,11 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <span class="sp"></span>
     <button type="button" id="stfremind" title="Text everyone on this crew a reminder of their shift">Text this crew</button>
     <button type="button" onclick="stfdlg.close()">Done</button></div>
+</dialog>
+<dialog id="startdlg" aria-labelledby="starttitle">
+  <b id="starttitle">Start time</b>
+  <div class="stfnote" id="startbody"></div>
+  <div class="btns"><button type="button" onclick="startdlg.close()">Done</button></div>
 </dialog>
 <dialog id="sddlg" aria-labelledby="sdtitle" tabindex="-1">
   <div class="sdhead">
@@ -3898,13 +3930,17 @@ function refreshDerivedMeta(){
       const m = SPEC.dayMeta[d.id], j = joints[d.id] || {half:[], joint:''};
       const startRow = (m.startRow!=null && d.stops.includes(m.startRow)) ? m.startRow
                      : (j.half.length ? j.half[0] : null);
-      Object.assign(d, {half:j.half, joint:j.joint, startRow});
+      // Its window and timing are the build's, unless staff set a start
+      // by hand for this crew (crewStart): put back the build's every time,
+      // so clearing one undoes it.
+      Object.assign(d, {half:j.half, joint:j.joint, startRow}, crewStartShape(m, crewStart[d.id], K.NIGHT));
       return;
     }
     const m = metaFor(d.id), j = joints[d.id] || {half:[], joint:''};
     Object.assign(d, {cat:m.cat, anchored:m.anchored, stacked:m.stacked, note:m.note,
                       win:m.win, lunchMin:m.lunchMin, winReason:m.winReason,
-                      half:j.half, joint:j.joint, startRow:j.half.length ? j.half[0] : m.startRow});
+                      half:j.half, joint:j.joint, startRow:j.half.length ? j.half[0] : m.startRow},
+                  crewStartShape(m, crewStart[d.id], K.NIGHT));
   });
 }
 
@@ -4319,6 +4355,105 @@ function crewName(d){
 function crewTitle(d){ const n=crewName(d), p=crewLabel(d); return n ? `${n} (${p})` : p; }
 /** Dense calendar chips: "C1 Lesly's crew". */
 function crewTitleShort(d){ const n=crewName(d), p=crewLabelShort(d); return n ? `${p} ${n}` : p; }
+// ---------- crew start times ----------
+// "Sat 11/21 Crew 2 starts at 11:00 PM; Sun 11/22 Crews 1 and 2 start at
+// 10:00 PM. Stops get moved around, so staff need to set it by hand per
+// crew-day, and it should stick to that crew-day" (office, 11/17/2026).
+//
+// Shared state `crewStart` is {crewDayId: minutes after midnight}, keyed like
+// crewNames (the crew-day's own id, never the positional "Crew N"). Set from
+// the time on the Days view crew card or the Start time field in Edit crew.
+// It overrides the date's usual start for that crew only. A start at 6:00 PM
+// or later runs like a Dallas night: no lunch, no depot drive (the time is
+// when the crew starts at the first stop), the night window, and the clock
+// runs past midnight. A daytime start only moves the clock; the day keeps
+// its shape. Moving stops never changes it; a whole-day move takes it along
+// with the crew's name and note; it goes away with its crew-day.
+// refreshDerivedMeta() copies it onto the day as d.startMin, which
+// shiftStart() reads, so every clock (stop times, Est. Finish, the crew
+// sheet, Calendar, reminders, the saved timeline for the calendar feed)
+// follows it.
+const CREW_START_MIN = 5*60, CREW_START_MAX = 24*60-15, CREW_START_STEP = 15;
+const NIGHT_START_FROM = 18*60;
+let crewStart = {};
+/** PURE. A saved start as this page keeps it: whole minutes from 5:00 AM to
+ *  11:45 PM, else null. */
+function normStartMin(v){
+  const n = typeof v==='number' ? v : (typeof v==='string' && v.trim()!=='' ? Number(v) : NaN);
+  if(!Number.isFinite(n)) return null;
+  const m = Math.round(n);
+  return m>=CREW_START_MIN && m<=CREW_START_MAX ? m : null;
+}
+/** PURE. True for a start that runs as a night shift (6:00 PM or later). */
+function isNightStart(m){ return m!=null && m>=NIGHT_START_FROM; }
+/** Saved crewStart as this page keeps it: valid times, only for crew-days on
+ *  the board (`keys`, default: every non-training crew-day right now). */
+function normCrewStart(obj, keys){
+  const ok = keys || new Set(days.filter(d=>!d.training).map(d=>d.id));
+  const out = {};
+  if(obj && typeof obj==='object' && !Array.isArray(obj))
+    Object.keys(obj).sort().forEach(k=>{
+      const m = normStartMin(obj[k]);
+      if(m!=null && ok.has(k)) out[k] = m;
+    });
+  return out;
+}
+/** PURE. `map` with each of `ids` set to `min`; null (or junk) removes them,
+ *  which puts those crews back on the date's usual start. */
+function withCrewStart(map, ids, min){
+  const out = {...(map||{})}, m = normStartMin(min);
+  (ids||[]).forEach(k=>{ if(m!=null) out[k] = m; else delete out[k]; });
+  return out;
+}
+/** PURE. The usual start for a day window (no hand-set time): a night 11 PM,
+ *  the Dallas corporate 9-5 at 9 AM, else the 8:30 AM depot roll-out. */
+function usualStartFor(win){
+  if(win===K.NIGHT) return 23*60;
+  if(win===480)     return 9*60;
+  return DEPART_MIN;
+}
+/** PURE. The timing a crew-day runs on: its meta's window, depot anchoring
+ *  and lunch, with a hand-set start (`min`) on top. A night start runs like
+ *  a Dallas night; a daytime one keeps the meta's shape. */
+function crewStartShape(meta, min, night){
+  const m = normStartMin(min), base = {win:meta.win, anchored:meta.anchored, lunchMin:meta.lunchMin,
+    winReason:meta.winReason, startMin:m};
+  if(!isNightStart(m) || meta.win===night) return base;
+  return {...base, win:night, anchored:false, lunchMin:0, winReason:'Night shift, start set by hand'};
+}
+/** The hand-set start of a crew-day (minutes), or null. */
+function crewStartOf(d){
+  return d && !d.training ? normStartMin(crewStart[d.id]) : null;
+}
+/** The date's usual start for this crew-day, ignoring any hand-set time. */
+function usualStartOf(d){ return usualStartFor(metaFor(d.id).win); }
+/** PURE. The start time choices, 5:00 AM to 11:45 PM every 15 minutes. */
+function startChoices(){
+  const out = [];
+  for(let m=CREW_START_MIN; m<=CREW_START_MAX; m+=CREW_START_STEP) out.push(m);
+  return out;
+}
+/** PURE. The quick picks: the usual start first, then 10:00 PM and 11:00 PM
+ *  (the M Crowd nights), each once. */
+function startQuickPicks(usual){
+  return [...new Set([usual, 22*60, 23*60])];
+}
+/** Save a start for crew-days `ids` (shared, undoable). null puts them back
+ *  on the usual start. False when nothing changed. */
+function setCrewStart(ids, min){
+  if(roBlocked() || !canEditShiftNotes()) return false;
+  // Setting the usual time is the same as no hand-set time.
+  const next = withCrewStart(crewStart, (ids||[]).filter(id=>{
+    const d=days.find(x=>x.id===id); return d && !d.training; }), min);
+  (ids||[]).forEach(id=>{ const d=days.find(x=>x.id===id);
+    if(d && next[id]!=null && next[id]===usualStartOf(d)) delete next[id]; });
+  if(stableJSON(next)===stableJSON(crewStart)) return false;
+  pushUndo();
+  crewStart = next;
+  refreshDerivedMeta();
+  persist(); render();
+  return true;
+}
 // ---------- shift notes ----------
 // "I need a way to make notes for the install day on this page" (user,
 // 2026-10-24, on a Staffing shift card). One note per shift: what the crew
@@ -5341,6 +5476,7 @@ try{
     manualOrder = normManualOrder(s.manualOrder);
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     crewNames = normCrewNames(s.crewNames);
+    crewStart = normCrewStart(s.crewStart);
     trailerFleet = normFleet(s.trailerFleet); loadTrips = normLoadTrips(s.loadTrips);
     trailers = normTrailers(s.trailers, trailerKeys());
     loadStops = normLoadStops(s.loadStops, new Set(Object.keys(C)));
@@ -5468,7 +5604,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','hoursOverride','seasonRoles'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','crewStart','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','hoursOverride','seasonRoles'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -5590,6 +5726,7 @@ function mergeShared(base, mine, theirs, label){
                   stopPin:r=>`${label('row',r)}: position lock`,
                   lastScheduledFrom:r=>`${label('row',r)}: previous date`,
                   crewNames:k=>`Crew name for ${label('shift',k)}`,
+                  crewStart:k=>`Start time for ${label('shift',k)}`,
                   shiftNotes:k=>`Note for ${label('shift',k)}`,
                   trailers:k=>`Trailer for ${label('shift',k)}`,
                   loadStops:r=>`${label('row',r)}: load list`,
@@ -5810,7 +5947,7 @@ function snapshot(){
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
-          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, hoursOverride,
+          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, hoursOverride, crewStart,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames, savedAt:Date.now()};
 }
@@ -7430,6 +7567,7 @@ async function restoreHistoryEntry(entryId, btn){
     comments = normComments(st.comments);
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     crewNames = normCrewNames(st.crewNames);
+    crewStart = normCrewStart(st.crewStart);
     trailerFleet = normFleet(st.trailerFleet); loadTrips = normLoadTrips(st.loadTrips);
     trailers = normTrailers(st.trailers, trailerKeys());
     loadStops = normLoadStops(st.loadStops, new Set(Object.keys(C)));
@@ -7460,7 +7598,7 @@ function stateBlob(){
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
                          dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
-                         hoursOverride, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, ownHours(c)])),
+                         hoursOverride, crewStart, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, ownHours(c)])),
                          trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames});
 }
 function restoreBlob(blob){
@@ -7488,6 +7626,7 @@ function restoreBlob(blob){
   moves = s.moves || [];
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
   crewNames = normCrewNames(s.crewNames);
+  crewStart = normCrewStart(s.crewStart);
   trailerFleet = normFleet(s.trailerFleet); loadTrips = normLoadTrips(s.loadTrips);
   trailers = normTrailers(s.trailers, trailerKeys());
   loadStops = normLoadStops(s.loadStops, new Set(Object.keys(C)));
@@ -10052,6 +10191,7 @@ function exchangeCrewDays(pairs){
     manualOrder=mo;
     staffing=swapKeys(staffing, p.a, p.b);
     if(crewNameKey(A)===p.a && crewNameKey(B)===p.b) crewNames=swapKeys(crewNames, p.a, p.b);
+    crewStart=swapKeys(crewStart, p.a, p.b);
     if(shiftNoteKey(A)===p.a && shiftNoteKey(B)===p.b) shiftNotes=swapKeys(shiftNotes, p.a, p.b);
     const m={row:null, name:p.name, from:p.a, to:p.b};
     moves.push(m); logged.push(m);
@@ -10088,12 +10228,12 @@ function boardWarningsFor(dates){
 /** Run fn on a throwaway copy of the board, then put everything back:
  *  previewing a rearrange is not an edit. */
 function withScratch(fn){
-  const keep={days, manualOrder, staffing, crewNames, shiftNotes, approved, moves};
+  const keep={days, manualOrder, staffing, crewNames, crewStart, shiftNotes, approved, moves};
   days=days.map(d=>({...d, stops:[...d.stops], half:[...(d.half||[])]}));
-  manualOrder={...manualOrder}; staffing={...staffing}; crewNames={...crewNames};
+  manualOrder={...manualOrder}; staffing={...staffing}; crewNames={...crewNames}; crewStart={...crewStart};
   shiftNotes={...shiftNotes}; approved=new Set(approved); moves=[...moves];
   try{ return fn(); }
-  finally{ ({days, manualOrder, staffing, crewNames, shiftNotes, approved, moves}=keep); }
+  finally{ ({days, manualOrder, staffing, crewNames, crewStart, shiftNotes, approved, moves}=keep); }
 }
 /** What a rearrange would cost: its hard stops, and the warnings it adds on
  *  the dates it touches (ones already there before are not repeated). */
@@ -10931,6 +11071,32 @@ function orderBarHTML(d){
   return `<div class="cordernote"><span class="cordertxt">Stop order set by hand</span>`
     + `<button type="button" class="cautoorder" title="Keep every lock in place and order the rest for the shortest drive">Shortest route</button></div>`;
 }
+/** The "Start time set by hand" bar on a day card, like the hand-order bar:
+ *  only a crew-day staff gave its own start gets it, with the button that
+ *  puts it back on the date's usual start. */
+function startBarHTML(d){
+  const own=crewStartOf(d); if(own==null) return '';
+  return `<div class="cordernote cstartnote"><span class="cordertxt">Start time set by hand: ${fmtClock(own)}</span>`
+    + `<button type="button" class="cautoorder cstartreset" title="Put this crew back on the usual start for this day">Back to ${fmtClock(usualStartOf(d))}</button></div>`;
+}
+/** PURE-ish. A clock time, with "next day" once it rolls past midnight. */
+function clockNextDay(m){ return `<b>${fmtClock(m)}</b>${m>=1440?' <small class="cnext">next day</small>':''}`; }
+/** The day card's times row. A depot day: Arrive Depot / Depart / Est.
+ *  Finish (arrive is half an hour before the roll-out). A night or a day
+ *  that starts on site: Start / Est. Finish. Staff tap the start time to
+ *  change it (openStartDlg). */
+function schedLineHTML(d, calc){
+  if(d.training && !d.anchored) return '';
+  const start=shiftStart(d), finish=start+calc.total;
+  const can=!d.training && canEditShiftNotes();
+  const t=`<b>${fmtClock(start)}</b>`;
+  const tap=can ? `<button type="button" class="cstartbtn${crewStartOf(d)!=null?' own':''}" title="Change this crew's start time"`
+      + ` aria-label="Start time ${fmtClock(start)}. Change it">${t}${IC.pencil}</button>` : t;
+  const fin=`<span>Est. Finish ${clockNextDay(finish)}</span>`;
+  if(d.anchored) return `<div class="sched"><span>${IC.clock} Arrive Depot <b>${fmtClock(start-(DEPART_MIN-ARRIVE_MIN))}</b></span>`
+    + `<span>Depart ${tap}</span>${fin}</div>`;
+  return `<div class="sched"><span>${IC.clock} Start ${tap}</span>${fin}</div>`;
+}
 function buildDayCard(d){
   const col=CREW_COLORS[d.crew]||'#555';
   const calc=dayCalc(d);
@@ -10955,6 +11121,7 @@ function buildDayCard(d){
   ${(()=>{ const cf=lockConflicts(d.stops, r=>pinOf(r, d), orderName);
      return cf.length ? `<div class="clockwarn" role="note">${IC.alert}<span><b>Locks can't all be met.</b> ${cf.map(peekEsc).join(' ')}</span></div>` : ''; })()}
   ${orderBarHTML(d)}
+  ${startBarHTML(d)}
   ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
           + `title="Click to staff this shift">`
@@ -10998,14 +11165,11 @@ function buildDayCard(d){
     approved.has(d.id)?approved.delete(d.id):approved.add(d.id); persist(); render();};
   const autoBtn=card.querySelector('.cautoorder');
   if(autoBtn) autoBtn.onclick=()=>autoOrderDay(d.id);
-  if(d.anchored){
-    const finishMin=DEPART_MIN+calc.total;
-    card.insertAdjacentHTML('beforeend',`<div class="sched">
-      <span>${IC.clock} Arrive Depot <b>${fmtClock(ARRIVE_MIN)}</b></span>
-      <span>Depart <b>${fmtClock(DEPART_MIN)}</b></span>
-      <span>Est. Finish <b>${fmtClock(finishMin)}</b></span>
-    </div>`);
-  }
+  card.insertAdjacentHTML('beforeend', schedLineHTML(d, calc));
+  { const sb=card.querySelector('.cstartbtn');
+    if(sb) sb.onclick=e=>{ e.stopPropagation(); openStartDlg(d.id); };
+    const rb=card.querySelector('.cstartreset');
+    if(rb) rb.onclick=e=>{ e.stopPropagation(); setCrewStart(startIdsFor(d), null); }; }
   // stops + legs (mileage from the real road path — precomputed if the
   // day is untouched, live-fetched once if it's been edited)
   const path=calc.path||[];
@@ -12619,7 +12783,10 @@ const SEASON=SPEC.calendar.map(c=>c.date).sort();
 
 // A crew-day's shift start: Mi Cocina runs 11pm, the Dallas corporate office
 // is a 9-5 daytime install, everything else is the standard 8:30 depot roll-out.
+// A start staff set by hand for this crew-day (crewStart, copied onto the
+// day as d.startMin by refreshDerivedMeta) wins over all of these.
 function shiftStart(d){
+  if(d.startMin!=null) return d.startMin;
   if(d.win===K.NIGHT) return 23*60;
   if(d.win===480)     return 9*60;
   return DEPART_MIN;
@@ -15702,6 +15869,9 @@ function drawStaffDlg(){
   if(noteBox && !(document.activeElement && document.activeElement.id==='stfnoteta')){
     noteBox.innerHTML=stfNoteHTML(sh); wireStfNote(sh);
   }
+  { const stBox=document.getElementById('stfstart');
+    if(stBox){ stBox.innerHTML=crewStartFieldHTML(sh, 'stf'); stBox.hidden=!stBox.innerHTML;
+      wireCrewStartField(sh, 'stf', fn=>stfTrack(fn), ()=>drawStaffDlg()); } }
   { const trBox=document.getElementById('stftrailer');
     if(trBox){ trBox.innerHTML=stfTrailerHTML(sh); trBox.hidden=!trBox.innerHTML; wireStfTrailer(trBox); } }
   const clearBtn=document.getElementById('stfclear');
@@ -16340,10 +16510,80 @@ function shiftNoteFieldHTML(sh, pre){
            : `<div class="shcempty">No notes for this day.</div>`);
   return `<label class="stfnotelbl" for="${pre}noteta">Notes for this day</label>`
     + `<textarea id="${pre}noteta" class="shnin" rows="2" maxlength="${SHIFT_NOTE_MAX}"`
-    + ` placeholder="Anything the crew should know (start time, gate code, what to bring)">${esc(n ? n.text : '')}</textarea>`
+    + ` placeholder="Anything the crew should know (gate code, what to bring)">${esc(n ? n.text : '')}</textarea>`
     + `<div class="shnby" id="${pre}noteby">${esc(by)}</div>`;
 }
 function stfNoteHTML(sh){ return shiftNoteFieldHTML(sh, 'stf'); }
+/** The crew-days a start time set from `d`'s card goes on: every crew of a
+ *  joint shift (they open the day together), else just this one. */
+function startIdsFor(d){
+  const sh=shiftOfDay(d);
+  return (sh && !sh.training ? sh.days : [d]).map(x=>x.id);
+}
+/** A shift's Start time field (Edit crew, and the window the crew card's
+ *  time opens): a time list every 15 minutes, quick picks for the usual
+ *  start, 10:00 PM and 11:00 PM, and "Back to" the usual start once one is
+ *  set by hand. Read-only views get the time as text. '' on a training day.
+ *  `pre` keeps the ids apart, like the Notes field. */
+function crewStartFieldHTML(sh, pre){
+  if(!sh || sh.training || !sh.days || !sh.days.length) return '';
+  const d=sh.days[0], start=shiftStart(d), own=crewStartOf(d), usual=usualStartOf(d);
+  const finish=start+dayCalc(d).total;
+  const night=d.win===K.NIGHT;
+  const what=night ? 'Night shift: the crew starts at the first stop, no lunch.'
+    : d.anchored ? 'Roll-out time from the depot. The crew arrives 30 minutes before.'
+    : 'The crew starts at the first stop.';
+  const fin=`Est. finish ${fmtClock(finish)}${finish>=1440?' next day':''}.`;
+  if(!canEditShiftNotes())
+    return `<div class="stfnotelbl">Start time</div>`
+      + `<div class="cststatic"><b>${fmtClock(start)}</b>${own!=null?' (set by hand)':''}</div>`
+      + `<div class="cstnote">${esc(what)} ${esc(fin)}</div>`;
+  const opts=startChoices();
+  if(!opts.includes(start)) { opts.push(start); opts.sort((a,b)=>a-b); }
+  const joint=sh.days.length>1 ? `<div class="cstnote">Joint: sets the start for ${esc(sh.days.map(crewLabel).join(' + '))}.</div>` : '';
+  return `<label class="stfnotelbl" for="${pre}startsel">Start time</label>`
+    + `<div class="cstrow"><select id="${pre}startsel" class="cstsel" aria-label="Start time">`
+    + opts.map(m=>`<option value="${m}"${m===start?' selected':''}>${fmtClock(m)}${m===usual?' (usual)':''}</option>`).join('')
+    + `</select>`
+    + startQuickPicks(usual).map(m=>`<button type="button" class="cstq${m===start?' on':''}" data-start="${m}" aria-pressed="${m===start}">`
+        + `${fmtClock(m)}${m===usual?' <span>usual</span>':''}</button>`).join('')
+    + `</div>`
+    + `<div class="cstnote">${own!=null?`<b>Start set by hand.</b> `:''}${esc(what)} ${esc(fin)}`
+    + (own!=null?` <button type="button" class="cstreset" id="${pre}startreset">Back to ${fmtClock(usual)}</button>`:'')
+    + `</div>` + joint;
+}
+/** Wire a crewStartFieldHTML box: picking a time saves it straight away
+ *  (undoable, like every change in Edit crew). */
+function wireCrewStartField(sh, pre, track, after){
+  if(!sh || sh.training) return;
+  const ids=sh.days.map(x=>x.id), go=min=>{ (track||(fn=>fn()))(()=>setCrewStart(ids, min)); if(after) after(); };
+  const sel=document.getElementById(pre+'startsel');
+  if(sel) sel.onchange=()=>go(+sel.value);
+  const box=sel && sel.closest('.stfnote');
+  if(box) box.querySelectorAll('button.cstq[data-start]').forEach(b=>{ b.onclick=e=>{ e.stopPropagation(); go(+b.dataset.start); }; });
+  const rs=document.getElementById(pre+'startreset');
+  if(rs) rs.onclick=e=>{ e.stopPropagation(); go(null); };
+}
+/** The window the Days view crew card's start time opens. */
+const startdlg=document.getElementById('startdlg');
+let startDayId=null;
+function drawStartDlg(){
+  const d=days.find(x=>x.id===startDayId);
+  if(!d){ startdlg.close(); return; }
+  const sh=shiftOfDay(d) || {key:d.id, days:[d], training:!!d.training};
+  document.getElementById('starttitle').textContent=`Start time · ${crewTitle(d)} · ${dowName(d)} ${fmtMDYYYY(d.date)}`;
+  const box=document.getElementById('startbody');
+  box.innerHTML=crewStartFieldHTML(sh, 'sdt');
+  wireCrewStartField(sh, 'sdt', null, drawStartDlg);
+}
+function openStartDlg(dayId){
+  if(roBlocked() || !canEditShiftNotes()) return;
+  const d=days.find(x=>x.id===dayId); if(!d || d.training) return;
+  startDayId=dayId;
+  drawStartDlg();
+  startdlg.showModal();
+  const sel=document.getElementById('sdtstartsel'); if(sel) try{ sel.focus({preventScroll:true}); }catch(e){}
+}
 function wireStfNote(sh){
   wireShiftNoteField(sh, 'stf', fn=>stfTrack(fn), ()=>{
     const u=document.getElementById('stfundo');
@@ -16437,6 +16677,11 @@ function timelineRows(t){
   }
   return rows;
 }
+/** When the crew is at the depot: half an hour before an 8:30 roll-out, or
+ *  before a start set by hand on a depot day. null otherwise. */
+function arriveFor(d, anchored, start){
+  return anchored && (start===DEPART_MIN || (d && d.startMin!=null)) ? start-(DEPART_MIN-ARRIVE_MIN) : null;
+}
 /** The timeline inputs for one crew-day, from the Days view's own numbers. */
 function dayTimeline(d){
   const calc=dayCalc(d), ts=stopTimes(d), rg=routeGeom(d);
@@ -16447,7 +16692,7 @@ function dayTimeline(d){
   for(let i=0;i+1<order.length;i++) legs.push({min:leg(N[order[i]],N[order[i+1]])/60});
   if(anchored && order.length) legs.push({min:leg(N[order[order.length-1]],0)/60});
   legs.forEach((L,i)=>{ L.mi=mi(i); });
-  return {anchored, night:d.win===K.NIGHT, start, arrive:anchored && start===DEPART_MIN ? ARRIVE_MIN : null,
+  return {anchored, night:d.win===K.NIGHT, start, arrive:arriveFor(d, anchored, start),
     finish:start+calc.total, lunchMin:(d.lunchMin??LUNCH)||0, legs, calc, rg,
     stops:ts.map(x=>({row:x.row, name:String(C[x.row].name||'').split('|')[0].trim(), start:x.start, end:x.end}))};
 }
@@ -18561,7 +18806,7 @@ function remShiftInfos(iso, keys, shifts){
     // Install or takedown, by the same rule as the day cards (dayKind).
     const kind=dayKind(iso, sh.days.flatMap(x=>(x.stops||[]).map(r=>(C[r]||{}).visitType)), TAKEDOWN_CUTOFF);
     return {key:sh.key, date:iso, dayIds:sh.days.map(x=>x.id), night:sh.night, dallas:sh.dallas, kind,
-      training:sh.training, anchored, start, arrive:anchored && start===DEPART_MIN ? ARRIVE_MIN : null,
+      training:sh.training, anchored, start, arrive:arriveFor(d, anchored, start),
       crew:sh.training ? 'Training' : sh.members.map(m=>m.name?`${m.name} (${m.pos})`:m.pos).join(' + ')};
   });
 }
@@ -18889,9 +19134,11 @@ function manifestHTML(d){
     ${packHTML}
     <table><thead><tr><th></th><th>Client</th><th class="c">Boxes</th>
       <th class="c">${kind}</th><th class="c">Arrive ≈</th></tr></thead>
-      <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(start)}</td></tr>`:''}
+      <tbody>${anchored?`<tr class="depot"><td></td><td colspan="4">Depot — depart ${fmtClock(start)}</td></tr>`
+        :order.length?`<tr class="depot"><td></td><td colspan="4">Start at the first stop ${fmtClock(start)}${d.startMin!=null?' (set by hand)':''}</td></tr>`:''}
       ${rows}
-      ${anchored&&order.length?`<tr class="depot"><td></td><td colspan="4">Return to depot ≈ ${fmtClock(clock+leg(N[order[order.length-1]],0)/60)}</td></tr>`:''}
+      ${anchored&&order.length?`<tr class="depot"><td></td><td colspan="4">Return to depot ≈ ${fmtClock(clock+leg(N[order[order.length-1]],0)/60)}</td></tr>`
+        :order.length?`<tr class="depot"><td></td><td colspan="4">Last stop done ≈ ${fmtClock(clock)}${clock>=1440?' (next day)':''}</td></tr>`:''}
       </tbody></table>
     <div class="sfoot">${kind} ${(calc.inst).toFixed(1)}h · Drive ${(calc.drive/60).toFixed(1)}h
       ${order.length?` · Lunch ${((d.lunchMin??LUNCH)/60).toFixed(1)}h`:''} · Boxes ${boxes||0}</div>
@@ -20785,6 +21032,7 @@ function render(){
   // A crew name whose crew-day is gone (emptied, or its Dallas run changed
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
+  crewStart = normCrewStart(crewStart);
   shiftNotes = normShiftNotes(shiftNotes);
   trailerFleet = normFleet(trailerFleet); loadTrips = normLoadTrips(loadTrips);
   trailers = normTrailers(trailers, trailerKeys());

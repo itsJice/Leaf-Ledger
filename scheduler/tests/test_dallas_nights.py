@@ -57,7 +57,9 @@ const SPEC={json.dumps(SPEC)}, K=SPEC.const;
 const DALLAS_CAL = new Set(SPEC.calendar.filter(c=>c.kind==='dallas_night').map(c=>c.date));
 let dallasNights = new Set();
 let days = [];
-""" + fns("normDallasNights", "isDallasDate", "dallasNightMeta", "metaFor", "hydrate",
+let crewStart = {{}};
+const CREW_START_MIN = 5*60, CREW_START_MAX = 24*60-15, NIGHT_START_FROM = 18*60;
+""" + fns("normStartMin", "isNightStart", "crewStartShape", "normDallasNights", "isDallasDate", "dallasNightMeta", "metaFor", "hydrate",
           "dynamicJoints", "jointShares", "refreshDerivedMeta", "crewLabel", "isDallasNight", "dallasRunStart",
           "shiftKeyOf", "dallasWeekKeyOf", "addDays", "dateOf", "isoOf", "isCrewName") + """
 const day=(id, stops)=>{ const [date,crew]=id.split('|'); return hydrate({id, date, crew, stops}); };
