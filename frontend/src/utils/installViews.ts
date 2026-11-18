@@ -94,6 +94,15 @@ export function dateFromSearch(search: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
 }
 
+/** `?stop=<row>&day=<crew-day id>` on /install-schedule (with `?date=`):
+ *  the stop whose card to open (Install Times' "Open on the schedule"). */
+export function stopFromSearch(search: string): { row: number; dayId: string } | null {
+  const q = new URLSearchParams(search);
+  const raw = q.get("stop") || "";
+  if (!/^\d{1,7}$/.test(raw)) return null;
+  return { row: Number(raw), dayId: (q.get("day") || "").slice(0, 80) };
+}
+
 /** Where the app's Teams buttons go: the Roster view with the Teams builder
  *  open (user, 2026-10-30: "the teams edit button should be on all the install
  *  related tabs"). The schedule's own views have a Teams button in their

@@ -24,18 +24,26 @@ super_admin -- in practice Justice). Everyone else still sees every submission, 
 "under review" or "complete": the list strips the review fields for them,
 and the routes that change a submission refuse them.
 
+What happened before a comment: the widget attaches the sender's "last
+minute" trail (pages, buttons, requests and errors, up to 50 steps / 10
+minutes) plus device facts as ``context``. It is the owner's, like Claude's
+notes: only a super_admin can read it (``GET /{id}/context``), and the list
+says only whether one exists. Scrubbed by ``app.libs.redact`` and capped at
+``MAX_CONTEXT_BYTES`` so rows stay small.
+
 Checking an item off can carry a "What we fixed" note (`resolution_note`,
 with who wrote it and when). Unlike Claude's review, that note is written
 for the person who sent the comment, so everyone who can see the item sees
 it.
 """
+import json
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
-from app.libs import roles
+from app.libs import redact, roles
 from app.libs.db import ensure_schema_once, get_conn
 
 router = APIRouter(prefix="/feedback")
@@ -44,6 +52,9 @@ MAX_MESSAGE_CHARS = 4000
 #: ~2MB of base64 -- comfortably covers a full-page screenshot at normal
 #: viewport sizes without letting a submission balloon the table.
 MAX_SCREENSHOT_BYTES = 3_000_000
+#: The trail and device facts attached to a comment (see the docstring).
+MAX_CONTEXT_BYTES = 20_000
+MAX_CONTEXT_STEPS = 50
 
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;
@@ -77,6 +88,11 @@ ALTER TABLE ll_app.feature_requests
     ADD COLUMN IF NOT EXISTS resolution_note  text,
     ADD COLUMN IF NOT EXISTS resolved_by_name text,
     ADD COLUMN IF NOT EXISTS resolved_at      timestamptz;
+
+-- What happened before the comment: the "last minute" trail and device
+-- facts (owner only; see the module docstring).
+ALTER TABLE ll_app.feature_requests
+    ADD COLUMN IF NOT EXISTS context jsonb;
 """
 
 #: What Claude can say about a submission after looking at it.
@@ -106,7 +122,7 @@ OWNER_FIELDS = ("claude_status", "claude_note", "claude_link", "claude_reviewed_
 
 #: Column list shared by every query that returns a FeedbackRow.
 ROW_COLUMNS = (
-    "id, message, (screenshot IS NOT NULL) AS has_screenshot, page_path, "
+    "id, message, (screenshot IS NOT NULL) AS has_screenshot, (context IS NOT NULL) AS has_context, page_path, "
     "submitted_name, status, created_at, claude_status, claude_note, "
     "claude_link, claude_reviewed_at, reply, reply_name, replied_at, "
     "resolution_note, resolved_by_name, resolved_at"
@@ -123,6 +139,27 @@ class FeedbackIn(BaseModel):
     message: str
     screenshot: Optional[str] = None  # data:image/png;base64,....
     page_path: Optional[str] = None
+    #: {"trail": [...steps], "device": {...}, "error_ids": [...]}
+    context: Optional[dict] = None
+
+
+def clean_context(context: Any) -> Optional[str]:
+    """The comment's context, scrubbed and trimmed to fit, as JSON text."""
+    if not isinstance(context, dict) or not context:
+        return None
+    from app.apis.app_events import clean_trail
+
+    out: dict = {}
+    trail = clean_trail(context.get("trail"), MAX_CONTEXT_STEPS, MAX_CONTEXT_BYTES - 4_000)
+    if trail:
+        out["trail"] = trail
+    device = redact.scrub_tree(context.get("device")) if isinstance(context.get("device"), dict) else None
+    if device and redact.json_size(device) < 3_000:
+        out["device"] = device
+    ids = [int(i) for i in (context.get("error_ids") or []) if isinstance(i, int)][:20]
+    if ids:
+        out["error_ids"] = ids
+    return json.dumps(out) if out else None
 
 
 class FeedbackOut(BaseModel):
@@ -152,14 +189,15 @@ async def submit_feedback(body: FeedbackIn, request: Request, user: AuthorizedUs
         await ensure_schema(conn)
         row = await conn.fetchrow(
             "INSERT INTO ll_app.feature_requests "
-            "(message, screenshot, page_path, user_agent, submitted_by, submitted_name) "
-            "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            "(message, screenshot, page_path, user_agent, submitted_by, submitted_name, context) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb) RETURNING id",
             message,
             screenshot,
             (body.page_path or "")[:500],
             request.headers.get("user-agent", "")[:500],
             user.sub,
             user.display_name,
+            clean_context(body.context),
         )
     finally:
         await conn.close()
@@ -170,6 +208,8 @@ class FeedbackRow(BaseModel):
     id: int
     message: str
     has_screenshot: bool
+    #: Whether the "last minute" trail came with it (owner reads it separately).
+    has_context: bool = False
     page_path: Optional[str] = None
     submitted_name: Optional[str] = None
     status: str
@@ -210,6 +250,7 @@ def to_row(r) -> FeedbackRow:
     return FeedbackRow(
         stage=stage_of(r["status"], r.get("claude_status"), r.get("claude_reviewed_at")),
         id=r["id"], message=r["message"], has_screenshot=r["has_screenshot"],
+        has_context=bool(r.get("has_context")),
         page_path=r["page_path"], submitted_name=r["submitted_name"],
         status=r["status"], created_at=r["created_at"].isoformat(),
         claude_status=r.get("claude_status"), claude_note=r.get("claude_note"),
@@ -376,3 +417,21 @@ async def get_feedback_screenshot(feedback_id: int, user: AuthorizedUser) -> dic
     if not row or not row["screenshot"]:
         raise HTTPException(status_code=404, detail="No screenshot for this submission")
     return {"screenshot": row["screenshot"]}
+
+
+@router.get("/{feedback_id}/context", dependencies=owner_only)
+async def get_feedback_context(feedback_id: int, user: AuthorizedUser) -> dict:
+    """What happened before this comment (owner only)."""
+    try:
+        conn = await get_conn()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Feedback storage unavailable") from exc
+    try:
+        await ensure_schema(conn)
+        row = await conn.fetchrow("SELECT context FROM ll_app.feature_requests WHERE id = $1", feedback_id)
+    finally:
+        await conn.close()
+    if not row or row["context"] is None:
+        raise HTTPException(status_code=404, detail="No trail for this submission")
+    ctx = row["context"]
+    return json.loads(ctx) if isinstance(ctx, str) else ctx

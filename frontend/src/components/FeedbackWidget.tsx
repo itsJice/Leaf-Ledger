@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { MessageSquarePlus, X, Camera, Eraser, Loader2, ImagePlus } from "components/icons";
 import { toast } from "sonner";
 import { apiFetch } from "utils/apiFetch";
+import { commentContext } from "utils/eventLog";
 
 // Floating "suggest a feature" button, present on every page through Layout.
 // Deliberately NOT its own sidebar tab (considered and dropped): a sidebar
@@ -191,6 +192,9 @@ export default function FeedbackWidget() {
           message: trimmed,
           screenshot,
           page_path: window.location.pathname + window.location.search,
+          // The "last minute" trail, device facts and recent error ids, so
+          // the owner sees what happened before this (utils/eventLog.ts).
+          context: commentContext(),
         }),
       });
       if (!res.ok) throw new Error(String(res.status));

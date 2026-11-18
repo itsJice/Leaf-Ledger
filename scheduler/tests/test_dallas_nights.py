@@ -268,7 +268,7 @@ def test_only_the_install_row_speaks_for_the_client():
     assert "extraVisitRow(r, C)" in js_function("buildBillingRows")
 
 
-SYNC = fns("normName", "sameNewClient", "syncSyntheticName", "restoreSyntheticClients", "syncBlockedBy") + """
+SYNC = fns("normName", "sameNewClient", "sameLocalClient", "collidingNewClients", "syncSyntheticName", "restoreSyntheticClients", "syncBlockedBy") + """
 const C={65:{row:65, name:'M Crowd Lakewood', street:'2 B St'}};
 let nextSyntheticRow=900001, syncBlocked=false, clientDirectory=null, sharedBase=null;
 const banners=[];

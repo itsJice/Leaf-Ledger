@@ -7,6 +7,7 @@ import Layout from "components/Layout";
 import { isReadOnly } from "utils/me";
 import { apiFetch } from "utils/apiFetch";
 import { toast } from "sonner";
+import { CommentTrail, ErrorsPanel } from "components/ErrorLog";
 
 // Shared team list of what came in through the floating "Suggest a feature"
 // button (FeedbackWidget.tsx) -- everyone signed in sees the same list and
@@ -27,6 +28,8 @@ interface FeedbackRow {
   id: number;
   message: string;
   has_screenshot: boolean;
+  /** The "last minute" trail came with it (owner reads it: CommentTrail). */
+  has_context?: boolean;
   page_path?: string | null;
   submitted_name?: string | null;
   status: string;
@@ -47,7 +50,7 @@ interface FeedbackRow {
   resolved_at?: string | null;
 }
 
-type Filter = "all" | "needs_you" | "to_test" | "waiting" | "completed";
+type Filter = "all" | "needs_you" | "to_test" | "waiting" | "completed" | "errors";
 
 const REVIEW_STYLES: Record<string, { label: string; icon: typeof Sparkles; tone: string }> = {
   fixed: { label: "Fixed — ready for you to test", icon: CheckCircle2, tone: "border-emerald-200 bg-emerald-50 text-emerald-800" },
@@ -410,6 +413,7 @@ function CommentRow({ row, owner, onToggle, onComplete, onViewScreenshot, onRepl
         ) : (
           <WhatWeFixed row={row} onEdit={owner && done ? () => setEditingNote(true) : undefined} />
         )}
+        {owner && row.has_context && <CommentTrail id={row.id} />}
         {owner && <ClaudeReview row={row} onReply={onReply} />}
         {!owner && row.reply && (
           <p className="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600">
@@ -521,6 +525,8 @@ export default function Comments() {
         { key: "to_test", label: "Ready to test" },
         { key: "waiting", label: "With Claude" },
         { key: "completed", label: "Completed" },
+        // The error log (components/ErrorLog.tsx): owner only.
+        { key: "errors", label: "Errors" },
       ]
     : [
         { key: "all", label: "Open" },
@@ -573,12 +579,15 @@ export default function Comments() {
                     }`}
                   >
                     {f.label}
-                    <span className={`ml-1.5 ${active ? "text-emerald-600" : "text-stone-400"}`}>{count}</span>
+                    {f.key !== "errors" && <span className={`ml-1.5 ${active ? "text-emerald-600" : "text-stone-400"}`}>{count}</span>}
                   </button>
                 );
               })}
             </div>
 
+            {filter === "errors" && owner ? (
+              <ErrorsPanel />
+            ) : (
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
               {shown.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-stone-400">
@@ -590,6 +599,7 @@ export default function Comments() {
                 ))
               )}
             </div>
+            )}
 
           </>
         )}

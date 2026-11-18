@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { withFrameWatch } from "utils/scheduleFrameWatch";
+import { useStuckCheck } from "utils/useStuckCheck";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2, TreePine } from "components/icons";
 import Layout from "components/Layout";
@@ -8,6 +10,7 @@ import { currentMe } from "utils/me";
 import {
   type InstallView,
   dateFromSearch,
+  stopFromSearch,
   legacyView,
   pathForView,
   teamsFromSearch,
@@ -65,6 +68,7 @@ export default function InstallSchedule() {
   const [tv, setTv] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  useStuckCheck(html === null && error === null, "Install Schedule");
   // The view the page is showing, as far as we know: what it was opened on,
   // then whatever it last reported or we last asked for. Route changes that
   // already match it send nothing, so the page and the URL never ping-pong.
@@ -98,7 +102,9 @@ export default function InstallSchedule() {
         // Opens on the view of the route we're on by the time it arrived.
         const view = viewForPath(pathRef.current);
         pageView.current = view;
-        if (!cancelled) setHtml(withHostFlags(text, view, viewOnly, Boolean(me?.viewOnly)));
+        // withFrameWatch: errors and saves inside the schedule go to the error
+        // log and trail (utils/scheduleFrameWatch.ts).
+        if (!cancelled) setHtml(withFrameWatch(withHostFlags(text, view, viewOnly, Boolean(me?.viewOnly))));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
@@ -185,8 +191,14 @@ export default function InstallSchedule() {
         const want = viewForPath(pathRef.current);
         if (want !== pageView.current) showView(want);
         // ?date=YYYY-MM-DD (the home page's install-notes link): open that day.
+        // ?stop=<row>&day=<id> too (Install Times' "Open on the schedule"): that stop's card.
         const date = dateFromSearch(searchRef.current);
-        if (date) frameRef.current?.contentWindow?.postMessage({ type: "tbdg-date", date }, window.location.origin);
+        const stop = date ? stopFromSearch(searchRef.current) : null;
+        if (date)
+          frameRef.current?.contentWindow?.postMessage(
+            { type: "tbdg-date", date, ...(stop ? { row: stop.row, dayId: stop.dayId } : {}) },
+            window.location.origin,
+          );
         // ?teams=1 (the Teams button on Crew Shifts, Install Changes, Profit):
         // open the Teams builder.
         if (teamsFromSearch(searchRef.current))

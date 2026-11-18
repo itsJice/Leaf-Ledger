@@ -11,6 +11,13 @@
   "/api/admin/toggle-scraper/{supplier_id}": [
     "POST"
   ],
+  "/api/app-events": [
+    "GET",
+    "POST"
+  ],
+  "/api/app-events/summary": [
+    "GET"
+  ],
   "/api/arrangements/container/add/{arrangement_id}": [
     "POST"
   ],
@@ -148,6 +155,9 @@
   "/api/feedback/{feedback_id}": [
     "PUT"
   ],
+  "/api/feedback/{feedback_id}/context": [
+    "GET"
+  ],
   "/api/feedback/{feedback_id}/reply": [
     "PUT"
   ],
@@ -231,6 +241,9 @@
     "GET"
   ],
   "/api/install-times/reports": [
+    "GET"
+  ],
+  "/api/install-times/schedule": [
     "GET"
   ],
   "/api/install-times/visit": [

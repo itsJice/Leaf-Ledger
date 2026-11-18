@@ -140,6 +140,12 @@ def create_app() -> FastAPI:
 
     app.include_router(import_api_routers())
 
+    # Server 500s and slow (5s+) /api requests go to the error log
+    # (app/libs/request_log.py). Never slows or changes a request.
+    from app.libs.request_log import RequestLogMiddleware
+
+    app.add_middleware(RequestLogMiddleware)
+
     for route in app.routes:
         if hasattr(route, "methods"):
             for method in route.methods:

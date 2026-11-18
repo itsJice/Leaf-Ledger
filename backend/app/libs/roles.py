@@ -174,6 +174,7 @@ PRODUCTION_WRITES = frozenset({
     "POST /api/jobs/{job_id}/touch",             # "last opened" stamp when viewing a job
     "PUT /api/schedule-changes/follow",          # follow the schedule's Changes list
     "POST /api/schedule-changes/seen",           # their own "last seen" mark on it
+    "POST /api/app-events",                      # report an error to the error log
 })
 #: Refused even inside an allowed area: the rates and costs kept in Settings.
 PRODUCTION_DENY = (
