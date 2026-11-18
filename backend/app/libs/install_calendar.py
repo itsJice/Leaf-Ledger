@@ -180,8 +180,7 @@ def _maps(c: dict) -> str:
 
 def _crew_line(board: Board, day_id: str) -> str:
     people = [board.person(pid) for pid in board.staffing.get(day_id, [])]
-    leads = {p["id"] for p in board.crew_leads(day_id)}
-    names = [p["name"] + (" (lead)" if p["id"] in leads else "") for p in people if p]
+    names = [p["name"] + (" (lead)" if p["title"] == "Lead" else "") for p in people if p]
     return ", ".join(names) or "Nobody assigned yet"
 
 

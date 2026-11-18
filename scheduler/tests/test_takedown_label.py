@@ -85,8 +85,7 @@ MANIFEST_STUBS = f"""
 
 
 def manifest(day_js):
-    src = ("\n".join(js_function(n) for n in KIND_FNS + [
-        "personTitles", "hasTitle", "crewLeads", "crewRoleTag", "manifestHTML"])
+    src = ("\n".join(js_function(n) for n in KIND_FNS + ["manifestHTML"])
            + MANIFEST_STUBS + f"\nconsole.log(JSON.stringify(manifestHTML({day_js})));")
     return json.loads(run_js(src))
 

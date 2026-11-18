@@ -56,9 +56,6 @@ export interface Day {
   /** The office's note for this shift, from the Install Schedule's Staffing tab. */
   shiftNote?: string;
   lead: Person | null;
-  /** Everyone leading this crew-day (older servers leave it out). A Lead who
-   *  also works as a General Installer isn't one when another Lead is on. */
-  leadIds?: string[];
   crew: Person[];
   stops: Stop[];
   /** Every stop's install notes for the day, in route order. */

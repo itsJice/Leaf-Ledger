@@ -4981,26 +4981,6 @@ function hasTitle(p, t){ return personTitles(p).includes(t); }
 function extraTitles(p){ return personTitles(p).filter(t=>t!==(p&&p.title)); }
 /** "Lead, General Installer" -- for exports, contact cards and search. */
 function titlesText(p){ return personTitles(p).join(', '); }
-/** Who leads a crew, from the people on it (Comments #32/#33/#36). Of the
- *  people with a Lead title, in order of preference: a primary Lead who
- *  doesn't also work as a General Installer, then any primary Lead, then
- *  someone whose Lead title is an extra one. So a Lead who also works as a
- *  General Installer (Chris, Alberto) is working as a general when another
- *  Lead is on the crew, and still leads it when they are the only one. */
-function crewLeads(who){
-  const rank=p=>p.title!=='Lead' ? 2 : hasTitle(p,'General Installer') ? 1 : 0;
-  const can=(who||[]).filter(p=>p && hasTitle(p,'Lead'));
-  if(can.length<2) return can;
-  const best=Math.min(...can.map(rank));
-  return can.filter(p=>rank(p)===best);
-}
-/** The short role tag after a name on a crew list: lead / assist / designer,
- *  or '' for a general (including a Lead working as one, see crewLeads). */
-function crewRoleTag(p, leads){
-  if((leads||[]).some(x=>x.id===p.id)) return 'lead';
-  if(p.title==='Lead') return '';
-  return p.title==='Lead Assist' ? 'assist' : p.title==='Designer' ? 'designer' : '';
-}
 /** Can this person work this shift? Dates only (user, 2026-10-24: "take out
  *  the day and night options... just select the dates"): a date in their
  *  `dates` means they can work that day, and for a Dallas date that means
@@ -8008,17 +7988,19 @@ function shiftCoverage(sh){
           state: !who.length ? 'none' : shortLead ? 'bad' : short ? 'short' : 'ok'};
 }
 // ---------- staffing need & coverage ----------
-/** How many on a crew can fill each need. With several titles (Comments #36)
- *  each person counts once, under the highest need any of their titles fills:
- *  any Lead title -> lead, else Lead Assist or Designer -> assist, else
- *  general. Fill-down (dayCoverage) then lets a spare lead or assist cover a
- *  general seat, so a Lead who also works as a General Installer counts
- *  toward the general need whenever the crew already has its lead. For
+/** How many on a crew can fill each need (Comments #36, option 1 chosen by
+ *  the user 2026-11-17). Each person counts once. Only a PRIMARY Lead counts
+ *  as a lead -- the same people who are named the crew's lead and get its lead
+ *  pages, so who leads never changes with extra titles. Anyone else counts as
+ *  an assist if any of their titles is Lead Assist or Designer (an extra one
+ *  included), else as a general. Fill-down (dayCoverage) then lets a spare
+ *  lead or assist cover a general seat, so a Lead who also works as a General
+ *  Installer fills a general seat whenever the crew already has its lead. For
  *  one-title people this is exactly the old count by title. */
 function coverageCounts(who){
   let lead=0, assist=0, gen=0;
   (who||[]).forEach(p=>{
-    if(hasTitle(p,'Lead')) lead++;
+    if(p.title==='Lead') lead++;
     else if(hasTitle(p,'Lead Assist')||hasTitle(p,'Designer')) assist++;
     else gen++;
   });
@@ -14931,6 +14913,12 @@ function titlePillHTML(p, full){
   return `<span class="pill ${TITLE_CLS[p.title]}">${esc(full ? p.title : TITLE_ABBR[p.title])}</span>`
     + extraTitlePillsHTML(p);
 }
+/** Under one of their extra titles in the picker: a quiet pill with their
+ *  main title ("Lead"), so it's clear it's the same person. */
+function mainTitlePillHTML(p){
+  return `<span class="pill ttx ${TITLE_CLS[p.title]}" title="Main title: ${esc(p.title)}"`
+    + ` aria-label="Main title: ${esc(p.title)}">${esc(TITLE_ABBR[p.title])}</span>`;
+}
 function extraTitlePillsHTML(p){
   return extraTitles(p).map(t=>`<span class="pill ttx ${TITLE_CLS[t]}" title="Also works as ${esc(t)}"`
     + ` aria-label="Also works as ${esc(t)}">+${esc(TITLE_ABBR[t])}</span>`).join('');
@@ -15749,7 +15737,11 @@ function drawStaffDlg(){
     : '<div class="stfnone">No installers on the roster yet. '
       + 'Add them from the Staffing tab.</div>';
   TITLES.forEach(t=>{
-    const grp=avail.filter(p=>p.title===t);
+    // Someone with several titles (Comments #36) is listed under each one:
+    // Chris (Lead, also General Installer) shows under Lead and under General
+    // Installer, so whoever is filling the general seats finds him there.
+    // Both rows are the same person and tick together.
+    const grp=avail.filter(p=>hasTitle(p,t));
     if(!grp.length) return;
     h+=`<div class="asghdr">${esc(t)}</div>`;
     // Available first, then by name -- someone who cannot work this shift
@@ -15775,7 +15767,7 @@ function drawStaffDlg(){
        + ` style="--i:${Math.min(rowI,16)}">`
        + `<input type="checkbox" data-pid="${p.id}"${on.has(p.id)?' checked':''}>`
        + `<span class="asgbody"><span class="asgn">${esc(p.name)}</span><span class="asgtags">`
-       + extraTitlePillsHTML(p)
+       + (p.title===t ? extraTitlePillsHTML(p) : mainTitlePillHTML(p))
        + (clash?`<span class="asgclash">ALSO ${esc([...new Set(days.filter(x=>!mine.has(x.id)&&myDates.has(x.date)
               &&(staffing[x.id]||[]).includes(p.id)).map(x=>x.crew))].join(' + '))}</span>`:'')
        + (av.ok?'':`<span class="asgunavail">${esc(av.why.toUpperCase())}</span>`)
@@ -16202,13 +16194,11 @@ function shiftCardHTML(sh){
 }
 /** The crew chips (lead first), or "No one assigned yet". */
 function shiftCrewHTML(cv){
-  const leads=crewLeads(cv.who);
   return cv.who.length
     ? `<div class="shcrew">${cv.who.slice().sort((a,b)=>
          TITLES.indexOf(a.title)-TITLES.indexOf(b.title)||a.name.localeCompare(b.name))
-        .map(pn=>{ const tg=crewRoleTag(pn, leads);
-          return `<span class="shcp ${tg==='lead'||pn.title!=='Lead'?TITLE_CLS[pn.title]:'gen'}">${esc(pn.name)}`
-          +`${tg?' · '+tg:''}</span>`; })
+        .map(pn=>`<span class="shcp ${TITLE_CLS[pn.title]}">${esc(pn.name)}`
+          +`${pn.title==='Lead'?' · lead':pn.title==='Lead Assist'?' · assist':pn.title==='Designer'?' · designer':''}</span>`)
         .join('')}</div>`
     : `<div class="shcempty">No one assigned yet.</div>`;
 }
@@ -16479,7 +16469,7 @@ function sdDraw(){
   if(!sh){ sddlg.closeNow(); return; }
   sd.night=Math.max(0, Math.min(sd.night, sh.days.length-1));
   const d=sh.days[sd.night], cv=shiftCoverage(sh);
-  const leads=crewLeads(cv.who).map(p=>p.name);
+  const leads=cv.who.filter(p=>p.title==='Lead').map(p=>p.name);
   document.getElementById('sddot').style.background=CREW_COLORS[sh.crew]||'#555';
   document.getElementById('sdtitle').textContent=sh.label;
   document.getElementById('sdsub').innerHTML=`<span>${esc(sh.when)}</span>`
@@ -18218,7 +18208,7 @@ function txtSendHTML(){
       });
       return `<div class="txtcard${txt.sent[p.id]?' sent':''}" data-pid="${esc(p.id)}">
         <div class="top"><label><input type="checkbox" data-sent${txt.sent[p.id]?' checked':''}>${esc(p.name)}</label>
-          <span class="pill ${TITLE_CLS[p.title]}">${TITLE_ABBR[p.title]}</span>
+          ${titlePillHTML(p)}
           <span class="pill ${LANG_CLS[p.lang]}">${LANG_ABBR[p.lang]}</span>
           ${txtLastHTML(p)}${txtStatus(p)}</div>
         ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
@@ -18458,9 +18448,9 @@ function remPeople(infos, map, people){
   const rows=[], seen=new Map();
   (infos||[]).forEach(info=>{
     const ids=[...new Set((info.dayIds||[]).flatMap(k=>(map||{})[k]||[]))];
-    const all=ids.map(id=>byId.get(id)).filter(Boolean), leads=crewLeads(all);
-    const isLead=p=>leads.includes(p);
-    const who=all.sort((a,b)=>isLead(b)-isLead(a) || a.name.localeCompare(b.name));
+    const who=ids.map(id=>byId.get(id)).filter(Boolean)
+      .sort((a,b)=>(a.title!=='Lead')-(b.title!=='Lead') || a.name.localeCompare(b.name));
+    const leads=who.filter(p=>p.title==='Lead');
     who.forEach(p=>{
       if(seen.has(p.id)){ seen.get(p.id).also.push(info.crew); return; }
       const row={p, info, leads, also:[]};
@@ -18848,13 +18838,13 @@ function manifestHTML(d){
         ${d.joint?` · joint with ${esc(d.joint)}`:''}${d.note?` · ${esc(d.note)}`:''}</p>
         ${(()=>{ const sh=shiftOfDay(d), cv=sh?shiftCoverage(sh):dayCoverage(d);
           // Who is actually on this truck, printed where the crew will see it.
-          const leads=crewLeads(cv.who);
-          const who=cv.who.map(pn=>{ const tg=crewRoleTag(pn, leads); return esc(pn.name)+(tg?` (${tg})`:''); }).join(' · ');
+          const who=cv.who.map(pn=>esc(pn.name)
+              +(pn.title==='Lead'?' (lead)':pn.title==='Lead Assist'?' (assist)':pn.title==='Designer'?' (designer)':'')).join(' · ');
           // Same wording as the on-screen chip -- coverageLabel is the one
           // place that decides "no lead" vs "short a lead".
           // Everyone on the truck, one per box, so a long crew wraps onto
           // more lines instead of running off the page (user, 10/26/2026).
-          const tag=pn=>crewRoleTag(pn, leads);
+          const tag=pn=>pn.title==='Lead'?'lead':pn.title==='Lead Assist'?'assist':pn.title==='Designer'?'designer':'';
           // Each person's responsibilities next to their name (Kit Captain, ...).
           const own=sh ? shiftDuties(sh) : {};
           const list=cv.who.map(pn=>`<li><b>${esc(pn.name)}</b>${tag(pn)?` <span>${tag(pn)}</span>`:''}`
@@ -19592,7 +19582,7 @@ function loadNights(dates){
     if(!ds.length) return null;
     const crews=ds.map(d=>{
       const calc=dayCalc(d), order=calc.order.length?calc.order:d.stops;
-      const lead=crewLeads((staffing[d.id]||[]).map(personById).filter(Boolean)).map(p=>p.name);
+      const lead=(staffing[d.id]||[]).map(personById).filter(p=>p && p.title==='Lead').map(p=>p.name);
       return {id:d.id, title:crewTitle(d), pos:crewPos(d), lead, trailerId:trailerIdOf(d),
         stops:order.map(r=>{ const b=loadBoxesFor(r), ap=addrParts(C[r]||{});
           return {row:r, name:(C[r]||{}).name||'', city:b.city||ap.city||'', boxes:b.boxes, fromInstall:b.fromInstall}; })};
@@ -19859,15 +19849,15 @@ function loaderCrews(dates){
     if(!by.has(pos)) by.set(pos, {pos, label:crewLabel(d), days:[], names:[], leads:[]});
     const g=by.get(pos); g.days.push(d);
     const nm=crewName(d); if(nm && !g.names.includes(nm)) g.names.push(nm);
-    crewLeads((staffing[d.id]||[]).map(personById).filter(Boolean)).forEach(p=>{ if(!g.leads.some(x=>x.id===p.id)) g.leads.push(p); });
+    (staffing[d.id]||[]).map(personById).filter(p=>p && p.title==='Lead').forEach(p=>{ if(!g.leads.some(x=>x.id===p.id)) g.leads.push(p); });
   });
   return [...by.values()].sort((a,b)=>a.pos-b.pos);
 }
 /** Leads with a phone on a sheet's crew-days. */
 function pageLeads(p){
   const out=[];
-  (p.ids||[]).forEach(id=>crewLeads((staffing[id]||[]).map(personById).filter(Boolean)).forEach(x=>{
-    if(smsNumber(x.phone) && !out.some(o=>o.id===x.id)) out.push(x);
+  (p.ids||[]).forEach(id=>(staffing[id]||[]).map(personById).forEach(x=>{
+    if(x && x.title==='Lead' && smsNumber(x.phone) && !out.some(o=>o.id===x.id)) out.push(x);
   }));
   return out;
 }

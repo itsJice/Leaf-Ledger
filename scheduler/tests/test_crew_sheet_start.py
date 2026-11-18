@@ -20,8 +20,7 @@ NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 FNS = ["visitKind", "dayKind", "dayKindLabel", "stopKindWord",
-       "shiftStart", "fmtClock", "personTitles", "hasTitle", "crewLeads", "crewRoleTag",
-       "manifestHTML"]
+       "shiftStart", "fmtClock", "manifestHTML"]
 
 # Everything around the sheet stubbed: three stops, 75 min each, a 15 min
 # drive between them (and from/to the depot), nobody assigned.

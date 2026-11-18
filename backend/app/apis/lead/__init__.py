@@ -140,7 +140,8 @@ def _can_see(viewer: Viewer, board: schedule_board.Board, day_id: str) -> bool:
         return False
     if viewer.supervisor:
         return True
-    return bool(viewer.person and board.can_lead_page(viewer.person["id"], day_id))
+    lead = board.lead_of(day_id)
+    return bool(lead and viewer.person and lead["id"] == viewer.person["id"])
 
 
 def _require_stop(viewer: Viewer, board: schedule_board.Board, day_id: str, row: int) -> dict:
@@ -302,9 +303,6 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
         # build's day note above.
         "shiftNote": board.shift_note(day),
         "lead": lead,
-        # Everyone leading this crew-day (usually one), for the "(Lead)" tag:
-        # a Lead working as a general on another Lead's crew isn't one.
-        "leadIds": [p["id"] for p in board.crew_leads(day["id"])],
         "crew": [p for p in crew if p],
         "stops": stops,
         "packList": pack_list(stops),
@@ -323,10 +321,10 @@ def _visible_days(viewer: Viewer, board: schedule_board.Board,
     lead's with ``person_id``), only their own for a lead."""
     if _sees_all(viewer):
         if person_id:
-            return board.days_visible_to_lead(person_id)
+            return board.days_led_by(person_id)
         return sorted(board.days.values(), key=lambda d: (d["date"], board.crew_label(d)))
     if viewer.person:
-        return board.days_visible_to_lead(viewer.person["id"])
+        return board.days_led_by(viewer.person["id"])
     return []
 
 
@@ -372,11 +370,9 @@ async def my_shifts(user: AuthorizedUser, person_id: Optional[str] = None) -> di
     if sees_all:
         seen = {}
         for did in board.days:
-            # Everyone the person filter can show days for (see can_lead_page).
-            for pid in board.staffing.get(did, []):
-                p = board.person(pid)
-                if p and p["id"] not in seen and board.can_lead_page(p["id"], did):
-                    seen[p["id"]] = p
+            lead = board.lead_of(did)
+            if lead:
+                seen[lead["id"]] = lead
         leads = sorted(seen.values(), key=lambda p: p["name"])
 
     return {

@@ -4,7 +4,11 @@ installer multiple times"), and Comments #32/#33: Chris and Alberto (Leads)
 also put on crews as General Installers.
 
 `titles` is every title, primary first; `title` stays the primary so older
-pages, pay class and logins keep reading one title. FAKE people only."""
+pages, pay class and logins keep reading one title.
+
+Option 1 (the user, 2026-11-17): who LEADS a crew is decided exactly as
+before -- by the primary title Lead. Extra titles only change counts (role
+needs), title filters/groups and text groups. FAKE people only."""
 import json
 import re
 import shutil
@@ -40,8 +44,8 @@ PRELUDE = "\n".join([
     js_function("normRoster"),
     js_function("esc"),
     *(js_function(n) for n in (
-        "personTitles", "hasTitle", "extraTitles", "titlesText", "crewLeads", "crewRoleTag",
-        "coverageCounts", "dayNeed", "dayCoverage", "titlePillHTML", "extraTitlePillsHTML",
+        "personTitles", "hasTitle", "extraTitles", "titlesText",
+        "coverageCounts", "dayNeed", "dayCoverage", "titlePillHTML", "mainTitlePillHTML", "extraTitlePillsHTML",
         "perTitles", "perAlsoHTML")),
 ])
 
@@ -86,45 +90,31 @@ def test_one_title_people_count_exactly_as_before():
 
 
 @needs_node
-def test_lead_who_also_works_general_fills_a_general_seat():
-    """Comments #32/#33: Chris (Lead + General Installer) on Lesly's crew is a
-    general there -- he counts toward the general need and Lesly leads."""
+def test_extra_titles_count_toward_role_needs_but_never_make_a_lead():
+    """Comments #32/#33 under option 1: Chris (Lead + General Installer) on
+    Lesly's crew fills a general seat (a spare lead fills down); an extra
+    Designer title fills an assist seat; an extra Lead title on a General
+    Installer does NOT count as a lead -- only a primary Lead leads."""
     out = run("""
       const roster=normRoster([
         {id:'p1',first:'Lesly',title:'Lead'},
         {id:'p2',first:'Chris',title:'Lead',titles:['Lead','General Installer']},
         {id:'p3',first:'Gen',title:'General Installer'},
-        {id:'p4',first:'Desi',title:'General Installer',titles:['General Installer','Designer']}]);
+        {id:'p4',first:'Desi',title:'General Installer',titles:['General Installer','Designer']},
+        {id:'p5',first:'Xtra',title:'General Installer',titles:['General Installer','Lead']}]);
       const personById=id=>roster.find(p=>p.id===id);
       const C={1:{roleNeed:{leads:1, general:2, designer:1}}};
-      let staffing={'d1':['p2','p1','p3','p4'], 'd2':['p2','p3']};
+      let staffing={'d1':['p2','p1','p3','p4'], 'd2':['p2','p3'], 'd3':['p5','p3','p4']};
       const day=id=>({id, stops:[1], half:[]});
-      const cv=dayCoverage(day('d1')), cv2=dayCoverage(day('d2'));
-      const leads=crewLeads(cv.who), leads2=crewLeads(cv2.who);
-      console.log(JSON.stringify({
-        cv:[cv.lead, cv.assist, cv.gen, cv.short, cv.state],
-        leads:leads.map(p=>p.first), tags:cv.who.map(p=>[p.first, crewRoleTag(p, leads)]),
-        cv2:[cv2.shortLead, cv2.state], leads2:leads2.map(p=>p.first)}));""")
-    # Need 1 lead + 1 assist + 2 general = 4. Two lead-capable, Desi counts as assist
-    # through her extra Designer title, Gen general; the spare lead fills a general seat.
-    assert out["cv"] == [2, 1, 1, 0, "ok"]
-    assert out["leads"] == ["Lesly"]
-    assert dict(out["tags"]) == {"Chris": "", "Lesly": "lead", "Gen": "", "Desi": ""}
-    # Alone on a crew, Chris still leads it.
-    assert out["cv2"][0] == 0 and out["leads2"] == ["Chris"]
-
-
-@needs_node
-def test_crew_leads_preference():
-    out = run("""
-      const R=normRoster([
-        {id:'a',first:'A',title:'Lead',titles:['Lead','General Installer']},
-        {id:'b',first:'B',title:'Lead',titles:['Lead','General Installer']},
-        {id:'c',first:'C',title:'General Installer',titles:['General Installer','Lead']},
-        {id:'d',first:'D',title:'Lead'}, {id:'e',first:'E',title:'Lead'}]);
-      const f=ids=>crewLeads(ids.map(i=>R.find(p=>p.id===i))).map(p=>p.id);
-      console.log(JSON.stringify([f(['a','b']), f(['a','c']), f(['c']), f(['d','e']), f(['a','d','c']), f([])]));""")
-    assert out == [["a", "b"], ["a"], ["c"], ["d", "e"], ["d"], []]
+      const r=id=>{ const c=dayCoverage(day(id)); return [c.lead, c.assist, c.gen, c.shortLead, c.short, c.state]; };
+      console.log(JSON.stringify({d1:r('d1'), d2:r('d2'), d3:r('d3')}));""")
+    # Need 1 lead + 1 assist + 2 general = 4. Two primary Leads (the spare one
+    # fills a general seat), Desi counts as assist through her extra Designer.
+    assert out["d1"] == [2, 1, 1, 0, 0, "ok"]
+    # Chris alone is still a lead (his primary title), as before.
+    assert out["d2"][0] == 1 and out["d2"][3] == 0
+    # Xtra's extra Lead title doesn't cover the lead need: still NO LEAD.
+    assert out["d3"] == [0, 1, 2, 1, 1, "bad"]
 
 
 @needs_node
@@ -146,13 +136,13 @@ def test_pills_and_dialog_titles():
 
 
 def test_readers_match_any_title():
-    """Roster filter, text groups and the Teams filter match any title; the
-    picker groups by primary title and shows the extras as chips."""
+    """Roster filter, text groups, the Teams filter and the staffing picker's
+    title groups match any title."""
     assert "hasTitle(p,f.title)" in js_function("rosterLists")
     assert "test:p=>txtActive(p)&&hasTitle(p,t)" in TEMPLATE
     assert "hasTitle(p, f.slice(2))" in TEMPLATE
     dlg = js_function("drawStaffDlg")
-    assert "avail.filter(p=>p.title===t)" in dlg and "extraTitlePillsHTML(p)" in dlg
+    assert "avail.filter(p=>hasTitle(p,t))" in dlg
     # The edit dialog saves both, primary first.
     go = TEMPLATE[TEMPLATE.index("document.getElementById('pergo').onclick"):]
     assert "title:titles[0], titles," in go[:2000]
@@ -161,6 +151,30 @@ def test_readers_match_any_title():
     assert "return p.title==='Lead' || attendedTraining" in js_function("staffPickable")
 
 
-def test_lead_tags_come_from_crew_leads():
-    for name in ("shiftCrewHTML", "remPeople", "manifestHTML", "pageLeads"):
-        assert "crewLeads(" in js_function(name), name
+def test_who_leads_is_decided_by_the_primary_title_only():
+    """Option 1: no crewLeads()/crew_leads -- every place that names a crew's
+    lead reads the primary title, exactly as before several titles."""
+    assert "crewLeads" not in TEMPLATE and "crewRoleTag" not in TEMPLATE
+    checks = {
+        "shiftCrewHTML": "pn.title==='Lead'?' · lead'",
+        "remPeople": "const leads=who.filter(p=>p.title==='Lead');",
+        "manifestHTML": "pn.title==='Lead'?' (lead)'",
+        "pageLeads": "x.title==='Lead' && smsNumber(x.phone)",
+        "loaderCrews": "filter(p=>p && p.title==='Lead')",
+        "loadNights": "filter(p=>p && p.title==='Lead')",
+        "sdDraw": "cv.who.filter(p=>p.title==='Lead')",
+        "coverageCounts": "if(p.title==='Lead') lead++;",
+    }
+    for name, needle in checks.items():
+        assert needle in js_function(name), name
+
+
+@needs_node
+def test_picker_lists_a_person_under_each_title():
+    out = run("""
+      const [p]=normRoster([{id:'p1',first:'Chris',title:'Lead',titles:['Lead','General Installer']}]);
+      console.log(JSON.stringify([TITLES.filter(t=>hasTitle(p,t)), mainTitlePillHTML(p)]));""")
+    assert out[0] == ["Lead", "General Installer"]
+    assert 'title="Main title: Lead"' in out[1] and ">Lead</span>" in out[1]
+    dlg = js_function("drawStaffDlg")
+    assert "p.title===t ? extraTitlePillsHTML(p) : mainTitlePillHTML(p)" in dlg
