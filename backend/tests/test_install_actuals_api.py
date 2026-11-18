@@ -407,3 +407,54 @@ def test_office_gets_days_still_missing_times_leads_do_not(fake_db, board):
 def test_missing_days_stop_at_today(board):
     office = IA.Viewer(email="o@x", role="staff")
     assert [d["date"] for d in IA.missing_by_day(board, office, set(), "2026-11-10")] == ["2026-11-04"]
+
+
+# ─── the Install Schedule reads the same times ───────────────────────────────
+
+
+def _latest(row, day_id, rid, arrive, depart):
+    return {**_saved_row("", None, "x", row, "2026", "install", None, day_id, "Crew 2", "Chris Lead",
+                         arrive, depart, None, None, None, 1.0, "restaurant", True, "claude", "c@x", None),
+            "id": rid}
+
+
+def test_schedule_times_list_each_visit_with_its_joint_crew_days(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest WHERE season = $1 ORDER BY", [
+        _latest(69, "2026-11-04|Crew 2|0", 11, datetime(2026, 11, 4, 23, 0, tzinfo=T.TZ),
+                datetime(2026, 11, 5, 1, 30, tzinfo=T.TZ)),
+        _latest(10, "2026-11-19|Crew 1|0", 12, datetime(2026, 11, 19, 8, 30, tzinfo=T.TZ), None),
+        # A crew-day that's no longer on the board has nothing to show on.
+        _latest(10, "2026-11-01|Crew 9|0", 13, None, None),
+    ])
+    out = run(IA.schedule_times(user("office@example.com")))
+    assert out["office"] is True and out["season"] == "2026" and out["today"] == "2026-11-20"
+    got = [(a["id"], a["dayIds"], a["arrive"], a["depart"], a["actualHours"]) for a in out["actuals"]]
+    assert got == [
+        (11, ["2026-11-04|Crew 2|0", "2026-11-04|Crew 3|0"], "11:00 PM", "1:30 AM", 2.5),
+        (12, ["2026-11-19|Crew 1|0"], "8:30 AM", "", None),
+    ]
+    # The board's save history is never read: only the small actuals view.
+    assert not fake_db.seen("install_schedule_history")
+
+
+def test_schedule_times_for_a_lead_are_only_their_crew_days(fake_db, board):
+    as_role(fake_db, None)
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest WHERE season = $1 ORDER BY", [
+        _latest(63, "2026-11-04|Crew 1|0", 21, None, None),
+        _latest(69, "2026-11-04|Crew 2|0", 22, None, None),
+    ])
+    out = run(IA.schedule_times(user("chris@example.com")))
+    assert out["office"] is False
+    assert [a["id"] for a in out["actuals"]] == [22]
+
+
+def test_day_view_carries_the_stops_schedule_notes_read_only(fake_db, board):
+    as_role(fake_db, "staff")
+    board.comments = {"10": [{"text": "Mon 11/9 (Crew 2):  arrived 3:44 PM", "at": 1},
+                             {"text": "Gate code 1234", "at": 5}, {"text": "   "}, "junk"]}
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest l WHERE", [])
+    out = run(IA.day_view(user("office@example.com"), on="2026-11-19"))
+    stops = out["crews"][0]["stops"]
+    assert stops[0]["notes"] == [{"text": "Gate code 1234", "at": 5}, {"text": "Mon 11/9 (Crew 2): arrived 3:44 PM", "at": 1}]
+    assert stops[1]["notes"] == []

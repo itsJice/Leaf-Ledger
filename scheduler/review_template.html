@@ -2096,6 +2096,41 @@ body.apple #peekdlg #pkcontact .pkce-btns > button:first-child{display:block}
    history and one profile row, each group a soft panel. */
 #peekbody .pktop{margin:0 0 4px;padding-right:40px}
 #peekbody .pkwhen{margin:0 0 7px;font-size:13px;font-weight:700;color:var(--ink)}
+#peekbody .pktimes{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 0 8px;font-size:13px;color:var(--ink)}
+#peekbody .pktimes>.ic{flex:none;width:15px;height:15px;color:var(--mut)}
+#peekbody .pktimest{display:flex;flex-direction:column;min-width:0;flex:1 1 0}
+#peekbody .pktimes>.pkhrsbtn{flex:none}
+#peekbody .pktimesnone{color:var(--mut)}
+#peekbody .pktimesby{margin:1px 0 0;font-size:11px}
+#peekbody .pktimes.edit{display:block}
+#peekbody .pktimesrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#peekbody .pktimesrow label{display:flex;flex-direction:column;gap:2px;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+#peekbody .pktimesrow input{font-size:16px;min-height:40px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);min-width:0}
+#peekbody .pktimesbtns{display:flex;gap:8px;margin-top:6px}
+#peekbody .pktimesbtns .pkhrsbtn{min-height:40px;padding:0 14px}
+#peekbody .pktimesmsg{display:flex;gap:6px;align-items:flex-start;margin:6px 0 0;font-size:12px;color:var(--warn-ink);flex-basis:100%}
+#peekbody .pktimesmsg .ic{flex:none;width:13px;height:13px;margin-top:2px}
+/* The done look: saved Install Times on the board's stops and crew cards. */
+.stop.tdone{background:#f0f7f1}
+.stop .sub.tdoneline{display:flex;align-items:center;gap:5px;color:var(--ok-ink)}
+.stop .sub.tdoneline b{font-weight:800}
+.stop .sub.tdoneline .ic{flex:none;width:14px;height:14px;color:var(--ok);stroke-width:2.6}
+.stop .sub.tplanline{font-size:11.5px}
+.stop .tdiff.overbig{color:#b45309;font-weight:700}
+.stop .tdiff.under{color:var(--ok);font-weight:700}
+.ttag{display:inline-block;padding:0 7px;border-radius:6px;font-size:11px;font-weight:800;line-height:18px;white-space:nowrap}
+.ttag.onsite{background:#e0effa;color:#075985}
+.ttag.need{background:var(--warn-soft);color:var(--warn-ink)}
+.cactual{display:flex;gap:6px;align-items:flex-start;padding:7px 14px;border-bottom:1px solid var(--line);
+  font-size:12.5px;font-weight:700;color:var(--ok-ink);background:#f0f7f1}
+.cactual .ic{flex:none;width:14px;height:14px;margin-top:1px;color:var(--ok)}
+.tmark{display:inline-flex;align-items:center;justify-content:center;flex:none}
+.tmark.done{color:var(--ok)}
+.tmark.done .ic{width:13px;height:13px;stroke-width:2.8}
+.tmark.need::before{content:'';width:7px;height:7px;border-radius:50%;background:#d97706}
+.calnum .tmark{margin-left:4px;vertical-align:1px}
+.dchip.sel .tmark.done{color:#bbf7d0}
+.dchip.sel .tmark.need::before{background:#fde68a}
 .pkchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .pkchip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 9px;border-radius:999px;
   background:var(--page,#f4f2ee);color:var(--ink);font:700 11.5px 'Montserrat',sans-serif;white-space:nowrap;box-sizing:border-box}
@@ -2606,6 +2641,9 @@ body.apple .stfchip{border-radius:999px;font-size:12px;font-weight:800}
 body.apple .sched{background:#fbfaf7;border-bottom:1px solid var(--line2);font-size:12.5px}
 body.apple .stop{gap:12px;padding:12px 16px 12px 14px;border-bottom:1px solid var(--line2);background:#fff;align-items:center}
 @media (hover:hover){ body.apple .stop:hover{background:#fbfaf7} }
+body.apple .stop.tdone{background:#f0f7f1}
+@media (hover:hover){ body.apple .stop.tdone:hover{background:#e7f2e9} }
+body.apple .cactual{padding:8px 16px;margin-top:8px}
 body.apple .stop.searchhit{background:#d3ead8;box-shadow:inset 4px 0 0 var(--brand),inset 0 0 0 1.5px #7fbf8e}
 body.apple .stop.peeking{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
 body.apple .stop.confirmed{border-left:0}
@@ -5821,6 +5859,9 @@ window.addEventListener('message', e=>{
     loadSeasons();
     loadCalSub();
     pullShared();
+    syncQueued(openPendingStop);   // a stop link waits for the board's state
+    // Recorded on-site times for past stops (Install Times): repaint once in.
+    loadActuals().then(ch=>{ if(ch) render(); });
     // The card's name, city and area for logins that can't read the Clients
     // list (TV, production); for staff the directory below wins.
     // Scheduling restrictions ride on the same list (Comments #23): repaint for
@@ -5925,6 +5966,12 @@ window.addEventListener('message', e=>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)) return;
   if(viewMode!=='days') setView('days');
   phoneGo(dt);
+  // ...and a stop on it (the Install Times page's "Open on the schedule").
+  const row=Number(e.data.row);
+  if(Number.isInteger(row) && row>=0){
+    pendingStop={row, dayId:String(e.data.dayId||''), date:dt};
+    if(sharedPulledOnce) openPendingStop();
+  }
 });
 
 // ---------- season picker + archive (read-only) mode ----------
@@ -7264,6 +7311,8 @@ document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState==='hidden') tbdgFlush();
   // Back on the tab: a card may have changed on the Clients tab (Comment #28).
   else refreshCardFacts();
+  // Times saved on the Install Times page meanwhile (one cached fetch).
+  if(document.visibilityState==='visible' && AUTH) loadActuals().then(ch=>{ if(ch) render(); });
 });
 
 // ---------- change history ----------
@@ -10632,6 +10681,7 @@ function renderStrip(){
       s.title=o.status==='ok'?'Every crew approved':'A crew is over its hours';
       b.appendChild(s);
     }
+    if(o.tmark) b.insertAdjacentHTML('beforeend', dateTimesMarkHTML(o.tmark));
     if(o.count!=null){
       const s=document.createElement('span'); s.className='dcount'; s.textContent=o.count; b.appendChild(s);
     }
@@ -10682,7 +10732,7 @@ function renderStrip(){
       else if(ds.some(d=>dayCalc(d).total>(d.win||600))) st='warn';
     }
     const holiday = ci && ci.kind==='thanksgiving';
-    const b = mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, count:ds.length?n:(holiday?null:'Open'), cls:holiday?'holiday':''});
+    const b = mk(listDate(dt),dt,wknd,!ds.length,(ci&&ci.label)||'',{status:st, tmark:dateTimesMarkOf(dt), count:ds.length?n:(holiday?null:'Open'), cls:holiday?'holiday':''});
     if(holiday){
       b.title='Thanksgiving Day — no installs';
       b.ondragover=e=>{ e.dataTransfer.dropEffect='none'; };
@@ -10864,6 +10914,7 @@ function buildDayCard(d){
      return `<div class="cstaff"><span class="stfchip ${cv.state}" `
           + `title="Click to staff this shift">`
           + `${IC.users}${coverageLabel(cv)}</span></div>`; })()}
+  ${dayTimesLineHTML(d)}
   ${dayNoteLineHTML(d)}`;
   { const nl=card.querySelector('.cshnote');
     if(nl) nl.onclick=e=>{ e.stopPropagation(); if(canEditShiftNotes()) openStaffDlg(d.id); }; }
@@ -10924,7 +10975,8 @@ function buildDayCard(d){
     }
     const el=document.createElement('div');
     const isConfirmed=confirmed.has(r);
-    el.className='stop'+(isConfirmed?' confirmed':'')+(hold.has(r)?' onhold':''); el.dataset.row=r;
+    el.className='stop'+(isConfirmed?' confirmed':'')+(hold.has(r)?' onhold':'')
+      +(stopTimeInfo(d, r).state==='done'?' tdone':''); el.dataset.row=r;
     // A confirmed stop simply doesn't pick up on drag -- draggable=false
     // gives an immediate not-allowed cursor rather than letting the drag
     // start and only rejecting it on drop.
@@ -10948,9 +11000,9 @@ function buildDayCard(d){
         ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
-      <div class="sub hrs">${[`${isHalf?effH(d,r).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
+      ${stopHoursHTML(d, r, [`${isHalf?effH(d,r).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
         c.hoursEdited?`<span class="hrsed" title="Install time edited by staff (spreadsheet: ${fmtHrs(sheetHoursOf(r))}h)">edited</span>`:'',
-        stopBoxesTxt(r, 'boxes?')].filter(Boolean).join(' · ')}</div>
+        stopBoxesTxt(r, 'boxes?')])}
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
@@ -12698,6 +12750,7 @@ function monthHTML(anchor){
     const ci=SPEC.calendar.find(c=>c.date===iso), ds=calDaysOn(iso);
     if(!ci && !ds.length){ h+=`<div class="calcell empty${iso===todayISO()?' today':''}"><div class="calnum">${n}</div></div>`; continue; }
     let inner=`<div class="calnum">${n}<small>${DOW3[dateOf(iso).getDay()]}</small>`
+            + dateTimesMarkHTML(dateTimesMarkOf(iso))
             + (ci&&ci.label?`<span class="caltag">${ci.label}</span>`:'')+`</div>`;
     let stops=0,boxes=0,hrs=0;
     let appr=0;
@@ -14190,6 +14243,335 @@ function notInstallReason(row){
   return notInstalling.has(row) ? 'taken out by staff' : 'from the spreadsheet';
 }
 
+// ---------- recorded on-site times (Install Times) ----------
+// The one source of truth for when a crew was really at a stop is the app's
+// Install Times (ll_app.install_actuals, backend app/apis/install_actuals).
+// The board only READS it (GET /api/install-times/schedule) and writes
+// through the same POST /api/install-times/actuals the Install Times page
+// uses -- never into this tool's state, so a time never touches PUT /state
+// or the version hash. Before 11/16 times were typed as stop comments; those
+// were copied into Install Times, and the comments stay as they were.
+let ACTUALS=null;            // Map "dayId|row" -> latest actual; null until loaded
+let actualsAt=0;             // when it last loaded (ms)
+let actualsBusy=null;
+let actualsToday='';         // the server's today (Central), else the browser's
+let actualsReady=false;      // the times really loaded (not a 403 / offline)
+let actualsOffice=false;     // office login: sees every crew-day's times
+let pkTimesEdit=false;       // the open card's times are in edit mode
+let pkTimesMsg='';           // a line under the times (a warning, a 409)
+/** PURE. The schedule list as a Map keyed by every crew-day of the visit. */
+function actualsMap(list){
+  const m=new Map();
+  (Array.isArray(list)?list:[]).forEach(a=>{
+    if(!a || a.row==null) return;
+    (Array.isArray(a.dayIds)&&a.dayIds.length?a.dayIds:[a.dayId]).forEach(id=>{ if(id) m.set(`${id}|${a.row}`, a); });
+  });
+  return m;
+}
+function loadActuals(force){
+  if(!AUTH || TVMODE) return Promise.resolve(false);
+  if(actualsBusy) return actualsBusy;
+  if(!force && ACTUALS && Date.now()-actualsAt<60000) return Promise.resolve(false);
+  actualsBusy=authFetch('/api/install-times/schedule', {headers:{Authorization:AUTH}})
+    .then(r=>r.ok?r.json():null)
+    .then(j=>{
+      // 403 (TV, production, crew) or an older backend: nothing to show.
+      if(!j){ if(!ACTUALS) ACTUALS=new Map(); return false; }
+      ACTUALS=actualsMap(j.actuals); actualsAt=Date.now(); actualsReady=true;
+      actualsOffice=j.office===true;
+      if(typeof j.today==='string') actualsToday=j.today;
+      return true;
+    })
+    .catch(()=>false)
+    .finally(()=>{ actualsBusy=null; });
+  return actualsBusy;
+}
+function actualFor(row, dayId){ return (ACTUALS && dayId!=null && ACTUALS.get(`${dayId}|${row}`)) || null; }
+/** True once the crew-day's date has come (times can be entered). */
+function dayHasHappened(d){ return !!d && d.date <= (actualsToday || todayISO()); }
+/** PURE. Minutes on site from the saved instants (the DST night counts real
+ *  time), else the server's hours. null without both times. */
+function actualMinutes(a){
+  if(!a) return null;
+  if(a.arriveAt && a.departAt){
+    const m=Math.round((new Date(a.departAt)-new Date(a.arriveAt))/60000);
+    if(isFinite(m) && m>=0) return m;
+  }
+  return a.actualHours!=null ? Math.round(a.actualHours*60) : null;
+}
+/** PURE. "2h 43m", "45m", "3h". */
+function fmtSpan(mins){
+  if(mins==null) return '';
+  const h=Math.floor(mins/60), m=mins%60;
+  return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+}
+/** PURE. "On site 3:44 PM to 6:27 PM (2h 43m)", or the half that's there. */
+function onSiteText(a){
+  if(!a || (!a.arrive && !a.depart)) return '';
+  if(a.arrive && a.depart) return `On site ${a.arrive} to ${a.depart} (${fmtSpan(actualMinutes(a))})`;
+  return a.arrive ? `Arrived ${a.arrive}, no leave time yet` : `Left ${a.depart}, no arrival time`;
+}
+// ---------- planned, on site, done, times needed (the "done look") ----------
+// Each stop on a crew-day shows one of four states, from saved Install Times
+// only (no guessing): planned (a coming day, or nothing saved yet), on site
+// (arrival saved, no leave), done (both saved: soft green row, real times in
+// place of the plan) and times needed (a past day with nothing saved).
+/** PURE. Today's date in Central time, "2026-11-17". */
+function centralTodayISO(now){
+  try{
+    const p=new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit'})
+      .formatToParts(now||new Date());
+    const g=t=>(p.find(x=>x.type===t)||{}).value;
+    return `${g('year')}-${g('month')}-${g('day')}`;
+  }catch(e){ return todayISO(); }
+}
+/** The board's today: the server's (Central), else Central from this device. */
+function timesToday(){ return actualsToday || centralTodayISO(); }
+/** PURE. True once a crew-day is over: its date is before today, or for a
+ *  night shift, the morning it ends on is before today. */
+function dayIsPast(date, today, night){
+  if(!date || !today) return false;
+  return (night ? addDaysISO(date, 1) : date) < today;
+}
+/** PURE. 'done' | 'onsite' | 'needed' | 'planned' for one stop's saved
+ *  times `a`. `past`: the crew-day is over. A training day never needs times. */
+function stopTimeState(a, past, training){
+  const arr=!!(a && a.arrive), dep=!!(a && a.depart);
+  if(arr && dep && actualMinutes(a)!=null) return 'done';
+  if(training) return 'planned';
+  if(past) return 'needed';
+  return arr ? 'onsite' : 'planned';
+}
+/** PURE. Real minutes against the plan: "24m over", "10m under", "on time"
+ *  (within 5 min). cls: ontime | over | overbig (over by more than 30 min) | under. */
+function planDiff(actualMins, plannedMins){
+  if(actualMins==null || plannedMins==null || !isFinite(plannedMins)) return null;
+  const diff=Math.round(actualMins)-Math.round(plannedMins);
+  if(Math.abs(diff)<=5) return {text:'on time', cls:'ontime', diff};
+  if(diff>0) return {text:`${fmtSpan(diff)} over`, cls:diff>30?'overbig':'over', diff};
+  return {text:`${fmtSpan(-diff)} under`, cls:'under', diff};
+}
+/** PURE. "10:00 AM to 12:50 PM · 2h 50m" for a done stop, else ''. */
+function doneTimesText(a){
+  const m=actualMinutes(a);
+  if(!a || !a.arrive || !a.depart || m==null) return '';
+  return `${a.arrive} to ${a.depart} · ${fmtSpan(m)}`;
+}
+/** PURE. "Planned 2h 26m · 24m over". */
+function plannedLineText(actualMins, plannedMins){
+  const pd=planDiff(actualMins, plannedMins);
+  return pd ? `Planned ${fmtSpan(Math.round(plannedMins))} · ${pd.text}` : '';
+}
+/** PURE. The tag for a stop that isn't done: {cls, text} or null. */
+function stopTimeTag(state, a){
+  if(state==='onsite') return {cls:'onsite', text:`On site since ${a.arrive}`};
+  if(state==='needed'){
+    const text = a && a.arrive ? 'Leave time needed' : a && a.depart ? 'Arrival time needed' : 'Times needed';
+    return {cls:'need', text};
+  }
+  return null;
+}
+/** PURE. The crew-day's real day from its stops' saved times. `stops`:
+ *  [{a, plannedMins}]. Instants, so a night across midnight adds up right.
+ *  {start, end, onMins, planMins, done, any}; onMins and planMins count
+ *  only stops with both times. */
+function dayTimesSummary(stops){
+  let first=null, last=null, onMins=0, planMins=0, done=0, any=false, openAfter=false;
+  const t=x=>{ const v=x?Date.parse(x):NaN; return isFinite(v)?v:null; };
+  (stops||[]).forEach(({a, plannedMins})=>{
+    if(!a || (!a.arrive && !a.depart)) return;
+    any=true;
+    const at=t(a.arriveAt), dt=t(a.departAt);
+    if(a.arrive && at!=null && (!first || at<first.t)) first={t:at, s:a.arrive};
+    if(a.depart && dt!=null && (!last || dt>last.t)) last={t:dt, s:a.depart};
+    const m=a.arrive && a.depart ? actualMinutes(a) : null;
+    if(m!=null){ done++; onMins+=m; planMins+=Math.round(plannedMins||0); }
+  });
+  // An arrival after the last leave (the crew is on site now): no end yet.
+  (stops||[]).forEach(({a})=>{ const at=a&&!a.depart?t(a.arriveAt):null;
+    if(at!=null && (!last || at>=last.t)) openAfter=true; });
+  return {start:first?first.s:'', end:last && !openAfter && (!first || last.t>=first.t)?last.s:'',
+    onMins, planMins, done, any};
+}
+/** PURE. "Day: 9:10 AM to 7:46 PM · on site 8h 10m (planned 7h 6m)". */
+function dayTimesText(sum){
+  if(!sum || !sum.any) return '';
+  const span = sum.start && sum.end ? `${sum.start} to ${sum.end}`
+    : sum.start ? `from ${sum.start}` : `to ${sum.end}`;
+  const on = sum.done ? ` · on site ${fmtSpan(sum.onMins)} (planned ${fmtSpan(sum.planMins)})` : '';
+  return `Day: ${span}${on}`;
+}
+/** PURE. A date's mark in the date list and calendar from its stops'
+ *  states: 'done' when every stop is done, 'need' when one needs times. */
+function dateTimesMark(states){
+  if(!states || !states.length) return '';
+  if(states.includes('needed')) return 'need';
+  return states.every(s=>s==='done') ? 'done' : '';
+}
+/** Minutes this crew-day's plan gives a stop (the board's install hours). */
+function plannedMinsOf(d, row){ return Math.round(effH(d, row)*60); }
+/** Times are known for this login: loaded, and not the TV. */
+function timesShown(){ return actualsReady && !!AUTH && !TVMODE && ACTUALS!=null; }
+/** One stop's state on its crew-day, with its saved times. */
+function stopTimeInfo(d, row){
+  if(!timesShown() || !d) return {state:'planned', a:null};
+  const today=timesToday();
+  if(!dayHasHappened(d)) return {state:'planned', a:null};
+  const a=actualFor(row, d.id);
+  const past=dayIsPast(d.date, today, isDallasNight(d) || d.win===K.NIGHT);
+  // A lead's list holds only their own crew-days: never call another crew's
+  // stop "needed" just because this login can't see its times.
+  const st=stopTimeState(a, past && actualsOffice, !!d.training);
+  return {state:st, a};
+}
+/** The stop row's hours lines. `planBits`: the usual hours, edited and
+ *  boxes parts. A done stop swaps the plan for the real times. */
+function stopHoursHTML(d, row, planBits){
+  const {state, a}=stopTimeInfo(d, row);
+  if(state==='done'){
+    const m=actualMinutes(a), pm=plannedMinsOf(d, row), pd=planDiff(m, pm);
+    const plan=`<span class="tplan">Planned ${fmtSpan(pm)}</span>${pd?` · <span class="tdiff ${pd.cls}">${pd.text}</span>`:''}`;
+    const rest=planBits.slice(1).filter(Boolean);
+    return `<div class="sub hrs tdoneline" title="Install Times">${IC.check}<b>${peekEsc(doneTimesText(a))}</b></div>`
+      + `<div class="sub tplanline">${[plan, ...rest].join(' · ')}</div>`;
+  }
+  const tag=stopTimeTag(state, a);
+  const tagHTML=tag ? `<span class="ttag ${tag.cls}"${state==='needed' && a && (a.arrive||a.depart)
+      ? ` title="${attrEsc(onSiteText(a))}"` : ''}>${peekEsc(tag.text)}</span>` : '';
+  return `<div class="sub hrs">${[...planBits, tagHTML].filter(Boolean).join(' · ')}</div>`;
+}
+/** The crew card's "Day: ..." line once any stop that day has times. */
+function dayTimesLineHTML(d){
+  if(!timesShown() || !d || d.training || !dayHasHappened(d)) return '';
+  const sum=dayTimesSummary((d.stops||[]).map(r=>({a:actualFor(r, d.id), plannedMins:plannedMinsOf(d, r)})));
+  const t=dayTimesText(sum);
+  if(!t) return '';
+  return `<div class="cactual">${IC.clock}<span>${peekEsc(t)}</span></div>`;
+}
+/** A date's mark for the date list and the month calendar. */
+function dateTimesMarkOf(dt){
+  if(!timesShown()) return '';
+  const ds=days.filter(x=>x.date===dt && !x.training && (x.stops||[]).length);
+  return dateTimesMark(ds.flatMap(d=>d.stops.map(r=>stopTimeInfo(d, r).state)));
+}
+const TMARK_TITLE={done:'Every stop has its times', need:'A stop is missing its times'};
+function dateTimesMarkHTML(mark){
+  if(!mark) return '';
+  return `<span class="tmark ${mark}" title="${TMARK_TITLE[mark]}" aria-label="${TMARK_TITLE[mark]}">${mark==='done'?IC.check:''}</span>`;
+}
+/** Office staff enter and fix times here (the server also lets leads in on
+ *  their own crew-days; they use the Install Times page). */
+function canEditActuals(){
+  return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && ALERT_EDIT_ROLES.has(ME_ROLE);
+}
+/** The card's "Times" line for a crew-day that has happened, or ''. */
+function peekTimesHTML(row, d){
+  if(!AUTH || !d || !dayHasHappened(d) || ACTUALS==null) return '';
+  const a=actualFor(row, d.id), edit=canEditActuals();
+  const night=isDallasNight(d);
+  const msg=pkTimesMsg ? `<p class="pktimesmsg">${IC.alert}<span>${peekEsc(pkTimesMsg)}</span></p>` : '';
+  if(pkTimesEdit && edit){
+    return `<div class="pktimes edit"><div class="pktimesrow">
+      <label>Arrive<input id="pkarrive" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+        placeholder="${night?'10:15':'8:30'}" value="${attrEsc(a?a.arrive:'')}" maxlength="20"></label>
+      <label>Leave<input id="pkdepart" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+        placeholder="${night?'1:30':'2:15'}" value="${attrEsc(a?a.depart:'')}" maxlength="20"></label></div>
+      <p class="pkfine">${night?'Night shift: an arrival before noon is the next morning. ':''}No a/p needed: Leave is the next such time after Arrive.</p>
+      <div class="pktimesbtns"><button type="button" class="pkhrsbtn on" id="pktimessave">Save</button>
+        <button type="button" class="pkhrsbtn" id="pktimescancel">Cancel</button></div>${msg}</div>`;
+  }
+  const t=onSiteText(a);
+  const by=a && a.enteredBy ? `<span class="pkfine pktimesby">Install Times${a.source==='claude'?', from the stop note':''}</span>` : '';
+  return `<div class="pktimes">${IC.clock}<span class="pktimest">${t?`<b>${peekEsc(t)}</b>`:'<span class="pktimesnone">No times entered yet</span>'}${by}</span>`
+    + (edit ? `<button type="button" class="pkhrsbtn" id="pktimesedit">${t?'Fix times':'Enter times'}</button>` : '')
+    + `</div>${msg}`;
+}
+function refreshPeekTimes(row, d){
+  const box=document.getElementById('pktimesbox');
+  if(!box) return;
+  box.innerHTML=peekTimesHTML(row, d);
+  wirePeekTimes(row, d);
+}
+function wirePeekTimes(row, d){
+  const redraw=()=>refreshPeekTimes(row, d);
+  const ed=document.getElementById('pktimesedit');
+  if(ed) ed.onclick=e=>{ e.stopPropagation(); pkTimesEdit=true; pkTimesMsg=''; redraw();
+    const i=document.getElementById('pkarrive'); if(i) i.focus(); };
+  const cancel=document.getElementById('pktimescancel');
+  if(cancel) cancel.onclick=e=>{ e.stopPropagation(); pkTimesEdit=false; pkTimesMsg=''; redraw(); };
+  const save=document.getElementById('pktimessave');
+  if(!save) return;
+  const ai=document.getElementById('pkarrive'), di=document.getElementById('pkdepart');
+  const doSave=async()=>{
+    if(roBlocked()) return;
+    const cur=actualFor(row, d.id);
+    save.disabled=true; save.textContent='Saving…';
+    let r, j=null;
+    try{
+      r=await authFetch('/api/install-times/actuals', {method:'POST',
+        headers:{'Content-Type':'application/json', Authorization:AUTH},
+        // Keep what the Install Times page saved alongside the times.
+        body:JSON.stringify({dayId:d.id, row, arrive:ai.value.trim(), depart:di.value.trim(),
+          peopleCount:cur?cur.peopleCount:null, photosDone:cur?cur.photosDone:null,
+          scopeNote:cur?(cur.scopeNote||''):'', supersedesId:cur?cur.id:null})});
+      j=await r.json().catch(()=>null);
+    }catch(err){ r=null; }
+    if(peekRow!==row || pkDayId!==d.id) return;      // the card moved on
+    const detail=j && j.detail;
+    if(r && r.ok && j && j.actual){
+      const a={...j.actual, dayIds:(cur && cur.dayIds) || [d.id]};
+      ACTUALS=ACTUALS||new Map();
+      (a.dayIds.includes(d.id)?a.dayIds:[...a.dayIds, d.id]).forEach(id=>ACTUALS.set(`${id}|${row}`, a));
+      pkTimesEdit=false; pkTimesMsg=(j.warnings||[])[0]||'';
+      redraw(); render();
+      loadActuals(true);   // joint crew-days and anything else saved meanwhile
+      return;
+    }
+    save.disabled=false; save.textContent='Save';
+    if(r && r.status===409 && detail && typeof detail==='object' && 'current' in detail){
+      // Someone saved this stop since the card loaded: show theirs.
+      await loadActuals(true);
+      pkTimesEdit=false; pkTimesMsg='Someone else just saved this stop. Their times are shown now.';
+      redraw(); render(); return;
+    }
+    pkTimesMsg = !r ? "Couldn't reach the server. Press Save again in a moment."
+      : r.status===401 ? 'Your sign-in has expired. Reload the page and try again.'
+      : (r.status===403 || r.status===404) ? "This login can't enter times for this stop."
+      : typeof detail==='string' ? detail
+      : `The times didn't save (error ${r.status}). Press Save again in a moment.`;
+    const box=document.getElementById('pktimesbox');
+    const old=box && box.querySelector('.pktimesmsg'); if(old) old.remove();
+    if(box) box.querySelector('.pktimes').insertAdjacentHTML('beforeend', `<p class="pktimesmsg">${IC.alert}<span>${peekEsc(pkTimesMsg)}</span></p>`);
+  };
+  save.onclick=e=>{ e.stopPropagation(); doSave(); };
+  [ai, di].forEach(el=>{ el.onkeydown=e=>{
+    if(e.key==='Enter'){ e.preventDefault(); doSave(); }
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); pkTimesEdit=false; pkTimesMsg=''; redraw(); } }; });
+}
+// A link from the Install Times page (?date=…&stop=row&day=dayId) opens the
+// stop's card once the board's own state is in.
+let pendingStop=null, sharedPulledOnce=false;
+function openPendingStop(){
+  sharedPulledOnce=true;
+  const p=pendingStop; if(!p) return;
+  pendingStop=null;
+  const d=days.find(x=>x.id===p.dayId && (x.stops||[]).includes(p.row))
+    || days.find(x=>x.date===p.date && (x.stops||[]).includes(p.row));
+  if(!d || !C[p.row]) return;
+  openStopPeek(p.row, d.id);
+  // phoneGo() scrolled to the top of the date: bring the stop itself up.
+  // Again once the page settles (the first load's late repaints put the
+  // list back on the date), only while its card is open and it's off screen.
+  const bring=()=>{
+    if(peekRow!==p.row || !peekdlg.open) return;
+    const el=document.querySelector(`#side .card[data-dayid="${CSS.escape(d.id)}"] .stop[data-row="${p.row}"]`);
+    if(!el) return;
+    const r=el.getBoundingClientRect();
+    if(r.top<0 || r.top>window.innerHeight*0.6) try{ el.scrollIntoView({block:'start'}); }catch(e){}
+  };
+  [350, 1500, 3000].forEach(ms=>setTimeout(bring, ms));
+}
+
 // dayId === null means the client is on the roster but not on the schedule --
 // the "not installing" list. Everything that describes the CLIENT
 // still applies there (contact details, hours, box count, history, comments);
@@ -14202,6 +14584,7 @@ function openStopPeek(row,dayId){
   if(!c || (dayId!=null && !d)) return;  // stale id after an edit -- fail quiet
   peekRow=row; pkDayId=dayId;
   pkEditingContact=false; pkEditingAlert=false; pkEditingHours=false; pkEditingInst=false; pkNameEdit=null; pkOpen=new Set();
+  pkTimesEdit=false; pkTimesMsg='';
   const t = d ? ((stopTimes(d).find(x=>x.row===row))||{}) : {};
   const esc=peekEsc;
   const crewCol=d ? (CREW_COLORS[d.crew]||'var(--brand)') : '';
@@ -14212,6 +14595,7 @@ function openStopPeek(row,dayId){
       ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}${t.start!=null
             ?` · ${fmtClock(t.start)} – ${fmtClock(t.end)}${t.end>=1440?' (next day)':''}`:''}</p>`
           : `<p class="pkwhen">Not installing · ${esc(notInstallReason(row))}</p>`}
+      ${d?`<div id="pktimesbox">${peekTimesHTML(row, d)}</div>`:''}
       <div class="pkchips">
         ${d?`<span class="pkchip crew" style="--crew:${crewCol}"><i></i><span>${esc(crewTitle(d))}</span></span>`:''}
         ${d && confirmed.has(row)?pkChip(IC.lock, 'Date confirmed', 'ok'):''}
@@ -14243,6 +14627,11 @@ function openStopPeek(row,dayId){
   wirePeekDrive(row);
   wirePeekHours(row);
   wirePeekInstallNote(row);
+  if(d){
+    wirePeekTimes(row, d);
+    if(AUTH && dayHasHappened(d)) loadActuals().then(changed=>{
+      if(changed && peekRow===row && pkDayId===d.id && peekdlg.open && !pkTimesEdit) refreshPeekTimes(row, d); });
+  }
   if(AUTH && !driveLinkMap){
     loadDriveLinks().then(()=>{
       if(peekRow!==row || !peekdlg.open) return;

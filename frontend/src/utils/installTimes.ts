@@ -54,6 +54,20 @@ export interface Stop {
   estHours: number | null;
   jobType: JobType | null;
   actual: Actual | null;
+  /** The stop's notes on the Install Schedule, newest first (read-only). */
+  notes?: StopNote[];
+}
+
+export interface StopNote {
+  text: string;
+  /** When it was written (ms since 1970), if known. */
+  at: number | null;
+}
+
+/** The Install Schedule, opened on this stop's card. */
+export function scheduleStopHref(date: string, dayId: string, row: number): string {
+  const q = new URLSearchParams({ date, stop: String(row), day: dayId });
+  return `/install-schedule?${q.toString()}`;
 }
 
 export interface CrewGroup {

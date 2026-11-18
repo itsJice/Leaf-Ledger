@@ -1,6 +1,6 @@
 // Pinned to the same values as backend tests/test_install_times.py.
 import { describe, expect, it } from "vitest";
-import { diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, SAME_TIME_WARNING, onSiteMinutes, parseClock, parseLeave, TimeParseError } from "../installTimes";
+import { diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, SAME_TIME_WARNING, onSiteMinutes, parseClock, parseLeave, scheduleStopHref, TimeParseError } from "../installTimes";
 
 const cases: [string, boolean, string][] = [
   ["10:15p", false, "10:15 PM"],
@@ -129,4 +129,12 @@ describe("the same minute", () => {
       expect(SAME_TIME_WARNING).toContain("Check the time");
     },
   );
+});
+
+describe("scheduleStopHref", () => {
+  it("links to the stop on the Install Schedule", () => {
+    expect(scheduleStopHref("2026-11-09", "2026-11-09|Crew 2|0", 105)).toBe(
+      "/install-schedule?date=2026-11-09&stop=105&day=2026-11-09%7CCrew+2%7C0",
+    );
+  });
 });

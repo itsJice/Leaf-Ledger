@@ -10,10 +10,13 @@ import {
   ChevronUp,
   Clock,
   Loader2,
+  MessageSquareText,
   Moon,
+  ArrowUpRight,
   TrendingUp,
   Users,
 } from "components/icons";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
@@ -32,11 +35,12 @@ import {
   onSiteMinutes,
   parseClock,
   parseLeave,
+  scheduleStopHref,
   shortDate,
   stampCT,
   who,
 } from "utils/installTimes";
-import type { Actual, CrewGroup, DayResponse, MissingDay, Stop } from "utils/installTimes";
+import type { Actual, CrewGroup, DayResponse, MissingDay, Stop, StopNote } from "utils/installTimes";
 
 // Install Times: how long each stop really took, so next year's estimates
 // are right. Pick a date, see that day's stops by crew in board order, type
@@ -506,6 +510,8 @@ function StopRow(props: {
         <SavedBadge state={save} />
       </div>
 
+      <StopNotes notes={stop.notes ?? []} href={scheduleStopHref(crew.date, crew.dayId, stop.row)} />
+
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_88px_auto]">
         <TimeField
           label="Arrive"
@@ -610,6 +616,38 @@ function StopRow(props: {
       )}
       {showHistory && actual && <History dayId={crew.dayId} row={stop.row} kind={crew.kind} latestId={actual.id} />}
     </li>
+  );
+}
+
+/** The stop's notes on the Install Schedule, for context while typing times
+ *  (read-only: they're edited on the schedule), and a link to the stop there. */
+function StopNotes({ notes, href }: { notes: StopNote[]; href: string }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? notes : notes.slice(0, 2);
+  return (
+    <div className="mt-1.5 text-xs">
+      {shown.length > 0 && (
+        <div className="mb-1 rounded-lg border-l-2 border-stone-300 bg-stone-50 py-1.5 pl-2.5 pr-2 text-stone-700">
+          <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-500">Schedule notes</p>
+          <ul className="space-y-1">
+            {shown.map((n, i) => (
+              <li key={`${n.at ?? ""}|${i}`} className="flex gap-1.5">
+                <MessageSquareText size={13} className="mt-px flex-none text-stone-400" aria-hidden />
+                <span className="min-w-0 break-words">{n.text}</span>
+              </li>
+            ))}
+          </ul>
+          {notes.length > 2 && (
+            <button type="button" onClick={() => setAll((v) => !v)} className="min-h-8 font-semibold text-emerald-700 hover:underline">
+              {all ? "Show fewer notes" : `Show all ${notes.length} notes`}
+            </button>
+          )}
+        </div>
+      )}
+      <Link to={href} className="inline-flex min-h-8 items-center gap-1 font-semibold text-emerald-700 hover:underline">
+        Open on the schedule <ArrowUpRight size={12} aria-hidden />
+      </Link>
+    </div>
   );
 }
 

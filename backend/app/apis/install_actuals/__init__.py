@@ -182,6 +182,27 @@ def _est_for(board: schedule_board.Board, day_id: str, row: int) -> Optional[flo
     return round(h / 2, 2) if row in half else round(h, 2)
 
 
+#: A stop note longer than this is cut (the board keeps notes short anyway).
+STOP_NOTE_MAX = 600
+
+
+def stop_notes(board: schedule_board.Board, row: int) -> list[dict]:
+    """The stop's notes on the schedule (the board's ``state.comments[row]``,
+    newest first), read-only, for context next to the times. Times typed
+    there before Install Times existed show up here too."""
+    raw = board.comments.get(str(row)) or []
+    out = []
+    for n in raw if isinstance(raw, list) else []:
+        if not isinstance(n, dict):
+            continue
+        text = " ".join(str(n.get("text") or "").split())[:STOP_NOTE_MAX]
+        if not text:
+            continue
+        at = n.get("at")
+        out.append({"text": text, "at": at if isinstance(at, (int, float)) else None})
+    return sorted(out, key=lambda n: -(n["at"] or 0))
+
+
 def crew_groups(board: schedule_board.Board, on: str, viewer: Viewer) -> list[dict]:
     """The crew-days of one date this viewer may enter, in board order: one
     entry per visit-day (joint shifts merged), each with its stops."""
@@ -224,6 +245,7 @@ def crew_groups(board: schedule_board.Board, on: str, viewer: Viewer) -> list[di
                 "city": (board.clients.get(r) or {}).get("city") or "",
                 "estHours": _est_for(board, d["id"], r),
                 "jobType": T.job_type_of(board.clients.get(r) or {}),
+                "notes": stop_notes(board, r),
             } for r in d["stops"]],
         })
     return out
@@ -366,6 +388,34 @@ async def _missing_days(board: schedule_board.Board, viewer: Viewer) -> list[dic
         await conn.close()
     done = {(r["day_id"], r["client_row"], r["kind"]) for r in rows}
     return missing_by_day(board, viewer, done, now_ct().date().isoformat())
+
+
+@router.get("/schedule")
+async def schedule_times(user: AuthorizedUser) -> dict:
+    """The season's latest recorded times for the Install Schedule, so a
+    past stop shows when the crew was really there. Small: one row per
+    visit from ``install_actuals_latest`` plus the cached board (never the
+    schedule's save history). Each visit lists every crew-day id of its
+    joint shift (``dayIds``), so the stop shows on each crew's card. Leads
+    get only their own crew-days."""
+    board = await _board()
+    viewer = await _viewer(user, board)
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        rows = await conn.fetch(
+            "SELECT * FROM ll_app.install_actuals_latest WHERE season = $1 ORDER BY date, id", board.season)
+    finally:
+        await conn.close()
+    groups = board.joint_groups()
+    out = []
+    for r in rows:
+        did = r["day_id"]
+        if not did or not may_enter(viewer, board, did):
+            continue
+        out.append({**actual_out(r), "dayIds": groups.get(did) or [did]})
+    return {"season": board.season, "today": now_ct().date().isoformat(), "office": viewer.office,
+            "actuals": out}
 
 
 @router.get("/visit")
