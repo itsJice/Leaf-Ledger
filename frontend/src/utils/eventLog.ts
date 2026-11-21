@@ -3,11 +3,13 @@
  *
  * Two jobs:
  *
- * 1. **The trail.** The last 50 steps or 10 minutes, whichever is shorter:
- *    pages opened, buttons pressed (by their label, never what was typed),
- *    calls to our server and how they went, errors, and what the Install
- *    Schedule frame reports. Kept in sessionStorage so it survives a reload
- *    in the same tab (the crash, then the reload, then the comment).
+ * 1. **The trail.** The last 100 steps or 10 minutes, whichever is shorter:
+ *    pages opened, what was done on them (buttons, tabs, menus, dialogs,
+ *    dropdown picks, ticks, fields changed by label, drag and drop, pop-up
+ *    messages and their answers: utils/actionTrail.ts), calls to our server
+ *    and how they went (saves say saved / not saved), errors, and what the
+ *    Install Schedule frame reports. Kept in sessionStorage so it survives a
+ *    reload in the same tab (the crash, then the reload, then the comment).
  *
  * 2. **Reporting errors.** `reportEvent` sends a crash, a failed request, a
  *    stuck or frozen page, etc. to POST /api/app-events with the steps that
@@ -30,7 +32,9 @@
  *   auth module is imported only when sending.
  */
 
-export type StepType = "page" | "click" | "request" | "error" | "schedule" | "note";
+import { startActionTrail, type TrailAction } from "utils/actionTrail";
+
+export type StepType = "page" | "click" | "action" | "request" | "error" | "schedule" | "note";
 
 export interface TrailStep {
   /** ISO time. */
@@ -64,10 +68,10 @@ export interface AppEvent {
   page?: string;
 }
 
-export const TRAIL_MAX_STEPS = 50;
+export const TRAIL_MAX_STEPS = 100;
 export const TRAIL_MAX_AGE_MS = 10 * 60 * 1000;
 /** Steps sent with each error (a comment gets the whole trail). */
-export const EVENT_TRAIL_STEPS = 20;
+export const EVENT_TRAIL_STEPS = 30;
 export const DEDUPE_MS = 60 * 1000;
 export const TAB_LIMIT = 30;
 export const TAB_WINDOW_MS = 10 * 60 * 1000;
@@ -145,27 +149,18 @@ export function dedupeKey(ev: Pick<AppEvent, "kind" | "message">): string {
   return `${ev.kind}|${ev.message.slice(0, 200)}`;
 }
 
-/** A button's label, from what it says on screen. Never a field's value. */
-export function labelForElement(el: Element | null): string | null {
-  try {
-    if (!el) return null;
-    const target = el.closest(
-      'button, a, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], summary, label, select',
-    );
-    if (!target || target.closest("[data-no-trail]")) return null;
-    const tag = target.tagName.toLowerCase();
-    if (tag === "select") return `Picked from ${target.getAttribute("aria-label") || target.getAttribute("name") || "a list"}`;
-    const text =
-      target.getAttribute("aria-label") ||
-      target.getAttribute("title") ||
-      (target as HTMLElement).innerText ||
-      target.textContent ||
-      "";
-    const clean = text.replace(/\s+/g, " ").trim().slice(0, 60);
-    return clean ? scrubText(clean, 60) : `(unlabelled ${tag})`;
-  } catch {
-    return null;
-  }
+/** The trail step type for something done on a page (actionTrail.ts). */
+export function actionStepType(kind: TrailAction["kind"] | string): StepType {
+  if (kind === "click" || kind === "tab" || kind === "menu") return "click";
+  if (kind === "error") return "error";
+  return "action";
+}
+
+/** A call's trail label. A save (anything but GET) says how it went. */
+export function requestLabel(verb: string, path: string, status: number): string {
+  const base = `${verb} ${path} ${status}`;
+  if (verb === "GET" || verb === "HEAD" || verb === "OPTIONS") return base;
+  return `${base} ${status >= 200 && status < 400 ? "(saved)" : "(not saved)"}`;
 }
 
 /** Seconds since the token was issued and until it expires, from its own claims. */
@@ -408,7 +403,7 @@ export async function trackRequest(
     try {
       const ms = Date.now() - started;
       const aborted = err instanceof DOMException && err.name === "AbortError";
-      addStep({ type: "request", label: `${verb} ${path} ${aborted ? "cancelled" : "no answer"}`, ms, source });
+      addStep({ type: "request", label: `${verb} ${path} ${aborted ? "cancelled" : "no answer"}${verb === "GET" ? "" : " (not saved)"}`, ms, source });
       // A cancelled GET is usually a page moving on; a cancelled save is not.
       if (!isQuietUrl(path) && (!aborted || verb !== "GET")) {
         reportEvent({
@@ -426,7 +421,7 @@ export async function trackRequest(
   try {
     const ms = Date.now() - started;
     if (!isQuietUrl(path)) {
-      addStep({ type: "request", label: `${verb} ${path} ${res.status}`, status: res.status, ms, source });
+      addStep({ type: "request", label: requestLabel(verb, path, res.status), status: res.status, ms, source });
       if (isLoggableStatus(res.status)) {
         void res
           .clone()
@@ -541,14 +536,9 @@ export function startEventLog(router?: { subscribe: (fn: (state: { location: { p
       reportEvent({ kind: "error", message: `Unhandled: ${message}`, detail: errorDetail(reason) });
     });
 
-    document.addEventListener(
-      "click",
-      (e) => {
-        const label = labelForElement(e.target as Element | null);
-        if (label) addStep({ type: "click", label: `Pressed ${label}` });
-      },
-      true,
-    );
+    // Clicks, tabs, menus, dialogs, picks, ticks, fields, drag and drop and
+    // pop-ups, on every page and in every same-origin frame (actionTrail.ts).
+    startActionTrail(window, (a) => addStep({ type: actionStepType(a.kind), label: a.label }));
 
     if (router) {
       let lastPath = router.state.location.pathname;

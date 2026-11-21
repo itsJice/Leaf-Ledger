@@ -3322,8 +3322,8 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 </dialog>
 <dialog id="mvdlg">
   <b id="mvtitle">Move stop</b>
-  <select id="mvdate"></select>
-  <select id="mvcrew"></select>
+  <select id="mvdate" aria-label="Date"></select>
+  <select id="mvcrew" aria-label="Crew"></select>
   <div id="mvcrewinfo"></div>
   <div id="mvnote"></div>
   <div class="btns"><button onclick="mvdlg.close()">Cancel</button>
@@ -3333,7 +3333,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <b id="rrtitle">Move or swap a day</b>
   <p id="rrsub" class="rrsub"></p>
   <label class="rrlab" for="rrdate">To</label>
-  <select id="rrdate"></select>
+  <select id="rrdate" aria-label="Date"></select>
   <div id="rropts"></div>
   <div class="btns"><button type="button" id="rrcancel">Cancel</button></div>
 </dialog>
@@ -3345,7 +3345,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 <dialog id="sfdlg">
   <b id="sftitle">Find a new date</b>
   <label id="sflab">Client asked for</label>
-  <select id="sfwant"></select>
+  <select id="sfwant" aria-label="Wanted date"></select>
   <div id="sfbody"></div>
   <div class="btns sfbtns">
     <button type="button" id="sfout" class="sfoutbtn" title="Take them out of this season — off every crew sheet and day count">Move to Not installing __SEASON__</button>
@@ -8499,10 +8499,13 @@ function codeMsg(c){ return (SPEC.codes[c]||{}).msg || c; }
 // honouring an explicit client request -- Saturdays above all.
 function codeSoft(c){ return !!(SPEC.codes[c]||{}).soft; }
 function hardBlockers(row, date){ return staticBlockers(row,date).filter(c=>!codeSoft(c)); }
-// hardBlockers() alone doesn't know what day it is -- pastBlockers() is
-// defined further down (it needs todayISO/minAllowedDate). Combined here
-// so every date-legality check in one place includes both.
-function dateBlockers(row, date){ return hardBlockers(row,date).concat(pastBlockers(row,date)); }
+// Every date-legality check goes through here. A date that already passed
+// is NOT in it: that is a warning with a confirm (isPastDate, PAST in
+// checkPlan), not a block -- the office has to be able to record where a
+// stop really went after the day (Comments #43: Nicole could not move Michol
+// Ecklund from Crew 3 to Crew 1 on 11/18 once 11/18 had passed, and the
+// picker called it "Too early to move it there").
+function dateBlockers(row, date){ return hardBlockers(row,date); }
 // Suffix for a date option: a hard-blocker reason if the date is actually
 // disabled, else an informational note for the one day worth flagging even
 // though it's still workable (Thanksgiving) -- SOFT_CODES elsewhere stay
@@ -8511,6 +8514,7 @@ function dateBlockers(row, date){ return hardBlockers(row,date).concat(pastBlock
 function dateLabel(row, date){
   const bl = dateBlockers(row, date);
   if(bl.length) return ` — ${codeMsg(bl[0])}`;
+  if(isPastDate(date)) return ' (already passed)';
   const ci = SPEC.calendar.find(x=>x.date===date);
   // A standing commitment (e.g. HYROX) doesn't block the date -- staff can
   // still book it -- but it must be visible in the picker so nobody
@@ -8573,6 +8577,10 @@ function checkPlan(ops){
     if(confirmed.has(op.row))
       blockers.push({code:'CONFIRMED', msg:`${c.name}'s date is confirmed with `
         +`them — unlock it first (on their stop) if it needs to move`});
+    // A date that already passed: confirm, never block (isPastDate).
+    if(isPastDate(date))
+      warnings.push({code:'PAST', msg:`${c.name}: ${fmtDate(date)} already passed`,
+                     short:'this date already passed'});
     // static
     staticBlockers(op.row, date).forEach(code=>
       (codeSoft(code)?warnings:blockers).push(
@@ -8886,6 +8894,8 @@ function findSlots(row, wantDate, limit=8){
   candidateSlots().forEach(s=>{
     if(src && s.id===src.id) return;
     if(dateBlockers(row, s.date).length) return;
+    // Never suggest a date that already passed; offer it only when asked for.
+    if(isPastDate(s.date) && s.date!==wantDate) return;
     const chk = checkPlan(planFor(row, s.id));
     if(!chk.ok) return;
     const dNew = chk.deltas[s.id]||{};
@@ -9146,24 +9156,13 @@ function addDaysISO(iso, n){
   dt.setUTCDate(dt.getUTCDate()+n);
   return dt.toISOString().slice(0,10);
 }
-/** Earliest date this client can legally move to.
- *
- * Ordinarily that's just today -- you cannot schedule an install into the
- * past. But if their CURRENT day already IS today, today is presumably
- * already in motion (the crew may be en route or on site), so the floor
- * steps to tomorrow instead. A client whose install already passed with no
- * action gets floored at today, same as anyone else -- there's no reason
- * to force the new date later than that. */
-function minAllowedDate(row){
-  const t=todayISO();
-  const src=days.find(d=>d.stops.includes(row));
-  return (src && src.date===t) ? addDaysISO(t,1) : t;
-}
-/** Only reason a date can be off the table independent of any client or
- * rule: it's before the floor above. */
-function pastBlockers(row, date){
-  return date < minAllowedDate(row) ? ['PAST'] : [];
-}
+/** A date before today (the browser's own day) already passed. Moving a
+ * stop onto one used to be a hard block worded "Too early to move it
+ * there"; anyone who can edit the board may now do it after a plain
+ * confirm (PAST_CONFIRM), so the board can record where a stop really went
+ * (Comments #43). Today itself has not passed. */
+function isPastDate(date){ return !!date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date < todayISO(); }
+const PAST_CONFIRM='This date already passed. Move anyway?';
 // row -> its circle marker on the Days map, so a click in the crew list can
 // centre the map on that stop and open its pop-up.
 var markerByRow = {};
@@ -10162,6 +10161,15 @@ function rearrangeBlockers(pairs){
   }));
   return [...new Set(out)];
 }
+/** True when a rearrange puts stops onto a date that already passed (a
+ *  confirm, not a block: see isPastDate). Same-date crew swaps count too,
+ *  like the move dialog: it is still editing a day that is over. */
+function rearrangeIntoPast(pairs){
+  return (pairs||[]).some(([a,b])=>[[a,b],[b,a]].some(([from,to])=>{
+    const d=days.find(x=>x.id===from);
+    return d && d.stops.length && isPastDate(String(to).split('|')[0]);
+  }));
+}
 /** Trade the stops of each [a, b] crew-day pair (b may not exist yet: that's
  *  a move onto a new crew). Each itinerary keeps its order. What belongs to
  *  the itinerary goes with it, as a whole-day move always did: its people,
@@ -10251,6 +10259,9 @@ function applyRearrange(opt){
     alert('Cannot make this change:\n\n'+bl.map(b=>'  • '+b).join('\n'));
     return false;
   }
+  if(rearrangeIntoPast(opt.pairs) && !DRAFT){
+    if(!confirm(PAST_CONFIRM)) return false;
+  }
   pushUndo();
   exchangeCrewDays(opt.pairs);
   persist(); render();
@@ -10330,8 +10341,9 @@ function renderRearrangeOpts(){
       +`<span class="rrt">${o.kind==='swap'?IC.swap:IC.calday}<span>${esc(lb.title)}</span></span>`
       +`<span class="rrs">${esc(lb.sub)}</span>`
       +(bad ? `<span class="rrb">${esc(pv.blockers[0])}${pv.blockers.length>1?` (and ${pv.blockers.length-1} more)`:''}</span>` : '')
+      +(rearrangeIntoPast(o.pairs) ? `<span class="rrw">${IC.alert}<span>This date already passed</span></span>` : '')
       +pv.warnings.map(w=>`<span class="rrw">${IC.alert}<span>${esc(w.msg)}</span></span>`).join('')
-      +(!bad && !pv.warnings.length ? `<span class="rrok">${IC.check}<span>No new warnings</span></span>` : '')
+      +(!bad && !pv.warnings.length && !rearrangeIntoPast(o.pairs) ? `<span class="rrok">${IC.check}<span>No new warnings</span></span>` : '')
       +`</button>`;
   }).join('');
   box.querySelectorAll('.rropt').forEach(b=>b.onclick=()=>{
@@ -11664,7 +11676,7 @@ function renderLog(){
 // Every user-initiated edit goes through here. Deliberately NOT inside
 // applyMove: loading saved state replays through applyMove and must not be
 // re-validated against intermediate states.
-function commitPlan(ops, {force=false}={}){
+function commitPlan(ops, {force=false, pastOk=false}={}){
   if(roBlocked()) return false;
   const chk = checkPlan(ops);
   if(chk.blockers.length && !force){
@@ -11672,10 +11684,17 @@ function commitPlan(ops, {force=false}={}){
       + chk.blockers.map(b=>'  • '+b.msg).join('\n'));
     return false;
   }
+  // A date that already passed gets its own plain question (Comments #43),
+  // asked once -- the move dialog asks it when the date is picked (pastOk).
+  const past = chk.warnings.filter(w=>w.code==='PAST');
+  const rest = chk.warnings.filter(w=>w.code!=='PAST');
+  if(past.length && !pastOk && !DRAFT){
+    if(!confirm(PAST_CONFIRM)) return false;
+  }
   // In a draft (Try changes) the warnings show live in the draft banner
   // instead of a pop-up on every move: trying things out should be free.
-  if(chk.warnings.length && !DRAFT && !confirm('Heads up:\n\n'
-      + chk.warnings.map(w=>'  • '+w.msg).join('\n')
+  if(rest.length && !DRAFT && !confirm('Heads up:\n\n'
+      + rest.map(w=>'  • '+w.msg).join('\n')
       + '\n\nMake the change anyway?')) return false;
   pushUndo();
   ops.forEach(o=>applyMove(o.row, o.to));
@@ -11685,7 +11704,7 @@ function commitPlan(ops, {force=false}={}){
 
 // ---------- move dialog ----------
 const mvdlg=document.getElementById('mvdlg');
-let mvRow=null;
+let mvRow=null, mvPastOk=null;
 function openMoveDlg(row,presetDate){
   if(roBlocked()) return;
   if(confirmed.has(row)){
@@ -11700,6 +11719,7 @@ function openMoveDlg(row,presetDate){
   // Every LEGAL date, not just ones that already have crews. The old list
   // was built from staffed days, which hid 10 working dates -- including
   // the open days deliberately left in the schedule for exactly this.
+  mvPastOk=null;
   dsel.innerHTML=SPEC.calendar.map(ci=>{
     const bl=dateBlockers(row, ci.date);
     const lab=`${fmtDate(ci.date)}${dateLabel(row, ci.date)}`;
@@ -11792,13 +11812,23 @@ function openMoveDlg(row,presetDate){
     csel.innerHTML=opts.join('');
     renderCrewInfo();
   };
-  dsel.onchange=fillCrews; csel.onchange=renderCrewInfo; fillCrews();
+  // Picking a date that already passed asks once, then the Move button
+  // doesn't ask again (mvPastOk). No puts the previous date back.
+  let prevDate=dsel.value;
+  dsel.onchange=()=>{
+    if(isPastDate(dsel.value) && mvPastOk!==dsel.value){
+      if(!confirm(PAST_CONFIRM)){ dsel.value=prevDate; return; }
+      mvPastOk=dsel.value;
+    }
+    prevDate=dsel.value; fillCrews();
+  };
+  csel.onchange=renderCrewInfo; fillCrews();
   mvdlg.showModal();
 }
 document.getElementById('mvgo').onclick=()=>{
   const to=document.getElementById('mvcrew').value;
   if(!to) return;
-  if(commitPlan(planFor(mvRow, to))) mvdlg.close();
+  if(commitPlan(planFor(mvRow, to), {pastOk: !!mvPastOk && to.split('|')[0]===mvPastOk})) mvdlg.close();
 };
 
 // ---------- new client / manual stop ----------

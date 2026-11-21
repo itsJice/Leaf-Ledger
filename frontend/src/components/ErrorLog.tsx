@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, ChevronDown, ChevronRight, Clock, Loader2, Monitor, Navigation, RefreshCw,
+  AlertTriangle, ChevronDown, ChevronRight, Clock, Loader2, Monitor, Navigation, Pencil, RefreshCw,
 } from "components/icons";
 import { apiFetch } from "utils/apiFetch";
 
@@ -132,6 +132,7 @@ function StepIcon({ type }: { type: string }) {
   if (type === "error") return <AlertTriangle className={`${cls} text-rose-500`} />;
   if (type === "page") return <Monitor className={`${cls} text-stone-400`} />;
   if (type === "click") return <Navigation className={`${cls} text-stone-400`} />;
+  if (type === "action") return <Pencil className={`${cls} text-stone-400`} />;
   if (type === "request" || type === "schedule") return <RefreshCw className={`${cls} text-stone-400`} />;
   return <Clock className={`${cls} text-stone-400`} />;
 }

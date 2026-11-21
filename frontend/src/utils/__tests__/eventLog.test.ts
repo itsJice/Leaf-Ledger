@@ -62,11 +62,11 @@ describe("pruneTrail", () => {
     expect(out.map((s) => s.label)).toEqual(["#2", "#3"]);
   });
 
-  it("keeps at most 50 steps, newest", () => {
-    const many = Array.from({ length: 70 }, (_, i) => step(5, i));
+  it("keeps at most TRAIL_MAX_STEPS steps, newest", () => {
+    const many = Array.from({ length: TRAIL_MAX_STEPS + 20 }, (_, i) => step(5, i));
     const out = pruneTrail(many, now);
     expect(out).toHaveLength(TRAIL_MAX_STEPS);
-    expect(out[out.length - 1].label).toBe("#69");
+    expect(out[out.length - 1].label).toBe(`#${TRAIL_MAX_STEPS + 19}`);
   });
 
   it("drops steps with bad times", () => {

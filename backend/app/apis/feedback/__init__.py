@@ -25,7 +25,7 @@ super_admin -- in practice Justice). Everyone else still sees every submission, 
 and the routes that change a submission refuse them.
 
 What happened before a comment: the widget attaches the sender's "last
-minute" trail (pages, buttons, requests and errors, up to 50 steps / 10
+minute" trail (pages, actions, requests and errors, up to 100 steps / 10
 minutes) plus device facts as ``context``. It is the owner's, like Claude's
 notes: only a super_admin can read it (``GET /{id}/context``), and the list
 says only whether one exists. Scrubbed by ``app.libs.redact`` and capped at
@@ -53,8 +53,8 @@ MAX_MESSAGE_CHARS = 4000
 #: viewport sizes without letting a submission balloon the table.
 MAX_SCREENSHOT_BYTES = 3_000_000
 #: The trail and device facts attached to a comment (see the docstring).
-MAX_CONTEXT_BYTES = 20_000
-MAX_CONTEXT_STEPS = 50
+MAX_CONTEXT_BYTES = 32_000
+MAX_CONTEXT_STEPS = 100
 
 DDL = """
 CREATE SCHEMA IF NOT EXISTS ll_app;

@@ -76,8 +76,10 @@ CODES = {
     # PAST is never computed server-side (it depends on the real calendar
     # date when someone opens the tool, which build time can't know) --
     # listed here only so its message text has one home, same as every
-    # other code.
-    "PAST":       ("CAL", "Too early to move it there", False),
+    # other code. Soft since 11/20 (Comments #43): office users can move a
+    # stop onto a date that already passed after a confirm, to record where
+    # it really went. The review tool words it itself (isPastDate).
+    "PAST":       ("CAL", "This date already passed", True),
 }
 SOFT_CODES = {k for k, v in CODES.items() if v[2]}
 
