@@ -144,7 +144,7 @@ def test_merge_keeps_both_tabs_start_times():
 def test_wired_through_save_undo_restore_and_render():
     assert "'crewStart'" in js_function("mergeShared") or "crewStart" in TEMPLATE.split("const SHARED_MAP_KEYS=")[1].split("\n")[0]
     assert "hoursOverride, crewStart," in js_function("snapshot")
-    assert "crewStart, synHours" in js_function("stateBlob")
+    assert "hoursOverride, crewStart," in js_function("stateBlob")
     for fn in ("restoreBlob", "restoreHistoryEntry"):
         assert "crewStart = normCrewStart(" in js_function(fn)
     assert "crewStart = normCrewStart(crewStart);" in js_function("render")
