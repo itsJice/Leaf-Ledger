@@ -18,12 +18,13 @@ NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 FNS = ["peekEsc", "attrEsc", "actualsMap", "actualFor", "dayHasHappened", "actualMinutes", "fmtSpan",
-       "onSiteText", "doneTimesText", "canEditActuals", "peekTimesHTML"]
+       "onSiteText", "doneTimesText", "canEditActuals", "timesShown", "timesToday", "centralTodayISO",
+       "timesByText", "peekTimesHTML"]
 STUBS = """
   const IC={clock:'@', alert:'!'};
   let AUTH='t', READONLY=false, VIEWONLY=false, TVMODE=false, ME_ROLE='staff';
   const ALERT_EDIT_ROLES=new Set(['staff','admin','super_admin']);
-  let ACTUALS=null, actualsToday='2026-11-16', pkTimesEdit=false, pkTimesMsg='';
+  let ACTUALS=null, actualsToday='2026-11-16', actualsReady=true, pkTimesEdit=false, pkTimesMsg='';
   const todayISO=()=>'2026-11-16';
   const isDallasNight=d=>d.night===true;
   const SERENITY={id:4, row:105, dayId:'2026-11-09|Crew 2|0', dayIds:['2026-11-09|Crew 2|0'],
@@ -71,7 +72,7 @@ def test_future_days_show_nothing_and_only_office_can_edit():
     """)
     staff, fut, lead, archived, loading, none, m45, h3 = out
     assert "On site 3:44 PM to 6:27 PM (2h 43m)" in staff and 'id="pktimesedit"' in staff and "Fix times" in staff
-    assert "from the stop note" in staff
+    assert "Install Times · entered by Claude" in staff and "from the stop note" not in staff
     assert fut == "" and loading == ""
     assert "pktimesedit" not in lead and "pktimesedit" not in archived
     assert "No times entered yet" in none and "Enter times" in none

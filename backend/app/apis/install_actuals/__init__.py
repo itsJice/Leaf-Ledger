@@ -251,6 +251,50 @@ def crew_groups(board: schedule_board.Board, on: str, viewer: Viewer) -> list[di
     return out
 
 
+def stop_on_visit(board: schedule_board.Board, day_id: Optional[str], row) -> bool:
+    """The stop is still on this visit (any crew-day of its joint shift)."""
+    if not day_id or day_id not in board.days:
+        return False
+    ids = board.joint_groups().get(day_id) or [day_id]
+    return any(row in board.days[i]["stops"] for i in ids if i in board.days)
+
+
+def moved_times(board: schedule_board.Board, rows) -> dict:
+    """Times saved before a stop moved to another crew-day the same date.
+
+    A visit is keyed by (day id, row), so a stop moved from Crew 2 to Crew 3
+    after its times were saved shows nothing on Crew 3. For each visit with
+    no times of its own, this finds the newest latest row for the same row,
+    date and kind saved under a crew-day that no longer has the stop:
+    ``{(visit day id, row, kind): row}``. ``rows``: latest rows with id,
+    day_id, client_row, kind and date."""
+    own = {(r["day_id"], r["client_row"], r["kind"]) for r in rows}
+    visits: dict = {}
+    for d in board.days.values():
+        if d.get("crew") == "Training":
+            continue
+        for row in d["stops"]:
+            visits.setdefault((d["date"], row), []).append(visit_day_id(board, d["id"]))
+    out: dict = {}
+    for r in sorted(rows, key=lambda r: r["id"]):
+        row = r["client_row"]
+        if row is None or not r["day_id"] or stop_on_visit(board, r["day_id"], row):
+            continue
+        on = _iso(r["date"])
+        targets = visits.get((on, row))
+        if not targets or T.kind_for_date(on, board.season) != r["kind"]:
+            continue
+        for vid in dict.fromkeys(targets):
+            if (vid, row, r["kind"]) not in own:
+                out[(vid, row, r["kind"])] = r
+    return out
+
+
+def saved_under(r) -> str:
+    """The "saved under Crew 2" label for a moved stop's times."""
+    return r["crew_label"] or "another crew"
+
+
 def visible_dates(board: schedule_board.Board, viewer: Viewer) -> list[str]:
     return sorted({d["date"] for d in board.days.values()
                    if d["stops"] and d.get("crew") != "Training" and may_enter(viewer, board, d["id"])})
@@ -336,13 +380,17 @@ async def day_view(user: AuthorizedUser, on: Optional[str] = Query(None, alias="
         conn = await get_conn()
         try:
             await ensure_schema(conn)
+            # The date's other rows too: times saved before a stop moved here.
             rows = await conn.fetch(
                 "SELECT l.*, (SELECT count(*) FROM ll_app.install_actuals x WHERE x.season = l.season "
                 "AND x.day_id = l.day_id AND x.client_row = l.client_row AND x.kind = l.kind) - 1 AS corrections "
-                "FROM ll_app.install_actuals_latest l WHERE l.season = $1 AND l.day_id = ANY($2::text[])",
-                board.season, ids)
+                "FROM ll_app.install_actuals_latest l WHERE l.season = $1 "
+                "AND (l.day_id = ANY($2::text[]) OR l.date = $3)",
+                board.season, ids, date.fromisoformat(pick))
             for r in rows:
                 latest[(r["day_id"], r["client_row"], r["kind"])] = actual_out(r, int(r["corrections"] or 0))
+            for key, r in moved_times(board, rows).items():
+                latest.setdefault(key, {**actual_out(r, int(r["corrections"] or 0)), "savedUnder": saved_under(r)})
         finally:
             await conn.close()
     for c in crews:
@@ -382,11 +430,11 @@ async def _missing_days(board: schedule_board.Board, viewer: Viewer) -> list[dic
     try:
         await ensure_schema(conn)
         rows = await conn.fetch(
-            "SELECT day_id, client_row, kind FROM ll_app.install_actuals_latest WHERE season = $1 "
+            "SELECT id, day_id, client_row, kind, date FROM ll_app.install_actuals_latest WHERE season = $1 "
             "AND arrive_at IS NOT NULL AND depart_at IS NOT NULL", board.season)
     finally:
         await conn.close()
-    done = {(r["day_id"], r["client_row"], r["kind"]) for r in rows}
+    done = {(r["day_id"], r["client_row"], r["kind"]) for r in rows} | set(moved_times(board, rows))
     return missing_by_day(board, viewer, done, now_ct().date().isoformat())
 
 
@@ -414,6 +462,11 @@ async def schedule_times(user: AuthorizedUser) -> dict:
         if not did or not may_enter(viewer, board, did):
             continue
         out.append({**actual_out(r), "dayIds": groups.get(did) or [did]})
+    # A stop moved to another crew-day after its times were saved: show them
+    # there, labelled, until someone saves on the new crew-day.
+    for (vid, _row, _kind), r in moved_times(board, rows).items():
+        if may_enter(viewer, board, vid):
+            out.append({**actual_out(r), "dayIds": groups.get(vid) or [vid], "savedUnder": saved_under(r)})
     return {"season": board.season, "today": now_ct().date().isoformat(), "office": viewer.office,
             "actuals": out}
 
@@ -471,6 +524,8 @@ async def save_actual(body: ActualIn, user: AuthorizedUser) -> dict:
     day = board.days[body.dayId]
     if body.row not in day["stops"]:
         raise HTTPException(status_code=404, detail="That stop isn't on this crew-day")
+    if day.get("crew") == "Training":
+        raise HTTPException(status_code=409, detail="Training days don't take on-site times")
     if day["date"] > now_ct().date().isoformat():
         raise HTTPException(status_code=409, detail="That crew-day hasn't happened yet")
     night = board.is_dallas_night(day)
@@ -498,7 +553,17 @@ async def save_actual(body: ActualIn, user: AuthorizedUser) -> dict:
             current = await conn.fetchrow(
                 "SELECT * FROM ll_app.install_actuals_latest WHERE season = $1 AND day_id = $2 "
                 "AND client_row = $3 AND kind = $4", board.season, vid, body.row, kind)
-            if (current["id"] if current else None) != body.supersedesId:
+            moved = None
+            if current is None and body.supersedesId is not None:
+                # Fixing times saved before the stop moved here: they may be
+                # replaced from this crew-day (the new row lives here).
+                moved = await conn.fetchrow(
+                    "SELECT * FROM ll_app.install_actuals_latest WHERE id = $1 AND season = $2 "
+                    "AND client_row = $3 AND kind = $4 AND date = $5",
+                    body.supersedesId, board.season, body.row, kind, date.fromisoformat(day["date"]))
+                if moved is not None and stop_on_visit(board, moved["day_id"], body.row):
+                    moved = None
+            if moved is None and (current["id"] if current else None) != body.supersedesId:
                 raise HTTPException(status_code=409, detail={
                     "message": "Someone else just saved this stop. Here is what they entered.",
                     "current": actual_out(current) if current else None,
