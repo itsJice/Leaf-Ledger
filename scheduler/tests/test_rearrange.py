@@ -269,7 +269,7 @@ def test_nothing_leaves_the_tab_during_a_draft():
     # warnings show in the banner instead of a pop-up per move
     commit = TEMPLATE[TEMPLATE.index("function commitPlan("):]
     commit = commit[:commit.index("\n}\n")]
-    assert "chk.warnings.length && !DRAFT && !confirm(" in commit
+    assert "rest.length && !DRAFT && !confirm(" in commit and "!pastOk && !DRAFT" in commit
     # Apply goes through the normal save path (the stale-tab merge lives in putShared)
     assert "persist();" in js_function("applyDraft")
     assert "btn.hidden=!!READONLY;" in js_function("syncDraftUI")
