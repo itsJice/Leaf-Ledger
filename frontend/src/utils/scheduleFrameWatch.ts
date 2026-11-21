@@ -11,12 +11,18 @@
  * (a blank schedule, like Comment #39) is caught too. Because the app adds
  * it, the schedule template is unchanged and needs no publish.
  *
- * The script only reports: script errors, and each /api call's method, path
- * (no query string), status and time. Never a body, header or token. It
+ * The script only reports: script errors, each /api call's method, path
+ * (no query string), status and time, and what was done on the page
+ * (utils/actionTrail.ts, injected as its own source: buttons, dialogs,
+ * picks, drag and drop, the pop-ups the schedule shows and their answers,
+ * like "Cannot make this change"). Never a body, header, token or anything
+ * typed. Because the app injects it, it covers the live page as soon as the
+ * app deploys, with no schedule publish. It
  * posts to the parent, which checks the message came from one of its own
  * frames (`handleFrameMessage`), scrubs it again and logs it.
  */
-import { addStep, isIgnorableError, isLoggableStatus, pathOnly, reportEvent, scrubText, type EventKind } from "utils/eventLog";
+import { startActionTrail } from "utils/actionTrail";
+import { actionStepType, addStep, isIgnorableError, isLoggableStatus, pathOnly, reportEvent, requestLabel, scrubText, type EventKind } from "utils/eventLog";
 
 export const FRAME_STEP = "ll-frame-step";
 export const FRAME_EVENT = "ll-frame-event";
@@ -27,6 +33,7 @@ function post(m){try{P.postMessage(m,'*');}catch(e){}}
 function path(u){try{u=String(u&&u.url||u);var i=u.indexOf('://');if(i>=0){var s=u.indexOf('/',i+3);u=s>=0?u.slice(s):'/';}return u.split('#')[0].split('?')[0].slice(0,300);}catch(e){return '';}}
 window.addEventListener('error',function(e){try{post({type:'${FRAME_EVENT}',kind:'error',message:String(e.message||''),stack:String(e.error&&e.error.stack||'').slice(0,4000),line:e.lineno,col:e.colno});}catch(x){}});
 window.addEventListener('unhandledrejection',function(e){try{var r=e.reason;post({type:'${FRAME_EVENT}',kind:'error',message:'Unhandled: '+String(r&&r.message||r),stack:String(r&&r.stack||'').slice(0,4000)});}catch(x){}});
+try{(${startActionTrail.toString()})(window,function(a){post({type:'${FRAME_STEP}',action:String(a.kind),label:String(a.label).slice(0,80)});});}catch(e){}
 var F=window.fetch;if(!F)return;
 window.fetch=function(input,init){var t=Date.now(),p=path(input),m=String(init&&init.method||input&&input.method||'GET').toUpperCase();
 var watch=p.indexOf('/api/')===0;var q=F.apply(this,arguments);if(!watch)return q;
@@ -50,6 +57,9 @@ export function withFrameWatch(html: string): string {
 
 interface FrameStep {
   type: typeof FRAME_STEP;
+  /** Something done on the page (actionTrail.ts kind) and its label. */
+  action?: string;
+  label?: string;
   method?: string;
   path?: string;
   status?: number;
@@ -72,6 +82,9 @@ interface FrameEvent {
 /** Kinds the schedule may report itself (review_template.html llReport);
  *  anything else from the frame is a plain script error. */
 export const FRAME_KINDS: ReadonlySet<EventKind> = new Set<EventKind>(["error", "blank", "save_blocked", "save_conflict"]);
+
+/** What the frame may say it did (actionTrail.ts TrailAction kinds). */
+export const ACTION_KINDS: ReadonlySet<string> = new Set(["click", "tab", "menu", "pick", "toggle", "field", "dialog", "message", "ask", "drop", "submit", "error"]);
 
 /** The schedule's own detail, kept small and flat. */
 export function frameDetail(detail: unknown): Record<string, unknown> {
@@ -125,6 +138,13 @@ export function handleFrameMessage(e: MessageEvent): boolean {
       return true;
     }
 
+    if (data.action) {
+      const label = scrubText(String(data.label || ""), 80);
+      if (label && ACTION_KINDS.has(data.action))
+        addStep({ type: actionStepType(data.action), source: "schedule", label: `Schedule: ${label}` });
+      return true;
+    }
+
     const method = String(data.method || "GET").toUpperCase().slice(0, 10);
     const path = pathOnly(data.path);
     const status = Number(data.status) || 0;
@@ -133,7 +153,7 @@ export function handleFrameMessage(e: MessageEvent): boolean {
     addStep({
       type: "schedule",
       source: "schedule",
-      label: `Schedule: ${key} ${status || (data.error ? "no answer" : "?")}`,
+      label: `Schedule: ${status ? requestLabel(method, path, status) : `${key} ${data.error ? "no answer" : "?"}`}`,
       status,
       ms,
     });
