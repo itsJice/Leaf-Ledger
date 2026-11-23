@@ -375,7 +375,10 @@ def resolve(season: str, payload: dict, state: Optional[dict], inherited: Option
     built = set(clients)  # added stops (newClients) keep their own hours
     for c in state.get("newClients") or []:
         try:
-            clients.setdefault(int(c["row"]), {**c, "advice": c.get("notes", "")})
+            # ``synthetic``: an added stop, not a spreadsheet row. A build can
+            # number its own new clients 900001+ too (Robishaw), so the row
+            # number alone doesn't say which (Comment #45).
+            clients.setdefault(int(c["row"]), {**c, "advice": c.get("notes", ""), "synthetic": True})
         except (KeyError, TypeError, ValueError):
             continue
     # Install hours staff edited on the board (the tool's hoursOverride): the

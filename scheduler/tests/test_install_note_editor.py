@@ -117,7 +117,7 @@ def test_no_em_dashes_in_the_new_on_screen_text():
 
 @needs_node
 def test_an_added_stop_shows_its_own_note_before_the_cards():
-    out = run(["installNoteFor"], """
+    out = run(["cardNoteCleared", "installNoteFor"], """
       const SEASON=['2026-10-01'];
       const C={60:{advice:''}, 61:{advice:'sheet'}, 900042:{advice:'PART B', synthetic:true}, 900043:{advice:'', synthetic:true}};
       const card={activity:[{kind:'christmas_install', season:'2026', detail:{notes:'PART A'}}]};
@@ -125,3 +125,35 @@ def test_an_added_stop_shows_its_own_note_before_the_cards():
       console.log(JSON.stringify([60,61,900042,900043].map(r=>installNoteFor(r).text)));
     """)
     assert out == ["PART A", "PART A", "PART B", "PART A"]
+
+
+@needs_node
+def test_a_built_row_numbered_900000_plus_takes_the_cards_note():
+    """Comment #45: Robishaw is a spreadsheet row the build numbered 900001.
+    Its baked note isn't a stop's own note: the card's note wins, so it can be
+    edited and cleared on the card."""
+    out = run(["cardNoteCleared", "installNoteFor"], """
+      const SEASON=['2026-10-01'];
+      const C={900001:{advice:'New 2026 client. Historically a full-day job'}};
+      let detail={notes:'Card note', app_edits:{notes:'2026-11-19T00:44:35+00:00'}};
+      function appClientFor(){ return {activity:[{kind:'christmas_install', season:'2026', detail}]}; }
+      const r={};
+      r.card=installNoteFor(900001);
+      detail={notes:'', app_edits:{notes:'2026-11-23T01:00:00+00:00'}};
+      r.cleared=installNoteFor(900001);
+      detail={notes:'', app_edits:{}};
+      r.sheetEmpty=installNoteFor(900001).text;
+      detail={};
+      r.none=installNoteFor(900001).text;
+      console.log(JSON.stringify(r));
+    """)
+    assert out["card"] == {"text": "Card note", "season": "2026", "live": True}
+    assert out["cleared"] is None
+    assert out["sheetEmpty"] == "New 2026 client. Historically a full-day job"
+    assert out["none"] == "New 2026 client. Historically a full-day job"
+
+
+def test_emptying_a_spreadsheet_note_on_a_card_stop_sends_a_clear():
+    wire = js_function("wirePeekInstallNote")
+    assert "if(target==='card' && n && !n.live && !String(inp.value).trim()) change=null;" in wire
+    assert "+row>=900000" not in js_function("installNoteFor")

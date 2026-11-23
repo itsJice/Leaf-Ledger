@@ -6843,16 +6843,29 @@ function wireInstallNoteCounts(root){
     };
   });
 }
+/** PURE. A season card entry whose install note a person saved empty
+ *  (cleared): detail.notes is '' and app_edits stamps it. */
+function cardNoteCleared(en){
+  const d=en && en.detail;
+  return !!(d && typeof d.notes==='string' && !d.notes.trim()
+            && d.app_edits && typeof d.app_edits==='object' && d.app_edits.notes);
+}
 function installNoteFor(row){
   const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
   // An added stop (a callback, "Part B") keeps its own note first: it says
   // something about that visit, and the card's note is for the client's
   // main install (Comment #38). Same rule as the server's install_note().
-  const own=+row>=900000 && C[row] && C[row].advice ? String(C[row].advice).trim() : '';
+  // Added means added on the board (synthetic): the build numbers its own
+  // new clients 900001+ too, and their baked note is the spreadsheet's,
+  // which the card's note replaces (Robishaw, Comment #45).
+  const own=C[row] && C[row].synthetic && C[row].advice ? String(C[row].advice).trim() : '';
   if(own) return {text:own, season:yr, live:false, own:true};
   const en=ac && (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
   const live=en && en.detail && typeof en.detail.notes==='string' ? en.detail.notes.trim() : '';
   if(live) return {text:live, season:yr, live:true};
+  // A note a person cleared on the card stays cleared: the spreadsheet's
+  // note baked into this build doesn't come back (Comment #45).
+  if(cardNoteCleared(en)) return null;
   const c=C[row];
   return c && c.advice ? {text:String(c.advice), season:yr, live:false} : null;
 }
@@ -13742,7 +13755,11 @@ function wirePeekInstallNote(row){
     // A spreadsheet note shown on a card stop counts as unchanged when kept
     // as is: saving it untouched shouldn't copy it onto the card.
     const shown=n ? n.text : '';
-    const change=installNoteChange(was, inp.value);
+    let change=installNoteChange(was, inp.value);
+    // Emptying the spreadsheet's note on a card stop clears it on the card
+    // (kept as an empty note, so it stays gone, Comment #45). Before, nothing
+    // was sent, since the card itself had no note to change.
+    if(target==='card' && n && !n.live && !String(inp.value).trim()) change=null;
     if(change===undefined || (target==='card' && !(n && n.live) && String(inp.value).trim()===shown.trim())){
       pkEditingInst=false; redraw(); return;
     }

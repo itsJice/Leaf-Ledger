@@ -211,7 +211,8 @@ async def load_client_extras(conn, season: str) -> dict:
     await clients_api.ensure_schema(conn)
     rows = await conn.fetch(
         "SELECT c.id, c.name, c.sheet_name, c.former_names, c.staff_alert, c.staff_alert_by, "
-        "       c.staff_alert_at, ca.detail->>'notes' AS install_notes, c.schedule_restrictions "
+        "       c.staff_alert_at, ca.detail->>'notes' AS install_notes, c.schedule_restrictions, "
+        "       COALESCE((ca.detail->'app_edits') ? 'notes', false) AS install_notes_set "
         "  FROM clients c "
         "  LEFT JOIN client_activity ca ON ca.client_id = c.id "
         "       AND ca.kind = 'christmas_install' AND ca.season = $1 "
@@ -248,19 +249,21 @@ def install_note(c: dict, extras: Optional[dict]) -> str:
     """This season's install notes for a stop: the client card's season
     "Install notes" (client_activity detail.notes -- what the Clients tab and
     the schedule's stop card edit) when it has any, else the note baked into
-    the published schedule from the spreadsheet. An added stop (row 900000+,
-    a callback or "Part B") shows its own note first: it is about that visit
+    the published schedule from the spreadsheet. A note a person cleared on
+    the card stays cleared (Comment #45). An added stop (``synthetic``: added
+    on the board, a callback or "Part B") shows its own note first: it is about that visit
     (Comment #38). The same rule as the schedule page's installNoteFor(), so
     the Shifts page, the crew sheet and the board always show the same text."""
-    try:
-        added = int(c.get("row") or 0) >= 900000
-    except (TypeError, ValueError):
-        added = False
     own = str(c.get("advice") or "").strip()
-    if added and own:
+    if c.get("synthetic") and own:
         return own
-    live = (stop_extras((extras or {}).get(norm_name(c.get("name")))).get("installNotes") or "").strip()
-    return live or str(c.get("advice") or "").strip()
+    rec = (extras or {}).get(norm_name(c.get("name")))
+    live = (stop_extras(rec).get("installNotes") or "").strip()
+    # A note a person saved on the card wins even when empty: a cleared note
+    # stays cleared, the build's spreadsheet note doesn't come back (#45).
+    if live or (rec and rec.get("install_notes_set")):
+        return live
+    return own
 
 
 def pack_list(stops: list) -> list:
