@@ -166,6 +166,52 @@ class Board:
         return f"{name} ({label})" if name else label
 
 
+def is_callback(c: Optional[dict]) -> bool:
+    """A callback visit (bought more / fix / unfinished): an added stop with
+    visit type Callback. Since 11/2026 one is added under its client's own
+    name (``of`` = the client's row), so it finds the client's card, contact
+    and links by name like a takedown row does; it is shown as
+    "<Client> - Callback" and never speaks for the client's main install."""
+    return str((c or {}).get("visitType") or "").strip().lower() == "callback"
+
+
+def is_extra_visit(c: Optional[dict]) -> bool:
+    """A second visit to a client who has a main stop: a callback or an event
+    takedown/teardown. Its date, hold and card facts are not the client's."""
+    vt = str((c or {}).get("visitType") or "").strip().lower()
+    return vt == "callback" or "takedown" in vt or "teardown" in vt
+
+
+#: Why a return trip goes back -- the schedule page's RETURN_REASONS.
+RETURN_REASONS = {"callback": "Callback", "bought_more": "Bought more", "fix": "Fix",
+                  "unfinished": "Unfinished", "other": "Other"}
+
+
+def is_return_trip(c: Optional[dict]) -> bool:
+    """A callback added FROM its client (``of`` / ``returnReason`` set), as
+    opposed to an older one typed in as a new client."""
+    c = c or {}
+    return is_callback(c) and (c.get("of") is not None or bool(c.get("returnReason")))
+
+
+def return_reason(c: Optional[dict]) -> str:
+    """"Fix", "Bought more"...; "Callback" when none was given."""
+    return RETURN_REASONS.get(str((c or {}).get("returnReason") or "").strip().lower(), "Callback")
+
+
+def visit_name(name: str, c: Optional[dict]) -> str:
+    """How a stop is titled -- the page's visitSuffix(): "Sample, Jane -
+    Return trip (Fix)" for a return trip, "Jane Sample - Callback" for an
+    older callback typed in as a new client."""
+    name = str(name or "")
+    low = name.lower().rstrip()
+    if is_return_trip(c):
+        return name if "- return trip" in low else f"{name} - Return trip ({return_reason(c)})"
+    if is_callback(c) and not low.endswith("- callback"):
+        return f"{name} - Callback"
+    return name
+
+
 def extract_payload(html: str) -> dict:
     i = html.find(PAYLOAD_MARK)
     if i < 0:

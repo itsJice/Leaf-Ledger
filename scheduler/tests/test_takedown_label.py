@@ -17,7 +17,7 @@ from test_client_name_editor import TEMPLATE, js_function, run_js
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
-KIND_FNS = ["visitKind", "dayKind", "dayKindLabel", "stopKindWord"]
+KIND_FNS = ["isCallbackVisit", "visitSuffix", "stopName", "visitKind", "dayKind", "dayKindLabel", "stopKindWord"]
 CUT = "2026-12-25"
 
 

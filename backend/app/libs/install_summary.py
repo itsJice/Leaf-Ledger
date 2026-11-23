@@ -20,6 +20,8 @@ season detail and the change events. No money: nothing here reads a price.
 """
 from __future__ import annotations
 
+import re
+
 from typing import Any, Iterable, Optional
 
 from app.libs import client_season
@@ -45,12 +47,27 @@ def spellings(client: dict) -> set[str]:
     return {k for k in (fold_name(x) for x in raw) if k}
 
 
+def _words_key(name) -> str:
+    """A name's words sorted, any " - Callback" tail dropped."""
+    base = re.split(r"\s+-\s+", str(name or ""), maxsplit=1)[0]
+    return " ".join(sorted(re.findall(r"[a-z0-9']+", fold_name(base))))
+
+
 def board_rows_for(board, client: dict) -> list[int]:
     """The board rows (stops) that are this client, by any spelling."""
     want = spellings(client)
     if not want or board is None:
         return []
-    return sorted(r for r, c in board.clients.items() if fold_name(c.get("name")) in want)
+    rows = {r for r, c in board.clients.items() if fold_name(c.get("name")) in want}
+    # A return trip names its client's row (``of``): it's this client's even
+    # if the card was renamed since (11/2026).
+    rows |= {r for r, c in board.clients.items() if c.get("of") is not None and c.get("of") in rows}
+    # An older callback typed in as a new client under the words reordered
+    # ("Jane Sample" for "Sample, Jane") is listed too.
+    from app.libs.schedule_board import is_callback
+    keys = {_words_key(n) for n in want}
+    rows |= {r for r, c in board.clients.items() if is_callback(c) and _words_key(c.get("name")) in keys}
+    return sorted(rows)
 
 
 def _num(v: Any) -> Optional[float]:
@@ -116,6 +133,19 @@ def summarize(board, client: dict, detail: Optional[dict], events: Optional[list
             })
         stops.append({"row": r, "name": c.get("name") or "", "board_client": c, "crews": crews})
 
+    # The client's own stop before a callback or takedown row under the same
+    # name: those visits don't set the panel's date, crew or size.
+    from app.libs.schedule_board import is_extra_visit
+    stops.sort(key=lambda s: is_extra_visit(s["board_client"]))
+    # Return trips (callbacks, bought more, fixes) on the board: listed on the
+    # client's page under the install, never as a client of their own.
+    from app.libs.schedule_board import is_callback, return_reason
+    return_trips = sorted(
+        ({"date": c["date"], "crew_title": c["crew_title"], "reason": return_reason(s["board_client"]),
+          "row": s["row"]}
+         for s in stops if is_callback(s["board_client"]) for c in s["crews"]),
+        key=lambda t: (t["date"], t["crew_title"]))
+    stops = [s for s in stops if not is_callback(s["board_client"])] or stops
     placed = [s for s in stops if s["crews"]]
     # The client's stop for this panel: the first one on the board, else the
     # first row the build has for them (taken off, or not installing).
@@ -161,6 +191,7 @@ def summarize(board, client: dict, detail: Optional[dict], events: Optional[list
         "confirmed_by": ev.get("by") if ev else None,
         "hold": bool(main and main["row"] in board.hold) or bool(detail.get("hold")),
         "not_installing": bool(detail.get("not_installing")),
+        "return_trips": return_trips,
         "visit_type": (bc.get("visitType") if bc.get("visitType") not in (None, "", "Standard") else None),
         "property_type": bus if bus in ("Business", "Residence") else None,
         "size": {

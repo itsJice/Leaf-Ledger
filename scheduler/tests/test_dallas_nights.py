@@ -256,7 +256,7 @@ def test_takedown_row_sets_the_cards_takedown_date_not_its_install_date():
 
 
 def test_only_the_install_row_speaks_for_the_client():
-    out = json.loads(run_js(fns("normName", "extraVisitRow") + """
+    out = json.loads(run_js(fns("normName", "isTakedownVisit", "isCallbackVisit", "isExtraVisit", "extraVisitRow") + """
       const C={65:{name:'M Crowd Lakewood'}, 900011:{name:'m crowd lakewood', visitType:'Takedown'},
                117:{name:'William Brothers-NRG'}, 900004:{name:'William Brothers-NRG — TEARDOWN', visitType:'Takedown'},
                900020:{name:'Solo Takedown', visitType:'Takedown'}};
