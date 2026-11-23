@@ -58,6 +58,12 @@ export interface CrewDay {
   stops: number;
 }
 
+export interface ReturnTrip {
+  date: string;
+  crew_title: string;
+  reason: string;
+}
+
 export interface InstallSummary {
   client_id: number;
   season: string;
@@ -74,6 +80,9 @@ export interface InstallSummary {
   hold: boolean;
   not_installing: boolean;
   visit_type: string | null;
+  /** Return trips on the board (callback, bought more, fix...): visits to this
+   *  client, listed under the install rather than as a client of their own. */
+  return_trips?: ReturnTrip[];
   property_type: "Business" | "Residence" | null;
   time_preference: string | null;
   schedule_restrictions: string | null;
@@ -274,6 +283,18 @@ export function InstallPanelView({
                 {!s.board_available ? "Couldn't read the schedule" : s.card_date ? "From the season card, not on board" : "Not on the schedule"}
               </p>
             </>
+          )}
+          {(s.return_trips ?? []).length > 0 && (
+            <div className="mt-2 border-t border-stone-100 pt-2" data-return-trips>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Return trips</p>
+              <ul className="mt-0.5 space-y-0.5">
+                {(s.return_trips ?? []).map((t) => (
+                  <li key={`${t.date}-${t.crew_title}-${t.reason}`} className="text-xs text-stone-700">
+                    {boardDateLabel(t.date)} · {t.reason} · {t.crew_title}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
 

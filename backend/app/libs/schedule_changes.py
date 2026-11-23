@@ -305,7 +305,7 @@ def view_of(state: Optional[dict], ctx: Context) -> View:
 
 def names_from_state(state: Optional[dict]) -> tuple[dict[int, str], dict[str, str]]:
     """Clients the tool added itself, and roster names, from one saved state."""
-    from app.libs.schedule_board import _norm_person
+    from app.libs.schedule_board import _norm_person, visit_name
 
     s = state if isinstance(state, dict) else {}
     clients = {}
@@ -325,7 +325,10 @@ def names_from_state(state: Optional[dict]) -> tuple[dict[int, str], dict[str, s
         if isinstance(c, dict):
             r = _row(c.get("row"))
             if r is not None and c.get("name"):
-                clients[r] = str(c["name"])
+                # A callback is added under its client's name: Install Changes
+                # says "Sample, Jane - Callback" so it isn't read as a move
+                # of the main install.
+                clients[r] = visit_name(str(c["name"]), c)
     people = {}
     for p in s.get("roster") or []:
         n = _norm_person(p) if isinstance(p, dict) else None

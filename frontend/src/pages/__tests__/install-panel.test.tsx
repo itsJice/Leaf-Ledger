@@ -74,6 +74,15 @@ describe("InstallPanelView", () => {
     expect(out).toContain("Open on schedule");
   });
 
+  it("lists return trips under the install, not as another client", () => {
+    expect(html({})).not.toContain("data-return-trips");
+    const out = html({ return_trips: [{ date: "2026-11-25", crew_title: "Crew 2", reason: "Bought more" }] });
+    expect(out).toContain("data-return-trips");
+    expect(out).toContain("Return trips");
+    expect(out).toContain("Wed 11/25/2026 · Bought more · Crew 2");
+    expect(out).toContain("Thu 11/19/2026"); // the install date stays the client's date
+  });
+
   it("preferred time chip, restrictions and business/residence tag", () => {
     const out = html();
     expect(out).toContain("Early morning");

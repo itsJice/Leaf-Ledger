@@ -19,7 +19,7 @@ from test_client_name_editor import TEMPLATE, js_function, run_js
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
-FNS = ["visitKind", "dayKind", "dayKindLabel", "stopKindWord",
+FNS = ["isCallbackVisit", "visitSuffix", "stopName", "visitKind", "dayKind", "dayKindLabel", "stopKindWord",
        "shiftStart", "fmtClock", "manifestHTML"]
 
 # Everything around the sheet stubbed: three stops, 75 min each, a 15 min

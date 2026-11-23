@@ -278,7 +278,7 @@ def _day_out(board: schedule_board.Board, day: dict, entries: list, notes: list,
         c = board.clients.get(row) or {}
         stops.append({
             "row": row,
-            "name": c.get("name") or f"Row {row}",
+            "name": schedule_board.visit_name(c.get("name") or f"Row {row}", c),
             "street": c.get("street") or "",
             "city": c.get("city") or "",
             "st": c.get("st") or "",

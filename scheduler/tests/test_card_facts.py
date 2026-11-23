@@ -22,7 +22,7 @@ PRELUDE = """
 const CARD_ROLE_KEYS=['leads','specialty','designer','general'];
 """
 FNS = ["normName", "validHours", "fmtHrs", "applyHoursOverrideTo", "normRoleNeed", "roleSum",
-       "isTakedownVisit", "cardBoxes", "applyCardFactsTo", "ownHours", "ownPeople", "setOwnHours",
+       "isTakedownVisit", "isCallbackVisit", "isExtraVisit", "cardBoxes", "applyCardFactsTo", "ownHours", "ownPeople", "setOwnHours",
        "perCrewPeople", "peopleChipText", "cardFactsNote", "jointN", "effH", "dayNeed"]
 
 
@@ -292,7 +292,7 @@ def test_wiring():
     # The editor saves to the card through the Clients season route, staff+ only.
     assert "/api/clients/${ac.id}/seasons/" in js_function("putCardFacts")
     gate = js_function("canEditCardFacts")
-    assert "canEditHours()" in gate and "!isTakedownVisit(c)" in gate and "cardTwinRows(row).length===1" in gate
+    assert "canEditHours()" in gate and "!isExtraVisit(c)" in gate and "cardTwinRows(row).length===1" in gate
     hrs = js_function("peekHoursHTML")
     assert "if(cardEdit) return cardFactsFormHTML(row);" in hrs
     form = js_function("cardFactsFormHTML")

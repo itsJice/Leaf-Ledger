@@ -124,7 +124,7 @@ def test_notes_fold_counts_and_leads_with_production_notes():
 
 @needs_node
 def test_unknown_boxes_are_a_muted_chip_not_a_dash():
-    out = run(["pkChip", "peekEsc", "peekFactsHTML", "parseBoxes", "cardBoxesFor", "loadBoxesFor",
+    out = run(["pkChip", "peekEsc", "peekFactsHTML", "parseBoxes", "isCallbackVisit", "cardBoxesFor", "loadBoxesFor",
                "stopBoxes", "stopBoxesTxt", "peopleChipText", "perCrewPeople", "normRoleNeed", "roleSum",
                "cardFactsNote", "cardBoxes", "fmtHrs"], """
       const CARD_ROLE_KEYS=['leads','specialty','designer','general'];
