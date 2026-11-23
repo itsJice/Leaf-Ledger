@@ -312,6 +312,14 @@ SHEET_VALUES_KEY = "sheet_values"
 #: hours and the four headcounts.
 SHEET_KEPT = ("boxes", "est_hours", "role_need")
 
+#: Note fields a person can clear for good (Comment #45). Clearing one of
+#: these keeps an empty note, stamped, instead of dropping the key: a dropped
+#: key lets the next spreadsheet sync put the sheet's note back, and the
+#: Install Schedule falls back to the note baked into its build when the
+#: card has none -- so "Can't remove the Install notes" (Robishaw, 11/18).
+#: An empty stamped note means "a person said there is no note".
+CLEARED_NOTE_KEYS = ("notes", "production_notes", "confirmation_notes")
+
 
 def _as_inventory(v: Any) -> list | None:
     """[{type, size, qty, note}] -- every line a known type with a whole
@@ -394,7 +402,8 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None,
     """Apply a person's per-season edits to a detail dict and stamp them.
 
     A ``None`` (or "") value clears the key and drops its stamp, so the sheet
-    may fill it again. ``hold`` and ``not_installing`` are exclusive: setting
+    may fill it again -- except a note (CLEARED_NOTE_KEYS), which a person
+    clears for good: it stays as an empty, stamped note (Comment #45). ``hold`` and ``not_installing`` are exclusive: setting
     either true clears the other, and marking not-installing remembers the
     date the client was pulled off of (``was_scheduled``) so the summary can
     say so.
@@ -419,7 +428,11 @@ def apply_edits(detail: dict | None, fields: dict, when: str | None = None,
     sheet = dict(d.get(SHEET_VALUES_KEY)) if isinstance(d.get(SHEET_VALUES_KEY), dict) else {}
     set_keys, clear_keys = [], []
     for k, v in cleaned.items():
-        if v is None or v is False and k in ("hold", "not_installing"):
+        if v is None and k in CLEARED_NOTE_KEYS:
+            d[k] = ""
+            sheet.pop(k, None)
+            set_keys.append(k)
+        elif v is None or v is False and k in ("hold", "not_installing"):
             d.pop(k, None)
             sheet.pop(k, None)
             clear_keys.append(k)

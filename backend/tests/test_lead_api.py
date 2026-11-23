@@ -629,10 +629,42 @@ def test_an_added_stop_keeps_its_own_install_note_first():
                                     "staff_alert_at": None, "install_notes": "Part A note",
                                     "schedule_restrictions": None}])
     main = {"row": 60, "name": "M Crowd District 121", "advice": ""}
-    callback = {"row": 900042, "name": "M Crowd District 121", "advice": "INSTALL PART B - CREW 3"}
-    empty_callback = {"row": 900043, "name": "M Crowd District 121", "advice": ""}
+    callback = {"row": 900042, "name": "M Crowd District 121", "advice": "INSTALL PART B - CREW 3", "synthetic": True}
+    empty_callback = {"row": 900043, "name": "M Crowd District 121", "advice": "", "synthetic": True}
     assert install_note(main, extras) == "Part A note"
     assert install_note(callback, extras) == "INSTALL PART B - CREW 3"
     assert install_note(empty_callback, extras) == "Part A note"
     # A spreadsheet row's baked note still gives way to the card's.
     assert install_note({"row": 61, "name": "M Crowd District 121", "advice": "sheet"}, extras) == "Part A note"
+
+
+def _robishaw_extras(notes, owned):
+    from app.apis.lead import index_client_extras
+    return index_client_extras([{"id": 293, "name": "Robishaw, Genelle", "sheet_name": "Robishaw, Genelle",
+                                 "former_names": [], "staff_alert": None, "staff_alert_by": None,
+                                 "staff_alert_at": None, "install_notes": notes, "install_notes_set": owned,
+                                 "schedule_restrictions": None}])
+
+
+def test_a_built_row_numbered_900000_plus_is_not_an_added_stop():
+    """Comment #45: the build numbers its own new 2026 clients 900001+
+    (Robishaw). Their baked spreadsheet note is not a stop's own note, so the
+    card's note wins and the note can be edited and cleared."""
+    from app.apis.lead import install_note
+    rob = {"row": 900001, "name": "Robishaw, Genelle", "advice": "New 2026 client. Historically a full-day job"}
+    assert install_note(rob, _robishaw_extras("Bring the long ladder", True)) == "Bring the long ladder"
+    # No card note yet: the baked note still shows, as before.
+    assert install_note(rob, _robishaw_extras(None, False)) == "New 2026 client. Historically a full-day job"
+
+
+def test_a_cleared_card_note_stays_cleared():
+    """Comment #45: clearing the note on the card used to bring the build's
+    spreadsheet note back. A person's empty note now wins."""
+    from app.apis.lead import install_note
+    rob = {"row": 900001, "name": "Robishaw, Genelle", "advice": "New 2026 client. Historically a full-day job"}
+    assert install_note(rob, _robishaw_extras("", True)) == ""
+    # An empty note nobody saved (a sheet sync) still falls back.
+    assert install_note(rob, _robishaw_extras("", False)) == "New 2026 client. Historically a full-day job"
+    # An added stop's own note still comes first.
+    cb = {"row": 900039, "name": "Robishaw, Genelle", "advice": "Callback: reattach garland", "synthetic": True}
+    assert install_note(cb, _robishaw_extras("", True)) == "Callback: reattach garland"
