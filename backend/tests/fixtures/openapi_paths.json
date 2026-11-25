@@ -109,6 +109,9 @@
   "/api/clients/update/{client_id}": [
     "PUT"
   ],
+  "/api/clients/{client_id}": [
+    "DELETE"
+  ],
   "/api/clients/{client_id}/comments": [
     "POST"
   ],
@@ -120,6 +123,9 @@
   ],
   "/api/clients/{client_id}/install-summary": [
     "GET"
+  ],
+  "/api/clients/{client_id}/merge": [
+    "POST"
   ],
   "/api/clients/{client_id}/seasons/{season}": [
     "PUT"

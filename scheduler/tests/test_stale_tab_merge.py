@@ -307,7 +307,7 @@ DIRECTORY = [
      "former_names": ["Grace Byrd", "Byrd, Grace"]},
 ]
 BLOCK = SETTLE + "\n".join(js_function(n) for n in (
-    "normName", "sameNewClient", "syncSyntheticName", "restoreSyntheticClients", "syncBlockedBy")) + """
+    "normName", "sameNewClient", "syncSyntheticName", "normDeletedStops", "dropDeletedStops", "applySyntheticAddress", "restoreSyntheticClients", "syncBlockedBy")) + """
 const C={}; let nextSyntheticRow=900001, syncBlocked=false, clientDirectory=null, sharedBase=null;
 const banners=[];
 function showSyncBanner(o){ banners.push(o); }

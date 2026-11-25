@@ -130,7 +130,7 @@ def test_the_client_keeps_its_card_facts_with_a_callback_on_the_board():
 
 def test_the_link_is_saved_and_restored():
     assert "'outRow','inCol','of','returnReason']" in TEMPLATE   # known fields, kept on merges
-    assert TEMPLATE.count("outRow:c.outRow, inCol:c.inCol, ...(c.of!=null ? {of:c.of} : {}),\n     ...(c.returnReason ? {returnReason:c.returnReason} : {})}));") == 2
+    assert TEMPLATE.count("outRow:c.outRow, inCol:c.inCol, ...(c.of!=null ? {of:c.of} : {}),\n     ...(c.returnReason ? {returnReason:c.returnReason} : {})}));") == 3   # snapshot, undo steps, notebook
     i = TEMPLATE.index("function addSyntheticClientSync(")
     add = TEMPLATE[i:i + 2600]
     assert "of, business, returnReason}" in add and "C[r].returnReason = String(returnReason);" in add and "if(of!=null && of!=='' && Number.isFinite(+of)) C[r].of = +of;" in add
