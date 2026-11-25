@@ -19556,7 +19556,7 @@ function manifestHTML(d){
     const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(stopName(r))}${at!=null?` <span class="pos">STARTS ${fmtClock(at)}</span>`:''}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
+      <div class="nm">${esc(stopName(r))}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${at!=null?` <span class="pos">STARTS ${fmtClock(at)}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
