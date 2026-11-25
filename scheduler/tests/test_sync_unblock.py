@@ -181,22 +181,34 @@ def test_a_broken_device_copy_is_put_aside_and_the_page_reloads_once():
       global.sessionStorage=store(ss);
       global.console.warn=()=>{};
       global.window={top:{location:{reload:()=>{ reloads++; }}}, addEventListener:(t,f)=>{ listeners[t]=f; }};
+      // The start-up health checks (10 s and 30 s) are only noted, never
+      // waited for: node would otherwise sit 30 s before exiting.
+      const timers=[]; global.setTimeout=(fn, ms)=>{ timers.push(ms); return timers.length; };
       ls['tbdg2026review']='{"broken":';
       """ + EARLY.replace("tbdg__SEASON__review", "tbdg2026review") + """
       // An error thrown while starting up, with a device copy in place:
       let prevented=false;
       listeners.error({error:new TypeError('x is undefined'), preventDefault:()=>{ prevented=true; }});
       const after=Object.keys(ls).sort();
+      // Read the set-aside copy now: the second drop below replaces it (a new
+      // key unless it lands in the same millisecond), which made this flaky.
+      const stash=ls[after[0]];
       // Broken again within a minute (the copy came back somehow): no second reload.
       ls['tbdg2026review']='{"again":1}'; deviceCopyRecovering=false;
       const again=recoverFromDeviceCopy(new Error('y'), 'restore');
-      console.log(JSON.stringify({after, reloads, prevented, again, stash:ls[after.find(k=>k.includes('broken'))],
+      const kept=Object.keys(ls).filter(k=>k.includes('-broken-'));
+      console.log(JSON.stringify({after, reloads, prevented, again, stash, timers,
+        kept:kept.length, keptValue:ls[kept[0]], live:ls['tbdg2026review']===undefined,
         flag:!!ss['tbdg-device-copy-dropped']}));
     """))
     assert out["after"][0].startswith("tbdg2026review-broken-") and len(out["after"]) == 1
-    assert out["stash"] in ('{"broken":', '{"again":1}')
+    assert out["stash"] == '{"broken":'
     assert out["reloads"] == 1 and out["prevented"] is True and out["again"] is False
     assert out["flag"] is True
+    # The second broken copy was put aside too, replacing the first (only the
+    # newest is kept), and the live key is gone.
+    assert out["kept"] == 1 and out["keptValue"] == '{"again":1}' and out["live"] is True
+    assert sorted(out["timers"]) == [10000, 30000]
 
 
 def test_start_up_recovery_is_wired_in():

@@ -4,7 +4,7 @@ rows, and the time placement done server-side."""
 import asyncio
 import pathlib
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from fastapi import HTTPException
@@ -388,16 +388,16 @@ def test_completing_still_refuses_a_stale_page(fake_db, board):
 def test_office_gets_days_still_missing_times_leads_do_not(fake_db, board):
     as_role(fake_db, "staff")
     # Crew 1's 11/4 stop and one of 11/19's two stops have both times.
-    fake_db.on_fetch("SELECT day_id, client_row, kind FROM ll_app.install_actuals_latest", [
-        {"day_id": "2026-11-04|Crew 1|0", "client_row": 63, "kind": "install"},
-        {"day_id": "2026-11-19|Crew 1|0", "client_row": 10, "kind": "install"},
+    fake_db.on_fetch("SELECT id, day_id, client_row, kind, date FROM ll_app.install_actuals_latest", [
+        {"id": 1, "day_id": "2026-11-04|Crew 1|0", "client_row": 63, "kind": "install", "date": date(2026, 11, 4)},
+        {"id": 2, "day_id": "2026-11-19|Crew 1|0", "client_row": 10, "kind": "install", "date": date(2026, 11, 19)},
     ])
     out = run(IA.day_view(user("office@example.com"), on="2026-11-19"))
     assert out["missingDays"] == [
         {"date": "2026-11-04", "missing": 2, "stops": 3},
         {"date": "2026-11-19", "missing": 1, "stops": 2},
     ]
-    assert fake_db.calls("SELECT day_id, client_row, kind FROM ll_app.install_actuals_latest")[0][1] == ("2026",)
+    assert fake_db.calls("SELECT id, day_id, client_row, kind, date FROM ll_app.install_actuals_latest")[0][1] == ("2026",)
     roles.clear_cache()
     as_role(fake_db, None)
     lead = run(IA.day_view(user("lesly@example.com"), on="2026-11-19"))
@@ -458,3 +458,102 @@ def test_day_view_carries_the_stops_schedule_notes_read_only(fake_db, board):
     stops = out["crews"][0]["stops"]
     assert stops[0]["notes"] == [{"text": "Gate code 1234", "at": 5}, {"text": "Mon 11/9 (Crew 2): arrived 3:44 PM", "at": 1}]
     assert stops[1]["notes"] == []
+
+
+# ─── a stop moved to another crew-day keeps its times ────────────────────────
+
+
+def _moved(row, day_id, rid, on, label="Crew 2", arrive=None, depart=None):
+    """Times saved under ``day_id`` (a crew-day that no longer has the stop)."""
+    return {**_latest(row, day_id, rid, arrive, depart), "date": on, "crew_label": label, "corrections": 0,
+            "night": False}
+
+
+MOVED = [
+    # Lake Highlands (63) was saved under Crew 2 on 11/4, then moved to Crew 1.
+    _moved(63, "2026-11-04|Crew 2|0", 30, date(2026, 11, 4),
+           arrive=datetime(2026, 11, 4, 22, 0, tzinfo=T.TZ), depart=datetime(2026, 11, 4, 23, 30, tzinfo=T.TZ)),
+    # Smith (10) was saved under an 11/19 Crew 2 day that is gone now.
+    _moved(10, "2026-11-19|Crew 2|0", 31, date(2026, 11, 19),
+           arrive=datetime(2026, 11, 19, 9, 0, tzinfo=T.TZ), depart=datetime(2026, 11, 19, 11, 0, tzinfo=T.TZ)),
+    # Same row on another date: never borrowed.
+    _moved(11, "2026-11-20|Crew 2|0", 32, date(2026, 11, 20)),
+]
+
+
+def test_moved_times_fall_back_to_the_same_row_and_date_only(board):
+    got = {k: r["id"] for k, r in IA.moved_times(board, MOVED).items()}
+    assert got == {("2026-11-04|Crew 1|0", 63, "install"): 30, ("2026-11-19|Crew 1|0", 10, "install"): 31}
+    # A visit with times of its own keeps them.
+    own = _moved(10, "2026-11-19|Crew 1|0", 40, date(2026, 11, 19))
+    assert ("2026-11-19|Crew 1|0", 10, "install") not in IA.moved_times(board, MOVED + [own])
+    # Times on a crew-day that still has the stop are never moved.
+    assert IA.moved_times(board, [_moved(69, "2026-11-04|Crew 2|0", 41, date(2026, 11, 4))]) == {}
+
+
+def test_schedule_times_show_moved_times_on_the_new_crew_day(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest WHERE season = $1 ORDER BY", MOVED)
+    out = run(IA.schedule_times(user("office@example.com")))
+    moved = [(a["id"], a["dayIds"], a["savedUnder"]) for a in out["actuals"] if a.get("savedUnder")]
+    assert moved == [(30, ["2026-11-04|Crew 1|0"], "Crew 2"), (31, ["2026-11-19|Crew 1|0"], "Crew 2")]
+    # The lead of the crew the stop moved to sees them; the old crew's lead doesn't.
+    roles.clear_cache()
+    as_role(fake_db, None)
+    lesly = run(IA.schedule_times(user("lesly@example.com")))
+    assert sorted(a["id"] for a in lesly["actuals"] if a.get("savedUnder")) == [30, 31]
+    roles.clear_cache()
+    chris = run(IA.schedule_times(user("chris@example.com")))
+    assert [a for a in chris["actuals"] if a.get("savedUnder")] == []
+
+
+def test_day_view_and_missing_days_count_moved_times(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest l WHERE", MOVED)
+    fake_db.on_fetch("SELECT id, day_id, client_row, kind, date FROM ll_app.install_actuals_latest", MOVED[:2])
+    out = run(IA.day_view(user("office@example.com"), on="2026-11-19"))
+    smith = out["crews"][0]["stops"][0]["actual"]
+    assert (smith["id"], smith["savedUnder"], smith["arrive"], smith["depart"]) == (31, "Crew 2", "9:00 AM", "11:00 AM")
+    assert out["crews"][0]["stops"][1]["actual"] is None
+    # The date's other rows are read too (the moved stop's old crew-day).
+    assert "l.date = $3" in fake_db.calls("FROM ll_app.install_actuals_latest l WHERE")[0][0]
+    assert out["missingDays"] == [
+        {"date": "2026-11-04", "missing": 2, "stops": 3},
+        {"date": "2026-11-19", "missing": 1, "stops": 2},
+    ]
+
+
+def test_fixing_moved_times_saves_them_on_the_new_crew_day(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", None)
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE id = $1", MOVED[1])
+    fake_db.on("INSERT INTO ll_app.install_actuals", _saved_row, method="fetchrow")
+    fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 1)
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="9", depart="11:30",
+                                         supersedesId=31), user("office@example.com")))
+    a = out["actual"]
+    assert (a["supersedesId"], a["dayId"], a["depart"]) == (31, "2026-11-19|Crew 1|0", "11:30 AM")
+
+
+def test_a_stops_own_times_elsewhere_are_not_a_moved_fix(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", None)
+    # The row it points at is this same visit (still has the stop): a stale page, not a move.
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE id = $1",
+                        _moved(10, "2026-11-19|Crew 1|0", 33, date(2026, 11, 19)))
+    with pytest.raises(HTTPException) as exc:
+        run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="9", supersedesId=33),
+                           user("office@example.com")))
+    assert exc.value.status_code == 409
+    assert not fake_db.seen("INSERT INTO ll_app.install_actuals")
+
+
+def test_training_days_take_no_times(fake_db, board):
+    as_role(fake_db, "staff")
+    board.days["2026-11-18|Training|0"] = {"id": "2026-11-18|Training|0", "date": "2026-11-18",
+                                           "crew": "Training", "stops": [10]}
+    with pytest.raises(HTTPException) as exc:
+        run(IA.save_actual(IA.ActualIn(dayId="2026-11-18|Training|0", row=10, arrive="9"),
+                           user("office@example.com")))
+    assert exc.value.status_code == 409 and "Training" in exc.value.detail
+    assert not fake_db.seen("INSERT INTO ll_app.install_actuals")
