@@ -603,7 +603,8 @@ function StopRow(props: {
       {actual && (
         <p className="mt-1 text-[11px] text-stone-500">
           Entered by {who(actual.enteredBy)} ({SOURCE_LABEL[actual.source] || actual.source}), {stampCT(actual.createdAt)}
-          {actual.corrections > 0 && (
+          {actual.savedUnder && <> · saved under {actual.savedUnder}</>}
+          {actual.corrections > 0 && !actual.savedUnder && (
             <>
               {" · "}
               <button type="button" onClick={() => setShowHistory((v) => !v)} className="inline-flex items-center gap-0.5 font-semibold text-emerald-700 hover:underline">
