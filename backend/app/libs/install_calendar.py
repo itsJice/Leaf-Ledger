@@ -120,7 +120,14 @@ def day_timeline(board: Board, day: dict) -> dict:
     if anchored and order:
         t += leg_seconds(board, None, order[0]) / 60
     stops = []
+    floor = start // 15 * 15
     for i, row in enumerate(order):
+        # A stop with a set start (the tool's stopStart) waits for it; a time
+        # before the crew's start is the next morning.
+        at = board.stop_start.get(f"{day['id']}#{row}")
+        if at is not None:
+            at = at if at >= floor else at + 1440
+            t = max(t, float(at))
         c = board.clients.get(row) or {}
         # A client added in the tool saves its estimate as "hours", not "h26".
         hours = float(c.get("h26") or c.get("hours") or 0)

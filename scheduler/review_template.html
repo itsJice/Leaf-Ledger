@@ -1120,6 +1120,11 @@ dialog .cstq.on{border-color:var(--brand);background:var(--brand-soft);color:var
 dialog .cstreset{padding:3px 9px;font-size:11.5px;font-weight:700;color:var(--warn-ink);border-color:var(--warn-ink);background:transparent;margin-left:2px}
 .cststatic{font-size:13px}
 #startdlg{max-width:400px}
+.stop .mv.stopat .ic{width:11px;height:11px;vertical-align:-1.5px}
+.stop .mv.stopat.on{color:var(--warn-ink)}
+.badge.stopatchip{border:0;cursor:pointer;font:inherit;font-size:10px;font-weight:700;background:var(--warn-soft);color:var(--warn-ink);padding:1.5px 6px}
+span.badge.stopatchip{cursor:default}
+.badge.stopatchip .ic{width:10px;height:10px;vertical-align:-1.5px}
 #stfdlg .stfnote .shnin{border-color:var(--line)}
 #stfdlg .stfnote .shnin:focus{border-color:var(--brand)}
 .cshnote{display:flex;gap:6px;align-items:flex-start;padding:6px 14px;border-bottom:1px solid var(--line);
@@ -4467,6 +4472,109 @@ function startChoices(){
 function startQuickPicks(usual){
   return [...new Set([usual, 22*60, 23*60])];
 }
+// ---------- stop start times (Comments #35) ----------
+// "How do I assign specific start time to an install? Adding pickups for Mi
+// Cocina jobs in Dallas and it's automatically adding it to the beginning of
+// the day" (11/15). One stop on a crew-day can be given a time it won't start
+// before: a pickup at 2:00 AM after two installs. The stops after it move
+// later, and the day's order is kept by hand (manualOrder, the "Stop order
+// set by hand" bar) so the shortest route doesn't move it.
+//
+// Shared state `stopStart` is {"<crewDayId>#<row>": clock minutes}, the same
+// 15-minute times as the crew start. Keyed by the crew-day, so it does not
+// follow the stop to another day; it goes away when the stop leaves that
+// crew-day or the crew-day goes. A time earlier than the crew's start is the
+// next morning (a night shift's 2:00 AM).
+let stopStart = {};
+/** PURE. A stopStart key. */
+function stopStartKey(dayId, row){ return `${dayId}#${row}`; }
+/** PURE. A saved stop time: whole clock minutes 0 to 1439, else null. */
+function normStopMin(v){
+  const n = typeof v==='number' ? v : (typeof v==='string' && v.trim()!=='' ? Number(v) : NaN);
+  if(!Number.isFinite(n)) return null;
+  const m = Math.round(n);
+  return m>=0 && m<1440 ? m : null;
+}
+/** Saved stopStart as this page keeps it: valid times for stops still on
+ *  that crew-day (`onDay(dayId,row)`, default: the board right now). */
+function normStopStart(obj, onDay){
+  onDay = onDay || ((id, r)=>{ const d=days.find(x=>x.id===id); return !!(d && !d.training && d.stops.some(x=>String(x)===String(r))); });
+  const out = {};
+  if(obj && typeof obj==='object' && !Array.isArray(obj))
+    Object.keys(obj).sort().forEach(k=>{
+      const i = k.lastIndexOf('#'), m = normStopMin(obj[k]);
+      if(i>0 && m!=null && onDay(k.slice(0,i), k.slice(i+1))) out[k] = m;
+    });
+  return out;
+}
+/** PURE. `map` with one stop's time set, or removed for null. */
+function withStopStart(map, key, min){
+  const out = {...(map||{})}, m = normStopMin(min);
+  if(m!=null) out[key] = m; else delete out[key];
+  return out;
+}
+/** PURE. A clock time as minutes on a crew-day that starts at `start`:
+ *  a time before the start (to the quarter hour) is the next morning. */
+function stopAtRel(m, start){
+  if(m==null) return null;
+  return m >= Math.floor(start/15)*15 ? m : m+1440;
+}
+/** PURE. Walk a day's stops from `t0`: each stop waits for its set time
+ *  (`atOf(row)`, minutes on the day, or null), then takes `durOf(row)`,
+ *  then the drive `legOf(a, b)` to the next. [{row, start, end, wait}] */
+function walkStops(t0, order, durOf, legOf, atOf){
+  let t = t0;
+  return order.map((r,i)=>{
+    const at = atOf(r); let wait = 0;
+    if(at!=null && at>t){ wait = at-t; t = at; }
+    const start = t, end = t+durOf(r);
+    t = end;
+    if(order[i+1]!==undefined) t += legOf(r, order[i+1]);
+    return {row:r, start, end, wait};
+  });
+}
+/** A stop's set time on crew-day `d`, as clock minutes, or null. */
+function stopStartOf(d, row){
+  return d && !d.training ? normStopMin(stopStart[stopStartKey(d.id, row)]) : null;
+}
+/** A stop's set time as minutes on its day (past 1440 the next morning). */
+function stopAtOf(d, row){
+  const m = stopStartOf(d, row);
+  return m==null ? null : stopAtRel(m, shiftStart(d));
+}
+/** True when a stop on this crew-day has a set time. */
+function dayHasStopStarts(d){
+  if(!d) return false;
+  const pre = d.id+'#';
+  for(const k in stopStart) if(k.startsWith(pre)) return true;
+  return false;
+}
+/** PURE. The stop time choices for a day starting at `start`: every 15
+ *  minutes from the start for 16 hours, as clock minutes. */
+function stopStartChoices(start){
+  const out = [], s = Math.floor(start/15)*15;
+  for(let m=s; m<=s+16*60; m+=15) out.push(m%1440);
+  return out;
+}
+/** Save one stop's set time (shared, undoable). Setting one keeps the day's
+ *  order as it is now, by hand, so the route can't move the stop. */
+function setStopStart(dayId, row, min){
+  if(roBlocked() || !canEditShiftNotes()) return false;
+  const d = days.find(x=>x.id===dayId);
+  if(!d || d.training || !d.stops.includes(row)) return false;
+  const next = withStopStart(stopStart, stopStartKey(dayId, row), min);
+  const keepOrder = normStopMin(min)!=null && !manualOrder[dayId];
+  if(stableJSON(next)===stableJSON(stopStart) && !keepOrder) return false;
+  pushUndo();
+  if(keepOrder){
+    const order = dayCalc(d).order;
+    const full = [...order, ...d.stops.filter(r=>!order.includes(r))];
+    d.stops = full; manualOrder[dayId] = [...full];
+  }
+  stopStart = next;
+  persist(); render();
+  return true;
+}
 /** Save a start for crew-days `ids` (shared, undoable). null puts them back
  *  on the usual start. False when nothing changed. */
 function setCrewStart(ids, min){
@@ -5600,6 +5708,7 @@ try{
     roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
     crewNames = normCrewNames(s.crewNames);
     crewStart = normCrewStart(s.crewStart);
+    stopStart = normStopStart(s.stopStart);
     trailerFleet = normFleet(s.trailerFleet); loadTrips = normLoadTrips(s.loadTrips);
     trailers = normTrailers(s.trailers, trailerKeys());
     loadStops = normLoadStops(s.loadStops, new Set(Object.keys(C)));
@@ -5730,7 +5839,7 @@ function placementBoardDates(place){
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
 const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
-const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','crewStart','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','hoursOverride','seasonRoles'];
+const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','crewStart','stopStart','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','hoursOverride','seasonRoles'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
  *  the card write-through, timeline, savedAt -- is derived on every save). */
@@ -5853,6 +5962,7 @@ function mergeShared(base, mine, theirs, label){
                   lastScheduledFrom:r=>`${label('row',r)}: previous date`,
                   crewNames:k=>`Crew name for ${label('shift',k)}`,
                   crewStart:k=>`Start time for ${label('shift',k)}`,
+                  stopStart:k=>`${label('row',k.slice(k.lastIndexOf('#')+1))}: start time`,
                   shiftNotes:k=>`Note for ${label('shift',k)}`,
                   trailers:k=>`Trailer for ${label('shift',k)}`,
                   loadStops:r=>`${label('row',r)}: load list`,
@@ -6074,7 +6184,7 @@ function snapshot(){
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
-          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, hoursOverride, crewStart,
+          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, hoursOverride, crewStart, stopStart,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames, savedAt:Date.now()};
 }
@@ -7737,6 +7847,7 @@ async function restoreHistoryEntry(entryId, btn){
     roster = normRoster(st.roster); staffing = normStaffing(st.staffing);
     crewNames = normCrewNames(st.crewNames);
     crewStart = normCrewStart(st.crewStart);
+    stopStart = normStopStart(st.stopStart);
     trailerFleet = normFleet(st.trailerFleet); loadTrips = normLoadTrips(st.loadTrips);
     trailers = normTrailers(st.trailers, trailerKeys());
     loadStops = normLoadStops(st.loadStops, new Set(Object.keys(C)));
@@ -7767,7 +7878,7 @@ function stateBlob(){
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
                          dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
-                         hoursOverride, crewStart, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, ownHours(c)])),
+                         hoursOverride, crewStart, stopStart, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, ownHours(c)])),
                          trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames});
 }
 function restoreBlob(blob){
@@ -7796,6 +7907,7 @@ function restoreBlob(blob){
   roster = normRoster(s.roster); staffing = normStaffing(s.staffing);
   crewNames = normCrewNames(s.crewNames);
   crewStart = normCrewStart(s.crewStart);
+  stopStart = normStopStart(s.stopStart);
   trailerFleet = normFleet(s.trailerFleet); loadTrips = normLoadTrips(s.loadTrips);
   trailers = normTrailers(s.trailers, trailerKeys());
   loadStops = normLoadStops(s.loadStops, new Set(Object.keys(C)));
@@ -8402,8 +8514,10 @@ function dayCalc(d){
   const rt=routeDay(d);
   const order = rt.order.length? rt.order : d.stops;
   const inst = order.reduce((a,r)=>a+effH(d,r),0)/(d.stacked||1);
-  const total = inst*60 + rt.drive + (order.length?(d.lunchMin??LUNCH):0);
-  return {inst, drive:rt.drive, total, path:rt.path, order};
+  // Time spent waiting for a stop's set start (stopStart) is part of the day.
+  const wait = dayHasStopStarts(d) ? stopWalk(d, order).reduce((a,x)=>a+x.wait,0) : 0;
+  const total = inst*60 + rt.drive + wait + (order.length?(d.lunchMin??LUNCH):0);
+  return {inst, drive:rt.drive, total, path:rt.path, order, wait};
 }
 
 // ---------- moves ----------
@@ -11267,6 +11381,14 @@ function startBarHTML(d){
   return `<div class="cordernote cstartnote"><span class="cordertxt">Start time set by hand: ${fmtClock(own)}</span>`
     + `<button type="button" class="cautoorder cstartreset" title="Put this crew back on the usual start for this day">Back to ${fmtClock(usualStartOf(d))}</button></div>`;
 }
+/** The "Starts 2:00 AM" chip on a stop row with a set time (Comments #35).
+ *  Editors tap it to change the time. '' when the stop has none. */
+function stopAtChipHTML(d, row){
+  const m=stopStartOf(d, row); if(m==null) return '';
+  const can=canEditShiftNotes();
+  return `<${can?'button type="button"':'span'} class="badge stopatchip" title="Set by hand: this stop won't start before ${fmtClock(m)}">`
+    + `${IC.clock} starts ${fmtClock(m)}</${can?'button':'span'}>`;
+}
 /** PURE-ish. A clock time, with "next day" once it rolls past midnight. */
 function clockNextDay(m){ return `<b>${fmtClock(m)}</b>${m>=1440?' <small class="cnext">next day</small>':''}`; }
 /** The day card's times row. A depot day: Arrive Depot / Depart / Est.
@@ -11399,12 +11521,13 @@ function buildDayCard(d){
       <div class="sub loc">${c.zone||''}</div>
       ${stopHoursHTML(d, r, [`${isHalf?effH(d,r).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
         c.hoursEdited?`<span class="hrsed" title="Install time edited by staff (spreadsheet: ${fmtHrs(sheetHoursOf(r))}h)">edited</span>`:'',
-        stopBoxesTxt(r, 'boxes?')])}
+        stopBoxesTxt(r, 'boxes?'), stopAtChipHTML(d, r)])}
       ${adviceLineHTML(r)}</div>
       <div class="stopbtns">
         <button class="mv confirm${isConfirmed?' on':''}" title="${isConfirmed?'Unlock — allow this date to change':'Confirm this date with the client and lock it'}">
           ${isConfirmed?IC.unlock+' unlock':IC.lock+' confirm date'}</button>
         <button class="mv find"${isConfirmed?' disabled':''} title="Move to a new date — every workable date and crew, best fit first, or take them out of this season">move</button>
+        ${!d.training && canEditShiftNotes() ? `<button class="mv stopat${stopStartOf(d, r)!=null?' on':''}" title="Set a time this stop starts (it keeps its place in the order)">${IC.clock} start time</button>` : ''}
       </div>`;
     // Clicking the row itself (name, zone, box count -- anywhere that isn't
     // one of the buttons below) opens the same client-profile popup the
@@ -11422,6 +11545,7 @@ function buildDayCard(d){
     };
     el.querySelector('.ordbtn.up').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, -1); };
     el.querySelector('.ordbtn.down').onclick=(e)=>{ e.stopPropagation(); reorderStop(d, r, 1); };
+    el.querySelectorAll('.mv.stopat, .stopatchip').forEach(b=>{ b.onclick=e=>{ e.stopPropagation(); openStopStartDlg(d.id, r); }; });
     const grip=el.querySelector('.ordgrip');
     if(grip) wireOrderDrag(grip, el, card, d, r);
     el.querySelector('.mv.confirm').onclick=(e)=>{
@@ -13084,14 +13208,15 @@ function shiftStart(d){
  *  sheet prints: depot roll-out, then drive + install, stop after stop. */
 function stopTimes(d){
   const calc=dayCalc(d), order=calc.order.length?calc.order:d.stops;
+  return stopWalk(d, order);
+}
+/** The stop-by-stop clock for `order` on `d`: from the shift start (plus the
+ *  depot drive on a depot day), each stop waiting for its set time
+ *  (stopStart) when it has one. */
+function stopWalk(d, order){
   let t=shiftStart(d);
   if(d.anchored!==false && order.length) t+=leg(0,N[order[0]])/60;
-  return order.map((r,i)=>{
-    const dur=effH(d,r)*60/(d.stacked||1), start=t;
-    t+=dur;
-    if(order[i+1]!==undefined) t+=leg(N[r],N[order[i+1]])/60;
-    return {row:r, start, end:start+dur};
-  });
+  return walkStops(t, order, r=>effH(d,r)*60/(d.stacked||1), (a,b)=>leg(N[a],N[b])/60, r=>stopAtOf(d, r));
 }
 // The time grid is a CLOCK CYLINDER: one 24h period drawn REPEATS times, with
 // the scroll position wrapped so it never reaches an end. 11pm rolls straight
@@ -16864,12 +16989,56 @@ function wireCrewStartField(sh, pre, track, after){
   const rs=document.getElementById(pre+'startreset');
   if(rs) rs.onclick=e=>{ e.stopPropagation(); go(null); };
 }
+/** One stop's Start time field (Comments #35): the same 15-minute list as
+ *  the crew start, from the crew's start through the next 16 hours, with
+ *  "No set time" at the top. */
+function stopStartFieldHTML(d, row, pre){
+  const start=shiftStart(d), own=stopStartOf(d, row);
+  const t=stopTimes(d).find(x=>x.row===row);
+  const opts=stopStartChoices(start);
+  if(own!=null && !opts.includes(own)) opts.push(own);
+  const crew=`${crewTitle(d)} starts ${fmtClock(start)}.`;
+  const now=t ? ` This stop now starts about ${fmtClock(t.start)}${t.start>=1440?' (next day)':''}.` : '';
+  return `<label class="stfnotelbl" for="${pre}startsel">Start time</label>`
+    + `<div class="cstrow"><select id="${pre}startsel" class="cstsel" aria-label="Start time for this stop">`
+    + `<option value=""${own==null?' selected':''}>No set time</option>`
+    + opts.map(m=>`<option value="${m}"${m===own?' selected':''}>${fmtClock(m)}${stopAtRel(m, start)>=1440?' (next day)':''}</option>`).join('')
+    + `</select></div>`
+    + `<div class="cstnote">${own!=null?'<b>Start set by hand.</b> ':''}The stop won't start before this time and the stops after it move later. `
+    + `It keeps its place in the stop order. ${esc(crew)}${esc(now)}`
+    + (own!=null?` <button type="button" class="cstreset" id="${pre}startreset">Clear start time</button>`:'')
+    + `</div>`;
+}
+function wireStopStartField(d, row, pre, after){
+  const go=min=>{ setStopStart(d.id, row, min); if(after) after(); };
+  const sel=document.getElementById(pre+'startsel');
+  if(sel) sel.onchange=()=>go(sel.value==='' ? null : +sel.value);
+  const rs=document.getElementById(pre+'startreset');
+  if(rs) rs.onclick=e=>{ e.stopPropagation(); go(null); };
+}
+function openStopStartDlg(dayId, row){
+  if(roBlocked() || !canEditShiftNotes()) return;
+  const d=days.find(x=>x.id===dayId); if(!d || d.training || !d.stops.includes(row)) return;
+  startDayId=dayId; startRow=row;
+  drawStartDlg();
+  startdlg.showModal();
+  const sel=document.getElementById('sststartsel'); if(sel) try{ sel.focus({preventScroll:true}); }catch(e){}
+}
 /** The window the Days view crew card's start time opens. */
 const startdlg=document.getElementById('startdlg');
 let startDayId=null;
+let startRow=null;   // set when the window is for one stop (Comments #35)
 function drawStartDlg(){
   const d=days.find(x=>x.id===startDayId);
   if(!d){ startdlg.close(); return; }
+  if(startRow!=null){
+    if(!d.stops.includes(startRow)){ startdlg.close(); return; }
+    document.getElementById('starttitle').textContent=`Start time · ${String((C[startRow]||{}).name||'').split('|')[0].trim()}`;
+    const box=document.getElementById('startbody');
+    box.innerHTML=stopStartFieldHTML(d, startRow, 'sst');
+    wireStopStartField(d, startRow, 'sst', drawStartDlg);
+    return;
+  }
   const sh=shiftOfDay(d) || {key:d.id, days:[d], training:!!d.training};
   document.getElementById('starttitle').textContent=`Start time · ${crewTitle(d)} · ${dowName(d)} ${fmtMDYYYY(d.date)}`;
   const box=document.getElementById('startbody');
@@ -16879,7 +17048,7 @@ function drawStartDlg(){
 function openStartDlg(dayId){
   if(roBlocked() || !canEditShiftNotes()) return;
   const d=days.find(x=>x.id===dayId); if(!d || d.training) return;
-  startDayId=dayId;
+  startDayId=dayId; startRow=null;
   drawStartDlg();
   startdlg.showModal();
   const sel=document.getElementById('sdtstartsel'); if(sel) try{ sel.focus({preventScroll:true}); }catch(e){}
@@ -19370,6 +19539,12 @@ function manifestHTML(d){
   if(anchored && order.length) clock+=leg(0,N[order[0]])/60;
   order.forEach((r,i)=>{
     const c=C[r], mins=effH(d,r)*60/(d.stacked||1);
+    // A stop with a set start (stopStart) waits for it (Comments #35).
+    const at=typeof stopAtOf==='function' ? stopAtOf(d, r) : null;
+    if(at!=null && at>clock){
+      rows+=`<tr class="drive"><td></td><td colspan="4">▼ wait ${Math.round(at-clock)} min: starts at ${fmtClock(at)}</td></tr>`;
+      clock=at;
+    }
     const ap=addrParts(c);   // repairs the rows that jam the whole address into one cell
     const addr=[ap.street,[ap.city,ap.st].filter(Boolean).join(', '),ap.zip]
                .filter(Boolean).join(' · ');
@@ -19381,7 +19556,7 @@ function manifestHTML(d){
     const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(stopName(r))}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
+      <div class="nm">${esc(stopName(r))}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${at!=null?` <span class="pos">STARTS ${fmtClock(at)}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
@@ -21335,6 +21510,7 @@ function render(){
   // shape) goes with it, so it can't turn up on a new card later.
   crewNames = normCrewNames(crewNames);
   crewStart = normCrewStart(crewStart);
+  stopStart = normStopStart(stopStart);
   shiftNotes = normShiftNotes(shiftNotes);
   trailerFleet = normFleet(trailerFleet); loadTrips = normLoadTrips(loadTrips);
   trailers = normTrailers(trailers, trailerKeys());
