@@ -38,6 +38,8 @@ SOURCES = ("office", "lead", "claude", "imported_sheet", "comment_parsed")
 JOB_TYPES = ("residential", "commercial", "restaurant")
 
 PEOPLE_MAX = 40
+#: Ladders or lifts on one stop (migrations/031 checks 0..20).
+LADDERS_MAX = 20
 NOTE_MAX = 2000
 #: A visit longer than this is almost surely a typo (wrong am/pm).
 LONG_VISIT_H = 16.0
@@ -228,12 +230,13 @@ def build_entry(day: str, arrive_text: str, depart_text: str, *, night: bool) ->
 
 
 def fills_in_only(current: Optional[dict], entry: "Entry", *, people: Optional[int],
-                  photos: Optional[bool], note: str, email: str, now: datetime) -> bool:
+                  photos: Optional[bool], note: str, email: str, now: datetime,
+                  ladders: Optional[int] = None, short_crew: Optional[bool] = None) -> bool:
     """Whether a save only fills in blanks on the person's own open entry, so
     it completes that row instead of becoming a correction. True when the
     latest row was saved by the same person within ``LONG_VISIT_H`` hours
     and no value saved on it changes: Arrive and Leave stay or go from empty
-    to a time, people stays or goes from empty, Photos done stays or goes
+    to a time, people, ladders and short crew stay or go from empty, Photos done stays or goes
     from unticked to ticked, the note stays or goes from empty. The usual
     lead flow (Now on arrival, Now on leaving, tick photos) is one version;
     retyping a saved time is still a new row with ``supersedes_id``."""
@@ -251,6 +254,8 @@ def fills_in_only(current: Optional[dict], entry: "Entry", *, people: Optional[i
         kept(current.get("arrive_at"), entry.arrive_at)
         and kept(current.get("depart_at"), entry.depart_at)
         and kept(current.get("people_count"), people)
+        and kept(current.get("ladders"), ladders)
+        and kept(current.get("short_crew"), short_crew)
         and (not current.get("photos_done") or bool(photos))
         and kept(current.get("scope_note") or None, note)
     )

@@ -1,6 +1,6 @@
 // Pinned to the same values as backend tests/test_install_times.py.
 import { describe, expect, it } from "vitest";
-import { diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, SAME_TIME_WARNING, onSiteMinutes, parseClock, parseLeave, scheduleStopHref, TimeParseError } from "../installTimes";
+import { countOrNull, crewSizeText, LADDERS_MAX, PEOPLE_MAX, stepCount, diffLabel, fmtClock, fmtDuration, isLiveDay, liveMissingDays, nowClockCT, SAME_TIME_WARNING, onSiteMinutes, parseClock, parseLeave, scheduleStopHref, TimeParseError } from "../installTimes";
 
 const cases: [string, boolean, string][] = [
   ["10:15p", false, "10:15 PM"],
@@ -136,5 +136,27 @@ describe("scheduleStopHref", () => {
     expect(scheduleStopHref("2026-11-09", "2026-11-09|Crew 2|0", 105)).toBe(
       "/install-schedule?date=2026-11-09&stop=105&day=2026-11-09%7CCrew+2%7C0",
     );
+  });
+});
+
+describe("crew size", () => {
+  it("steps counts from blank and stays in range", () => {
+    expect(stepCount("", 1, LADDERS_MAX)).toBe("1");
+    expect(stepCount("", -1, LADDERS_MAX)).toBe("");
+    expect(stepCount("0", -1, LADDERS_MAX)).toBe("0");
+    expect(stepCount("5", -1, PEOPLE_MAX)).toBe("4");
+    expect(stepCount("20", 1, LADDERS_MAX)).toBe("20");
+  });
+  it("sends blank as null and clamps typed counts", () => {
+    expect(countOrNull("", LADDERS_MAX)).toBeNull();
+    expect(countOrNull(" 3 ", LADDERS_MAX)).toBe(3);
+    expect(countOrNull("99", PEOPLE_MAX)).toBe(40);
+  });
+  it("reads a saved visit's crew size in plain words", () => {
+    expect(crewSizeText({ peopleCount: 4, ladders: 2, shortCrew: true })).toBe("4 people · 2 ladders · Short crew");
+    expect(crewSizeText({ peopleCount: 1, ladders: 1, shortCrew: false })).toBe("1 person · 1 ladder · Full crew");
+    expect(crewSizeText({ peopleCount: 6, ladders: null, shortCrew: null })).toBe("6 people");
+    expect(crewSizeText({ peopleCount: null })).toBe("");
+    expect(crewSizeText(null)).toBe("");
   });
 });
