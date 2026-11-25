@@ -75,7 +75,7 @@ MANIFEST_STUBS = f"""
   const dayCalc=d=>({{order:d.stops, inst:2.6, drive:18, total:174}});
   const leg=()=>600, effH=()=>1.3;
   const addrParts=()=>({{street:'1 Main', city:'Dallas', st:'TX', zip:'75201'}});
-  const installNoteFor=()=>null, productionNoteFor=()=>null, staffAlertOf=()=>null, prefOf=()=>null;
+  const installNoteFor=()=>null, productionNoteFor=()=>null, confirmationNoteFor=()=>null, staffAlertOf=()=>null, prefOf=()=>null;
   const fmtPhone=s=>s, fmtClock=m=>String(m), dayBoxes=()=>0, shiftStart=()=>510;
   const stopBoxes=r=>(C[r]&&C[r].boxes!=null)?C[r].boxes:null;
   const crewTitle=()=>'Crew 3', dowName=()=>'Sat', fmtMDYYYY=s=>s;

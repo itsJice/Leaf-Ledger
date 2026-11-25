@@ -33,7 +33,7 @@ STUBS = """
   const dayCalc=d=>({order:d.stops, inst:3.75, drive:45, total:270});
   const leg=()=>900, effH=()=>1.25;
   const addrParts=()=>({street:'1 Main', city:'Dallas', st:'TX', zip:'75201'});
-  const installNoteFor=()=>null, productionNoteFor=()=>null, staffAlertOf=()=>null, prefOf=()=>null;
+  const installNoteFor=()=>null, productionNoteFor=()=>null, confirmationNoteFor=()=>null, staffAlertOf=()=>null, prefOf=()=>null;
   const fmtPhone=s=>s, dayBoxes=()=>6;
   const stopBoxes=r=>(C[r]&&C[r].boxes!=null)?C[r].boxes:null;
   const crewTitle=()=>'Crew 1', dowName=()=>'Sun', fmtMDYYYY=s=>s;
