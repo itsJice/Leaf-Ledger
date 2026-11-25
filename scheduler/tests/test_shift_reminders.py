@@ -228,9 +228,11 @@ def test_the_log_line_reads_reminder_date_sent_date_and_12_hour_time():
 
 def test_sends_are_sms_links_and_nothing_is_automated():
     # The user never gives Claude (or the page) access to Messages: every
-    # send is an sms: link he presses Send on.
+    # send is an sms: (or, Comments #56, a wa.me WhatsApp) link he presses
+    # Send on; both are built by sendLinks().
     src = js_function("remSendHTML") + js_function("remWireSend")
-    assert "`sms:${num}&body=${encodeURIComponent(body)}`" in src
+    assert "sendLinksHTML(sendLinks(p, sends," in src
+    assert "`sms:${n}&body=${encodeURIComponent(body)}`" in js_function("smsHref")
     for bad in ("osascript", "AppleScript", "window.open(", "location.href", ".click()"):
         assert bad not in src
     # read-only users can't send: no buttons, no log, and the dialog won't open

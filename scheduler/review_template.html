@@ -1451,6 +1451,12 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .txtsend{padding:7px 13px;border-radius:7px;font-size:12.5px;font-weight:700;text-decoration:none;
   color:#0a7cff;box-shadow:inset 0 0 0 1.5px #0a7cff;white-space:nowrap}
 .txtsend.primary{background:#0a7cff;color:#fff;box-shadow:none}
+/* WhatsApp's own green, darkened so white text on it stays readable. */
+.txtsend.wa{color:#0f7b6c;box-shadow:inset 0 0 0 1.5px #0f7b6c}
+.txtsend.wa.primary{background:#0f7b6c;color:#fff;box-shadow:none}
+.pill.wa{background:#dcf5ef;color:#0f6b5e}
+.stfwa{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mut);cursor:pointer;margin-top:2px}
+.stfwa input{width:16px;height:16px;margin:0;accent-color:#0f7b6c}
 .txtcopy{background:none!important;border:0!important;padding:3px 4px!important;color:var(--mut)!important;
   font-size:11.5px!important;text-decoration:underline}
 /* Text shift reminders */
@@ -4186,6 +4192,9 @@ function normTexts(list){
     .map(t=>{
       const o={at:t.at, lang:t.lang==='es'?'es':'en', body:t.body.slice(0,2000)};
       if(t.kind==='reminder' && /^\d{4}-\d{2}-\d{2}$/.test(String(t.for||''))){ o.kind='reminder'; o.for=t.for; }
+      // Sent through WhatsApp instead of Messages (Comments #56). No `via`
+      // is a text (sms:), which is every entry from before WhatsApp existed.
+      if(t.via==='whatsapp') o.via='whatsapp';
       return o;
     }));
 }
@@ -5075,7 +5084,7 @@ function normShirt(v){
  *  person (a field added by a newer page or a script) rides along untouched,
  *  so this page saving never strips what it doesn't know about. */
 const ROSTER_OWN_KEYS=['id','first','last','name','title','titles','lang','gender','email','phone','notes',
-  'shirt','ratings','texts','times','dates','active',
+  'shirt','ratings','texts','times','dates','active','prefersWhatsApp',
   'legalName','street','city','state','zip','tax1099','directDeposit'];
 function normRoster(list){
   // Defensive: state can arrive from another device, an older build, or a
@@ -5125,6 +5134,10 @@ function normRoster(list){
                                     : ['day','night'],
       dates: Array.isArray(p.dates) ? p.dates.filter(d=>all.includes(d)) : all.slice(),
       active: p.active!==false,
+      // "Prefers WhatsApp" (Comments #56): their WhatsApp button is the solid
+      // one when texting them. Always sent, true or false, so the server can
+      // tell an older page that leaves it out from someone switching it off.
+      prefersWhatsApp: p.prefersWhatsApp===true,
       // Contractor info for 1099 setup -- admin only. The server strips these
       // for anyone below admin, so a non-admin's page never has them; kept
       // only when set, so the document doesn't fill up with empty keys.
@@ -16513,6 +16526,7 @@ function textLogHTML(p){
     <div class="last">Last texted ${esc(fmtTextWhen(t[0].at))}</div>
     ${t.map(x=>`<details><summary><span class="when">${esc(isReminderText(x)?fmtReminderLog(x):fmtTextWhen(x.at))}</span>
         <span class="pill ${x.lang==='es'?'es':'en'}">${x.lang==='es'?'ES':'EN'}</span>
+        ${x.via==='whatsapp'?'<span class="pill wa" title="Sent through WhatsApp">WhatsApp</span>':''}
         <span class="pv">${esc(x.body.replace(/\s+/g,' ').slice(0,70))}</span></summary>
       <div class="body">${esc(x.body)}</div></details>`).join('')}</div>`;
 }
@@ -16558,6 +16572,8 @@ function personDetailHTML(){
     </div>
     <div class="stfcard">
       <div class="stfphone">${IC.phone} ${p.phone?esc(fmtPhone(p.phone)):'no phone on file'}</div>
+      ${READONLY ? (p.prefersWhatsApp?'<div class="stfwa">Prefers WhatsApp</div>':'')
+        : `<label class="stfwa" title="When on, their WhatsApp button is the solid one in Send mass text and Text reminders. Texts (Messages) stay one click away."><input type="checkbox" data-prefwa${p.prefersWhatsApp?' checked':''}${waNumber(p.phone)?'':' disabled'}> Prefers WhatsApp</label>`}
       <div class="stfmail">${IC.mail} ${p.email?esc(p.email):'no email on file'}</div>
     </div></div>
     ${dutiesHTML(duties)}
@@ -17418,6 +17434,13 @@ function renderStaffing(){
       }
       rosterClick={pid, t:now};
       selPerson=pid; renderStaffing();
+    };
+  });
+  wrap.querySelectorAll('[data-prefwa]').forEach(cb=>{
+    const pn=personById(selPerson); if(!pn) return;
+    cb.onchange=()=>{
+      if(roBlocked()){ cb.checked=!cb.checked; return; }
+      pushUndo(); pn.prefersWhatsApp=cb.checked; persist(); render();
     };
   });
   wrap.querySelectorAll('[data-act]').forEach(b=>{
@@ -18467,6 +18490,39 @@ function smsNumber(v){
   if(d.length===10) d='1'+d;
   return d.length===11 && d[0]==='1' ? '+'+d : null;
 }
+// WhatsApp (Comments #56, Cynthia 2026-11-25: "We also need crew
+// confirmations through Whats APP"). Same idea as the sms: links: a wa.me
+// link opens WhatsApp on this computer or phone with the person's chat and
+// the message filled in, and the user presses Send there. Nothing is sent
+// from this page and it has no access to WhatsApp. Same numbers as texts:
+// a US number is 1 + its 10 digits.
+/** PURE. "1XXXXXXXXXX" (country code + number, no +) for wa.me, or null. */
+function waNumber(v){ const n=smsNumber(v); return n ? n.slice(1) : null; }
+/** PURE. The link that opens a prefilled text in Messages. */
+function smsHref(v, body){ const n=smsNumber(v); return n ? `sms:${n}&body=${encodeURIComponent(body)}` : ''; }
+/** PURE. The link that opens a prefilled WhatsApp chat. */
+function waHref(v, body){ const n=waNumber(v); return n ? `https://wa.me/${n}?text=${encodeURIComponent(body)}` : ''; }
+/** PURE. Their usual way of getting texts: 'whatsapp' when the roster card
+ *  says they prefer it, else 'sms' (the default). */
+function txtViaFor(p){ return p && p.prefersWhatsApp===true ? 'whatsapp' : 'sms'; }
+/** PURE. Every send button for one person, in order: for each language
+ *  version a Messages link and a WhatsApp link. `sends` is [{l, body}],
+ *  `mainLang` their usual language. The solid one is their usual language
+ *  on their usual app; their usual app comes first. */
+function sendLinks(p, sends, mainLang){
+  const via=txtViaFor(p), order=via==='whatsapp' ? ['whatsapp','sms'] : ['sms','whatsapp'];
+  const main=sends.find(s=>s.l.key===mainLang) || sends[0];
+  return order.flatMap(v=>sends.map(s=>({l:s.l, body:s.body, via:v,
+    href: v==='whatsapp' ? waHref(p.phone, s.body) : smsHref(p.phone, s.body),
+    label: (v==='whatsapp' ? 'WhatsApp ' : 'Send ')+s.l.label,
+    primary: v===via && s===main})));
+}
+/** The send buttons as links (data-lang and data-via say what to log). */
+function sendLinksHTML(links){
+  return links.map(s=>`<a class="txtsend${s.via==='whatsapp'?' wa':''}${s.primary?' primary':''}" data-lang="${s.l.key}"`
+    + ` data-via="${s.via}" href="${esc(s.href)}"${s.via==='whatsapp'?' target="_blank" rel="noopener"':''}`
+    + ` title="${s.via==='whatsapp'?'Opens WhatsApp with this message filled in':'Opens Messages with this message filled in'}">${esc(s.label)}</a>`).join('');
+}
 /** Their usual language: English speakers get English, Spanish and bilingual
  *  people get Spanish -- the same default the first send used. */
 function txtLangFor(p){ return p.lang==='English' ? 'en' : 'es'; }
@@ -18742,15 +18798,13 @@ function txtSendHTML(){
   const ppl=txtPeople().filter(p=>picked.has(p.id)&&smsNumber(p.phone));
   const done=ppl.filter(p=>txt.sent[p.id]).length;
   const langs=TXT_LANGS.filter(l=>txt[l.key].trim());
-  return `<div class="txtprog"><b>${done} of ${ppl.length}</b> opened in Messages.
-      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.
+  return `<div class="txtprog"><b>${done} of ${ppl.length}</b> opened in Messages or WhatsApp.
+      Click <b>Send</b> (Messages) or <b>WhatsApp</b>, check the text, then press Send there yourself.
+      The solid button is their usual language and app.
       <a href="#" data-clearsent>Clear checkmarks</a></div>
     ${ppl.map(p=>{
-      const num=smsNumber(p.phone), mine=txtLangFor(p);
-      const sends=langs.map(l=>{
-        const body=txtFill(txt[l.key], p);
-        return {l, body, href:`sms:${num}&body=${encodeURIComponent(body)}`};
-      });
+      const mine=txtLangFor(p);
+      const sends=langs.map(l=>({l, body:txtFill(txt[l.key], p)}));
       return `<div class="txtcard${txt.sent[p.id]?' sent':''}" data-pid="${esc(p.id)}">
         <div class="top"><label><input type="checkbox" data-sent${txt.sent[p.id]?' checked':''}>${esc(p.name)}</label>
           ${titlePillHTML(p)}
@@ -18765,7 +18819,7 @@ function txtSendHTML(){
                 class="bd">${DOW3[d.getDay()].toUpperCase()}</span>${d.getMonth()+1}/${d.getDate()}</span>`;
           }).join('')}</div></details>
         <div class="acts"><span class="ph">${esc(fmtPhone(p.phone))}</span>
-          ${sends.map(s=>`<a class="txtsend${s.l.key===mine||sends.length===1?' primary':''}" data-lang="${s.l.key}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')}
+          ${sendLinksHTML(sendLinks(p, sends, mine))}
           ${sends.map(s=>`<button type="button" class="txtcopy" data-lang="${s.l.key}" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}
         </div></div>`;
     }).join('')}`;
@@ -18777,10 +18831,11 @@ function txtSendHTML(){
 // stacking duplicates, and unticking someone ("the text never went") takes it
 // back out.
 const txtLogged={};
-function txtLog(p, lang, body){
+function txtLog(p, lang, body, via){
   if(READONLY) return;
   const prev=txtLogged[p.id];
   const entry={at:new Date().toISOString(), lang, body:String(body).slice(0,2000)};
+  if(via==='whatsapp') entry.via='whatsapp';
   p.texts=capTexts([entry, ...(p.texts||[]).filter(t=>t.at!==prev)]);
   txtLogged[p.id]=entry.at;
   persist();
@@ -18811,14 +18866,14 @@ function txtWireSend(body){
       if(e.target.checked){
         if(!txtLogged[p.id]){
           const l=txt[txtLangFor(p)].trim() ? txtLangFor(p) : (txt.en.trim()?'en':'es');
-          txtLog(p, l, bodyFor(l));
+          txtLog(p, l, bodyFor(l), txtViaFor(p));
         }
       } else txtUnlog(p);
       mark(card, e.target.checked);
     };
-    // Opening Messages counts as done; untick it if the text never went.
+    // Opening Messages or WhatsApp counts as done; untick it if it never went.
     card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',()=>{
-      txtLog(p, a.dataset.lang, bodyFor(a.dataset.lang));
+      txtLog(p, a.dataset.lang, bodyFor(a.dataset.lang), a.dataset.via);
       setTimeout(()=>mark(card, true), 400);
     }));
     card.querySelectorAll('[data-copy]').forEach(b=>{
@@ -19135,7 +19190,7 @@ function remRowFlags(r, rows){
   const twin=num && rows.find(x=>x!==r && smsNumber(x.p.phone)===num);
   if(twin) f.push(`<span class="txtchip some">Same phone as ${esc(twin.p.name)}</span>`);
   const s=remSentFor(r.p, rem.date);
-  if(s) f.push(`<span class="txtlast" title="${esc(fmtReminderLog(s))}">reminded ${esc(fmtReminderLog(s).replace(/^Reminder \d\d\/\d\d sent /,''))}</span>`);
+  if(s) f.push(`<span class="txtlast" title="${esc(fmtReminderLog(s))}${s.via==='whatsapp'?' on WhatsApp':''}">reminded ${esc(fmtReminderLog(s).replace(/^Reminder \d\d\/\d\d sent /,''))}${s.via==='whatsapp'?' on WhatsApp':''}</span>`);
   return f.join('');
 }
 function remCrewHead(info, rows){
@@ -19200,15 +19255,13 @@ function remSendHTML(){
   const langs=TXT_LANGS.filter(l=>rem[l.key].trim());
   const st=remStatus(rows, rem.date);
   return `<div class="txtprog"><b>${st.sent} of ${st.total}</b> reminded for ${esc(remDateLabel(rem.date))}.
-      Click <b>Send</b>, check the text, press Return in Messages. The solid button is their usual language.
+      Click <b>Send</b> (Messages) or <b>WhatsApp</b>, check the text, then press Send there yourself.
+      The solid button is their usual language and app.
       <a href="#" data-remedit>Change the message or write your own</a></div>`
     + infos.filter(i=>rows.some(r=>r.info.key===i.key)).map(i=>remCrewHead(i, rows)
       + rows.filter(r=>r.info.key===i.key).map(r=>{
-        const p=r.p, why=remReason(p), num=smsNumber(p.phone), mine=txtLangFor(p);
-        const sends=langs.map(l=>{
-          const body=remBody(rem[l.key], r, l.key, today);
-          return {l, body, href:num?`sms:${num}&body=${encodeURIComponent(body)}`:''};
-        });
+        const p=r.p, why=remReason(p), mine=txtLangFor(p);
+        const sends=langs.map(l=>({l, body:remBody(rem[l.key], r, l.key, today)}));
         const main=sends.find(s=>s.l.key===mine)||sends[0], other=sends.filter(s=>s!==main);
         const sent=!!remSentFor(p, rem.date);
         return `<div class="txtcard remcard${sent?' sent':''}${why?' off':''}" data-pid="${esc(p.id)}">
@@ -19219,15 +19272,16 @@ function remSendHTML(){
           ${main?`<div class="remprev" data-prevlang="${main.l.key}">${esc(main.body)}</div>`:''}
           ${other.map(s=>`<details class="remother"><summary>${s.l.label} version</summary><div class="remprev" data-prevlang="${s.l.key}">${esc(s.body)}</div></details>`).join('')}
           <div class="acts">${why?`<span class="ph remwhy">${esc(why)}</span>`:`<span class="ph">${esc(fmtPhone(p.phone))}</span>
-            ${READONLY?'':sends.map(s=>`<a class="txtsend${s===main||sends.length===1?' primary':''}" data-lang="${s.l.key}" href="${esc(s.href)}">Send ${s.l.label}</a>`).join('')
+            ${READONLY?'':sendLinksHTML(sendLinks(p, sends, main?main.l.key:mine))
               + sends.map(s=>`<button type="button" class="txtcopy" data-lang="${s.l.key}" data-copy="${esc(s.body)}">Copy ${s.l.label}</button>`).join('')}`}
           </div></div>`;
       }).join('')).join('');
 }
-function remLog(p, lang, body){
+function remLog(p, lang, body, via){
   if(READONLY) return;
-  p.texts=withReminderLog(p.texts||[], {at:new Date().toISOString(), lang, body:String(body).slice(0,2000),
-                                        kind:'reminder', for:rem.date});
+  const entry={at:new Date().toISOString(), lang, body:String(body).slice(0,2000), kind:'reminder', for:rem.date};
+  if(via==='whatsapp') entry.via='whatsapp';
+  p.texts=withReminderLog(p.texts||[], entry);
   persist();
 }
 function remUnlog(p){
@@ -19256,13 +19310,13 @@ function remWireSend(body){
       // Ticked by hand (sent some other way): log their usual language.
       if(e.target.checked){
         const l=rem[txtLangFor(p)].trim() ? txtLangFor(p) : (rem.en.trim()?'en':'es');
-        remLog(p, l, bodyFor(l));
+        remLog(p, l, bodyFor(l), txtViaFor(p));
       } else remUnlog(p);
       mark(card, e.target.checked);
     };
-    // Opening Messages counts as sent; untick it if the text never went.
+    // Opening Messages or WhatsApp counts as sent; untick it if it never went.
     card.querySelectorAll('.txtsend').forEach(a=>a.addEventListener('click',()=>{
-      remLog(p, a.dataset.lang, bodyFor(a.dataset.lang));
+      remLog(p, a.dataset.lang, bodyFor(a.dataset.lang), a.dataset.via);
       setTimeout(()=>mark(card, true), 400);
     }));
     card.querySelectorAll('[data-copy]').forEach(b=>{
