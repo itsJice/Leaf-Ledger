@@ -37,7 +37,9 @@ import { fetchAddressSuggestions, suggestionLabel, type AddressSuggestion } from
 import { StaffAlert, staffAlertOf, type StaffAlertSaved, type StaffAlertValue } from "components/StaffAlert";
 import { DriveLinks, type DriveLinksSaved } from "./clients/DriveLinks";
 import { InstallPanel } from "./clients/InstallPanel";
-import { isReadOnly } from "utils/me";
+import { currentMe, isReadOnly } from "utils/me";
+import { apiFetch } from "utils/apiFetch";
+import { mergeCandidates } from "utils/mergeCandidates";
 import {
   ClientNameFields, composeClientName, duplicateNameMessage, initialNameParts, namePartsBody,
   namePartsProblem, noAutofill, type NameParts, type NamePartsIn,
@@ -709,58 +711,164 @@ function NewClientModal({ client, onClose, onSaved, onAlertSaved }: {
   );
 }
 
+/** What a delete or merge attempt came back with, for the dialog. */
+export type DeleteOutcome = { ok: boolean; history?: number; message?: string };
+
 function DeleteClientDialog({
   client,
+  others,
+  canMerge,
   onClose,
   onConfirm,
+  onMerge,
 }: {
   client: ClientGroup;
+  /** Saved clients, for the merge picker. */
+  others: { id?: number | null; name: string }[];
+  /** Admin and up (the server checks too). */
+  canMerge: boolean;
   onClose: () => void;
-  onConfirm: (deleteProjects: boolean) => void;
+  onConfirm: (deleteProjects: boolean) => Promise<DeleteOutcome>;
+  onMerge: (intoId: number) => Promise<DeleteOutcome>;
 }) {
   const [deleteProjects, setDeleteProjects] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Merge mode: the card has history (the server said so), or an admin
+  // picked "Merge into another client".
+  const [merging, setMerging] = useState(false);
+  const [blocked, setBlocked] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [intoId, setIntoId] = useState<number | null>(null);
+  const candidates = useMemo(() => mergeCandidates(client, others, query).slice(0, 8), [client, others, query]);
+  const into = intoId != null ? others.find((o) => o.id === intoId) : null;
+
+  const runDelete = async () => {
+    setBusy(true);
+    const out = await onConfirm(deleteProjects);
+    setBusy(false);
+    if (!out.ok) {
+      setBlocked(out.message || "Couldn't delete it.");
+      if (out.history) setMerging(true);
+      setConfirming(false);
+    }
+  };
+  const runMerge = async () => {
+    if (intoId == null) return;
+    setBusy(true);
+    const out = await onMerge(intoId);
+    setBusy(false);
+    if (!out.ok) setBlocked(out.message || "Couldn't merge it.");
+  };
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/35 ll-overlay">
       <div className="mx-4 w-full max-w-sm rounded-2xl bg-white shadow-2xl ll-modal">
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
-          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Delete client</h2>
+          <h2 className="font-semibold text-stone-800" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+            {merging ? "Merge client" : "Delete client"}
+          </h2>
           <button type="button" onClick={onClose} className="-mr-1 rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600"><X size={18} /></button>
         </div>
-        <div className="space-y-4 px-5 py-4">
-          <p className="text-sm text-stone-600">
-            What should happen to <span className="font-semibold text-stone-800">{client.name}</span>?
-          </p>
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setDeleteProjects(false)}
-              className={`w-full rounded-xl border px-3 py-3 text-left text-sm ${!deleteProjects ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}
-            >
-              Delete client only
-              <span className="mt-0.5 block text-xs text-stone-500">Projects stay and become unassigned.</span>
-            </button>
-            {client.projectCount > 0 && (
+        {!merging ? (
+          <div className="space-y-4 px-5 py-4">
+            <p className="text-sm text-stone-600">
+              What should happen to <span className="font-semibold text-stone-800">{client.name}</span>?
+            </p>
+            <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => setDeleteProjects(true)}
-                className={`w-full rounded-xl border px-3 py-3 text-left text-sm ${deleteProjects ? "border-amber-300 bg-amber-50 text-amber-900" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}
+                onClick={() => setDeleteProjects(false)}
+                className={`w-full rounded-xl border px-3 py-3 text-left text-sm ${!deleteProjects ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}
               >
-                Delete client and projects
-                <span className="mt-0.5 block text-xs text-stone-500">Also deletes {client.projectCount} project{client.projectCount === 1 ? "" : "s"}.</span>
+                Delete client only
+                <span className="mt-0.5 block text-xs text-stone-500">Projects stay and become unassigned.</span>
               </button>
+              {client.projectCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteProjects(true)}
+                  className={`w-full rounded-xl border px-3 py-3 text-left text-sm ${deleteProjects ? "border-amber-300 bg-amber-50 text-amber-900" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}
+                >
+                  Delete client and projects
+                  <span className="mt-0.5 block text-xs text-stone-500">Also deletes {client.projectCount} project{client.projectCount === 1 ? "" : "s"}.</span>
+                </button>
+              )}
+              {canMerge && client.id != null && (
+                <button
+                  type="button"
+                  onClick={() => { setMerging(true); setBlocked(null); }}
+                  className="w-full rounded-xl border border-stone-200 px-3 py-3 text-left text-sm text-stone-600 hover:bg-stone-50"
+                >
+                  Merge into another client
+                  <span className="mt-0.5 block text-xs text-stone-500">For a duplicate: its history moves to the client you pick, then this card is deleted.</span>
+                </button>
+              )}
+            </div>
+            {blocked && <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{blocked}</p>}
+            {confirming && (
+              <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-700">
+                Confirm delete: {deleteProjects ? "client and all projects" : "client only"}?
+              </div>
             )}
           </div>
-          {confirming && (
-            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-700">
-              Confirm delete: {deleteProjects ? "client and all projects" : "client only"}?
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="space-y-3 px-5 py-4">
+            {blocked && <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{blocked}</p>}
+            {canMerge ? (
+              <>
+                <p className="text-sm text-stone-600">
+                  Merge <span className="font-semibold text-stone-800">{client.name}</span> into:
+                </p>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Find the client to keep"
+                  aria-label="Find the client to keep"
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-emerald-300 sm:text-sm"
+                />
+                <div className="max-h-56 space-y-1 overflow-y-auto" role="listbox" aria-label="Clients">
+                  {candidates.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      role="option"
+                      aria-selected={intoId === c.id}
+                      onClick={() => setIntoId(c.id)}
+                      className={`block min-h-[40px] w-full rounded-lg border px-3 py-2 text-left text-sm ${intoId === c.id ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-stone-200 text-stone-700 hover:bg-stone-50"}`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                  {!candidates.length && <p className="px-1 text-sm text-stone-500">No client matches.</p>}
+                </div>
+                {into && (
+                  <p className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
+                    {client.name} becomes part of <b>{into.name}</b>: its seasons, comments and jobs move there, its name is kept as a former name, and this card is deleted.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-stone-600">Ask an admin to merge it into the client it duplicates.</p>
+            )}
+          </div>
+        )}
         <div className="ll-modal-foot flex items-center justify-end gap-3 rounded-b-2xl border-t border-stone-100 bg-white px-5 py-4">
           <button type="button" onClick={onClose} className="px-3 py-2 text-sm text-stone-500 hover:text-stone-700">Cancel</button>
-          {!confirming ? (
+          {merging ? (
+            canMerge && (
+              <button
+                type="button"
+                data-edit
+                disabled={busy || intoId == null}
+                onClick={() => void runMerge()}
+                className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-900 disabled:opacity-50"
+              >
+                {busy ? "Merging..." : "Merge and delete"}
+              </button>
+            )
+          ) : !confirming ? (
             <button
               type="button"
               onClick={() => setConfirming(true)}
@@ -771,10 +879,12 @@ function DeleteClientDialog({
           ) : (
             <button
               type="button"
-              data-edit onClick={() => onConfirm(deleteProjects)}
-              className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-900"
+              data-edit
+              disabled={busy}
+              onClick={() => void runDelete()}
+              className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-900 disabled:opacity-50"
             >
-              Confirm delete
+              {busy ? "Deleting..." : "Confirm delete"}
             </button>
           )}
         </div>
@@ -1096,25 +1206,71 @@ export default function Clients() {
     }
   };
 
-  const deleteClient = async (client: ClientGroup, deleteProjects: boolean) => {
+  // Drop a deleted (or merged-away) card from the page.
+  const forgetClient = (client: ClientGroup, deleteProjects: boolean) => {
+    const nextClientRows = clientRows.filter((row) =>
+      client.id != null ? row.id !== client.id : normalizedClientName(row.name) !== client.name);
+    const stillNamed = nextClientRows.some((row) => normalizedClientName(row.name) === client.name);
+    const nextProjects = stillNamed ? projects : deleteProjects
+      ? projects.filter((project) => normalizedClientName(project.client_name) !== client.name)
+      : projects.map((project) => normalizedClientName(project.client_name) === client.name ? { ...project, client_name: null } : project);
+    setClientRows(nextClientRows);
+    setProjects(nextProjects);
+    writeClientsPageCache(nextClientRows, nextProjects);
+    if (focusedClient === client.name) showAllClients();
+    notifyProjectsChanged();
+  };
+
+  // By id (Comments #50): the old route took the name in the path, and a
+  // name with a slash ("Lucas/Eilers") never reached the server. A card with
+  // history comes back 409 and the dialog offers Merge instead.
+  const deleteClient = async (client: ClientGroup, deleteProjects: boolean): Promise<DeleteOutcome> => {
     try {
-      await apiClient.request({
-        path: `/routes/clients/delete/${encodeURIComponent(client.name)}?delete_projects=${deleteProjects ? "true" : "false"}`,
-        method: "DELETE",
-      });
-      const nextClientRows = clientRows.filter((row) => normalizedClientName(row.name) !== client.name);
-      const nextProjects = deleteProjects
-        ? projects.filter((project) => normalizedClientName(project.client_name) !== client.name)
-        : projects.map((project) => normalizedClientName(project.client_name) === client.name ? { ...project, client_name: null } : project);
-      setClientRows(nextClientRows);
-      setProjects(nextProjects);
-      writeClientsPageCache(nextClientRows, nextProjects);
-      if (focusedClient === client.name) showAllClients();
+      const res = client.id != null
+        ? await apiFetch(`/api/clients/${client.id}?delete_projects=${deleteProjects ? "true" : "false"}`, { method: "DELETE" })
+        : await apiFetch(`/api/clients/delete/${encodeURIComponent(client.name)}?delete_projects=${deleteProjects ? "true" : "false"}`, { method: "DELETE" });
+      if (!res.ok) {
+        let detail: unknown = null;
+        try { detail = (await res.json())?.detail; } catch { /* not JSON */ }
+        const d = (detail && typeof detail === "object" ? detail : {}) as { message?: string; history?: number };
+        const message = d.message || (typeof detail === "string" ? detail : `Couldn't delete ${client.name} (${res.status}).`);
+        return { ok: false, history: d.history, message };
+      }
+      forgetClient(client, deleteProjects);
       setDeleteClientTarget(null);
-      notifyProjectsChanged();
       toast.success(deleteProjects ? "Client and projects deleted" : "Client deleted; projects kept");
+      return { ok: true };
     } catch {
-      toast.error("Failed to delete client");
+      return { ok: false, message: "Couldn't reach the server. Check the connection and try again." };
+    }
+  };
+
+  // Admin and up: fold a duplicate card into the client it duplicates.
+  const mergeClient = async (client: ClientGroup, intoId: number): Promise<DeleteOutcome> => {
+    if (client.id == null) return { ok: false, message: "This card isn't saved yet, so there is nothing to merge." };
+    try {
+      const res = await apiFetch(`/api/clients/${client.id}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ into_id: intoId }),
+      });
+      if (!res.ok) {
+        let detail: unknown = null;
+        try { detail = (await res.json())?.detail; } catch { /* not JSON */ }
+        return { ok: false, message: typeof detail === "string" ? detail : `Couldn't merge (${res.status}).` };
+      }
+      const out = (await res.json()) as { into_name: string };
+      forgetClient(client, false);
+      setDeleteClientTarget(null);
+      toast.success(`Merged into ${out.into_name}`);
+      // The kept card now carries the history: reload the list for it.
+      void apiClient.request<ClientRecord[]>({ path: "/routes/clients/list", method: "GET" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((rows) => { if (Array.isArray(rows)) setClientRows(rows); })
+        .catch(() => { /* the next visit loads it */ });
+      return { ok: true };
+    } catch {
+      return { ok: false, message: "Couldn't reach the server. Check the connection and try again." };
     }
   };
 
@@ -1679,8 +1835,11 @@ export default function Clients() {
       {deleteClientTarget && (
         <DeleteClientDialog
           client={deleteClientTarget}
+          others={clientRows}
+          canMerge={Boolean(currentMe()?.isAdmin)}
           onClose={() => setDeleteClientTarget(null)}
-          onConfirm={(deleteProjects) => void deleteClient(deleteClientTarget, deleteProjects)}
+          onConfirm={(deleteProjects) => deleteClient(deleteClientTarget, deleteProjects)}
+          onMerge={(intoId) => mergeClient(deleteClientTarget, intoId)}
         />
       )}
     </Layout>

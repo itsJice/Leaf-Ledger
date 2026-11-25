@@ -332,7 +332,7 @@ dialog:modal.dlgmore:not([id=stfdlg])>.btns:last-child{box-shadow:0 -1px 0 var(-
 .ncmatch button small{display:block;font-weight:400;color:var(--mut);font-size:11.5px}
 @media (hover:hover){ .ncmatch button:hover{background:var(--brand);color:#fff} .ncmatch button:hover small{color:#e8f0e9} }
 .nccbat{font-size:12.5px;color:var(--mut);margin:2px 0 4px}
-#ncdlg.cbmode #ncname{background:#f6f5f1;color:var(--ink)}
+#ncdlg.cbmode #ncname,#ncdlg.addrmode #ncname{background:#f6f5f1;color:var(--ink)}
 .srcb{flex:none;margin-left:8px;padding:4px 9px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--brand);
   font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;min-height:30px}
 @media (hover:hover){ .srcb:hover{border-color:var(--brand)} }
@@ -1711,6 +1711,17 @@ body.readonly .remhint,body.viewonly .remhint,body.readonly .remcard .txtsend,bo
 #tbteams .ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #tbteams:hover{border-color:var(--brand);color:var(--brand)}
 body.tv #tbteams{display:none!important}
+/* Today (Comments #55): the calendar-app button, beside the dates list.
+   Phones have their own Today in the day bar. */
+#datecolhd .dhdrow{display:flex;gap:6px;align-items:center}
+#datecolhd .dhdrow .scopepick{flex:1 1 auto;min-width:0}
+#tbtoday{display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:36px;
+  border:1px solid #d9d3c7;border-radius:10px;background:#fff;color:var(--brand-deep);
+  font-family:inherit;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;flex:none}
+#tbtoday .ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#tbtoday:hover{border-color:var(--brand);color:var(--brand)}
+body.tv #tbtoday{display:none!important}
+@media (max-width:767px){ body.apple #tbtoday{display:none!important} }
 @container (max-width:900px){ body.apple #tbteams{width:34px;padding:0;justify-content:center} body.apple #tbteams span{display:none} }
 @media (max-width:640px){ #tbteams{width:34px;padding:0;justify-content:center} #tbteams span{display:none} }
 #teamdlg{width:calc(100vw - 32px);max-width:1360px;height:calc(100vh - 32px);height:calc(100dvh - 32px);
@@ -2189,6 +2200,8 @@ body.apple #peekdlg #pkcontact .pkce-btns > button:first-child{display:block}
 .pkchip.pref{background:#e0ecf8;color:#1e3a5f}.pkchip.pref .ic{color:#1e3a5f}
 .pkchip-btn{border:0;box-shadow:inset 0 0 0 1px var(--line);background:#fff;color:var(--mut);cursor:pointer}
 .pkchip-btn .ic{color:#b45309}
+.pkchip-btn.pkdel .ic{color:#b91c1c}
+@media (hover:hover){ .pkchip-btn.pkdel:hover{box-shadow:inset 0 0 0 1px #ef4444;color:#991b1b} }
 @media (hover:hover){ .pkchip-btn:hover{box-shadow:inset 0 0 0 1px #f59e0b;color:#92400e} }
 body.apple .pkchip-btn{min-height:32px;padding:0 12px}
 #pkalertchip:empty,#pkalert:empty,#pknotes:empty,#pkprofilelink:empty{display:none}
@@ -3380,10 +3393,10 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <label class="nclabel" id="ncaddrlbl">Address</label>
   <input id="ncaddr" name="nc_site_search" type="text" placeholder="Start typing the street, then pick a match to fill city, state and ZIP" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore>
   <div id="ncsuggest" class="ncsuggest" hidden></div>
-  <label class="nclabel">Est. install time (hours)</label>
-  <input id="nchours" type="number" step="0.25" min="0" value="1">
-  <label class="nclabel">Crew size (people, optional)</label>
-  <input id="ncpeople" type="number" step="1" min="0" placeholder="e.g. 5">
+  <label class="nclabel ncjob">Est. install time (hours)</label>
+  <input id="nchours" class="ncjob" type="number" step="0.25" min="0" value="1">
+  <label class="nclabel ncjob">Crew size (people, optional)</label>
+  <input id="ncpeople" class="ncjob" type="number" step="1" min="0" placeholder="e.g. 5">
   <label class="nclabel" id="ncreasonlbl" hidden>Why we're going back</label>
   <select id="ncreason" hidden>
     <option value="callback">Callback</option>
@@ -3400,8 +3413,8 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <option value="Reinstall">Reinstall (after event)</option>
     <option value="Callback">Callback (bought more / fix / unfinished)</option>
   </select>
-  <label class="nclabel">Notes (optional)</label>
-  <input id="ncnotes" name="nc_memo" type="text" placeholder="Anything worth flagging" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore>
+  <label class="nclabel ncjob">Notes (optional)</label>
+  <input id="ncnotes" class="ncjob" name="nc_memo" type="text" placeholder="Anything worth flagging" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore>
   <div id="ncerr" class="ncerr"></div>
   <div class="btns"><button onclick="ncdlg.close()">Cancel</button>
   <button class="go" id="ncgo">Look up &amp; add</button></div>
@@ -3668,6 +3681,7 @@ const IC={
  home:'<svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
  clock:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
  close:'<svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+ trash:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>',
  search:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>',
  lock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
  unlock:'<svg class="ic" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>',
@@ -4076,6 +4090,16 @@ function normStopPins(obj){
 }
 function normNotInstalling(list){
   return new Set((Array.isArray(list)?list:[]).map(Number).filter(r=>C[r]));
+}
+// Added stops and return trips staff deleted from the board (Comments #49).
+// A durable list, not just an absence: a tab opened before the delete still
+// holds the stop and would otherwise save it straight back. Every merge and
+// every restore drops these rows, and new stops never reuse their numbers.
+let deletedStops = new Set();
+/** PURE. A saved deletedStops list as a Set of added-stop row numbers. */
+function normDeletedStops(list){
+  return new Set((Array.isArray(list)?list:[]).map(Number)
+    .filter(r=>Number.isInteger(r) && r>=900000));
 }
 // The day a client was on right before being taken out of the season, so
 // the "not installing" panel can still say "was Mon 11/23/26" instead of
@@ -5253,10 +5277,16 @@ function applyPlacement(place){
 /** Restore clients added in a previous session (or by another device) --
  * lat/lon are already known, so this is synchronous, no re-geocoding.
  * Must run BEFORE applyPlacement(), which references these rows. */
-function restoreSyntheticClients(list){
+function restoreSyntheticClients(list, deleted){
   let added=false;
+  // Deleted stops (Comments #49): off the board, and never re-added.
+  const gone=normDeletedStops(deleted);
+  if(gone.size) dropDeletedStops(gone);
   (list||[]).forEach(def=>{
+    if(!def || gone.has(+def.row)) return;
     if(C[def.row]){          // already present -- idempotent, but take the
+      // ...and its address: changed on its stop card (Comments #57).
+      if(C[def.row].synthetic) applySyntheticAddress(C[def.row], def);
       // shared document's spelling (a rename saved elsewhere) for the row.
       if(C[def.row].synthetic && def.name) syncSyntheticName(C[def.row], def.name);
       // ...and its hours: an added stop's install time is edited in place
@@ -5273,10 +5303,55 @@ function restoreSyntheticClients(list){
     added=true;
     if(def.row >= nextSyntheticRow) nextSyntheticRow = def.row + 1;
   });
+  // A deleted stop's number is never handed to a new one: its tombstone
+  // would hide the new stop everywhere.
+  gone.forEach(r=>{ if(r >= nextSyntheticRow) nextSyntheticRow = r + 1; });
   // An added stop arrives with the shared state, often after the client
   // records did: give it its card's city and area now (Comment #27). The
   // records are declared further down; before they exist this is a no-op.
   if(added){ try{ applyLiveClientFields(); }catch(e){} try{ applyCardFactsTo(C, cardFacts); }catch(e){} }
+}
+/** Take deleted added stops (rows in `gone`) off this tab's board: out of
+ *  C, off every day, and out of every row-keyed list. Only added stops are
+ *  ever removed; a spreadsheet row in the list is ignored. */
+function dropDeletedStops(gone){
+  let any=false;
+  gone.forEach(r=>{
+    if(!C[r] || !C[r].synthetic) return;
+    any=true;
+    delete C[r];
+    try{ delete N[r]; }catch(e){}
+  });
+  if(!any) return any;
+  try{
+    days.forEach(d=>{ const n=d.stops.length; d.stops=d.stops.filter(x=>!gone.has(+x)); if(d.stops.length!==n) d.edited=true; });
+    days = days.filter(d=>d.stops.length || d.training || newDates.has(d.date));
+    [notInstalling, hold, confirmed].forEach(s=>gone.forEach(r=>s.delete(r)));
+    [stopPin, lastScheduledFrom, hoursOverride, comments].forEach(m=>gone.forEach(r=>{ if(m) delete m[r]; }));
+    Object.keys(manualOrder||{}).forEach(id=>{
+      if(Array.isArray(manualOrder[id])) manualOrder[id]=manualOrder[id].filter(x=>!gone.has(+x)); });
+  }catch(e){}   // during the first load some of these aren't declared yet
+  return any;
+}
+/** An added stop's address as saved (`def`: street, lat, lon and the live
+ *  drive legs outRow/inCol). A different spot gets a new map node, so every
+ *  drive time to and from it is the new address's. Returns true if moved. */
+function applySyntheticAddress(c, def){
+  if(!c || !def) return false;
+  const lat=+def.lat, lon=+def.lon;
+  if(typeof def.street==='string') c.street=def.street;
+  if(!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  if(c.lat===lat && c.lon===lon) return false;
+  const outRow=def.outRow||null, inCol=def.inCol||null;
+  N[c.row]=extendMatrix(lat, lon, outRow, inCol);
+  c.lat=lat; c.lon=lon; c.outRow=outRow; c.inCol=inCol;
+  c.geo=(outRow && inCol) ? 'street' : 'synthetic';
+  // Its days' drawn routes and drive times are the old address's.
+  try{
+    days.forEach(d=>{ if(d.stops.includes(c.row)) d.edited=true; });
+    [...liveRouteCache.keys()].forEach(k=>{ if(k.split(',').includes(String(c.row))) liveRouteCache.delete(k); });
+  }catch(e){}
+  return true;
 }
 /** A synthetic client's stored name (what newClients saves) is `def.name`;
  *  what is shown follows the Clients tab, as loadClientDirectory does. A
@@ -5578,7 +5653,8 @@ try{
     stateWarning = 'Saved changes were made against an older schedule build. '
                  + 'They have NOT been applied — re-check them before saving.';
   } else if(s.placement){
-    restoreSyntheticClients(s.newClients);
+    deletedStops = normDeletedStops(s.deletedStops);
+    restoreSyntheticClients(s.newClients, s.deletedStops);
     hoursOverride = normHoursOverride(s.hoursOverride); applyHoursOverride();
     // Before applyPlacement: a stop saved onto an added date needs that
     // date on the board, or its placement silently drops as unknown.
@@ -5729,7 +5805,7 @@ function placementBoardDates(place){
 // The documents compared are all in this page's own normalized form
 // (sharedDocOf(snapshot()) after applying them), so normalization never reads
 // as somebody's edit.
-const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold'];
+const SHARED_SET_KEYS=['approved','confirmed','newDates','trainingDays','dallasNights','notInstalling','hold','deletedStops'];
 const SHARED_MAP_KEYS=['placement','manualOrder','stopPin','lastScheduledFrom','crewNames','crewStart','shiftNotes','trailers','loadStops','trailerFleet','loadTrips','hoursOverride','seasonRoles'];
 const SHARED_KEYS=[...SHARED_SET_KEYS, ...SHARED_MAP_KEYS, 'moves','comments','newClients','roster','staffing','teams'];
 /** PURE. The part of a snapshot that is shared state (the rest -- names for
@@ -5894,11 +5970,19 @@ function mergeShared(base, mine, theirs, label){
   });
   const dropped=[];
   Object.keys(nb).forEach(r=>{ if(!nm[r]){ changed++; if(same(nt[r], nb[r])){ delete nc[r]; dropped.push(r); } } });
+  // A stop deleted on either side stays deleted (Comments #49), even when
+  // the other side still had it or edited it: deletedStops is a set both
+  // sides only ever add to, and it wins over every copy of the stop.
+  const gone=new Set((out.deletedStops||[]).map(String));
+  Object.keys(nc).forEach(r=>{ if(gone.has(r)){ delete nc[r]; if(!dropped.includes(r)) dropped.push(r); } });
+  gone.forEach(r=>{ if(!dropped.includes(r)) dropped.push(r); });
   if(any('newClients')) out.newClients=Object.values(nc);
+  if(gone.size) ['notInstalling','confirmed','hold'].forEach(k=>{
+    if(Array.isArray(out[k])) out[k]=out[k].filter(x=>!gone.has(String(x))); });
   // A removed added client takes its row-keyed values with it, or they
   // point at a row with no client (Comments #39: a blank board).
   dropped.forEach(r=>{
-    ['placement','stopPin','lastScheduledFrom','hoursOverride'].forEach(k=>{
+    ['placement','stopPin','lastScheduledFrom','hoursOverride','loadStops'].forEach(k=>{
       if(out[k] && typeof out[k]==='object' && out[k][r]!==undefined){ out[k]={...out[k]}; delete out[k][r]; } });
     if(out.manualOrder && typeof out.manualOrder==='object'){
       const mo={}; Object.keys(out.manualOrder).forEach(d=>{
@@ -6034,6 +6118,16 @@ function extraVisitRow(row, rows){
 /** Whether a row's not-installing / hold mark is written to the client's
  *  card: not for a takedown row of a client that has an install row. */
 function speaksForClient(r){ return !extraVisitRow(r, C); }
+/** The added stops as shared state saves them (newClients, as snapshot()
+ *  writes them), for an undo step. */
+function newClientDefs(){
+  return Object.values(C).filter(c=>c.synthetic).map(c=>(
+    {row:c.row, name:c.sheetName||c.name, street:c.street, lat:c.lat, lon:c.lon,
+     hours:ownHours(c), visitType:c.visitType, notes:c.advice,
+     people:ownPeople(c), business:c.bus,
+     outRow:c.outRow, inCol:c.inCol, ...(c.of!=null ? {of:c.of} : {}),
+     ...(c.returnReason ? {returnReason:c.returnReason} : {})}));
+}
 function snapshot(){
   // The name as it was saved (c.sheetName), not the Clients tab's spelling
   // that loadClientDirectory shows: a rename there is not this tab's edit,
@@ -6074,7 +6168,7 @@ function snapshot(){
   return {version:SPEC.version, placement:currentPlacement(),
           moves, approved:[...approved], confirmed:[...confirmed], manualOrder, comments, newClients,
           newDates:[...newDates], trainingDays:[...trainingDays], dallasNights:[...dallasNights],
-          notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom, hoursOverride, crewStart,
+          notInstalling:[...notInstalling], hold:[...hold], deletedStops:[...deletedStops], stopPin, lastScheduledFrom, hoursOverride, crewStart,
           notInstallingNames, notInstallingDates, holdNames, season:String((SEASON[0]||'')).slice(0,4),
           trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames, savedAt:Date.now()};
 }
@@ -7267,7 +7361,7 @@ function saveLocal(){
 }
 /** Load a shared document onto the board, the way a fresh load does. */
 function applySharedDoc(st){
-  restoreSyntheticClients(st.newClients);
+  restoreSyntheticClients(st.newClients, st.deletedStops);
   return restoreBlob(JSON.stringify({...st, placement:st.placement||currentPlacement()}));
 }
 /** Names for the conflict list. */
@@ -7718,7 +7812,8 @@ async function restoreHistoryEntry(entryId, btn){
     const j=await r.json();
     const st=j.state;
     if(!st || !st.placement) throw new Error('empty state');
-    restoreSyntheticClients(st.newClients);
+    deletedStops = normDeletedStops(st.deletedStops);
+    restoreSyntheticClients(st.newClients, st.deletedStops);
     newDates = normDates(st.newDates);
     trainingDays = normTrainingDays(st.trainingDays);
     dallasNights = normDallasNights(st.dallasNights);
@@ -7767,11 +7862,19 @@ function stateBlob(){
                          approved:[...approved], confirmed:[...confirmed], manualOrder, comments,
                          moves, newDates:[...newDates], trainingDays:[...trainingDays],
                          dallasNights:[...dallasNights], notInstalling:[...notInstalling], hold:[...hold], stopPin, lastScheduledFrom,
+                         // Added stops ride along, so undoing a delete or an
+                         // address change puts the stop back as it was.
+                         newClients:newClientDefs(), deletedStops:[...deletedStops],
                          hoursOverride, crewStart, synHours:Object.fromEntries(Object.values(C).filter(c=>c.synthetic).map(c=>[c.row, ownHours(c)])),
                          trailers, loadStops, trailerFleet, loadTrips, shiftNotes, roster, staffing, teams, seasonRoles, crewNames});
 }
 function restoreBlob(blob){
   const s = JSON.parse(blob);
+  // Added stops first (deletes and address changes, Comments #49 / #57):
+  // the placement below may name them.
+  deletedStops = normDeletedStops(s.deletedStops);
+  if(Array.isArray(s.newClients)) restoreSyntheticClients(s.newClients, s.deletedStops);
+  else if(deletedStops.size) restoreSyntheticClients([], s.deletedStops);
   // Restored before applyPlacement so undoing past an added date still has
   // somewhere to put the stops that were sitting on it.
   newDates = normDates(s.newDates);
@@ -8623,6 +8726,7 @@ function applyMove(row, toId, record=true){
   // Putting someone on a crew-day means they ARE installing after all --
   // covers every path in (drag, move dialog, find-a-date), so the bubble
   // can never disagree with the board.
+  if(notInstalling.has(row)) delete lastScheduledFrom[row];   // stale once back on the board
   notInstalling.delete(row);
   if(record){
     moves.push({row, name:stopName(row), from: from?from.id:null, to:to.id});
@@ -10677,16 +10781,37 @@ function markNotInstalling(row){
   moves.push({row, name:stopName(row), from: cur?cur.id:'', to:'NOINSTALL'});
   persist(); render();
 }
+/** PURE. Whether the stop on `row` can be deleted from the board: only a
+ *  stop added here (+ New client, a return trip), never a spreadsheet client,
+ *  who is taken out with Not installing instead (Comments #49). */
+function canDeleteStop(c){ return !!(c && c.synthetic); }
+/** Delete an added stop or return trip: off its day, off Not installing and
+ *  search, and remembered in deletedStops so no other copy brings it back.
+ *  One undo step. */
+function deleteAddedStop(row){
+  if(roBlocked()) return false;
+  const c=C[row];
+  if(!canDeleteStop(c)) return false;
+  if(!confirm(`Delete this added stop? It comes off the schedule.\n\n${stopName(row)}`)) return false;
+  const cur=days.find(d=>d.stops.includes(row));
+  pushUndo();
+  moves.push({row, name:stopName(row), from: cur?cur.id:(notInstalling.has(row)?'NOINSTALL':''), to:'DELETED'});
+  deletedStops.add(+row);
+  if(cur) approved.delete(cur.id);
+  dropDeletedStops(new Set([+row]));
+  if(typeof searchHit!=='undefined' && searchHit===row) searchHit=null;
+  persist(); render();
+  return true;
+}
 /** Undo the above. They come back UNSCHEDULED -- there's no sensible day to
  *  guess -- so the panel points staff at "find date". */
+// They stay on the Not installing list until a date is actually picked
+// (applyMove takes them off it then). Taking them off first left a stop
+// that was on no day and on no list whenever the date finder was closed
+// without a pick: it could only be found by searching (Comments #57).
 function putBackOnSchedule(row){
   if(roBlocked()) return;
   if(!notInstalling.has(row)) return;
-  pushUndo();
-  notInstalling.delete(row);
-  delete lastScheduledFrom[row];   // stale once they're back on the board
-  moves.push({row, name:stopName(row), from:'NOINSTALL', to:''});
-  persist(); render();
   openSlotFinder(row);
 }
 /** Put a client on hold, or release them. On hold they stay exactly where
@@ -10951,6 +11076,34 @@ document.getElementById('pbtoday').onclick=()=>{
   }
   phoneGo(phoneTodayTarget());
 };
+/** PURE. Where Today goes in the day list (Comments #55): `today` when a
+ *  crew works it, else the next date with work after it, else -- the season
+ *  over or not started -- today itself when the list shows it, else
+ *  `fallback` (the overview). `workDates` is every date with a stop on it. */
+function todayDateFor(today, workDates, listed, fallback){
+  const ds=[...new Set(workDates||[])].sort();
+  if(ds.includes(today)) return today;
+  const next=ds.find(d=>d>today);
+  if(next) return next;
+  return listed ? today : fallback;
+}
+function todayTarget(){
+  const work=days.filter(d=>d.stops.length && !d.training && inStripScope(d.date)).map(d=>d.date);
+  const T=todayISO();
+  return todayDateFor(T, work, stripListsDate(T), stripAll());
+}
+function goToday(){
+  if(viewMode!=='days'){ setView('days'); }
+  if(phoneMode()){ document.body.classList.remove('datesheet'); document.getElementById('pbtoday').click(); return; }
+  const to=todayTarget();
+  selDate=to; focusDayId=null;
+  if(parseOverview(to)) phoneTop=true;
+  render();
+  const sd=document.getElementById('side'); if(sd) sd.scrollTop=0;
+  // Bring its date up in the dates list too.
+  const chip=document.querySelector(`#datestrip .dchip[data-val="${CSS.escape(to)}"]`);
+  if(chip) try{ chip.scrollIntoView({block:'center'}); }catch(e){}
+}
 document.getElementById('pbdate').onclick=()=>{
   document.body.classList.add('datesheet');
   // Open at the day you're on -- in the continuous list, the date at the top
@@ -11147,7 +11300,17 @@ function renderStrip(){
     +`<option value="all">All dates</option>`;
   scope.value=stripScope;
   scope.onchange=()=>setStripScope(scope.value);
-  hd.appendChild(scope);
+  // Today (Comments #55), beside the dates like a calendar app's. Not in the
+  // top toolbar: at 1440 wide it squeezed the search box and the save status.
+  const hdrow=document.createElement('div'); hdrow.className='dhdrow';
+  const tb=document.createElement('button');
+  tb.type='button'; tb.id='tbtoday';
+  tb.title='Go to today, or the next install date when nothing is booked today';
+  tb.setAttribute('aria-label','Go to today');
+  tb.innerHTML='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3.5"/><path d="M8 3v4M16 3v4M3 10h18"/><rect x="10" y="13" width="4" height="4" rx="1"/></svg>'+'<span>Today</span>';
+  tb.onclick=goToday;
+  hdrow.appendChild(scope); hdrow.appendChild(tb);
+  hd.appendChild(hdrow);
   const showTakedown=stripScope!=='install';
 
   // Overview rows for the chosen half of the season, each with its stop count.
@@ -11822,7 +11985,8 @@ function buildAddCrewButton(date){
 function renderLog(){
   const log=document.createElement('div'); log.id='log';
   const fmtId=id=>{if(!id) return 'new'; if(id==='NOINSTALL') return 'not installing';
-    if(id==='HOLD') return 'on hold'; if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
+    if(id==='HOLD') return 'on hold'; if(id==='DELETED') return 'deleted'; if(id.startsWith('ADDR:')) return 'new address';
+    if(id.startsWith('LOCK:')) return `position: ${id.slice(5)}`;
     if(id.startsWith('HOURS:')) return `${id.slice(6)}h install time`;
     if(id.startsWith('CREWS:')){ const ids=id.slice(6).split('+').filter(Boolean);
       return ids.length ? `${fmtMDY(ids[0].split('|')[0])} ${ids.map(x=>x.split('|')[1]).join(' + ')}` : 'no crew'; }
@@ -11881,6 +12045,16 @@ function commitPlan(ops, {force=false, pastOk=false}={}){
 // ---------- move dialog ----------
 const mvdlg=document.getElementById('mvdlg');
 let mvRow=null, mvPastOk=null;
+/** PURE. The date the Move dialog starts on: `preset` (asked for), else
+ *  the selected date when it is a real date, else the date the stop was
+ *  last on (`was`, lastScheduledFrom), else '' (staff pick one). */
+function moveDlgPreset(preset, sel, was){
+  const isDate=v=>typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if(isDate(preset)) return preset;
+  if(isDate(sel)) return sel;
+  if(was && isDate(was.date)) return was.date;
+  return '';
+}
 function openMoveDlg(row,presetDate){
   if(roBlocked()) return;
   if(confirmed.has(row)){
@@ -11896,16 +12070,18 @@ function openMoveDlg(row,presetDate){
   // was built from staffed days, which hid 10 working dates -- including
   // the open days deliberately left in the schedule for exactly this.
   mvPastOk=null;
-  dsel.innerHTML=SPEC.calendar.map(ci=>{
+  // Which date starts picked (Comments #57): the one asked for, else the
+  // day on screen, else the date the stop was taken off. Never "the first
+  // date that works": from Not installing or an overview that was today,
+  // Crew 1, and an added stop landed on 11/25 instead of 12/1.
+  const want=moveDlgPreset(presetDate, selDate, lastScheduledFrom[row]);
+  dsel.innerHTML=`<option value="" disabled>Pick a date</option>` + SPEC.calendar.map(ci=>{
     const bl=dateBlockers(row, ci.date);
     const lab=`${fmtDate(ci.date)}${dateLabel(row, ci.date)}`;
     return `<option value="${ci.date}" ${bl.length?'disabled':''} `
-         + `${ci.date===(presetDate||selDate)&&!bl.length?'selected':''}>${lab}</option>`;
+         + `${ci.date===want&&!bl.length?'selected':''}>${lab}</option>`;
   }).join('');
-  if(dsel.selectedIndex<0 || dsel.options[dsel.selectedIndex].disabled){
-    const first=[...dsel.options].findIndex(o=>!o.disabled);
-    if(first>=0) dsel.selectedIndex=first;
-  }
+  if(dsel.selectedIndex<0 || dsel.options[dsel.selectedIndex].disabled) dsel.value='';
   // Split in two: rebuilding csel's <option> list resets its selection to
   // the browser default, so that rebuild must only run when the DATE
   // changes (the set of valid crews changed) -- never from csel's own
@@ -11960,6 +12136,8 @@ function openMoveDlg(row,presetDate){
     } else note.innerHTML='';
   };
   const fillCrews=()=>{ const dt=dsel.value;
+    if(!dt){ csel.innerHTML=''; document.getElementById('mvcrewinfo').innerHTML='';
+      document.getElementById('mvnote').innerHTML=''; return; }
     const existing=days.filter(d=>d.date===dt);
     // A crew can have two separate day-instances on the same date (a
     // stacked/overflow job added via the "add a crew" zone) -- disambiguate
@@ -12225,6 +12403,7 @@ function canAddCallback(row){
  *  for the client on `row`: the name is the client's, the address is theirs
  *  (no lookup), the type is Callback. */
 function ncSetCallback(row){
+  ncSetAddressMode(null);
   const b = row==null ? null : C[primaryRowOf(row)];
   ncCallbackOf = b ? b.row : null;
   const cb = ncCallbackOf!=null, name=document.getElementById('ncname');
@@ -12243,6 +12422,64 @@ function ncSetCallback(row){
   document.getElementById('ncnotes').placeholder = cb ? 'What this visit is for, e.g. reattach the mantel greenery' : 'Anything worth flagging';
   if(cb){ document.getElementById('ncmatch').hidden=true; }
 }
+// ---------- the dialog's change-address mode (Comments #57) ----------
+// An added stop's address is fixed on its own stop card: the same address
+// box (suggestions, rooftop lookup, live drive times) as + New client, and
+// the stop keeps its day, notes, hours and history. Before this, the only
+// way to fix an address was Not installing and adding it again.
+let ncAddrFor=null;
+function ncSetAddressMode(row){
+  ncAddrFor = row==null ? null : row;
+  const on=ncAddrFor!=null;
+  ncdlg.classList.toggle('addrmode', on);
+  ncdlg.querySelectorAll('.ncjob').forEach(el=>{ el.hidden=on; });
+  if(!on) return;
+  document.getElementById('nctitle').textContent='Change address';
+  const name=document.getElementById('ncname');
+  name.readOnly=true; name.value=stopName(row);
+  document.getElementById('ncmatch').hidden=true;
+  const at=document.getElementById('nccbat');
+  at.hidden=false;
+  at.textContent='Pick the new address. The stop keeps its day, crew, notes and hours; drive times are checked again.';
+  ['ncaddrlbl','ncaddr'].forEach(id=>{ document.getElementById(id).hidden=false; });
+  ['ncreasonlbl','ncreason','nctypelbl','nctype'].forEach(id=>{ document.getElementById(id).hidden=true; });
+  document.getElementById('ncgo').textContent='Look up & save';
+}
+/** Open "Change address" for the added stop on `row`. */
+function openAddressDialog(row){
+  if(roBlocked() || !canChangeAddress(C[row])) return;
+  ncSetCallback(null);
+  document.getElementById('ncerr').textContent='';
+  ncSetAddressMode(row);
+  document.getElementById('ncaddr').value=C[row].street||'';
+  ncAfterCreate=null;
+  ncdlg.showModal();
+  const a=document.getElementById('ncaddr'); a.focus(); a.select();
+}
+/** PURE. Whether this stop's address can be changed on the board: an added
+ *  stop (a spreadsheet client's address is edited on their card). */
+function canChangeAddress(c){ return !!(c && c.synthetic); }
+/** Move the added stop on `row` to a new address (`geo`: street, lat, lon),
+ *  with live drive legs when the router answers. Its return trips at the
+ *  old address move with it. One undo step; returns true if it changed. */
+async function changeStopAddress(row, geo){
+  if(roBlocked()) return false;
+  const c=C[row];
+  if(!canChangeAddress(c)) return false;
+  const legs=await fetchRealLegs(geo.lat, geo.lon);
+  const def={street:geo.street, lat:geo.lat, lon:geo.lon,
+             outRow:legs?legs.outRow:null, inCol:legs?legs.inCol:null};
+  const was={lat:c.lat, lon:c.lon};
+  pushUndo();
+  applySyntheticAddress(c, def);
+  Object.values(C).forEach(x=>{
+    if(x && x.synthetic && x.row!==c.row && +x.of===+c.row && x.lat===was.lat && x.lon===was.lon)
+      applySyntheticAddress(x, def);
+  });
+  moves.push({row, name:stopName(row), from:'', to:'ADDR:'+String(geo.street||'').slice(0,80)});
+  persist(); render();
+  return true;
+}
 /** Open the dialog as a callback visit for the client on `row`. */
 function openCallbackDialog(row){
   if(roBlocked() || !canAddCallback(row)) return;
@@ -12257,18 +12494,58 @@ function openCallbackDialog(row){
 }
 /** While a new client's name is typed: when it names a client already on
  *  the schedule, offer "Add a callback for <client>" instead. */
+/** PURE. The "+ New client" name matches (`rows`), split into the ones
+ *  taken out of the season (offer to bring that stop back, Comments #57) and
+ *  the ones a return trip can be added for. A not-installing stop never gets
+ *  a return trip offer: that made a second stop at the old address. */
+function ncMatchOffers(rows, notInst, canCb){
+  const back=[], trip=[];
+  (rows||[]).forEach(r=>{
+    if(notInst && notInst.has(r)) back.push(r);
+    else if(!canCb || canCb(r)) trip.push(r);
+  });
+  return {back, trip};
+}
+/** Bring the not-installing stop on `row` back from "+ New client": with
+ *  the address typed there when it is an added stop and the address is new,
+ *  then on to pick its date. */
+async function ncBringBack(row){
+  const err=document.getElementById('ncerr');
+  const addr=document.getElementById('ncaddr').value.trim();
+  const c=C[row];
+  if(syncBlocked){ err.textContent='This tab can\'t save right now. Reload or use the live schedule first.'; return; }
+  if(addr && canChangeAddress(c) && normName(addr)!==normName(c.street||'')){
+    err.textContent='Looking up the new address…';
+    try{
+      const geo=await geocodeAddress(addr);
+      if(!geo){ err.textContent='Couldn\'t find that address. Try adding city/state, or a more exact street match.'; return; }
+      await changeStopAddress(row, {street:addr, lat:geo.lat, lon:geo.lon});
+    }catch(e){ err.textContent='Address lookup failed (network error). Try again.'; return; }
+  }
+  err.textContent='';
+  ncdlg.close();
+  putBackOnSchedule(row);
+}
 function ncRenderMatches(){
   const box=document.getElementById('ncmatch');
-  if(ncCallbackOf!=null){ box.hidden=true; box.innerHTML=''; return; }
-  const rows=matchExistingClients(document.getElementById('ncname').value, C, 3).filter(canAddCallback);
-  if(!rows.length){ box.hidden=true; box.innerHTML=''; return; }
+  if(ncCallbackOf!=null || ncAddrFor!=null){ box.hidden=true; box.innerHTML=''; return; }
+  const found=matchExistingClients(document.getElementById('ncname').value, C, 3);
+  const {back, trip:rows}=ncMatchOffers(found, notInstalling, canAddCallback);
+  if(!rows.length && !back.length){ box.hidden=true; box.innerHTML=''; return; }
   box.hidden=false;
-  box.innerHTML=`<p>${rows.length===1?'This client is':'These clients are'} already on the schedule. For a return trip (a callback, bought more, a fix, unfinished), add it to the client so it stays on their card:</p>`
+  box.innerHTML=(back.length ? `<p>${back.length===1?'This one is':'These are'} on the Not installing list. Bring it back instead of adding it again${canEditHours()?' (a new address typed below is used for it)':''}:</p>`
+    + back.map(r=>{
+        const was=lastScheduledFrom[r];
+        return `<button type="button" data-backfor="${r}">Bring back ${esc(stopName(r))}`
+          + `<small>${esc(fullAddressOf(C[r]))}${was&&was.date?` · was ${esc(fmtDate(was.date))}`:''}</small></button>`;
+      }).join('') : '')
+    + (!rows.length ? '' : `<p>${rows.length===1?'This client is':'These clients are'} already on the schedule. For a return trip (a callback, bought more, a fix, unfinished), add it to the client so it stays on their card:</p>`
     + rows.map(r=>{
         const d=days.find(x=>x.stops.includes(r));
         return `<button type="button" data-cbfor="${r}">Add a return trip for ${esc(C[r].name)}`
           + `<small>${esc(fullAddressOf(C[r]))}${d?` · installing ${esc(fmtDate(d.date))}`:''}</small></button>`;
-      }).join('');
+      }).join(''));
+  box.querySelectorAll('[data-backfor]').forEach(b=>{ b.onclick=()=>{ ncBringBack(+b.dataset.backfor); }; });
   box.querySelectorAll('[data-cbfor]').forEach(b=>{ b.onclick=()=>{
     const keep={hours:document.getElementById('nchours').value, people:document.getElementById('ncpeople').value,
                 notes:document.getElementById('ncnotes').value};
@@ -12408,6 +12685,25 @@ document.getElementById('ncgo').onclick=async()=>{
   const err=document.getElementById('ncerr');
   const go=document.getElementById('ncgo');
   err.textContent='';
+  if(ncAddrFor!=null){
+    const row=ncAddrFor;
+    if(syncBlocked){ err.textContent='This tab can\'t save right now. Reload or use the live schedule first, then change the address.'; return; }
+    if(!addr){ err.textContent='Address is required.'; return; }
+    go.disabled=true; go.textContent='Looking up address…';
+    try{
+      const geo=await geocodeAddress(addr);
+      if(!geo){ err.textContent='Couldn\'t find that address. Try adding city/state, or a more exact street match.'; return; }
+      go.textContent='Checking drive times…';
+      await changeStopAddress(row, {street:addr, lat:geo.lat, lon:geo.lon});
+      ncdlg.close();
+      ncSetAddressMode(null);
+    }catch(e){
+      err.textContent='Address lookup failed (network error). Try again.';
+    }finally{
+      go.disabled=false; go.textContent=ncAddrFor!=null ? 'Look up & save' : 'Look up & add';
+    }
+    return;
+  }
   if(ncCallbackOf!=null){
     if(syncBlocked){ err.textContent='This tab can\'t save right now. Reload or use the live schedule first, then add the return trip.'; return; }
     const row=addCallbackVisit(ncCallbackOf, {hours, people, notes, reason:document.getElementById('ncreason').value});
@@ -12424,6 +12720,13 @@ document.getElementById('ncgo').onclick=async()=>{
   // row number someone else may take (how Comments #39's duplicate began).
   if(syncBlocked){ err.textContent='This tab can\'t save right now. Reload or use the live schedule first, then add the client.'; return; }
   if(!addr){ err.textContent='Address is required -- needed to place it on the map and check drive time.'; return; }
+  // The same name as a stop on the Not installing list: that stop, not a
+  // second copy of it (Comments #57).
+  const outSame=[...notInstalling].find(r=>C[r] && !isExtraVisit(C[r]) && normName(C[r].sheetName||C[r].name)===normName(name));
+  if(outSame!=null && confirm(`${C[outSame].name} is on the Not installing list.\n\nBring that stop back${canChangeAddress(C[outSame])?' with this address':''} instead of adding a second one?`)){
+    await ncBringBack(outSame);
+    return;
+  }
   go.disabled=true; go.textContent='Looking up address…';
   try{
     const geo = await geocodeAddress(addr);
@@ -15111,6 +15414,8 @@ function openStopPeek(row,dayId){
         ${hold.has(row)?pkChip('', 'On hold', 'hold'):''}
         <span id="pkalertchip">${alertChipHTML(row)}</span>
         ${canAddCallback(row)?`<button type="button" class="pkchip pkchip-btn" id="pkcallback" title="Add a return trip for this client: a callback, bought more, a fix or unfinished work">${IC.calday}<span>Return trip</span></button>`:''}
+        ${canChangeAddress(c) && canEditHours()?`<button type="button" class="pkchip pkchip-btn" id="pkaddr" title="Fix this added stop's address: looks it up and checks drive times again">${IC.pin}<span>Change address</span></button>`:''}
+        ${canDeleteStop(c) && canEditHours()?`<button type="button" class="pkchip pkchip-btn pkdel" id="pkdelete" title="Delete this added stop or return trip from the schedule">${IC.trash}<span>Delete stop</span></button>`:''}
       </div>
     </div>
     <div id="pkalert">${peekAlertHTML(row)}</div>
@@ -15134,6 +15439,10 @@ function openStopPeek(row,dayId){
   wireContactBlock(row);
   const cbb=document.getElementById('pkcallback');
   if(cbb) cbb.onclick=e=>{ e.stopPropagation(); peekdlg.close(); openCallbackDialog(row); };
+  const adb=document.getElementById('pkaddr');
+  if(adb) adb.onclick=e=>{ e.stopPropagation(); peekdlg.close(); openAddressDialog(row); };
+  const dlb=document.getElementById('pkdelete');
+  if(dlb) dlb.onclick=e=>{ e.stopPropagation(); if(deleteAddedStop(row)) peekdlg.close(); };
   wireProfileLink(row);
   wirePeekAlert(row);
   wirePeekDrive(row);
@@ -15260,7 +15569,7 @@ function openStopPeek(row,dayId){
     mv.disabled=false;
     mv.onclick=()=>{ peekdlg.close(); openMoveDlg(row, null); };
     openBtn.hidden=false;
-    openBtn.textContent='Find a date';
+    openBtn.textContent=notInstalling.has(row) ? 'Back on the schedule' : 'Find a date';
     openBtn.onclick=()=>{
       peekdlg.close();
       if(notInstalling.has(row)) putBackOnSchedule(row); else openSlotFinder(row);
@@ -21262,6 +21571,7 @@ function syncViewToolbar(){
   if(v!=='roster') closeDlPop();
   // TV mode is the wall calendar, so it lives on the Calendar.
   set('tvbtn', 'TV mode: show this calendar full screen on the studio TV', v==='cal');
+  // Today goes to a date in the day list; the Calendar has its own.
   // + New makes what the view lists.
   const nb=document.getElementById('newbtn');
   if(nb){

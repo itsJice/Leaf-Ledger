@@ -839,6 +839,165 @@ async def delete_client(client_name: str, request: Request, delete_projects: boo
         await conn.close()
 
 
+#: History a card keeps in client_activity (installs, seasons, comments). A
+#: card with any is merged, not deleted: deleting cascades it away.
+HISTORY_COUNT_SQL = "SELECT count(*) FROM client_activity WHERE client_id = $1"
+
+
+def _history_message(name: str, count: int) -> str:
+    return (f"{name} has {count} history record{'' if count == 1 else 's'} (seasons, installs or "
+            "comments). Merge it into the client it duplicates instead, so nothing is lost. "
+            "An admin can merge.")
+
+
+@router.delete("/{client_id}")
+async def delete_client_by_id(client_id: int, request: Request, delete_projects: bool = False):
+    """Delete one client card by id (Comments #50).
+
+    The old route took the NAME in the path, so a name with a slash in it
+    ("Grace Byrd (Lucas/Eilers Design Associates L.L.P)") never reached it:
+    the decoded slash split the path and the server answered 405, and the
+    Clients page only said "Failed to delete client". By id, any name works.
+    A card with history is refused (409) instead of silently cascading its
+    seasons away; the page offers Merge for that.
+    """
+    conn = await get_conn()
+    try:
+        async with conn.transaction():
+            name = await conn.fetchval("SELECT name FROM clients WHERE id = $1 FOR UPDATE", client_id)
+            if name is None:
+                raise HTTPException(status_code=404, detail="No client with that id")
+            history = int(await conn.fetchval(HISTORY_COUNT_SQL, client_id) or 0)
+            if history:
+                raise HTTPException(status_code=409, detail={
+                    "message": _history_message(name, history), "history": history, "name": name})
+            await conn.execute("DELETE FROM clients WHERE id = $1", client_id)
+            # Projects are kept by NAME on arrangements; a duplicate card that
+            # shares its name with no other card takes them with it (or leaves
+            # them unassigned), as the name route does.
+            others = await conn.fetchval(
+                "SELECT count(*) FROM clients WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))", name)
+            count = 0
+            if not others:
+                if delete_projects:
+                    status = await conn.execute(
+                        "DELETE FROM arrangements WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($1))",
+                        name)
+                else:
+                    status = await conn.execute(
+                        "UPDATE arrangements SET client_name = NULL, updated_at = NOW() "
+                        " WHERE LOWER(TRIM(COALESCE(client_name, ''))) = LOWER(TRIM($1))", name)
+                count = int(status.split()[-1]) if status else 0
+        if delete_projects:
+            return {"deleted": 1, "id": client_id, "projects_deleted": count, "projects_updated": 0}
+        return {"deleted": 1, "id": client_id, "projects_updated": count}
+    finally:
+        await conn.close()
+
+
+class MergeIn(BaseModel):
+    into_id: int
+
+
+#: Tables that point at a client by id and must follow a merge. Each runs in
+#: its own savepoint: an ll_app table a fresh database hasn't made yet is
+#: skipped, not an error.
+ID_MIRRORS = (
+    ("jobs", "UPDATE ll_app.jobs SET client_id = $1 WHERE client_id = $2"),
+    ("shift_notes", "UPDATE ll_app.shift_notes SET client_id = $1 WHERE client_id = $2"),
+    ("install_actuals", "UPDATE ll_app.install_actuals SET client_id = $1 WHERE client_id = $2"),
+)
+
+
+@router.post("/{client_id}/merge", dependencies=[Depends(require_role("admin"))])
+async def merge_client(client_id: int, body: MergeIn, request: Request):
+    """Merge a duplicate card into another client, then delete it (Comments
+    #50). Admin and up.
+
+    In one transaction: the duplicate's history moves to the kept client (a
+    season both have keeps the kept client's values and takes only what it
+    was missing from the duplicate), every table that keeps the name as text
+    is renamed to the kept client (NAME_MIRRORS), the ones keyed by id are
+    re-pointed, the duplicate's name joins the kept client's former names
+    (so the sheet sync and the scheduler still find it), blank contact
+    fields are filled from the duplicate, and the duplicate is deleted.
+    """
+    into_id = body.into_id
+    if into_id == client_id:
+        raise HTTPException(status_code=400, detail="Pick a different client to merge into")
+    conn = await get_conn()
+    try:
+        await ensure_schema(conn)
+        async with conn.transaction():
+            src = await conn.fetchrow(
+                "SELECT id, name, former_names FROM clients WHERE id = $1 FOR UPDATE", client_id)
+            dst = await conn.fetchrow(
+                "SELECT id, name, former_names FROM clients WHERE id = $1 FOR UPDATE", into_id)
+            if src is None:
+                raise HTTPException(status_code=404, detail="No client with that id")
+            if dst is None:
+                raise HTTPException(status_code=404, detail="The client to merge into no longer exists")
+            moved: dict = {}
+            # Seasons both cards have: the kept card's values win; it takes
+            # only the keys it lacks. Then the duplicate's row goes.
+            both = await conn.fetch(
+                "SELECT s.id AS src_id, d.id AS dst_id FROM client_activity s "
+                "  JOIN client_activity d ON d.client_id = $2 AND d.kind = s.kind AND d.season = s.season "
+                " WHERE s.client_id = $1 AND s.kind <> 'comment'",
+                client_id, into_id)
+            for r in both:
+                await conn.execute(
+                    "UPDATE client_activity d SET detail = COALESCE(s.detail, '{}'::jsonb) || COALESCE(d.detail, '{}'::jsonb), "
+                    "       updated_at = NOW() "
+                    "  FROM client_activity s WHERE d.id = $1 AND s.id = $2",
+                    r["dst_id"], r["src_id"])
+                await conn.execute("DELETE FROM client_activity WHERE id = $1", r["src_id"])
+            moved["seasons_combined"] = len(both)
+            status = await conn.execute(
+                "UPDATE client_activity SET client_id = $2, updated_at = NOW() WHERE client_id = $1",
+                client_id, into_id)
+            moved["history"] = int(status.split()[-1]) if status else 0
+            # Names first (they also match on the duplicate's id), then ids.
+            moved["renamed"] = await _rename_everywhere(conn, client_id, src["name"], dst["name"])
+            for key, sql in ID_MIRRORS:
+                try:
+                    async with conn.transaction():
+                        st = await conn.execute(sql, into_id, client_id)
+                    moved[key] = int(st.split()[-1]) if st else 0
+                except asyncpg.UndefinedTableError:
+                    moved[key] = 0
+            former = [n for n in [*(dst["former_names"] or []), src["name"], *(src["former_names"] or [])]
+                      if n and n.strip().lower() != (dst["name"] or "").strip().lower()]
+            former = list(dict.fromkeys(former))
+            # The kept card's blank contact fields are filled from the
+            # duplicate, in the same statement that deletes the duplicate.
+            row = await conn.fetchrow(
+                """
+                WITH gone AS (DELETE FROM clients WHERE id = $2
+                              RETURNING email, phone, street, city, state, zip)
+                UPDATE clients d SET
+                    former_names = $3::text[],
+                    email = COALESCE(NULLIF(d.email, ''), gone.email),
+                    phone = COALESCE(NULLIF(d.phone, ''), gone.phone),
+                    street = COALESCE(NULLIF(d.street, ''), gone.street),
+                    city = COALESCE(NULLIF(d.city, ''), gone.city),
+                    state = COALESCE(NULLIF(d.state, ''), gone.state),
+                    zip = COALESCE(NULLIF(d.zip, ''), gone.zip),
+                    updated_at = NOW()
+                  FROM gone
+                 WHERE d.id = $1
+                RETURNING d.id, d.name
+                """,
+                into_id, client_id, former,
+            )
+            if row is None:
+                raise HTTPException(status_code=409, detail="The duplicate changed while merging. Try again.")
+        return {"merged": True, "from_id": client_id, "from_name": src["name"],
+                "into_id": row["id"], "into_name": row["name"], "moved": moved}
+    finally:
+        await conn.close()
+
+
 class SeasonFieldsIn(BaseModel):
     """Per-season edits from the Clients tab. ``fields`` is {key: value} over
     the whitelist in app.libs.client_season.SEASON_FIELDS; a null or ""
