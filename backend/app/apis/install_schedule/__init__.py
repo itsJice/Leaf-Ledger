@@ -867,8 +867,9 @@ def is_stale_page(body: dict, published: tuple[datetime, bool] | None) -> bool:
 #: knew), so its save would erase the field for everyone. A save whose person
 #: has no such key at all keeps the stored value; pages that know the field
 #: always send the key (blank when cleared), so clearing still works.
-#: T-shirt size: Comments #26, 2026-11-05.
-LATER_PERSON_FIELDS = ("shirt",)
+#: T-shirt size: Comments #26, 2026-11-05. "Prefers WhatsApp" (the solid
+#: send button for that person): Comments #56, 2026-11-25.
+LATER_PERSON_FIELDS = ("shirt", "prefersWhatsApp")
 
 
 def _kept_titles(sent: dict, prior: dict) -> list | None:
