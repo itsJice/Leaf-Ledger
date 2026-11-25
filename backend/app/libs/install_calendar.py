@@ -239,7 +239,9 @@ def day_events(board: Board, day: dict, storing: Optional[set] = None,
     names = names or {}
 
     def name_of(row, fallback: str) -> str:
-        return names.get(row) or (board.clients.get(row) or {}).get("name") or fallback
+        from app.libs.schedule_board import visit_name
+        c = board.clients.get(row) or {}
+        return visit_name(names.get(row) or c.get("name") or fallback, c)
 
     # The emoji follows the positional number; the text carries the crew's
     # name when staff gave it one ("Lesly's crew (Crew 1)").
@@ -299,8 +301,12 @@ def norm_name(s) -> str:
 def storing_rows(board: Board, records: Iterable[tuple]) -> set:
     """Board rows storing with us, from ``(client name, storing)`` pairs --
     matched by name exactly as the tool's storingWithUs() does."""
+    from app.libs.schedule_board import is_extra_visit
     yes = {norm_name(name) for name, flag in records if flag is True}
-    return {row for row, c in board.clients.items() if norm_name(c.get("name")) in yes}
+    # A callback or takedown row shares its client's name; storing is about
+    # the main install's decor, not that visit.
+    return {row for row, c in board.clients.items()
+            if norm_name(c.get("name")) in yes and not is_extra_visit(c)}
 
 
 def name_aliases(clients: Iterable[dict]) -> dict:

@@ -45,6 +45,9 @@ export interface Actual {
   corrections: number;
   diffHours?: number | null;
   diffPct?: number | null;
+  /** Set when these times were saved under another crew-day that no longer
+   *  has this stop (it was moved): that crew's label, e.g. "Crew 2". */
+  savedUnder?: string | null;
 }
 
 export interface Stop {

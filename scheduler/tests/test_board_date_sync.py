@@ -114,7 +114,7 @@ def test_every_save_carries_date_moves_and_baselines_are_set():
 
 # ─── the export's notes column ───────────────────────────────────────────────
 
-NOTE_FNS = ["installNoteFor", "productionNoteFor", "exportNotesFor"]
+NOTE_FNS = ["cardNoteCleared", "installNoteFor", "productionNoteFor", "exportNotesFor"]
 
 
 @needs_node

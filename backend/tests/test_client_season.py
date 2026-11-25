@@ -108,3 +108,19 @@ def test_coerce_inventory_and_role_need():
     d = cs.apply_edits({}, {"role_need": {"leads": 1, "general": 4}, "drive_min_out": "25.5"}, when="T")
     assert d == {"role_need": {"leads": 1, "general": 4}, "drive_min_out": 25.5,
                  "app_edits": {"role_need": "T", "drive_min_out": "T"}}
+
+
+def test_clearing_a_note_keeps_it_cleared(monkeypatch):
+    """Comment #45: a cleared install note used to drop its key and stamp, so
+    the next sheet sync (and the schedule's baked note) brought it back."""
+    monkeypatch.setattr(cs, "now_iso", lambda: "T")
+    d = cs.apply_edits({"notes": "New 2026 client. Historically a full-day job", "boxes": 4},
+                       {"notes": None, "production_notes": ""})
+    assert d["notes"] == "" and d["production_notes"] == ""
+    assert d["app_edits"] == {"notes": "T", "production_notes": "T"}
+    # The sheet sync keeps the person's empty note.
+    out = cs.merge_sheet_detail(d, {"notes": "New 2026 client. Historically a full-day job", "boxes": 4})
+    assert out["notes"] == "" and out["production_notes"] == ""
+    # Typing a note again works as before.
+    d = cs.apply_edits(d, {"notes": "Gate code at the side door"})
+    assert d["notes"] == "Gate code at the side door"

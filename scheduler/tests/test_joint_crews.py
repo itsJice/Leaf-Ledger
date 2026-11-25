@@ -18,7 +18,7 @@ from test_client_name_editor import TEMPLATE, js_function, run_js
 NODE = shutil.which("node")
 pytestmark = pytest.mark.skipif(NODE is None, reason="node not installed")
 
-FNS = ("dynamicJoints", "jointShares", "jointN", "effH", "crewDaysOf", "jointCrewChoices",
+FNS = ("isCallbackVisit", "visitSuffix", "stopName", "dynamicJoints", "jointShares", "jointN", "effH", "crewDaysOf", "jointCrewChoices",
        "jointRemoveBlock", "crewsLogId", "clearLoadSplit", "addJointCrew", "removeJointCrew",
        "peekCrewsHTML", "spareCrewOn", "isCrewName", "byCrew", "crewLabel", "withLoadStop",
        "stopShares", "dayNeed")

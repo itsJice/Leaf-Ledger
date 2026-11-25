@@ -239,7 +239,7 @@ def test_submit_saves_scrubbed_context(fake_db, fake_request, fake_user):
     import json
     fake_db.on_fetchrow("INSERT INTO ll_app.feature_requests", {"id": 43})
     trail = [{"type": "page", "page": "/clients?client=Allums"}] + \
-            [{"type": "click", "label": f"Button {i}"} for i in range(60)]
+            [{"type": "click", "label": f"Button {i}"} for i in range(feedback.MAX_CONTEXT_STEPS + 10)]
     body = feedback.FeedbackIn(message="It didn't save", context={
         "trail": trail,
         "device": {"screen": "390x844", "token": JWT, "build": "index-abc.js"},
@@ -250,13 +250,14 @@ def test_submit_saves_scrubbed_context(fake_db, fake_request, fake_user):
     (_, args), = fake_db.calls("INSERT INTO ll_app.feature_requests")
     ctx = json.loads(args[-1])
     assert set(ctx) == {"trail", "device", "error_ids"}
-    assert len(ctx["trail"]) == 50 and ctx["trail"][-1]["label"] == "Button 59"
+    assert len(ctx["trail"]) == feedback.MAX_CONTEXT_STEPS == 100
+    assert ctx["trail"][-1]["label"] == f"Button {feedback.MAX_CONTEXT_STEPS + 9}"
     assert ctx["device"] == {"screen": "390x844", "token": "[hidden]", "build": "index-abc.js"}
     assert ctx["error_ids"] == [5, 6]
 
 
 def test_context_is_capped():
-    big = [{"type": "click", "label": "x " * 140} for _ in range(50)]
+    big = [{"type": "click", "label": "x " * 140} for _ in range(feedback.MAX_CONTEXT_STEPS)]
     out = feedback.clean_context({"trail": big})
     assert len(out) <= feedback.MAX_CONTEXT_BYTES
 

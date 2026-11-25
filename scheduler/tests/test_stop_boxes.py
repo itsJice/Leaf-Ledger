@@ -17,7 +17,7 @@ from test_load_list import NODE
 
 needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
-FNS = ["parseBoxes", "cardBoxesFor", "loadBoxesFor", "stopBoxes", "stopBoxesTxt", "dayBoxes"]
+FNS = ["parseBoxes", "isCallbackVisit", "cardBoxesFor", "loadBoxesFor", "stopBoxes", "stopBoxesTxt", "dayBoxes"]
 
 C = {
     "1": {"name": "Test Cantina Uptown", "boxes": "6"},

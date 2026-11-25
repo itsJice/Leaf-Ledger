@@ -124,6 +124,13 @@ header h1 svg{color:var(--brand)}
 .stop{display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f5f5f4;cursor:grab;background:var(--surface)}
 @media (hover:hover){ .stop:hover{background:#fafaf9} }
 .stop:active{cursor:grabbing}
+/* A stop row is a button, not text to select (Comments #34). A stop that can
+   be dragged gets this from WebKit already; a locked (date confirmed) or
+   read-only one is draggable=false, so its text stayed selectable, and iOS
+   Safari read every tap on it as the start of a text selection and dropped
+   the click: the card never opened, so the address could not be seen or
+   tapped until the stop was unlocked. */
+.stop,.calev,.agrow{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .numwrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
 .stop .num{width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
   font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:none;font-weight:700}
@@ -316,6 +323,20 @@ dialog:modal.dlgmore:not([id=stfdlg])>.btns:last-child{box-shadow:0 -1px 0 var(-
 .ncsuggest div:hover,.ncsuggest div.on{background:var(--brand-soft)}
 .ncsuggest .zip{color:var(--mut)}
 .ncerr{font-size:11.5px;color:var(--warn-ink);margin-top:2px;min-height:14px}
+/* "+ New client" offering a callback for a client already on the schedule,
+   and the dialog's callback mode (11/2026, Nicole). */
+.ncmatch{border:1px solid #f0d9a8;background:#fffaf0;border-radius:8px;padding:8px 10px;margin:4px 0 2px;font-size:12.5px;color:#7c5a12}
+.ncmatch p{margin:0 0 6px}
+.ncmatch button{display:block;width:100%;text-align:left;margin-top:4px;padding:8px 10px;border-radius:7px;border:1.5px solid var(--brand);
+  background:#fff;color:var(--brand);font:inherit;font-weight:600;cursor:pointer;min-height:40px}
+.ncmatch button small{display:block;font-weight:400;color:var(--mut);font-size:11.5px}
+@media (hover:hover){ .ncmatch button:hover{background:var(--brand);color:#fff} .ncmatch button:hover small{color:#e8f0e9} }
+.nccbat{font-size:12.5px;color:var(--mut);margin:2px 0 4px}
+#ncdlg.cbmode #ncname{background:#f6f5f1;color:var(--ink)}
+.srcb{flex:none;margin-left:8px;padding:4px 9px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--brand);
+  font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;min-height:30px}
+@media (hover:hover){ .srcb:hover{border-color:var(--brand)} }
+body.readonly .srcb,body.viewonly .srcb,body.readonly #pkcallback,body.viewonly #pkcallback{display:none}
 #histdlg{max-width:440px}
 .histsub{font-size:11.5px;color:var(--mut);margin:2px 0 10px}
 #histbody{max-height:56vh;overflow-y:auto;padding-right:2px}
@@ -3320,8 +3341,8 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 </dialog>
 <dialog id="mvdlg">
   <b id="mvtitle">Move stop</b>
-  <select id="mvdate"></select>
-  <select id="mvcrew"></select>
+  <select id="mvdate" aria-label="Date"></select>
+  <select id="mvcrew" aria-label="Crew"></select>
   <div id="mvcrewinfo"></div>
   <div id="mvnote"></div>
   <div class="btns"><button onclick="mvdlg.close()">Cancel</button>
@@ -3331,7 +3352,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <b id="rrtitle">Move or swap a day</b>
   <p id="rrsub" class="rrsub"></p>
   <label class="rrlab" for="rrdate">To</label>
-  <select id="rrdate"></select>
+  <select id="rrdate" aria-label="Date"></select>
   <div id="rropts"></div>
   <div class="btns"><button type="button" id="rrcancel">Cancel</button></div>
 </dialog>
@@ -3343,7 +3364,7 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 <dialog id="sfdlg">
   <b id="sftitle">Find a new date</b>
   <label id="sflab">Client asked for</label>
-  <select id="sfwant"></select>
+  <select id="sfwant" aria-label="Wanted date"></select>
   <div id="sfbody"></div>
   <div class="btns sfbtns">
     <button type="button" id="sfout" class="sfoutbtn" title="Take them out of this season — off every crew sheet and day count">Move to Not installing __SEASON__</button>
@@ -3351,22 +3372,32 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
     <button onclick="sfdlg.close()">Close</button></div>
 </dialog>
 <dialog id="ncdlg">
-  <b>New client / job</b>
+  <b id="nctitle">New client / job</b>
   <!-- Not a contact form: Safari/iOS AutoFill read the bare "Name" label and
        blanked or overwrote the client name when the address took a contact
        suggestion (Cynthia, 2026-10-30). No "name"/"address" in labels or name
        attrs, "search" in the name attr (WebKit skips search fields), and the
        password-manager ignore hints. -->
   <label class="nclabel">Client or restaurant</label>
-  <input id="ncname" name="nc_client_search" type="text" placeholder="e.g. Client X - Reinstall, or Client Y - Callback" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore>
-  <label class="nclabel">Address</label>
+  <input id="ncname" name="nc_client_search" type="text" placeholder="e.g. Client X - Reinstall" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore>
+  <div id="ncmatch" class="ncmatch" hidden></div>
+  <p id="nccbat" class="nccbat" hidden></p>
+  <label class="nclabel" id="ncaddrlbl">Address</label>
   <input id="ncaddr" name="nc_site_search" type="text" placeholder="Start typing the street, then pick a match to fill city, state and ZIP" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore>
   <div id="ncsuggest" class="ncsuggest" hidden></div>
   <label class="nclabel">Est. install time (hours)</label>
   <input id="nchours" type="number" step="0.25" min="0" value="1">
   <label class="nclabel">Crew size (people, optional)</label>
   <input id="ncpeople" type="number" step="1" min="0" placeholder="e.g. 5">
-  <label class="nclabel">Type</label>
+  <label class="nclabel" id="ncreasonlbl" hidden>Why we're going back</label>
+  <select id="ncreason" hidden>
+    <option value="callback">Callback</option>
+    <option value="bought_more">Bought more</option>
+    <option value="fix">Fix / repair</option>
+    <option value="unfinished">Unfinished</option>
+    <option value="other">Other</option>
+  </select>
+  <label class="nclabel" id="nctypelbl">Type</label>
   <select id="nctype">
     <option value="Standard">Standard</option>
     <option value="Install">Install</option>
@@ -3787,15 +3818,18 @@ function classifyBusiness(name){
   return personPattern ? 'Residence' : 'Business';
 }
 function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visitType, notes,
-                                  people, row, outRow, inCol}){
+                                  people, row, outRow, inCol, of, business, returnReason}){
   const r = row!=null ? row : nextSyntheticRow++;
   const idx = extendMatrix(lat, lon, outRow||null, inCol||null);
+  // A callback visit (`of` = its client's row) shows its client's phone,
+  // email, city and area: it is the same client at the same address.
+  const base = (of!=null && C[of]) ? C[of] : null;
   C[r] = {
-    row:r, name, street:street||'', city:city||'', st:'TX', zip:zip||'',
-    phone:'', email:'', storage:'', boxes:'',
+    row:r, name, street:street||'', city:city||(base&&base.city)||'', st:(base&&base.st)||'TX', zip:zip||(base&&base.zip)||'',
+    phone:(base&&base.phone)||'', email:(base&&base.email)||'', storage:'', boxes:'',
     d24:'', d25:'', real25:null, crew25:'', size25:null, people:(people!=null?people:null),
-    h26:hours, basis:'manual entry', zone:city||'', area:'',
-    cat:'Standard', bus:classifyBusiness(name), lat, lon,
+    h26:hours, basis:'manual entry', zone:(base&&base.zone)||city||'', area:(base&&base.area)||'',
+    cat:'Standard', bus:(base&&base.bus)||classifyBusiness(name), lat, lon,
     // Real OSRM legs -> treat like a normal street-geocoded client (no
     // "approx pin" flag); estimate-only -> flag it so staff know to
     // sanity-check drive time if it matters for this one.
@@ -3808,6 +3842,8 @@ function addSyntheticClientSync({name, street, city, zip, lat, lon, hours, visit
     visitType: visitType||'Standard', synthetic:true,
     outRow: outRow||null, inCol: inCol||null,
   };
+  if(of!=null && of!=='' && Number.isFinite(+of)) C[r].of = +of;
+  if(returnReason) C[r].returnReason = String(returnReason);
   N[r] = idx;
   return r;
 }
@@ -5433,6 +5469,100 @@ function normRoleNeed(v){
 function roleSum(rn){ return rn ? CARD_ROLE_KEYS.reduce((a,k)=>a+(+rn[k]||0),0) : 0; }
 /** PURE. A takedown (or teardown) visit: the install card's numbers don't fit it. */
 function isTakedownVisit(c){ return /takedown|teardown/i.test((c && c.visitType) || ''); }
+// ---------- callback visits (bought more / fix / unfinished) ----------
+// Nicole (11/2026): "every time I add a new install for a callback, it is
+// adding an entirely new client". A callback was a brand-new client typed into
+// "+ New client" ("Jane Sample" next to the real "Sample, Jane"), so it
+// had no card, contact, links or notes of its own client. Now a callback is
+// added FROM the client (the stop card's "Callback visit", the find box, or
+// "+ New client" offering it when the name matches): an added stop under the
+// client's own name, visit type Callback, `of` = the client's row. Like a
+// takedown row, the shared name finds the client's card, contact, Drive links
+// and client page; it is shown as "<Client> - Callback", keeps its own hours,
+// crew size and note, and never moves the client's install date, hold or card
+// facts. Older callbacks typed as new clients keep working as they were.
+/** PURE. A callback visit (visit type Callback). */
+function isCallbackVisit(c){ return /^\s*callback\s*$/i.test((c && c.visitType) || ''); }
+/** PURE. A second visit to a client: a callback or an event takedown. Its
+ *  date, hold and card facts are not the client's own. */
+function isExtraVisit(c){ return isTakedownVisit(c) || isCallbackVisit(c); }
+/** Why a return trip goes back (the dialog's picker); '' = not given. */
+const RETURN_REASONS={callback:'Callback', bought_more:'Bought more', fix:'Fix', unfinished:'Unfinished', other:'Other'};
+/** PURE. A known return-trip reason key, else 'callback'. */
+function normReturnReason(v){ const k=String(v||'').trim().toLowerCase(); return RETURN_REASONS[k] ? k : 'callback'; }
+/** PURE. A stop's title suffix: " - Return trip (Fix)" for a return trip
+ *  linked to its client, " - Callback" for an older callback typed in as a
+ *  new client, else ''. */
+function visitSuffix(c){
+  if(!isCallbackVisit(c)) return '';
+  const nm=String((c && c.name)||'');
+  if(c.of!=null || c.returnReason) return /-\s*return trip/i.test(nm) ? '' : ` - Return trip (${RETURN_REASONS[normReturnReason(c.returnReason)]})`;
+  return /-\s*callback\s*$/i.test(nm) ? '' : ' - Callback';
+}
+/** How a stop is titled: "Sample, Jane - Callback" for a callback. */
+function stopName(r){ const c=C[r]; return c ? String(c.name||'')+visitSuffix(c) : ''; }
+/** The client's own row for a stop: a callback's `of` (when that row is
+ *  still here), else the row itself. */
+function primaryRowOf(r){
+  const c=C[r]; if(!c) return r;
+  if(c.of!=null && C[c.of]) return +c.of;
+  if(isExtraVisit(c)){
+    const k=normName(c.sheetName||c.name);
+    const main=Object.keys(C).find(x=>+x!==+r && C[x] && !isExtraVisit(C[x]) && normName(C[x].sheetName||C[x].name)===k);
+    if(main!=null) return +main;
+  }
+  return +r;
+}
+/** PURE. Words that only say what kind of visit a typed name is. */
+const VISIT_WORDS=new Set(['callback','call','back','reinstall','install','takedown','teardown','part','fix','visit','b']);
+/** PURE. The clients a typed "+ New client" name already names: every word
+ *  typed (visit words aside) starts a word of the client's name, in any order
+ *  ("Jane Sample" finds "Sample, Jane"). One row per client (its main
+ *  stop), extra visits and rows without an address left out, at most `max`. */
+function matchExistingClients(q, rows, max){
+  const words=normName(String(q||'').replace(/\s+-\s+.*$/, '')).replace(/[^a-z0-9' ]/g,' ').split(' ')
+    .filter(w=>w.length>=2 && !VISIT_WORDS.has(w));
+  if(!words.length || words.join('').length<3) return [];
+  const out=[], seen=new Set();
+  Object.keys(rows||{}).map(Number).sort((a,b)=>a-b).forEach(r=>{
+    const c=rows[r]; if(!c || isExtraVisit(c) || c.lat==null || c.lon==null) return;
+    const k=normName(c.sheetName||c.name); if(!k || seen.has(k)) return;
+    const toks=normName(c.name).replace(/[^a-z0-9' ]/g,' ').split(' ').filter(Boolean);
+    if(words.every(w=>toks.some(t=>t.startsWith(w)))){ seen.add(k); out.push(r); }
+  });
+  return out.slice(0, max||3);
+}
+/** PURE. Drive legs for a callback at its client's own address: the client's
+ *  row of the drive-time matrix (no lookup needed), else the client's saved
+ *  legs (an added client), else null (straight-line estimate). */
+function legsFromRow(c, idx, D, realCount){
+  if(c && Array.isArray(c.outRow) && Array.isArray(c.inCol)) return {outRow:c.outRow, inCol:c.inCol};
+  if(idx==null || !D || !D[idx]) return {outRow:null, inCol:null};
+  const outRow=[], inCol=[];
+  for(let i=0;i<realCount;i++){ outRow.push(D[idx][i]); inCol.push(D[i] ? D[i][idx] : null); }
+  return {outRow, inCol};
+}
+/** PURE. A client's address as one line ("100 Example St, Houston, TX 77005"). */
+function fullAddressOf(c){
+  if(!c) return '';
+  if(c.synthetic) return String(c.street||'');
+  return [c.street, c.city, [c.st, c.zip].filter(Boolean).join(' ')].filter(x=>String(x||'').trim()).join(', ');
+}
+/** Add a callback visit for the client on `baseRow`. Synchronous: the
+ *  address and drive legs are the client's own. Returns the new row, or null. */
+function addCallbackVisit(baseRow, {hours, people, notes, reason}={}){
+  if(roBlocked()) return null;
+  const b=C[primaryRowOf(baseRow)];
+  if(!b || b.lat==null || b.lon==null) return null;
+  const legs=legsFromRow(b, N[b.row], D, REAL_NODE_COUNT);
+  const r=addSyntheticClientSync({name:b.sheetName||b.name, of:b.row, street:fullAddressOf(b),
+    lat:b.lat, lon:b.lon, hours:validHours(hours)||1, visitType:'Callback', notes:notes||'',
+    people:people||null, business:b.bus, outRow:legs.outRow, inCol:legs.inCol,
+    returnReason:normReturnReason(reason)});
+  try{ applyLiveClientFields(); }catch(e){}
+  try{ applyHoursOverride(); }catch(e){}
+  return r;
+}
 /** PURE. A card box count: a whole number 0-999, else null. */
 function cardBoxes(v){
   if(v==null || v==='') return null;
@@ -5466,7 +5596,7 @@ function applyCardFactsTo(clients, facts){
     }
     if(c.cardBase){ c.roleNeed=c.cardBase.roleNeed; c.people=c.cardBase.people; c.boxes=c.cardBase.boxes; delete c.cardBase; }
     delete c.card;
-    if(isTakedownVisit(c)) return;
+    if(isExtraVisit(c)) return;
     for(const n of [c.name, c.sheetName]){
       const k=normName(n);
       if(!k || ambig.has(k)) continue;
@@ -5531,7 +5661,7 @@ function setStopHours(row, hours){
     if(next==null) delete hoursOverride[row]; else hoursOverride[row]=next;
     applyHoursOverride();
   }
-  moves.push({row, name:c.name, from:`HOURS:${fmtHrs(was)}`, to:`HOURS:${fmtHrs(c.h26)}`});
+  moves.push({row, name:stopName(row), from:`HOURS:${fmtHrs(was)}`, to:`HOURS:${fmtHrs(c.h26)}`});
   persist(); render();
   return true;
 }
@@ -5645,6 +5775,9 @@ function boardDatesByClient(dayList, cutoff, info){
     if(!d || d.training || !d.date) return;
     (d.stops||[]).forEach(r=>{
       const ci=info(r); if(!ci || !ci.key) return;
+      // A callback is an extra visit: it never moves the card's install or
+      // takedown date.
+      if(/^\s*callback\s*$/i.test(ci.visitType||'')) return;
       const kind = d.date>cutoff ? 'takedown'
                  : (/takedown/i.test(ci.visitType||'') ? null : 'install');
       if(!kind) return;
@@ -5727,7 +5860,7 @@ function sharedDocOf(st){
 const KNOWN_FIELDS={
   teams:['id','name','season','leadId','members','kitId','vanId','driverId','color'],
   roster:ROSTER_OWN_KEYS,
-  newClients:['row','name','street','lat','lon','hours','visitType','notes','people','business','outRow','inCol'],
+  newClients:['row','name','street','lat','lon','hours','visitType','notes','people','business','outRow','inCol','of','returnReason'],
 };
 const KNOWN_ID={teams:'id', roster:'id', newClients:'row'};
 /** PURE. `out` (a snapshot about to be saved) plus whatever in `raw` (the
@@ -6003,9 +6136,9 @@ function mergeShared(base, mine, theirs, label){
  *  visitType}}. */
 function extraVisitRow(row, rows){
   const c=rows[row];
-  if(!c || !/takedown/i.test(c.visitType||'')) return false;
+  if(!c || !isExtraVisit(c)) return false;
   const k=normName(c.sheetName||c.name);
-  return Object.keys(rows).some(r=>+r!==+row && rows[r] && !/takedown/i.test(rows[r].visitType||'')
+  return Object.keys(rows).some(r=>+r!==+row && rows[r] && !isExtraVisit(rows[r])
     && normName(rows[r].sheetName||rows[r].name)===k);
 }
 /** Whether a row's not-installing / hold mark is written to the client's
@@ -6019,7 +6152,8 @@ function snapshot(){
     {row:c.row, name:c.sheetName||c.name, street:c.street, lat:c.lat, lon:c.lon,
      hours:ownHours(c), visitType:c.visitType, notes:c.advice,
      people:ownPeople(c), business:c.bus,
-     outRow:c.outRow, inCol:c.inCol}));
+     outRow:c.outRow, inCol:c.inCol, ...(c.of!=null ? {of:c.of} : {}),
+     ...(c.returnReason ? {returnReason:c.returnReason} : {})}));
   // notInstalling holds scheduler row ids, which mean nothing outside this
   // page. The backend needs client identities to write the decision through to
   // client_activity -- Leaf & Ledger is the source of truth for whether a
@@ -6637,7 +6771,36 @@ function loadClientDirectory(){
   return clientDirectoryPromise;
 }
 function appClientFor(row){
-  return clientDirectory ? (clientDirectory.get(normName(C[row].name)) || null) : null;
+  if(!clientDirectory || !C[row]) return null;
+  const c=C[row];
+  const hit=clientDirectory.get(normName(c.name));
+  if(hit) return hit;
+  // A return trip is its client's: the client's own row finds the card.
+  if(c.of!=null && C[c.of] && +c.of!==+row) return appClientFor(+c.of);
+  // An added stop typed in under a reordered spelling ("Jane Sample" for
+  // "Sample, Jane") is that client too, when exactly one card has those
+  // words. Before, editing its card created a second, duplicate card.
+  return c.synthetic ? (tokenClientIndex().get(nameTokensKey(c.name)) || null) : null;
+}
+/** PURE. A name's words, sorted, without a " - Callback" style tail:
+ *  "Jane Sample - Callback" and "Sample, Jane" give the same key. */
+function nameTokensKey(name){
+  return normName(String(name||'').replace(/\s+-\s+.*$/, '')).replace(/[^a-z0-9' ]/g,' ')
+    .split(' ').filter(Boolean).sort().join(' ');
+}
+let _tokIdx=null, _tokIdxOf=null, _tokIdxN=-1;
+/** {sorted-words key: client record} over the Clients list; a key two
+ *  different cards share is left out. */
+function tokenClientIndex(){
+  if(_tokIdx && _tokIdxOf===clientDirectory && _tokIdxN===clientDirectory.size) return _tokIdx;
+  const idx=new Map(), dup=new Set();
+  new Set(clientDirectory.values()).forEach(rec=>{
+    const k=nameTokensKey(rec && rec.name); if(!k) return;
+    if(idx.has(k) && idx.get(k)!==rec) dup.add(k); else idx.set(k, rec);
+  });
+  dup.forEach(k=>idx.delete(k));
+  _tokIdx=idx; _tokIdxOf=clientDirectory; _tokIdxN=clientDirectory.size;
+  return idx;
 }
 // ---------- Google Drive folder links (from the client record) ----------
 // A client's Drive folder and photos folder live on the client record
@@ -6946,16 +7109,29 @@ function wireInstallNoteCounts(root){
     };
   });
 }
+/** PURE. A season card entry whose install note a person saved empty
+ *  (cleared): detail.notes is '' and app_edits stamps it. */
+function cardNoteCleared(en){
+  const d=en && en.detail;
+  return !!(d && typeof d.notes==='string' && !d.notes.trim()
+            && d.app_edits && typeof d.app_edits==='object' && d.app_edits.notes);
+}
 function installNoteFor(row){
   const ac=appClientFor(row), yr=String((SEASON[0]||'')).slice(0,4);
   // An added stop (a callback, "Part B") keeps its own note first: it says
   // something about that visit, and the card's note is for the client's
   // main install (Comment #38). Same rule as the server's install_note().
-  const own=+row>=900000 && C[row] && C[row].advice ? String(C[row].advice).trim() : '';
+  // Added means added on the board (synthetic): the build numbers its own
+  // new clients 900001+ too, and their baked note is the spreadsheet's,
+  // which the card's note replaces (Robishaw, Comment #45).
+  const own=C[row] && C[row].synthetic && C[row].advice ? String(C[row].advice).trim() : '';
   if(own) return {text:own, season:yr, live:false, own:true};
   const en=ac && (ac.activity||[]).find(a=>a.kind==='christmas_install' && String(a.season)===yr);
   const live=en && en.detail && typeof en.detail.notes==='string' ? en.detail.notes.trim() : '';
   if(live) return {text:live, season:yr, live:true};
+  // A note a person cleared on the card stays cleared: the spreadsheet's
+  // note baked into this build doesn't come back (Comment #45).
+  if(cardNoteCleared(en)) return null;
   const c=C[row];
   return c && c.advice ? {text:String(c.advice), season:yr, live:false} : null;
 }
@@ -8563,7 +8739,7 @@ function applyMove(row, toId, record=true){
   // can never disagree with the board.
   notInstalling.delete(row);
   if(record){
-    moves.push({row, name:C[row].name, from: from?from.id:null, to:to.id});
+    moves.push({row, name:stopName(row), from: from?from.id:null, to:to.id});
     persist();
   }
   days = days.filter(x=>x.stops.length>0 || x.id===toId);
@@ -8606,10 +8782,13 @@ function codeMsg(c){ return (SPEC.codes[c]||{}).msg || c; }
 // honouring an explicit client request -- Saturdays above all.
 function codeSoft(c){ return !!(SPEC.codes[c]||{}).soft; }
 function hardBlockers(row, date){ return staticBlockers(row,date).filter(c=>!codeSoft(c)); }
-// hardBlockers() alone doesn't know what day it is -- pastBlockers() is
-// defined further down (it needs todayISO/minAllowedDate). Combined here
-// so every date-legality check in one place includes both.
-function dateBlockers(row, date){ return hardBlockers(row,date).concat(pastBlockers(row,date)); }
+// Every date-legality check goes through here. A date that already passed
+// is NOT in it: that is a warning with a confirm (isPastDate, PAST in
+// checkPlan), not a block -- the office has to be able to record where a
+// stop really went after the day (Comments #43: Nicole could not move Michol
+// Ecklund from Crew 3 to Crew 1 on 11/18 once 11/18 had passed, and the
+// picker called it "Too early to move it there").
+function dateBlockers(row, date){ return hardBlockers(row,date); }
 // Suffix for a date option: a hard-blocker reason if the date is actually
 // disabled, else an informational note for the one day worth flagging even
 // though it's still workable (Thanksgiving) -- SOFT_CODES elsewhere stay
@@ -8618,6 +8797,7 @@ function dateBlockers(row, date){ return hardBlockers(row,date).concat(pastBlock
 function dateLabel(row, date){
   const bl = dateBlockers(row, date);
   if(bl.length) return ` — ${codeMsg(bl[0])}`;
+  if(isPastDate(date)) return ' (already passed)';
   const ci = SPEC.calendar.find(x=>x.date===date);
   // A standing commitment (e.g. HYROX) doesn't block the date -- staff can
   // still book it -- but it must be visible in the picker so nobody
@@ -8680,6 +8860,10 @@ function checkPlan(ops){
     if(confirmed.has(op.row))
       blockers.push({code:'CONFIRMED', msg:`${c.name}'s date is confirmed with `
         +`them — unlock it first (on their stop) if it needs to move`});
+    // A date that already passed: confirm, never block (isPastDate).
+    if(isPastDate(date))
+      warnings.push({code:'PAST', msg:`${c.name}: ${fmtDate(date)} already passed`,
+                     short:'this date already passed'});
     // static
     staticBlockers(op.row, date).forEach(code=>
       (codeSoft(code)?warnings:blockers).push(
@@ -8870,7 +9054,7 @@ function addJointCrew(row, toId){
   approved.delete(d.id); approved.delete(src.id);
   notInstalling.delete(row);
   clearLoadSplit(row);
-  moves.push({row, name:C[row].name, from:was, to:crewsLogId(row, date)});
+  moves.push({row, name:stopName(row), from:was, to:crewsLogId(row, date)});
   persist(); render();
   return true;
 }
@@ -8888,7 +9072,7 @@ function removeJointCrew(row, dayId){
   crewDaysOf(row, date, days).forEach(x=>approved.delete(x.id));
   approved.delete(d.id);
   clearLoadSplit(row);
-  moves.push({row, name:C[row].name, from:was, to:crewsLogId(row, date)});
+  moves.push({row, name:stopName(row), from:was, to:crewsLogId(row, date)});
   days=days.filter(x=>x.stops.length>0 || x.training);
   persist(); render();
   return true;
@@ -8993,6 +9177,8 @@ function findSlots(row, wantDate, limit=8){
   candidateSlots().forEach(s=>{
     if(src && s.id===src.id) return;
     if(dateBlockers(row, s.date).length) return;
+    // Never suggest a date that already passed; offer it only when asked for.
+    if(isPastDate(s.date) && s.date!==wantDate) return;
     const chk = checkPlan(planFor(row, s.id));
     if(!chk.ok) return;
     const dNew = chk.deltas[s.id]||{};
@@ -9253,24 +9439,13 @@ function addDaysISO(iso, n){
   dt.setUTCDate(dt.getUTCDate()+n);
   return dt.toISOString().slice(0,10);
 }
-/** Earliest date this client can legally move to.
- *
- * Ordinarily that's just today -- you cannot schedule an install into the
- * past. But if their CURRENT day already IS today, today is presumably
- * already in motion (the crew may be en route or on site), so the floor
- * steps to tomorrow instead. A client whose install already passed with no
- * action gets floored at today, same as anyone else -- there's no reason
- * to force the new date later than that. */
-function minAllowedDate(row){
-  const t=todayISO();
-  const src=days.find(d=>d.stops.includes(row));
-  return (src && src.date===t) ? addDaysISO(t,1) : t;
-}
-/** Only reason a date can be off the table independent of any client or
- * rule: it's before the floor above. */
-function pastBlockers(row, date){
-  return date < minAllowedDate(row) ? ['PAST'] : [];
-}
+/** A date before today (the browser's own day) already passed. Moving a
+ * stop onto one used to be a hard block worded "Too early to move it
+ * there"; anyone who can edit the board may now do it after a plain
+ * confirm (PAST_CONFIRM), so the board can record where a stop really went
+ * (Comments #43). Today itself has not passed. */
+function isPastDate(date){ return !!date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date < todayISO(); }
+const PAST_CONFIRM='This date already passed. Move anyway?';
 // row -> its circle marker on the Days map, so a click in the crew list can
 // centre the map on that stop and open its pop-up.
 var markerByRow = {};
@@ -9365,15 +9540,15 @@ function drawDate(date){
         fillColor:col,fillOpacity:.95,dashArray:approx?'3 3':null});
       // Just who and where (user, 2026-09-29) -- phone, hours, storage and
       // crew/stop live in the stop's card and its details panel.
-      mk.bindPopup(`<b>${c.name}</b><br>${c.street}, ${c.city} ${c.zip}`+
+      mk.bindPopup(`<b>${esc(stopName(r))}</b><br>${c.street}, ${c.city} ${c.zip}`+
         `${approx?'<br><i>approx pin</i>':''}`);
       if(!isOverview(date)){
-        mk.bindTooltip(`${i+1}. ${c.name}`,{permanent:true,direction:'right',
+        mk.bindTooltip(`${i+1}. ${esc(stopName(r))}`,{permanent:true,direction:'right',
           offset:[9,0],className:'name-label'});
       } else {
         const isHalf=(d.half||[]).includes(r);
         const estH=isHalf?effH(d,r).toFixed(1):c.h26;
-        mk.bindTooltip(`<b>${c.name}</b><br>${fmtDate(d.date)} · ${esc(crewTitle(d))}`+
+        mk.bindTooltip(`<b>${esc(stopName(r))}</b><br>${fmtDate(d.date)} · ${esc(crewTitle(d))}`+
           `<br>Est. time: ${estH}h · Box count: ${stopBoxes(r)??'—'}`,
           {direction:'top',offset:[0,-8]});
       }
@@ -9704,14 +9879,16 @@ function renderSearch(q){
   searchResults.innerHTML = (results.length ? results.map((r,i)=>{
     const d = days.find(x=>x.stops.includes(r.row));
     const where = (d ? `${fmtDate(d.date)} · ${esc(crewTitle(d))}` : 'not scheduled')
-      + (C[r.row].visitType && C[r.row].visitType!=='Standard' ? ` · ${esc(C[r.row].visitType)}` : '');
+      + (C[r.row].visitType && C[r.row].visitType!=='Standard' && !isCallbackVisit(C[r.row]) ? ` · ${esc(C[r.row].visitType)}` : '');
     // An address match shows the address under the name, so it's clear why
     // the row is there (Comments #29).
     const addr = r.by==='address' && r.addr
       ? `<span class="sraddr">${markRanges(r.addr, r.addrRanges, esc)}</span>` : '';
+    const cb = canAddCallback(r.row) && !isExtraVisit(C[r.row])
+      ? `<button type="button" class="srcb" data-cb="${r.row}" title="Add a return trip for this client: a callback, bought more, a fix or unfinished work">+ Return trip</button>` : '';
     return `<div class="srow" id="sr-${i}" role="option" aria-selected="false" data-row="${r.row}">
-      <span class="srmain"><span class="srname">${markRanges(r.name, r.nameRanges, esc)}</span>${addr}</span>
-      <span class="srwhere">${where}</span></div>`;
+      <span class="srmain"><span class="srname">${markRanges(r.name, r.nameRanges, esc)}${esc(visitSuffix(C[r.row]))}</span>${addr}</span>
+      <span class="srwhere">${where}</span>${cb}</div>`;
   }).join('') : `<div class="srnone">No client name or address matches "${esc(q.trim())}"</div>`) + searchAllRowHTML(q);
   searchResults.style.display='block';
   wireSearchRows();
@@ -9727,6 +9904,11 @@ function wireSearchRows(){
   searchResults.querySelectorAll('.srow').forEach(el=>{
     el.onclick=()=>{ jumpToClient(+el.dataset.row);
       searchBox.value=''; searchResults.style.display='none'; searchBox.blur(); };
+  });
+  searchResults.querySelectorAll('.srcb[data-cb]').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation();
+      searchBox.value=''; searchResults.style.display='none'; searchBox.blur();
+      openCallbackDialog(+b.dataset.cb); };
   });
   const all=searchResults.querySelector('.srall');
   if(all) all.onclick=()=>openSearchAll(searchBox.value);
@@ -10269,6 +10451,15 @@ function rearrangeBlockers(pairs){
   }));
   return [...new Set(out)];
 }
+/** True when a rearrange puts stops onto a date that already passed (a
+ *  confirm, not a block: see isPastDate). Same-date crew swaps count too,
+ *  like the move dialog: it is still editing a day that is over. */
+function rearrangeIntoPast(pairs){
+  return (pairs||[]).some(([a,b])=>[[a,b],[b,a]].some(([from,to])=>{
+    const d=days.find(x=>x.id===from);
+    return d && d.stops.length && isPastDate(String(to).split('|')[0]);
+  }));
+}
 /** Trade the stops of each [a, b] crew-day pair (b may not exist yet: that's
  *  a move onto a new crew). Each itinerary keeps its order. What belongs to
  *  the itinerary goes with it, as a whole-day move always did: its people,
@@ -10358,6 +10549,9 @@ function applyRearrange(opt){
     alert('Cannot make this change:\n\n'+bl.map(b=>'  • '+b).join('\n'));
     return false;
   }
+  if(rearrangeIntoPast(opt.pairs) && !DRAFT){
+    if(!confirm(PAST_CONFIRM)) return false;
+  }
   pushUndo();
   exchangeCrewDays(opt.pairs);
   persist(); render();
@@ -10437,8 +10631,9 @@ function renderRearrangeOpts(){
       +`<span class="rrt">${o.kind==='swap'?IC.swap:IC.calday}<span>${esc(lb.title)}</span></span>`
       +`<span class="rrs">${esc(lb.sub)}</span>`
       +(bad ? `<span class="rrb">${esc(pv.blockers[0])}${pv.blockers.length>1?` (and ${pv.blockers.length-1} more)`:''}</span>` : '')
+      +(rearrangeIntoPast(o.pairs) ? `<span class="rrw">${IC.alert}<span>This date already passed</span></span>` : '')
       +pv.warnings.map(w=>`<span class="rrw">${IC.alert}<span>${esc(w.msg)}</span></span>`).join('')
-      +(!bad && !pv.warnings.length ? `<span class="rrok">${IC.check}<span>No new warnings</span></span>` : '')
+      +(!bad && !pv.warnings.length && !rearrangeIntoPast(o.pairs) ? `<span class="rrok">${IC.check}<span>No new warnings</span></span>` : '')
       +`</button>`;
   }).join('');
   box.querySelectorAll('.rropt').forEach(b=>b.onclick=()=>{
@@ -10593,7 +10788,7 @@ function markNotInstalling(row){
   // someone back on that same date.
   if(cur) lastScheduledFrom[row] = {date:cur.date, crew:cur.crew};
   else delete lastScheduledFrom[row];
-  moves.push({row, name:C[row].name, from: cur?cur.id:'', to:'NOINSTALL'});
+  moves.push({row, name:stopName(row), from: cur?cur.id:'', to:'NOINSTALL'});
   persist(); render();
 }
 /** Undo the above. They come back UNSCHEDULED -- there's no sensible day to
@@ -10604,7 +10799,7 @@ function putBackOnSchedule(row){
   pushUndo();
   notInstalling.delete(row);
   delete lastScheduledFrom[row];   // stale once they're back on the board
-  moves.push({row, name:C[row].name, from:'NOINSTALL', to:''});
+  moves.push({row, name:stopName(row), from:'NOINSTALL', to:''});
   persist(); render();
   openSlotFinder(row);
 }
@@ -10620,7 +10815,7 @@ function setStopPin(row, pos){
   pushUndo();
   if(pos && PIN_LABEL[pos]) stopPin[row]=pos; else delete stopPin[row];
   const d=days.find(x=>x.stops.includes(row));
-  moves.push({row, name:C[row].name, from: d?d.id:'', to: pos ? `LOCK:${pos}` : 'LOCK:any'});
+  moves.push({row, name:stopName(row), from: d?d.id:'', to: pos ? `LOCK:${pos}` : 'LOCK:any'});
   persist(); render();
 }
 function toggleHold(row){
@@ -10630,10 +10825,10 @@ function toggleHold(row){
   const cur = days.find(d=>d.stops.includes(row));
   if(hold.has(row)){
     hold.delete(row);
-    moves.push({row, name:C[row].name, from:'HOLD', to: cur?cur.id:''});
+    moves.push({row, name:stopName(row), from:'HOLD', to: cur?cur.id:''});
   } else {
     hold.add(row);
-    moves.push({row, name:C[row].name, from: cur?cur.id:'', to:'HOLD'});
+    moves.push({row, name:stopName(row), from: cur?cur.id:'', to:'HOLD'});
   }
   persist(); render();
 }
@@ -11313,7 +11508,7 @@ function buildDayCard(d){
         <span class="num" style="background:${col}">${i+1}</span>
         <button type="button" class="ordbtn down" ${i===d.stops.length-1?'disabled':''} title="Move down one stop">${IC.chev}</button>
       </div>
-      <div class="body"><div class="nm">${c.name}${alertIconHTML(r)}
+      <div class="body"><div class="nm">${peekEsc(stopName(r))}${alertIconHTML(r)}
         ${isHalf?`<span class="badge joint" title="Worked together with ${esc(d.joint)}: ${effH(d,r).toFixed(1)}h each">${IC.link} ${jointN(d,r)} crews · with ${esc(d.joint)} · ${effH(d,r).toFixed(1)}h each</span>`:''}
         ${locked?'<span class="badge lock">deposited — date reserved</span>':''}
         ${isConfirmed?`<span class="badge confirm">${IC.lock} date confirmed</span>`:''}
@@ -11321,7 +11516,7 @@ function buildDayCard(d){
         ${installNoteChipHTML(r)}
         ${prefBadge(r)}${restrictBadge(r)}
         ${hold.has(r)?'<span class="badge hold">on hold</span>':''}
-        ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${c.visitType}</span>`:''}
+        ${c.visitType && c.visitType!=='Standard' && !isCallbackVisit(c)?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
         ${approx?'<span class="badge approx">approx pin</span>':''}</div>
       <div class="sub loc">${c.zone||''}</div>
       ${stopHoursHTML(d, r, [`${isHalf?effH(d,r).toFixed(1)+'h each':c.h26+'h'} ${stopKindWord(d, r)}`,
@@ -11482,9 +11677,9 @@ function renderNotInstalling(){
       const noMap = c.lat==null || c.lon==null;
       const approx = !noMap && !['street','manual','census'].includes(c.geo);
       const was=lastScheduledFrom[row];
-      el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
+      el.innerHTML=`<div class="body"><div class="nm">${esc(stopName(row))}${alertIconHTML(row)}
           <span class="badge niout">${esc(entry.badge)}</span>${installNoteChipHTML(row)}${prefBadge(row)}${restrictBadge(row)}
-          ${c.visitType && c.visitType!=='Standard'?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
+          ${c.visitType && c.visitType!=='Standard' && !isCallbackVisit(c)?`<span class="badge visittype">${esc(c.visitType)}</span>`:''}
           ${noMap?'<span class="badge approx">no address — not on the map</span>'
                  :(approx?'<span class="badge approx">approx pin</span>':'')}</div>
         ${was?`<div class="sub">Was scheduled <b>${esc(fmtDate(was.date))}</b>${was.crew?` · ${esc(was.crew)}`:''}</div>`:''}
@@ -11545,7 +11740,7 @@ function renderHold(){
     const c=C[row], d=days.find(x=>x.stops.includes(row));
     const el=document.createElement('div');
     el.className='stop nistop onhold'; el.dataset.row=row;
-    el.innerHTML=`<div class="body"><div class="nm">${esc(c.name)}${alertIconHTML(row)}
+    el.innerHTML=`<div class="body"><div class="nm">${esc(stopName(row))}${alertIconHTML(row)}
         <span class="badge hold">on hold</span>${installNoteChipHTML(row)}${prefBadge(row)}${restrictBadge(row)}</div>
       ${d?`<div class="sub">Scheduled <b>${esc(fmtDate(d.date))}</b> · ${esc(crewTitle(d))}</div>`
          :'<div class="sub">Not on any day</div>'}
@@ -11781,7 +11976,7 @@ function renderLog(){
 // Every user-initiated edit goes through here. Deliberately NOT inside
 // applyMove: loading saved state replays through applyMove and must not be
 // re-validated against intermediate states.
-function commitPlan(ops, {force=false}={}){
+function commitPlan(ops, {force=false, pastOk=false}={}){
   if(roBlocked()) return false;
   const chk = checkPlan(ops);
   if(chk.blockers.length && !force){
@@ -11789,10 +11984,17 @@ function commitPlan(ops, {force=false}={}){
       + chk.blockers.map(b=>'  • '+b.msg).join('\n'));
     return false;
   }
+  // A date that already passed gets its own plain question (Comments #43),
+  // asked once -- the move dialog asks it when the date is picked (pastOk).
+  const past = chk.warnings.filter(w=>w.code==='PAST');
+  const rest = chk.warnings.filter(w=>w.code!=='PAST');
+  if(past.length && !pastOk && !DRAFT){
+    if(!confirm(PAST_CONFIRM)) return false;
+  }
   // In a draft (Try changes) the warnings show live in the draft banner
   // instead of a pop-up on every move: trying things out should be free.
-  if(chk.warnings.length && !DRAFT && !confirm('Heads up:\n\n'
-      + chk.warnings.map(w=>'  • '+w.msg).join('\n')
+  if(rest.length && !DRAFT && !confirm('Heads up:\n\n'
+      + rest.map(w=>'  • '+w.msg).join('\n')
       + '\n\nMake the change anyway?')) return false;
   pushUndo();
   ops.forEach(o=>applyMove(o.row, o.to));
@@ -11802,7 +12004,7 @@ function commitPlan(ops, {force=false}={}){
 
 // ---------- move dialog ----------
 const mvdlg=document.getElementById('mvdlg');
-let mvRow=null;
+let mvRow=null, mvPastOk=null;
 function openMoveDlg(row,presetDate){
   if(roBlocked()) return;
   if(confirmed.has(row)){
@@ -11812,11 +12014,12 @@ function openMoveDlg(row,presetDate){
   }
   mvRow=row;
   const c=C[row];
-  document.getElementById('mvtitle').textContent='Move: '+c.name;
+  document.getElementById('mvtitle').textContent='Move: '+stopName(row);
   const dsel=document.getElementById('mvdate'), csel=document.getElementById('mvcrew');
   // Every LEGAL date, not just ones that already have crews. The old list
   // was built from staffed days, which hid 10 working dates -- including
   // the open days deliberately left in the schedule for exactly this.
+  mvPastOk=null;
   dsel.innerHTML=SPEC.calendar.map(ci=>{
     const bl=dateBlockers(row, ci.date);
     const lab=`${fmtDate(ci.date)}${dateLabel(row, ci.date)}`;
@@ -11909,13 +12112,23 @@ function openMoveDlg(row,presetDate){
     csel.innerHTML=opts.join('');
     renderCrewInfo();
   };
-  dsel.onchange=fillCrews; csel.onchange=renderCrewInfo; fillCrews();
+  // Picking a date that already passed asks once, then the Move button
+  // doesn't ask again (mvPastOk). No puts the previous date back.
+  let prevDate=dsel.value;
+  dsel.onchange=()=>{
+    if(isPastDate(dsel.value) && mvPastOk!==dsel.value){
+      if(!confirm(PAST_CONFIRM)){ dsel.value=prevDate; return; }
+      mvPastOk=dsel.value;
+    }
+    prevDate=dsel.value; fillCrews();
+  };
+  csel.onchange=renderCrewInfo; fillCrews();
   mvdlg.showModal();
 }
 document.getElementById('mvgo').onclick=()=>{
   const to=document.getElementById('mvcrew').value;
   if(!to) return;
-  if(commitPlan(planFor(mvRow, to))) mvdlg.close();
+  if(commitPlan(planFor(mvRow, to), {pastOk: !!mvPastOk && to.split('|')[0]===mvPastOk})) mvdlg.close();
 };
 
 // ---------- new client / manual stop ----------
@@ -12114,14 +12327,83 @@ document.getElementById('ndgo').onclick=()=>{
 
 document.getElementById('newclientbtn').onclick=()=>{
   if(roBlocked()) return;
+  ncSetCallback(null);
   ['ncname','ncaddr','ncnotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nchours').value='1';
   document.getElementById('ncpeople').value='';
   document.getElementById('nctype').value='Standard';
   document.getElementById('ncerr').textContent='';
+  ncRenderMatches();
   ncAfterCreate=null;
   ncdlg.showModal();
 };
+// ---------- the dialog's callback mode ----------
+// The row a callback is being added for, or null (a new client / job).
+let ncCallbackOf=null;
+/** Whether this login can add a callback for the client on `row`. */
+function canAddCallback(row){
+  const c=C[primaryRowOf(row)];
+  return !!(c && c.lat!=null && c.lon!=null && canEditHours());
+}
+/** Switch "+ New client" between a new client (null) and a callback visit
+ *  for the client on `row`: the name is the client's, the address is theirs
+ *  (no lookup), the type is Callback. */
+function ncSetCallback(row){
+  const b = row==null ? null : C[primaryRowOf(row)];
+  ncCallbackOf = b ? b.row : null;
+  const cb = ncCallbackOf!=null, name=document.getElementById('ncname');
+  ncdlg.classList.toggle('cbmode', cb);
+  document.getElementById('nctitle').textContent = cb ? 'Return trip' : 'New client / job';
+  name.readOnly = cb;
+  if(cb) name.value = b.name+' - Return trip';
+  const at=document.getElementById('nccbat');
+  at.hidden=!cb;
+  at.textContent = cb ? `Same client, same address: ${fullAddressOf(b)}. Their card, contact and notes stay with them.` : '';
+  ['ncaddrlbl','ncaddr','nctypelbl','nctype'].forEach(id=>{ document.getElementById(id).hidden=cb; });
+  ['ncreasonlbl','ncreason'].forEach(id=>{ document.getElementById(id).hidden=!cb; });
+  if(cb) document.getElementById('ncreason').value='callback';
+  if(cb) document.getElementById('nctype').value='Callback';
+  document.getElementById('ncgo').textContent = cb ? 'Add return trip' : 'Look up & add';
+  document.getElementById('ncnotes').placeholder = cb ? 'What this visit is for, e.g. reattach the mantel greenery' : 'Anything worth flagging';
+  if(cb){ document.getElementById('ncmatch').hidden=true; }
+}
+/** Open the dialog as a callback visit for the client on `row`. */
+function openCallbackDialog(row){
+  if(roBlocked() || !canAddCallback(row)) return;
+  ['ncaddr','ncnotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nchours').value='1';
+  document.getElementById('ncpeople').value='';
+  document.getElementById('ncerr').textContent='';
+  ncSetCallback(row);
+  ncAfterCreate=null;
+  ncdlg.showModal();
+  document.getElementById('nchours').focus();
+}
+/** While a new client's name is typed: when it names a client already on
+ *  the schedule, offer "Add a callback for <client>" instead. */
+function ncRenderMatches(){
+  const box=document.getElementById('ncmatch');
+  if(ncCallbackOf!=null){ box.hidden=true; box.innerHTML=''; return; }
+  const rows=matchExistingClients(document.getElementById('ncname').value, C, 3).filter(canAddCallback);
+  if(!rows.length){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false;
+  box.innerHTML=`<p>${rows.length===1?'This client is':'These clients are'} already on the schedule. For a return trip (a callback, bought more, a fix, unfinished), add it to the client so it stays on their card:</p>`
+    + rows.map(r=>{
+        const d=days.find(x=>x.stops.includes(r));
+        return `<button type="button" data-cbfor="${r}">Add a return trip for ${esc(C[r].name)}`
+          + `<small>${esc(fullAddressOf(C[r]))}${d?` · installing ${esc(fmtDate(d.date))}`:''}</small></button>`;
+      }).join('');
+  box.querySelectorAll('[data-cbfor]').forEach(b=>{ b.onclick=()=>{
+    const keep={hours:document.getElementById('nchours').value, people:document.getElementById('ncpeople').value,
+                notes:document.getElementById('ncnotes').value};
+    ncSetCallback(+b.dataset.cbfor);
+    document.getElementById('nchours').value=keep.hours||'1';
+    document.getElementById('ncpeople').value=keep.people||'';
+    document.getElementById('ncnotes').value=keep.notes||'';
+    document.getElementById('nchours').focus();
+  }; });
+}
+document.getElementById('ncname').addEventListener('input', ncRenderMatches);
 /** Put a spreadsheet-excluded client (dropped, or missing an address) back
  * on the schedule. They never got a row in C -- no hours estimate, no
  * geometry -- so this runs them through the exact same "new client" flow
@@ -12132,6 +12414,7 @@ document.getElementById('newclientbtn').onclick=()=>{
  * existing day to reason about. */
 function openPutBackDialog(name, addr){
   if(roBlocked()) return;
+  ncSetCallback(null);
   document.getElementById('ncname').value=name||'';
   document.getElementById('ncaddr').value=addr||'';
   document.getElementById('ncnotes').value='';
@@ -12140,6 +12423,7 @@ function openPutBackDialog(name, addr){
   document.getElementById('nctype').value='Standard';
   document.getElementById('ncerr').textContent='';
   ncAfterCreate=row=>openSlotFinder(row);
+  ncRenderMatches();
   ncdlg.showModal();
 }
 // ---------- address suggestions while typing (Photon / OpenStreetMap) ----------
@@ -12248,6 +12532,17 @@ document.getElementById('ncgo').onclick=async()=>{
   const err=document.getElementById('ncerr');
   const go=document.getElementById('ncgo');
   err.textContent='';
+  if(ncCallbackOf!=null){
+    if(syncBlocked){ err.textContent='This tab can\'t save right now. Reload or use the live schedule first, then add the return trip.'; return; }
+    const row=addCallbackVisit(ncCallbackOf, {hours, people, notes, reason:document.getElementById('ncreason').value});
+    if(row==null){ err.textContent='Couldn\'t add the return trip: this client has no address on the map.'; return; }
+    persist();
+    ncdlg.close();
+    ncSetCallback(null);
+    (ncAfterCreate || (r=>openMoveDlg(r, null)))(row);
+    ncAfterCreate=null;
+    return;
+  }
   if(!name){ err.textContent='Name is required.'; return; }
   // A tab that can't save would keep the client on this computer only, at a
   // row number someone else may take (how Comments #39's duplicate began).
@@ -12850,7 +13145,8 @@ function exportNotebook(){
     {row:c.row, name:c.name, street:c.street, lat:c.lat, lon:c.lon,
      hours:ownHours(c), visitType:c.visitType, notes:c.advice,
      people:ownPeople(c), business:c.bus,
-     outRow:c.outRow, inCol:c.inCol}));
+     outRow:c.outRow, inCol:c.inCol, ...(c.of!=null ? {of:c.of} : {}),
+     ...(c.returnReason ? {returnReason:c.returnReason} : {})}));
   const out = {
     kind: 'tbdg-install-overrides',
     version: SPEC.version,
@@ -13541,14 +13837,14 @@ let pkEditingHours=false;
  *  visits matched to the same client record (a takedown visit never is). */
 function cardTwinRows(row){
   const ac=appClientFor(row); if(!ac) return [];
-  return Object.keys(C).filter(r=>C[r] && !isTakedownVisit(C[r]) && appClientFor(+r)===ac).map(Number);
+  return Object.keys(C).filter(r=>C[r] && !isExtraVisit(C[r]) && appClientFor(+r)===ac).map(Number);
 }
 /** Staff, signed in, on an install stop that is its client card's only
  *  stop: "This job" edits the card's hours, boxes and people (Comment #28).
  *  Everywhere else it edits the hours on the board only, as before. */
 function canEditCardFacts(row){
   const c=C[row];
-  return !!(c && AUTH && canEditHours() && !isTakedownVisit(c) && cardTwinRows(row).length===1);
+  return !!(c && AUTH && canEditHours() && !isExtraVisit(c) && cardTwinRows(row).length===1);
 }
 const CARD_ROLE_LABELS=[['leads','Leads'],['specialty','Specialty'],['designer','Designers'],['general','General']];
 /** The This job editor for a stop with a client card: hours, boxes and the
@@ -13830,7 +14126,11 @@ function wirePeekInstallNote(row){
     // A spreadsheet note shown on a card stop counts as unchanged when kept
     // as is: saving it untouched shouldn't copy it onto the card.
     const shown=n ? n.text : '';
-    const change=installNoteChange(was, inp.value);
+    let change=installNoteChange(was, inp.value);
+    // Emptying the spreadsheet's note on a card stop clears it on the card
+    // (kept as an empty note, so it stays gone, Comment #45). Before, nothing
+    // was sent, since the card itself had no note to change.
+    if(target==='card' && n && !n.live && !String(inp.value).trim()) change=null;
     if(change===undefined || (target==='card' && !(n && n.live) && String(inp.value).trim()===shown.trim())){
       pkEditingInst=false; redraw(); return;
     }
@@ -14479,6 +14779,10 @@ function wireContactBlock(row){
         if(!r.ok) throw await fail('client', r);
         entry=await r.json();
       } else {
+        // A return trip or takedown row is a visit, never a client of its
+        // own: don't make a second card for it (the duplicates of 11/2026).
+        if(isExtraVisit(C[row])) throw Object.assign(new Error('visit'), {step:'client', status:400,
+          detail:'This stop is a visit for a client who has no card yet. Open the client\'s own stop to make their card'});
         // Not synced into the app yet -- creating it here is what makes
         // editing work regardless of sync state, not just for clients
         // sync_clients.py already knows about.
@@ -14584,6 +14888,9 @@ function notInstallReason(row){
 let ACTUALS=null;            // Map "dayId|row" -> latest actual; null until loaded
 let actualsAt=0;             // when it last loaded (ms)
 let actualsBusy=null;
+let actualsNext=null;        // a forced fetch queued behind the one in flight
+let actualsGen=0;            // bumped by every save: an older fetch is stale
+let actualsDenied=false;     // 403 once: this login has no Install Times
 let actualsToday='';         // the server's today (Central), else the browser's
 let actualsReady=false;      // the times really loaded (not a 403 / offline)
 let actualsOffice=false;     // office login: sees every crew-day's times
@@ -14598,15 +14905,31 @@ function actualsMap(list){
   });
   return m;
 }
+/** Install Times is for leads and up (the server's MIN_ROLE): crew, viewer
+ *  and production logins never ask. An unknown role ('' / null) still asks. */
+const ACTUALS_ROLES=new Set(['lead','staff','admin','super_admin']);
+function actualsAllowed(){ return !actualsDenied && (!ME_ROLE || ACTUALS_ROLES.has(ME_ROLE)); }
 function loadActuals(force){
-  if(!AUTH || TVMODE) return Promise.resolve(false);
-  if(actualsBusy) return actualsBusy;
+  if(!AUTH || TVMODE || !actualsAllowed()) return Promise.resolve(false);
+  if(actualsBusy){
+    if(!force) return actualsBusy;
+    // Forced (just saved): the fetch in flight may predate the save, so run
+    // a fresh one after it (one queued fetch, however many ask).
+    return actualsNext || (actualsNext=actualsBusy.then(()=>{ actualsNext=null; return loadActuals(true); }));
+  }
   if(!force && ACTUALS && Date.now()-actualsAt<60000) return Promise.resolve(false);
+  const gen=actualsGen;
   actualsBusy=authFetch('/api/install-times/schedule', {headers:{Authorization:AUTH}})
-    .then(r=>r.ok?r.json():null)
+    .then(r=>{
+      // 403 (viewer, production, crew): remember it, never ask again.
+      if(r.status===403) actualsDenied=true;
+      return r.ok?r.json():null;
+    })
     .then(j=>{
-      // 403 (TV, production, crew) or an older backend: nothing to show.
-      if(!j){ if(!ACTUALS) ACTUALS=new Map(); return false; }
+      // A save landed while this was in flight: its answer is out of date.
+      if(gen!==actualsGen) return false;
+      // 403 or an older backend: nothing to show, and wait before asking again.
+      if(!j){ if(!ACTUALS) ACTUALS=new Map(); actualsAt=Date.now(); return false; }
       ACTUALS=actualsMap(j.actuals); actualsAt=Date.now(); actualsReady=true;
       actualsOffice=j.office===true;
       if(typeof j.today==='string') actualsToday=j.today;
@@ -14618,7 +14941,7 @@ function loadActuals(force){
 }
 function actualFor(row, dayId){ return (ACTUALS && dayId!=null && ACTUALS.get(`${dayId}|${row}`)) || null; }
 /** True once the crew-day's date has come (times can be entered). */
-function dayHasHappened(d){ return !!d && d.date <= (actualsToday || todayISO()); }
+function dayHasHappened(d){ return !!d && d.date <= timesToday(); }
 /** PURE. Minutes on site from the saved instants (the DST night counts real
  *  time), else the server's hours. null without both times. */
 function actualMinutes(a){
@@ -14794,9 +15117,17 @@ function dateTimesMarkHTML(mark){
 function canEditActuals(){
   return !!AUTH && !READONLY && !VIEWONLY && !TVMODE && ALERT_EDIT_ROLES.has(ME_ROLE);
 }
+/** PURE. Where the card's times came from: "Install Times · entered by
+ *  Claude", plus "· saved under Crew 2" for times saved on the crew-day the
+ *  stop was on before it moved (the server's savedUnder). */
+function timesByText(a){
+  if(!a) return '';
+  return ['Install Times', a.source==='claude' ? 'entered by Claude' : '',
+    a.savedUnder ? `saved under ${a.savedUnder}` : ''].filter(Boolean).join(' · ');
+}
 /** The card's "Times" line for a crew-day that has happened, or ''. */
 function peekTimesHTML(row, d){
-  if(!AUTH || !d || !dayHasHappened(d) || ACTUALS==null) return '';
+  if(!d || d.training || !timesShown() || !dayHasHappened(d)) return '';
   const a=actualFor(row, d.id), edit=canEditActuals();
   const night=isDallasNight(d);
   const msg=pkTimesMsg ? `<p class="pktimesmsg">${IC.alert}<span>${peekEsc(pkTimesMsg)}</span></p>` : '';
@@ -14811,7 +15142,7 @@ function peekTimesHTML(row, d){
         <button type="button" class="pkhrsbtn" id="pktimescancel">Cancel</button></div>${msg}</div>`;
   }
   const t=onSiteText(a);
-  const by=a && a.enteredBy ? `<span class="pkfine pktimesby">Install Times${a.source==='claude'?', from the stop note':''}</span>` : '';
+  const by=a && a.enteredBy ? `<span class="pkfine pktimesby">${peekEsc(timesByText(a))}</span>` : '';
   return `<div class="pktimes">${IC.clock}<span class="pktimest">${t?`<b>${peekEsc(t)}</b>`:'<span class="pktimesnone">No times entered yet</span>'}${by}</span>`
     + (edit ? `<button type="button" class="pkhrsbtn" id="pktimesedit">${t?'Fix times':'Enter times'}</button>` : '')
     + `</div>${msg}`;
@@ -14849,12 +15180,14 @@ function wirePeekTimes(row, d){
     if(peekRow!==row || pkDayId!==d.id) return;      // the card moved on
     const detail=j && j.detail;
     if(r && r.ok && j && j.actual){
+      actualsGen++;        // a fetch begun before this save must not undo it
       const a={...j.actual, dayIds:(cur && cur.dayIds) || [d.id]};
       ACTUALS=ACTUALS||new Map();
       (a.dayIds.includes(d.id)?a.dayIds:[...a.dayIds, d.id]).forEach(id=>ACTUALS.set(`${id}|${row}`, a));
       pkTimesEdit=false; pkTimesMsg=(j.warnings||[])[0]||'';
       redraw(); render();
-      loadActuals(true);   // joint crew-days and anything else saved meanwhile
+      // Joint crew-days (the partner crew's card) and anything saved meanwhile.
+      loadActuals(true).then(ch=>{ if(ch) render(); });
       return;
     }
     save.disabled=false; save.textContent='Save';
@@ -14920,7 +15253,7 @@ function openStopPeek(row,dayId){
   const crewCol=d ? (CREW_COLORS[d.crew]||'var(--brand)') : '';
   const body=document.getElementById('peekbody');
   body.innerHTML=`
-    <h3>${esc(c.name)}<span id="pkh3alert">${alertIconHTML(row,{static:true})}</span></h3>
+    <h3>${esc(stopName(row))}<span id="pkh3alert">${alertIconHTML(row,{static:true})}</span></h3>
     <div class="pktop">
       ${d ? `<p class="pkwhen">${DOW3[dateOf(d.date).getDay()]} ${fmtMDYYYY(d.date)}${t.start!=null
             ?` · ${fmtClock(t.start)} – ${fmtClock(t.end)}${t.end>=1440?' (next day)':''}`:''}</p>`
@@ -14931,6 +15264,7 @@ function openStopPeek(row,dayId){
         ${d && confirmed.has(row)?pkChip(IC.lock, 'Date confirmed', 'ok'):''}
         ${hold.has(row)?pkChip('', 'On hold', 'hold'):''}
         <span id="pkalertchip">${alertChipHTML(row)}</span>
+        ${canAddCallback(row)?`<button type="button" class="pkchip pkchip-btn" id="pkcallback" title="Add a return trip for this client: a callback, bought more, a fix or unfinished work">${IC.calday}<span>Return trip</span></button>`:''}
       </div>
     </div>
     <div id="pkalert">${peekAlertHTML(row)}</div>
@@ -14952,6 +15286,8 @@ function openStopPeek(row,dayId){
         </div>`, `<span class="pkcount" id="pkccount"${n?'':' hidden'}>${n}</span>`); })()}
     </div>`;
   wireContactBlock(row);
+  const cbb=document.getElementById('pkcallback');
+  if(cbb) cbb.onclick=e=>{ e.stopPropagation(); peekdlg.close(); openCallbackDialog(row); };
   wireProfileLink(row);
   wirePeekAlert(row);
   wirePeekDrive(row);
@@ -17171,7 +17507,7 @@ function addDayRouteLayers(layer, sh, d, bounds, onStop){
     bounds.push([c.lat,c.lon]);
     const mk=L.circleMarker([c.lat,c.lon],
       {radius:7,color:'#222',weight:1.5,fillColor:col,fillOpacity:.95})
-      .bindTooltip(`<b>${i+1}. ${c.name}</b><br>${esc(sh.label)}`
+      .bindTooltip(`<b>${i+1}. ${esc(stopName(r))}</b><br>${esc(sh.label)}`
         + `${sh.days.length>1?'<br>'+fmtMDYYYY(d.date):''}`,
         {direction:'top',offset:[0,-8]});
     if(onStop) mk.on('click', ()=>onStop(r));
@@ -19220,7 +19556,7 @@ function manifestHTML(d){
     const alertNote=staffAlertOf(r);
     const pref=prefOf(r);
     rows+=`<tr class="stop"><td class="n">${i+1}</td><td>
-      <div class="nm">${esc(c.name)}${at!=null?` <span class="pos">STARTS ${fmtClock(at)}</span>`:''}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
+      <div class="nm">${esc(stopName(r))}${at!=null?` <span class="pos">STARTS ${fmtClock(at)}</span>`:''}${stopPin[r]?` <span class="pos">${PIN_LABEL[stopPin[r]].toUpperCase()}</span>`:''}${hold.has(r)?` <span class="hold">ON HOLD: confirm before ${kind.toLowerCase()}</span>`:''}${pref?` <span class="pref">${PREF_LABEL[pref]}</span>`:''}</div>
       <div class="ad">${esc(addr)||'<i>no address on file</i>'}</div>
       ${c.phone||c.email?`<div class="ct">${esc(c.phone?fmtPhone(c.phone):'')}${c.phone&&c.email?' · ':''}${esc(c.email||'')}</div>`:''}
       ${alertNote?`<div class="al">⚠ ALERT: ${esc(alertNote.text)}</div>`:''}
@@ -19243,7 +19579,7 @@ function manifestHTML(d){
   // before it leaves the warehouse.
   const pack=order.map((r,i)=>({r, i, n:installNoteFor(r)})).filter(x=>x.n);
   const packHTML=pack.length ? `<div class="pack"><div class="packh">Pack list for this crew · ${pack.length} stop${pack.length===1?'':'s'} with install notes</div>
-      <ul>${pack.map(x=>`<li><span class="box"></span><span><b>${x.i+1}. ${esc(C[x.r].name)}:</b> ${esc(x.n.text)}</span></li>`).join('')}</ul></div>` : '';
+      <ul>${pack.map(x=>`<li><span class="box"></span><span><b>${x.i+1}. ${esc(stopName(x.r))}:</b> ${esc(x.n.text)}</span></li>`).join('')}</ul></div>` : '';
   return `<section class="sheet">
     <div class="shead">
       <div><h1>${esc(crewTitle(d))} · ${esc(dowName(d))} ${fmtMDYYYY(d.date)}</h1>
@@ -19611,6 +19947,8 @@ function loadBoxesFor(r){
 function cardBoxesFor(r){
   const c=C[r]||{}, b=parseBoxes(c.boxes);
   if(b!=null) return {boxes:b, fromInstall:false, city:c.city||''};
+  // A callback brings what the visit needs, not the client's install boxes.
+  if(isCallbackVisit(c)) return {boxes:null, fromInstall:false, city:c.city||''};
   const nm=String(c.name||'').trim().toLowerCase();
   const twin=nm && Object.keys(C).map(k=>C[k]).find(x=>x && x!==c && String(x.name||'').trim().toLowerCase()===nm && parseBoxes(x.boxes)!=null);
   return twin ? {boxes:parseBoxes(twin.boxes), fromInstall:true, city:c.city||twin.city||''} : {boxes:null, fromInstall:false, city:c.city||''};
