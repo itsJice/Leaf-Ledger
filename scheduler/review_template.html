@@ -1513,6 +1513,8 @@ dialog .sxitem:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 #perdlg .peractconfirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;
   padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--brand-soft)}
 #perdlg .peractconfirm[hidden]{display:none}
+#perdlg .persame{border-color:var(--brand);margin:10px 0 4px}
+#perdlg .persame span{font-weight:600;flex-basis:100%}
 #perdlg .peractconfirm span{flex:1;min-width:180px}
 @media (max-width:767px){ #perdlg .btns button,#perdlg .peractconfirm button{min-height:40px} }
 .perrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -3219,6 +3221,10 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
 </div>
 <dialog id="perdlg">
   <b id="pertitle">Add installer</b>
+  <div class="peractconfirm persame" id="persame" hidden role="alertdialog" aria-labelledby="persamemsg">
+    <span id="persamemsg"></span>
+    <button type="button" class="go" id="persameyes"></button>
+    <button type="button" id="persameno">It's a different person</button></div>
   <div class="perrow">
     <div><span class="nclabel">First name</span>
       <input id="perfirst" type="text" autocomplete="off" placeholder="First"></div>
@@ -5297,6 +5303,75 @@ function hasTitle(p, t){ return personTitles(p).includes(t); }
 function extraTitles(p){ return personTitles(p).filter(t=>t!==(p&&p.title)); }
 /** "Lead, General Installer" -- for exports, contact cards and search. */
 function titlesText(p){ return personTitles(p).join(', '); }
+/** One person, many titles (user, 2026-11-25: "this should be the standard").
+ *  A full name compared the way people type it: case and
+ *  extra spaces ignored. */
+function personNameKey(first, last){
+  return [first,last].map(v=>String(v||'').trim()).filter(Boolean).join(' ')
+    .replace(/\s+/g,' ').toLowerCase();
+}
+/** PURE. The roster person who already has this full name (not `exceptId`),
+ *  or null. Same name is the whole test here: adding someone is where the
+ *  second-record-for-a-second-title habit started, and the dialog still lets
+ *  you say "It's a different person" (family members share names and phones). */
+function sameNamePerson(list, first, last, exceptId){
+  const key=personNameKey(first, last);
+  if(!key) return null;
+  return (list||[]).find(p=>p && p.id!==exceptId
+    && (p.first||p.last ? personNameKey(p.first, p.last) : personNameKey(p.name, ''))===key) || null;
+}
+/** PURE. `p`'s titles with `adding` folded in: their main title stays first,
+ *  new ones follow in TITLES order. */
+function titlesWith(p, adding){
+  const have=personTitles(p), main=have[0] || (adding||[])[0] || 'General Installer';
+  return [main, ...TITLES.filter(t=>t!==main && (have.includes(t) || (adding||[]).includes(t)))];
+}
+/** PURE. The "already on the roster" prompt for the Add installer dialog. */
+function sameNameAsk(p, adding){
+  const fresh=(adding||[]).filter(t=>!personTitles(p).includes(t));
+  const list=fresh.join(' and ');
+  return fresh.length
+    ? {msg:`${p.name} is already on the roster. Add ${list} as another title instead?`,
+       yes:`Add ${list} to ${p.first||p.name}`, fresh}
+    : {msg:`${p.name} is already on the roster as ${titlesText(p)}. Update that record instead?`,
+       yes:`Update ${p.first||p.name}`, fresh};
+}
+/** PURE. Fold what the Add installer dialog typed into the person already on
+ *  the roster: extra titles, the dates marked, and any contact detail their
+ *  record is missing. Nothing they already have is overwritten. */
+function foldIntoPerson(p, fields){
+  const out={...p, titles:titlesWith(p, fields.titles||[fields.title])};
+  out.title=out.titles[0];
+  if(Array.isArray(fields.dates) && fields.dates.length)
+    out.dates=[...new Set([...(p.dates||[]), ...fields.dates])].sort();
+  ['email','phone','shirt','legalName','street','city','state','zip'].forEach(k=>{
+    if(!String(out[k]||'').trim() && String(fields[k]||'').trim()) out[k]=fields[k]; });
+  if(fields.notes && !String(p.notes||'').includes(fields.notes))
+    out.notes=[p.notes, fields.notes].filter(Boolean).join(' | ');
+  out.active=p.active!==false || fields.active===true;   // either side active = active
+  return out;
+}
+/** PURE. A roster import (the build's seed list) with people listed twice to
+ *  give them a second title folded into one record each -- only when the
+ *  names match AND the phone or email matches (or one side has neither). */
+function foldSameNamePeople(list){
+  const digits=v=>String(v||'').replace(/\D/g,'').slice(-10);
+  const out=[];
+  (list||[]).forEach(p=>{
+    const q=out.find(o=>personNameKey(o.first,o.last)===personNameKey(p.first,p.last) && (
+      (digits(o.phone) && digits(o.phone)===digits(p.phone))
+      || (o.email && String(o.email).toLowerCase()===String(p.email||'').toLowerCase())
+      || (!digits(o.phone) && !o.email) || (!digits(p.phone) && !p.email)));
+    if(!q){ out.push(p); return; }
+    const rank=t=>TITLES.indexOf(t);
+    const [main, other]=rank(p.title)<rank(q.title) ? [p,q] : [q,p];
+    const merged=foldIntoPerson(main, {...other, titles:personTitles(other)});
+    merged.id=q.id;
+    if(!Array.isArray(main.dates) || !Array.isArray(other.dates)) delete merged.dates;
+    out[out.indexOf(q)]=merged;
+  });
+  return out;
+}
 /** Can this person work this shift? Dates only (user, 2026-10-24: "take out
  *  the day and night options... just select the dates"): a date in their
  *  `dates` means they can work that day, and for a Dallas date that means
@@ -5771,7 +5846,9 @@ function setStopHours(row, hours){
 // back in or overwrites what staff actually entered.
 function applyRosterSeedFallback(){
   if(roster.length) return false;
-  roster = normRoster(SPEC.rosterSeed || []);
+  // One person, many titles: someone listed twice in the seed (once per
+  // title) comes in as one record.
+  roster = foldSameNamePeople(normRoster(SPEC.rosterSeed || []));
   return roster.length > 0;
 }
 // Placed rows the device copy had no client for (keepGhostRows).
@@ -16137,6 +16214,7 @@ function openPersonDlg(person){
   if(roBlocked()) return;
   editingPerson = person || null;
   document.getElementById('pertitle').textContent = person ? 'Edit installer' : 'Add installer';
+  hidePerSame(); perSameOk=false;
   document.getElementById('perfirst').value   = person ? person.first : '';
   document.getElementById('perlast').value    = person ? person.last : '';
   document.getElementById('pertitle2').value  = person ? person.title : 'General Installer';
@@ -16238,6 +16316,14 @@ document.getElementById('pergo').onclick=()=>{
     fields.tax1099=document.getElementById('pertax').checked;
     fields.directDeposit=document.getElementById('perdd').checked;
   }
+  // Adding someone whose full name is already on the roster: offer to add
+  // the title to that person instead of a second record (the default), or
+  // go ahead when it really is someone else with the same name.
+  if(!editingPerson && !perSameOk){
+    const twin=sameNamePerson(roster, first, last);
+    if(twin){ showPerSame(twin, fields); return; }
+  }
+  perSameOk=false;
   pushUndo();
   let pid;
   if(editingPerson){ Object.assign(editingPerson, fields); pid=editingPerson.id; }
@@ -16252,6 +16338,32 @@ document.getElementById('pergo').onclick=()=>{
   else if(!boxOn && boxNow===pid) seasonRoles=seasonRolesWith(seasonRoles, season, 'boxTruckId', '');
   perdlg.close(); persist(); render();
 };
+// "Already on the roster" prompt in the Add installer dialog.
+let perSameOk=false, perSameTwin=null, perSameFields=null;
+function showPerSame(twin, fields){
+  const ask=sameNameAsk(twin, fields.titles);
+  perSameTwin=twin; perSameFields=fields;
+  document.getElementById('persamemsg').textContent=ask.msg;
+  document.getElementById('persameyes').textContent=ask.yes;
+  const box=document.getElementById('persame');
+  box.hidden=false;
+  box.scrollIntoView({block:'nearest'});
+  document.getElementById('persameyes').focus();
+}
+function hidePerSame(){ document.getElementById('persame').hidden=true; perSameTwin=perSameFields=null; }
+document.getElementById('persameyes').onclick=()=>{
+  if(roBlocked() || !perSameTwin) return;
+  const twin=perSameTwin, folded=foldIntoPerson(twin, perSameFields);
+  hidePerSame();
+  pushUndo();
+  Object.assign(twin, folded);
+  selPerson=twin.id;
+  perdlg.close(); persist(); render();
+};
+document.getElementById('persameno').onclick=()=>{
+  hidePerSame(); perSameOk=true; document.getElementById('pergo').click(); };
+// Typing a different name clears the question.
+['perfirst','perlast'].forEach(id=>document.getElementById(id).addEventListener('input', hidePerSame));
 function togglePersonActive(pn){
   if(roBlocked()) return;
   pushUndo(); pn.active=!pn.active; persist(); render();
