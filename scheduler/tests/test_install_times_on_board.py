@@ -19,13 +19,16 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 FNS = ["peekEsc", "attrEsc", "actualsMap", "actualFor", "dayHasHappened", "actualMinutes", "fmtSpan",
        "onSiteText", "doneTimesText", "canEditActuals", "timesShown", "timesToday", "centralTodayISO",
-       "timesByText", "peekTimesHTML"]
+       "timesByText", "crewSizeText", "timesStaffCount", "peekTimesHTML"]
 STUBS = """
   const IC={clock:'@', alert:'!'};
   let AUTH='t', READONLY=false, VIEWONLY=false, TVMODE=false, ME_ROLE='staff';
   const ALERT_EDIT_ROLES=new Set(['staff','admin','super_admin']);
   let ACTUALS=null, actualsToday='2026-11-16', actualsReady=true, pkTimesEdit=false, pkTimesMsg='';
   const todayISO=()=>'2026-11-16';
+  let pkShortDraft=null;
+  const staffing={'2026-11-04|Crew 2|0':['p1','p4'], '2026-11-04|Crew 3|0':['p1','p4','p5'], '2026-11-09|Crew 2|0':['p1','p2','p3','p4','p5']};
+  const shiftOfDay=d=>d.id.startsWith('2026-11-04|') ? {days:[{id:'2026-11-04|Crew 2|0'},{id:'2026-11-04|Crew 3|0'}]} : null;
   const isDallasNight=d=>d.night===true;
   const SERENITY={id:4, row:105, dayId:'2026-11-09|Crew 2|0', dayIds:['2026-11-09|Crew 2|0'],
     arrive:'3:44 PM', depart:'6:27 PM', arriveAt:'2026-11-09T21:44:00+00:00', departAt:'2026-11-10T00:27:00+00:00',
@@ -103,3 +106,51 @@ def test_times_never_go_into_board_state():
         assert banned not in block, banned
     assert "—" not in block
     assert "syncQueued(openPendingStop);" in src
+
+
+# ─── crew size: people, ladders, full or short (migrations/031) ──────────────
+
+
+@needs_node
+def test_crew_size_reads_in_plain_words_on_the_card():
+    out = run("""
+      const saved={...SERENITY, peopleCount:4, ladders:2, shortCrew:true};
+      ACTUALS=actualsMap([saved]);
+      const past={id:'2026-11-09|Crew 2|0', date:'2026-11-09'};
+      console.log(JSON.stringify([peekTimesHTML(105, past), crewSizeText({peopleCount:1, ladders:1, shortCrew:false}),
+        crewSizeText({peopleCount:6}), crewSizeText(null)]));
+    """)
+    card, one, six, none = out
+    assert "4 people · 2 ladders · " in card and '<span class="short">Short crew</span>' in card
+    assert one == "1 person · 1 ladder · Full crew"
+    assert six == "6 people" and none == ""
+
+
+@needs_node
+def test_edit_form_prefills_people_from_staffing_until_saved():
+    out = run("""
+      pkTimesEdit=true;
+      ACTUALS=actualsMap([JOINT]);
+      const joint=peekTimesHTML(69, {id:'2026-11-04|Crew 3|0', date:'2026-11-04', night:true});
+      ACTUALS=actualsMap([{...SERENITY, peopleCount:3, ladders:1}]); pkShortDraft=true;
+      const saved=peekTimesHTML(105, {id:'2026-11-09|Crew 2|0', date:'2026-11-09'});
+      console.log(JSON.stringify([joint, saved, timesStaffCount({id:'2026-11-20|Crew 9|0'})]));
+    """)
+    joint, saved, nobody = out
+    # A joint shift counts everyone staffed on either crew-day, once.
+    assert re.search(r'id="pkpeople"[^>]*value="3"', joint)
+    assert "People starts at the crew-day's staffing." in joint
+    assert re.search(r'id="pkpeople"[^>]*value="3"', saved) and re.search(r'id="pkladders"[^>]*value="1"', saved)
+    assert 'data-short="1" aria-pressed="true"' in saved and 'data-short="0" aria-pressed="false"' in saved
+    assert "starts at the crew-day" not in saved
+    assert nobody is None
+    for html in (joint, saved):
+        assert "—" not in html
+
+
+def test_board_save_sends_people_ladders_and_short_crew():
+    src = TEMPLATE
+    start = src.index("// ---------- recorded on-site times (Install Times) ----------")
+    end = src.index("// dayId === null means the client is on the roster", start)
+    block = src[start:end]
+    assert "peopleCount:countOf(pi, 40), ladders:countOf(li, 20), shortCrew:pkShortDraft" in block

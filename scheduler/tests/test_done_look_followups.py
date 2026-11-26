@@ -25,7 +25,7 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 ROLES = re.search(r"^const ACTUALS_ROLES=.*$", TEMPLATE, re.M).group(0)
 FNS = ["peekEsc", "attrEsc", "actualsMap", "actualsAllowed", "loadActuals", "actualFor", "dayHasHappened",
        "centralTodayISO", "timesToday", "timesShown", "actualMinutes", "fmtSpan", "onSiteText", "canEditActuals",
-       "timesByText", "peekTimesHTML"]
+       "timesByText", "crewSizeText", "timesStaffCount", "peekTimesHTML"]
 STUBS = ROLES + """
   const IC={clock:'@', alert:'!'};
   let AUTH='t', READONLY=false, VIEWONLY=false, TVMODE=false, ME_ROLE='staff';
@@ -34,6 +34,8 @@ STUBS = ROLES + """
       actualsToday='', actualsReady=false, actualsOffice=false, pkTimesEdit=false, pkTimesMsg='';
   const todayISO=()=>'2099-01-01';          // the device's own clock: never used for "today"
   const isDallasNight=d=>d.night===true;
+  let pkShortDraft=null;
+  const staffing={}, shiftOfDay=()=>null;
   // authFetch: each call waits until the test answers it.
   const calls=[];
   function authFetch(url){ return new Promise(res=>calls.push({url, answer:(status, body)=>res(

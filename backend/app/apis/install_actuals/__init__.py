@@ -88,11 +88,42 @@ CREATE OR REPLACE VIEW ll_app.install_actuals_latest AS
 """
 
 
+#: Crew size (migrations/031, 11/25): ladders or lifts used and whether
+#: the crew was short, next to people_count, so 2027 estimates can learn how
+#: time changes with crew size. Data only: nothing reads them into a model.
+CREW_SIZE_COLUMNS = ("ladders", "short_crew")
+CREW_SIZE_DDL = """
+ALTER TABLE ll_app.install_actuals
+    ADD COLUMN IF NOT EXISTS ladders integer CHECK (ladders IS NULL OR ladders BETWEEN 0 AND 20),
+    ADD COLUMN IF NOT EXISTS short_crew boolean;
+
+CREATE OR REPLACE VIEW ll_app.install_actuals_latest AS
+    SELECT a.*
+      FROM ll_app.install_actuals a
+     WHERE NOT EXISTS (SELECT 1 FROM ll_app.install_actuals b WHERE b.supersedes_id = a.id);
+"""
+
+
 async def ensure_schema(conn) -> None:
     async def _ddl():
         await conn.execute(DDL)
 
     await ensure_schema_once("install_actuals", _ddl)
+
+    async def _crew_size():
+        # Checked first so a running app never takes the ALTER's table lock
+        # once the columns are there (on the table and the latest view).
+        have = await conn.fetchval(
+            "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'll_app' "
+            "AND table_name IN ('install_actuals', 'install_actuals_latest') "
+            "AND column_name = ANY($1::text[])", list(CREW_SIZE_COLUMNS))
+        if (have or 0) >= 2 * len(CREW_SIZE_COLUMNS):
+            return
+        async with conn.transaction():
+            await conn.execute("SET LOCAL lock_timeout = '5s'")
+            await conn.execute(CREW_SIZE_DDL)
+
+    await ensure_schema_once("install_actuals_crew_size", _crew_size)
 
 
 def now_ct() -> datetime:
@@ -330,6 +361,8 @@ def actual_out(r, corrections: int = 0) -> dict:
         "depart": T.fmt_clock(T.clock_of(depart)),
         "actualHours": T.on_site_hours(arrive, depart),
         "peopleCount": r["people_count"],
+        "ladders": r.get("ladders"),
+        "shortCrew": r.get("short_crew"),
         "photosDone": r["photos_done"],
         "scopeNote": r["scope_note"] or "",
         "estHours": _num(r["est_hours_at_time"]),
@@ -502,6 +535,11 @@ class ActualIn(BaseModel):
     arrive: str = Field("", max_length=20)
     depart: str = Field("", max_length=20)
     peopleCount: Optional[int] = Field(None, ge=0, le=T.PEOPLE_MAX)
+    #: Ladders or lifts used. Left out (an older page): the saved value stays.
+    ladders: Optional[int] = Field(None, ge=0, le=T.LADDERS_MAX)
+    #: True when the crew was short, False when it was full, None not said.
+    #: Left out (an older page): the saved value stays.
+    shortCrew: Optional[bool] = None
     photosDone: Optional[bool] = None
     scopeNote: str = Field("", max_length=T.NOTE_MAX)
     #: The latest row id the page was showing (None for a first entry). If
@@ -568,29 +606,36 @@ async def save_actual(body: ActualIn, user: AuthorizedUser) -> dict:
                     "message": "Someone else just saved this stop. Here is what they entered.",
                     "current": actual_out(current) if current else None,
                 })
+            # A page that doesn't send ladders / short crew (the schedule
+            # before its next publish) keeps what was saved.
+            prev = current or moved
+            sent = body.model_fields_set
+            ladders = body.ladders if "ladders" in sent else (prev.get("ladders") if prev else None)
+            short = body.shortCrew if "shortCrew" in sent else (prev.get("short_crew") if prev else None)
             if T.fills_in_only(dict(current) if current else None, entry, people=body.peopleCount,
                                photos=body.photosDone, note=body.scopeNote, email=viewer.email,
-                               now=now_ct()):
+                               now=now_ct(), ladders=ladders, short_crew=short):
                 # Filling in the blanks of one's own open entry (Leave after
                 # Arrive, ticking photos): the same version, completed in place.
                 row = await conn.fetchrow(
                     "UPDATE ll_app.install_actuals SET arrive_at = $2, depart_at = $3, people_count = $4, "
-                    "photos_done = $5, scope_note = $6 WHERE id = $1 RETURNING *",
+                    "photos_done = $5, scope_note = $6, ladders = $7, short_crew = $8 WHERE id = $1 RETURNING *",
                     current["id"], entry.arrive_at, entry.depart_at, body.peopleCount, body.photosDone,
-                    body.scopeNote.strip() or None)
+                    body.scopeNote.strip() or None, ladders, short)
             else:
                 row = await conn.fetchrow(
                     "INSERT INTO ll_app.install_actuals (client_id, client_name, client_row, season, kind, date, "
                     "day_id, crew_label, crew_lead, arrive_at, depart_at, people_count, photos_done, scope_note, "
-                    "est_hours_at_time, job_type, night, source, entered_by, supersedes_id) "
-                    "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *",
+                    "est_hours_at_time, job_type, night, source, entered_by, supersedes_id, ladders, short_crew) "
+                    "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) "
+                    "RETURNING *",
                     cid, name, body.row, board.season, kind, date.fromisoformat(day["date"]), vid,
                     group["label"] if group else board.crew_title(day),
                     group["lead"] if group else None,
                     entry.arrive_at, entry.depart_at, body.peopleCount, body.photosDone,
                     body.scopeNote.strip() or None,
                     _est_for(board, body.dayId, body.row),
-                    T.job_type_of(client), night, source, viewer.email, body.supersedesId)
+                    T.job_type_of(client), night, source, viewer.email, body.supersedesId, ladders, short)
             corrections = 0
             if body.supersedesId:
                 corrections = int(await conn.fetchval(

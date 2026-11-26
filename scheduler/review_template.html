@@ -2239,6 +2239,14 @@ body.apple #peekdlg #pkcontact .pkce-btns > button:first-child{display:block}
 #peekbody .pktimesrow label{display:flex;flex-direction:column;gap:2px;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
 #peekbody .pktimesrow input{font-size:16px;min-height:40px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);min-width:0}
 #peekbody .pktimesbtns{display:flex;gap:8px;margin-top:6px}
+#peekbody .pktimesrow.crew{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;margin-top:6px;align-items:end}
+#peekbody .pktimesrow.crew input{width:100%;box-sizing:border-box}
+#peekbody .pkcrewseg{display:flex;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--surface)}
+#peekbody .pkcrewseg button{font:inherit;font-size:13px;font-weight:700;min-height:36px;padding:0 12px;border:0;border-radius:6px;background:transparent;color:var(--mut);cursor:pointer}
+#peekbody .pkcrewseg button[aria-pressed="true"]{background:var(--brand);color:#fff}
+#peekbody .pkcrewseg button.short[aria-pressed="true"]{background:#b45309}
+#peekbody .pktimescrew{font-size:12px;color:var(--mut)}
+#peekbody .pktimescrew .short{color:var(--warn-ink);font-weight:700}
 #peekbody .pktimesbtns .pkhrsbtn{min-height:40px;padding:0 14px}
 #peekbody .pktimesmsg{display:flex;gap:6px;align-items:flex-start;margin:6px 0 0;font-size:12px;color:var(--warn-ink);flex-basis:100%}
 #peekbody .pktimesmsg .ic{flex:none;width:13px;height:13px;margin-top:2px}
@@ -16029,6 +16037,26 @@ function timesByText(a){
   return ['Install Times', a.source==='claude' ? 'entered by Claude' : '',
     a.savedUnder ? `saved under ${a.savedUnder}` : ''].filter(Boolean).join(' · ');
 }
+/** PURE. "4 people · 2 ladders · Short crew" for saved times, or ''
+ *  (the twin of the Install Times page's crewSizeText). */
+function crewSizeText(a){
+  if(!a) return '';
+  const bits=[];
+  if(a.peopleCount!=null) bits.push(`${a.peopleCount} ${a.peopleCount===1?'person':'people'}`);
+  if(a.ladders!=null) bits.push(`${a.ladders} ${a.ladders===1?'ladder':'ladders'}`);
+  if(a.shortCrew===true) bits.push('Short crew');
+  else if(a.shortCrew===false) bits.push('Full crew');
+  return bits.join(' · ');
+}
+/** People staffed on this crew-day (a joint shift counts everyone on it),
+ *  the People box's starting value until a count is saved. null if none. */
+function timesStaffCount(d){
+  if(!d) return null;
+  let sh=null; try{ sh=shiftOfDay(d); }catch(e){ sh=null; }
+  const ids=new Set((sh && sh.days ? sh.days : [d]).flatMap(x=>staffing[x.id]||[]));
+  return ids.size || null;
+}
+let pkShortDraft=null;       // the edit form's Full / Short pick (null: not said)
 /** The card's "Times" line for a crew-day that has happened, or ''. */
 function peekTimesHTML(row, d){
   if(!d || d.training || !timesShown() || !dayHasHappened(d)) return '';
@@ -16041,13 +16069,23 @@ function peekTimesHTML(row, d){
         placeholder="${night?'10:15':'8:30'}" value="${attrEsc(a?a.arrive:'')}" maxlength="20"></label>
       <label>Leave<input id="pkdepart" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false"
         placeholder="${night?'1:30':'2:15'}" value="${attrEsc(a?a.depart:'')}" maxlength="20"></label></div>
-      <p class="pkfine">${night?'Night shift: an arrival before noon is the next morning. ':''}No a/p needed: Leave is the next such time after Arrive.</p>
+      <div class="pktimesrow crew">
+      <label>People<input id="pkpeople" type="text" inputmode="numeric" autocomplete="off" maxlength="2"
+        value="${attrEsc(a && a.peopleCount!=null ? String(a.peopleCount) : (timesStaffCount(d) ?? ''))}"></label>
+      <label>Ladders / lifts<input id="pkladders" type="text" inputmode="numeric" autocomplete="off" maxlength="2"
+        placeholder="0" value="${attrEsc(a && a.ladders!=null ? String(a.ladders) : '')}"></label>
+      <div class="pkcrewseg" role="group" aria-label="Full or short crew">
+        <button type="button" data-short="0" aria-pressed="${pkShortDraft===false}">Full</button>
+        <button type="button" class="short" data-short="1" aria-pressed="${pkShortDraft===true}">Short</button></div></div>
+      <p class="pkfine">${night?'Night shift: an arrival before noon is the next morning. ':''}No a/p needed: Leave is the next such time after Arrive.${a && a.peopleCount!=null ? '' : ' People starts at the crew-day\'s staffing.'}</p>
       <div class="pktimesbtns"><button type="button" class="pkhrsbtn on" id="pktimessave">Save</button>
         <button type="button" class="pkhrsbtn" id="pktimescancel">Cancel</button></div>${msg}</div>`;
   }
   const t=onSiteText(a);
   const by=a && a.enteredBy ? `<span class="pkfine pktimesby">${peekEsc(timesByText(a))}</span>` : '';
-  return `<div class="pktimes">${IC.clock}<span class="pktimest">${t?`<b>${peekEsc(t)}</b>`:'<span class="pktimesnone">No times entered yet</span>'}${by}</span>`
+  const cs=crewSizeText(a);
+  const crew=cs ? `<span class="pktimescrew">${peekEsc(cs).replace('Short crew', '<span class="short">Short crew</span>')}</span>` : '';
+  return `<div class="pktimes">${IC.clock}<span class="pktimest">${t?`<b>${peekEsc(t)}</b>`:'<span class="pktimesnone">No times entered yet</span>'}${crew}${by}</span>`
     + (edit ? `<button type="button" class="pkhrsbtn" id="pktimesedit">${t?'Fix times':'Enter times'}</button>` : '')
     + `</div>${msg}`;
 }
@@ -16060,13 +16098,25 @@ function refreshPeekTimes(row, d){
 function wirePeekTimes(row, d){
   const redraw=()=>refreshPeekTimes(row, d);
   const ed=document.getElementById('pktimesedit');
-  if(ed) ed.onclick=e=>{ e.stopPropagation(); pkTimesEdit=true; pkTimesMsg=''; redraw();
+  if(ed) ed.onclick=e=>{ e.stopPropagation(); pkTimesEdit=true; pkTimesMsg='';
+    const cur0=actualFor(row, d.id); pkShortDraft=cur0 && cur0.shortCrew!=null ? cur0.shortCrew : null; redraw();
     const i=document.getElementById('pkarrive'); if(i) i.focus(); };
   const cancel=document.getElementById('pktimescancel');
   if(cancel) cancel.onclick=e=>{ e.stopPropagation(); pkTimesEdit=false; pkTimesMsg=''; redraw(); };
   const save=document.getElementById('pktimessave');
   if(!save) return;
   const ai=document.getElementById('pkarrive'), di=document.getElementById('pkdepart');
+  const pi=document.getElementById('pkpeople'), li=document.getElementById('pkladders');
+  // Full / Short: one tap; tapping the one that's on clears it.
+  document.querySelectorAll('#pktimesbox .pkcrewseg button').forEach(b=>{ b.onclick=e=>{
+    e.stopPropagation();
+    const v=b.dataset.short==='1';
+    pkShortDraft = pkShortDraft===v ? null : v;
+    document.querySelectorAll('#pktimesbox .pkcrewseg button').forEach(x=>
+      x.setAttribute('aria-pressed', String(pkShortDraft===(x.dataset.short==='1'))));
+  }; });
+  const countOf=(el, max)=>{ const t=el ? el.value.replace(/[^0-9]/g, '') : '';
+    return t==='' ? null : Math.max(0, Math.min(max, parseInt(t, 10))); };
   const doSave=async()=>{
     if(roBlocked()) return;
     const cur=actualFor(row, d.id);
@@ -16077,7 +16127,8 @@ function wirePeekTimes(row, d){
         headers:{'Content-Type':'application/json', Authorization:AUTH},
         // Keep what the Install Times page saved alongside the times.
         body:JSON.stringify({dayId:d.id, row, arrive:ai.value.trim(), depart:di.value.trim(),
-          peopleCount:cur?cur.peopleCount:null, photosDone:cur?cur.photosDone:null,
+          peopleCount:countOf(pi, 40), ladders:countOf(li, 20), shortCrew:pkShortDraft,
+          photosDone:cur?cur.photosDone:null,
           scopeNote:cur?(cur.scopeNote||''):'', supersedesId:cur?cur.id:null})});
       j=await r.json().catch(()=>null);
     }catch(err){ r=null; }
@@ -16111,7 +16162,7 @@ function wirePeekTimes(row, d){
     if(box) box.querySelector('.pktimes').insertAdjacentHTML('beforeend', `<p class="pktimesmsg">${IC.alert}<span>${peekEsc(pkTimesMsg)}</span></p>`);
   };
   save.onclick=e=>{ e.stopPropagation(); doSave(); };
-  [ai, di].forEach(el=>{ el.onkeydown=e=>{
+  [ai, di, pi, li].filter(Boolean).forEach(el=>{ el.onkeydown=e=>{
     if(e.key==='Enter'){ e.preventDefault(); doSave(); }
     if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); pkTimesEdit=false; pkTimesMsg=''; redraw(); } }; });
 }

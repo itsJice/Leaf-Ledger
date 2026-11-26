@@ -89,7 +89,8 @@ def as_role(fake_db, role):
 def _saved_row(sql, *a):
     cols = ["client_id", "client_name", "client_row", "season", "kind", "date", "day_id", "crew_label",
             "crew_lead", "arrive_at", "depart_at", "people_count", "photos_done", "scope_note",
-            "est_hours_at_time", "job_type", "night", "source", "entered_by", "supersedes_id"]
+            "est_hours_at_time", "job_type", "night", "source", "entered_by", "supersedes_id", "ladders",
+            "short_crew"]
     return {"id": 501, "created_at": NOW, **dict(zip(cols, a))}
 
 
@@ -344,9 +345,10 @@ def test_leave_after_your_own_arrive_completes_the_row_not_a_correction(fake_db,
     as_role(fake_db, None)  # Lesly: a Lead on the roster
     fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _open_row("lesly@example.com"))
 
-    def updated(sql, rid, arrive, depart, people, photos, note):
+    def updated(sql, rid, arrive, depart, people, photos, note, ladders, short):
         return {**_open_row("lesly@example.com"), "arrive_at": arrive, "depart_at": depart,
-                "people_count": people, "photos_done": photos, "scope_note": note}
+                "people_count": people, "photos_done": photos, "scope_note": note, "ladders": ladders,
+                "short_crew": short}
 
     fake_db.on("UPDATE ll_app.install_actuals SET", updated, method="fetchrow")
     fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 1)
@@ -557,3 +559,120 @@ def test_training_days_take_no_times(fake_db, board):
                            user("office@example.com")))
     assert exc.value.status_code == 409 and "Training" in exc.value.detail
     assert not fake_db.seen("INSERT INTO ll_app.install_actuals")
+
+
+# ─── crew size: ladders and short crew (migrations/031) ──────────────────────
+
+
+def test_crew_size_migration_file_matches_the_router_ddl():
+    mig = (pathlib.Path(__file__).resolve().parent.parent / "migrations" / "031_install_actuals_crew_size.sql").read_text()
+
+    def norm(sql):
+        return re.sub(r"\s+", " ", re.sub(r"--[^\n]*", "", sql)).strip()
+
+    assert norm(IA.CREW_SIZE_DDL) == norm(mig)
+    assert "ll_app.install_actuals" in mig and "IF NOT EXISTS" in mig
+
+
+def test_crew_size_columns_are_added_once_with_a_lock_timeout(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest l WHERE", [])
+    run(IA.day_view(user("office@example.com"), on="2026-11-19"))
+    assert fake_db.seen("SET LOCAL lock_timeout = '5s'")
+    assert fake_db.seen("ADD COLUMN IF NOT EXISTS ladders")
+    # The latest view is re-created so SELECT a.* carries the new columns.
+    assert fake_db.calls("ADD COLUMN IF NOT EXISTS ladders")[0][0].count("CREATE OR REPLACE VIEW") == 1
+
+
+def test_crew_size_columns_already_there_take_no_lock(fake_db, board):
+    from app.libs import db as dblib
+
+    dblib.reset_schema_registry()
+    as_role(fake_db, "staff")
+    fake_db.on_fetchval("FROM information_schema.columns", 4)
+    fake_db.on_fetch("FROM ll_app.install_actuals_latest l WHERE", [])
+    run(IA.day_view(user("office@example.com"), on="2026-11-19"))
+    assert not fake_db.seen("ADD COLUMN IF NOT EXISTS ladders")
+    assert not fake_db.seen("lock_timeout")
+
+
+def test_office_saves_people_ladders_and_short_crew(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on("INSERT INTO ll_app.install_actuals", _saved_row, method="fetchrow")
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="9", depart="11:30",
+                                         peopleCount=3, ladders=2, shortCrew=True), user("office@example.com")))
+    a = out["actual"]
+    assert (a["peopleCount"], a["ladders"], a["shortCrew"]) == (3, 2, True)
+    sql, args = fake_db.calls("INSERT INTO ll_app.install_actuals")[0]
+    assert "ladders, short_crew" in sql and args[-2:] == (2, True)
+
+
+def test_ladders_out_of_range_are_refused():
+    with pytest.raises(ValueError):
+        IA.ActualIn(dayId="d", row=1, ladders=21)
+    with pytest.raises(ValueError):
+        IA.ActualIn(dayId="d", row=1, ladders=-1)
+    assert IA.ActualIn(dayId="d", row=1, ladders=0).ladders == 0
+
+
+def _saved_with_crew(rid=420, entered_by="a@x", ladders=2, short=True):
+    return {**_saved_row("", None, "Smith, Ann", 10, "2026", "install", None, "2026-11-19|Crew 1|0", "Crew 1",
+                         "Lesly Lead", datetime(2026, 11, 19, 8, 30, tzinfo=T.TZ),
+                         datetime(2026, 11, 19, 11, 0, tzinfo=T.TZ), 4, None, None, 2.4, "residential", False,
+                         "office", entered_by, None, ladders, short), "id": rid}
+
+
+def test_a_page_that_does_not_send_crew_size_keeps_the_saved_values(fake_db, board):
+    """The Install Schedule card before its next publish sends only times
+    and people: a correction there must not wipe ladders or short crew."""
+    as_role(fake_db, "staff")
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _saved_with_crew())
+    fake_db.on("INSERT INTO ll_app.install_actuals", _saved_row, method="fetchrow")
+    fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 2)
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="8:45", depart="11",
+                                         peopleCount=4, supersedesId=420), user("office@example.com")))
+    a = out["actual"]
+    assert (a["supersedesId"], a["ladders"], a["shortCrew"]) == (420, 2, True)
+
+
+def test_clearing_crew_size_on_purpose_is_a_new_version(fake_db, board):
+    as_role(fake_db, "staff")
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _saved_with_crew())
+    fake_db.on("INSERT INTO ll_app.install_actuals", _saved_row, method="fetchrow")
+    fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 2)
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="8:30 AM", depart="11",
+                                         peopleCount=4, ladders=None, shortCrew=False, supersedesId=420),
+                             user("office@example.com")))
+    a = out["actual"]
+    assert (a["supersedesId"], a["ladders"], a["shortCrew"]) == (420, None, False)
+    assert not fake_db.seen("UPDATE ll_app.install_actuals")
+
+
+def test_marking_short_crew_on_your_own_open_entry_completes_it(fake_db, board):
+    as_role(fake_db, None)
+    fake_db.on_fetchrow("FROM ll_app.install_actuals_latest WHERE season", _open_row("lesly@example.com"))
+
+    def updated(sql, rid, arrive, depart, people, photos, note, ladders, short):
+        return {**_open_row("lesly@example.com"), "arrive_at": arrive, "depart_at": depart,
+                "people_count": people, "ladders": ladders, "short_crew": short}
+
+    fake_db.on("UPDATE ll_app.install_actuals SET", updated, method="fetchrow")
+    fake_db.on_fetchval("SELECT count(*) FROM ll_app.install_actuals", 1)
+    out = run(IA.save_actual(IA.ActualIn(dayId="2026-11-19|Crew 1|0", row=10, arrive="8:30 AM",
+                                         peopleCount=2, ladders=1, shortCrew=True, supersedesId=410),
+                             user("lesly@example.com")))
+    a = out["actual"]
+    assert (a["id"], a["ladders"], a["shortCrew"], a["corrections"]) == (410, 1, True, 0)
+    assert not fake_db.seen("INSERT INTO ll_app.install_actuals")
+
+
+def test_fills_in_only_treats_a_changed_short_crew_as_a_correction():
+    now = datetime(2026, 11, 20, 9, 30, tzinfo=T.TZ)
+    entry = T.build_entry("2026-11-19", "8:30 AM", "", night=False)
+    cur = {"entered_by": "a@x", "created_at": now, "arrive_at": entry.arrive_at, "depart_at": None,
+           "people_count": 4, "photos_done": None, "scope_note": None, "ladders": 2, "short_crew": False}
+    same = dict(people=4, photos=None, note="", email="a@x", now=now)
+    assert T.fills_in_only(cur, entry, **same, ladders=2, short_crew=False)
+    assert not T.fills_in_only(cur, entry, **same, ladders=2, short_crew=True)
+    assert not T.fills_in_only(cur, entry, **same, ladders=3, short_crew=False)
+    assert T.fills_in_only({**cur, "ladders": None, "short_crew": None}, entry, **same, ladders=1, short_crew=True)

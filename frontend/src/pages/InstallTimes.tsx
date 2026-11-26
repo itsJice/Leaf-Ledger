@@ -11,6 +11,8 @@ import {
   Clock,
   Loader2,
   MessageSquareText,
+  Minus,
+  Plus,
   Moon,
   ArrowUpRight,
   TrendingUp,
@@ -21,9 +23,13 @@ import { toast } from "sonner";
 import Layout from "components/Layout";
 import { apiFetch } from "utils/apiFetch";
 import {
+  LADDERS_MAX,
+  PEOPLE_MAX,
   SAME_TIME_WARNING,
   SOURCE_LABEL,
   TYPE_LABEL,
+  countOrNull,
+  crewSizeText,
   diffLabel,
   fmtClock,
   fmtDuration,
@@ -38,6 +44,7 @@ import {
   scheduleStopHref,
   shortDate,
   stampCT,
+  stepCount,
   who,
 } from "utils/installTimes";
 import type { Actual, CrewGroup, DayResponse, MissingDay, Stop, StopNote } from "utils/installTimes";
@@ -337,7 +344,11 @@ type SaveState = { status: "idle" | "saving" | "saved" | "error"; message?: stri
 interface Draft {
   arrive: string;
   depart: string;
+  /** Prefilled from the crew-day's staffing until a count is saved. */
   people: string;
+  ladders: string;
+  /** true short, false full, null not said. */
+  short: boolean | null;
   photos: boolean;
   note: string;
 }
@@ -347,6 +358,8 @@ function draftOf(a: Actual | null, headcount: number | null): Draft {
     arrive: a?.arrive ?? "",
     depart: a?.depart ?? "",
     people: a?.peopleCount != null ? String(a.peopleCount) : headcount != null ? String(headcount) : "",
+    ladders: a?.ladders != null ? String(a.ladders) : "",
+    short: a?.shortCrew ?? null,
     photos: Boolean(a?.photosDone),
     note: a?.scopeNote ?? "",
   };
@@ -359,7 +372,7 @@ function readTimes(d: Draft, night: boolean): [number | null, number | null] {
 }
 
 function sameAsSaved(d: Draft, a: Actual | null, night: boolean): boolean {
-  if (!a) return !d.arrive.trim() && !d.depart.trim() && !d.note.trim() && !d.photos;
+  if (!a) return !d.arrive.trim() && !d.depart.trim() && !d.note.trim() && !d.photos && !d.ladders.trim() && d.short == null;
   let times: [string, string];
   try {
     const [am, dm] = readTimes(d, night);
@@ -370,7 +383,9 @@ function sameAsSaved(d: Draft, a: Actual | null, night: boolean): boolean {
   return (
     times[0] === a.arrive &&
     times[1] === a.depart &&
-    (d.people.trim() === "" ? null : Number(d.people)) === a.peopleCount &&
+    countOrNull(d.people, PEOPLE_MAX) === a.peopleCount &&
+    countOrNull(d.ladders, LADDERS_MAX) === (a.ladders ?? null) &&
+    d.short === (a.shortCrew ?? null) &&
     d.photos === Boolean(a.photosDone) &&
     d.note.trim() === (a.scopeNote || "")
   );
@@ -442,7 +457,9 @@ function StopRow(props: {
           kind: crew.kind,
           arrive: cur.arrive,
           depart: cur.depart,
-          peopleCount: cur.people.trim() === "" ? null : Math.max(0, Math.min(40, Math.round(Number(cur.people)) || 0)),
+          peopleCount: countOrNull(cur.people, PEOPLE_MAX),
+          ladders: countOrNull(cur.ladders, LADDERS_MAX),
+          shortCrew: cur.short,
           photosDone: cur.photos,
           scopeNote: cur.note,
           supersedesId: actualRef.current?.id ?? null,
@@ -486,6 +503,27 @@ function StopRow(props: {
     void doSave();
   };
   const stampNow = (field: "arrive" | "depart") => setAndSave({ [field]: fmtClock(nowClockCT()) });
+  // Stepper taps save a moment after the last one, so 6 -> 4 is one
+  // version, not two. A pending save still goes out if the page moves on.
+  const soon = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setSoon = (patch: Partial<Draft>) => {
+    draftRef.current = { ...draftRef.current, ...patch };
+    setDraft(draftRef.current);
+    if (soon.current) clearTimeout(soon.current);
+    soon.current = setTimeout(() => {
+      soon.current = null;
+      void doSave();
+    }, 900);
+  };
+  useEffect(
+    () => () => {
+      if (soon.current) {
+        clearTimeout(soon.current);
+        void doSave();
+      }
+    },
+    [doSave],
+  );
   // Save when focus leaves the whole stop (not each box), so typing Arrive
   // then Leave is one saved version, not two.
   const rowBlur = (e: React.FocusEvent<HTMLLIElement>) => {
@@ -512,7 +550,7 @@ function StopRow(props: {
 
       <StopNotes notes={stop.notes ?? []} href={scheduleStopHref(crew.date, crew.dayId, stop.row)} />
 
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_88px_auto]">
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
         <TimeField
           label="Arrive"
           value={draft.arrive}
@@ -533,17 +571,7 @@ function StopRow(props: {
           onNow={live ? () => stampNow("depart") : undefined}
           onChange={(v) => set({ depart: v })}
         />
-        <label className="block">
-          <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-stone-500">People</span>
-          <input
-            inputMode="numeric"
-            value={draft.people}
-            disabled={disabled}
-            onChange={(e) => set({ people: e.target.value.replace(/[^\d]/g, "").slice(0, 2) })}
-              className={inputBase}
-          />
-        </label>
-        <label className="flex min-h-10 items-center gap-2 self-end rounded-lg px-1 pb-2 text-sm text-stone-700 sm:pb-2.5">
+        <label className="col-span-2 flex min-h-10 items-center gap-2 self-end rounded-lg px-1 pb-2 text-sm text-stone-700 sm:col-span-1 sm:pb-2.5">
           <input
             type="checkbox"
             checked={draft.photos}
@@ -554,6 +582,16 @@ function StopRow(props: {
           <Camera size={15} className="text-stone-400" /> Photos done
         </label>
       </div>
+
+      <CrewSize
+        draft={draft}
+        headcount={crew.headcount}
+        savedPeople={actual?.peopleCount ?? null}
+        disabled={disabled}
+        onType={set}
+        onStep={setSoon}
+        onPick={setAndSave}
+      />
 
       {(showNote || draft.note) ? (
         <label className="mt-2 block">
@@ -617,6 +655,129 @@ function StopRow(props: {
       )}
       {showHistory && actual && <History dayId={crew.dayId} row={stop.row} kind={crew.kind} latestId={actual.id} />}
     </li>
+  );
+}
+
+/** People on site (prefilled from the crew-day's staffing), ladders or
+ *  lifts used, and full or short crew: the crew-size data for next year's
+ *  estimates. Steppers and the Full/Short buttons are one tap each. */
+function CrewSize(props: {
+  draft: Draft;
+  headcount: number | null;
+  savedPeople: number | null;
+  disabled: boolean;
+  onType: (p: Partial<Draft>) => void;
+  onStep: (p: Partial<Draft>) => void;
+  onPick: (p: Partial<Draft>) => void;
+}) {
+  const { draft, headcount, savedPeople, disabled, onType, onStep, onPick } = props;
+  const people = countOrNull(draft.people, PEOPLE_MAX);
+  // Say where the number came from until someone saves their own.
+  const peopleHint =
+    headcount == null ? "" : savedPeople == null && people === headcount ? "From staffing" : people !== headcount ? `Staffed ${headcount}` : "";
+  return (
+    <div className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-2">
+      <Stepper
+        label="People"
+        value={draft.people}
+        max={PEOPLE_MAX}
+        hint={peopleHint}
+        disabled={disabled}
+        onType={(v) => onType({ people: v })}
+        onStep={(v) => onStep({ people: v })}
+      />
+      <Stepper
+        label="Ladders / lifts"
+        value={draft.ladders}
+        max={LADDERS_MAX}
+        hint=""
+        placeholder="0"
+        disabled={disabled}
+        onType={(v) => onType({ ladders: v })}
+        onStep={(v) => onStep({ ladders: v })}
+      />
+      <div>
+        <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-stone-500">Crew</span>
+        <div role="group" aria-label="Full or short crew" className="flex rounded-lg border border-stone-300 bg-white p-0.5">
+          {([false, true] as const).map((v) => {
+            const on = draft.short === v;
+            return (
+              <button
+                key={String(v)}
+                type="button"
+                aria-pressed={on}
+                disabled={disabled}
+                // Tapping the one that's on clears it (not said).
+                onClick={() => onPick({ short: on ? null : v })}
+                className={`min-h-9 rounded-md px-3 text-sm font-semibold transition-colors disabled:opacity-40 ${
+                  on ? (v ? "bg-amber-600 text-white" : "bg-emerald-700 text-white") : "text-stone-600 hover:bg-stone-100"
+                }`}
+              >
+                {v ? "Short" : "Full"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stepper(props: {
+  label: string;
+  value: string;
+  max: number;
+  hint: string;
+  placeholder?: string;
+  disabled: boolean;
+  onType: (v: string) => void;
+  onStep: (v: string) => void;
+}) {
+  const { label, value, max, hint, placeholder, disabled, onType, onStep } = props;
+  const id = useId();
+  const btn =
+    "flex h-10 w-10 flex-none items-center justify-center text-stone-700 hover:bg-stone-100 disabled:opacity-40";
+  return (
+    <div>
+      <label htmlFor={id} className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+        {label}
+      </label>
+      <div className="flex items-center overflow-hidden rounded-lg border border-stone-300 bg-white">
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={`${label}: one fewer`}
+          disabled={disabled || value.trim() === "" || value.trim() === "0"}
+          onClick={() => onStep(stepCount(value, -1, max))}
+          className={btn}
+        >
+          <Minus size={16} />
+        </button>
+        <input
+          id={id}
+          inputMode="numeric"
+          value={value}
+          placeholder={placeholder}
+          disabled={disabled}
+          onChange={(e) => onType(e.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          className="h-10 w-11 min-w-0 border-x border-stone-200 bg-transparent text-center text-base font-semibold text-stone-900 placeholder:font-normal placeholder:text-stone-400 focus:outline-none"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={`${label}: one more`}
+          disabled={disabled}
+          onClick={() => onStep(stepCount(value, 1, max))}
+          className={btn}
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+      {hint && <span className="mt-0.5 block text-[11px] text-stone-500">{hint}</span>}
+    </div>
   );
 }
 
@@ -752,7 +913,7 @@ function History({ dayId, row, kind, latestId }: { dayId: string; row: number; k
       {versions.map((v) => (
         <li key={v.id} className={v.id === latestId ? "font-semibold text-stone-800" : ""}>
           {v.arrive || "?"} to {v.depart || "?"}
-          {v.peopleCount != null ? `, ${v.peopleCount} people` : ""} · {who(v.enteredBy)}, {stampCT(v.createdAt)}
+          {crewSizeText(v) ? `, ${crewSizeText(v)}` : ""} · {who(v.enteredBy)}, {stampCT(v.createdAt)}
           {v.id === latestId ? " (current)" : ""}
         </li>
       ))}
@@ -797,6 +958,19 @@ function DiffCell({ hours, pct }: { hours: number | null | undefined; pct: numbe
       {hours > 0 ? "+" : ""}
       {fmtHours(hours)}
       {pct != null && <span className="ml-1 font-normal">({pct > 0 ? "+" : ""}{Math.round(pct)}%)</span>}
+    </span>
+  );
+}
+
+/** "5 people · 1 ladder", with Short crew in amber so it stands out. */
+function CrewSizeCell({ a }: { a: Actual }) {
+  const text = crewSizeText({ ...a, shortCrew: null });
+  if (!text && a.shortCrew == null) return NOT_ENTERED;
+  return (
+    <span className="whitespace-nowrap">
+      {text}
+      {a.shortCrew === true && <span className="font-semibold text-amber-800">{text ? " · " : ""}Short crew</span>}
+      {a.shortCrew === false && <span>{text ? " · " : ""}Full crew</span>}
     </span>
   );
 }
@@ -873,6 +1047,7 @@ function Reports() {
                   <th className="px-4 py-2 font-semibold">Date</th>
                   <th className="px-2 py-2 font-semibold">Stop</th>
                   <th className="px-2 py-2 font-semibold">Crew</th>
+                  <th className="px-2 py-2 font-semibold">Crew size</th>
                   <th className="px-2 py-2 text-right font-semibold">Estimate</th>
                   <th className="px-2 py-2 text-right font-semibold">Actual</th>
                   <th className="px-4 py-2 text-right font-semibold">Difference</th>
@@ -887,6 +1062,9 @@ function Reports() {
                     </td>
                     <td className="px-2 py-2 text-stone-900">{r.clientName}</td>
                     <td className="px-2 py-2 text-xs text-stone-600">{r.crewLead || r.crewLabel || ""}</td>
+                    <td className="px-2 py-2 text-xs text-stone-600">
+                      <CrewSizeCell a={r} />
+                    </td>
                     <td className="px-2 py-2 text-right">
                       <H h={r.estHours} />
                     </td>
@@ -908,6 +1086,7 @@ function Reports() {
                     {shortDate(r.date)}
                     {r.kind === "takedown" ? " takedown" : ""}
                     {r.crewLead ? ` · ${r.crewLead}` : ""}
+                    {crewSizeText(r) ? ` · ${crewSizeText(r)}` : ""}
                   </p>
                   <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-stone-700">
                     <span>

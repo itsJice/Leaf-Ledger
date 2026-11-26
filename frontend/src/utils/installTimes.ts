@@ -33,6 +33,10 @@ export interface Actual {
   depart: string;
   actualHours: number | null;
   peopleCount: number | null;
+  /** Ladders or lifts used (null: not entered). */
+  ladders?: number | null;
+  /** True: the crew was short. False: a full crew. null: not said. */
+  shortCrew?: boolean | null;
   photosDone: boolean | null;
   scopeNote: string;
   estHours: number | null;
@@ -300,3 +304,36 @@ export const TYPE_LABEL: Record<string, string> = {
   restaurant: "Restaurant (M Crowd)",
   dallas_night: "Dallas night",
 };
+
+// ─── crew size (people, ladders, short crew) ─────────────────────────────────
+
+export const PEOPLE_MAX = 40;
+export const LADDERS_MAX = 20;
+
+/** A stepper's next value: "" (blank) goes to 1 on +, and stays blank on -;
+ *  never below 0 or above `max`. */
+export function stepCount(value: string, delta: number, max: number): string {
+  const t = value.trim();
+  if (t === "") return delta > 0 ? "1" : "";
+  const n = Number(t);
+  if (!Number.isFinite(n)) return "";
+  return String(Math.max(0, Math.min(max, Math.round(n) + delta)));
+}
+
+/** A typed count for the server: blank is null, else a whole number clamped to 0..max. */
+export function countOrNull(value: string, max: number): number | null {
+  const t = value.trim();
+  if (t === "") return null;
+  return Math.max(0, Math.min(max, Math.round(Number(t)) || 0));
+}
+
+/** "4 people · 2 ladders · Short crew" for a saved visit, "" when none is entered. */
+export function crewSizeText(a: Pick<Actual, "peopleCount" | "ladders" | "shortCrew"> | null | undefined): string {
+  if (!a) return "";
+  const bits: string[] = [];
+  if (a.peopleCount != null) bits.push(`${a.peopleCount} ${a.peopleCount === 1 ? "person" : "people"}`);
+  if (a.ladders != null) bits.push(`${a.ladders} ${a.ladders === 1 ? "ladder" : "ladders"}`);
+  if (a.shortCrew === true) bits.push("Short crew");
+  else if (a.shortCrew === false) bits.push("Full crew");
+  return bits.join(" · ");
+}
