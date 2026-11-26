@@ -85,6 +85,13 @@ def test_nothing_changed_here_means_nothing_overwritten():
 
 # Comments #39: the load and the save settle this tab's colliding new clients
 # (settleLocalAdds) before syncBlockedBy decides anything.
+# The self-healing retry putShared calls (a failed save tries again on its
+# own); stubbed trail, real backoff helpers.
+SAVE_RETRY = "\n".join([const_line("SAVE_TIMEOUT_MS"), const_line("SAVE_RETRY_DELAYS"),
+                        const_line("SAVE_RETRY_EVERY"),
+                        "let saveRetryN=0, saveRetryTimer=null, saveRetrying=false; function llStep(){}"]
+                       + [js_function(n) for n in ("saveRetryDelay", "saveRetryable", "scheduleSaveRetry",
+                                                   "saveRetryDone")])
 SETTLE = "\n".join([const_line("ROW_MAP_KEYS"), const_line("ROW_SET_KEYS")] + [js_function(n) for n in (
     "sameLocalClient", "collidingNewClients", "remapLocalRows", "settleLocalAdds")]) + "\n"
 SAVE_LOOP = """
@@ -128,7 +135,7 @@ async function fetch(url, init){
 }
 // The page sends through authFetch (fresh token, one retry on a 401).
 async function authFetch(url, init){ return fetch(url, init); }
-""" + SETTLE + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy", "pageOutdated", "showPageOutdated")) + "\nasync " + js_function("putShared") + """
+""" + SETTLE + "\n".join(js_function(n) for n in ("rebaseOnto", "syncBlockedBy", "pageOutdated", "showPageOutdated")) + "\n" + SAVE_RETRY + "\nasync " + js_function("putShared") + """
 function load(){        // what pullSharedNow does with GET /state
   DOC={}; rebaseOnto({state:clone(server.doc), updatedAt:server.at, updatedBy:server.by}, null, {});
 }

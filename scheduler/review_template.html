@@ -159,6 +159,61 @@ header h1 svg{color:var(--brand)}
   color:#991b1b;background:#fef2f2;opacity:0;transform:translateY(-3px);transition:opacity .18s,transform .18s}
 .cordermsg.show{opacity:1;transform:none}
 .cordermsg .ic{width:12px;height:12px;flex:none}
+/* Reorder window (comment #58): the whole day's stops as one drag list. */
+.chead .mvdaybtn + .orderbtn,.chead .orderbtn + .printbtn{margin-left:0}
+body.readonly .orderbtn,body.viewonly .orderbtn{display:none!important}
+.printbtn.picon.orderbtn{gap:5px;padding:4px 9px 4px 7px;font-size:12px;font-weight:700}
+.pkreorder{margin-top:6px;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:7px;
+  background:var(--surface);color:var(--brand);font:700 12px 'Montserrat',sans-serif;padding:6px 10px;min-height:34px;cursor:pointer}
+.pkreorder .ic{width:14px;height:14px}
+body.readonly .pkreorder,body.viewonly .pkreorder{display:none!important}
+#orddlg{max-width:520px;width:calc(100vw - 24px);box-sizing:border-box;--dlgpad:16px;padding:16px;-webkit-user-select:none;user-select:none}
+#orddlg .ordsub{font-size:12.5px;color:var(--mut);margin-top:2px}
+#orddlg .ordhint{margin:8px 0 10px;font-size:12px;color:var(--mut);line-height:1.4}
+#orddlg .ordlist{list-style:none;margin:0;padding:0;position:relative;display:flex;flex-direction:column;gap:6px;
+  max-height:calc(100vh - 290px);max-height:calc(100dvh - 290px);min-height:120px;overflow-y:auto;overscroll-behavior:contain}
+#orddlg .ordrow{display:flex;align-items:center;gap:9px;padding:8px 8px 8px 4px;border:1.5px solid var(--line);
+  border-radius:9px;background:var(--surface);color:var(--ink);position:relative;cursor:grab;
+  -webkit-user-select:none;user-select:none;transition:transform .2s cubic-bezier(.23,1,.32,1),box-shadow .15s}
+#orddlg .ordrow:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+#orddlg .ordrow.lifting{z-index:5;cursor:grabbing;transition:box-shadow .15s;box-shadow:0 10px 26px rgba(28,25,23,.2),0 0 0 1.5px var(--brand)}
+#orddlg .ordrow.bad{box-shadow:0 10px 26px rgba(185,28,28,.2),0 0 0 1.5px #b91c1c}
+#orddlg .ordrow.fixed{cursor:default;background:var(--page)}
+#orddlg .ordrow.moved .num{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--warn)}
+#orddlg .ordhandle{flex:none;width:30px;align-self:stretch;display:flex;align-items:center;justify-content:center;
+  color:#a8a29e;touch-action:none;cursor:grab}
+#orddlg .ordrow.fixed .ordhandle{color:var(--mut);cursor:default}
+#orddlg .ordhandle .ic{width:16px;height:16px}
+#orddlg .num{width:22px;height:22px;border-radius:50%;color:#fff;font-size:11px;font-weight:700;flex:none;
+  display:flex;align-items:center;justify-content:center}
+#orddlg .ordbody{flex:1 1 auto;min-width:0}
+#orddlg .ordname{font-size:13.5px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+#orddlg .ordmeta{font-size:12px;color:var(--mut);margin-top:2px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}
+#orddlg .ordmeta b{color:var(--ink);font-family:inherit;letter-spacing:0}
+#orddlg .ordlock{display:inline-flex;align-items:center;gap:3px;font-weight:700;color:var(--warn-ink)}
+#orddlg .ordlock .ic,#orddlg .ordjoint .ic{width:11px;height:11px}
+#orddlg .ordarrows{display:flex;gap:4px;flex:none}
+#orddlg .ordarrows button{width:34px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;
+  border-radius:7px;color:var(--mut);background:var(--surface)}
+#orddlg .ordarrows button .ic{width:14px;height:14px}
+#orddlg .ordarrows .up .ic{transform:rotate(180deg)}
+#orddlg .ordarrows button:disabled{opacity:.3;cursor:default}
+@media (hover:hover){ #orddlg .ordarrows button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)} }
+#orddlg .ordmsg{min-height:18px;margin-top:8px;font-size:12px;font-weight:700;color:var(--mut);display:flex;gap:5px;align-items:center}
+#orddlg .ordmsg.bad{color:#b91c1c}
+#orddlg .ordmsg .ic{width:12px;height:12px;flex:none}
+#orddlg .ordfoot{margin-top:6px;padding:9px 10px;border-radius:8px;background:var(--brand-soft);font-size:12.5px;line-height:1.45}
+#orddlg .ordfoot b{font-family:inherit;letter-spacing:0}
+#orddlg .ordfoot .was{color:var(--mut)}
+#orddlg .ordfoot .over{color:#b91c1c;font-weight:700}
+#orddlg .btns button{min-height:40px;padding:0 16px}
+@media (max-width:600px){
+  #orddlg{width:calc(100vw - 16px);padding:14px 12px}
+  #orddlg .ordrow{padding:7px 6px 7px 2px;gap:7px}
+  #orddlg .ordarrows button{width:40px;height:32px}
+  #orddlg .btns button{flex:1}
+}
+@media (prefers-reduced-motion:reduce){ #orddlg .ordrow{transition:none} }
 .clockwarn{display:flex;gap:7px;align-items:flex-start;margin:8px 14px 2px;padding:6px 9px;border-radius:7px;
   font-size:11.5px;line-height:1.35;color:var(--warn-ink);background:var(--warn-soft);border:1px solid #f3d9ad}
 .clockwarn .ic{width:13px;height:13px;flex:none;margin-top:1px}
@@ -2435,6 +2490,9 @@ body.apple #newpop button:hover,body.apple #newpop button:focus-visible{backgrou
 body.apple #seasonpick{height:34px;border-radius:17px;border:1px solid #ddd7cb;background:#fff;padding:0 10px;font-weight:700}
 body.apple #statewarn,body.apple #robanner,body.apple #syncbanner{flex:1 1 100%}
 body.apple #tbsaved.bad{color:#b91c1c}
+body.apple #tbsaved.retry,#tbsaved.retry{cursor:pointer;flex:none;overflow:visible}
+#tbsaved .tbretry{margin-left:6px;text-decoration:underline;font-weight:700}
+#tbsaved.retry:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
 body.readonly #newmenu,body.readonly #tbundo,body.readonly #tbredo{opacity:.4;pointer-events:none}
 body.viewonly #newmenu,body.viewonly #tbedit,body.viewonly #tbprint{display:none!important}
 body.apple #histwrap{position:relative}
@@ -3340,6 +3398,15 @@ body.hosted:not(.tv) .viewtog,body.hosted:not(.tv) .stfbar .stftab{display:none!
   <div class="stfnote" id="startbody"></div>
   <div class="btns"><button type="button" onclick="startdlg.close()">Done</button></div>
 </dialog>
+<dialog id="orddlg" aria-labelledby="ordtitle">
+  <b id="ordtitle">Reorder stops</b>
+  <div class="ordsub" id="ordsub"></div>
+  <p class="ordhint" id="ordhint">Drag a stop by its handle, or use the arrows. On a keyboard, pick a stop and press the up or down arrow key. Times update as you go; nothing changes until you save.</p>
+  <ol class="ordlist" id="ordlist" aria-label="Stops in order"></ol>
+  <div class="ordmsg" id="ordmsg" role="status" aria-live="polite"></div>
+  <div class="ordfoot" id="ordfoot"></div>
+  <div class="btns"><button type="button" id="ordcancel">Cancel</button><button type="button" class="go" id="ordsave">Save order</button></div>
+</dialog>
 <dialog id="sddlg" aria-labelledby="sdtitle" tabindex="-1">
   <div class="sdhead">
     <span class="cdot" id="sddot"></span>
@@ -3590,6 +3657,14 @@ function llReport(kind, message, detail){
     window.parent.postMessage({type:LL_EVENT, kind:String(kind), message:String(message).slice(0,500), detail:d}, '*');
   }catch(_){}
 }
+/** One line in the app's "last minute" trail (the steps a comment or an
+ *  error carries), e.g. "Save retry 2 in 15s". Reports only. */
+function llStep(action, label){
+  try{
+    if(window.parent===window) return;
+    window.parent.postMessage({type:'ll-frame-step', action:String(action), label:String(label).slice(0,80)}, '*');
+  }catch(_){}
+}
 /** PURE. Why the board looks empty when it shouldn't, or null. `f` is
  *  llScreenFacts(): what's on screen and what the page holds. */
 function llBlankReason(f){
@@ -3698,6 +3773,7 @@ const IC={
  chev:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
  print:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg>',
  dots:'<svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg>',
+ order:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 6h9M12 12h9M12 18h9"/><path d="m3 8 3-3 3 3"/><path d="M6 5v14"/><path d="m3 16 3 3 3-3"/></svg>',
  grip:'<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></svg>',
  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
  undo:'<svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
@@ -5892,7 +5968,7 @@ try{
                              + 'longer exist and were left at their baseline.';
   } else if(s.moves && s.moves.length){
     // one-time migration off the old replay-log format
-    s.moves.forEach(m=>{ try{ applyMove(m.row, m.to, false); }catch(e){} });
+    s.moves.forEach(m=>{ if(!m || m.row==null) return; try{ applyMove(m.row, m.to, false); }catch(e){} });
     moves = s.moves;
     approved = new Set((s.approved||[]).filter(id=>days.some(d=>d.id===id)));
     confirmed = new Set((s.confirmed||[]).filter(row=>C[row]));
@@ -7843,12 +7919,21 @@ async function putShared(){
   try{
     for(let attempt=0; attempt<4; attempt++){
       const st=sharedSnapshot(), sent=pendingBoardDates;
-      const r = await authFetch('/api/install-schedule/state', {
-        method:'PUT',
-        headers:{'Content-Type':'application/json', Authorization:AUTH},
-        body: JSON.stringify({version:SPEC.version, state:st, pageRev:PAGE_REV,
-                              baseUpdatedAt: sharedBase ? sharedBase.at : null}),
-      });
+      // A save that gets no answer gives up after SAVE_TIMEOUT_MS instead of
+      // hanging for minutes (one PUT sat 236 s on 11/25), and the retry
+      // below takes over.
+      const ctl = typeof AbortController==='function' ? new AbortController() : null;
+      const killer = ctl ? setTimeout(()=>{ try{ ctl.abort(); }catch(_){} }, SAVE_TIMEOUT_MS) : null;
+      let r;
+      try{
+        r = await authFetch('/api/install-schedule/state', {
+          method:'PUT',
+          headers:{'Content-Type':'application/json', Authorization:AUTH},
+          body: JSON.stringify({version:SPEC.version, state:st, pageRev:PAGE_REV,
+                                baseUpdatedAt: sharedBase ? sharedBase.at : null}),
+          ...(ctl ? {signal:ctl.signal} : {}),
+        });
+      } finally { if(killer) clearTimeout(killer); }
       if(r.status===409){
         const j = await r.json();
         // A newer publish of this page: nothing to merge, reload instead.
@@ -7860,7 +7945,7 @@ async function putShared(){
         // everything here as a change, so anything that differs is listed.
         const res = rebaseOnto(j, sharedBase || {at:null, state:{}}, mine);
         render(); saveLocal();
-        if(!res.pending){ lastPushOk = true; if(typeof syncToolbar==='function') syncToolbar(); return true; }
+        if(!res.pending){ lastPushOk = true; saveRetryDone(); if(typeof syncToolbar==='function') syncToolbar(); return true; }
         continue;
       }
       if(r.ok){
@@ -7871,7 +7956,10 @@ async function putShared(){
         if(sent) syncedBoardDates=sent;
         saveLocal();
       }
-      lastPushOk = r.ok; if(typeof syncToolbar==='function') syncToolbar();
+      lastPushOk = r.ok;
+      if(r.ok) saveRetryDone();
+      else if(saveRetryable(r.status)) scheduleSaveRetry('status '+r.status);
+      if(typeof syncToolbar==='function') syncToolbar();
       return r.ok;
     }
     if(!syncBlocked){
@@ -7882,11 +7970,64 @@ async function putShared(){
     lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar();
     return false;
   }catch(e){
-    if(typeof llReport==='function') llReport('save_blocked', 'Save failed: '+String(e && e.message || e), {error:String(e && e.name || 'Error')});
-    lastPushOk = false; if(typeof syncToolbar==='function') syncToolbar(); return false;
+    const timedOut = e && e.name==='AbortError';
+    const why = timedOut ? `no answer in ${Math.round(SAVE_TIMEOUT_MS/1000)}s` : String(e && e.message || e);
+    if(typeof llReport==='function') llReport('save_blocked', 'Save failed: '+why, {error:String(e && e.name || 'Error'), retry:saveRetryN+1});
+    lastPushOk = false;
+    scheduleSaveRetry(why);
+    if(typeof syncToolbar==='function') syncToolbar(); return false;
   }
 }
 var lastPushOk = null;   // null: nothing pushed yet this session
+// ---------- a save that didn't reach the server heals itself ----------
+// "Failed to fetch" (wifi drop, the server restarting) used to leave the
+// toolbar on "Not saved to the server" until the next edit (11/25: 363
+// changes waiting). Now a save that got no answer, or a 5xx / 408 / 429,
+// tries again on its own: after 5 s, 15 s, 30 s, then every minute; at once
+// when the device comes back online or the tab is shown again; and when
+// the red status is clicked ("Retry now"). A 409 still goes through the
+// merge above, unchanged. Each retry is a step in the app's trail.
+const SAVE_TIMEOUT_MS=30000;
+const SAVE_RETRY_DELAYS=[5000, 15000, 30000];
+const SAVE_RETRY_EVERY=60000;
+let saveRetryN = 0, saveRetryTimer = null, saveRetrying = false;
+/** PURE. Wait before automatic retry number n (0-based). */
+function saveRetryDelay(n){
+  return n < SAVE_RETRY_DELAYS.length ? SAVE_RETRY_DELAYS[Math.max(0, n)] : SAVE_RETRY_EVERY;
+}
+/** PURE. Is a refused save worth sending again unchanged? Only the server
+ *  being away or busy: never a 4xx it meant (403, 422, ...). */
+function saveRetryable(status){
+  return status===0 || status===408 || status===429 || (status>=500 && status<600);
+}
+function scheduleSaveRetry(why){
+  if(!AUTH || READONLY || syncBlocked || DRAFT || saveRetryTimer) return;
+  const n = saveRetryN, wait = saveRetryDelay(n);
+  saveRetryN++;
+  llStep('save', `Save retry ${n+1} in ${Math.round(wait/1000)}s (${why})`);
+  saveRetryTimer = setTimeout(()=>{ saveRetryTimer = null; runSaveRetry('timer'); }, wait);
+}
+/** Send the waiting changes now (the timer, back online, tab shown, or the
+ *  Retry now click). */
+function runSaveRetry(trigger){
+  if(!AUTH || READONLY || syncBlocked || lastPushOk!==false) return Promise.resolve(false);
+  if(saveRetrying) return pushWaiting || Promise.resolve(false);
+  clearTimeout(saveRetryTimer); saveRetryTimer = null;
+  saveRetrying = true;
+  if(trigger!=='timer') llStep('save', `Save retry now (${trigger})`);
+  if(typeof syncToolbar==='function') syncToolbar();
+  return pushSharedNow().finally(()=>{ saveRetrying = false; if(typeof syncToolbar==='function') syncToolbar(); });
+}
+/** A save landed: stop retrying, and say so in the trail if it had failed. */
+function saveRetryDone(){
+  clearTimeout(saveRetryTimer); saveRetryTimer = null;
+  if(saveRetryN) llStep('save', `Saved after ${saveRetryN} retr${saveRetryN===1?'y':'ies'}`);
+  saveRetryN = 0;
+}
+window.addEventListener('online', ()=>{ runSaveRetry('back online'); });
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==='visible') runSaveRetry('tab shown');
+});
 // ---------- the out-of-date banner ----------
 function syncWho(j){
   const by=String((j && j.updatedBy)||'');
@@ -8936,6 +9077,288 @@ function clearManualOrder(dayId){
   delete manualOrder[dayId];
   persist(); render();
 }
+// ---------- Reorder window (comment #58) ----------
+// "there should be a thing on the crews that you could click reorder and
+// quickly have a window that has a drag and drop of the order instead of
+// having to click all 8 one by one each move" (Justice, comment #58).
+// The crew card's Reorder button opens the day's stops as one list: drag
+// (mouse or finger), arrows, or the keyboard. The arrive times and day
+// length update as you go, and Save order commits the whole order as ONE
+// change (one undo step, one save, one "Reordered Crew 1, Fri 11/27" line in
+// Session changes). Locks work exactly like the card's arrows: every step
+// is checked with checkOrderMove, so a locked stop keeps its place and the
+// window says why.
+/** PURE. `order` with the stop at `from` moved to index `to`. */
+function moveInOrder(order, from, to){
+  const next=[...order];
+  if(from<0 || from>=next.length) return next;
+  const [x]=next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, x);
+  return next;
+}
+/** PURE. Move the stop at `from` to `to` if that keeps the locks the
+ *  current order keeps. {ok:true, order} (same order back when nothing
+ *  moved) or {ok:false, order (unchanged), reason}. */
+function tryReorder(order, from, to, pin, name, source){
+  const next=moveInOrder(order, from, to);
+  if(next.every((r,i)=>r===order[i])) return {ok:true, order, same:true};
+  const chk=checkOrderMove(order, next, pin, name, source);
+  return chk.ok ? {ok:true, order:next} : {ok:false, order, reason:chk.reason};
+}
+/** PURE. True when the stop at `i` can't go anywhere else on the day (a
+ *  lone First already on top, a lone Last at the bottom). */
+function reorderFixed(order, i, pin, name, source){
+  if(order.length<2) return true;
+  for(let j=0;j<order.length;j++){
+    if(j!==i && tryReorder(order, i, j, pin, name, source).ok) return false;
+  }
+  return true;
+}
+/** PURE. The change-log line: "Reordered Crew 1, Fri 11/27". */
+function reorderLabel(crew, dow, iso){
+  const [,m,d]=String(iso||'').split('-').map(Number);
+  const when=[dow, (m && d) ? `${m}/${d}` : ''].filter(Boolean).join(' ');
+  return `Reordered ${crew}${when ? ', '+when : ''}`;
+}
+/** The day's clock for a trial order, without touching the board: the same
+ *  dayCalc / stopWalk the card and run sheet use, with this order treated
+ *  as a hand order for the moment. */
+function reorderPreview(d, order){
+  const had=Object.prototype.hasOwnProperty.call(manualOrder, d.id), was=manualOrder[d.id];
+  const trial={...d, stops:[...order]};
+  manualOrder[d.id]=[...order];
+  try{
+    const calc=dayCalc(trial);
+    const walk=stopWalk(trial, calc.order.length ? calc.order : order);
+    const at={}; walk.forEach(w=>{ at[w.row]=w; });
+    return {calc, at, start:shiftStart(trial)};
+  } finally {
+    if(had) manualOrder[d.id]=was; else delete manualOrder[d.id];
+  }
+}
+/** Save a whole new order for a day as one change. {ok} or {ok:false, reason}. */
+function saveDayOrder(d, order){
+  if(roBlocked()) return {ok:false, reason:'This schedule is read-only.'};
+  if(order.length!==d.stops.length || order.some(r=>!d.stops.includes(r)))
+    return {ok:false, reason:'This day changed while the window was open. Close it and open Reorder again.'};
+  if(order.every((r,i)=>r===d.stops[i])) return {ok:true, same:true};
+  const chk=checkDayOrder(d, order);
+  if(!chk.ok) return chk;
+  pushUndo();
+  d.stops=[...order];
+  manualOrder[d.id]=[...order];
+  moves.push({row:null, name:reorderLabel(crewLabel(d), dowName(d), d.date), from:d.id, to:'ORDER'});
+  persist(); render();
+  return {ok:true};
+}
+const orddlg=document.getElementById('orddlg');
+let ordDayId=null, ordWork=[], ordBase=[], ordBasePrev=null, ordMsgTimer=null;
+function ordDay(){ return days.find(x=>x.id===ordDayId); }
+function ordPin(d){ return r=>pinOf(r, d); }
+function ordSrc(d){ return r=>pinSourceOf(r, d); }
+function openReorderDlg(dayId){
+  if(roBlocked()) return;
+  const d=days.find(x=>x.id===dayId); if(!d || d.stops.length<2) return;
+  ordDayId=dayId; ordBase=[...d.stops]; ordWork=[...d.stops];
+  ordBasePrev=reorderPreview(d, ordBase);
+  document.getElementById('ordsub').textContent=`${crewTitle(d)}, ${dowName(d)} ${fmtMDYYYY(d.date)} · ${d.stops.length} stops`;
+  ordSay('');
+  drawOrdDlg();
+  orddlg.showModal();
+  const first=orddlg.querySelector('.ordrow:not(.fixed)')||orddlg.querySelector('.ordrow');
+  if(first) try{ first.focus({preventScroll:true}); }catch(_){}
+}
+function ordSay(text, bad){
+  const el=document.getElementById('ordmsg'); if(!el) return;
+  clearTimeout(ordMsgTimer);
+  el.classList.toggle('bad', !!bad);
+  el.innerHTML=text ? `${bad?IC.lock:''}<span></span>` : '';
+  if(text) el.querySelector('span').textContent=text;
+  if(bad) ordMsgTimer=setTimeout(()=>{ el.innerHTML=''; el.classList.remove('bad'); }, 4200);
+}
+function ordRowHTML(d, r, i, n, fixed){
+  const c=C[r]||{}, col=CREW_COLORS[d.crew]||'#555';
+  const nm=peekEsc(stopName(r));
+  const lock=pinBadgeHTML(r, d) ? `<span class="ordlock">${IC.lock} ${
+    pinSourceOf(r, d)==='planner' ? 'Goes first (planner)' : 'Locked '+PIN_SHORT[pinOf(r, d)].toLowerCase()}${fixed?', stays put':''}</span>` : '';
+  const joint=(d.half||[]).includes(r) ? `<span class="ordjoint">${IC.link} with ${esc(d.joint||'another crew')}</span>` : '';
+  const hrs=(d.half||[]).includes(r) ? `${effH(d,r).toFixed(1)}h each` : `${fmtHrs(c.h26)}h`;
+  return `<li class="ordrow${fixed?' fixed':''}" data-row="${r}" tabindex="0" aria-roledescription="sortable stop"
+      aria-label="${nm}, stop ${i+1} of ${n}${fixed?', locked in place':''}">
+    <span class="ordhandle" aria-hidden="true" title="${fixed?'Locked in place':'Drag to reorder'}">${fixed?IC.lock:IC.grip}</span>
+    <span class="num" style="background:${col}">${i+1}</span>
+    <div class="ordbody"><div class="ordname">${nm}</div>
+      <div class="ordmeta"><span>${hrs}</span><span class="ordat"></span>${lock}${joint}</div></div>
+    <div class="ordarrows">
+      <button type="button" class="up" aria-label="Move ${nm} up" title="Move up one stop">${IC.chev}</button>
+      <button type="button" class="down" aria-label="Move ${nm} down" title="Move down one stop">${IC.chev}</button>
+    </div></li>`;
+}
+/** Full redraw of the list (open, arrows, keyboard). A drag only repaints
+ *  numbers and times (paintOrd) so the row under the pointer stays put. */
+function drawOrdDlg(focusRow, focusSel){
+  const d=ordDay(); if(!d) return;
+  const pin=ordPin(d), src=ordSrc(d), n=ordWork.length;
+  const list=document.getElementById('ordlist');
+  list.innerHTML=ordWork.map((r,i)=>ordRowHTML(d, r, i, n, reorderFixed(ordWork, i, pin, orderName, src))).join('');
+  list.querySelectorAll('.ordrow').forEach(li=>wireOrdRow(li));
+  paintOrd();
+  if(focusRow!=null){
+    const li=list.querySelector(`.ordrow[data-row="${focusRow}"]`);
+    const el=li && (focusSel ? li.querySelector(focusSel) : li);
+    if(el && !el.disabled) try{ el.focus({preventScroll:false}); }catch(_){}
+    else if(li) try{ li.focus(); }catch(_){}
+  }
+}
+/** Numbers, arrive times, arrow states and the day-length footer for the
+ *  working order. */
+function paintOrd(){
+  const d=ordDay(); if(!d) return;
+  const pv=reorderPreview(d, ordWork), n=ordWork.length;
+  const pin=ordPin(d), src=ordSrc(d);
+  document.querySelectorAll('#ordlist .ordrow').forEach(li=>{
+    const r=+li.dataset.row, i=ordWork.indexOf(r);
+    li.querySelector('.num').textContent=i+1;
+    li.classList.toggle('moved', ordBase[i]!==r);
+    const w=pv.at[r];
+    li.querySelector('.ordat').innerHTML = w ? `Arrive <b>${fmtClock(w.start-w.wait)}</b>${w.wait>0?` (starts ${fmtClock(w.start)})`:''}` : '';
+    li.setAttribute('aria-label', `${stopName(r)}, stop ${i+1} of ${n}${li.classList.contains('fixed')?', locked in place':''}`);
+    const fixed=li.classList.contains('fixed');
+    li.querySelector('.up').disabled = fixed || i===0;
+    li.querySelector('.down').disabled = fixed || i===n-1;
+  });
+  const WIN=d.win||600, tot=pv.calc.total, was=ordBasePrev ? ordBasePrev.calc.total : tot;
+  const winH=(WIN/60)%1?(WIN/60).toFixed(1):(WIN/60).toFixed(0);
+  const changed=!ordWork.every((r,i)=>r===ordBase[i]);
+  document.getElementById('ordfoot').innerHTML=
+    `Day length <b class="${tot>WIN?'over':''}">${fmtH(tot)} of ${winH}h</b>`
+    + ` · Drive ${fmtH(pv.calc.drive)} · Est. finish <b>${fmtClock(pv.start+tot)}</b>`
+    + (changed && Math.abs(tot-was)>=1 ? ` <span class="was">(was ${fmtH(was)})</span>` : '')
+    + (tot>WIN ? ` <span class="over">${((tot-WIN)/60).toFixed(1)}h over</span>` : '');
+  document.getElementById('ordsave').disabled=!changed;
+}
+/** One step up or down from the arrows or the keyboard. */
+function ordStep(row, dir, focusSel){
+  const d=ordDay(); if(!d) return;
+  const from=ordWork.indexOf(row), to=from+dir;
+  if(from<0 || to<0 || to>=ordWork.length) return;
+  const t=tryReorder(ordWork, from, to, ordPin(d), orderName, ordSrc(d));
+  if(!t.ok){ ordSay(t.reason, true); return; }
+  ordWork=t.order;
+  drawOrdDlg(row, focusSel);
+  ordSay(`${orderName(row)} is now stop ${to+1} of ${ordWork.length}.`);
+}
+function wireOrdRow(li){
+  const row=+li.dataset.row;
+  li.querySelector('.up').onclick=e=>{ e.stopPropagation(); ordStep(row, -1, '.up'); };
+  li.querySelector('.down').onclick=e=>{ e.stopPropagation(); ordStep(row, 1, '.down'); };
+  li.addEventListener('keydown', e=>{
+    if(e.target!==li) return;
+    if(e.key==='ArrowUp' || e.key==='ArrowDown'){
+      e.preventDefault();
+      if(li.classList.contains('fixed')){ ordSay(`${orderName(row)} is locked in place.`, true); return; }
+      ordStep(row, e.key==='ArrowUp' ? -1 : 1);
+    }
+  });
+  const handle=li.querySelector('.ordhandle');
+  // iOS Safari: hold the touch on the handle so the list doesn't scroll.
+  const holdTouch=e=>{ if(e.cancelable) e.preventDefault(); };
+  handle.addEventListener('touchstart', holdTouch, {passive:false});
+  handle.addEventListener('touchmove', holdTouch, {passive:false});
+  li.addEventListener('pointerdown', e=>ordDragStart(e, li));
+}
+/** Drag a row. A mouse can grab the row anywhere; a finger uses the handle,
+ *  so the list still scrolls under a normal swipe. The row follows the
+ *  pointer and the others make room as it passes them; a spot that breaks
+ *  a lock turns the row red, says why, and isn't taken. */
+function ordDragStart(e, li){
+  if(e.target.closest('button')) return;
+  const mouse=e.pointerType==='mouse';
+  if(mouse && e.button!==0) return;
+  if(!mouse && !e.target.closest('.ordhandle')) return;
+  const d=ordDay(); if(!d) return;
+  const row=+li.dataset.row;
+  if(li.classList.contains('fixed')){
+    const why=checkOrderMove(ordWork, moveInOrder(ordWork, ordWork.indexOf(row), ordWork.indexOf(row)===0?1:0),
+      ordPin(d), orderName, ordSrc(d));
+    ordSay(why.ok ? `${orderName(row)} is locked in place.` : why.reason, true);
+    return;
+  }
+  e.preventDefault();
+  const list=li.parentElement;
+  const natTop=x=>list.getBoundingClientRect().top + x.offsetTop - list.scrollTop;
+  const grab=e.clientY-natTop(li);
+  let moved=false, lastY=e.clientY, raf=0;
+  const startY=e.clientY;
+  try{ li.setPointerCapture(e.pointerId); }catch(_){}
+  const follow=()=>{ li.style.transform=`translateY(${lastY-grab-natTop(li)}px)`; };
+  const flip=(els, fn)=>{
+    const before=new Map(els.map(x=>[x, natTop(x)]));
+    fn();
+    els.forEach(x=>{
+      const dy=before.get(x)-natTop(x); if(!dy) return;
+      x.style.transition='none'; x.style.transform=`translateY(${dy}px)`;
+      requestAnimationFrame(()=>{ x.style.transition=''; x.style.transform=''; });
+    });
+  };
+  const place=()=>{
+    if(!moved){ moved=true; li.classList.add('lifting'); }
+    follow();
+    const others=[...list.children].filter(x=>x!==li);
+    const cy=lastY-grab+li.offsetHeight/2;
+    const to=others.filter(x=>cy>natTop(x)+x.offsetHeight/2).length;
+    const from=ordWork.indexOf(row);
+    if(to===from){ li.classList.remove('bad'); return; }
+    const t=tryReorder(ordWork, from, to, ordPin(d), orderName, ordSrc(d));
+    if(!t.ok){ if(!li.classList.contains('bad')) ordSay(t.reason, true); li.classList.add('bad'); return; }
+    li.classList.remove('bad');
+    ordWork=t.order;
+    flip(others, ()=>{ others[to] ? list.insertBefore(li, others[to]) : list.appendChild(li); });
+    follow();
+    paintOrd();
+  };
+  const autoScroll=()=>{
+    raf=0; if(!moved) return;
+    const lr=list.getBoundingClientRect(), EDGE=40;
+    let v=0;
+    if(lastY<lr.top+EDGE) v=-Math.ceil((lr.top+EDGE-lastY)/EDGE*10);
+    else if(lastY>lr.bottom-EDGE) v=Math.ceil((lastY-(lr.bottom-EDGE))/EDGE*10);
+    if(!v) return;
+    const b=list.scrollTop; list.scrollTop=b+v;
+    if(list.scrollTop!==b) place();
+    raf=requestAnimationFrame(autoScroll);
+  };
+  const move=ev=>{
+    lastY=ev.clientY;
+    if(!moved && Math.abs(lastY-startY)<4) return;
+    place();
+    if(!raf) raf=requestAnimationFrame(autoScroll);
+  };
+  const end=()=>{
+    if(raf){ cancelAnimationFrame(raf); raf=0; }
+    li.removeEventListener('pointermove', move);
+    li.removeEventListener('pointerup', end);
+    li.removeEventListener('pointercancel', end);
+    if(!moved) return;
+    li.classList.remove('lifting', 'bad');
+    li.style.transform='';
+    const i=ordWork.indexOf(row);
+    ordSay(i===ordBase.indexOf(row) ? '' : `${orderName(row)} is now stop ${i+1} of ${ordWork.length}.`);
+    // Locks on the other rows may have freed up or tightened.
+    setTimeout(()=>drawOrdDlg(row), 210);
+  };
+  li.addEventListener('pointermove', move);
+  li.addEventListener('pointerup', end);
+  li.addEventListener('pointercancel', end);
+}
+document.getElementById('ordcancel').onclick=()=>orddlg.close();
+document.getElementById('ordsave').onclick=()=>{
+  const d=ordDay(); if(!d){ orddlg.close(); return; }
+  const res=saveDayOrder(d, ordWork);
+  if(!res.ok){ ordSay(res.reason, true); return; }
+  orddlg.close();
+};
+orddlg.addEventListener('close', ()=>{ ordDayId=null; ordWork=[]; ordBase=[]; ordBasePrev=null; });
 function applyMove(row, toId, record=true){
   if(roBlocked()) return;
   // A brand-new client (just created, never placed anywhere) has no
@@ -11699,6 +12122,7 @@ function buildDayCard(d){
     </span>
     <span class="cpeople">${d.joint?IC.link+' with '+d.joint:(d.stacked>1?'×'+d.stacked+' crews':'')}</span>
     ${d.training?'':`<button type="button" class="printbtn picon mvdaybtn" title="Move or swap this whole day" aria-label="Move or swap ${esc(crewTitle(d))}'s whole day">${IC.swap}</button>`}
+    ${!READONLY && d.stops.length>1 ? `<button type="button" class="printbtn picon orderbtn" title="Reorder this crew's stops" aria-label="Reorder ${esc(crewTitle(d))}'s stops">${IC.order}<span class="obtxt">Reorder</span></button>` : ''}
     ${(sh=>!READONLY && sh && sh.days.some(x=>(staffing[x.id]||[]).length)
       ? `<button type="button" class="printbtn picon remcardbtn" data-remind="${esc(d.date)}" data-remkeys="${esc(sh.key)}" title="Text this crew a reminder of their shift" aria-label="Text ${esc(crewTitle(d))} a reminder">${IC.msg}</button>` : '')(shiftOfDay(d))}
     <button type="button" class="printbtn picon sheetbtn" title="Print this crew's run sheet for the day" aria-label="Print sheet">${IC.print}</button>
@@ -11730,6 +12154,8 @@ function buildDayCard(d){
   card.querySelector('.stfchip').onclick=(e)=>{ e.stopPropagation(); openStaffDlg(d.id); };
   { const mb=card.querySelector('.mvdaybtn');
     if(mb) mb.onclick=e=>{ e.stopPropagation(); openRearrange(d.id, null); }; }
+  { const ob=card.querySelector('.orderbtn');
+    if(ob) ob.onclick=e=>{ e.stopPropagation(); openReorderDlg(d.id); }; }
   const chead = card.querySelector('.chead-crew');
   chead.onclick=()=>{
     focusDayId=d.id;
@@ -12230,7 +12656,8 @@ function renderLog(){
       return ids.length ? `${fmtMDY(ids[0].split('|')[0])} ${ids.map(x=>x.split('|')[1]).join(' + ')}` : 'no crew'; }
     const [dt,cr]=id.split('|'); return `${fmtMDY(dt)} ${cr}`;};
   log.innerHTML=`<h3>Session changes (${moves.length} moves · ${approved.size} approved)</h3>`+
-    moves.slice(-8).map(m=>`<div class="ent">→ ${esc(m.name)}: ${esc(fmtId(m.from))} → ${esc(fmtId(m.to))}</div>`).join('')+
+    moves.slice(-8).map(m=>m.to==='ORDER' ? `<div class="ent">→ ${esc(m.name)}</div>`
+      : `<div class="ent">→ ${esc(m.name)}: ${esc(fmtId(m.from))} → ${esc(fmtId(m.to))}</div>`).join('')+
     `<div class="undobar">
        <button id="undoBtn" ${undoStack.length?'':'disabled'}>${IC.undo} Undo${
          undoStack.length>1?` (${undoStack.length})`:''}</button>
@@ -14649,7 +15076,8 @@ function peekPositionHTML(row, d){
         +`title="${v?'Lock this stop as the day\'s '+l.toLowerCase()+' stop':'No lock, drive time decides'}">${l}</button>`).join('')}</div></div>
     ${cur?`<p class="pkfine">Locked: re-routing and drops won't move it</p>`
       :planner?`<p class="pkfine">${IC.lock} Goes first (planner). Pick Middle or Last to override it.</p>`:''}
-    <p class="pkfine pkposnote">Applies to this client on any day</p>`);
+    <p class="pkfine pkposnote">Applies to this client on any day</p>
+    ${!READONLY && d.stops && d.stops.length>1 ? `<button type="button" class="pkreorder" data-day="${esc(d.id)}">${IC.order} Reorder the whole day</button>` : ''}`);
 }
 let pkEditingAlert=false;
 /** The staff alert itself (with Edit for staff), or the inline editor. With
@@ -15791,6 +16219,9 @@ function openStopPeek(row,dayId){
   }
   document.querySelectorAll('#peekbody .pkpos .pkseg-b').forEach(b=>{
     b.onclick=()=>{ peekdlg.close(); setStopPin(row, b.dataset.pos||null); };
+  });
+  document.querySelectorAll('#peekbody .pkreorder').forEach(b=>{
+    b.onclick=()=>{ const id=b.dataset.day; peekdlg.close(); openReorderDlg(id); };
   });
   const addComment=async()=>{
     if(roBlocked()) return;
@@ -22178,16 +22609,26 @@ function syncToolbar(){
     const where = READONLY ? 'Read-only' : failed ? 'Not saved to the server'
       : (AUTH ? (syncState==='shared' ? 'Saved' : 'Saved on this device') : 'Saved on this device');
     sv.classList.toggle('bad', failed);
+    const retry = failed && !DRAFT && !READONLY && !syncBlocked;
+    sv.classList.toggle('retry', retry);
+    if(retry){ sv.setAttribute('role','button'); sv.tabIndex=0; }
+    else { sv.removeAttribute('role'); sv.removeAttribute('tabindex'); }
     sv.innerHTML = DRAFT ? `<span>Draft, not saved</span>`
+      : retry && saveRetrying ? `<span>Saving again…</span>`
+      : retry ? `<span>Not saved</span><span class="tbretry">Retry now</span>`
       : `${failed?'':IC.check}<span>${where}${!READONLY&&moves.length?` · ${moves.length} change${moves.length===1?'':'s'}`:''}</span>`;
     sv.title = READONLY ? 'This season is archived -- nothing here can be changed'
-      : failed ? 'The last save did not reach the server -- your changes are kept on this device and will retry with your next change'
+      : failed ? `Not saved to the server${moves.length?` (${moves.length} change${moves.length===1?'':'s'})`:''}. Your changes are kept on this device and it keeps trying on its own. Click to retry now.`
       : AUTH ? 'Every change saves on its own and syncs to everyone'
              : 'Not connected to the app: changes are kept in this browser only';
     if(DRAFT) sv.title='Trying changes: nothing is saved until you Apply';
   }
   syncDraftUI();
 }
+{ const sv=document.getElementById('tbsaved');
+  const go=()=>{ if(sv.classList.contains('retry')) runSaveRetry('Retry now'); };
+  sv.addEventListener('click', go);
+  sv.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } }); }
 document.getElementById('tbundo').onclick=()=>undo();
 document.getElementById('tbredo').onclick=()=>redo();
 document.getElementById('tbteams').onclick=()=>openTeamsDlg();
