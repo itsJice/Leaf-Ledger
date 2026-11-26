@@ -29,7 +29,8 @@ PURE = ["trailerById", "defaultTrailerId", "normTrailers", "withTrailer", "parse
         "nightTag", "nightRuns", "loadEsc", "wrapWords", "boxesTxt", "trailerTitle",
         "spartanGeom", "trailerOutlineSVG", "weekTopSVG",
         "loadSpartanHTML", "loadWeekHTML", "loadLateHTML", "loadCoverHTML", "loadListHTML",
-        "awayZone", "defaultCap", "normFleet", "fleetList", "curFleet"]
+        "awayZone", "defaultCap", "normFleet", "fleetList", "curFleet",
+        "boldEm", "fitSize", "wrapFit", "fitName", "outlineFit"]
 
 
 def consts():
@@ -273,3 +274,39 @@ def test_buttons_and_controls():
     assert "stfTrailerHTML(sh)" in js_function("drawStaffDlg")
     stf = js_function("stfTrailerHTML")
     assert "data-nr-row" in stf and "data-split-row" in stf and "LATE_WORDS" in stf
+
+
+@needs_node
+def test_outline_words_fit_inside_their_columns():
+    # The user (2026-11-25): "make sure that the load first, load second, load
+    # third is big ... since there are so many, they overlap on the lines.
+    # Keep them within their bounds." Names wrap and shrink before any "…".
+    out = run("""
+      const names=['Test Bank - I-10','Test Bank - Deer Park','Test Bank - Clearlake','Test Bank - Sugarland',
+        'Test Bank - Katy','Test Bank - Memorial','Test Bank - Galleria','Test Bank - The Woodlands',
+        'Test Bank - Pearland','Test Bank - Kingwood','Test Bank - Cypress','Test Bank - Baytown'];
+      const res=[];
+      for(const tid of ['bs24','ab20']) for(let n=1;n<=12;n++){
+        const zones=loadZones(names.slice(0,n).map((nm,i)=>({row:i+1,name:nm,boxes:[16,12,16,9,14,7,22,11,5,18,1,10][i],inst:i+1})),'install');
+        const g=spartanGeom(trailerById(tid), zones), f=outlineFit(zones, g.sizes);
+        let worst=1e9;
+        zones.forEach((z,i)=>{
+          const inner=g.sizes[i]-2*f.pad, ord=ordinal(i+1);
+          const lw=f.label.stack ? Math.max(boldEm('Load'), boldEm(ord))*f.label.size : boldEm('Load '+ord)*f.label.size;
+          worst=Math.min(worst, inner-lw, ...f.names[i].lines.map(l=>inner-boldEm(l)*f.nameSize));
+        });
+        const svg=trailerOutlineSVG(trailerById(tid), zones);
+        res.push({tid, n, worst, size:f.label.size, sizes:[...new Set([...svg.matchAll(/class="loadn"[^>]*font-size="([\\d.]+)"/g)].map(m=>m[1]))].length,
+          lines:Math.max(...f.names.map(x=>x.lines.length)), cut:f.names.some(x=>x.cut),
+          loads:[...svg.matchAll(/data-load="([^"]+)"/g)].map(m=>m[1]).length});
+      }
+      console.log(JSON.stringify(res));
+    """)
+    for r in out:
+        assert r["worst"] >= -1e-9, r            # never wider than its column
+        assert r["sizes"] == 1, r                # one label size per sheet
+        assert r["lines"] <= 3 and r["loads"] == r["n"], r
+    by = {(r["tid"], r["n"]): r for r in out}
+    assert by[("bs24", 1)]["size"] == 30         # as big as it goes when there's room
+    assert by[("bs24", 8)]["size"] > 20          # still big with 8 columns
+    assert not by[("bs24", 8)]["cut"]            # "Test Bank - Clearlake" shows in full
