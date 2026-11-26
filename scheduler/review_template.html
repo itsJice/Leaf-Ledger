@@ -20848,14 +20848,28 @@ function trailerOutlineSVG(trailer, zones){
     +`<circle cx="${x0+8}" cy="${mid}" r="7" fill="#fff" stroke="#222" stroke-width="2.5"/>`;
   [[cx-66,by-12],[cx+8,by-12],[cx-66,by+BH+2],[cx+8,by+BH+2]].forEach(([x,y])=>{
     s+=`<rect x="${x}" y="${y}" width="58" height="10" rx="3" fill="#555"/>`; });
+  // Every column's words fit inside its own lines (user, 2026-11-25: "make
+  // sure that the load first, load second, load third is big ... Keep them
+  // within their bounds"). One size for the whole sheet so it looks even.
+  const f=outlineFit(zones, g.sizes), WELL=20, yTop=by+WELL+f.pad+4, yBot=by+BH-WELL-f.pad-2;
   zones.forEach((z,i)=>{
-    const w=g.sizes[i], x=g.xs[i], c=x+w/2;
-    const lbl=`<text class="loadn" x="${c}" y="${mid-46}" text-anchor="middle" font-size="${w>=100?22:18}" font-weight="800">Load ${ordinal(i+1)}</text>`;
+    const w=g.sizes[i], x=g.xs[i], c=x+w/2, ord=ordinal(i+1), L=f.label, N=f.names[i], B=f.box;
+    const lbl=L.stack
+      ? `<text class="loadn" data-load="${ord}" x="${c}" y="${(yTop+L.size*0.76).toFixed(1)}" text-anchor="middle" font-size="${L.size.toFixed(1)}" font-weight="800">`
+        +`<tspan x="${c}">Load</tspan><tspan x="${c}" dy="${(L.size*1.02).toFixed(1)}">${ord}</tspan></text>`
+      : `<text class="loadn" data-load="${ord}" x="${c}" y="${(yTop+L.size*0.76).toFixed(1)}" text-anchor="middle" font-size="${L.size.toFixed(1)}" font-weight="800">Load ${ord}</text>`;
+    const lblBot=yTop+L.size*(L.stack?1.98:0.98), boxTop=yBot-B.size*(B.stack?2.05:1.05);
+    const nh=N.lines.length*f.nameSize*1.16, ny=(lblBot+boxTop)/2-nh/2+f.nameSize*0.86;
+    const box=z.boxes==null ? '?' : String(z.boxes), word=z.boxes===1?'box':'boxes';
+    const boxTxt=B.stack
+      ? `<text class="boxn" x="${c}" y="${(yBot-B.size*1.25).toFixed(1)}" text-anchor="middle" font-size="${B.size.toFixed(1)}" font-weight="700">${box}</text>`
+        +`<text class="boxn" x="${c}" y="${(yBot-B.size*0.2).toFixed(1)}" text-anchor="middle" font-size="${B.size.toFixed(1)}">${word}</text>`
+      : `<text class="boxn" x="${c}" y="${(yBot-B.size*0.2).toFixed(1)}" text-anchor="middle" font-size="${B.size.toFixed(1)}">${z.boxes==null?'? boxes':`${box} ${word}`}</text>`;
     s+=`<g class="zone" data-stop="${z.inst}" data-row="${e(z.row)}">`
       +`<rect x="${x}" y="${by}" width="${w}" height="${BH}" fill="${i%2?'#eee':'#fff'}" stroke="#555" stroke-width="1.2"/>`
       +lbl
-      +wrapWords(z.name, Math.max(8, Math.floor((w-12)/8)), 3).map((ln,k)=>`<text x="${c}" y="${mid-14+k*17}" text-anchor="middle" font-size="14" font-weight="800">${e(ln)}</text>`).join('')
-      +`<text x="${c}" y="${mid+50}" text-anchor="middle" font-size="12.5">${z.boxes==null?'? boxes':`${z.boxes} box${z.boxes===1?'':'es'}`}</text>`
+      +N.lines.map((ln,k)=>`<text class="namen" x="${c}" y="${(ny+k*f.nameSize*1.16).toFixed(1)}" text-anchor="middle" font-size="${f.nameSize.toFixed(1)}" font-weight="800">${e(ln)}</text>`).join('')
+      +boxTxt
       +`</g>`;
   });
   s+=`<rect x="${cx-70}" y="${by}" width="140" height="20" fill="#cfcfcf" stroke="#444"/>`
@@ -20869,6 +20883,77 @@ function trailerOutlineSVG(trailer, zones){
   s+=`<text x="${bx-VN}" y="${by+BH+30}" font-size="14" font-weight="800">NOSE</text>`
     +`<text x="${bx+L}" y="${by+BH+30}" text-anchor="end" font-size="14" font-weight="800">DOORS</text>`;
   return s+`</svg>`;
+}
+/** PURE. About how wide a bold line of text is, in em: Helvetica Bold's
+ *  widths plus a little for the system font, so a print sheet can size its
+ *  words to fit without measuring them in a browser. */
+function boldEm(s){
+  const W={' ':278,'-':333,'–':556,'.':278,',':278,"'":238,'’':278,'&':722,'(':333,')':333,'/':278,':':333,'#':556,'…':1000,'?':611,
+    A:722,B:722,C:722,D:722,E:667,F:611,G:778,H:722,I:278,J:556,K:722,L:611,M:833,N:722,O:778,P:667,Q:778,R:722,S:667,T:611,
+    U:722,V:667,W:944,X:667,Y:667,Z:611,a:556,b:611,c:556,d:611,e:556,f:333,g:611,h:611,i:278,j:278,k:556,l:278,m:889,n:611,
+    o:611,p:611,q:611,r:389,s:556,t:333,u:611,v:556,w:778,x:556,y:556,z:500};
+  let w=0; for(const ch of String(s==null?'':s)) w+=/[0-9]/.test(ch) ? 556 : (W[ch]||667);
+  return w/1000*1.1;
+}
+/** PURE. The biggest font size, up to `max`, at which `s` fits in `w`. */
+function fitSize(s, w, max){ const em=boldEm(s); return em>0 ? Math.min(max, w/em) : max; }
+/** PURE. `s` word-wrapped to lines no wider than `w` at font size `size`;
+ *  null when a word alone is too wide or it takes more than `max` lines. */
+function wrapFit(s, w, size, max){
+  const words=String(s||'').split(/\s+/).filter(Boolean), lines=[];
+  let cur='';
+  for(const wd of words){
+    if(boldEm(wd)*size>w) return null;
+    const t=cur ? cur+' '+wd : wd;
+    if(boldEm(t)*size<=w) cur=t; else { lines.push(cur); cur=wd; }
+  }
+  if(cur) lines.push(cur);
+  return lines.length<=max ? lines : null;
+}
+/** PURE. A restaurant name in a column `w` wide: the biggest size from `hi`
+ *  down to `lo` at which the whole name fits on up to `max` lines. Only when
+ *  even `lo` can't hold it, long words break and the last line ends in "…". */
+function fitName(s, w, hi, lo, max){
+  for(let z=hi; z>=lo-1e-9; z-=0.5){ const l=wrapFit(s, w, z, max); if(l) return {size:z, lines:l, cut:false}; }
+  const fits=t=>boldEm(t)*lo<=w, lines=[];
+  let cur='';
+  String(s||'').split(/\s+/).filter(Boolean).forEach(wd=>{
+    const t=cur ? cur+' '+wd : wd;
+    if(fits(t)){ cur=t; return; }
+    if(cur) lines.push(cur);
+    cur='';
+    for(const ch of wd){ if(fits(cur+ch)) cur+=ch; else { lines.push(cur); cur=ch; } }
+  });
+  if(cur) lines.push(cur);
+  if(lines.length<=max) return {size:lo, lines, cut:false};
+  const keep=lines.slice(0, max);
+  let last=keep[max-1];
+  while(last && !fits(last+'…')) last=last.slice(0,-1);
+  keep[max-1]=last.replace(/\s+$/,'')+'…';
+  return {size:lo, lines:keep, cut:true};
+}
+/** PURE. Sizes for the top-down outline's columns (`widths`, one per zone):
+ *  "Load Nth" as big as it can be inside every column, the same size on all
+ *  of them, on two lines ("Load" / "8th") when that's clearly bigger; the
+ *  names on up to 3 lines at one shared size; the box count, stacked when
+ *  a column is too narrow for "16 boxes". */
+function outlineFit(zones, widths){
+  const n=(widths||[]).length;
+  const pad=w=>Math.max(4, Math.min(8, w*0.08)), inner=widths.map(w=>w-2*pad(w));
+  const pd=n ? Math.min(...widths.map(pad)) : 8, MAXL=30;
+  const one=n ? Math.min(...inner.map((w,i)=>fitSize(`Load ${ordinal(i+1)}`, w, MAXL))) : MAXL;
+  const two=n ? Math.min(...inner.map((w,i)=>Math.min(fitSize('Load', w, MAXL), fitSize(ordinal(i+1), w, MAXL)))) : MAXL;
+  const label=one>=two*0.8 ? {stack:false, size:one} : {stack:true, size:two};
+  const fitN=(zones||[]).map((z,i)=>fitName(z.name, inner[i], 15, 7.5, 3));
+  const nameSize=fitN.length ? Math.min(...fitN.map(x=>x.size)) : 15;
+  const names=(zones||[]).map((z,i)=>fitN[i].cut ? fitN[i] : {...fitN[i], size:nameSize, lines:wrapFit(z.name, inner[i], nameSize, 3)||fitN[i].lines});
+  const bt=z=>z.boxes==null ? '? boxes' : `${z.boxes} ${z.boxes===1?'box':'boxes'}`;
+  const b1=n ? Math.min(...(zones||[]).map((z,i)=>fitSize(bt(z), inner[i], 14))) : 14;
+  const b2=n ? Math.min(...(zones||[]).map((z,i)=>Math.min(fitSize(z.boxes==null?'?':String(z.boxes), inner[i], 14), fitSize('boxes', inner[i], 14)))) : 14;
+  // The count stays readable but never outshouts the restaurant's name.
+  const bcap=Math.max(10, nameSize);
+  const box=b1>=Math.min(11, b2) ? {stack:false, size:Math.min(b1, bcap)} : {stack:true, size:Math.min(b2, bcap)};
+  return {pad:pd, label, nameSize, names, box};
 }
 function loadListCSS(){
   return `@page{size:letter portrait;margin:.45in}
