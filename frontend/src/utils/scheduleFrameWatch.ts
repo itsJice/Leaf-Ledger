@@ -84,7 +84,7 @@ interface FrameEvent {
 export const FRAME_KINDS: ReadonlySet<EventKind> = new Set<EventKind>(["error", "blank", "save_blocked", "save_conflict"]);
 
 /** What the frame may say it did (actionTrail.ts TrailAction kinds). */
-export const ACTION_KINDS: ReadonlySet<string> = new Set(["click", "tab", "menu", "pick", "toggle", "field", "dialog", "message", "ask", "drop", "submit", "error"]);
+export const ACTION_KINDS: ReadonlySet<string> = new Set(["click", "tab", "menu", "pick", "toggle", "field", "dialog", "message", "ask", "drop", "submit", "save", "error"]);
 
 /** The schedule's own detail, kept small and flat. */
 export function frameDetail(detail: unknown): Record<string, unknown> {

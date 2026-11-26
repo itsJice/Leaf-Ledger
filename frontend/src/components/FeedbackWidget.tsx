@@ -3,6 +3,7 @@ import { MessageSquarePlus, X, Camera, Eraser, Loader2, ImagePlus } from "compon
 import { toast } from "sonner";
 import { apiFetch } from "utils/apiFetch";
 import { commentContext } from "utils/eventLog";
+import { capturePage } from "utils/capturePage";
 
 // Floating "suggest a feature" button, present on every page through Layout.
 // Deliberately NOT its own sidebar tab (considered and dropped): a sidebar
@@ -157,13 +158,12 @@ export default function FeedbackWidget() {
     setCapturing(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const shot = await html2canvas(document.body, {
+      // Same-origin frames (the Install Schedule) are drawn in too; a plain
+      // html2canvas call leaves them blank.
+      const shot = await capturePage((el, opts) => html2canvas(el, opts), {
         // Never screenshot the widget capturing the screenshot.
-        ignoreElements: (el) => el.hasAttribute("data-feedback-widget"),
-        backgroundColor: null,
+        ignore: (el) => el.hasAttribute("data-feedback-widget"),
         scale: Math.min(1.5, window.devicePixelRatio || 1),
-        useCORS: true,
-        logging: false,
       });
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -172,7 +172,7 @@ export default function FeedbackWidget() {
       canvas.getContext("2d")?.drawImage(shot, 0, 0);
       setHasShot(true);
     } catch {
-      toast.error("Couldn't capture a screenshot — you can still send your note without one.");
+      toast.error("Couldn't capture a screenshot. You can still send your note without one.");
     } finally {
       setCapturing(false);
     }
